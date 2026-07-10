@@ -1,0 +1,39 @@
+# Archivos de entorno
+.env
+.env.*
+!.env.example
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Directorios de dependencias (si se instalan desde la raíz)
+node_modules/
+vendor/
+
+# Directorios de build (si se generan desde la raíz)
+dist/
+build/
+*.exe
+*.dmg
+*.AppImage
+
+# Archivos de configuración de IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.code-workspace
+
+# Otros
+*.pid
+*.seed
+*.pid.lock
