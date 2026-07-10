@@ -1,0 +1,44 @@
+{
+  "name": "lotto-taquilla",
+  "version": "0.1.0",
+  "description": "Aplicación de escritorio para taquillas de lotería (Electron + Astro)",
+  "main": "electron/main/main.js",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "electron:dev": "npm run build && electron .",
+    "electron:build": "npm run build && electron-builder",
+    "electron:build:win": "npm run build && electron-builder --win"
+  },
+  "dependencies": {
+    "astro": "^4.0.0",
+    "axios": "^1.6.0",
+    "electron-pos-printer": "^1.4.0",
+    "keytar": "^7.9.0"
+  },
+  "devDependencies": {
+    "electron": "^37.0.0",
+    "electron-builder": "^24.6.4",
+    "vite": "^4.5.0"
+  },
+  "build": {
+    "appId": "com.lotto.taquilla",
+    "productName": "Lotto Taquilla",
+    "directories": {
+      "output": "build"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "public/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ]
+  }
+}

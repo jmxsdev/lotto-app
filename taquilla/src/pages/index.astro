@@ -1,0 +1,94 @@
+---
+// Este archivo se compila a dist/index.html
+const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
+---
+
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{appName} - Cargando</title>
+    <style>
+      body {
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+        color: white;
+      }
+      .container {
+        text-align: center;
+        padding: 2rem;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 20px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      }
+      h1 {
+        font-size: 3rem;
+        margin-bottom: 0.5rem;
+      }
+      .subtitle {
+        font-size: 1.2rem;
+        opacity: 0.9;
+        margin-top: 0;
+      }
+      .spinner {
+        border: 5px solid rgba(255, 255, 255, 0.3);
+        border-top: 5px solid white;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+        margin: 2rem auto;
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      .footer {
+        margin-top: 2rem;
+        font-size: 0.8rem;
+        opacity: 0.6;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🎰 {appName}</h1>
+      <p class="subtitle">Sistema de Loterías Multi-Moneda</p>
+      <div class="spinner"></div>
+      <p>Cargando entorno de taquilla...</p>
+      <div class="footer">
+        <p>Versión: <span id="version">0.1.0</span></p>
+        <p id="mac-info">MAC: Cargando...</p>
+      </div>
+    </div>
+
+    <script>
+      // Pequeño script para probar la comunicación con Electron
+      if (window.electron) {
+        // Obtener versión (si se expone desde package.json)
+        // Por ahora lo dejamos fijo
+        document.getElementById('version').textContent = '0.1.0';
+
+        // Probar obtener MAC (aunque ipcHandlers aún no está implementado, el preload lo expone)
+        if (window.electron.getMac) {
+          window.electron.getMac().then(mac => {
+            document.getElementById('mac-info').textContent = `MAC: ${mac || 'No disponible'}`;
+          }).catch(() => {
+            document.getElementById('mac-info').textContent = 'MAC: Error al obtener';
+          });
+        } else {
+          document.getElementById('mac-info').textContent = 'MAC: No expuesta (contextBridge)';
+        }
+      } else {
+        document.getElementById('mac-info').textContent = 'MAC: Ejecutando en navegador (sin Electron)';
+      }
+    </script>
+  </body>
+</html>
