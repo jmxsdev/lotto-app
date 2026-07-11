@@ -5,9 +5,11 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\GrupoController;
 use App\Http\Controllers\Api\TaquillaController;
+use App\Http\Controllers\Api\ExchangeRateController;
 
 // Rutas públicas
 Route::post('/login', [AuthController::class, 'login']);
+Route::get('/exchange-rate/active', [ExchangeRateController::class, 'active']); // pública
 
 // Rutas protegidas con Sanctum
 Route::middleware(['auth:sanctum'])->group(function () {
@@ -34,7 +36,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::middleware(['role:super_master|master|banca|grupo'])->group(function () {
         Route::apiResource('taquillas', TaquillaController::class);
     });
-    });
     // ==================================================
     /*// APUESTAS (todos los roles)
     // ==================================================
@@ -53,10 +54,20 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // CIERRE DE CAJA (todos los roles)
     // ==================================================
     Route::post('/cierre', [CierreController::class, 'store'])->middleware('role:super_master|master|banca|grupo|taquilla');
-
+*/
     // ==================================================
     // TASAS DE CAMBIO (pública y protegida)
     // ==================================================
-    Route::get('/exchange-rate/active', [ExchangeRateController::class, 'active']); // pública
-    Route::post('/exchange-rates', [ExchangeRateController::class, 'store'])->middleware('role:super_master|master');
-});*/
+//
+    Route::middleware(['permission:view_exchange_rates'])->group(function () {
+        Route::get('/exchange-rates', [ExchangeRateController::class, 'index']);
+        Route::get('/exchange-rates/{exchange_rate}', [ExchangeRateController::class, 'show']);
+    });
+
+    Route::middleware(['permission:manage_exchange_rates'])->group(function () {
+        Route::post('/exchange-rates', [ExchangeRateController::class, 'store']);
+        Route::put('/exchange-rates/{exchange_rate}', [ExchangeRateController::class, 'update']);
+        Route::delete('/exchange-rates/{exchange_rate}', [ExchangeRateController::class, 'destroy']);
+        Route::post('/exchange-rates/{exchange_rate}/set-active', [ExchangeRateController::class, 'setActive']);
+    });
+});
