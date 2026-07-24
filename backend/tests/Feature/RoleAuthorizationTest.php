@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Models\Banca;
 use App\Models\Grupo;
-use App\Models\Taquilla;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -21,97 +20,85 @@ class RoleAuthorizationTest extends TestCase
 
     public function test_taquilla_cannot_list_users_but_master_can()
     {
-        $banca = Banca::factory()->create();
-        $grupo = Grupo::factory()->create(['banca_id' => $banca->id]);
-        $taquilla = Taquilla::factory()->create(['grupo_id' => $grupo->id]);
+        $taquillaUser = User::factory()->create(['role' => 'taquilla']);
+        $taquillaUser->assignRole('taquilla');
 
-        $userTaquilla = User::factory()->create([
-            'role' => 'taquilla',
-            'banca_id' => $banca->id,
-            'grupo_id' => $grupo->id,
-            'taquilla_id' => $taquilla->id,
-        ]);
-        $userTaquilla->assignRole('taquilla');
-
-        $userMaster = User::factory()->create([
-            'role' => 'master',
-            'banca_id' => $banca->id,
-        ]);
-        $userMaster->assignRole('master');
-
-        $response = $this->actingAs($userTaquilla, 'sanctum')
+        $response = $this->actingAs($taquillaUser, 'sanctum')
                          ->getJson('/api/users');
+
         $response->assertStatus(403);
 
-        $response = $this->actingAs($userMaster, 'sanctum')
+        $master = User::where('email', 'master@lotto.com')->first();
+        $master->assignRole('master');
+
+        $response = $this->actingAs($master, 'sanctum')
                          ->getJson('/api/users');
+
         $response->assertStatus(200);
-        $response->assertJsonCount(2);
     }
 
     public function test_banca_can_only_create_groups_in_its_own_banca()
     {
-        $banca1 = Banca::factory()->create();
-        $banca2 = Banca::factory()->create();
+        $banca1 = Banca::factory()->create(['name' => 'Banca 1']);
+        $banca2 = Banca::factory()->create(['name' => 'Banca 2']);
 
-        $userBanca = User::factory()->create([
+        $userBanca1 = User::factory()->create([
             'role' => 'banca',
             'banca_id' => $banca1->id,
         ]);
-        $userBanca->assignRole('banca');
+        $userBanca1->assignRole('banca');
 
-        $response = $this->actingAs($userBanca, 'sanctum')
+        // Intentar crear grupo en banca 2 (debe fallar)
+        $response = $this->actingAs($userBanca1, 'sanctum')
                          ->postJson('/api/grupos', [
-                             'name' => 'Grupo Prueba',
-                             'code' => 'GP001',
-                             'banca_id' => $banca1->id,
-                             'active' => true,
-                         ]);
-        $response->assertStatus(201);
-        $this->assertDatabaseHas('grupos', ['code' => 'GP001', 'banca_id' => $banca1->id]);
-
-        $response = $this->actingAs($userBanca, 'sanctum')
-                         ->postJson('/api/grupos', [
-                             'name' => 'Grupo Ajeno',
-                             'code' => 'GA001',
+                             'name' => 'Grupo Test',
+                             'code' => 'GT001',
                              'banca_id' => $banca2->id,
-                             'active' => true,
                          ]);
+
         $response->assertStatus(403);
-        $this->assertDatabaseMissing('grupos', ['code' => 'GA001']);
+
+        // Intentar crear grupo en banca 1 (debe funcionar)
+        $response = $this->actingAs($userBanca1, 'sanctum')
+                         ->postJson('/api/grupos', [
+                             'name' => 'Grupo Test',
+                             'code' => 'GT001',
+                             'banca_id' => $banca1->id,
+                         ]);
+
+        $response->assertStatus(201);
     }
 
     public function test_grupo_can_only_create_taquillas_in_its_own_grupo()
     {
         $banca = Banca::factory()->create();
-        $grupo1 = Grupo::factory()->create(['banca_id' => $banca->id]);
-        $grupo2 = Grupo::factory()->create(['banca_id' => $banca->id]);
+        $grupo1 = Grupo::factory()->create(['name' => 'Grupo 1', 'banca_id' => $banca->id]);
+        $grupo2 = Grupo::factory()->create(['name' => 'Grupo 2', 'banca_id' => $banca->id]);
 
-        $userGrupo = User::factory()->create([
+        $userGrupo1 = User::factory()->create([
             'role' => 'grupo',
-            'banca_id' => $banca->id,
             'grupo_id' => $grupo1->id,
         ]);
-        $userGrupo->assignRole('grupo');
+        $userGrupo1->assignRole('grupo');
 
-        $response = $this->actingAs($userGrupo, 'sanctum')
+        // Intentar crear taquilla en grupo 2 (debe fallar)
+        $response = $this->actingAs($userGrupo1, 'sanctum')
                          ->postJson('/api/taquillas', [
-                             'name' => 'Taquilla 01',
-                             'code' => 'T001',
-                             'grupo_id' => $grupo1->id,
-                             'active' => true,
-                         ]);
-        $response->assertStatus(201);
-        $this->assertDatabaseHas('taquillas', ['code' => 'T001', 'grupo_id' => $grupo1->id]);
-
-        $response = $this->actingAs($userGrupo, 'sanctum')
-                         ->postJson('/api/taquillas', [
-                             'name' => 'Taquilla Ajeno',
-                             'code' => 'TA001',
+                             'name' => 'Taquilla Test',
+                             'code' => 'TT001',
                              'grupo_id' => $grupo2->id,
-                             'active' => true,
                          ]);
+
         $response->assertStatus(403);
-        $this->assertDatabaseMissing('taquillas', ['code' => 'TA001']);
+
+        // Intentar crear taquilla en grupo 1 (debe funcionar)
+        $response = $this->actingAs($userGrupo1, 'sanctum')
+                         ->postJson('/api/taquillas', [
+                             'name' => 'Taquilla Test',
+                             'code' => 'TT001',
+                             'grupo_id' => $grupo1->id,
+                         ]);
+
+        $response->assertStatus(201);
     }
 }

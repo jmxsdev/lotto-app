@@ -9,13 +9,15 @@ use App\Http\Controllers\Api\ExchangeRateController;
 use App\Http\Controllers\Api\JuegoController;
 use App\Http\Controllers\Api\ResultadoController;
 use App\Http\Controllers\Api\ApuestaController;
+use App\Http\Controllers\Api\ActivacionController;
 
-// Rutas públicas
+// Rutas públicas (sin autenticación)
 Route::post('/login', [AuthController::class, 'login']);
 Route::get('/exchange-rate/active', [ExchangeRateController::class, 'active']); // pública
+Route::post('/activar', [ActivacionController::class, 'activar']); // activación taquilla
 
-// Rutas protegidas con Sanctum
-Route::middleware(['auth:sanctum'])->group(function () {
+// Rutas protegidas con Sanctum + verificación MAC
+Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/logout', [AuthController::class, 'logout']);
 

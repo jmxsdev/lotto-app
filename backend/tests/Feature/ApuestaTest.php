@@ -40,8 +40,10 @@ class ApuestaTest extends TestCase
             'role' => 'taquilla',
         ]);
         $taquillaUser->assignRole('taquilla');
+        $taquilla->update(['mac_address' => 'AA:BB:CC:DD:EE:FF']);
 
-        $response = $this->actingAs($taquillaUser, 'sanctum')
+        $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
+            ->actingAs($taquillaUser, 'sanctum')
             ->postJson('/api/apuestas', [
                 'juego_id' => $juego->id,
                 'combinacion' => ['animal' => 'leon', 'numero' => 5],
@@ -84,8 +86,10 @@ class ApuestaTest extends TestCase
             'role' => 'taquilla',
         ]);
         $taquillaUser->assignRole('taquilla');
+        $taquilla->update(['mac_address' => 'AA:BB:CC:DD:EE:FF']);
 
-        $response = $this->actingAs($taquillaUser, 'sanctum')
+        $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
+            ->actingAs($taquillaUser, 'sanctum')
             ->postJson('/api/apuestas', [
                 'juego_id' => $juego->id,
                 'combinacion' => ['animal' => 'leon'],
@@ -119,9 +123,11 @@ class ApuestaTest extends TestCase
             'role' => 'taquilla',
         ]);
         $taquillaUser->assignRole('taquilla');
+        $taquilla->update(['mac_address' => 'AA:BB:CC:DD:EE:FF']);
 
         // Crear apuesta con tasa 36.50
-        $this->actingAs($taquillaUser, 'sanctum')
+        $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
+            ->actingAs($taquillaUser, 'sanctum')
             ->postJson('/api/apuestas', [
                 'juego_id' => $juego->id,
                 'combinacion' => ['animal' => 'leon'],
@@ -171,12 +177,14 @@ class ApuestaTest extends TestCase
             'role' => 'taquilla',
         ]);
         $taquillaUser1->assignRole('taquilla');
+        $taquilla1->update(['mac_address' => 'AA:BB:CC:DD:EE:FF']);
 
         $taquillaUser2 = User::factory()->create([
             'taquilla_id' => $taquilla2->id,
             'role' => 'taquilla',
         ]);
         $taquillaUser2->assignRole('taquilla');
+        $taquilla2->update(['mac_address' => '11:22:33:44:55:66']);
 
         // Crear apuestas en ambas taquillas
         Apuesta::create([
@@ -200,7 +208,8 @@ class ApuestaTest extends TestCase
         ]);
 
         // Usuario 1 solo ve apuestas de taquilla 1
-        $response = $this->actingAs($taquillaUser1, 'sanctum')
+        $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
+            ->actingAs($taquillaUser1, 'sanctum')
             ->getJson('/api/apuestas');
 
         $apuestas = $response->json('data.data');
@@ -266,8 +275,10 @@ class ApuestaTest extends TestCase
             'role' => 'taquilla',
         ]);
         $taquillaUser->assignRole('taquilla');
+        $taquilla->update(['mac_address' => 'AA:BB:CC:DD:EE:FF']);
 
-        $response = $this->actingAs($taquillaUser, 'sanctum')
+        $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
+            ->actingAs($taquillaUser, 'sanctum')
             ->postJson('/api/apuestas', [
                 'juego_id' => $juego->id,
                 'combinacion' => ['animal' => 'leon'],
@@ -300,8 +311,10 @@ class ApuestaTest extends TestCase
             'role' => 'taquilla',
         ]);
         $taquillaUser->assignRole('taquilla');
+        $taquilla->update(['mac_address' => 'AA:BB:CC:DD:EE:FF']);
 
-        $response = $this->actingAs($taquillaUser, 'sanctum')
+        $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
+            ->actingAs($taquillaUser, 'sanctum')
             ->postJson('/api/apuestas', [
                 'juego_id' => $juego->id,
                 'combinacion' => ['animal' => 'dragon_inexistente'],
@@ -334,6 +347,7 @@ class ApuestaTest extends TestCase
             'role' => 'taquilla',
         ]);
         $taquillaUser->assignRole('taquilla');
+        $taquilla->update(['mac_address' => 'AA:BB:CC:DD:EE:FF']);
 
         $apuesta = Apuesta::create([
             'taquilla_id' => $taquilla->id,
@@ -346,7 +360,8 @@ class ApuestaTest extends TestCase
             'estado' => 'pendiente',
         ]);
 
-        $response = $this->actingAs($taquillaUser, 'sanctum')
+        $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
+            ->actingAs($taquillaUser, 'sanctum')
             ->getJson("/api/apuestas/{$apuesta->id}");
 
         $response->assertStatus(200)
@@ -418,9 +433,11 @@ class ApuestaTest extends TestCase
             'role' => 'taquilla',
         ]);
         $taquillaUser->assignRole('taquilla');
+        $taquilla->update(['mac_address' => 'AA:BB:CC:DD:EE:FF']);
 
         // Sin tasa activa configurada
-        $response = $this->actingAs($taquillaUser, 'sanctum')
+        $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
+            ->actingAs($taquillaUser, 'sanctum')
             ->postJson('/api/apuestas', [
                 'juego_id' => $juego->id,
                 'combinacion' => ['animal' => 'leon'],
