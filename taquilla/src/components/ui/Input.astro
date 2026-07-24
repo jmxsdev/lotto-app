@@ -1,0 +1,83 @@
+---
+interface Props {
+  type?: string;
+  label?: string;
+  placeholder?: string;
+  required?: boolean;
+  error?: string;
+  value?: string;
+  name?: string;
+  onChange?: (value: string) => void;
+}
+
+const { 
+  type = 'text', 
+  label, 
+  placeholder, 
+  required = false, 
+  error,
+  value,
+  name,
+  onChange 
+} = Astro.props;
+---
+
+<div class="form-group">
+  {label && <label class="form-label">{label}</label>}
+  <input 
+    type={type} 
+    placeholder={placeholder} 
+    required={required}
+    value={value}
+    name={name}
+    class={`form-input ${error ? 'error' : ''}`}
+    onchange={(e) => {
+      if (onChange) {
+        onChange(e.target.value);
+      }
+    }}
+  />
+  {error && <span class="error-message">{error}</span>}
+</div>
+
+<style>
+  .form-group {
+    margin-bottom: 16px;
+  }
+
+  .form-label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: #333;
+    font-size: 14px;
+  }
+
+  .form-input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.2s ease;
+    font-family: inherit;
+    box-sizing: border-box;
+  }
+
+  .form-input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  }
+
+  .form-input.error {
+    border-color: #dc3545;
+  }
+
+  .error-message {
+    color: #dc3545;
+    font-size: 12px;
+    margin-top: 4px;
+    display: block;
+  }
+</style>
