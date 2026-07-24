@@ -1,0 +1,82 @@
+{
+  "datos": [
+    {
+      "id": 1,
+      "pais": "1",
+      "name": "Lotto Activo",
+      "image": "lotto-activo-logo.png",
+      "link": "lotto_activo",
+      "resultados": [
+        {
+          "id_game": 1,
+          "special_result": 0,
+          "image_animal": "delfin.webp",
+          "name_animal": "Delfin",
+          "number_animal": "0",
+          "color_animal": "primary",
+          "name_game": "Lotto Activo",
+          "time_s": "10:00 AM"
+        },
+        {
+          "id_game": 1,
+          "special_result": 0,
+          "image_animal": "carnero.webp",
+          "name_animal": "Carnero",
+          "number_animal": "1",
+          "color_animal": "success",
+          "name_game": "Lotto Activo",
+          "time_s": "11:00 AM"
+        },
+        {
+          "id_game": 1,
+          "special_result": 0,
+          "image_animal": "toro.webp",
+          "name_animal": "Toro",
+          "number_animal": "2",
+          "color_animal": "danger",
+          "name_game": "Lotto Activo",
+          "time_s": "12:00 PM"
+        },
+        {
+          "id_game": 1,
+          "special_result": 0,
+          "image_animal": "leon.webp",
+          "name_animal": "Leon",
+          "number_animal": "5",
+          "color_animal": "warning",
+          "name_game": "Lotto Activo",
+          "time_s": "01:00 PM"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "pais": "2",
+      "name": "Lotto Activo RD",
+      "image": "lotto-activo-rd-logo.png",
+      "link": "lotto_activo_internacional",
+      "resultados": [
+        {
+          "id_game": 2,
+          "special_result": 0,
+          "image_animal": "aguila.webp",
+          "name_animal": "Aguila",
+          "number_animal": "9",
+          "color_animal": "info",
+          "name_game": "Lotto Activo RD",
+          "time_s": "02:00 PM"
+        },
+        {
+          "id_game": 2,
+          "special_result": 0,
+          "image_animal": "mono.webp",
+          "name_animal": "Mono",
+          "number_animal": "13",
+          "color_animal": "secondary",
+          "name_game": "Lotto Activo RD",
+          "time_s": "03:00 PM"
+        }
+      ]
+    }
+  ]
+}

@@ -77,7 +77,23 @@ http://localhost:8000/api
 - **Grupo:** Ve solo taquillas de su grupo.
 
 ---
+## 💱 Tasas de Cambio (Exchange Rates)
 
+**Middleware (protegidas):** `auth:sanctum`, `permission:manage_exchange_rates` (para crear, actualizar, activar) y `permission:view_exchange_rates` (para listar y ver).  
+**Roles permitidos:** Solo Super Master y Master (con los permisos correspondientes).  
+**Ruta pública:** `GET /exchange-rate/active` (sin autenticación).
+
+| Método | URI | Nombre de Ruta | Controlador | Middleware | Descripción |
+|--------|-----|----------------|-------------|------------|-------------|
+| GET | `/exchange-rate/active` | - | `ExchangeRateController@active` | - | Obtener la tasa activa (pública) |
+| GET | `/exchange-rates` | `exchange-rates.index` | `ExchangeRateController@index` | `auth:sanctum`, `permission:view_exchange_rates` | Listar historial de todas las tasas |
+| POST | `/exchange-rates` | `exchange-rates.store` | `ExchangeRateController@store` | `auth:sanctum`, `permission:manage_exchange_rates` | Crear una nueva tasa (opcionalmente activarla) |
+| GET | `/exchange-rates/{exchange_rate}` | `exchange-rates.show` | `ExchangeRateController@show` | `auth:sanctum`, `permission:view_exchange_rates` | Ver una tasa específica |
+| PUT | `/exchange-rates/{exchange_rate}` | `exchange-rates.update` | `ExchangeRateController@update` | `auth:sanctum`, `permission:manage_exchange_rates` | Actualizar una tasa (activar/desactivar o cambiar valor) |
+| DELETE | `/exchange-rates/{exchange_rate}` | `exchange-rates.destroy` | `ExchangeRateController@destroy` | `auth:sanctum`, `permission:manage_exchange_rates` | Eliminar una tasa (no puede estar activa) |
+| POST | `/exchange-rates/{exchange_rate}/set-active` | `exchange-rates.set-active` | `ExchangeRateController@setActive` | `auth:sanctum`, `permission:manage_exchange_rates` | Activar una tasa específica (desactiva las demás) |
+
+---
 ## 📋 Estructura de Permisos Delegados
 
 | Rol | Puede gestionar | Middleware |
@@ -126,6 +142,10 @@ curl -X POST http://localhost:8000/api/taquillas \
 ```
 
 ---
-
+### Obtener tasa activa (público)
+```bash
+curl -X GET http://localhost:8000/api/exchange-rate/active
+```
+---
 **Última actualización:** 2026-07-10
 

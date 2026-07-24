@@ -4,9 +4,10 @@ use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 use App\Jobs\ScrapeExchangeRateJob;
+use App\Jobs\FetchResultsJob;
 
 Schedule::job(new ScrapeExchangeRateJob)->everySixHours();
-
+Schedule::job(new FetchResultsJob)->everyFiveMinutes();
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
