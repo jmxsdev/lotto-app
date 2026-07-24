@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\TaquillaController;
 use App\Http\Controllers\Api\ExchangeRateController;
 use App\Http\Controllers\Api\JuegoController;
 use App\Http\Controllers\Api\ResultadoController;
+use App\Http\Controllers\Api\ApuestaController;
 
 // Rutas públicas
 Route::post('/login', [AuthController::class, 'login']);
@@ -50,28 +51,28 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/resultados', [ResultadoController::class, 'index']);
     Route::get('/resultados/{resultado}', [ResultadoController::class, 'show']);
     // ==================================================
-    /*// APUESTAS (todos los roles)
+    // ==================================================
+    // APUESTAS (todos los roles)
     // ==================================================
     Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
         Route::get('/apuestas', [ApuestaController::class, 'index']);
         Route::post('/apuestas', [ApuestaController::class, 'store']);
-        Route::delete('/apuestas/{id}', [ApuestaController::class, 'destroy']);
+        Route::get('/apuestas/historial', [ApuestaController::class, 'historial']);
+        Route::get('/apuestas/resumen', [ApuestaController::class, 'resumen']);
+        Route::get('/apuestas/{apuesta}', [ApuestaController::class, 'show']);
     });
 
     // ==================================================
-    // PAGOS (todos los roles)
-    // ==================================================
-    Route::post('/pagos', [PagoController::class, 'store'])->middleware('role:super_master|master|banca|grupo|taquilla');
+    // PAGOS (todos los roles) - PENDIENTE SPRINT 9
+    // Route::post('/pagos', [PagoController::class, 'store'])->middleware('role:super_master|master|banca|grupo|taquilla');
 
     // ==================================================
-    // CIERRE DE CAJA (todos los roles)
-    // ==================================================
-    Route::post('/cierre', [CierreController::class, 'store'])->middleware('role:super_master|master|banca|grupo|taquilla');
-*/
+    // CIERRE DE CAJA (todos los roles) - PENDIENTE SPRINT 12
+    // Route::post('/cierre', [CierreController::class, 'store'])->middleware('role:super_master|master|banca|grupo|taquilla');
+
     // ==================================================
     // TASAS DE CAMBIO (pública y protegida)
     // ==================================================
-//
     Route::middleware(['permission:view_exchange_rates'])->group(function () {
         Route::get('/exchange-rates', [ExchangeRateController::class, 'index']);
         Route::get('/exchange-rates/{exchange_rate}', [ExchangeRateController::class, 'show']);

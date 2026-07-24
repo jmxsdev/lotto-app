@@ -5,15 +5,16 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class Apuesta extends Model
 {
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'taquilla_id', 'juego_id', 'amount_bs', 'amount_usd',
-        'exchange_rate_applied', 'total_bs_equivalent', 'estado',
-        'fecha_hora'
+        'taquilla_id', 'juego_id', 'resultado_id', 'combinacion', 'ticket_code',
+        'amount_bs', 'amount_usd', 'exchange_rate_applied', 'total_bs_equivalent',
+        'estado', 'fecha_hora', 'sorteo_hora'
     ];
 
     protected $casts = [
@@ -22,9 +23,20 @@ class Apuesta extends Model
         'exchange_rate_applied' => 'decimal:4',
         'total_bs_equivalent' => 'decimal:2',
         'fecha_hora' => 'datetime',
+        'sorteo_hora' => 'datetime',
+        'combinacion' => 'array',
     ];
 
-    protected $dates = ['deleted_at'];
+    protected static function boot()
+    {
+        parent::boot();
+        
+        static::creating(function ($apuesta) {
+            if (!$apuesta->ticket_code) {
+                $apuesta->ticket_code = strtoupper(Str::random(8)) . '-' . $apuesta->id;
+            }
+        });
+    }
 
     public function taquilla()
     {
@@ -36,6 +48,11 @@ class Apuesta extends Model
         return $this->belongsTo(Juego::class);
     }
 
+    public function resultado()
+    {
+        return $this->belongsTo(Resultado::class);
+    }
+
     public function detalles()
     {
         return $this->hasMany(DetalleApuesta::class);
@@ -44,5 +61,15 @@ class Apuesta extends Model
     public function pago()
     {
         return $this->hasOne(Pago::class);
+    }
+    
+    public function getAnimalApostadoAttribute(): ?string
+    {
+        return $this->combinacion['animal'] ?? null;
+    }
+    
+    public function getNumeroApostadoAttribute(): ?int
+    {
+        return $this->combinacion['numero'] ?? null;
     }
 }
