@@ -8,6 +8,7 @@ use App\Models\Apuesta;
 use App\Models\DetalleApuesta;
 use App\Models\ExchangeRate;
 use App\Models\Juego;
+use App\Models\Log;
 use App\Services\ApuestaService;
 use Illuminate\Http\Request;
 
@@ -262,5 +263,37 @@ class ApuestaController extends Controller
         $resumen['tasa_actual'] = $this->apuestaService->getTasaActiva();
 
         return response()->json(['data' => $resumen]);
+    }
+
+    /**
+     * Eliminar (soft delete) una apuesta dentro de la ventana de 5 minutos.
+     */
+    public function destroy(Request $request, Apuesta $apuesta)
+    {
+        $this->authorize('delete', $apuesta);
+
+        $user = $request->user();
+        $motivo = $request->input('motivo', 'Sin motivo especificado');
+
+        $oldData = $apuesta->toArray();
+
+        $apuesta->delete();
+
+        Log::create([
+            'user_id' => $user->id,
+            'action' => 'apuesta.deleted',
+            'details' => [
+                'apuesta_id' => $apuesta->id,
+                'ticket_code' => $apuesta->ticket_code,
+                'motivo' => $motivo,
+                'old_values' => $oldData,
+            ],
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
+        return response()->json([
+            'message' => 'Apuesta anulada correctamente.',
+        ]);
     }
 }

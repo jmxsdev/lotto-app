@@ -1,0 +1,119 @@
+---
+interface Props {
+    lines: Array<any>;
+    tasaActual: number;
+    onRemoveLine: (index: number) => void;
+    onUpdateLine: (index: number, data: any) => void;
+}
+const { lines, tasaActual, onRemoveLine, onUpdateLine } = Astro.props;
+
+function calculateTotal() {
+    return lines.reduce((sum, line) => {
+        const bs = Number(line.amountBs) || 0;
+        const usd = Number(line.amountUsd) || 0;
+        return sum + (bs + (usd * tasaActual));
+    }, 0);
+}
+
+const totalBsEquivalent = calculateTotal();
+---
+
+<div class="lines-manager">
+    <table class="lines-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Animal</th>
+                <th>Nº</th>
+                <th>Monto BS</th>
+                <th>Monto USD</th>
+                <th>Total Eq.</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {lines.map((line, index) => (
+                <tr>
+                    <td>{index + 1}</td>
+                    <td>{line.animal?.name || '-'}</td>
+                    <td>{line.animal?.id || '-'}</td>
+                    <td>
+                        <input 
+                            type="number"
+                            value={line.amountBs || ''}
+                            onchange={(e) => onUpdateLine(index, {...line, amountBs: Number(e.target.value)})}
+                            placeholder="0"
+                            class="input-monto"
+                        />
+                    </td>
+                    <td>
+                        <input 
+                            type="number"
+                            value={line.amountUsd || ''}
+                            onchange={(e) => onUpdateLine(index, {...line, amountUsd: Number(e.target.value)})}
+                            placeholder="0"
+                            class="input-monto"
+                        />
+                    </td>
+                    <td>
+                        Bs. {(Number(line.amountBs || 0) + (Number(line.amountUsd || 0) * tasaActual)).toFixed(2)}
+                    </td>
+                    <td>
+                        <button onclick={() => onRemoveLine(index)} class="btn-remove" title="Eliminar línea (Backspace)">✕</button>
+                    </td>
+                </tr>
+            ))}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="5" style="text-align: right; font-weight: bold;">TOTAL:</td>
+                <td colspan="2" style="font-weight: bold; font-size: 18px; color: #667eea;">
+                    Bs. {totalBsEquivalent.toFixed(2)}
+                </td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+
+<style>
+    .lines-manager {
+        margin: 20px 0;
+    }
+
+    .lines-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .lines-table th,
+    .lines-table td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .lines-table input {
+        width: 100px;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    .input-monto:focus {
+        border-color: #667eea;
+        outline: none;
+    }
+
+    .btn-remove {
+        background: #dc3545;
+        color: white;
+        border: none;
+        padding: 4px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    .btn-remove:hover {
+        background: #c82333;
+    }
+</style>

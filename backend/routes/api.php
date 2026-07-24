@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\JuegoController;
 use App\Http\Controllers\Api\ResultadoController;
 use App\Http\Controllers\Api\ApuestaController;
 use App\Http\Controllers\Api\ActivacionController;
+use App\Http\Controllers\Api\PagoController;
 
 // Rutas públicas (sin autenticación)
 Route::post('/login', [AuthController::class, 'login']);
@@ -62,11 +63,14 @@ Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
         Route::get('/apuestas/historial', [ApuestaController::class, 'historial']);
         Route::get('/apuestas/resumen', [ApuestaController::class, 'resumen']);
         Route::get('/apuestas/{apuesta}', [ApuestaController::class, 'show']);
+        Route::delete('/apuestas/{apuesta}', [ApuestaController::class, 'destroy']);
     });
 
     // ==================================================
-    // PAGOS (todos los roles) - PENDIENTE SPRINT 9
-    // Route::post('/pagos', [PagoController::class, 'store'])->middleware('role:super_master|master|banca|grupo|taquilla');
+    // PAGOS (todos los roles)
+    // ==================================================
+    Route::post('/pagos', [PagoController::class, 'store'])->middleware('role:super_master|master|banca|grupo|taquilla');
+    Route::get('/pagos/{apuesta}', [PagoController::class, 'showByApuesta'])->middleware('role:super_master|master|banca|grupo|taquilla');
 
     // ==================================================
     // CIERRE DE CAJA (todos los roles) - PENDIENTE SPRINT 12
