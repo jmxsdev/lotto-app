@@ -1,0 +1,180 @@
+---
+import MainLayout from '../layouts/MainLayout.astro';
+
+const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
+---
+
+<MainLayout currentPage="resultados">
+    <div class="resultados-page">
+        <h2 class="page-title">Resultados de Sorteos</h2>
+
+        <div class="filters">
+            <input
+                type="date"
+                id="filter-fecha"
+                class="filter-input"
+            />
+            <select id="filter-juego" class="filter-input">
+                <option value="">Todos los juegos</option>
+            </select>
+            <button id="btn-filter" class="btn btn-primary">Filtrar</button>
+            <button id="btn-refresh" class="btn btn-secondary">Actualizar</button>
+        </div>
+
+        <div id="resultados-content">
+            <div class="loading">Cargando resultados...</div>
+        </div>
+    </div>
+
+    <style>
+        .resultados-page { max-width: 1200px; margin: 0 auto; }
+        .page-title { font-size: 28px; font-weight: 700; color: #333; margin-bottom: 24px; }
+        .filters { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; align-items: center; }
+        .filter-input { padding: 10px 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px; }
+        .filter-input:focus { border-color: #667eea; outline: none; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .2s ease; }
+        .btn:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+        .btn-primary { background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); color: white; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .loading { text-align: center; padding: 40px; color: #666; }
+        .empty-state { text-align: center; padding: 40px; color: #999; font-style: italic; }
+        .error-state { text-align: center; padding: 40px; color: #dc3545; }
+        .resultados-table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .resultados-table th { background: #f5f7fa; padding: 12px; text-align: left; font-weight: 600; color: #666; font-size: 13px; border-bottom: 2px solid #e9ecef; }
+        .resultados-table td { padding: 12px; border-bottom: 1px solid #e9ecef; font-size: 14px; vertical-align: middle; }
+        .resultados-table tr:hover { background: #f8f9fa; }
+        .resultados-table tr.sin-resultado td { color: #999; font-style: italic; }
+        .animal-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-weight: 600; font-size: 13px; }
+        .animal-badge.verde { background: #d4edda; color: #155724; }
+        .animal-badge.azul { background: #d1ecf1; color: #0c5460; }
+        .animal-badge.rojo { background: #f8d7da; color: #721c24; }
+        .animal-badge.amarillo { background: #fff3cd; color: #856404; }
+        .animal-badge.default { background: #e2e3e5; color: #383d41; }
+        .numero-ganador { display: inline-block; background: #667eea; color: white; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 14px; }
+        .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 20px; }
+        .page-btn { padding: 8px 14px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; }
+        .page-btn.active { background: #667eea; color: white; border-color: #667eea; }
+        .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    </style>
+
+    <script define:vars={{ apiUrl }}>
+        const API_BASE = apiUrl;
+
+        async function apiRequest(method, url) {
+            const token = localStorage.getItem('auth_token');
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = 'Bearer ' + token;
+            const opts = { method, headers };
+            const res = await fetch(API_BASE + url, opts);
+            if (res.status === 401) { localStorage.removeItem('auth_token'); window.location.href = '/login'; }
+            if (!res.ok) throw new Error('Error de red');
+            return res.json();
+        }
+
+        let currentPage = 1;
+        let lastPage = 1;
+        let juegosCache = [];
+
+        function getColorClass(color) {
+            if (!color) return 'default';
+            const c = color.toLowerCase();
+            if (c.includes('verde') || c === 'green') return 'verde';
+            if (c.includes('azul') || c === 'blue') return 'azul';
+            if (c.includes('roj') || c === 'red') return 'rojo';
+            if (c.includes('amarill') || c === 'yellow') return 'amarillo';
+            return 'default';
+        }
+
+        function renderResultados(data) {
+            const container = document.getElementById('resultados-content');
+            const resultados = data.data || [];
+            currentPage = data.current_page || 1;
+            lastPage = data.last_page || 1;
+
+            if (resultados.length === 0) {
+                container.innerHTML = '<div class="empty-state">No hay resultados para esta fecha</div>';
+                return;
+            }
+
+            let html = `<table class="resultados-table">
+                <thead><tr>
+                    <th>Juego</th><th>Fecha</th><th>Hora</th><th>Numero</th><th>Animal</th><th>Color</th>
+                </tr></thead><tbody>`;
+            resultados.forEach(r => {
+                const numeros = Array.isArray(r.numeros_ganadores) ? r.numeros_ganadores : [];
+                const nums = numeros.map(n => `<span class="numero-ganador">${n}</span>`).join(' ');
+                html += `<tr>
+                    <td><strong>${r.juego?.name || '-'}</strong></td>
+                    <td>${new Date(r.fecha_sorteo).toLocaleDateString('es-VE')}</td>
+                    <td>${r.hora_sorteo || '-'}</td>
+                    <td>${nums || '<span class="sin-resultado">Pendiente</span>'}</td>
+                    <td>${r.nombre_animal ? `<span class="animal-badge ${getColorClass(r.color_animal)}">${r.nombre_animal}</span>` : '-'}</td>
+                    <td>${r.color_animal ? `<span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:${r.color_animal};border:1px solid #ddd;"></span>` : '-'}</td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+
+            if (lastPage > 1) {
+                html += '<div class="pagination">';
+                html += `<button class="page-btn" data-page="${currentPage - 1}" ${currentPage <= 1 ? 'disabled' : ''}>Anterior</button>`;
+                html += `<span style="padding:8px 12px;color:#666;">Pagina ${currentPage} de ${lastPage}</span>`;
+                html += `<button class="page-btn" data-page="${currentPage + 1}" ${currentPage >= lastPage ? 'disabled' : ''}>Siguiente</button>`;
+                html += '</div>';
+            }
+
+            container.innerHTML = html;
+        }
+
+        async function loadResultados(page) {
+            const container = document.getElementById('resultados-content');
+            container.innerHTML = '<div class="loading">Cargando resultados...</div>';
+
+            try {
+                const fecha = document.getElementById('filter-fecha').value;
+                const juegoId = document.getElementById('filter-juego').value;
+                let url = '/resultados?per_page=20&page=' + (page || 1);
+                if (fecha) url += '&fecha=' + fecha;
+                if (juegoId) url += '&juego_id=' + juegoId;
+                const data = await apiRequest('GET', url);
+                renderResultados(data);
+            } catch (error) {
+                container.innerHTML = '<div class="error-state">Error al cargar resultados: ' + error.message + '</div>';
+            }
+        }
+
+        async function loadJuegos() {
+            try {
+                const data = await apiRequest('GET', '/juegos');
+                juegosCache = data.data || [];
+                const select = document.getElementById('filter-juego');
+                juegosCache.forEach(j => {
+                    const opt = document.createElement('option');
+                    opt.value = j.id;
+                    opt.textContent = j.name;
+                    select.appendChild(opt);
+                });
+            } catch (error) {
+                console.warn('No se pudieron cargar los juegos:', error);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('filter-fecha').value = today;
+
+            loadJuegos();
+            loadResultados(1);
+
+            document.getElementById('btn-filter').addEventListener('click', () => loadResultados(1));
+            document.getElementById('btn-refresh').addEventListener('click', () => loadResultados(1));
+
+            document.getElementById('resultados-content').addEventListener('click', (e) => {
+                const btn = e.target.closest('.page-btn');
+                if (btn && !btn.disabled) {
+                    const page = parseInt(btn.dataset.page);
+                    if (page >= 1 && page <= lastPage) loadResultados(page);
+                }
+            });
+        });
+    </script>
+</MainLayout>

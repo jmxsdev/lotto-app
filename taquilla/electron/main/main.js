@@ -27,7 +27,7 @@ function createWindow() {
     } else {
         // Modo producción: cargar archivos estáticos
         console.log('📦 Cargando archivos estáticos');
-        const indexPath = path.join(__dirname, '../../dist/index.html');
+        const indexPath = path.join(__dirname, '../../dist/login/index.html');
         mainWindow.loadFile(indexPath);
     }
 

@@ -214,6 +214,7 @@ import api from '../utils/api';
 
           const data = await response.json();
 
+          console.log(data)
           if (response.ok && data.token) {
             localStorage.setItem('auth_token', data.token);
             
@@ -233,6 +234,7 @@ import api from '../utils/api';
         } catch (error) {
           showAlert('Error de conexión. Verifique su internet e intente nuevamente.', 'error');
           btn.disabled = false;
+          console.log(error)
           btn.textContent = 'Iniciar Sesión';
         }
       }

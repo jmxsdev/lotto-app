@@ -1,0 +1,85 @@
+---
+interface Props {
+    animals: Array<{id: number, name: string}>;
+    onSelect: (animal: any) => void;
+    searchQuery?: string;
+}
+const { animals, onSelect, searchQuery = '' } = Astro.props;
+
+const filteredAnimals = animals.filter(a => 
+    a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    a.id.toString().includes(searchQuery)
+);
+---
+
+<div class="animal-grid">
+    {filteredAnimals.map((animal, index) => (
+        <button 
+            class="animal-card"
+            onclick={() => onSelect(animal)}
+            data-animal-id={animal.id}
+            aria-label={`${animal.name} número ${animal.id}`}
+            title={`Seleccionar ${animal.name} (${animal.id})`}
+        >
+            <span class="animal-number">{animal.id}</span>
+            <span class="animal-name">{animal.name}</span>
+        </button>
+    ))}
+</div>
+
+<style>
+    .animal-grid {
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 8px;
+        margin-bottom: 20px;
+    }
+
+    .animal-card {
+        padding: 12px;
+        border: 2px solid #ddd;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: center;
+        background: white;
+        font-family: inherit;
+    }
+
+    .animal-card:hover {
+        border-color: #667eea;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+    }
+
+    .animal-card.selected {
+        border-color: #667eea;
+        background: #f0f4ff;
+    }
+
+    .animal-number {
+        display: block;
+        font-size: 20px;
+        font-weight: bold;
+        color: #667eea;
+    }
+
+    .animal-name {
+        display: block;
+        font-size: 12px;
+        color: #666;
+        margin-top: 4px;
+    }
+
+    @media (max-width: 1200px) {
+        .animal-grid {
+            grid-template-columns: repeat(6, 1fr);
+        }
+    }
+
+    @media (max-width: 900px) {
+        .animal-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
+    }
+</style>

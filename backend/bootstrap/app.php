@@ -18,6 +18,10 @@ return Application::configure(basePath: dirname(__DIR__))
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
         ]);
 
+        $middleware->validateCsrfTokens(except: [
+           'api/*',
+        ]);
+
         // Registrar middlewares alias para usar en rutas
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,

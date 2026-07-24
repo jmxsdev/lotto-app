@@ -1,0 +1,263 @@
+---
+import MainLayout from '../layouts/MainLayout.astro';
+
+const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
+---
+
+<MainLayout currentPage="historial">
+    <div class="historial-page">
+        <h2 class="page-title">Historial de Apuestas</h2>
+
+        <div class="filters">
+            <input
+                type="text"
+                id="search"
+                placeholder="Buscar por ticket o animal..."
+                class="search-input"
+            />
+            <div class="filter-buttons">
+                <button data-filter="pendiente" class="filter-btn"> Pendientes</button>
+                <button data-filter="pagada" class="filter-btn"> Pagadas</button>
+                <button data-filter="anulada" class="filter-btn"> Anuladas</button>
+                <button id="btn-refresh" class="btn-refresh"> Actualizar</button>
+            </div>
+        </div>
+
+        <div id="historial-content">
+            <div class="loading">Cargando...</div>
+        </div>
+    </div>
+
+    <style>
+        .historial-page { max-width: 1400px; margin: 0 auto; }
+        .page-title { font-size: 28px; font-weight: 700; color: #333; margin-bottom: 24px; }
+        .filters { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+        .search-input { flex: 1; min-width: 200px; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; }
+        .search-input:focus { border-color: #667eea; outline: none; }
+        .filter-buttons { display: flex; gap: 8px; }
+        .filter-btn { padding: 8px 16px; border: 2px solid #ddd; background: white; border-radius: 6px; cursor: pointer; transition: all .2s ease; }
+        .filter-btn:hover { border-color: #667eea; }
+        .filter-btn.active { background: #667eea; color: white; border-color: #667eea; }
+        .btn-refresh { padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; }
+        .loading { text-align: center; padding: 40px; color: #666; }
+        .empty-state { text-align: center; padding: 40px; color: #999; font-style: italic; }
+        .error-state { text-align: center; padding: 40px; color: #dc3545; }
+        .apuestas-table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .apuestas-table th { background: #f5f7fa; padding: 12px; text-align: left; font-weight: 600; color: #666; font-size: 13px; border-bottom: 2px solid #e9ecef; }
+        .apuestas-table td { padding: 12px; border-bottom: 1px solid #e9ecef; font-size: 14px; }
+        .apuestas-table tr:hover { background: #f8f9fa; }
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        .badge-pendiente { background: #fff3cd; color: #856404; }
+        .badge-pagada { background: #d4edda; color: #155724; }
+        .badge-anulada { background: #f8d7da; color: #721c24; }
+        .actions-cell { display: flex; gap: 8px; }
+        .btn-action { background: none; border: none; cursor: pointer; font-size: 18px; padding: 4px; transition: transform .2s ease; }
+        .btn-action:hover { transform: scale(1.2); }
+        .btn-view { color: #17a2b8; }
+        .btn-pay { color: #28a745; }
+        .btn-delete { color: #dc3545; }
+        .btn-print { color: #6c757d; }
+    </style>
+
+    <script define:vars={{ apiUrl }}>
+        const API_BASE = apiUrl;
+
+        async function apiRequest(method, url, data) {
+            const token = localStorage.getItem('auth_token');
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = 'Bearer ' + token;
+            if (window.electron?.getMac) {
+                try { const mac = await window.electron.getMac(); if (mac && mac !== '00:00:00:00:00:00') headers['X-Device-MAC'] = mac; } catch (_) {}
+            }
+            const opts = { method, headers };
+            if (data) opts.body = JSON.stringify(data);
+            const res = await fetch(API_BASE + url, opts);
+            if (res.status === 401) { localStorage.removeItem('auth_token'); window.location.href = '/login'; }
+            if (res.status === 403) { alert('Acceso denegado.'); window.location.href = '/login'; }
+            if (!res.ok) { const err = await res.json().catch(() => ({ message: res.statusText })); throw new Error(err.message || 'Error de red'); }
+            return res.json();
+        }
+
+        function getStatusClass(estado) {
+            switch(estado) {
+                case 'pendiente': return 'badge-pendiente';
+                case 'pagada': return 'badge-pagada';
+                case 'anulada': return 'badge-anulada';
+                default: return '';
+            }
+        }
+
+        function canDeleteApuesta(apuesta) {
+            const ahora = new Date();
+            const created = new Date(apuesta.created_at);
+            const diffMinutes = (ahora - created) / (1000 * 60);
+            return diffMinutes < 5 && apuesta.estado === 'pendiente' && !apuesta.resultado;
+        }
+
+        function renderApuestas(apuestas) {
+            const container = document.getElementById('historial-content');
+            if (!apuestas || apuestas.length === 0) {
+                container.innerHTML = '<div class="empty-state">No hay apuestas registradas</div>';
+                return;
+            }
+            let html = `<table class="apuestas-table">
+                <thead><tr>
+                    <th>Ticket</th><th>Hora</th><th>Juego</th><th>Animal</th><th>N</th>
+                    <th>Monto BS</th><th>Monto USD</th><th>Total Eq.</th><th>Estado</th><th>Acciones</th>
+                </tr></thead><tbody>`;
+            apuestas.forEach(a => {
+                const c = typeof a.combinacion === 'string' ? JSON.parse(a.combinacion) : (a.combinacion || {});
+                html += `<tr>
+                    <td>${a.ticket_code || '-'}</td>
+                    <td>${new Date(a.created_at).toLocaleTimeString('es-VE')}</td>
+                    <td>${a.juego?.name || '-'}</td>
+                    <td>${(c.animal || '-').toUpperCase()}</td>
+                    <td>${c.numero ?? '-'}</td>
+                    <td>Bs. ${Number(a.amount_bs || 0).toFixed(2)}</td>
+                    <td>$ ${Number(a.amount_usd || 0).toFixed(2)}</td>
+                    <td>Bs. ${Number(a.total_bs_equivalent || 0).toFixed(2)}</td>
+                    <td><span class="badge ${getStatusClass(a.estado)}">${(a.estado || 'pendiente').toUpperCase()}</span></td>
+                    <td class="actions-cell">
+                        <button class="btn-action btn-view" data-action="view" data-id="${a.id}" title="Ver detalle"></button>
+                        ${a.estado === 'pendiente' ? `
+                            <button class="btn-action btn-pay" data-action="pay" data-id="${a.id}" title="Pagar premio"></button>
+                            ${canDeleteApuesta(a) ? `<button class="btn-action btn-delete" data-action="delete" data-id="${a.id}" title="Anular apuesta"></button>` : ''}
+                        ` : ''}
+                        <button class="btn-action btn-print" data-action="print" data-id="${a.id}" title="Imprimir"></button>
+                    </td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function renderLoading() {
+            document.getElementById('historial-content').innerHTML = '<div class="loading">Cargando...</div>';
+        }
+
+        function renderError(msg) {
+            document.getElementById('historial-content').innerHTML = '<div class="error-state">Error: ' + msg + '</div>';
+        }
+
+        let filterEstado = '';
+        let searchTimeout = null;
+        let apuestasCache = [];
+
+        async function loadApuestas() {
+            renderLoading();
+            try {
+                let url = '/apuestas?per_page=50';
+                if (filterEstado) url += '&estado=' + filterEstado;
+                const response = await apiRequest('GET', url);
+                apuestasCache = response.data?.data || [];
+                renderApuestas(apuestasCache);
+            } catch (error) {
+                console.error('Error cargando apuestas:', error);
+                renderError(error.message);
+            }
+        }
+
+        function filterByEstado(estado) {
+            filterEstado = estado === filterEstado ? '' : estado;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.filter === filterEstado);
+            });
+            loadApuestas();
+        }
+
+        async function viewDetail(apuesta) {
+            const c = typeof apuesta.combinacion === 'string' ? JSON.parse(apuesta.combinacion) : (apuesta.combinacion || {});
+            alert('Detalle de apuesta:\n\nTicket: ' + apuesta.ticket_code + '\nAnimal: ' + (c.animal || 'N/A') + '\nMonto: Bs. ' + Number(apuesta.amount_bs || 0).toFixed(2) + ' / $ ' + Number(apuesta.amount_usd || 0).toFixed(2));
+        }
+
+        async function payPrize(apuesta) {
+            const monto = prompt('Ingresa el monto a pagar (BS):');
+            if (!monto) return;
+            try {
+                await apiRequest('POST', '/pagos', {
+                    apuesta_id: apuesta.id,
+                    amount_bs: parseFloat(monto) || 0,
+                    amount_usd: 0,
+                    tipo: 'bs'
+                });
+                alert('Pago registrado exitosamente!');
+                loadApuestas();
+            } catch (error) {
+                alert('Error al registrar pago: ' + error.message);
+            }
+        }
+
+        async function deleteApuesta(apuesta) {
+            if (!confirm('Esta seguro que desea anular esta apuesta?')) return;
+            try {
+                await apiRequest('DELETE', '/apuestas/' + apuesta.id);
+                alert('Apuesta anulada');
+                loadApuestas();
+            } catch (error) {
+                alert('Error al anular: ' + error.message);
+            }
+        }
+
+        async function printTicket(apuesta) {
+            const c = typeof apuesta.combinacion === 'string' ? JSON.parse(apuesta.combinacion) : (apuesta.combinacion || {});
+            const ticketData = {
+                ticketCode: apuesta.ticket_code,
+                date: new Date(apuesta.created_at).toLocaleDateString('es-VE'),
+                time: new Date(apuesta.created_at).toLocaleTimeString('es-VE'),
+                game: apuesta.juego?.name || 'Animalitos',
+                lines: [{ animal: c.animal || '-', number: c.numero || '-', amountBs: Number(apuesta.amount_bs || 0), amountUsd: Number(apuesta.amount_usd || 0) }]
+            };
+            try {
+                if (window.electron?.printTicket) {
+                    await window.electron.printTicket({ ticketData });
+                } else {
+                    alert('Impresion no disponible fuera de Electron');
+                }
+            } catch (error) {
+                console.warn('Error imprimiendo:', error);
+            }
+        }
+
+        function getApuestaById(id) {
+            return apuestasCache.find(a => a.id == id);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadApuestas();
+
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', () => filterByEstado(btn.dataset.filter));
+            });
+
+            document.getElementById('btn-refresh').addEventListener('click', loadApuestas);
+
+            document.getElementById('search').addEventListener('input', (e) => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => loadApuestas(), 300);
+            });
+
+            document.getElementById('historial-content').addEventListener('click', (e) => {
+                const btn = e.target.closest('.btn-action');
+                if (!btn) return;
+                const id = parseInt(btn.dataset.id);
+                const apuesta = getApuestaById(id);
+                if (!apuesta) return;
+                switch (btn.dataset.action) {
+                    case 'view': viewDetail(apuesta); break;
+                    case 'pay': payPrize(apuesta); break;
+                    case 'delete': deleteApuesta(apuesta); break;
+                    case 'print': printTicket(apuesta); break;
+                }
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+                switch (e.key) {
+                    case '/': e.preventDefault(); document.getElementById('search')?.focus(); break;
+                    case 'p': document.querySelector('.btn-pay')?.click(); break;
+                    case 'i': document.querySelector('.btn-print')?.click(); break;
+                }
+            });
+        });
+    </script>
+</MainLayout>

@@ -162,20 +162,17 @@ class UserController extends Controller
         switch ($role) {
             case 'super_master':
             case 'master':
+            case 'banca':
                 // No requieren entidades
                 break;
-            case 'banca':
-                if (!$banca_id) {
-                    throw ValidationException::withMessages(['banca_id' => 'El rol "banca" requiere una banca asociada.']);
-                }
-                break;
+
             case 'grupo':
-                if (!$grupo_id) {
+                if (!$banca_id) {
                     throw ValidationException::withMessages(['grupo_id' => 'El rol "grupo" requiere un grupo asociado.']);
                 }
                 break;
             case 'taquilla':
-                if (!$taquilla_id) {
+                if (!$grupo_id) {
                     throw ValidationException::withMessages(['taquilla_id' => 'El rol "taquilla" requiere una taquilla asociada.']);
                 }
                 break;
