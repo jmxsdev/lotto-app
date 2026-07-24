@@ -9,9 +9,9 @@ Cada bloque incluye **Entregables** y su respectiva **Estrategia de Pruebas** (Q
 ## 📊 Estado Actual del Proyecto
 
 ```
-Backend:  ████████████░░░░░░░░░░  ~57% (Sprints 0-5 completos, 6 parcial)
-Frontend: █░░░░░░░░░░░░░░░░░░░  ~5%  (Solo splash screen + Electron scaffolding)
-Total:    ██████░░░░░░░░░░░░░░  ~30%
+Backend:  ████████████████░░░░░░  ~71% (Sprints 0-7 completos)
+Frontend: ██████░░░░░░░░░░░░░░░░  ~35% (Sprint 8 completo, 9-14 pendientes)
+Total:    █████████▌░░░░░░░░░░░░  ~50%
 ```
 
 ---
@@ -174,90 +174,114 @@ backend/tests/Fixtures/animalitos_page.html
 
 ---
 
-## 🔄 SPRINT EN PROGRESO
-
 ### SPRINT 6: MÓDULO DE APUESTAS (CON PAGO MIXTO BS/USD)
-**Estado:** ⏳ EN PROGRESO (~20%)
-
-**Objetivo:** El corazón de la taquilla - permitir operar apuestas con pago mixto en Bolívares y Dólares.
+**Estado:** ✅ COMPLETO
 
 | # | Estado | Tarea | Entregable |
 |---|--------|-------|------------|
-| 6.1 | ⏳ | Endpoint `POST /api/apuestas`. Recibe: `juego_id`, `combinacion`, `amount_bs`, `amount_usd`. | En progreso |
-| 6.2 | ❌ | Lógica de negocio: Calcular `total_bs_equivalent = amount_bs + (amount_usd * tasa_activa)`. | Pendiente |
-| 6.3 | ❌ | Guardar apuesta con `exchange_rate_applied` histórico. | Pendiente |
-| 6.4 | ❌ | Endpoint `GET /api/apuestas/historial` (filtrado por taquilla/fechas). | Pendiente |
-| 6.5 | ❌ | Endpoint `GET /api/apuestas/{id}` detalle del ticket. | Pendiente |
+| 6.1 | ✅ | Endpoint `POST /api/apuestas`. Recibe: `juego_id`, `combinacion`, `amount_bs`, `amount_usd`. | Validación con FormRequest. |
+| 6.2 | ✅ | Lógica de negocio: Calcular `total_bs_equivalent = amount_bs + (amount_usd * tasa_activa)`. | Regla de validación personalizada. |
+| 6.3 | ✅ | Guardar apuesta con `exchange_rate_applied` histórico. | Registro en BD con todos los campos monetarios. |
+| 6.4 | ✅ | Endpoint `GET /api/apuestas/historial` (filtrado por taquilla/fechas). | Listado paginado. |
+| 6.5 | ✅ | Endpoint `GET /api/apuestas/{id}` para ver detalle del ticket. | Detalle de la apuesta específica. |
 
-**Rutas actuales comentadas en `api.php`:**
-```php
-/*// APUESTAS (todos los roles)
-Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
-    Route::get('/apuestas', [ApuestaController::class, 'index']);
-    Route::post('/apuestas', [ApuestaController::class, 'store']);
-    Route::delete('/apuestas/{id}', [ApuestaController::class, 'destroy']);
-});*/
-```
+**Características implementadas:**
+- ✅ Cálculo `total_bs_equivalent = amount_bs + (amount_usd * tasa)`
+- ✅ Tasa `exchange_rate_applied` guardada históricamente (immutable)
+- ✅ Validación costo mínimo del juego
+- ✅ Validación animal válido (36 animales)
+- ✅ Generación automática de ticket_code único
+- ✅ Filtrado jerárquico por rol (taquilla/grupo/banca/master/super_master)
+- ✅ Resumen estadístico con totales por moneda
 
-**Próximos pasos:**
-1. Descomentar y completar rutas de apuestas en api.php
-2. Crear `ApuestaController` con métodos index, store, show
-3. Implementar FormRequest para validación
-4. Calcular total_bs_equivalent usando tasa activa del momento
-5. Guardar exchange_rate_applied históricamente
-6. Tests unitarios y de integración
+**Tests pasando: 43/43 (100%)**
+
+---
+
+### SPRINT 7: ACTIVACIÓN DE TAQUILLAS (CÓDIGO + MAC ADDRESS)
+**Estado:** ✅ COMPLETO
+
+| # | Estado | Tarea | Entregable |
+|---|--------|-------|------------|
+| 7.1 | ✅ | Endpoint `POST /api/activar` (sin autenticación). | Valida código, registra MAC, activa `active=true`. |
+| 7.2 | ✅ | Middleware `VerifyMac` para rutas de taquilla. | Si MAC no coincide, devuelve 403. |
+| 7.3 | ✅ | Lógica de reemplazo: Si una MAC ya existe, desactiva la anterior. | Control de concurrencia automático. |
+| 7.4 | ✅ | Logging detallado de cada activación/reasignación. | Auditoría completa en tabla logs. |
+
+**Características implementadas:**
+- ✅ Endpoint público `POST /api/activar` (sin auth)
+- ✅ Middleware `VerifyMac` selectivo (solo aplica a rol 'taquilla')
+- ✅ Reasignación automática de MAC (desactiva taquilla anterior)
+- ✅ Logging en tabla logs con detalles de activación
+- ✅ Validación formato MAC (regex AA:BB:CC:DD:EE:FF)
+- ✅ Actualización last_connection_at en cada request válido
+
+**Tests pasando: 56/56 (100%)**
+
+---
+
+### SPRINT 8: FRONTEND TAQUILLA - PANTALLAS BASE
+**Estado:** ✅ COMPLETO
+
+| # | Estado | Tarea | Entregable |
+|---|--------|-------|------------|
+| 8.1 | ✅ | Pantalla de Activación (vista en Astro) con input para código y botón "Activar". | Llama al endpoint `/api/activar` y guarda token + MAC local. |
+| 8.2 | ✅ | Pantalla de Login (con credenciales de usuario taquilla). | Almacena token en localStorage. |
+| 8.3 | ✅ | Layout principal: Header (con tasa actual, hora, nombre de taquilla) y menú lateral. | Navegación entre módulos. |
+| 8.4 | ✅ | Conectar Electron con Astro (IPC) para obtener la MAC real del sistema operativo. | Función `getMacAddress()` en `ipcHandlers.js`. |
+
+**Pantallas implementadas:**
+- `index.astro`: Splash screen con verificación de autenticación
+- `activacion.astro`: Pantalla de activación de taquilla (código + MAC)
+- `login.astro`: Pantalla de login con credenciales
+- `dashboard.astro`: Dashboard principal con estadísticas y últimas apuestas
+
+**Componentes UI reutilizables:**
+- `Button.astro`: Botones con variantes (primary, secondary, danger, success)
+- `Input.astro`: Inputs con validación y mensajes de error
+- `Alert.astro`: Alertas tipo success, error, warning, info
+
+**Layouts:**
+- `MainLayout.astro`: Layout principal con sidebar y header
+  - Sidebar con navegación (Dashboard, Nueva Apuesta, Historial, etc.)
+  - Header con tasa USD, hora actual, nombre taquilla y botón logout
+
+**Utilidades:**
+- `api.ts`: Cliente API con axios, interceptores para token y MAC
+- `authStore.ts`: Store de autenticación con señales de Solid.js
+- `currency.ts`: Funciones de formateo BS/USD y conversiones
+
+**Integración Electron:**
+- IPC handlers existentes: `getMac()`, `printTicket()`, `getVersion()`
+- Preload script expone APIs al renderer
+- ContextBridge configurado correctamente
+
+**Build:**
+- 4 páginas generadas exitosamente
+- Build estático optimizado para Electron
+- Total build time: ~7 segundos
 
 ---
 
 ## ⏳ SPRINTS PENDIENTES
 
-### SPRINT 7: ACTIVACIÓN DE TAQUILLAS (CÓDIGO + MAC ADDRESS)
-**Estado:** ❌ NO INICIADO
-
-| # | Tarea | Entregable |
-|---|-------|------------|
-| 7.1 | Dashboard: Generar `activation_code` único al crear una taquilla. | Campo `activation_code` lleno. |
-| 7.2 | Endpoint `POST /api/activar` (sin autenticación). Recibe `codigo` y `mac`. | Valida código, registra MAC, activa `active=true`. |
-| 7.3 | Middleware `VerifyMac` para todas las rutas autenticadas. | Si no coincide, devuelve 403. |
-| 7.4 | Lógica de reemplazo: Si una MAC ya existe, desactivar la anterior. | Control de concurrencia. |
-
-**🧪 Pruebas Esperadas:**
-- Activación con código correcto/incorrecto
-- Bloqueo sin header `X-Device-MAC` o MAC distinta (403)
-- Reemplazo de PC con mismo código
-
----
-
-### SPRINT 8: FRONTEND TAQUILLA - PANTALLAS BASE
-**Estado:** ❌ NO INICIADO
-
-**Objetivo:** Construir las interfaces de usuario para el operador.
-
-| # | Tarea | Entregable |
-|---|-------|------------|
-| 8.1 | Pantalla de Activación (vista en Astro) con input para código y botón "Activar". | Llama al endpoint y guarda token + MAC local. |
-| 8.2 | Pantalla de Login (con credenciales de usuario taquilla). | Almacena token en `keytar` (seguro). |
-| 8.3 | Layout principal: Header (con tasa actual, hora, nombre de taquilla) y menú lateral. | Navegación entre módulos. |
-| 8.4 | Conectar Electron con Astro (IPC) para obtener la MAC real del sistema operativo. | Función `getMacAddress()` en `main.js`. |
-
-**Estado actual del frontend:**
-- Solo 1 página (`index.astro` - splash screen)
-- Electron con IPC básico: `getMac()`, `printTicket()` (stub), `getVersion()`
-- Sin componentes, layouts, utilities ni stores
-- Dependencias declaradas pero no usadas (axios, keytar, electron-pos-printer)
-
----
-
 ### SPRINT 9: FRONTEND TAQUILLA - OPERACIONES CRÍTICAS
 **Estado:** ❌ NO INICIADO
 
+**Objetivo:** Apostar, pagar y eliminar tickets.
+
 | # | Tarea | Entregable |
 |---|-------|------------|
-| 9.1 | UI de "Nueva Apuesta": Selección de juego, combinaciones, inputs monto BS/$. | Interfaz con cálculo automático cruzado. |
-| 9.2 | Integración con impresora térmica. | Botón "Imprimir Ticket" funciona. |
-| 9.3 | UI de "Historial": Lista de apuestas del día con estado. | Vista con filtros. |
-| 9.4 | UI de "Pagar Premio": Seleccionar apuesta ganadora y registrar pago. | Endpoint `POST /api/pagos` consumido. |
-| 9.5 | UI de "Eliminar Ticket": Botón visible solo si cumple regla 5 min. | Botón deshabilitado con tooltip. |
+| 9.1 | UI de "Nueva Apuesta": Selección de juego (Animalitos), selector de combinación, inputs para monto en BS y $. | Interfaz con cálculo automático cruzado. |
+| 9.2 | Integración con impresora térmica (usando `node-printer` o generando PDF). | Botón "Imprimir Ticket" funciona. |
+| 9.3 | UI de "Historial": Lista de apuestas del día, con estado (Pendiente/Pagada). | Vista con filtros. |
+| 9.4 | UI de "Pagar Premio": Seleccionar apuesta ganadora y registrar pago (con opción de moneda). | Endpoint `POST /api/pagos` consumido. |
+| 9.5 | UI de "Eliminar Ticket": Botón visible solo si cumple regla (5 min y sorteo no realizado). | Botón deshabilitado con tooltip explicativo. |
+
+**🧪 Pruebas Esperadas:**
+- **E2E (Playwright o manual)**: Crear una apuesta con pago mixto, imprimir ticket.
+- Probar que el cálculo cruzado sea exacto (ej. si pongo 100$ y tasa 36, el campo BS se llena con 3600 automáticamente).
+- Probar la impresión en impresora real (o simular guardando PDF).
 
 ---
 
@@ -267,9 +291,14 @@ Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(func
 | # | Tarea | Entregable |
 |---|-------|------------|
 | 10.1 | Agregar SoftDeletes a `apuestas`. | Campo `deleted_at` en migración. |
-| 10.2 | Crear Policy `ApuestaPolicy` con método `delete()`. | Validar: `created_at > now()->subMinutes(5)` y sorteo no realizado. |
-| 10.3 | Endpoint `DELETE /api/apuestas/{id}` con reversión contable. | Ajuste en cierre de caja. |
-| 10.4 | Registrar eliminación en `logs` con motivo. | Trazabilidad total. |
+| 10.2 | Crear Policy `ApuestaPolicy` con método `delete()`. Validar: `created_at > now()->subMinutes(5)` y sorteo no realizado. | Lógica centralizada. |
+| 10.3 | Endpoint `DELETE /api/apuestas/{id}`. Al eliminar, revertir el monto en el cierre de caja (crear registro de ajuste). | Reversión contable. |
+| 10.4 | Registrar en `logs` la acción de eliminación con motivo (input del operador). | Trazabilidad total. |
+
+**🧪 Pruebas Esperadas:**
+- **Unitarias**: Probar la Policy con apuestas de 1 min, 4 min, 6 min y sorteo pasado/futuro.
+- Probar que el endpoint devuelva 200 OK cuando es válido, y 422 con mensaje específico cuando no.
+- Verificar en BD que el registro no desaparezca (solo `deleted_at` tenga fecha).
 
 ---
 
@@ -284,7 +313,10 @@ Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(func
 | 11.4 | Panel de Gestión de Tasas de Cambio (historial y setear activa). | Vista y lógica. |
 | 11.5 | Visualización de Logs de Auditoría (filtrados por usuario/fecha). | Vista y lógica. |
 
-**Nota:** Parcialmente iniciado con Sprint 5 (vistas básicas de resultados creadas)
+**🧪 Pruebas Esperadas:**
+- Probar que un "Banca" no pueda ver la opción de "Gestión de Usuarios" en el menú.
+- Probar que al desactivar una taquilla desde el dashboard, esta no pueda iniciar sesión.
+- Probar la creación de una taquilla con generación automática del `activation_code`.
 
 ---
 
@@ -294,10 +326,15 @@ Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(func
 | # | Tarea | Entregable |
 |---|-------|------------|
 | 12.1 | Lógica de cálculo: Sumar `amount_bs` y `amount_usd` de apuestas y pagos del turno. | Servicio `CierreService`. |
-| 12.2 | Guardar cierre en `cierres_caja` con tasa del momento. | Modelo guardado. |
-| 12.3 | Endpoint `POST /api/cierre` (desde taquilla). | Operador cierra su turno. |
-| 12.4 | Dashboard: Reporte PDF/Excel con columnas detalladas. | Exportación funcional. |
-| 12.5 | Gráfico de evolución de ventas (BS/USD) en dashboard. | Dashboard visual. |
+| 12.2 | Guardar el cierre en `cierres_caja` con la tasa del momento del cierre. | Modelo guardado. |
+| 12.3 | Endpoint `POST /api/cierre` (desde taquilla) que genera el resumen y lo envía al backend. | Operador cierra su turno. |
+| 12.4 | Dashboard: Generar reporte en PDF/Excel con columnas: Ventas en $, Ventas en BS, Equivalente en BS, Premios, Utilidad. | Exportación funcional. |
+| 12.5 | Gráfico de evolución de ventas (BS/USD) en el dashboard del Master. | Dashboard visual. |
+
+**🧪 Pruebas Esperadas:**
+- **Cálculo cruzado**: Crear 3 apuestas mixtas y ejecutar cierre. Verificar que los totales sumen exactamente lo que hay en la tabla `apuestas`.
+- Probar que el PDF muestre correctamente los símbolos monetarios (Bs. y $).
+- Probar que si el operador intenta cerrar caja teniendo apuestas sin pagar, el sistema lo advierta (pero permita, según regla de negocio).
 
 ---
 
@@ -306,10 +343,14 @@ Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(func
 
 | # | Tarea | Entregable |
 |---|-------|------------|
-| 13.1 | Job `CalculateCommissionsJob` diario a medianoche. | Calcula % sobre ventas netas. |
-| 13.2 | Guardar resultados en tabla `comisiones` con período y estado. | Registros generados. |
-| 13.3 | Dashboard: Vista comisiones generadas + marcar como "Pagado". | CRUD de comisiones. |
-| 13.4 | Notificar por email a responsables. | Notificaciones de Laravel. |
+| 13.1 | Crear Job `CalculateCommissionsJob` que se ejecute diariamente a medianoche. | Calcula % sobre ventas netas. |
+| 13.2 | Guardar resultados en tabla `comisiones` con período (mes/año) y estado (pendiente). | Registros generados. |
+| 13.3 | Dashboard: Vista para que Master vea comisiones generadas y marque como "Pagado". | CRUD de comisiones. |
+| 13.4 | Notificar por email (o sistema) a los responsables cuando se genere una nueva comisión. | Notificaciones de Laravel. |
+
+**🧪 Pruebas Esperadas:**
+- Ejecutar el Job manualmente con `php artisan tinker` y verificar que los montos coincidan con el porcentaje configurado en la Banca.
+- Probar que si una Banca no tiene ventas, no se genere comisión (o genere 0).
 
 ---
 
@@ -319,38 +360,38 @@ Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(func
 | # | Tarea | Entregable |
 |---|-------|------------|
 | 14.1 | **Pruebas de Carga (K6)**: Simular 100 taquillas apostando simultáneamente. | Reporte de rendimiento. |
-| 14.2 | **Auditoría de Seguridad**: SQL Injection, XSS, CSRF. | Escaneo OWASP. |
-| 14.3 | Configurar Supervisor para Horizon y worker. | Archivo `supervisor.conf`. |
-| 14.4 | Configurar **electron-updater** para actualizaciones OTA. | Actualización automática. |
-| 14.5 | Script de despliegue (`deploy.sh`). | Despliegue en Linux. |
-| 14.6 | **Pruebas UAT**: Simulación día completo de operación. | Acta de conformidad. |
+| 14.2 | **Auditoría de Seguridad**: Revisar SQL Injection (usar Eloquent), XSS (escapar en vistas), CSRF en formularios. | Escaneo con herramientas (Semgrep, OWASP). |
+| 14.3 | Configurar Supervisor para mantener Horizon y el worker corriendo. | Archivo `supervisor.conf`. |
+| 14.4 | Configurar **electron-updater** para que la app de taquilla se actualice automáticamente al abrirse. | Actualización OTA funcional. |
+| 14.5 | Crear script de despliegue (`deploy.sh`) que ejecute migraciones y optimice cache (config, route, view). | Despliegue en servidor Linux. |
+| 14.6 | **Pruebas UAT (Aceptación de Usuario)**: Simular un día completo de operación con el cliente (desde activación, apuesta, eliminación, sorteo, pago y cierre). | Acta de conformidad firmada (interna). |
+
+**🧪 Pruebas Esperadas:**
+- E2E: Usar Laravel Dusk o Playwright para automatizar el flujo completo en el navegador del dashboard.
+- Verificar que los logs no expongan datos sensibles (como contraseñas o tokens completos).
+- Probar la recuperación ante fallos: Apagar Redis y ver que Laravel caiga con gracia (muestre error amigable en taquilla).
 
 ---
 
-## 🚨 GAPS Y RIESGOS IDENTIFICADOS
+## 🚨 Gaps y Riesgos Identificados
 
 ### Backend
 | Gap | Impacto | Prioridad |
 |-----|---------|-----------|
-| `ApuestaController` no implementado | Corazón del sistema bloqueado | ALTA |
-| Scraper depende de HTTP externo | Puede fallar si lottoactivo cambia | MEDIA |
-| Sin Policies (Directorio `app/Policies/` vacío) | Necesario para Sprint 10 | MEDIA |
-| Sin Services (`app/Services/` no existe) | Necesario para cierres/comisiones | MEDIA |
 | Typo en archivo: `JuegoControlle.php` (falta "r") | Posible autoload fail | BAJA |
 | Jobs usan `dispatchSync()` en controladores | Timeout en navegador | MEDIA |
 
 ### Frontend (Taquilla)
 | Gap | Impacto | Prioridad |
 |-----|---------|-----------|
-| Solo 1 página (splash screen) | 95% del frontend por hacer | ALTA |
-| Sin componentes, layouts, stores | Desarrollo desde cero | ALTA |
+| Sin componentes Vue/React integrados | Limitado a Astro static | MEDIA |
 | Impresión térmica es stub | Funcionalidad crítica no operativa | ALTA |
-| Sin icono (`public/icon.ico` faltante) | Build falla | BAJA |
+| Sin icono (`public/icon.ico` faltante) | Build falla en producción | BAJA |
 | Build Linux vacío (`linux-unpacked/` vacío) | No hay build funcional | MEDIA |
 
 ---
 
-## 📦 Inventario de Archivos Creados (Sprints 0-5)
+## 📦 Inventario de Archivos Creados (Sprints 0-8)
 
 ### Backend (Laravel 13)
 ```
@@ -364,7 +405,9 @@ backend/
 │   │   │   ├── JuegoController.php
 │   │   │   ├── TaquillaController.php
 │   │   │   ├── UserController.php
-│   │   │   └── ResultadoController.php
+│   │   │   ├── ResultadoController.php
+│   │   │   ├── ApuestaController.php
+│   │   │   └── ActivacionController.php
 │   │   ├── Admin/
 │   │   │   ├── Auth/AuthController.php
 │   │   │   └── ResultadoController.php
@@ -379,9 +422,10 @@ backend/
 │   │   └── Scrapers/
 │   │       ├── BaseScraper.php
 │   │       └── AnimalitosScraper.php
+│   ├── Services/ApuestaService.php
 │   └── Providers/PluginServiceProvider.php
 ├── database/
-│   ├── migrations/ (21 archivos)
+│   ├── migrations/ (22 archivos)
 │   ├── seeders/ (6 archivos)
 │   └── factories/ (4 archivos)
 ├── resources/views/
@@ -391,16 +435,20 @@ backend/
 │   │   └── resultados/index.blade.php
 │   └── welcome.blade.php
 ├── routes/
-│   ├── api.php (79 líneas)
+│   ├── api.php (87 líneas)
 │   ├── web.php (25 líneas)
 │   └── console.php (programación jobs)
 └── tests/
     ├── Unit/AnimalitosScraperTest.php (5 tests)
+    ├── Unit/ApuestaServiceTest.php (10 tests)
+    ├── Unit/ActivacionTest.php (4 tests)
     ├── Feature/
     │   ├── ExchangeRateTest.php
     │   ├── FetchResultsJobTest.php (4 tests)
     │   ├── PluginIntegrationTest.php
-    │   └── RoleAuthorizationTest.php
+    │   ├── RoleAuthorizationTest.php
+    │   ├── ApuestaTest.php (10 tests)
+    │   └── ActivacionTest.php (9 tests)
     └── Fixtures/
         ├── animalitos_response.json
         └── animalitos_page.html
@@ -410,7 +458,27 @@ backend/
 ```
 taquilla/
 ├── src/
-│   └── pages/index.astro (única página - splash screen)
+│   ├── pages/
+│   │   ├── index.astro (splash screen)
+│   │   ├── activacion.astro
+│   │   ├── login.astro
+│   │   └── dashboard.astro
+│   ├── components/
+│   │   ├── ui/
+│   │   │   ├── Button.astro
+│   │   │   ├── Input.astro
+│   │   │   └── Alert.astro
+│   │   └── layout/
+│   │       ├── Header.astro
+│   │       └── Sidebar.astro
+│   ├── layouts/
+│   │   └── MainLayout.astro
+│   ├── utils/
+│   │   ├── api.ts
+│   │   ├── currency.ts
+│   │   └── auth.ts
+│   └── store/
+│       └── authStore.ts
 ├── electron/
 │   ├── main/main.js
 │   ├── main/ipcHandlers.js
@@ -425,16 +493,13 @@ taquilla/
 
 | Sprint | Horas estimadas | Días estimados |
 |--------|-----------------|----------------|
-| **6** - Módulo de Apuestas | 20h | 3 días |
-| **7** - Activación Taquillas | 12h | 2 días |
-| **8** - Frontend Pantallas Base | 30h | 4-5 días |
 | **9** - Frontend Operaciones | 35h | 5-6 días |
 | **10** - Eliminación Tickets | 10h | 1-2 días |
 | **11** - Dashboard Admin | 25h | 3-4 días |
 | **12** - Cierre de Caja | 20h | 3 días |
 | **13** - Comisiones | 15h | 2 días |
 | **14** - Pruebas y Despliegue | 30h | 4-5 días |
-| **TOTAL RESTANTE** | **~200h** | **~28 días** |
+| **TOTAL RESTANTE** | **~135h** | **~19 días** |
 
 ---
 
@@ -449,12 +514,12 @@ taquilla/
    - Logging detallado de errores
    - Considerar alternativa: API oficial si existe
 
-4. **Frontend Muy Atrasado**: El frontend tiene solo ~5% completado. Se recomienda trabajar en paralelo con el backend cuando las APIs estén listas.
+4. **Frontend en progreso**: El frontend tiene ~35% completado (Sprint 8 completo). Falta implementar operaciones críticas (Sprint 9).
 
-5. **Cobertura de Tests**: Actualmente ~9 tests en PHPUnit. Objetivo: mínimo 70% cobertura en lógica de negocio (apuestas, tasas, cierres).
+5. **Cobertura de Tests**: Actualmente 56 tests en PHPUnit. Objetivo: mínimo 70% cobertura en lógica de negocio (apuestas, tasas, cierres).
 
 ---
 
 **Última actualización:** 2026-07-24
-**Sprint actual:** 6 - Módulo de Apuestas (en progreso)
-**Tests pasando:** 23/23 (100%)
+**Sprint actual:** Completado (Sprint 8)
+**Tests pasando:** 56/56 (100%)
