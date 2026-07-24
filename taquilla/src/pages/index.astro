@@ -1,5 +1,5 @@
 ---
-// Este archivo se compila a dist/index.html
+// Splash screen que verifica autenticación y redirige
 const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
 ---
 
@@ -62,33 +62,39 @@ const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
       <h1>🎰 {appName}</h1>
       <p class="subtitle">Sistema de Loterías Multi-Moneda</p>
       <div class="spinner"></div>
-      <p>Cargando entorno de taquilla...</p>
+      <p>Iniciando taquilla...</p>
       <div class="footer">
-        <p>Versión: <span id="version">0.1.0</span></p>
+        <p>Versión: 0.1.0</p>
         <p id="mac-info">MAC: Cargando...</p>
       </div>
     </div>
 
     <script>
-      // Pequeño script para probar la comunicación con Electron
-      if (window.electron) {
-        // Obtener versión (si se expone desde package.json)
-        // Por ahora lo dejamos fijo
-        document.getElementById('version').textContent = '0.1.0';
-
-        // Probar obtener MAC (aunque ipcHandlers aún no está implementado, el preload lo expone)
-        if (window.electron.getMac) {
-          window.electron.getMac().then(mac => {
+      async function init() {
+        // Obtener MAC
+        if (window.electron?.getMac) {
+          try {
+            const mac = await window.electron.getMac();
             document.getElementById('mac-info').textContent = `MAC: ${mac || 'No disponible'}`;
-          }).catch(() => {
+          } catch (error) {
             document.getElementById('mac-info').textContent = 'MAC: Error al obtener';
-          });
-        } else {
-          document.getElementById('mac-info').textContent = 'MAC: No expuesta (contextBridge)';
+          }
         }
-      } else {
-        document.getElementById('mac-info').textContent = 'MAC: Ejecutando en navegador (sin Electron)';
+
+        // Verificar si hay token guardado
+        const token = localStorage.getItem('auth_token');
+        
+        if (token) {
+          // Si hay token, ir directamente a dashboard
+          window.location.href = '/dashboard';
+        } else {
+          // Si no hay token, verificar si necesita activación
+          // Por ahora, ir a pantalla de login
+          window.location.href = '/login';
+        }
       }
+
+      init();
     </script>
   </body>
 </html>

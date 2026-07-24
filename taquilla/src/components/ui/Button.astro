@@ -1,0 +1,104 @@
+---
+interface Props {
+  variant?: 'primary' | 'secondary' | 'danger' | 'success';
+  size?: 'sm' | 'md' | 'lg';
+  disabled?: boolean;
+  loading?: boolean;
+  type?: 'button' | 'submit';
+  onClick?: () => void;
+}
+
+const { 
+  variant = 'primary', 
+  size = 'md', 
+  disabled = false, 
+  loading = false, 
+  type = 'button',
+  onClick 
+} = Astro.props;
+---
+
+<button 
+  type={type} 
+  disabled={disabled || loading} 
+  class={`btn btn-${variant} btn-${size}`}
+  onclick={onClick}
+>
+  {loading ? (
+    <span class="spinner"></span>
+  ) : <slot />}
+</button>
+
+<style>
+  .btn {
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-family: inherit;
+  }
+
+  .btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+  }
+
+  .btn-secondary {
+    background: #6c757d;
+    color: white;
+  }
+
+  .btn-danger {
+    background: #dc3545;
+    color: white;
+  }
+
+  .btn-success {
+    background: #28a745;
+    color: white;
+  }
+
+  .btn-sm {
+    padding: 6px 12px;
+    font-size: 14px;
+  }
+
+  .btn-md {
+    padding: 10px 20px;
+    font-size: 16px;
+  }
+
+  .btn-lg {
+    padding: 14px 28px;
+    font-size: 18px;
+  }
+
+  .spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top: 2px solid white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+</style>
