@@ -6,6 +6,8 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\GrupoController;
 use App\Http\Controllers\Api\TaquillaController;
 use App\Http\Controllers\Api\ExchangeRateController;
+use App\Http\Controllers\Api\JuegoController;
+use App\Http\Controllers\Api\ResultadoController;
 
 // Rutas públicas
 Route::post('/login', [AuthController::class, 'login']);
@@ -36,6 +38,17 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::middleware(['role:super_master|master|banca|grupo'])->group(function () {
         Route::apiResource('taquillas', TaquillaController::class);
     });
+
+    Route::middleware(['role:super_master|master'])->group(function () {
+        Route::apiResource('juegos', JuegoController::class);
+        Route::patch('/juegos/{juego}/toggle', [JuegoController::class, 'toggle'])->name('juegos.toggle');
+    });
+
+    // ==================================================
+    // RESULTADOS (todos los roles autenticados)
+    // ==================================================
+    Route::get('/resultados', [ResultadoController::class, 'index']);
+    Route::get('/resultados/{resultado}', [ResultadoController::class, 'show']);
     // ==================================================
     /*// APUESTAS (todos los roles)
     // ==================================================

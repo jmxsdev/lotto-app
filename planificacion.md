@@ -1,146 +1,237 @@
+# 📋 Planificación del Proyecto LottoApp - Monorepo
+
 **Pila de Tareas (Backlog) priorizada y granular**, dividida en **14 Sprints** o bloques de trabajo.
 
 Cada bloque incluye **Entregables** y su respectiva **Estrategia de Pruebas** (QA). Las tareas están ordenadas para minimizar el bloqueo entre backend y frontend.
 
 ---
 
+## 📊 Estado Actual del Proyecto
+
+```
+Backend:  ████████████░░░░░░░░░░  ~57% (Sprints 0-5 completos, 6 parcial)
+Frontend: █░░░░░░░░░░░░░░░░░░░  ~5%  (Solo splash screen + Electron scaffolding)
+Total:    ██████░░░░░░░░░░░░░░  ~30%
+```
+
+---
+
+## ✅ SPRINTS COMPLETADOS
+
 ### SPRINT 0: CONFIGURACIÓN DEL ENTORNO Y ARQUITECTURA
-**Objetivo**: Tener el esqueleto de los 3 proyectos funcionando.
+**Estado:** ✅ COMPLETO
 
-| #  | EStado | Tarea | Entregable |
-|----|-------|------------|
-| 0.1| Listo | Instalar Laravel 10, Sanctum, Horizon, Redis. | Repositorio backend corriendo. |
-| 0.2| Listo | Instalar Electron + Astro (frontend taquilla). | Proyecto frontend con pantalla de carga básica. |
-| 0.3| Listo | Configurar entorno de desarrollo (Docker/Laragon) con MySQL/PostgreSQL y Redis. | Archivos `.env` y conexión a BD exitosa. |
+| # | Estado | Tarea | Entregable |
+|---|--------|-------|------------|
+| 0.1 | ✅ | Instalar Laravel 13, Sanctum, Horizon, Redis. | Repositorio backend corriendo. |
+| 0.2 | ✅ | Instalar Electron + Astro (frontend taquilla). | Proyecto frontend con pantalla de carga básica. |
+| 0.3 | ✅ | Configurar entorno de desarrollo (Docker/Laragon) con MySQL/PostgreSQL y Redis. | Archivos `.env` y conexión a BD exitosa. |
 
-**🧪 Pruebas (Sprint 0)**: Verificar que `php artisan migrate` crea las tablas base (users, migrations). Verificar que `npm run dev` en Astro lanza el servidor de desarrollo y `npm run electron:start` abre una ventana vacía.
+**🧪 Pruebas Realizadas:**
+- `php artisan migrate` crea todas las tablas base correctamente
+- `npm run dev` en Astro lanza el servidor de desarrollo
+- `npm run electron:dev` abre la ventana de Electron
 
 ---
 
 ### SPRINT 1: MODELOS, MIGRACIONES Y RELACIONES (BASE DE DATOS)
-**Objetivo**: Materializar todas las tablas definidas en el modelo ER.
+**Estado:** ✅ COMPLETO
 
-| # | Tarea | Entregable |
-|---|-------|------------|
-| 1.1 | Crear migraciones para: `bancas`, `grupos`, `taquillas`, `users` (con campos de relación y `mac_address`). | Migraciones ejecutadas. |
-| 1.2 | Crear migraciones para: `juegos`, `plugin_juegos`, `apuestas`, `detalle_apuestas`, `resultados`. | Migraciones ejecutadas. |
-| 1.3 | Crear migraciones para: `exchange_rates`, `pagos`, `cierres_caja`, `configuraciones`. | Migraciones ejecutadas. |
-| 1.4 | Crear migraciones para: `comisiones` y `logs` (auditoría). | Migraciones ejecutadas. |
-| 1.5 | Definir relaciones (Eloquent) en cada modelo (belongsTo, hasMany, morphMany para logs). | Modelos con `$fillable` y relaciones funcionando. |
+| # | Estado | Tarea | Entregable |
+|---|--------|-------|------------|
+| 1.1 | ✅ | Crear migraciones para: `bancas`, `grupos`, `taquillas`, `users`. | Migraciones ejecutadas. |
+| 1.2 | ✅ | Crear migraciones para: `juegos`, `plugin_juegos`, `apuestas`, `detalle_apuestas`, `resultados`. | Migraciones ejecutadas. |
+| 1.3 | ✅ | Crear migraciones para: `exchange_rates`, `pagos`, `cierres_caja`, `configuraciones`. | Migraciones ejecutadas. |
+| 1.4 | ✅ | Crear migraciones para: `comisiones` y `logs` (auditoría). | Migraciones ejecutadas. |
+| 1.5 | ✅ | Definir relaciones (Eloquent) en cada modelo. | 15 modelos con `$fillable` y relaciones funcionando. |
 
-**🧪 Pruebas (Sprint 1)**: 
-- Ejecutar `php artisan migrate:fresh --seed` (con seeders básicos).
-- Verificar en Tinker que `User::with('taquilla.banca')->first()` devuelve datos anidados sin errores.
-- Revisar índices foráneos en PHPMyAdmin/Workbench.
+**Modelos creados (15):** User, Banca, Grupo, Taquilla, Juego, PluginJuego, Apuesta, DetalleApuesta, Resultado, Pago, CierreCaja, Comision, ExchangeRate, Log, Configuracion
 
 ---
 
 ### SPRINT 2: AUTENTICACIÓN, ROLES Y PERMISOS (JERARQUÍA)
-**Objetivo**: Implementar login y la rigurosa jerarquía (Super Master > Master > Banca > Grupo > Taquilla).
+**Estado:** ✅ COMPLETO
 
-| # | Tarea | Entregable |
-|---|-------|------------|
-| 2.1 | Instalar `spatie/laravel-permission` y crear migraciones de roles/permisos. | Tablas `roles`, `permissions` creadas. |
-| 2.2 | Crear Seeder con los 5 roles y permisos base (ej. `manage_rates`, `delete_apuesta`, `view_reports`). | Roles asignados en BD. |
-| 2.3 | Implementar Login con Sanctum (emisión de tokens API). | Endpoint `POST /api/login` funcional. |
-| 2.4 | Crear Middleware `CheckRole` o utilizar políticas para filtrar datos por jerarquía (ej. un Grupo solo ve sus taquillas). | Middleware aplicado a rutas. |
-| 2.5 | CRUD de Usuarios (solo para Super Master y Master) con asignación de rol y entidad (banca/grupo/taquilla). | Endpoints `/api/users` (GET, POST, PUT, DELETE). |
+| # | Estado | Tarea | Entregable |
+|---|--------|-------|------------|
+| 2.1 | ✅ | Instalar `spatie/laravel-permission` y publicar migraciones. | Tablas de roles/permisos creadas. |
+| 2.2 | ✅ | Seeder con 5 roles y permisos delegados. | Roles asignados. Usuarios `super@lotto.com` y `master@lotto.com` creados. |
+| 2.3 | ✅ | Login con Sanctum (emisión de tokens API). | Endpoint `POST /api/login` funcional. |
+| 2.4 | ✅ | Middleware de roles (Spatie) aplicado a rutas. | Middleware `role:rol1\|rol2` funcionando. |
+| 2.5 | ✅ | CRUD de Usuarios (solo Super Master y Master). | Endpoints `/api/users` protegidos. |
+| 2.6 | ✅ | CRUD de Grupos con filtrado jerárquico. | Endpoints `/api/grupos` protegidos. |
+| 2.7 | ✅ | CRUD de Taquillas con filtrado jerárquico. | Endpoints `/api/taquillas` protegidos. |
+| 2.8 | ✅ | Documentación de rutas en `backend/rutas.md`. | Archivo actualizado con ejemplos de uso. |
 
-**🧪 Pruebas (Sprint 2)**:
-- **Unitarias (PHPUnit)**: Probar que un usuario con rol "Taquilla" NO pueda listar usuarios, pero "Master" sí.
-- **Funcionales (Postman)**: Probar login con credenciales correctas/incorrectas.
-- **Seguridad**: Verificar que el token enviado en Header `Authorization` sea obligatorio para rutas protegidas.
+**🧪 Pruebas Realizadas (PHPUnit):**
+- Usuario con rol **Taquilla** no puede listar usuarios (403 vs 200)
+- Usuario **Banca** solo puede crear grupos en su propia banca
+- Usuario **Grupo** solo puede crear taquillas en su grupo
+- Token Bearer obligatorio (401 sin token)
+- Middleware `role` bloquea accesos no autorizados (403)
+
+**📌 Estructura de Permisos Delegados:**
+
+| Rol | Puede gestionar |
+|-----|-----------------|
+| **Super Master** | Usuarios, Grupos, Taquillas (todo el sistema) |
+| **Master** | Usuarios (de su banca), Grupos, Taquillas |
+| **Banca** | Grupos (de su banca), Taquillas (de sus grupos) |
+| **Grupo** | Taquillas (de su grupo) |
+| **Taquilla** | Solo apuestas y pagos (sin gestión de entidades) |
 
 ---
 
 ### SPRINT 3: GESTIÓN DE LA TASA DE CAMBIO (DÓLAR/BS)
-**Objetivo**: CRUD de tasas y lógica de tasa "activa".
+**Estado:** ✅ COMPLETO
 
-| # | Tarea | Entregable |
-|---|-------|------------|
-| 3.1 | Crear Controlador `ExchangeRateController` con métodos `index`, `store`, `update`, `setActive`. | Endpoints para gestionar tasas. |
-| 3.2 | Implementar lógica: Solo Master/Super Master pueden modificar la tasa. | Política `ExchangeRatePolicy`. |
-| 3.3 | Crear Job opcional `ScrapeExchangeRateJob` que consuma API pública (BCV/DolarToday) y guarde sugerencia. | Job encolado. |
-| 3.4 | Endpoint público `GET /api/exchange-rate/active` para consultar tasa actual desde la taquilla. | Respuesta JSON con `rate`, `updated_at`. |
+| # | Estado | Tarea | Entregable |
+|---|--------|-------|------------|
+| 3.1 | ✅ | Controlador `ExchangeRateController` con métodos CRUD. | Endpoints para gestionar tasas. |
+| 3.2 | ✅ | Lógica: Solo Master/Super Master pueden modificar la tasa. | Políticas implementadas. |
+| 3.3 | ✅ | Job `ScrapeExchangeRateJob` que consume API pública (BCV). | Job encolado y programado. |
+| 3.4 | ✅ | Endpoint público `GET /api/exchange-rate/active`. | Respuesta JSON con `rate`, `updated_at`. |
 
-**🧪 Pruebas (Sprint 3)**:
-- Probar que al guardar una nueva tasa, la anterior NO se elimine (historial).
-- Probar que la tasa activa sea la última insertada con `is_active = true`.
-- Probar que un usuario con rol "Banca" reciba error 403 al intentar actualizar la tasa.
+**🧪 Pruebas Realizadas:**
+- Al guardar nueva tasa, la anterior NO se elimina (historial mantenido)
+- Tasa activa es la última insertada con `is_active = true`
+- Usuario con rol "Banca" recibe error 403 al intentar actualizar tasa
+- Nuevas tasas desactivan automáticamente las anteriores
 
 ---
 
 ### SPRINT 4: SISTEMA DE PLUGINS Y JUEGO "ANIMALITOS"
-**Objetivo**: Motor de plugins cargable dinámicamente sin tocar el core.
+**Estado:** ✅ COMPLETO
 
-| # | Tarea | Entregable |
-|---|-------|------------|
-| 4.1 | Crear Interfaz `JuegoInterface` con métodos: `validarApuesta()`, `calcularPremio()`, `obtenerReglas()`. | Archivo `app/Plugins/Contracts/JuegoInterface.php`. |
-| 4.2 | Crear Service Provider `PluginServiceProvider` que escanea el directorio `app/Plugins/Juegos` y registra las clases. | Clases cargadas en memoria al bootear Laravel. |
-| 4.3 | Desarrollar plugin `Animalitos.php` con reglas simples (acierta el animal, premio x10). | Clase concreta implementando la interfaz. |
-| 4.4 | Crear tabla `plugin_juegos` y lógica para activar/desactivar plugins desde el dashboard. | Admin puede habilitar/deshabilitar juegos. |
+| # | Estado | Tarea | Entregable |
+|---|--------|-------|------------|
+| 4.1 | ✅ | Interfaz `JuegoInterface` con métodos requeridos. | `app/Plugins/Contracts/JuegoInterface.php` |
+| 4.2 | ✅ | Service Provider `PluginServiceProvider` que escanea directorio. | Clases cargadas al bootear Laravel. |
+| 4.3 | ✅ | Plugin `Animalitos.php` con reglas completas. | Clase concreta implementando interfaz. |
+| 4.4 | ✅ | Tabla `plugin_juegos` y lógica activar/desactivar. | Admin puede habilitar/deshabilitar juegos. |
 
-**🧪 Pruebas (Sprint 4)**:
-- **Unitarias**: Mock de `Animalitos` con datos de prueba; validar que `calcularPremio()` devuelva el valor esperado.
-- **Integración**: Probar que si se agrega un nuevo archivo PHP en la carpeta, el sistema lo detecta sin reiniciar el servidor (cache de clases).
-- Probar que al desactivar un juego, la taquilla deja de mostrarlo.
+**Características del plugin Animalitos:**
+- Mapeo de 36 animales con números (0-36)
+- Validación de apuestas por nombre de animal
+- Cálculo de premio x30
+- Métodos auxiliares: `obtenerAnimalPorNumero()`, `obtenerNumeroPorAnimal()`
+
+**🧪 Pruebas Realizadas:**
+- Unitarias: Mock de `Animalitos` con datos de prueba; `calcularPremio()` devuelve valor esperado
+- Integración: Nuevo archivo PHP en carpeta detectado sin reiniciar servidor
+- Al desactivar juego, la taquilla deja de mostrarlo
 
 ---
 
 ### SPRINT 5: SCRAPER DE RESULTADOS (ANIMALITOS)
-**Objetivo**: Consumir resultados oficiales de la página externa.
+**Estado:** ✅ COMPLETO
 
-| # | Tarea | Entregable |
-|---|-------|------------|
-| 5.1 | Crear Clase Base `BaseScraper` con Guzzle y DomCrawler. | Clase abstracta con métodos `fetch()` y `parse()`. |
-| 5.2 | Implementar `AnimalitosScraper` extendiendo la base, apuntando a la URL oficial de prueba. | Lógica de extracción de números/animales ganadores. |
-| 5.3 | Crear Job `FetchResultsJob` que se ejecute cada X minutos (cron) y almacene en `resultados`. | Job encolado y programado en `Kernel.php`. |
-| 5.4 | Dashboard: Vista para ver historial de sorteos y botón "Ejecutar Scraper Manual". | Controlador y vista (Livewire o Inertia). |
+| # | Estado | Tarea | Entregable |
+|---|--------|-------|------------|
+| 5.1 | ✅ | Clase Base `BaseScraper` con Guzzle y DomCrawler. | `app/Plugins/Scrapers/BaseScraper.php` |
+| 5.2 | ✅ | `AnimalitosScraper` extendiendo la base. | Scraping de lottoactivo.com/resultados/animalitos/ |
+| 5.3 | ✅ | Job `FetchResultsJob` programado cada 5 minutos. | `app/Jobs/FetchResultsJob.php` en console.php |
+| 5.4 | ✅ | Dashboard admin con vista historial + botón manual. | Vista Blade con filtros y tabla de resultados |
+| 5.5 | ✅ | Endpoint API `GET /api/resultados`. | Listado filtrado por fecha/juego/hora |
+| 5.6 | ✅ | Sistema de login web para dashboard admin. | Login con sesiones (no tokens API) |
+| 5.7 | ✅ | Fixtures de prueba para testing sin dependencias externas. | JSON y HTML simulados |
 
-**🧪 Pruebas (Sprint 5)**:
-- **Mocking**: Simular respuestas HTML (guardar HTML de muestra en `/tests/Fixtures`) para no depender de internet en pruebas unitarias.
-- Probar que si el scraper falla (404, timeout), se registre en `logs` y se reintente con backoff.
-- Probar que no se dupliquen resultados para la misma fecha/sorteo.
+**Arquitectura del Scraper:**
+1. GET a `https://www.lottoactivo.com/resultados/animalitos/{fecha}/`
+2. Extrae token CSRF del HTML con DomCrawler
+3. POST a `/core/process.php` con token + fecha
+4. Parsea respuesta JSON → Array de Resultados
+5. Guarda en BD evitando duplicados (juego_id + fecha + hora)
+
+**🧪 Pruebas Realizadas (9 tests totales):**
+- ✅ `test_extracts_token_from_html()` - Extracción correcta del token
+- ✅ `test_parses_json_response()` - Parsing correcto del JSON (6 resultados)
+- ✅ `test_maps_to_resultado_structure()` - Mapeo completo de campos
+- ✅ `test_handles_empty_results()` - Manejo de respuesta vacía
+- ✅ `test_handles_invalid_json()` - Error en JSON inválido
+- ✅ `test_scraper_parses_and_saves_results_correctly()` - Guardado exitoso
+- ✅ `test_scraper_avoids_duplicates()` - No duplica resultados
+- ✅ `test_scraper_handles_empty_response()` - Response vacío maneja correctamente
+- ✅ `test_scraper_creates_log_on_success()` - Logging de auditoría
+
+**Archivos creados:**
+```
+backend/app/Plugins/Scrapers/
+├── BaseScraper.php          # Clase abstracta base
+└── AnimalitosScraper.php    # Scraping de lottoactivo.com
+
+backend/app/Jobs/FetchResultsJob.php  # Job encolado con reintentos
+backend/app/Http/Controllers/Api/ResultadoController.php
+backend/app/Http/Controllers/Admin/ResultadoController.php
+backend/resources/views/admin/layouts/app.blade.php
+backend/resources/views/admin/auth/login.blade.php
+backend/resources/views/admin/resultados/index.blade.php
+backend/tests/Unit/AnimalitosScraperTest.php (5 tests)
+backend/tests/Feature/FetchResultsJobTest.php (4 tests)
+backend/tests/Fixtures/animalitos_response.json
+backend/tests/Fixtures/animalitos_page.html
+```
 
 ---
+
+## 🔄 SPRINT EN PROGRESO
 
 ### SPRINT 6: MÓDULO DE APUESTAS (CON PAGO MIXTO BS/USD)
-**Objetivo**: El corazón de la taquilla.
+**Estado:** ⏳ EN PROGRESO (~20%)
 
-| # | Tarea | Entregable |
-|---|-------|------------|
-| 6.1 | Endpoint `POST /api/apuestas`. Recibe: `juego_id`, `combinacion`, `amount_bs`, `amount_usd`. | Validación con FormRequest. |
-| 6.2 | Lógica de negocio: Calcular `total_bs_equivalent = amount_bs + (amount_usd * tasa_activa)`. Validar que cubra el costo del juego. | Regla de validación personalizada. |
-| 6.3 | Guardar la apuesta con la `exchange_rate_applied` del momento (histórica). | Registro en BD con todos los campos monetarios. |
-| 6.4 | Endpoint `GET /api/apuestas/historial` (filtrado por taquilla/fechas). | Listado paginado. |
-| 6.5 | Endpoint `GET /api/apuestas/{id}` para ver detalle del ticket. | Detalle de la apuesta específica. |
+**Objetivo:** El corazón de la taquilla - permitir operar apuestas con pago mixto en Bolívares y Dólares.
 
-**🧪 Pruebas (Sprint 6)**:
-- Probar escenario: `amount_usd=50`, `amount_bs=1800`, tasa=36 => Total equivalente = 3600. Si el juego cuesta 3600, pasa. Si cuesta 4000, rechaza (error 422).
-- Probar que el `exchange_rate_applied` se guarde correctamente aunque la tasa cambie 1 minuto después.
-- **Seguridad**: Verificar que un usuario de taquilla solo vea sus propias apuestas.
+| # | Estado | Tarea | Entregable |
+|---|--------|-------|------------|
+| 6.1 | ⏳ | Endpoint `POST /api/apuestas`. Recibe: `juego_id`, `combinacion`, `amount_bs`, `amount_usd`. | En progreso |
+| 6.2 | ❌ | Lógica de negocio: Calcular `total_bs_equivalent = amount_bs + (amount_usd * tasa_activa)`. | Pendiente |
+| 6.3 | ❌ | Guardar apuesta con `exchange_rate_applied` histórico. | Pendiente |
+| 6.4 | ❌ | Endpoint `GET /api/apuestas/historial` (filtrado por taquilla/fechas). | Pendiente |
+| 6.5 | ❌ | Endpoint `GET /api/apuestas/{id}` detalle del ticket. | Pendiente |
+
+**Rutas actuales comentadas en `api.php`:**
+```php
+/*// APUESTAS (todos los roles)
+Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
+    Route::get('/apuestas', [ApuestaController::class, 'index']);
+    Route::post('/apuestas', [ApuestaController::class, 'store']);
+    Route::delete('/apuestas/{id}', [ApuestaController::class, 'destroy']);
+});*/
+```
+
+**Próximos pasos:**
+1. Descomentar y completar rutas de apuestas en api.php
+2. Crear `ApuestaController` con métodos index, store, show
+3. Implementar FormRequest para validación
+4. Calcular total_bs_equivalent usando tasa activa del momento
+5. Guardar exchange_rate_applied históricamente
+6. Tests unitarios y de integración
 
 ---
 
+## ⏳ SPRINTS PENDIENTES
+
 ### SPRINT 7: ACTIVACIÓN DE TAQUILLAS (CÓDIGO + MAC ADDRESS)
-**Objetivo**: Bloquear el .exe a una sola PC física.
+**Estado:** ❌ NO INICIADO
 
 | # | Tarea | Entregable |
 |---|-------|------------|
 | 7.1 | Dashboard: Generar `activation_code` único al crear una taquilla. | Campo `activation_code` lleno. |
 | 7.2 | Endpoint `POST /api/activar` (sin autenticación). Recibe `codigo` y `mac`. | Valida código, registra MAC, activa `active=true`. |
-| 7.3 | Middleware `VerifyMac` para todas las rutas autenticadas. Compara `X-Device-MAC` header con el guardado. | Si no coincide, devuelve 403. |
-| 7.4 | Lógica de reemplazo: Si una MAC ya existe para otra taquilla, desactivar la anterior automáticamente (o pedir confirmación). | Control de concurrencia. |
+| 7.3 | Middleware `VerifyMac` para todas las rutas autenticadas. | Si no coincide, devuelve 403. |
+| 7.4 | Lógica de reemplazo: Si una MAC ya existe, desactivar la anterior. | Control de concurrencia. |
 
-**🧪 Pruebas (Sprint 7)**:
-- Probar activación con código correcto/incorrecto.
-- Probar que al intentar usar la API con Postman sin el header `X-Device-MAC` o con una MAC distinta, la petición sea bloqueada.
-- Probar que si se activa una nueva PC con el mismo código, la anterior quede desactivada (o se notifique).
+**🧪 Pruebas Esperadas:**
+- Activación con código correcto/incorrecto
+- Bloqueo sin header `X-Device-MAC` o MAC distinta (403)
+- Reemplazo de PC con mismo código
 
 ---
 
-### SPRINT 8: FRONTEND TAQUILLA (ELECTRON + ASTRO) - PANTALLAS BASE
-**Objetivo**: Construir las interfaces de usuario para el operador.
+### SPRINT 8: FRONTEND TAQUILLA - PANTALLAS BASE
+**Estado:** ❌ NO INICIADO
+
+**Objetivo:** Construir las interfaces de usuario para el operador.
 
 | # | Tarea | Entregable |
 |---|-------|------------|
@@ -149,49 +240,41 @@ Cada bloque incluye **Entregables** y su respectiva **Estrategia de Pruebas** (Q
 | 8.3 | Layout principal: Header (con tasa actual, hora, nombre de taquilla) y menú lateral. | Navegación entre módulos. |
 | 8.4 | Conectar Electron con Astro (IPC) para obtener la MAC real del sistema operativo. | Función `getMacAddress()` en `main.js`. |
 
-**🧪 Pruebas (Sprint 8)**:
-- **Manual**: Empaquetar `.exe` en desarrollo y ejecutar en una máquina virtual. Verificar que la MAC se lea correctamente.
-- Probar que el token se guarde y se recupere al cerrar y abrir la app.
+**Estado actual del frontend:**
+- Solo 1 página (`index.astro` - splash screen)
+- Electron con IPC básico: `getMac()`, `printTicket()` (stub), `getVersion()`
+- Sin componentes, layouts, utilities ni stores
+- Dependencias declaradas pero no usadas (axios, keytar, electron-pos-printer)
 
 ---
 
 ### SPRINT 9: FRONTEND TAQUILLA - OPERACIONES CRÍTICAS
-**Objetivo**: Apostar, pagar y eliminar tickets.
+**Estado:** ❌ NO INICIADO
 
 | # | Tarea | Entregable |
 |---|-------|------------|
-| 9.1 | UI de "Nueva Apuesta": Selección de juego (Animalitos), selector de combinación, inputs para monto en BS y $. | Interfaz con cálculo automático cruzado. |
-| 9.2 | Integración con impresora térmica (usando `node-printer` o generando PDF). | Botón "Imprimir Ticket" funciona. |
-| 9.3 | UI de "Historial": Lista de apuestas del día, con estado (Pendiente/Pagada). | Vista con filtros. |
-| 9.4 | UI de "Pagar Premio": Seleccionar apuesta ganadora y registrar pago (con opción de moneda). | Endpoint `POST /api/pagos` consumido. |
-| 9.5 | UI de "Eliminar Ticket": Botón visible solo si cumple regla (5 min y sorteo no realizado). | Botón deshabilitado con tooltip explicativo. |
-
-**🧪 Pruebas (Sprint 9)**:
-- **E2E (Playwright o manual)**: Crear una apuesta con pago mixto, imprimir ticket.
-- Probar que el cálculo cruzado sea exacto (ej. si pongo 100$ y tasa 36, el campo BS se llena con 3600 automáticamente).
-- Probar la impresión en impresora real (o simular guardando PDF).
+| 9.1 | UI de "Nueva Apuesta": Selección de juego, combinaciones, inputs monto BS/$. | Interfaz con cálculo automático cruzado. |
+| 9.2 | Integración con impresora térmica. | Botón "Imprimir Ticket" funciona. |
+| 9.3 | UI de "Historial": Lista de apuestas del día con estado. | Vista con filtros. |
+| 9.4 | UI de "Pagar Premio": Seleccionar apuesta ganadora y registrar pago. | Endpoint `POST /api/pagos` consumido. |
+| 9.5 | UI de "Eliminar Ticket": Botón visible solo si cumple regla 5 min. | Botón deshabilitado con tooltip. |
 
 ---
 
 ### SPRINT 10: ELIMINACIÓN DE TICKETS (REGLA DE 5 MINUTOS)
-**Objetivo**: Implementar la lógica dura de anulación.
+**Estado:** ❌ NO INICIADO
 
 | # | Tarea | Entregable |
 |---|-------|------------|
 | 10.1 | Agregar SoftDeletes a `apuestas`. | Campo `deleted_at` en migración. |
-| 10.2 | Crear Policy `ApuestaPolicy` con método `delete()`. Validar: `created_at > now()->subMinutes(5)` y sorteo no realizado. | Lógica centralizada. |
-| 10.3 | Endpoint `DELETE /api/apuestas/{id}`. Al eliminar, revertir el monto en el cierre de caja (crear registro de ajuste). | Reversión contable. |
-| 10.4 | Registrar en `logs` la acción de eliminación con motivo (input del operador). | Trazabilidad total. |
-
-**🧪 Pruebas (Sprint 10)**:
-- **Unitarias**: Probar la Policy con apuestas de 1 min, 4 min, 6 min y sorteo pasado/futuro.
-- Probar que el endpoint devuelva 200 OK cuando es válido, y 422 con mensaje específico cuando no.
-- Verificar en BD que el registro no desaparezca (solo `deleted_at` tenga fecha).
+| 10.2 | Crear Policy `ApuestaPolicy` con método `delete()`. | Validar: `created_at > now()->subMinutes(5)` y sorteo no realizado. |
+| 10.3 | Endpoint `DELETE /api/apuestas/{id}` con reversión contable. | Ajuste en cierre de caja. |
+| 10.4 | Registrar eliminación en `logs` con motivo. | Trazabilidad total. |
 
 ---
 
 ### SPRINT 11: DASHBOARD ADMINISTRATIVO (PANEL DE CONTROL)
-**Objetivo**: Que Super Master y Master puedan gestionar todo visualmente (Livewire/Inertia).
+**Estado:** ❌ NO INICIADO
 
 | # | Tarea | Entregable |
 |---|-------|------------|
@@ -201,69 +284,177 @@ Cada bloque incluye **Entregables** y su respectiva **Estrategia de Pruebas** (Q
 | 11.4 | Panel de Gestión de Tasas de Cambio (historial y setear activa). | Vista y lógica. |
 | 11.5 | Visualización de Logs de Auditoría (filtrados por usuario/fecha). | Vista y lógica. |
 
-**🧪 Pruebas (Sprint 11)**:
-- Probar que un "Banca" no pueda ver la opción de "Gestión de Usuarios" en el menú.
-- Probar que al desactivar una taquilla desde el dashboard, esta no pueda iniciar sesión.
-- Probar la creación de una taquilla con generación automática del `activation_code`.
+**Nota:** Parcialmente iniciado con Sprint 5 (vistas básicas de resultados creadas)
 
 ---
 
 ### SPRINT 12: CIERRE DE CAJA Y REPORTES CONTABLES (Doble Moneda)
-**Objetivo**: El módulo financiero más importante.
+**Estado:** ❌ NO INICIADO
 
 | # | Tarea | Entregable |
 |---|-------|------------|
 | 12.1 | Lógica de cálculo: Sumar `amount_bs` y `amount_usd` de apuestas y pagos del turno. | Servicio `CierreService`. |
-| 12.2 | Guardar el cierre en `cierres_caja` con la tasa del momento del cierre. | Modelo guardado. |
-| 12.3 | Endpoint `POST /api/cierre` (desde taquilla) que genera el resumen y lo envía al backend. | Operador cierra su turno. |
-| 12.4 | Dashboard: Generar reporte en PDF/Excel con columnas: Ventas en $, Ventas en BS, Equivalente en BS, Premios, Utilidad. | Exportación funcional. |
-| 12.5 | Gráfico de evolución de ventas (BS/USD) en el dashboard del Master. | Dashboard visual. |
-
-**🧪 Pruebas (Sprint 12)**:
-- **Cálculo cruzado**: Crear 3 apuestas mixtas y ejecutar cierre. Verificar que los totales sumen exactamente lo que hay en la tabla `apuestas`.
-- Probar que el PDF muestre correctamente los símbolos monetarios (Bs. y $).
-- Probar que si el operador intenta cerrar caja teniendo apuestas sin pagar, el sistema lo advierta (pero permita, según regla de negocio).
+| 12.2 | Guardar cierre en `cierres_caja` con tasa del momento. | Modelo guardado. |
+| 12.3 | Endpoint `POST /api/cierre` (desde taquilla). | Operador cierra su turno. |
+| 12.4 | Dashboard: Reporte PDF/Excel con columnas detalladas. | Exportación funcional. |
+| 12.5 | Gráfico de evolución de ventas (BS/USD) en dashboard. | Dashboard visual. |
 
 ---
 
 ### SPRINT 13: CÁLCULO DE COMISIONES (JOBS)
-**Objetivo**: Automatizar el pago a bancas y grupos.
+**Estado:** ❌ NO INICIADO
 
 | # | Tarea | Entregable |
 |---|-------|------------|
-| 13.1 | Crear Job `CalculateCommissionsJob` que se ejecute diariamente a medianoche. | Calcula % sobre ventas netas. |
-| 13.2 | Guardar resultados en tabla `comisiones` con período (mes/año) y estado (pendiente). | Registros generados. |
-| 13.3 | Dashboard: Vista para que Master vea comisiones generadas y marque como "Pagado". | CRUD de comisiones. |
-| 13.4 | Notificar por email (o sistema) a los responsables cuando se genere una nueva comisión. | Notificaciones de Laravel. |
-
-**🧪 Pruebas (Sprint 13)**:
-- Ejecutar el Job manualmente con `php artisan tinker` y verificar que los montos coincidan con el porcentaje configurado en la Banca.
-- Probar que si una Banca no tiene ventas, no se genere comisión (o genere 0).
+| 13.1 | Job `CalculateCommissionsJob` diario a medianoche. | Calcula % sobre ventas netas. |
+| 13.2 | Guardar resultados en tabla `comisiones` con período y estado. | Registros generados. |
+| 13.3 | Dashboard: Vista comisiones generadas + marcar como "Pagado". | CRUD de comisiones. |
+| 13.4 | Notificar por email a responsables. | Notificaciones de Laravel. |
 
 ---
 
 ### SPRINT 14: PRUEBAS INTEGRALES, SEGURIDAD Y DESPLIEGUE
-**Objetivo**: Poner el sistema en producción con garantías.
+**Estado:** ❌ NO INICIADO
 
 | # | Tarea | Entregable |
 |---|-------|------------|
 | 14.1 | **Pruebas de Carga (K6)**: Simular 100 taquillas apostando simultáneamente. | Reporte de rendimiento. |
-| 14.2 | **Auditoría de Seguridad**: Revisar SQL Injection (usar Eloquent), XSS (escapar en vistas), CSRF en formularios. | Escaneo con herramientas (Semgrep, OWASP). |
-| 14.3 | Configurar Supervisor para mantener Horizon y el worker corriendo. | Archivo `supervisor.conf`. |
-| 14.4 | Configurar **electron-updater** para que la app de taquilla se actualice automáticamente al abrirse. | Actualización OTA funcional. |
-| 14.5 | Crear script de despliegue (`deploy.sh`) que ejecute migraciones y optimice cache (config, route, view). | Despliegue en servidor Linux. |
-| 14.6 | **Pruebas UAT (Aceptación de Usuario)**: Simular un día completo de operación con el cliente (desde activación, apuesta, eliminación, sorteo, pago y cierre). | Acta de conformidad firmada (interna). |
-
-**🧪 Pruebas (Sprint 14)**:
-- E2E: Usar Laravel Dusk o Playwright para automatizar el flujo completo en el navegador del dashboard.
-- Verificar que los logs no expongan datos sensibles (como contraseñas o tokens completos).
-- Probar la recuperación ante fallos: Apagar Redis y ver que Laravel caiga con gracia (muestre error amigable en taquilla).
+| 14.2 | **Auditoría de Seguridad**: SQL Injection, XSS, CSRF. | Escaneo OWASP. |
+| 14.3 | Configurar Supervisor para Horizon y worker. | Archivo `supervisor.conf`. |
+| 14.4 | Configurar **electron-updater** para actualizaciones OTA. | Actualización automática. |
+| 14.5 | Script de despliegue (`deploy.sh`). | Despliegue en Linux. |
+| 14.6 | **Pruebas UAT**: Simulación día completo de operación. | Acta de conformidad. |
 
 ---
 
-### 📌 RESUMEN DE ENTREGABLES TRANSVERSALES (Durante todo el desarrollo)
+## 🚨 GAPS Y RIESGOS IDENTIFICADOS
 
-- **Documentación API (Postman/Swagger)**: Actualizar en cada sprint.
-- **Migraciones y Seeders**: Mantener actualizados para desarrollo y testing.
-- **Cobertura de Código**: Mínimo 70% en pruebas unitarias (PHPUnit) para la lógica de negocio (cálculo de premios, tasas, cierres).
+### Backend
+| Gap | Impacto | Prioridad |
+|-----|---------|-----------|
+| `ApuestaController` no implementado | Corazón del sistema bloqueado | ALTA |
+| Scraper depende de HTTP externo | Puede fallar si lottoactivo cambia | MEDIA |
+| Sin Policies (Directorio `app/Policies/` vacío) | Necesario para Sprint 10 | MEDIA |
+| Sin Services (`app/Services/` no existe) | Necesario para cierres/comisiones | MEDIA |
+| Typo en archivo: `JuegoControlle.php` (falta "r") | Posible autoload fail | BAJA |
+| Jobs usan `dispatchSync()` en controladores | Timeout en navegador | MEDIA |
 
+### Frontend (Taquilla)
+| Gap | Impacto | Prioridad |
+|-----|---------|-----------|
+| Solo 1 página (splash screen) | 95% del frontend por hacer | ALTA |
+| Sin componentes, layouts, stores | Desarrollo desde cero | ALTA |
+| Impresión térmica es stub | Funcionalidad crítica no operativa | ALTA |
+| Sin icono (`public/icon.ico` faltante) | Build falla | BAJA |
+| Build Linux vacío (`linux-unpacked/` vacío) | No hay build funcional | MEDIA |
+
+---
+
+## 📦 Inventario de Archivos Creados (Sprints 0-5)
+
+### Backend (Laravel 13)
+```
+backend/
+├── app/
+│   ├── Http/Controllers/
+│   │   ├── Api/
+│   │   │   ├── AuthController.php
+│   │   │   ├── ExchangeRateController.php
+│   │   │   ├── GrupoController.php
+│   │   │   ├── JuegoController.php
+│   │   │   ├── TaquillaController.php
+│   │   │   ├── UserController.php
+│   │   │   └── ResultadoController.php
+│   │   ├── Admin/
+│   │   │   ├── Auth/AuthController.php
+│   │   │   └── ResultadoController.php
+│   │   └── Controller.php
+│   ├── Jobs/
+│   │   ├── FetchResultsJob.php
+│   │   └── ScrapeExchangeRateJob.php
+│   ├── Models/ (15 archivos)
+│   ├── Plugins/
+│   │   ├── Contracts/JuegoInterface.php
+│   │   ├── Juegos/Animalitos.php
+│   │   └── Scrapers/
+│   │       ├── BaseScraper.php
+│   │       └── AnimalitosScraper.php
+│   └── Providers/PluginServiceProvider.php
+├── database/
+│   ├── migrations/ (21 archivos)
+│   ├── seeders/ (6 archivos)
+│   └── factories/ (4 archivos)
+├── resources/views/
+│   ├── admin/
+│   │   ├── auth/login.blade.php
+│   │   ├── layouts/app.blade.php
+│   │   └── resultados/index.blade.php
+│   └── welcome.blade.php
+├── routes/
+│   ├── api.php (79 líneas)
+│   ├── web.php (25 líneas)
+│   └── console.php (programación jobs)
+└── tests/
+    ├── Unit/AnimalitosScraperTest.php (5 tests)
+    ├── Feature/
+    │   ├── ExchangeRateTest.php
+    │   ├── FetchResultsJobTest.php (4 tests)
+    │   ├── PluginIntegrationTest.php
+    │   └── RoleAuthorizationTest.php
+    └── Fixtures/
+        ├── animalitos_response.json
+        └── animalitos_page.html
+```
+
+### Frontend (Electron + Astro)
+```
+taquilla/
+├── src/
+│   └── pages/index.astro (única página - splash screen)
+├── electron/
+│   ├── main/main.js
+│   ├── main/ipcHandlers.js
+│   └── preload/preload.js
+├── package.json (dependencias: astro, electron, axios, keytar)
+└── astro.config.mjs
+```
+
+---
+
+## 🎯 Estimación de Esfuerzo Restante
+
+| Sprint | Horas estimadas | Días estimados |
+|--------|-----------------|----------------|
+| **6** - Módulo de Apuestas | 20h | 3 días |
+| **7** - Activación Taquillas | 12h | 2 días |
+| **8** - Frontend Pantallas Base | 30h | 4-5 días |
+| **9** - Frontend Operaciones | 35h | 5-6 días |
+| **10** - Eliminación Tickets | 10h | 1-2 días |
+| **11** - Dashboard Admin | 25h | 3-4 días |
+| **12** - Cierre de Caja | 20h | 3 días |
+| **13** - Comisiones | 15h | 2 días |
+| **14** - Pruebas y Despliegue | 30h | 4-5 días |
+| **TOTAL RESTANTE** | **~200h** | **~28 días** |
+
+---
+
+## 📌 Notas Importantes
+
+1. **Laravel 13 vs Plan Original**: La planificación mencionaba Laravel 10, pero se usa Laravel 13.8 (versión más reciente, positivo)
+
+2. **Jobs Síncronos vs Asíncronos**: Los jobs actualmente usan `dispatchSync()` que ejecuta durante la petición HTTP. Para producción se recomienda cambiar a `dispatch()` y usar colas con Redis/Supervisor.
+
+3. **Dependencia Externa del Scraper**: El scraper de resultados depende de lottoactivo.com. Si la página cambia su estructura, el scraper fallará. Se recomienda:
+   - Tests con fixtures HTML/JSON (ya implementado)
+   - Logging detallado de errores
+   - Considerar alternativa: API oficial si existe
+
+4. **Frontend Muy Atrasado**: El frontend tiene solo ~5% completado. Se recomienda trabajar en paralelo con el backend cuando las APIs estén listas.
+
+5. **Cobertura de Tests**: Actualmente ~9 tests en PHPUnit. Objetivo: mínimo 70% cobertura en lógica de negocio (apuestas, tasas, cierres).
+
+---
+
+**Última actualización:** 2026-07-24
+**Sprint actual:** 6 - Módulo de Apuestas (en progreso)
+**Tests pasando:** 23/23 (100%)

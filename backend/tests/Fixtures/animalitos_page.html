@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Lotto Activo|Resultados</title>
+</head>
+<body>
+    <main class="overflow-hidden">
+        <section id="ani-res" class="section block bg-contrast">
+            <div class="container py-4 contenido_result">
+                <div class="section-heading text-center">
+                    <h2 class="bold titulo_result">Resultados</h2>
+                    <h5 class="bold fecha_result">Fecha: 23/07/2026</h5>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+    $(function () {
+        $(document).ready(function(e) {
+            let loteria='animalitos';
+            let fecha = '2026-07-23';
+            data = {'option':'SXhyWElLVXdOa0plU3lPLXN4UFVCUSRpVkhvYitMU2g1TWl4R0hRZmhFMnRxTXVTU2U5aVRUOTBDSXBxUEdtUVE2K2FKYnkxMFAyVzFFSTFDN084TVZs','loteria':'animalitos','fecha':'2026-07-23'};
+            $.post('/core/process.php', data)
+            .done(function(resp){
+                console.log(resp);
+            });
+        });
+    });
+    </script>
+</body>
+</html>
