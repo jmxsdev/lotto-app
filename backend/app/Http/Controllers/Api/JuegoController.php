@@ -4,19 +4,14 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Juego;
+use App\Models\JuegoAuditoria;
 use App\Models\PluginJuego;
+use App\Services\JuegoPluginManager;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class JuegoController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('auth:sanctum');
-        $this->middleware('permission:manage_juegos')->except(['index', 'show']);
-        $this->middleware('permission:view_juegos')->only(['index', 'show']);
-    }
-
     public function index()
     {
         $juegos = Juego::with('pluginJuego')->get();
@@ -25,61 +20,103 @@ class JuegoController extends Controller
 
     public function show(Juego $juego)
     {
-        return response()->json($juego->load('pluginJuego'));
+        return response()->json($juego->load('pluginJuego', 'auditoria.user'));
     }
 
-    /**
-     * Activar/Desactivar un juego
-     */
     public function toggle(Request $request, Juego $juego)
     {
         $request->validate([
             'active' => 'required|boolean',
         ]);
 
-        $juego->update(['active' => $request->active]);
-        // También actualizar el plugin asociado
+        $user = $request->user();
+        $oldActive = $juego->active;
+        $newActive = $request->active;
+
+        $juego->update([
+            'active' => $newActive,
+            'updated_by' => $user->id,
+        ]);
+
         if ($juego->pluginJuego) {
-            $juego->pluginJuego->update(['active' => $request->active]);
+            $juego->pluginJuego->update([
+                'active' => $newActive,
+                'updated_by' => $user->id,
+            ]);
         }
+
+        JuegoAuditoria::create([
+            'juego_id' => $juego->id,
+            'user_id' => $user->id,
+            'accion' => $newActive ? 'activar' : 'desactivar',
+            'cambios' => [
+                'before' => ['active' => $oldActive],
+                'after' => ['active' => $newActive],
+            ],
+        ]);
+
+        return response()->json($juego->load('pluginJuego', 'updatedByUser'));
+    }
+
+    public function update(Request $request, Juego $juego)
+    {
+        $user = $request->user();
+
+        $request->validate([
+            'name' => 'sometimes|string|max:255',
+            'config' => 'nullable|array',
+        ]);
+
+        $changes = $request->only(['name', 'config']);
+
+        if (empty($changes)) {
+            return response()->json($juego->load('pluginJuego'));
+        }
+
+        $before = $juego->only(['name', 'config']);
+        $juego->update(array_merge($changes, ['updated_by' => $user->id]));
+        $after = $juego->only(['name', 'config']);
+
+        JuegoAuditoria::create([
+            'juego_id' => $juego->id,
+            'user_id' => $user->id,
+            'accion' => 'actualizar',
+            'cambios' => [
+                'before' => $before,
+                'after' => $after,
+            ],
+        ]);
 
         return response()->json($juego->load('pluginJuego'));
     }
 
-    /**
-     * Registrar un nuevo juego con su plugin
-     */
-    public function store(Request $request)
+    public function opciones(Juego $juego)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'slug' => 'required|string|unique:juegos,slug',
-            'type' => 'required|string',
-            'config' => 'nullable|array',
-            'requires_scraper' => 'boolean',
-            'scraper_url' => 'nullable|url',
-            'plugin_class' => 'required|string|exists:App\\Plugins\\Juegos,class', // Validación básica
-        ]);
+        $opciones = $juego->opciones()->get();
 
-        // Crear juego
-        $juego = Juego::create([
-            'name' => $request->name,
-            'slug' => $request->slug,
-            'type' => $request->type,
-            'config' => $request->config,
-            'requires_scraper' => $request->requires_scraper ?? false,
-            'scraper_url' => $request->scraper_url,
-            'active' => true,
-        ]);
+        if ($opciones->isEmpty()) {
+            $plugin = app(JuegoPluginManager::class)->getPlugin($juego);
+            if ($plugin) {
+                return response()->json($plugin->obtenerOpciones());
+            }
+        }
 
-        // Crear plugin asociado
-        PluginJuego::create([
-            'juego_id' => $juego->id,
-            'class_namespace' => $request->plugin_class,
-            'version' => '1.0.0',
-            'active' => true,
-        ]);
+        return response()->json($opciones);
+    }
 
-        return response()->json($juego->load('pluginJuego'), 201);
+    public function horarios(Juego $juego)
+    {
+        return response()->json($juego->horarios()->get());
+    }
+
+    public function reglas(Juego $juego)
+    {
+        $plugin = app(JuegoPluginManager::class)->getPlugin($juego);
+
+        if (!$plugin) {
+            return response()->json(['message' => 'No hay plugin registrado para este juego.'], 404);
+        }
+
+        return response()->json($plugin->obtenerReglas());
     }
 }

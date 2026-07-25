@@ -11,13 +11,18 @@ class Taquilla extends Model
 
     protected $fillable = [
         'name', 'code', 'grupo_id', 'mac_address', 'activation_code',
-        'active', 'last_connection_at'
+        'active', 'last_connection_at', 'created_by'
     ];
 
     protected $casts = [
         'active' => 'boolean',
         'last_connection_at' => 'datetime',
     ];
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
 
     public function grupo()
     {

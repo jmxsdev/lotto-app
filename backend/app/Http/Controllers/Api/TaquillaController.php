@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Taquilla;
 use App\Models\Grupo;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Str;
 
@@ -62,6 +64,9 @@ class TaquillaController extends Controller
             'code' => 'required|string|unique:taquillas,code',
             'grupo_id' => 'required|exists:grupos,id',
             'active' => 'boolean',
+            'user_name' => 'required|string|max:255',
+            'user_email' => 'required|email|unique:users,email',
+            'user_password' => 'required|string|min:8',
         ]);
 
         // Verificar acceso al grupo
@@ -70,15 +75,34 @@ class TaquillaController extends Controller
         // Generar activation_code automáticamente si no se proporciona
         $activationCode = $request->activation_code ?? Str::random(8);
 
+        $grupo = Grupo::find($request->grupo_id);
+
         $taquilla = Taquilla::create([
             'name' => $request->name,
             'code' => $request->code,
             'grupo_id' => $request->grupo_id,
             'activation_code' => $activationCode,
             'active' => $request->active ?? true,
+            'created_by' => $user->id,
         ]);
 
-        return response()->json($taquilla->load('grupo.banca'), 201);
+        $user = User::create([
+            'name' => $request->user_name,
+            'email' => $request->user_email,
+            'password' => Hash::make($request->user_password),
+            'role' => 'taquilla',
+            'banca_id' => $grupo->banca_id,
+            'grupo_id' => $request->grupo_id,
+            'taquilla_id' => $taquilla->id,
+            'active' => $request->active ?? true,
+        ]);
+
+        $user->assignRole('taquilla');
+
+        return response()->json([
+            'taquilla' => $taquilla->load('grupo.banca'),
+            'user' => $user->load('roles'),
+        ], 201);
     }
 
     /**

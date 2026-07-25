@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\BancaController;
 use App\Http\Controllers\Api\GrupoController;
 use App\Http\Controllers\Api\TaquillaController;
 use App\Http\Controllers\Api\ExchangeRateController;
@@ -17,16 +18,27 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::get('/exchange-rate/active', [ExchangeRateController::class, 'active']); // pública
 Route::post('/activar', [ActivacionController::class, 'activar']); // activación taquilla
 
-// Rutas protegidas con Sanctum + verificación MAC
-Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
+// Rutas protegidas solo con Sanctum (sin verificación MAC)
+Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/logout', [AuthController::class, 'logout']);
+});
+
+// Rutas protegidas con Sanctum + verificación MAC
+Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
 
     // ==================================================
     // USUARIOS (solo Super Master y Master)
     // ==================================================
     Route::middleware(['role:super_master|master'])->group(function () {
         Route::apiResource('users', UserController::class);
+    });
+
+    // ==================================================
+    // BANCAS (solo Super Master y Master)
+    // ==================================================
+    Route::middleware(['role:super_master|master'])->group(function () {
+        Route::apiResource('bancas', BancaController::class);
     });
 
     // ==================================================
@@ -43,10 +55,20 @@ Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
         Route::apiResource('taquillas', TaquillaController::class);
     });
 
+    // ==================================================
+    // JUEGOS — lectura: cualquier autenticado; modificación: solo master
+    // ==================================================
+    Route::get('/juegos', [JuegoController::class, 'index']);
+    Route::get('/juegos/{juego}', [JuegoController::class, 'show']);
+
     Route::middleware(['role:super_master|master'])->group(function () {
-        Route::apiResource('juegos', JuegoController::class);
+        Route::put('/juegos/{juego}', [JuegoController::class, 'update']);
         Route::patch('/juegos/{juego}/toggle', [JuegoController::class, 'toggle'])->name('juegos.toggle');
     });
+
+    Route::get('/juegos/{juego}/opciones', [JuegoController::class, 'opciones']);
+    Route::get('/juegos/{juego}/horarios', [JuegoController::class, 'horarios']);
+    Route::get('/juegos/{juego}/reglas', [JuegoController::class, 'reglas']);
 
     // ==================================================
     // RESULTADOS (todos los roles autenticados)
@@ -86,8 +108,8 @@ Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
 
     Route::middleware(['permission:manage_exchange_rates'])->group(function () {
         Route::post('/exchange-rates', [ExchangeRateController::class, 'store']);
+        Route::post('/exchange-rates/scrape', [ExchangeRateController::class, 'scrape']);
         Route::put('/exchange-rates/{exchange_rate}', [ExchangeRateController::class, 'update']);
-        Route::delete('/exchange-rates/{exchange_rate}', [ExchangeRateController::class, 'destroy']);
         Route::post('/exchange-rates/{exchange_rate}/set-active', [ExchangeRateController::class, 'setActive']);
     });
 });

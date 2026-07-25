@@ -33,6 +33,9 @@ build/
 *~
 *.code-workspace
 
+# Seguridad
+SECURITY.md
+
 # Otros
 *.pid
 *.seed

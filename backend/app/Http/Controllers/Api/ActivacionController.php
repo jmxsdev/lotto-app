@@ -18,12 +18,12 @@ class ActivacionController extends Controller
     {
         // Validar input
         $validator = Validator::make($request->all(), [
-            'codigo' => 'required|string|max:32',
-            'mac' => 'required|string|regex:/^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/',
+            'activation_code' => 'required|string|max:32',
+            'mac_address' => 'required|string|regex:/^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/',
         ], [
-            'codigo.required' => 'El código de activación es obligatorio.',
-            'mac.required' => 'La dirección MAC es obligatoria.',
-            'mac.regex' => 'El formato de la dirección MAC no es válido (ej: AA:BB:CC:DD:EE:FF).',
+            'activation_code.required' => 'El código de activación es obligatorio.',
+            'mac_address.required' => 'La dirección MAC es obligatoria.',
+            'mac_address.regex' => 'El formato de la dirección MAC no es válido (ej: AA:BB:CC:DD:EE:FF).',
         ]);
 
         if ($validator->fails()) {
@@ -34,8 +34,8 @@ class ActivacionController extends Controller
             ], 422);
         }
 
-        $codigo = $request->input('codigo');
-        $mac = strtoupper($request->input('mac'));
+        $codigo = $request->input('activation_code');
+        $mac = strtoupper($request->input('mac_address'));
 
         // Buscar taquilla por activation_code
         $taquilla = Taquilla::where('activation_code', $codigo)->first();
@@ -66,6 +66,16 @@ class ActivacionController extends Controller
                     'active' => true,
                 ]
             ]);
+        }
+
+        // Si ya está activa con otra MAC, rechazar (evitar hijacking)
+        if ($taquilla->active && $taquilla->mac_address !== $mac) {
+            $this->logActivacion($taquilla->id, $codigo, $mac, false, 'Intento de activación con MAC diferente');
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Esta taquilla ya está activada con otra dirección MAC.',
+            ], 403);
         }
 
         // Si hay otra taquilla activa con esta MAC, desactivarla (reasignación automática)

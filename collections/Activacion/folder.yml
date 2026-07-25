@@ -1,0 +1,7 @@
+info:
+  name: Activacion
+  type: folder
+  seq: 2
+
+request:
+  auth: none

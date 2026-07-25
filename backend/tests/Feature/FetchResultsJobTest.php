@@ -16,7 +16,7 @@ class FetchResultsJobTest extends TestCase
     {
         parent::setUp();
         
-        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        $this->seed(\Database\Seeders\DatabaseSeeder::class);
         $this->seed(\Database\Seeders\JuegoAnimalitosSeeder::class);
     }
 

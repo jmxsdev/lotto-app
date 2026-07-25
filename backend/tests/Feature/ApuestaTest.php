@@ -16,7 +16,7 @@ class ApuestaTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        $this->seed(\Database\Seeders\DatabaseSeeder::class);
         $this->seed(\Database\Seeders\JuegoAnimalitosSeeder::class);
     }
 
@@ -425,6 +425,8 @@ class ApuestaTest extends TestCase
 
     public function test_rechaza_sin_tasa_activa()
     {
+        ExchangeRate::query()->delete();
+
         $juego = Juego::where('slug', 'animalitos')->first();
 
         $taquilla = \App\Models\Taquilla::factory()->create();

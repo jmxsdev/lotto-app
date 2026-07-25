@@ -1,9 +1,14 @@
 <?php
 
-// bootstrap/app.php
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Auth\Access\AuthorizationException;
+use Spatie\Permission\Exceptions\UnauthorizedException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -32,5 +37,27 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        $exceptions->render(function (NotFoundHttpException $e, Request $request) {
+            if ($request->expectsJson() && app()->isProduction()) {
+                return response()->json(['message' => 'Recurso no encontrado.'], 404);
+            }
+        });
+
+        $exceptions->render(function (AuthenticationException $e, Request $request) {
+            if ($request->expectsJson() && app()->isProduction()) {
+                return response()->json(['message' => 'No autenticado.'], 401);
+            }
+        });
+
+        $exceptions->render(function (AuthorizationException|UnauthorizedException $e, Request $request) {
+            if ($request->expectsJson() && app()->isProduction()) {
+                return response()->json(['message' => 'No autorizado.'], 403);
+            }
+        });
+
+        $exceptions->render(function (ModelNotFoundException $e, Request $request) {
+            if ($request->expectsJson() && app()->isProduction()) {
+                return response()->json(['message' => 'Recurso no encontrado.'], 404);
+            }
+        });
     })->create();

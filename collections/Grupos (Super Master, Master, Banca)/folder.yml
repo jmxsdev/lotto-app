@@ -1,0 +1,7 @@
+info:
+  name: Grupos (Super Master, Master, Banca)
+  type: folder
+  seq: 3
+
+request:
+  auth: inherit

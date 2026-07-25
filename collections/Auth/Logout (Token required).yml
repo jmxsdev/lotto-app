@@ -1,0 +1,27 @@
+info:
+  name: Logout (Token required)
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/logout"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        test('Logout exitoso', () => {
+            expect(res.getStatus()).to.equal(200);
+            expect(res.getBody()).to.have.property('message');
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -10,7 +10,7 @@ class Banca extends Model
     use HasFactory;
 
     protected $fillable = [
-        'name', 'code', 'config', 'active'
+        'name', 'code', 'config', 'active', 'created_by'
     ];
 
     protected $casts = [
@@ -19,6 +19,11 @@ class Banca extends Model
     ];
 
     // Relaciones
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
     public function grupos()
     {
         return $this->hasMany(Grupo::class);

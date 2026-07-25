@@ -18,6 +18,9 @@ public function run(): void
 {
     $this->call([
         RolesAndPermissionsSeeder::class,
-        //UsersSeeder::class,
+        UsersSeeder::class,
+        ExchangeRateSeeder::class,
+        JuegoAnimalitosSeeder::class,
+        TripleZuliaSeeder::class,
     ]);
 }}

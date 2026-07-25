@@ -11,7 +11,7 @@ class Juego extends Model
 
     protected $fillable = [
         'name', 'slug', 'type', 'config', 'requires_scraper',
-        'scraper_url', 'active'
+        'scraper_url', 'active', 'updated_by'
     ];
 
     protected $casts = [
@@ -19,6 +19,21 @@ class Juego extends Model
         'requires_scraper' => 'boolean',
         'active' => 'boolean',
     ];
+
+    public function updatedByUser()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function auditoria()
+    {
+        return $this->hasMany(JuegoAuditoria::class, 'juego_id');
+    }
+
+    public function pluginJuego()
+    {
+        return $this->hasOne(PluginJuego::class)->where('active', true);
+    }
 
     public function pluginJuegos()
     {
@@ -33,5 +48,15 @@ class Juego extends Model
     public function resultados()
     {
         return $this->hasMany(Resultado::class);
+    }
+
+    public function opciones()
+    {
+        return $this->hasMany(JuegoOpcion::class)->orderBy('sort_order');
+    }
+
+    public function horarios()
+    {
+        return $this->hasMany(JuegoHorario::class)->where('active', true)->orderBy('hora');
     }
 }

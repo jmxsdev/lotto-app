@@ -30,7 +30,7 @@ class AnimalitosPluginTest extends TestCase
     public function test_calcular_premio_ganador()
     {
         $apuesta = ['combinacion' => ['animal' => 'perro'], 'monto' => 100];
-        $resultados = ['animal_ganador' => 'perro'];
+        $resultados = ['nombre_animal' => 'perro'];
         $premio = $this->plugin->calcularPremio($apuesta, $resultados);
         $this->assertEquals(3000, $premio); // 100 * 30 = 3000
     }
@@ -47,6 +47,6 @@ class AnimalitosPluginTest extends TestCase
     {
         $reglas = $this->plugin->obtenerReglas();
         $this->assertArrayHasKey('descripcion', $reglas);
-        $this->assertArrayHasKey('animales', $reglas);
+        $this->assertArrayHasKey('animales_disponibles', $reglas);
     }
 }
