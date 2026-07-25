@@ -1,0 +1,7 @@
+info:
+  name: Taquillas (Super Master, Master, Banca, Grupo)
+  type: folder
+  seq: 4
+
+request:
+  auth: inherit

@@ -1,0 +1,24 @@
+info:
+  name: Activar Taquilla
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/activar"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "activation_code": "ABCDE",
+        "mac_address": "AA:BB:CC:DD:EE:FF"
+      }
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

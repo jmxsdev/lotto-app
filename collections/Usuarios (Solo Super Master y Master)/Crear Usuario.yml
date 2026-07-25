@@ -1,0 +1,30 @@
+info:
+  name: Crear Usuario
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/users"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "user_name": "Nuevo Master",
+        "user_email": "nuevomaer@test.com",
+        "user_password": "password123",
+        "role": "master",
+        "active": true
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

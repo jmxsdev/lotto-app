@@ -15,7 +15,7 @@ class ExchangeRateTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        $this->seed(\Database\Seeders\DatabaseSeeder::class);
     }
 
     public function test_public_can_get_active_rate()
@@ -139,7 +139,7 @@ class ExchangeRateTest extends TestCase
                          ->getJson('/api/exchange-rates');
 
         $response->assertStatus(200);
-        $response->assertJsonCount(2);
+        $response->assertJsonCount(3);
         $response->assertJsonFragment(['rate' => 35.00]);
         $response->assertJsonFragment(['rate' => 36.50]);
     }

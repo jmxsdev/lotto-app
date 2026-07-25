@@ -15,7 +15,7 @@ class RoleAuthorizationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        $this->seed(\Database\Seeders\DatabaseSeeder::class);
     }
 
     public function test_taquilla_cannot_list_users_but_master_can()
@@ -52,8 +52,11 @@ class RoleAuthorizationTest extends TestCase
         $response = $this->actingAs($userBanca1, 'sanctum')
                          ->postJson('/api/grupos', [
                              'name' => 'Grupo Test',
-                             'code' => 'GT001',
+                             'code' => 'GT999',
                              'banca_id' => $banca2->id,
+                             'user_name' => 'Usuario Grupo',
+                             'user_email' => 'grupo_test@test.com',
+                             'user_password' => 'password123',
                          ]);
 
         $response->assertStatus(403);
@@ -62,8 +65,11 @@ class RoleAuthorizationTest extends TestCase
         $response = $this->actingAs($userBanca1, 'sanctum')
                          ->postJson('/api/grupos', [
                              'name' => 'Grupo Test',
-                             'code' => 'GT001',
+                             'code' => 'GT998',
                              'banca_id' => $banca1->id,
+                             'user_name' => 'Usuario Grupo',
+                             'user_email' => 'grupo_test2@test.com',
+                             'user_password' => 'password123',
                          ]);
 
         $response->assertStatus(201);
@@ -85,8 +91,11 @@ class RoleAuthorizationTest extends TestCase
         $response = $this->actingAs($userGrupo1, 'sanctum')
                          ->postJson('/api/taquillas', [
                              'name' => 'Taquilla Test',
-                             'code' => 'TT001',
+                             'code' => 'TT999',
                              'grupo_id' => $grupo2->id,
+                             'user_name' => 'Usuario Taquilla',
+                             'user_email' => 'taquilla_test@test.com',
+                             'user_password' => 'password123',
                          ]);
 
         $response->assertStatus(403);
@@ -95,8 +104,11 @@ class RoleAuthorizationTest extends TestCase
         $response = $this->actingAs($userGrupo1, 'sanctum')
                          ->postJson('/api/taquillas', [
                              'name' => 'Taquilla Test',
-                             'code' => 'TT001',
+                             'code' => 'TT998',
                              'grupo_id' => $grupo1->id,
+                             'user_name' => 'Usuario Taquilla',
+                             'user_email' => 'taquilla_test2@test.com',
+                             'user_password' => 'password123',
                          ]);
 
         $response->assertStatus(201);

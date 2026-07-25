@@ -1,0 +1,40 @@
+info:
+  name: Login
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/login"
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "email": "super@lotto.com",
+        "password": "password"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        const response = res.getBody();
+        if (res.getStatus() === 200 && response.token) {
+            bru.setVar('token', response.token);
+            console.log('✅ Token guardado:', response.token);
+        }
+
+        test('Login exitoso', () => {
+            expect(res.getStatus()).to.equal(200);
+            expect(res.getBody()).to.have.property('token');
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

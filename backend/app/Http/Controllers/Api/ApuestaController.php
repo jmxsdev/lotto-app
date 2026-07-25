@@ -10,6 +10,7 @@ use App\Models\ExchangeRate;
 use App\Models\Juego;
 use App\Models\Log;
 use App\Services\ApuestaService;
+use App\Services\JuegoPluginManager;
 use Illuminate\Http\Request;
 
 class ApuestaController extends Controller
@@ -111,10 +112,7 @@ class ApuestaController extends Controller
             }
 
             // Guardar apuesta con tasa histórica immutable
-            $combinacion = [
-                'animal' => $request->combinacion['animal'],
-                'numero' => $request->combinacion['numero'] ?? null,
-            ];
+            $combinacion = $request->combinacion;
 
             $apuesta = Apuesta::create([
                 'taquilla_id' => $taquillaId,
@@ -130,11 +128,15 @@ class ApuestaController extends Controller
                 'sorteo_hora' => $request->sorteo_hora,
             ]);
 
-            // Generar detalles de la apuesta
+            // Generar detalles de la apuesta con plugin
             $juego = Juego::find($request->juego_id);
-            $config = $juego->config ?? [];
-            $multiplo = is_array($config) ? ($config['premio_multiplo'] ?? 30) : 30;
-            $premioPosible = $totalBsEquivalent * $multiplo;
+            $plugin = app(JuegoPluginManager::class)->getPlugin($juego);
+            $premioPosible = $plugin
+                ? $plugin->calcularPremio(
+                    ['combinacion' => $combinacion, 'total_bs_equivalent' => $totalBsEquivalent],
+                    []
+                )
+                : $totalBsEquivalent;
 
             \App\Models\DetalleApuesta::create([
                 'apuesta_id' => $apuesta->id,

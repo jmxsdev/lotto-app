@@ -3,57 +3,54 @@
 namespace App\Plugins\Juegos;
 
 use App\Plugins\Contracts\JuegoInterface;
+use Illuminate\Validation\Rule;
 
 class Animalitos implements JuegoInterface
 {
-    /**
-     * Mapeo de animal a número (según Lotto Activo).
-     */
-    protected $map = [
-        'delfin'     => 0,
-        'ballena'    => 0,  // Nota: 0 y 00 son ambos delfín/ballena según la lotería, ajusta si tu lotería distingue entre 0 y 00
-        'carnero'    => 1,
-        'toro'       => 2,
-        'ciempies'   => 3,
-        'alacran'    => 4,
-        'leon'       => 5,
-        'caiman'     => 6,
-        'tigre'      => 7,
-        'raton'      => 8,
-        'aguila'     => 9,
-        'burro'      => 10,
-        'gato'       => 11,
-        'loro'       => 12,
-        'mono'       => 13,
-        'paloma'     => 14,
-        'zorro'      => 15,
-        'lapa'       => 16,
-        'venado'     => 17,
-        'gallo'      => 18,
-        'pavo'       => 19,
-        'cochino'    => 20,
-        'gallina'    => 21,
-        'camello'    => 22,
-        'cebra'      => 23,
-        'iguana'     => 24,
-        'vaca'       => 25,
-        'perico'     => 26,
-        'perro'      => 27,
-        'zamuro'     => 28,
-        'elefante'   => 29,
-        'pavo_real'  => 30,
-        'pescado'    => 31,
-        'ardilla'    => 32,
-        'mariposa'   => 33,
-        'abeja'      => 34,
-        'jirafa'     => 35,
-        'conejo'     => 36,
+    protected array $map = [
+        'ballena'  => 0,
+        'delfin'   => 0,
+        'carnero'  => 1,
+        'toro'     => 2,
+        'ciempies' => 3,
+        'alacran'  => 4,
+        'leon'     => 5,
+        'rana'     => 6,
+        'perico'   => 7,
+        'raton'    => 8,
+        'aguila'   => 9,
+        'tigre'    => 10,
+        'gato'     => 11,
+        'caballo'  => 12,
+        'mono'     => 13,
+        'paloma'   => 14,
+        'zorro'    => 15,
+        'oso'      => 16,
+        'pavo'     => 17,
+        'burro'    => 18,
+        'chivo'    => 19,
+        'cochino'  => 20,
+        'gallo'    => 21,
+        'camello'  => 22,
+        'cobra'    => 23,
+        'iguana'   => 24,
+        'gallina'  => 25,
+        'vaca'     => 26,
+        'perro'    => 27,
+        'zamuro'   => 28,
+        'elefante' => 29,
+        'caiman'   => 30,
+        'lapa'     => 31,
+        'ardilla'  => 32,
+        'pescado'  => 33,
+        'venado'   => 34,
+        'jirafa'   => 35,
+        'culebra'  => 36,
     ];
 
-    /**
-     * Lista de animales válidos (para validación rápida).
-     */
-    protected $animales;
+    protected array $animales;
+
+    protected string $multiplicador = '30';
 
     public function __construct()
     {
@@ -65,14 +62,13 @@ class Animalitos implements JuegoInterface
         if (!isset($data['combinacion']['animal'])) {
             return false;
         }
-
         $animal = strtolower(trim($data['combinacion']['animal']));
         return in_array($animal, $this->animales);
     }
 
     public function calcularPremio(array $apuesta, array $resultados): float|int
     {
-        $animalGanador = $resultados['animal_ganador'] ?? null;
+        $animalGanador = $resultados['nombre_animal'] ?? null;
         $animalApostado = $apuesta['combinacion']['animal'] ?? null;
 
         if (!$animalGanador || !$animalApostado) {
@@ -80,19 +76,59 @@ class Animalitos implements JuegoInterface
         }
 
         if (strtolower($animalApostado) === strtolower($animalGanador)) {
-            $monto = $apuesta['monto'] ?? 0;
-            return $monto * 30; // x30 como ejemplo, ajusta según reglas
+            $monto = $apuesta['monto'] ?? $apuesta['total_bs_equivalent'] ?? 0;
+            return $monto * $this->multiplicador;
         }
 
         return 0;
     }
 
-    /**
-     * Obtener el animal correspondiente a un número.
-     */
+    public function obtenerReglas(): array
+    {
+        return [
+            'descripcion' => 'Acierta el animal ganador y gana ' . $this->multiplicador . ' veces tu apuesta.',
+            'tipo' => 'animal',
+            'animales_disponibles' => count($this->animales),
+            'multiplicador' => (float) $this->multiplicador,
+        ];
+    }
+
+    public function obtenerOpciones(): array
+    {
+        $opciones = [];
+        foreach ($this->map as $animal => $numero) {
+            $opciones[] = [
+                'label' => ucfirst($animal),
+                'value' => $animal,
+                'numero' => $numero,
+            ];
+        }
+        return $opciones;
+    }
+
+    public function obtenerMultiplicador(): float
+    {
+        return (float) $this->multiplicador;
+    }
+
+    public function getValidationRules(): array
+    {
+        return [
+            'combinacion' => 'required|array|min:1',
+            'combinacion.animal' => ['required', 'string', 'max:50', Rule::in($this->animales)],
+            'combinacion.numero' => 'nullable|integer|min:0|max:36',
+        ];
+    }
+
+    public function getValidationMessages(): array
+    {
+        return [
+            'combinacion.animal.in' => 'El animal seleccionado no es válido.',
+        ];
+    }
+
     public function obtenerAnimalPorNumero(int $numero): ?string
     {
-        // Buscar el animal cuyo número coincida
         foreach ($this->map as $animal => $num) {
             if ($num === $numero) {
                 return $animal;
@@ -101,21 +137,9 @@ class Animalitos implements JuegoInterface
         return null;
     }
 
-    /**
-     * Obtener el número correspondiente a un animal.
-     */
     public function obtenerNumeroPorAnimal(string $animal): ?int
     {
         $animal = strtolower(trim($animal));
         return $this->map[$animal] ?? null;
-    }
-
-    public function obtenerReglas(): array
-    {
-        return [
-            'descripcion' => 'Acierta el animal ganador y gana 30 veces tu apuesta.',
-            'animales' => $this->animales,
-            'map' => $this->map,
-        ];
     }
 }

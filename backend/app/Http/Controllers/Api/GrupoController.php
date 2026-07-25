@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Grupo;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 
 class GrupoController extends Controller
@@ -65,6 +67,9 @@ class GrupoController extends Controller
             'code' => 'required|string|unique:grupos,code',
             'banca_id' => 'required|exists:bancas,id',
             'active' => 'boolean',
+            'user_name' => 'required|string|max:255',
+            'user_email' => 'required|email|unique:users,email',
+            'user_password' => 'required|string|min:8',
         ]);
 
         // Verificar que el usuario tenga acceso a la banca
@@ -75,9 +80,25 @@ class GrupoController extends Controller
             'code' => $request->code,
             'banca_id' => $request->banca_id,
             'active' => $request->active ?? true,
+            'created_by' => $user->id,
         ]);
 
-        return response()->json($grupo->load('banca'), 201);
+        $user = User::create([
+            'name' => $request->user_name,
+            'email' => $request->user_email,
+            'password' => Hash::make($request->user_password),
+            'role' => 'grupo',
+            'banca_id' => $request->banca_id,
+            'grupo_id' => $grupo->id,
+            'active' => $request->active ?? true,
+        ]);
+
+        $user->assignRole('grupo');
+
+        return response()->json([
+            'grupo' => $grupo->load('banca'),
+            'user' => $user->load('roles'),
+        ], 201);
     }
 
     /**

@@ -17,7 +17,7 @@ class ApuestaServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        $this->seed(\Database\Seeders\DatabaseSeeder::class);
         $this->seed(\Database\Seeders\JuegoAnimalitosSeeder::class);
     }
 
@@ -151,6 +151,8 @@ class ApuestaServiceTest extends TestCase
 
     public function test_lanza_excepcion_sin_tasa_activa()
     {
+        ExchangeRate::query()->delete();
+
         $service = new ApuestaService();
         
         $this->expectException(\RuntimeException::class);
@@ -161,6 +163,8 @@ class ApuestaServiceTest extends TestCase
 
     public function test_obtiene_tasa_activa_null_si_no_existe()
     {
+        ExchangeRate::query()->delete();
+
         $service = new ApuestaService();
         $tasa = $service->getTasaActiva();
         

@@ -15,7 +15,7 @@ class ActivacionTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        $this->seed(\Database\Seeders\DatabaseSeeder::class);
     }
 
     public function test_activacion_exitosa_con_datos_validos()
@@ -27,8 +27,8 @@ class ActivacionTest extends TestCase
         ]);
 
         $response = $this->postJson('/api/activar', [
-            'codigo' => 'ABC123',
-            'mac' => 'AA:BB:CC:DD:EE:FF',
+            'activation_code' => 'ABC123',
+            'mac_address' => 'AA:BB:CC:DD:EE:FF',
         ]);
 
         $response->assertStatus(200)
@@ -50,8 +50,8 @@ class ActivacionTest extends TestCase
     public function test_rechazo_con_codigo_inexistente()
     {
         $response = $this->postJson('/api/activar', [
-            'codigo' => 'INVALID',
-            'mac' => 'AA:BB:CC:DD:EE:FF',
+            'activation_code' => 'INVALID',
+            'mac_address' => 'AA:BB:CC:DD:EE:FF',
         ]);
 
         $response->assertStatus(404)
@@ -63,12 +63,12 @@ class ActivacionTest extends TestCase
         $taquilla = Taquilla::factory()->create(['activation_code' => 'ABC123']);
 
         $response = $this->postJson('/api/activar', [
-            'codigo' => 'ABC123',
-            'mac' => 'invalid-mac-format',
+            'activation_code' => 'ABC123',
+            'mac_address' => 'invalid-mac-format',
         ]);
 
         $response->assertStatus(422)
-            ->assertJsonValidationErrors('mac');
+            ->assertJsonValidationErrors('mac_address');
     }
 
     public function test_reasignacion_automatica_desactiva_anterior()
@@ -87,8 +87,8 @@ class ActivacionTest extends TestCase
 
         // Activar taquilla 2 con MAC de taquilla 1 (debería desactivar taquilla 1)
         $response = $this->postJson('/api/activar', [
-            'codigo' => 'CODE2',
-            'mac' => 'AA:BB:CC:DD:EE:FF',
+            'activation_code' => 'CODE2',
+            'mac_address' => 'AA:BB:CC:DD:EE:FF',
         ]);
 
         $response->assertStatus(200);
@@ -161,11 +161,15 @@ class ActivacionTest extends TestCase
 
     public function test_endpoint_activar_no_requiere_auth()
     {
-        $taquilla = Taquilla::factory()->create(['activation_code' => 'PUBLIC']);
+        $taquilla = Taquilla::factory()->create([
+            'activation_code' => 'PUBLIC',
+            'active' => false,
+            'mac_address' => null,
+        ]);
 
         $response = $this->postJson('/api/activar', [
-            'codigo' => 'PUBLIC',
-            'mac' => 'AA:BB:CC:DD:EE:FF',
+            'activation_code' => 'PUBLIC',
+            'mac_address' => 'AA:BB:CC:DD:EE:FF',
         ]);
 
         $response->assertStatus(200);

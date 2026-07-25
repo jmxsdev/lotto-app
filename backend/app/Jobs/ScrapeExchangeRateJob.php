@@ -8,6 +8,7 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use App\Models\ExchangeRate;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\DomCrawler\Crawler;
 use GuzzleHttp\Client;
@@ -64,17 +65,27 @@ class ScrapeExchangeRateJob implements ShouldQueue
             $rate = floatval(str_replace(',', '.', str_replace('.', '', $rateText)));
             Log::info('Tasa parseada: ' . $rate);
 
-            // 5. Guardar la tasa (sin usuario, solo sugerencia)
+            // 5. Guardar la tasa como activa (desactiva la anterior)
             if ($rate > 0) {
-                ExchangeRate::create([
-                    'rate' => $rate,
-                    'base_currency' => 'USD',
-                    'reference_date' => now(),
-                    'set_by' => null, // No dependemos de un usuario
-                    'notes' => 'Obtenida automáticamente de BCV',
-                    'is_active' => false, // Siempre inactiva (requiere aprobación)
-                ]);
-                Log::info('Tasa guardada correctamente.');
+                DB::beginTransaction();
+                try {
+                    ExchangeRate::where('is_active', true)->update(['is_active' => false]);
+
+                    ExchangeRate::create([
+                        'rate' => $rate,
+                        'base_currency' => 'USD',
+                        'reference_date' => now(),
+                        'set_by' => null,
+                        'notes' => 'Obtenida automáticamente de BCV',
+                        'is_active' => true,
+                    ]);
+
+                    DB::commit();
+                    Log::info('Tasa guardada y activada correctamente: ' . $rate);
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    Log::error('Error al guardar la tasa: ' . $e->getMessage());
+                }
             } else {
                 Log::warning('La tasa obtenida no es válida: ' . $rateText);
             }

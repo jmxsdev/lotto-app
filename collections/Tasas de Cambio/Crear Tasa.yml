@@ -1,0 +1,29 @@
+info:
+  name: Crear Tasa
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/exchange-rates"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "rate": 378.50,
+        "base_currency": "USD",
+        "notes": "Tasa actualizada",
+        "set_active": true
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

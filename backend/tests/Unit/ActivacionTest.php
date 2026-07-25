@@ -13,7 +13,7 @@ class ActivacionTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        $this->seed(\Database\Seeders\DatabaseSeeder::class);
     }
 
     public function test_activacion_exitosa_con_codigo_valido()
@@ -25,8 +25,8 @@ class ActivacionTest extends TestCase
         ]);
 
         $response = $this->postJson('/api/activar', [
-            'codigo' => 'ABC123',
-            'mac' => 'AA:BB:CC:DD:EE:FF',
+            'activation_code' => 'ABC123',
+            'mac_address' => 'AA:BB:CC:DD:EE:FF',
         ]);
 
         $response->assertStatus(200)
@@ -44,8 +44,8 @@ class ActivacionTest extends TestCase
     public function test_rechazo_con_codigo_inexistente()
     {
         $response = $this->postJson('/api/activar', [
-            'codigo' => 'INVALID',
-            'mac' => 'AA:BB:CC:DD:EE:FF',
+            'activation_code' => 'INVALID',
+            'mac_address' => 'AA:BB:CC:DD:EE:FF',
         ]);
 
         $response->assertStatus(404)
@@ -57,12 +57,12 @@ class ActivacionTest extends TestCase
         $taquilla = Taquilla::factory()->create(['activation_code' => 'ABC123']);
 
         $response = $this->postJson('/api/activar', [
-            'codigo' => 'ABC123',
-            'mac' => 'invalid-mac',
+            'activation_code' => 'ABC123',
+            'mac_address' => 'invalid-mac',
         ]);
 
         $response->assertStatus(422)
-            ->assertJsonValidationErrors('mac');
+            ->assertJsonValidationErrors('mac_address');
     }
 
     public function test_reactivacion_misma_mac_actualiza_timestamp()
@@ -79,8 +79,8 @@ class ActivacionTest extends TestCase
         sleep(1); // Esperar 1 segundo para que cambie el timestamp
 
         $response = $this->postJson('/api/activar', [
-            'codigo' => 'DEF456',
-            'mac' => 'AA:BB:CC:DD:EE:FF',
+            'activation_code' => 'DEF456',
+            'mac_address' => 'AA:BB:CC:DD:EE:FF',
         ]);
 
         $response->assertStatus(200)

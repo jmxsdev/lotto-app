@@ -1,0 +1,30 @@
+info:
+  name: Crear Banca
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/bancas"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Banca Centro",
+        "code": "BC001",
+        "user_name": "Admin Banca Centro",
+        "user_email": "admin@bancacentro.com",
+        "user_password": "password123"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

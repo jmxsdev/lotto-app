@@ -1,0 +1,29 @@
+info:
+  name: Registrar Pago (Token required)
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/pagos"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "apuesta_id": 1,
+        "amount_bs": 500,
+        "amount_usd": 0,
+        "concepto": "Premio Animalitos"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\ExchangeRate;
+use App\Jobs\ScrapeExchangeRateJob;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Validator;
@@ -45,8 +46,8 @@ class ExchangeRateController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'rate' => 'required|numeric|min:0',
-            'base_currency' => 'sometimes|string|max:10|default:USD',
-            'reference_date' => 'sometimes|date|default:now',
+            'base_currency' => 'sometimes|string|max:10',
+            'reference_date' => 'sometimes|date',
             'notes' => 'nullable|string|max:255',
             'set_active' => 'sometimes|boolean',
         ]);
@@ -144,15 +145,28 @@ class ExchangeRateController extends Controller
     }
 
     /**
-     * Eliminar una tasa (solo si no está activa, opcional)
+     * Disparar el scraper de BCV para obtener la tasa actual
      */
-    public function destroy(ExchangeRate $exchangeRate)
+    public function scrape()
     {
-        if ($exchangeRate->is_active) {
-            return response()->json(['message' => 'No se puede eliminar la tasa activa.'], 422);
+        $job = new ScrapeExchangeRateJob();
+        $job->handle();
+
+        $tasa = ExchangeRate::where('is_active', true)->latest()->first();
+
+        if (!$tasa) {
+            return response()->json(['message' => 'No se pudo obtener la tasa del BCV.'], 502);
         }
 
-        $exchangeRate->delete();
-        return response()->json(['message' => 'Tasa eliminada correctamente.']);
+        return response()->json([
+            'message' => 'Tasa obtenida del BCV correctamente.',
+            'data' => [
+                'rate' => $tasa->rate,
+                'base_currency' => $tasa->base_currency,
+                'reference_date' => $tasa->reference_date,
+                'notes' => $tasa->notes,
+            ],
+        ]);
     }
+
 }

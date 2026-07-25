@@ -1,0 +1,7 @@
+info:
+  name: Usuarios (Solo Super Master y Master)
+  type: folder
+  seq: 2
+
+request:
+  auth: inherit

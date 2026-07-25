@@ -1,0 +1,29 @@
+info:
+  name: Crear Apuesta (Token required)
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/apuestas"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "juego_id": 1,
+        "combinacion": {"animal": "perro"},
+        "amount_bs": 1000,
+        "amount_usd": 0
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

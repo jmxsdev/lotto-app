@@ -7,6 +7,8 @@ use App\Models\Apuesta;
 use App\Models\Pago;
 use App\Models\Resultado;
 use App\Models\Log;
+use App\Models\ExchangeRate;
+use App\Services\JuegoPluginManager;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -67,7 +69,7 @@ class PagoController extends Controller
             $resultado = Resultado::find($apuesta->resultado_id);
         }
 
-        // Calcular premio posible usando el plugin Animalitos
+        // Calcular premio posible usando el plugin del juego
         $premioPosible = $this->calcularPremioPosible($apuesta, $resultado);
 
         // Validar que el monto pagado sea razonable (no menor al premio posible)
@@ -150,51 +152,29 @@ class PagoController extends Controller
     }
 
     /**
-     * Calcular premio posible basado en el plugin Animalitos y resultado
+     * Calcular premio posible usando el plugin del juego
      */
     private function calcularPremioPosible(Apuesta $apuesta, ?Resultado $resultado): float
     {
-        // Si hay resultado y coincide con la apuesta, calcular premio
-        if ($resultado && $apuesta->combinacion) {
-            $combinacion = is_string($apuesta->combinacion) 
-                ? json_decode($apuesta->combinacion, true) 
-                : $apuesta->combinacion;
+        $plugin = app(JuegoPluginManager::class)->getPlugin($apuesta->juego);
 
-            $animalApostado = $combinacion['animal'] ?? null;
-            $numeroApostado = $combinacion['numero'] ?? null;
-
-            // Verificar si el animal apostado coincide con el resultado
-            // Los resultados pueden estar en numeros_ganadores como array o string
-            $resultados = is_array($resultado->numeros_ganadores) 
-                ? $resultado->numeros_ganadores 
-                : json_decode($resultado->numeros_ganadores, true);
-
-            $coincidio = false;
-            
-            if (is_array($resultados)) {
-                foreach ($resultados as $num) {
-                    if ($num == $numeroApostado || $num == $animalApostado) {
-                        $coincidio = true;
-                        break;
-                    }
-                }
-            } elseif (is_string($resultados)) {
-                // Formato: "5" o "5,10,15"
-                $nums = array_map('trim', explode(',', $resultados));
-                if (in_array((string)$numeroApostado, $nums)) {
-                    $coincidio = true;
-                }
-            }
-
-            if ($coincidio) {
-                // Multiplicador del juego (default 30x para Animalitos)
-                $multiplicador = $apuesta->juego->config['premio_multiplo'] ?? 30;
-                
-                return $apuesta->total_bs_equivalent * $multiplicador;
-            }
+        if (!$plugin) {
+            return 0;
         }
 
-        // Si no hay resultado o no coincidió, retornar 0
-        return 0;
+        $combinacion = is_string($apuesta->combinacion)
+            ? json_decode($apuesta->combinacion, true)
+            : $apuesta->combinacion;
+
+        $resultados = $resultado ? $resultado->toArray() : [];
+
+        return $plugin->calcularPremio(
+            [
+                'combinacion' => $combinacion,
+                'total_bs_equivalent' => $apuesta->total_bs_equivalent,
+                'monto' => $apuesta->total_bs_equivalent,
+            ],
+            $resultados
+        );
     }
 }

@@ -5,8 +5,6 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
-use App\Models\User;
-use Illuminate\Support\Facades\Hash;
 
 class RolesAndPermissionsSeeder extends Seeder
 {
@@ -108,30 +106,6 @@ class RolesAndPermissionsSeeder extends Seeder
             'view_cierre',
         ]);
 
-        // Crear usuario Super Master
-        $super = User::firstOrCreate(
-            ['email' => 'super@lotto.com'],
-            [
-                'name' => 'Super Admin',
-                'password' => Hash::make('password'),
-                'role' => 'super_master',
-                'active' => true,
-            ]
-        );
-        $super->assignRole('super_master');
-
-        // Crear usuario Master (opcional)
-        $master = User::firstOrCreate(
-            ['email' => 'master@lotto.com'],
-            [
-                'name' => 'Master',
-                'password' => Hash::make('password'),
-                'role' => 'master',
-                'active' => true,
-            ]
-        );
-        $master->assignRole('master');
-
-        $this->command->info('Roles, permisos y usuarios creados.');
+        $this->command->info('Roles y permisos creados correctamente.');
     }
 }
