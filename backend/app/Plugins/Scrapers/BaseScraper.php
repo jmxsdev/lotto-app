@@ -93,6 +93,27 @@ abstract class BaseScraper
         }
     }
 
+    protected function postJsonPayload(string $url, array $data): string
+    {
+        try {
+            $response = $this->client->post($url, [
+                'json' => $data,
+                'headers' => [
+                    'Content-Type' => 'application/json',
+                    'Accept' => 'application/json',
+                ]
+            ]);
+            
+            $body = (string) $response->getBody();
+            $this->logInfo("POST JSON a {$url} exitoso, respuesta longitud: " . strlen($body));
+            
+            return $body;
+        } catch (GuzzleException $e) {
+            $this->logError("Error HTTP POST JSON en {$url}: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
     protected function createCrawler(string $html): Crawler
     {
         return new Crawler($html);
