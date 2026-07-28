@@ -29,18 +29,18 @@ class AnimalitosPluginTest extends TestCase
 
     public function test_calcular_premio_ganador()
     {
-        $apuesta = ['combinacion' => ['animal' => 'perro'], 'monto' => 100];
+        $apuesta = ['combinacion' => ['animal' => 'perro'], 'amount_bs' => 100, 'amount_usd' => 0];
         $resultados = ['nombre_animal' => 'perro'];
         $premio = $this->plugin->calcularPremio($apuesta, $resultados);
-        $this->assertEquals(3000, $premio); // 100 * 30 = 3000
+        $this->assertEquals(['premio_bs' => 3000, 'premio_usd' => 0], $premio);
     }
 
     public function test_calcular_premio_perdedor()
     {
-        $apuesta = ['combinacion' => ['animal' => 'perro'], 'monto' => 100];
-        $resultados = ['animal_ganador' => 'gato'];
+        $apuesta = ['combinacion' => ['animal' => 'perro'], 'amount_bs' => 100, 'amount_usd' => 0];
+        $resultados = ['nombre_animal' => 'gato'];
         $premio = $this->plugin->calcularPremio($apuesta, $resultados);
-        $this->assertEquals(0, $premio);
+        $this->assertEquals(['premio_bs' => 0, 'premio_usd' => 0], $premio);
     }
 
     public function test_obtener_reglas()
