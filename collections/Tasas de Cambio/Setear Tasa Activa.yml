@@ -5,7 +5,7 @@ info:
 
 http:
   method: POST
-  url: "{{baseUrl}}/api/exchange-rates/1/set-active"
+  url: "{{baseUrl}}/api/exchange-rates/2/set-active"
   headers:
     - name: Authorization
       value: Bearer {{token}}

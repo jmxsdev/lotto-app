@@ -11,16 +11,25 @@ http:
       value: Bearer {{token}}
     - name: Content-Type
       value: application/json
+    - name: X-Device-MAC
+      value: "{{macAddress}}"
   body:
     type: json
     data: |-
       {
         "apuesta_id": 1,
-        "amount_bs": 500,
-        "amount_usd": 0,
+        "amount_bs": 300,
+        "amount_usd": 300,
+        "moneda": "mixto",
+        "tipo": "egreso",
         "concepto": "Premio Animalitos"
       }
   auth: inherit
+
+runtime:
+  variables:
+    - name: macAddress
+      value: 00:1A:2B:3C:4D:5E
 
 settings:
   encodeUrl: true

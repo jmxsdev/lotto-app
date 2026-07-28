@@ -16,7 +16,8 @@ http:
     data: |-
       {
         "name": "Taquilla 01 Actualizada",
-        "active": false
+        "mac_address": "00:1A:2B:3C:4D:5E",
+        "active": true
       }
   auth: inherit
 

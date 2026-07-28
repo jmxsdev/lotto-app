@@ -1,11 +1,11 @@
 info:
-  name: Eliminar Apuesta (Token required - 5 min rule)
+  name: Registrar Pago Perdedora (debe rechazar)
   type: http
-  seq: 2
+  seq: 1
 
 http:
-  method: DELETE
-  url: "{{baseUrl}}/api/apuestas/1"
+  method: POST
+  url: "{{baseUrl}}/api/pagos"
   headers:
     - name: Authorization
       value: Bearer {{token}}
@@ -17,7 +17,12 @@ http:
     type: json
     data: |-
       {
-        "motivo": "Error del operador"
+        "apuesta_id": 3,
+        "amount_bs": 150,
+        "amount_usd": 0,
+        "moneda": "bs",
+        "tipo": "egreso",
+        "concepto": "Premio Animalitos (perdedora)"
       }
   auth: inherit
 

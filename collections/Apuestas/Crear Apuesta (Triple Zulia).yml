@@ -1,11 +1,11 @@
 info:
-  name: Eliminar Apuesta (Token required - 5 min rule)
+  name: Crear Apuesta (Triple Zulia)
   type: http
-  seq: 2
+  seq: 7
 
 http:
-  method: DELETE
-  url: "{{baseUrl}}/api/apuestas/1"
+  method: POST
+  url: "{{baseUrl}}/api/apuestas"
   headers:
     - name: Authorization
       value: Bearer {{token}}
@@ -17,7 +17,14 @@ http:
     type: json
     data: |-
       {
-        "motivo": "Error del operador"
+        "juego_id": 2,
+        "combinacion": {
+          "tipo": "triple_c",
+          "numero": "123",
+          "signo": "LEO"
+        },
+        "amount_bs": 3600,
+        "amount_usd": 0
       }
   auth: inherit
 
