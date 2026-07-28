@@ -49,7 +49,7 @@ class ApuestaTest extends TestCase
                 'combinacion' => ['animal' => 'leon', 'numero' => 5],
                 'amount_bs' => 1800,
                 'amount_usd' => 50,
-                'sorteo_hora' => '2026-07-24 10:00:00',
+                'sorteo_hora' => now()->addHours(2)->format('Y-m-d H:i:s'),
             ]);
 
         $response->assertStatus(201)
@@ -95,7 +95,7 @@ class ApuestaTest extends TestCase
                 'combinacion' => ['animal' => 'leon'],
                 'amount_bs' => 1000,
                 'amount_usd' => 0,
-                'sorteo_hora' => '2026-07-24 10:00:00',
+                'sorteo_hora' => now()->addHours(2)->format('Y-m-d H:i:s'),
             ]);
 
         $response->assertStatus(422);
@@ -133,7 +133,7 @@ class ApuestaTest extends TestCase
                 'combinacion' => ['animal' => 'leon'],
                 'amount_bs' => 1800,
                 'amount_usd' => 50,
-                'sorteo_hora' => '2026-07-24 10:00:00',
+                'sorteo_hora' => now()->addHours(2)->format('Y-m-d H:i:s'),
             ]);
 
         $apuesta = Apuesta::first();
@@ -284,7 +284,7 @@ class ApuestaTest extends TestCase
                 'combinacion' => ['animal' => 'leon'],
                 'amount_bs' => 0,
                 'amount_usd' => 0,
-                'sorteo_hora' => '2026-07-24 10:00:00',
+                'sorteo_hora' => now()->addHours(2)->format('Y-m-d H:i:s'),
             ]);
 
         $response->assertStatus(422)
@@ -320,7 +320,7 @@ class ApuestaTest extends TestCase
                 'combinacion' => ['animal' => 'dragon_inexistente'],
                 'amount_bs' => 1000,
                 'amount_usd' => 0,
-                'sorteo_hora' => '2026-07-24 10:00:00',
+                'sorteo_hora' => now()->addHours(2)->format('Y-m-d H:i:s'),
             ]);
 
         $response->assertStatus(422)
@@ -445,7 +445,7 @@ class ApuestaTest extends TestCase
                 'combinacion' => ['animal' => 'leon'],
                 'amount_bs' => 1000,
                 'amount_usd' => 0,
-                'sorteo_hora' => '2026-07-24 10:00:00',
+                'sorteo_hora' => now()->addHours(2)->format('Y-m-d H:i:s'),
             ]);
 
         $response->assertStatus(422);
