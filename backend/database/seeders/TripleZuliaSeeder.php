@@ -38,8 +38,9 @@ class TripleZuliaSeeder extends Seeder
                 'name' => 'Triple Zulia',
                 'type' => 'triple_zulia',
                 'config' => json_encode(['premio_multiplo' => 30]),
-                'requires_scraper' => false,
-                'scraper_url' => null,
+                'costo_minimo' => 3600,
+                'requires_scraper' => true,
+                'scraper_url' => 'https://resultadostriplezulia.com/',
                 'active' => true,
             ]
         );
