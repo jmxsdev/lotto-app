@@ -24,14 +24,17 @@ class PagoController extends Controller
             'apuesta_id' => 'required|exists:apuestas,id',
             'amount_bs' => 'nullable|numeric|min:0',
             'amount_usd' => 'nullable|numeric|min:0',
-            'tipo' => 'required|in:bs,usd,mixto',
+            'tipo' => 'required|in:ingreso,egreso',
+            'moneda' => 'required|in:bs,usd,mixto',
             'referencia' => 'nullable|string|max:255',
             'concepto' => 'nullable|string|max:255',
         ], [
             'apuesta_id.required' => 'El ID de la apuesta es obligatorio.',
             'apuesta_id.exists' => 'La apuesta no existe.',
             'tipo.required' => 'Debes especificar el tipo de pago.',
-            'tipo.in' => 'El tipo debe ser bs, usd o mixto.',
+            'tipo.in' => 'El tipo debe ser ingreso o egreso.',
+            'moneda.required' => 'Debes especificar la moneda del pago.',
+            'moneda.in' => 'La moneda debe ser bs, usd o mixto.',
         ]);
 
         if ($validator->fails()) {
@@ -63,39 +66,41 @@ class PagoController extends Controller
             ], 422);
         }
 
-        // Obtener resultado ganador para calcular premio si es necesario
-        $resultado = null;
-        if ($apuesta->resultado_id) {
-            $resultado = Resultado::find($apuesta->resultado_id);
-        }
-
-        // Calcular premio posible usando el plugin del juego
-        $premioPosible = $this->calcularPremioPosible($apuesta, $resultado);
-
-        // Validar que el monto pagado sea razonable (no menor al premio posible)
-        $montoTotalPagado = $request->amount_bs ?? 0;
-        if ($request->amount_usd > 0) {
-            $tasaActiva = \App\Models\ExchangeRate::where('is_active', true)->first();
-            if ($tasaActiva) {
-                $montoTotalPagado += ($request->amount_usd * $tasaActiva->rate);
+        // Si es egreso, validar que la apuesta tenga resultado
+        if ($request->tipo === 'egreso') {
+            if (!$apuesta->resultado_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se puede pagar un premio sin un resultado asignado a la apuesta.',
+                ], 422);
             }
-        }
 
-        // Si el monto pagado es menor al premio posible, advertir pero permitir
-        if ($montoTotalPagado < $premioPosible && $premioPosible > 0) {
-            // Permitir pero registrar advertencia
-            Log::create([
-                'user_id' => $user->id,
-                'action' => 'pago_premio_advertencia',
-                'details' => json_encode([
-                    'apuesta_id' => $apuestaId,
-                    'premio_posible' => $premioPosible,
-                    'monto_pagado' => $montoTotalPagado,
-                    'usuario' => $user->email,
-                ]),
-                'ip' => $request->ip(),
-                'user_agent' => $request->header('User-Agent'),
-            ]);
+            $resultado = Resultado::find($apuesta->resultado_id);
+            $premio = $this->calcularPremio($apuesta, $resultado);
+
+            if ($premio['premio_bs'] == 0 && $premio['premio_usd'] == 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'La apuesta no resultó ganadora. No puede pagarse un premio.',
+                ], 422);
+            }
+
+            $amountBsRequest = (float) ($request->amount_bs ?? 0);
+            $amountUsdRequest = (float) ($request->amount_usd ?? 0);
+
+            $diffBs = abs($amountBsRequest - $premio['premio_bs']);
+            $diffUsd = abs($amountUsdRequest - $premio['premio_usd']);
+
+            if ($diffBs > 0.01 || $diffUsd > 0.01) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El monto del premio no coincide con lo calculado.',
+                    'premio_esperado_bs' => $premio['premio_bs'],
+                    'premio_esperado_usd' => $premio['premio_usd'],
+                    'monto_enviado_bs' => $amountBsRequest,
+                    'monto_enviado_usd' => $amountUsdRequest,
+                ], 422);
+            }
         }
 
         // Guardar pago
@@ -106,6 +111,7 @@ class PagoController extends Controller
             'amount_usd' => $request->amount_usd ?? 0,
             'exchange_rate_applied' => $apuesta->exchange_rate_applied,
             'tipo' => $request->tipo,
+            'moneda' => $request->moneda,
             'concepto' => $request->concepto ?? 'Pago de premio',
             'referencia' => $request->referencia,
             'created_by' => $user->id,
@@ -113,6 +119,15 @@ class PagoController extends Controller
 
         // Actualizar estado de la apuesta
         $apuesta->update(['estado' => 'pagada']);
+
+        // Actualizar premio_ganado en detalle_apuestas
+        $detalle = $apuesta->detalles()->first();
+        if ($detalle) {
+            $detalle->update([
+                'premio_ganado' => $request->amount_bs ?? 0,
+                'premio_ganado_usd' => $request->amount_usd ?? 0,
+            ]);
+        }
 
         // Registrar log de auditoría
         Log::create([
@@ -122,9 +137,8 @@ class PagoController extends Controller
                 'apuesta_id' => $apuestaId,
                 'ticket_code' => $apuesta->ticket_code,
                 'animal' => $apuesta->combinacion['animal'] ?? 'N/A',
-                'premio_posible' => $premioPosible,
-                'monto_bs' => $request->amount_bs ?? 0,
-                'monto_usd' => $request->amount_usd ?? 0,
+                'premio_bs' => $request->amount_bs ?? 0,
+                'premio_usd' => $request->amount_usd ?? 0,
                 'tipo' => $request->tipo,
             ]),
             'ip' => $request->ip(),
@@ -152,14 +166,14 @@ class PagoController extends Controller
     }
 
     /**
-     * Calcular premio posible usando el plugin del juego
+     * Calcular premio usando el plugin del juego
      */
-    private function calcularPremioPosible(Apuesta $apuesta, ?Resultado $resultado): float
+    private function calcularPremio(Apuesta $apuesta, ?Resultado $resultado): array
     {
         $plugin = app(JuegoPluginManager::class)->getPlugin($apuesta->juego);
 
         if (!$plugin) {
-            return 0;
+            return ['premio_bs' => 0, 'premio_usd' => 0];
         }
 
         $combinacion = is_string($apuesta->combinacion)
@@ -173,6 +187,8 @@ class PagoController extends Controller
                 'combinacion' => $combinacion,
                 'total_bs_equivalent' => $apuesta->total_bs_equivalent,
                 'monto' => $apuesta->total_bs_equivalent,
+                'amount_bs' => $apuesta->amount_bs,
+                'amount_usd' => $apuesta->amount_usd,
             ],
             $resultados
         );
