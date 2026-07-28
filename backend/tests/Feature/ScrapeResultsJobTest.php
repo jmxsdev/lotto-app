@@ -7,16 +7,19 @@ use App\Models\Log;
 use App\Models\Resultado;
 use App\Jobs\ScrapeResultsJob;
 use App\Plugins\Scrapers\TripleZuliaScraper;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class ScrapeResultsJobTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     protected function setUp(): void
     {
         parent::setUp();
+
+        Resultado::query()->delete();
+
         $this->seed(\Database\Seeders\DatabaseSeeder::class);
     }
 
@@ -66,7 +69,7 @@ class ScrapeResultsJobTest extends TestCase
         $this->assertEquals(3, $guardados);
         $this->assertEquals(3, Resultado::count());
 
-        $numeros = json_decode(Resultado::first()->numeros_ganadores, true);
+        $numeros = Resultado::first()->numeros_ganadores;
         $this->assertArrayHasKey('triple_a', $numeros);
         $this->assertArrayHasKey('signo', $numeros);
     }

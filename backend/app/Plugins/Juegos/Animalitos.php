@@ -68,7 +68,8 @@ class Animalitos implements JuegoInterface
 
     public function calcularPremio(array $apuesta, array $resultados): array
     {
-        $animalGanador = $resultados['nombre_animal'] ?? null;
+        $numerosGanadores = $resultados['numeros_ganadores'] ?? [];
+        $animalGanador = is_array($numerosGanadores) ? ($numerosGanadores['nombre_animal'] ?? null) : null;
         $animalApostado = $apuesta['combinacion']['animal'] ?? null;
 
         if (!$animalGanador || !$animalApostado) {

@@ -46,15 +46,15 @@ class TripleZuliaScraperTest extends TestCase
         $this->assertArrayHasKey('fecha_sorteo', $first);
         $this->assertArrayHasKey('hora_sorteo', $first);
         $this->assertArrayHasKey('numeros_ganadores', $first);
-        $this->assertArrayHasKey('pais', $first);
 
-        $numeros = json_decode($first['numeros_ganadores'], true);
+        $numeros = $first['numeros_ganadores'];
         $this->assertArrayHasKey('triple_a', $numeros);
         $this->assertArrayHasKey('triple_b', $numeros);
         $this->assertArrayHasKey('triple_c', $numeros);
         $this->assertArrayHasKey('signo', $numeros);
+        $this->assertArrayHasKey('pais', $numeros);
 
-        $this->assertEquals('VE', $first['pais']);
+        $this->assertEquals('VE', $numeros['pais']);
     }
 
     public function test_parses_c_format_correctly()
@@ -68,7 +68,7 @@ class TripleZuliaScraperTest extends TestCase
         $resultados = $method->invoke($this->scraper, $json);
 
         foreach ($resultados as $resultado) {
-            $numeros = json_decode($resultado['numeros_ganadores'], true);
+            $numeros = $resultado['numeros_ganadores'];
             $this->assertMatchesRegularExpression('/^\d{3}$/', $numeros['triple_a']);
             $this->assertMatchesRegularExpression('/^\d{3}$/', $numeros['triple_b']);
             $this->assertMatchesRegularExpression('/^\d{3}$/', $numeros['triple_c']);

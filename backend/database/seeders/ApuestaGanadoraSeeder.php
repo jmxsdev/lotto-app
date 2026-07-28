@@ -89,10 +89,15 @@ class ApuestaGanadoraSeeder extends Seeder
 
             // Calcular premio posible
             $plugin = app(JuegoPluginManager::class)->getPlugin($juego);
+            $numerosGanadores = $data['resultado_numeros'] ?? [];
+            if (isset($data['resultado_nombre_animal'])) {
+                $numerosGanadores['nombre_animal'] = $data['resultado_nombre_animal'];
+            }
+
             $premio = $plugin
                 ? $plugin->calcularPremio(
                     ['combinacion' => $data['combinacion'], 'amount_bs' => $amountBs, 'amount_usd' => $amountUsd],
-                    ['nombre_animal' => $data['resultado_nombre_animal'] ?? null, 'numeros_ganadores' => $data['resultado_numeros'] ?? []]
+                    ['numeros_ganadores' => $numerosGanadores]
                 )
                 : ['premio_bs' => $totalBsEquivalent, 'premio_usd' => 0];
 
