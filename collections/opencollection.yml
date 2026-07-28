@@ -2,6 +2,17 @@ opencollection: 1.0.0
 
 info:
   name: LottoApp API - 1
+config:
+  proxy:
+    inherit: true
+    config:
+      protocol: http
+      hostname: ""
+      port: ""
+      auth:
+        username: ""
+        password: ""
+      bypassProxy: ""
 
 request:
   auth:
@@ -12,6 +23,8 @@ request:
       value: http://localhost:8000
     - name: token
       value: ""
+    - name: macAddress
+      value: 00:1A:2B:3C:4D:5E
 bundled: false
 extensions:
   bruno:

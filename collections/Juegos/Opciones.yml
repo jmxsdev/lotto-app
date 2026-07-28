@@ -5,7 +5,7 @@ info:
 
 http:
   method: GET
-  url: "{{baseUrl}}/api/juegos/1/opciones"
+  url: "{{baseUrl}}/api/juegos/2/opciones"
   headers:
     - name: Authorization
       value: Bearer {{token}}

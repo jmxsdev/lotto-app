@@ -15,7 +15,8 @@ http:
     type: json
     data: |-
       {
-        "name": "Animalitos Plus"
+        "name": "Animalitos Plus",
+        "costo_minimo": 3600
       }
   auth: inherit
 

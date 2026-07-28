@@ -1,7 +1,7 @@
 info:
-  name: Crear Apuesta (Token required)
+  name: Crear Apuesta (Animalitos)
   type: http
-  seq: 1
+  seq: 6
 
 http:
   method: POST
@@ -11,16 +11,24 @@ http:
       value: Bearer {{token}}
     - name: Content-Type
       value: application/json
+    - name: X-Device-MAC
+      value: "{{macAddress}}"
   body:
     type: json
     data: |-
       {
         "juego_id": 1,
-        "combinacion": {"animal": "perro"},
-        "amount_bs": 1000,
-        "amount_usd": 0
+        "combinacion": {"animal": "perro", "numero": 27},
+        "amount_bs": 1800,
+        "amount_usd": 50,
+        "sorteo_hora": "2026-07-26 19:05:00"
       }
   auth: inherit
+
+runtime:
+  variables:
+    - name: macAddress
+      value: 00:1A:2B:3C:4D:5E
 
 settings:
   encodeUrl: true
