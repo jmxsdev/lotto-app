@@ -22,11 +22,12 @@ class ResultadoTestSeeder extends Seeder
                     'hora_sorteo' => '19:00',
                 ],
                 [
-                    'numeros_ganadores' => [],
-                    'nombre_animal' => 'perro',
-                    'imagen_animal' => null,
-                    'color_animal' => 'marrón',
-                    'pais' => 'VE',
+                    'numeros_ganadores' => [
+                        'nombre_animal' => 'perro',
+                        'imagen_animal' => null,
+                        'color_animal' => 'marrón',
+                        'pais' => 'VE',
+                    ],
                 ]
             );
             $this->command->info("Resultado Animalitos (perro) para ayer listo.");
@@ -45,11 +46,8 @@ class ResultadoTestSeeder extends Seeder
                         'triple_b' => '456',
                         'triple_c' => '789',
                         'signo' => 'LEO',
+                        'pais' => 'VE',
                     ],
-                    'nombre_animal' => null,
-                    'imagen_animal' => null,
-                    'color_animal' => null,
-                    'pais' => 'VE',
                 ]
             );
             $this->command->info("Resultado Triple Zulia (123, 456, 789, LEO) para ayer listo.");

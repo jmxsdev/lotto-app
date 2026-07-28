@@ -14,11 +14,7 @@ class Resultado extends Model
         'fecha_sorteo',
         'hora_sorteo',
         'numeros_ganadores',
-        'nombre_animal',
-        'imagen_animal',
-        'color_animal',
         'sorteo_id_externo',
-        'pais',
         'premios_detalle'
     ];
 

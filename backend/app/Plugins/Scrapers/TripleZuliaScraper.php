@@ -82,16 +82,14 @@ class TripleZuliaScraper extends BaseScraper
                 }
             }
 
+            $numeros['pais'] = 'VE';
+
             $resultados[] = [
                 'juego_id' => $juego->id,
                 'fecha_sorteo' => $fechaSorteo,
                 'hora_sorteo' => $horaSorteo,
-                'numeros_ganadores' => json_encode($numeros),
-                'nombre_animal' => null,
-                'imagen_animal' => null,
-                'color_animal' => null,
+                'numeros_ganadores' => $numeros,
                 'sorteo_id_externo' => (string) ($item['events'][0] ?? null),
-                'pais' => 'VE',
                 'premios_detalle' => null,
             ];
         }

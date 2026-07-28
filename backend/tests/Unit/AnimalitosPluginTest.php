@@ -30,7 +30,7 @@ class AnimalitosPluginTest extends TestCase
     public function test_calcular_premio_ganador()
     {
         $apuesta = ['combinacion' => ['animal' => 'perro'], 'amount_bs' => 100, 'amount_usd' => 0];
-        $resultados = ['nombre_animal' => 'perro'];
+        $resultados = ['numeros_ganadores' => ['nombre_animal' => 'perro']];
         $premio = $this->plugin->calcularPremio($apuesta, $resultados);
         $this->assertEquals(['premio_bs' => 3000, 'premio_usd' => 0], $premio);
     }
@@ -38,7 +38,7 @@ class AnimalitosPluginTest extends TestCase
     public function test_calcular_premio_perdedor()
     {
         $apuesta = ['combinacion' => ['animal' => 'perro'], 'amount_bs' => 100, 'amount_usd' => 0];
-        $resultados = ['nombre_animal' => 'gato'];
+        $resultados = ['numeros_ganadores' => ['nombre_animal' => 'gato']];
         $premio = $this->plugin->calcularPremio($apuesta, $resultados);
         $this->assertEquals(['premio_bs' => 0, 'premio_usd' => 0], $premio);
     }

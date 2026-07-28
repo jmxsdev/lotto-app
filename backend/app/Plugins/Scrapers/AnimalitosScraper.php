@@ -111,14 +111,14 @@ class AnimalitosScraper extends BaseScraper
             'juego_id' => $juego->id,
             'fecha_sorteo' => now()->format('Y-m-d'),
             'hora_sorteo' => $data['time_s'] ?? null,
-            'numeros_ganadores' => json_encode([
+            'numeros_ganadores' => [
                 'numero' => (int)($data['number_animal'] ?? 0),
-            ]),
-            'nombre_animal' => $data['name_animal'] ?? null,
-            'imagen_animal' => $data['image_animal'] ?? null,
-            'color_animal' => $data['color_animal'] ?? null,
+                'nombre_animal' => $data['name_animal'] ?? null,
+                'imagen_animal' => $data['image_animal'] ?? null,
+                'color_animal' => $data['color_animal'] ?? null,
+                'pais' => $pais,
+            ],
             'sorteo_id_externo' => $data['id_game'] ?? null,
-            'pais' => $pais,
             'premios_detalle' => null,
         ];
     }
@@ -137,10 +137,10 @@ class AnimalitosScraper extends BaseScraper
             
             if ($existing) {
                 $existing->update($resultadoData);
-                $this->logInfo("Resultado actualizado: {$resultadoData['nombre_animal']} - {$resultadoData['hora_sorteo']}");
+                $this->logInfo("Resultado actualizado: hora {$resultadoData['hora_sorteo']}");
             } else {
                 Resultado::create($resultadoData);
-                $this->logInfo("Resultado creado: {$resultadoData['nombre_animal']} - {$resultadoData['hora_sorteo']}");
+                $this->logInfo("Resultado creado: hora {$resultadoData['hora_sorteo']}");
             }
             
             $guardados++;

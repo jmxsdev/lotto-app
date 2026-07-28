@@ -61,14 +61,16 @@ class AnimalitosScraperTest extends TestCase
         $this->assertArrayHasKey('fecha_sorteo', $first);
         $this->assertArrayHasKey('hora_sorteo', $first);
         $this->assertArrayHasKey('numeros_ganadores', $first);
-        $this->assertArrayHasKey('nombre_animal', $first);
-        $this->assertArrayHasKey('imagen_animal', $first);
-        $this->assertArrayHasKey('color_animal', $first);
-        $this->assertArrayHasKey('pais', $first);
         
-        $this->assertEquals('Delfin', $first['nombre_animal']);
+        $numeros = $first['numeros_ganadores'];
+        $this->assertArrayHasKey('nombre_animal', $numeros);
+        $this->assertArrayHasKey('imagen_animal', $numeros);
+        $this->assertArrayHasKey('color_animal', $numeros);
+        $this->assertArrayHasKey('pais', $numeros);
+        
+        $this->assertEquals('Delfin', $numeros['nombre_animal']);
         $this->assertEquals('10:00 AM', $first['hora_sorteo']);
-        $this->assertEquals('Venezuela', $first['pais']);
+        $this->assertEquals('Venezuela', $numeros['pais']);
     }
 
     public function test_handles_empty_results()

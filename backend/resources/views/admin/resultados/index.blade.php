@@ -63,25 +63,27 @@
                     </thead>
                     <tbody>
                         @foreach($resultados as $resultado)
+                            @php
+                                $numeros = is_string($resultado->numeros_ganadores)
+                                    ? json_decode($resultado->numeros_ganadores, true)
+                                    : $resultado->numeros_ganadores;
+                            @endphp
                             <tr>
                                 <td>{{ $resultado->hora_sorteo }}</td>
                                 <td>{{ $resultado->juego->name ?? 'N/A' }}</td>
                                 <td>
-                                    <span class="badge bg-{{ $resultado->color_animal ?? 'secondary' }}">
-                                        {{ $resultado->nombre_animal ?? 'N/A' }}
+                                    <span class="badge bg-{{ $numeros['color_animal'] ?? 'secondary' }}">
+                                        {{ $numeros['nombre_animal'] ?? 'N/A' }}
                                     </span>
                                 </td>
                                 <td>
-                                    @php
-                                        $numeros = json_decode($resultado->numeros_ganadores, true);
-                                    @endphp
-                                    <strong>{{ $numeros['numero'] ?? 'N/A' }}</strong>
+                                    <strong>{{ $numeros['numero'] ?? $numeros['triple_a'] ?? 'N/A' }}</strong>
                                 </td>
-                                <td>{{ $resultado->pais ?? 'N/A' }}</td>
+                                <td>{{ $numeros['pais'] ?? 'N/A' }}</td>
                                 <td>
-                                    @if($resultado->imagen_animal)
-                                        <img src="https://admin.lottoactivo.com/dist/animals_img/{{ $resultado->imagen_animal }}" 
-                                             alt="{{ $resultado->nombre_animal }}" 
+                                    @if($numeros['imagen_animal'] ?? null)
+                                        <img src="https://admin.lottoactivo.com/dist/animals_img/{{ $numeros['imagen_animal'] }}" 
+                                             alt="{{ $numeros['nombre_animal'] ?? '' }}" 
                                              style="width: 40px; height: 40px; object-fit: contain;">
                                     @else
                                         <i class="bi bi-image text-muted"></i>
