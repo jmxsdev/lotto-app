@@ -19,7 +19,7 @@ class ApuestaStoreRequest extends FormRequest
             'juego_id' => 'required|exists:juegos,id',
             'amount_bs' => 'required|numeric|min:0',
             'amount_usd' => 'required|numeric|min:0',
-            'sorteo_hora' => 'required|date_format:Y-m-d H:i:s',
+            'sorteo_hora' => 'sometimes|date_format:Y-m-d H:i:s|after_or_equal:now',
         ];
 
         $juego = Juego::find($this->juego_id);

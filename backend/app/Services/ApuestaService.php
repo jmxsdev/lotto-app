@@ -36,29 +36,35 @@ class ApuestaService
     public function validarCostoMinimo(float $totalBsEquivalent, int $juegoId): array
     {
         $juego = Juego::find($juegoId);
-        
+
         if (!$juego) {
             return [
                 'valid' => false,
                 'message' => 'Juego no encontrado.',
             ];
         }
-        
-        $config = $juego->config ?? [];
-        $costoMinimo = is_array($config) ? ($config['precio'] ?? 3600) : 3600;
-        
+
+        $costoMinimo = $juego->costo_minimo;
+
+        if ($costoMinimo === null) {
+            return [
+                'valid' => true,
+                'costo_minimo' => null,
+            ];
+        }
+
         if ($totalBsEquivalent < $costoMinimo) {
             return [
                 'valid' => false,
                 'message' => "El monto no cubre el costo mínimo del juego.",
-                'required_min' => $costoMinimo,
+                'required_min' => (float) $costoMinimo,
                 'current_total' => $totalBsEquivalent,
             ];
         }
-        
+
         return [
             'valid' => true,
-            'costo_minimo' => $costoMinimo,
+            'costo_minimo' => (float) $costoMinimo,
         ];
     }
 

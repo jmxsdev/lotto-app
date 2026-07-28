@@ -43,6 +43,10 @@ class ApuestaPolicy
             return false;
         }
 
+        if ($apuesta->sorteo_hora && $apuesta->sorteo_hora->isPast()) {
+            return false;
+        }
+
         if ($apuesta->created_at->diffInMinutes(now()) >= 5) {
             return false;
         }
