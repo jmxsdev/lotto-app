@@ -5,7 +5,7 @@ namespace App\Plugins\Contracts;
 interface JuegoInterface
 {
     public function validarApuesta(array $data): bool;
-    public function calcularPremio(array $apuesta, array $resultados): float|int;
+    public function calcularPremio(array $apuesta, array $resultados): array;
     public function obtenerReglas(): array;
     public function obtenerOpciones(): array;
     public function obtenerMultiplicador(): float;

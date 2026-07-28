@@ -61,11 +61,11 @@ class JuegoPluginManager
         return $plugin->validarApuesta($data);
     }
 
-    public function calcularPremio(Juego $juego, array $apuesta, array $resultados): float|int
+    public function calcularPremio(Juego $juego, array $apuesta, array $resultados): array
     {
         $plugin = $this->getPlugin($juego);
         if (!$plugin) {
-            return 0;
+            return ['premio_bs' => 0, 'premio_usd' => 0];
         }
         return $plugin->calcularPremio($apuesta, $resultados);
     }

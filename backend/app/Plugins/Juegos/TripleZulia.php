@@ -48,13 +48,17 @@ class TripleZulia implements JuegoInterface
         return false;
     }
 
-    public function calcularPremio(array $apuesta, array $resultados): float|int
+    public function calcularPremio(array $apuesta, array $resultados): array
     {
         $tipoApostado = $apuesta['combinacion']['tipo'] ?? null;
         $numeroApostado = $apuesta['combinacion']['numero'] ?? null;
         $signoApostado = $apuesta['combinacion']['signo'] ?? null;
 
         $numerosGanadores = $resultados['numeros_ganadores'] ?? [];
+
+        if (is_string($numerosGanadores)) {
+            $numerosGanadores = json_decode($numerosGanadores, true) ?? [];
+        }
 
         $coincideNumero = false;
         foreach (['triple_a', 'triple_b', 'triple_c'] as $tipo) {
@@ -65,18 +69,22 @@ class TripleZulia implements JuegoInterface
         }
 
         if (!$coincideNumero) {
-            return 0;
+            return ['premio_bs' => 0, 'premio_usd' => 0];
         }
 
         if ($tipoApostado === 'triple_c' && $signoApostado) {
             $signoGanador = $numerosGanadores['signo'] ?? null;
             if (strtoupper($signoApostado) !== strtoupper($signoGanador ?? '')) {
-                return 0;
+                return ['premio_bs' => 0, 'premio_usd' => 0];
             }
         }
 
-        $monto = $apuesta['monto'] ?? $apuesta['total_bs_equivalent'] ?? 0;
-        return $monto * $this->multiplicador;
+        $amountBs = $apuesta['amount_bs'] ?? 0;
+        $amountUsd = $apuesta['amount_usd'] ?? 0;
+        return [
+            'premio_bs' => $amountBs * (float) $this->multiplicador,
+            'premio_usd' => $amountUsd * (float) $this->multiplicador,
+        ];
     }
 
     public function obtenerReglas(): array
