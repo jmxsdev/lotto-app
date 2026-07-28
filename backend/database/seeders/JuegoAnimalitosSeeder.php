@@ -65,6 +65,7 @@ class JuegoAnimalitosSeeder extends Seeder
                 'name' => 'Animalitos',
                 'type' => 'animalitos',
                 'config' => json_encode(['premio_multiplo' => 30]),
+                'costo_minimo' => 3600,
                 'requires_scraper' => true,
                 'scraper_url' => 'https://www.lottoactivo.com/resultados/animalitos/',
                 'active' => true,

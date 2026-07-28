@@ -11,12 +11,13 @@ class Juego extends Model
 
     protected $fillable = [
         'name', 'slug', 'type', 'config', 'requires_scraper',
-        'scraper_url', 'active', 'updated_by'
+        'scraper_url', 'costo_minimo', 'active', 'updated_by'
     ];
 
     protected $casts = [
         'config' => 'array',
         'requires_scraper' => 'boolean',
+        'costo_minimo' => 'decimal:2',
         'active' => 'boolean',
     ];
 
