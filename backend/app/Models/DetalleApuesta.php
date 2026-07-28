@@ -10,14 +10,18 @@ class DetalleApuesta extends Model
     use HasFactory;
 
     protected $fillable = [
-        'apuesta_id', 'combinacion', 'monto', 'premio_posible', 'premio_ganado'
+        'apuesta_id', 'combinacion', 'monto',
+        'premio_posible', 'premio_posible_usd',
+        'premio_ganado', 'premio_ganado_usd',
     ];
 
     protected $casts = [
         'combinacion' => 'array',
         'monto' => 'decimal:2',
         'premio_posible' => 'decimal:2',
+        'premio_posible_usd' => 'decimal:2',
         'premio_ganado' => 'decimal:2',
+        'premio_ganado_usd' => 'decimal:2',
     ];
 
     public function apuesta()

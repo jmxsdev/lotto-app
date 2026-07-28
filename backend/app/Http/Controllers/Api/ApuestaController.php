@@ -8,6 +8,7 @@ use App\Models\Apuesta;
 use App\Models\DetalleApuesta;
 use App\Models\ExchangeRate;
 use App\Models\Juego;
+use App\Models\JuegoHorario;
 use App\Models\Log;
 use App\Services\ApuestaService;
 use App\Services\JuegoPluginManager;
@@ -80,11 +81,40 @@ class ApuestaController extends Controller
     /**
      * Crear una nueva apuesta
      */
+    protected function getNextDrawTime(int $juegoId): string
+    {
+        $horarios = JuegoHorario::where('juego_id', $juegoId)
+            ->where('active', true)
+            ->orderBy('hora')
+            ->pluck('hora');
+
+        if ($horarios->isEmpty()) {
+            return now()->addHours(2)->format('Y-m-d H:i:s');
+        }
+
+        $now = now();
+        foreach ($horarios as $hora) {
+            $drawTime = $now->copy()->setTimeFromTimeString($hora);
+            if ($drawTime->isFuture()) {
+                return $drawTime->format('Y-m-d H:i:s');
+            }
+        }
+
+        return $now->copy()->addDay()->setTimeFromTimeString($horarios->first())->format('Y-m-d H:i:s');
+    }
+
     public function store(ApuestaStoreRequest $request)
     {
         $user = $request->user();
+
+        if (!$user->taquilla_id) {
+            return response()->json([
+                'message' => 'Solo las taquillas pueden crear apuestas.',
+            ], 403);
+        }
+
         $taquillaId = $user->taquilla_id;
-        
+
         try {
             // Obtener tasa activa del momento
             $tasaActiva = ExchangeRate::where('is_active', true)->first();
@@ -125,25 +155,41 @@ class ApuestaController extends Controller
                 'total_bs_equivalent' => $totalBsEquivalent,
                 'estado' => 'pendiente',
                 'fecha_hora' => now(),
-                'sorteo_hora' => $request->sorteo_hora,
+                'sorteo_hora' => $request->sorteo_hora ?? $this->getNextDrawTime($request->juego_id),
             ]);
 
             // Generar detalles de la apuesta con plugin
             $juego = Juego::find($request->juego_id);
             $plugin = app(JuegoPluginManager::class)->getPlugin($juego);
-            $premioPosible = $plugin
+            $premio = $plugin
                 ? $plugin->calcularPremio(
-                    ['combinacion' => $combinacion, 'total_bs_equivalent' => $totalBsEquivalent],
+                    ['combinacion' => $combinacion, 'total_bs_equivalent' => $totalBsEquivalent, 'amount_bs' => $amountBs, 'amount_usd' => $amountUsd],
                     []
                 )
-                : $totalBsEquivalent;
+                : ['premio_bs' => $totalBsEquivalent, 'premio_usd' => 0];
 
             \App\Models\DetalleApuesta::create([
                 'apuesta_id' => $apuesta->id,
                 'combinacion' => json_encode($combinacion),
                 'monto' => $totalBsEquivalent,
-                'premio_posible' => $premioPosible,
+                'premio_posible' => $premio['premio_bs'],
+                'premio_posible_usd' => $premio['premio_usd'],
                 'premio_ganado' => null,
+                'premio_ganado_usd' => null,
+            ]);
+
+            $moneda = $amountBs > 0 && $amountUsd > 0 ? 'mixto' : ($amountUsd > 0 ? 'usd' : 'bs');
+
+            \App\Models\Pago::create([
+                'taquilla_id' => $taquillaId,
+                'apuesta_id' => $apuesta->id,
+                'amount_bs' => $amountBs,
+                'amount_usd' => $amountUsd,
+                'exchange_rate_applied' => $tasaActiva->rate,
+                'tipo' => 'ingreso',
+                'moneda' => $moneda,
+                'concepto' => 'Compra de ticket',
+                'created_by' => $user->id,
             ]);
 
             return response()->json([
@@ -157,7 +203,7 @@ class ApuestaController extends Controller
             ], 422);
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Error interno al procesar la apuesta: ' . $e->getMessage()
+                'message' => 'Error interno al procesar la apuesta.',
             ], 500);
         }
     }
@@ -167,13 +213,8 @@ class ApuestaController extends Controller
      */
     public function show(Apuesta $apuesta)
     {
-        $user = request()->user();
-        
-        // Validar permisos según rol
-        if ($user->role === 'taquilla' && $apuesta->taquilla_id !== $user->taquilla_id) {
-            return response()->json(['message' => 'No tiene permiso para ver esta apuesta.'], 403);
-        }
-        
+        $this->authorize('view', $apuesta);
+
         return response()->json([
             'data' => $apuesta->load(['juego', 'taquilla', 'resultado', 'detalles', 'pago']),
         ]);

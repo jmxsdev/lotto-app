@@ -30,10 +30,10 @@ class Apuesta extends Model
     protected static function boot()
     {
         parent::boot();
-        
+
         static::creating(function ($apuesta) {
             if (!$apuesta->ticket_code) {
-                $apuesta->ticket_code = strtoupper(Str::random(8)) . '-' . $apuesta->id;
+                $apuesta->ticket_code = strtoupper(Str::random(8));
             }
         });
     }
