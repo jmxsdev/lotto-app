@@ -66,21 +66,25 @@ class Animalitos implements JuegoInterface
         return in_array($animal, $this->animales);
     }
 
-    public function calcularPremio(array $apuesta, array $resultados): float|int
+    public function calcularPremio(array $apuesta, array $resultados): array
     {
         $animalGanador = $resultados['nombre_animal'] ?? null;
         $animalApostado = $apuesta['combinacion']['animal'] ?? null;
 
         if (!$animalGanador || !$animalApostado) {
-            return 0;
+            return ['premio_bs' => 0, 'premio_usd' => 0];
         }
 
         if (strtolower($animalApostado) === strtolower($animalGanador)) {
-            $monto = $apuesta['monto'] ?? $apuesta['total_bs_equivalent'] ?? 0;
-            return $monto * $this->multiplicador;
+            $amountBs = $apuesta['amount_bs'] ?? 0;
+            $amountUsd = $apuesta['amount_usd'] ?? 0;
+            return [
+                'premio_bs' => $amountBs * (float) $this->multiplicador,
+                'premio_usd' => $amountUsd * (float) $this->multiplicador,
+            ];
         }
 
-        return 0;
+        return ['premio_bs' => 0, 'premio_usd' => 0];
     }
 
     public function obtenerReglas(): array
