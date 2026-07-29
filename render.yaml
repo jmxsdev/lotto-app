@@ -1,0 +1,31 @@
+# Render Blueprint
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: lotto-api
+    runtime: docker
+    rootDir: backend
+    healthCheckPath: /api/juegos
+    plan: free
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_URL
+        value: https://lotto-api.onrender.com
+      - key: APP_KEY
+        generateValue: true
+      - key: APP_DEBUG
+        value: "false"
+      - key: SESSION_DRIVER
+        value: file
+      - key: CACHE_STORE
+        value: file
+      - key: QUEUE_CONNECTION
+        value: sync
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: SANCTUM_STATEFUL_DOMAINS
+        value: localhost
+      - key: CORS_ALLOWED_ORIGINS
+        value: http://localhost:3000,http://localhost:4321
