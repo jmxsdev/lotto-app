@@ -40,3 +40,4 @@ SECURITY.md
 *.pid
 *.seed
 *.pid.lock
+*.md
