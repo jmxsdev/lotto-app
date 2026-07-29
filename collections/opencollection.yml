@@ -20,7 +20,7 @@ request:
     token: "{{token}}"
   variables:
     - name: baseUrl
-      value: http://localhost:8000
+      value: https://localhost:8000
     - name: token
       value: ""
     - name: macAddress

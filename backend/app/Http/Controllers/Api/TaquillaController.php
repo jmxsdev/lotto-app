@@ -73,7 +73,7 @@ class TaquillaController extends Controller
         $this->authorizeGrupoAccess($user, $request->grupo_id);
 
         // Generar activation_code automáticamente si no se proporciona
-        $activationCode = $request->activation_code ?? Str::random(8);
+        $activationCode = $request->activation_code ?? Str::random(16);
 
         $grupo = Grupo::find($request->grupo_id);
 
@@ -82,7 +82,7 @@ class TaquillaController extends Controller
             'code' => $request->code,
             'grupo_id' => $request->grupo_id,
             'activation_code' => $activationCode,
-            'active' => $request->active ?? true,
+            'active' => $request->active ?? false,
             'created_by' => $user->id,
         ]);
 

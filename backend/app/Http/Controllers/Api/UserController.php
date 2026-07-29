@@ -100,6 +100,11 @@ class UserController extends Controller
         ]);
 
         $data = $request->only(['name', 'email', 'role', 'active']);
+
+        if (isset($data['role']) && auth()->user()->hasRole('master') && $data['role'] === 'super_master') {
+            return response()->json(['message' => 'No puedes asignar el rol super_master.'], 403);
+        }
+
         if ($request->filled('password')) {
             $data['password'] = Hash::make($request->password);
         }

@@ -45,7 +45,7 @@ class ActivacionController extends Controller
             
             return response()->json([
                 'success' => false,
-                'message' => 'Código de activación inválido o expirado.',
+                'message' => 'Código de activación inválido.',
             ], 404);
         }
 
