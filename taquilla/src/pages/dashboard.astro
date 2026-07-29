@@ -1,252 +1,1424 @@
 ---
 import MainLayout from '../layouts/MainLayout.astro';
-import api from '../utils/api';
+
+const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
 ---
 
 <MainLayout currentPage="dashboard">
   <div class="dashboard">
-    <h2 class="page-title">Dashboard</h2>
-    
     <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-icon">🎰</div>
+      <div class="stat-card clock-card">
+        <div class="stat-icon">🕐</div>
         <div class="stat-content">
-          <div class="stat-label">Apuestas del Día</div>
-          <div class="stat-value" id="total-apuestas">--</div>
+          <div class="stat-label">Hora Actual</div>
+          <div class="stat-value" id="clock">--:--:--</div>
+        </div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon">🎯</div>
+        <div class="stat-content">
+          <div class="stat-label">Jugadas</div>
+          <div class="stat-value" id="jugadas">0</div>
         </div>
       </div>
       
       <div class="stat-card">
         <div class="stat-icon">💰</div>
         <div class="stat-content">
-          <div class="stat-label">Total Vendido (BS)</div>
-          <div class="stat-value" id="total-bs">Bs. 0.00</div>
+          <div class="stat-label">Total a Pagar (BS)</div>
+          <div class="stat-value" id="total-pagar">Bs. 0,00</div>
         </div>
       </div>
       
       <div class="stat-card">
-        <div class="stat-icon">💵</div>
+        <div class="stat-icon">💱</div>
         <div class="stat-content">
-          <div class="stat-label">Total Vendido ($)</div>
-          <div class="stat-value" id="total-usd">$ 0.00</div>
-        </div>
-      </div>
-      
-      <div class="stat-card">
-        <div class="stat-icon">⏳</div>
-        <div class="stat-content">
-          <div class="stat-label">Pendientes</div>
-          <div class="stat-value" id="pending-count">--</div>
+          <div class="stat-label">Tasa del Dólar</div>
+          <div class="stat-value" id="tasa-dolar">--</div>
+          <div class="stat-meta" id="tasa-meta"></div>
         </div>
       </div>
     </div>
-    
-    <div class="recent-section">
-      <h3 class="section-title">Últimas Apuestas</h3>
-      <div class="table-container">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Hora</th>
-              <th>Juego</th>
-              <th>Animal</th>
-              <th>Monto (BS)</th>
-              <th>Monto ($)</th>
-              <th>Total Eq.</th>
-              <th>Estado</th>
-            </tr>
-          </thead>
-          <tbody id="apuestas-body">
-            <tr>
-              <td colspan="7" style="text-align: center; padding: 40px;">
-                Cargando apuestas...
-              </td>
-            </tr>
-          </tbody>
-        </table>
+
+    <div class="quick-ticket">
+      <div class="qt-bar">
+        <input type="number" id="qt-numero" class="qt-input" placeholder="Número" min="0" step="1">
+        <input type="number" id="qt-monto" class="qt-input" placeholder="Monto" min="0" step="0.01">
+        <select id="qt-moneda" class="qt-select">
+          <option value="bs">Bs</option>
+          <option value="usd">$</option>
+        </select>
+        <button id="qt-edit" class="qt-btn" title="Editar línea">✏️</button>
+        <button id="qt-add" class="qt-btn qt-btn-primary" title="Agregar línea">➕</button>
+      </div>
+
+      <div class="qt-body">
+        <div class="qt-column juegos-col">
+          <h4 class="qt-col-title" id="juegos-col-title">Juegos</h4>
+          <div class="juegos-tabs" id="juegos-tabs"></div>
+          <div id="juegos-list" class="juegos-list"></div>
+          <div id="horario-mode" class="horario-mode-inner" style="display:none">
+            <button id="back-to-juegos" class="back-btn">← Volver</button>
+            <div class="game-chips" id="game-chips"></div>
+            <div class="horarios-grid" id="horarios-grid"></div>
+          </div>
+        </div>
+
+        <div class="qt-column animales-col" id="animales-col">
+          <h4 class="qt-col-title">Selección</h4>
+          <div id="seleccion-content" class="seleccion-content">
+            <div class="seleccion-placeholder">Seleccione un juego</div>
+          </div>
+        </div>
+
+        <div class="qt-column resumen-col">
+          <h4 class="qt-col-title">Resumen del Ticket</h4>
+          <div id="resumen-content" class="resumen-content"></div>
+          <div class="qt-total" id="qt-total-row">
+            <span class="total-label">Total:</span>
+            <span class="total-amount" id="qt-total-amount">Bs. 0,00</span>
+          </div>
+          <div class="qt-actions">
+            <button id="qt-clear" class="btn btn-clear" disabled>🗑️ Limpiar</button>
+            <button id="qt-print" class="btn btn-info" disabled>🖨️ Imprimir</button>
+            <button id="qt-confirm" class="btn btn-primary" disabled>✅ Confirmar</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
   
-  <style>
+  <style is:global>
     .dashboard {
       max-width: 1200px;
     }
     
     .page-title {
-      font-size: 28px;
-      font-weight: 700;
-      color: #333;
-      margin-bottom: 24px;
+      display: none;
     }
     
     .stats-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 20px;
-      margin-bottom: 32px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 8px;
+      margin-bottom: 10px;
     }
-    
+
     .stat-card {
       background: white;
-      border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      border-radius: 8px;
+      padding: 8px 14px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
       display: flex;
       align-items: center;
-      gap: 16px;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      gap: 8px;
     }
-    
+
     .stat-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
-    
+
+    .clock-card .stat-value {
+      font-size: 18px;
+      letter-spacing: 1px;
+      font-variant-numeric: tabular-nums;
+    }
+
     .stat-icon {
-      font-size: 32px;
+      font-size: 20px;
     }
-    
+
     .stat-content {
       flex: 1;
     }
-    
+
     .stat-label {
-      font-size: 14px;
+      font-size: 10px;
       color: #666;
-      margin-bottom: 4px;
+      margin-bottom: 1px;
     }
-    
+
     .stat-value {
-      font-size: 24px;
+      font-size: 17px;
       font-weight: 700;
       color: #333;
     }
-    
-    .recent-section {
+
+    .stat-meta {
+      font-size: 10px;
+      color: #999;
+      margin-top: 0;
+    }
+
+    .quick-ticket {
       background: white;
       border-radius: 12px;
-      padding: 24px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      overflow: hidden;
     }
-    
-    .section-title {
-      font-size: 18px;
-      font-weight: 600;
-      color: #333;
-      margin-bottom: 16px;
-    }
-    
-    .table-container {
-      overflow-x: auto;
-    }
-    
-    .data-table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    
-    .data-table th {
-      background: #f5f7fa;
-      padding: 12px;
-      text-align: left;
-      font-weight: 600;
-      color: #666;
-      font-size: 13px;
-      border-bottom: 2px solid #e9ecef;
-    }
-    
-    .data-table td {
-      padding: 12px;
-      border-bottom: 1px solid #e9ecef;
-      font-size: 14px;
-    }
-    
-    .data-table tr:hover {
+
+    .qt-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
       background: #f8f9fa;
+      border-bottom: 1px solid #e9ecef;
+      height: 50px;
     }
-    
-    .badge {
-      display: inline-block;
-      padding: 4px 12px;
-      border-radius: 12px;
+
+    .qt-input {
+      width: 100px;
+      padding: 6px 10px;
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+
+    .qt-input:focus {
+      border-color: #667eea;
+      outline: none;
+    }
+
+    .qt-select {
+      padding: 6px 10px;
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      background: white;
+    }
+
+    .qt-select:focus {
+      border-color: #667eea;
+      outline: none;
+    }
+
+    .qt-btn {
+      width: 34px;
+      height: 34px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #e9ecef;
+      transition: background 0.15s ease;
+    }
+
+    .qt-btn:hover {
+      background: #dee2e6;
+    }
+
+    .qt-btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .qt-btn-primary:hover {
+      opacity: 0.9;
+    }
+
+    .qt-body {
+      display: grid;
+      grid-template-columns: 30% 20% 50%;
+      gap: 0;
+      min-height: 480px;
+    }
+
+    .qt-column {
+      padding: 12px;
+      border-right: 1px solid #e9ecef;
+    }
+
+    .qt-column:last-child {
+      border-right: none;
+    }
+
+    .qt-col-title {
       font-size: 12px;
       font-weight: 600;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 10px;
     }
-    
-    .badge-pendiente {
-      background: #fff3cd;
-      color: #856404;
+
+    .juegos-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
-    
-    .badge-pagada {
-      background: #d4edda;
-      color: #155724;
+
+    .juego-card {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border: 2px solid transparent;
+      background: #f8f9fa;
     }
-    
-    .badge-anulada {
-      background: #f8d7da;
-      color: #721c24;
+
+    .juego-card * {
+      cursor: pointer;
+    }
+
+    .juego-card:hover {
+      border-color: #667eea;
+      background: #f0f4ff;
+    }
+
+    .juego-card.selected {
+      border-color: #3b82f6;
+      background: #dbeafe;
+      font-weight: 600;
+    }
+
+    .juego-card.selected .juego-name {
+      color: #1e40af;
+    }
+
+    .juego-card.selected .juego-icon {
+      color: #1e40af;
+    }
+
+    .juegos-tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 0;
+      border-bottom: 2px solid #ddd;
+    }
+
+    .juego-tab {
+      flex: 1;
+      padding: 8px 4px;
+      border: 2px solid transparent;
+      border-bottom: none;
+      border-radius: 8px 8px 0 0;
+      background: transparent;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s ease;
+      text-align: center;
+      color: #888;
+      margin-bottom: -2px;
+    }
+
+    .juego-tab:hover {
+      color: #3b82f6;
+      background: #eff6ff;
+    }
+
+    .juego-tab.active {
+      border-color: #ddd;
+      background: white;
+      color: #1e40af;
+      border-bottom-color: white;
+    }
+
+    .modalidad-label {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+
+    .modalidad-grid {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .modalidad-btn {
+      flex: 1;
+      padding: 8px 4px;
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      background: white;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.1s ease;
+      text-align: center;
+    }
+
+    .modalidad-btn:hover {
+      border-color: #3b82f6;
+      background: #f0f4ff;
+    }
+
+    .modalidad-btn.selected {
+      border-color: #3b82f6;
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    .triple-info {
+      font-size: 11px;
+      color: #999;
+      margin-top: 4px;
+      font-style: italic;
+    }
+
+    .juego-icon {
+      font-size: 20px;
+    }
+
+    .juego-name {
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .seleccion-content {
+      max-height: 440px;
+      overflow-y: auto;
+    }
+
+    .seleccion-placeholder {
+      text-align: center;
+      color: #999;
+      padding: 40px 0;
+      font-style: italic;
+      font-size: 14px;
+    }
+
+    .animal-check {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.1s ease;
+      width: 100%;
+      box-sizing: border-box;
+      border: 2px solid transparent;
+    }
+
+    .animal-check * {
+      cursor: pointer;
+    }
+
+    .animal-check:hover {
+      background: #f0f4ff;
+    }
+
+    .animal-check.selected {
+      background: #dbeafe;
+      border-color: #3b82f6;
+      font-weight: 600;
+    }
+
+    .animal-check.selected .animal-label,
+    .animal-check.selected .animal-num {
+      color: #1e40af;
+    }
+
+    .horario-mode-inner {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .game-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+
+    .game-chip {
+      font-size: 11px;
+      background: #eef2ff;
+      color: #667eea;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 500;
+    }
+
+    .back-btn {
+      background: none;
+      border: none;
+      color: #667eea;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      padding: 4px 0;
+      text-align: left;
+      font-family: inherit;
+    }
+
+    .back-btn:hover {
+      text-decoration: underline;
+    }
+
+    .horarios-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+
+    .horario-item {
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-family: inherit;
+      transition: all 0.1s ease;
+      border: 2px solid transparent;
+      background: #f8f9fa;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .horario-item:hover {
+      border-color: #3b82f6;
+      background: #f0f4ff;
+    }
+
+    .horario-item.selected {
+      background: #dbeafe;
+      border-color: #3b82f6;
+      font-weight: 600;
+      color: #1e40af;
+    }
+
+    .animal-num {
+      font-weight: 700;
+      color: #667eea;
+      font-size: 13px;
+      width: 24px;
+    }
+
+    .animal-emoji {
+      font-size: 18px;
+      line-height: 1;
+      width: 24px;
+      text-align: center;
+    }
+
+    .animal-label {
+      font-size: 13px;
+      color: #333;
+    }
+
+    .monto-bs {
+      color: #059669;
+      font-weight: 600;
+    }
+
+    .monto-usd {
+      color: #2563eb;
+      font-weight: 600;
+    }
+
+    .signos-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .signo-btn {
+      padding: 4px 10px;
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      background: white;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.1s ease;
+      font-family: inherit;
+    }
+
+    .signo-btn:hover {
+      border-color: #3b82f6;
+      background: #f0f4ff;
+    }
+
+    .signo-btn.selected {
+      border-color: #3b82f6;
+      background: #dbeafe;
+      font-weight: 600;
+      color: #1e40af;
+    }
+
+    .signo-label {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 4px;
+    }
+
+    .logo-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      text-align: center;
+    }
+
+    .logo-box {
+      width: 100px;
+      height: 100px;
+      border: 2px dashed #ddd;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      margin-bottom: 12px;
+      color: #ccc;
+    }
+
+    .logo-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #666;
+    }
+
+    .resumen-content {
+      max-height: 360px;
+      overflow-y: auto;
+    }
+
+    .resumen-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .resumen-table th {
+      text-align: left;
+      padding: 6px 8px;
+      font-weight: 600;
+      color: #666;
+      font-size: 11px;
+      border-bottom: 1px solid #e9ecef;
+      white-space: nowrap;
+    }
+
+    .resumen-table td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .resumen-table tr:hover {
+      background: #f8f9fa;
+    }
+
+    .resumen-table .btn-rm {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 2px;
+      opacity: 0.5;
+    }
+
+    .resumen-table .btn-rm:hover {
+      opacity: 1;
+    }
+
+    .qt-total {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 8px;
+      border-top: 2px solid #e9ecef;
+      margin-top: 4px;
+    }
+
+    .total-label {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .total-amount {
+      font-size: 18px;
+      font-weight: 700;
+      color: #667eea;
+    }
+
+    .qt-actions {
+      display: flex;
+      gap: 8px;
+      padding: 8px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      opacity: 0.9;
+    }
+
+    .btn-info {
+      background: #17a2b8;
+      color: white;
+    }
+
+    .btn-info:hover:not(:disabled) {
+      opacity: 0.9;
+    }
+
+    .btn-clear {
+      background: #fff;
+      color: #dc2626;
+      border: 2px solid #fecaca;
+    }
+
+    .btn-clear:hover:not(:disabled) {
+      background: #fef2f2;
+      border-color: #dc2626;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 30px 0;
+      color: #999;
+      font-style: italic;
+      font-size: 13px;
     }
   </style>
   
-  <script>
-    async function loadDashboard() {
+  <script define:vars={{ apiUrl }}>
+    const API_BASE = apiUrl;
+    let tasaActiva = 36.50;
+
+    let selectedGames = [];
+    let ticketLines = [];
+    let editIndex = -1;
+    let juegosCache = [];
+    let animalesCache = [];
+    let selectedAnimal = null;
+    let columnMode = 'juegos';
+
+    const API_MAC = '00:1A:2B:3C:4D:5E';
+
+    const ANIMAL_EMOJIS = ['🐬','🐏','🐂','🐆','🐸','🐕','🐈','🕊️','🦜','🐿️','🐅','🦁','🐄','🦅','🦊','🐒','🦚','🐎','🐻','🫏','🐓','🐪','🐈‍⬛','🐍','🦌','🐐','🐘','🐖','🦆','🐊','🦚','🐟','🦀','🦔','🐇','🐦','🐔'];
+
+    const DEFAULT_ANIMALES = [
+      {numero:0,label:'Delfín'},{numero:1,label:'Carnero'},{numero:2,label:'Toro'},{numero:3,label:'Onza'},
+      {numero:4,label:'Sapo'},{numero:5,label:'Perro'},{numero:6,label:'Gato'},{numero:7,label:'Paloma'},
+      {numero:8,label:'Loro'},{numero:9,label:'Ardilla'},{numero:10,label:'Tigre'},{numero:11,label:'León'},
+      {numero:12,label:'Vaca'},{numero:13,label:'Cuervo'},{numero:14,label:'Zorro'},{numero:15,label:'Mono'},
+      {numero:16,label:'Pavo Real'},{numero:17,label:'Caballo'},{numero:18,label:'Oso'},{numero:19,label:'Burro'},
+      {numero:20,label:'Gallo'},{numero:21,label:'Camello'},{numero:22,label:'Pantera'},{numero:23,label:'Culebra'},
+      {numero:24,label:'Venado'},{numero:25,label:'Chivo'},{numero:26,label:'Elefante'},{numero:27,label:'Cochino'},
+      {numero:28,label:'Pato'},{numero:29,label:'Caimán'},{numero:30,label:'Pavorreal'},{numero:31,label:'Pescado'},
+      {numero:32,label:'Cangrejo'},{numero:33,label:'Cachicamo'},{numero:34,label:'Conejo'},{numero:35,label:'Cardenal'},
+      {numero:36,label:'Gallina'}
+    ];
+
+    let selectedHorario = null;
+    let horariosCache = [];
+    let signosCache = [];
+    let selectedSigno = null;
+    let activeTab = 'animalitos';
+    let tripleModalidad = null;
+    let tripleModalidadLabel = null;
+
+    async function apiFetch(method, url, body) {
+      const token = localStorage.getItem('auth_token');
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+      headers['X-Device-MAC'] = API_MAC;
+      const opts = { method, headers };
+      if (body) opts.body = JSON.stringify(body);
+      const res = await fetch(API_BASE + url, opts);
+      if (res.status === 401) {
+        localStorage.removeItem('auth_token');
+        window.location.href = '/login';
+        throw new Error('No autorizado');
+      }
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || res.statusText);
+      }
+      return res.json();
+    }
+
+    function initClock() {
+      function updateClock() {
+        const now = new Date();
+        const opts = { timeZone: 'America/Caracas', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
+        document.getElementById('clock').textContent = now.toLocaleTimeString('en-US', opts);
+      }
+      updateClock();
+      setInterval(updateClock, 1000);
+    }
+
+    function loadTicket() {
+      const raw = localStorage.getItem('currentTicket');
+      const ticket = raw ? JSON.parse(raw) : null;
+      document.getElementById('jugadas').textContent = ticket?.jugadas ?? 0;
+      document.getElementById('total-pagar').textContent = ticket
+        ? `Bs. ${Number(ticket.totalBs).toLocaleString('es-VE', { minimumFractionDigits: 2 })}`
+        : 'Bs. 0,00';
+    }
+
+    async function loadTasa() {
       try {
-        const response = await fetch('/api/apuestas/resumen');
-        if (!response.ok) throw new Error('Error al cargar resumen');
-        
-        const data = await response.json();
-        const resumen = data.data || {};
-        
-        document.getElementById('total-apuestas').textContent = 
-          (resumen.pending_count || 0) + (resumen.pagada_count || 0);
-        document.getElementById('total-bs').textContent = `Bs. ${Number(resumen.total_bs || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}`;
-        document.getElementById('total-usd').textContent = `$ ${Number(resumen.total_usd || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
-        document.getElementById('pending-count').textContent = resumen.pending_count || 0;
-      } catch (error) {
-        console.error('Error cargando resumen:', error);
+        const res = await fetch(API_BASE + '/exchange-rate/active');
+        if (!res.ok) throw new Error('No disponible');
+        const data = await res.json();
+        tasaActiva = data.rate;
+        document.getElementById('tasa-dolar').textContent = `Bs. ${Number(data.rate).toLocaleString('es-VE', { minimumFractionDigits: 2 })}`;
+        const fecha = data.updated_at ? new Date(data.updated_at).toLocaleDateString('es-VE') : 'hoy';
+        document.getElementById('tasa-meta').textContent = `Actualizada: ${fecha}`;
+      } catch (e) {
+        document.getElementById('tasa-dolar').textContent = '--';
+        document.getElementById('tasa-meta').textContent = 'No disponible';
       }
     }
-    
-    async function loadApuestas() {
+
+    async function loadJuegos() {
       try {
-        const response = await fetch('/api/apuestas?per_page=5');
-        if (!response.ok) throw new Error('Error al cargar apuestas');
-        
-        const data = await response.json();
-        const apuestas = data.data?.data || [];
-        const tbody = document.getElementById('apuestas-body');
-        
-        if (apuestas.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #666;">No hay apuestas registradas</td></tr>';
-          return;
+        juegosCache = await apiFetch('GET', '/juegos');
+        renderJuegos();
+      } catch (e) {
+        document.getElementById('juegos-list').innerHTML = '<div class="empty-state">Error al cargar juegos</div>';
+      }
+    }
+
+    function renderJuegosTabs() {
+      const container = document.getElementById('juegos-tabs');
+      container.innerHTML = '';
+      const tipos = ['animalitos', 'tripletas', 'terminales'];
+      const labels = { animalitos: 'Animalitos', tripletas: 'Tripletas', terminales: 'Terminales' };
+      tipos.forEach(t => {
+        const btn = document.createElement('button');
+        btn.className = 'juego-tab' + (activeTab === t ? ' active' : '');
+        btn.dataset.tab = t;
+        btn.textContent = labels[t] || t;
+        btn.addEventListener('click', () => {
+          if (activeTab === t) return;
+          activeTab = t;
+          selectedGames = [];
+          selectedAnimal = null;
+          selectedSigno = null;
+          tripleModalidad = null;
+          tripleModalidadLabel = null;
+          document.getElementById('seleccion-content').innerHTML = '<div class="seleccion-placeholder">Seleccione un juego</div>';
+          horariosCache = [];
+          selectedHorario = null;
+          renderJuegosTabs();
+          renderJuegos();
+          switchToJuegos();
+          document.getElementById('juegos-col-title').textContent = 'Juegos';
+        });
+        container.appendChild(btn);
+      });
+    }
+
+    function renderJuegos() {
+      const container = document.getElementById('juegos-list');
+      const filtered = juegosCache.filter(j => j.type === activeTab);
+      if (filtered.length === 0) {
+        container.innerHTML = '<div class="empty-state">Sin juegos disponibles</div>';
+        return;
+      }
+      container.innerHTML = filtered.map(j => {
+        let icon = '🎲';
+        if (j.type === 'animalitos') icon = '🎰';
+        else if (j.type === 'tripletas') icon = '🎯';
+        else if (j.type === 'terminales') icon = '🔢';
+        const selected = selectedGames.some(g => g.id === j.id) ? ' selected' : '';
+        return `<div class="juego-card${selected}" data-id="${j.id}">
+          <span class="juego-icon">${icon}</span>
+          <span class="juego-name">${j.name}</span>
+        </div>`;
+      }).join('');
+    }
+
+    function renderSignosForModalidad() {
+      const container = document.getElementById('signos-triple-container');
+      if (tripleModalidad !== 'triple_c') {
+        container.style.display = 'none';
+        selectedSigno = null;
+        return;
+      }
+      container.style.display = 'block';
+      if (!signosCache || signosCache.length === 0) {
+        loadSignos(selectedGames[0]?.id);
+        return;
+      }
+      let html = '<div class="signo-label">Seleccione signo (opcional):</div>';
+      html += '<div class="signos-grid">';
+      signosCache.forEach(s => {
+        const sel = selectedSigno && selectedSigno.value === s.value ? ' selected' : '';
+        html += '<button class="signo-btn' + sel + '" data-value="' + s.value + '" data-label="' + s.label + '">' + s.label + '</button>';
+      });
+      html += '</div>';
+      container.innerHTML = html;
+      container.querySelectorAll('.signo-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          container.querySelectorAll('.signo-btn').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          selectedSigno = { value: btn.dataset.value, label: btn.dataset.label };
+          updateColumnMode();
+        });
+      });
+    }
+
+    async function loadAnimales(juegoId) {
+      try {
+        const data = await apiFetch('GET', '/juegos/' + juegoId + '/opciones');
+        let items = Array.isArray(data) ? data : (data.data || []);
+        if (items.length === 0 && juegosCache.find(j => j.id === juegoId)?.type === 'animalitos') {
+          items = DEFAULT_ANIMALES;
         }
-        
-        tbody.innerHTML = apuestas.map(apuesta => {
-          const combinacion = typeof apuesta.combinacion === 'string' ? JSON.parse(apuesta.combinacion) : apuesta.combinacion;
-          const animal = combinacion?.animal || '-';
-          const estadoClass = `badge-${apuesta.estado || 'pendiente'}`;
-          
-          return `
-            <tr>
-              <td>${new Date(apuesta.created_at).toLocaleTimeString('es-VE')}</td>
-              <td>${apuesta.juego?.name || '-'}</td>
-              <td>${animal}</td>
-              <td>Bs. ${Number(apuesta.amount_bs || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</td>
-              <td>$ ${Number(apuesta.amount_usd || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-              <td>Bs. ${Number(apuesta.total_bs_equivalent || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</td>
-              <td><span class="badge ${estadoClass}">${(apuesta.estado || 'pendiente').toUpperCase()}</span></td>
-            </tr>
-          `;
-        }).join('');
-      } catch (error) {
-        console.error('Error cargando apuestas:', error);
-        document.getElementById('apuestas-body').innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #dc3545;">Error al cargar datos</td></tr>';
+        if (items.length > 0 && items[0].numero !== undefined) {
+          animalesCache = items.sort((a, b) => a.numero - b.numero);
+          renderAnimales();
+        } else {
+          renderLogo();
+        }
+      } catch (e) {
+        if (juegosCache.find(j => j.id === juegoId)?.type === 'animalitos') {
+          animalesCache = DEFAULT_ANIMALES;
+          renderAnimales();
+        } else {
+          renderLogo();
+        }
       }
     }
-    
-    loadDashboard();
-    loadApuestas();
+
+    function renderAnimales() {
+      const container = document.getElementById('seleccion-content');
+      container.innerHTML = animalesCache.map(a => {
+        const emoji = ANIMAL_EMOJIS[a.numero] || '🐾';
+        const sel = selectedAnimal && selectedAnimal.label === a.label ? ' selected' : '';
+        return `<div class="animal-check${sel}" data-numero="${a.numero}" data-label="${a.label}">
+          <span class="animal-num">${a.numero}</span>
+          <span class="animal-emoji">${emoji}</span>
+          <span class="animal-label">${a.label}</span>
+        </div>`;
+      }).join('');
+      container.querySelectorAll('.animal-check').forEach(el => {
+        el.addEventListener('click', () => {
+          const num = parseInt(el.dataset.numero);
+          const label = el.dataset.label;
+          if (selectedAnimal && selectedAnimal.label === label) {
+            selectedAnimal = null;
+          } else {
+            selectedAnimal = { numero: num, label: label };
+          }
+          renderAnimales();
+          updateColumnMode();
+        });
+      });
+    }
+
+    function updateColumnMode() {
+      const hasGames = selectedGames.length > 0;
+      const hasAnimal = selectedAnimal !== null;
+      const isTriple = selectedGames.length === 1 && selectedGames[0]?.type === 'tripletas';
+      const hasModalidad = tripleModalidad !== null;
+      const hasSigno = selectedSigno !== null;
+      const tripleReady = isTriple && hasModalidad && (tripleModalidad !== 'triple_c' || hasSigno);
+      const isTerminales = selectedGames.length === 1 && selectedGames[0]?.type === 'terminales';
+      if (hasGames && (hasAnimal || tripleReady || isTerminales)) {
+        switchToHorarios();
+      } else {
+        switchToJuegos();
+      }
+    }
+
+    function switchToHorarios() {
+      columnMode = 'horarios';
+      document.getElementById('juegos-list').style.display = 'none';
+      document.getElementById('horario-mode').style.display = 'block';
+      document.getElementById('juegos-col-title').textContent = 'Horario';
+      renderGameChips();
+      if (horariosCache.length === 0) {
+        loadHorarios(selectedGames[0].id);
+      } else {
+        renderHorariosGrid();
+      }
+    }
+
+    function switchToJuegos() {
+      columnMode = 'juegos';
+      document.getElementById('juegos-list').style.display = 'flex';
+      document.getElementById('horario-mode').style.display = 'none';
+      document.getElementById('juegos-col-title').textContent = 'Juegos';
+    }
+
+    function renderGameChips() {
+      const container = document.getElementById('game-chips');
+      container.innerHTML = selectedGames.map(g => '<span class="game-chip">' + g.name + '</span>').join('');
+    }
+
+    function renderTerminalesInfo() {
+      const container = document.getElementById('seleccion-content');
+      container.innerHTML = '<div class="logo-placeholder">' +
+        '<div class="logo-box">🔢</div>' +
+        '<div class="logo-name">Terminales</div>' +
+        '<div style="font-size:12px;color:#999;margin-top:4px">Ingrese 2 dígitos (00-99) en el campo superior</div>' +
+        '</div>';
+    }
+
+    function renderLogo() {
+      const container = document.getElementById('seleccion-content');
+      const name = selectedGames.length > 0 ? selectedGames[0].name : 'Juego';
+      container.innerHTML = `<div class="logo-placeholder">
+        <div class="logo-box">🎲</div>
+        <div class="logo-name">${name}</div>
+      </div>`;
+    }
+
+    async function loadHorarios(juegoId) {
+      try {
+        horariosCache = await apiFetch('GET', '/juegos/' + juegoId + '/horarios');
+        selectedHorario = null;
+        renderHorariosGrid();
+      } catch (e) {
+        horariosCache = [];
+        selectedHorario = null;
+        renderHorariosGrid();
+      }
+    }
+
+    function renderHorariosGrid() {
+      const container = document.getElementById('horarios-grid');
+      if (!horariosCache || horariosCache.length === 0) {
+        container.innerHTML = '<div style="font-size:12px;color:#999;padding:8px">Sin horarios disponibles</div>';
+        return;
+      }
+      container.innerHTML = horariosCache.map(h => {
+        const sel = selectedHorario === h.hora ? ' selected' : '';
+        return '<div class="horario-item' + sel + '" data-hora="' + h.hora + '">' + h.hora + '</div>';
+      }).join('');
+    }
+
+    async function loadTripleReglas(juegoId) {
+      try {
+        const data = await apiFetch('GET', '/juegos/' + juegoId + '/reglas');
+        const modalidades = data.modalidades || [];
+        if (modalidades.length === 1) {
+          tripleModalidad = modalidades[0].code;
+          tripleModalidadLabel = null;
+          const container = document.getElementById('seleccion-content');
+          container.innerHTML = '<div class="modalidad-label">' + modalidades[0].label + ' — ' + modalidades[0].descripcion + '</div>' +
+            '<div class="triple-info">Ingrese número de ' + modalidades[0].digitos + ' cifras en el campo superior</div>' +
+            '<div id="signos-triple-container" style="display:none"></div>';
+          if (modalidades[0].requiere_signo) {
+            loadSignos(juegoId);
+          }
+          updateColumnMode();
+        } else {
+          renderTripleModalidades(modalidades);
+        }
+      } catch (e) {
+        document.getElementById('seleccion-content').innerHTML = '<div class="empty-state">Error al cargar reglas</div>';
+      }
+    }
+
+    function renderTripleModalidades(modalidades) {
+      const container = document.getElementById('seleccion-content');
+      let html = '<div class="modalidad-label">Seleccione modalidad:</div>';
+      html += '<div class="modalidad-grid">';
+      modalidades.forEach(m => {
+        const sel = tripleModalidad === m.code ? ' selected' : '';
+        html += '<button class="modalidad-btn' + sel + '" data-modalidad="' + m.code + '">' + m.label + '</button>';
+      });
+      html += '</div>';
+      html += '<div class="triple-info">Ingrese número de 3 cifras en el campo superior</div>';
+      html += '<div id="signos-triple-container" style="display:none"></div>';
+      container.innerHTML = html;
+      container.querySelectorAll('.modalidad-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          container.querySelectorAll('.modalidad-btn').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          tripleModalidad = btn.dataset.modalidad;
+          tripleModalidadLabel = btn.textContent;
+          document.getElementById('qt-numero').value = '';
+          renderSignosForModalidad();
+          updateColumnMode();
+        });
+      });
+    }
+
+    async function loadSignos(juegoId) {
+      try {
+        const data = await apiFetch('GET', '/juegos/' + juegoId + '/opciones');
+        signosCache = Array.isArray(data) ? data : (data.data || []);
+        if (signosCache.length > 0 && signosCache[0].label) {
+          renderSignosForModalidad();
+        }
+      } catch (e) {
+        signosCache = [];
+      }
+    }
+
+    function formatDateWithHorario(hora) {
+      const partes = hora.split(':');
+      const d = new Date();
+      d.setHours(parseInt(partes[0]), parseInt(partes[1] || '0'), 0, 0);
+      if (d <= new Date()) {
+        d.setDate(d.getDate() + 1);
+      }
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      return y + '-' + m + '-' + day + ' ' + hh + ':' + mm + ':00';
+    }
+
+    function getTotalBs(line) {
+      const monto = Number(line.monto) || 0;
+      return line.moneda === 'usd' ? monto * tasaActiva : monto;
+    }
+
+    function getTicketTotal() {
+      return ticketLines.reduce((sum, line) => sum + getTotalBs(line), 0);
+    }
+
+    function saveToLocalStorage() {
+      const totalBs = getTicketTotal();
+      localStorage.setItem('currentTicket', JSON.stringify({
+        jugadas: ticketLines.length,
+        totalBs: totalBs
+      }));
+      loadTicket();
+    }
+
+    function renderResumen() {
+      const container = document.getElementById('resumen-content');
+      const totalEl = document.getElementById('qt-total-amount');
+      const confirmBtn = document.getElementById('qt-confirm');
+      const printBtn = document.getElementById('qt-print');
+      const clearBtn = document.getElementById('qt-clear');
+      const hasLines = ticketLines.length > 0;
+
+      if (!hasLines) {
+        container.innerHTML = '<div class="empty-state">Sin jugadas aún</div>';
+        totalEl.textContent = 'Bs. 0,00';
+        confirmBtn.disabled = true;
+        printBtn.disabled = true;
+        clearBtn.disabled = true;
+        saveToLocalStorage();
+        return;
+      }
+
+      let html = `<table class="resumen-table">
+        <thead><tr>
+          <th>Sorteo</th><th>Animal / N°</th><th>Monto</th><th></th>
+        </tr></thead><tbody>`;
+      ticketLines.forEach((line, i) => {
+        const montoClass = line.moneda === 'bs' ? 'monto-bs' : 'monto-usd';
+        const montoStr = line.moneda === 'bs'
+          ? `Bs. ${Number(line.monto).toLocaleString('es-VE', { minimumFractionDigits: 2 })}`
+          : `$ ${Number(line.monto).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+        const sorteoDisplay = line.horario
+          ? (line.juegoName || '-') + ' - ' + line.horario
+          : (line.juegoName || '-');
+        const animalDisplay = line.juegoType === 'tripletas'
+          ? (line.tripleModalidadLabel
+              ? line.tripleModalidadLabel + ' ' + (line.numero || '-') + (line.animal ? ' - ' + line.animal : '')
+              : (line.numero ?? '-'))
+          : (line.animal ? line.animal + ' ' + (line.numero || '-') : (line.numero ?? '-'));
+        html += `<tr>
+          <td>${sorteoDisplay}</td>
+          <td>${animalDisplay}</td>
+          <td class="${montoClass}">${montoStr}</td>
+          <td><button class="btn-rm" data-index="${i}" title="Eliminar">✕</button></td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      container.innerHTML = html;
+
+      totalEl.textContent = `Bs. ${getTicketTotal().toLocaleString('es-VE', { minimumFractionDigits: 2 })}`;
+      confirmBtn.disabled = false;
+      printBtn.disabled = false;
+      clearBtn.disabled = false;
+      saveToLocalStorage();
+    }
+
+    function addLine() {
+      let numero = document.getElementById('qt-numero').value.trim();
+      const monto = document.getElementById('qt-monto').value.trim();
+      const moneda = document.getElementById('qt-moneda').value;
+
+      if (selectedGames.length === 0) { alert('Seleccione al menos un juego'); return; }
+      if (!monto || Number(monto) <= 0) { alert('Ingrese un monto válido'); return; }
+      if (!selectedHorario) { alert('Seleccione un horario para el sorteo'); return; }
+
+      const isTriple = selectedGames.length === 1 && selectedGames[0]?.type === 'tripletas';
+      const isTerminales = selectedGames.length === 1 && selectedGames[0]?.type === 'terminales';
+      if (isTriple) {
+        if (!tripleModalidad) { alert('Seleccione una modalidad (Triple A/B/C)'); return; }
+        if (!numero || numero.length !== 3) { alert('Ingrese un número de exactamente 3 cifras'); return; }
+      } else if (isTerminales) {
+        if (!numero || numero.length !== 2) { alert('Ingrese un número de exactamente 2 cifras'); return; }
+      } else {
+        if (!selectedAnimal) { alert('Seleccione un animal'); return; }
+        numero = String(selectedAnimal.numero).padStart(2, '0');
+      }
+
+      selectedGames.forEach(game => {
+        const animal = isTriple
+          ? (selectedSigno ? selectedSigno.label : null)
+          : (isTerminales ? null : selectedAnimal.label);
+        ticketLines.push({
+          juegoId: game.id,
+          juegoName: game.name,
+          juegoType: game.type,
+          horario: selectedHorario,
+          numero: numero,
+          animal: animal,
+          monto: Number(monto),
+          moneda: moneda,
+          tripleModalidad: isTriple ? tripleModalidad : null,
+          tripleModalidadLabel: isTriple ? tripleModalidadLabel : null,
+        });
+      });
+
+      document.getElementById('qt-numero').value = '';
+      document.getElementById('qt-monto').value = '';
+      if (isTriple) {
+        tripleModalidad = null;
+        tripleModalidadLabel = null;
+        selectedSigno = null;
+        loadTripleReglas(selectedGames[0].id);
+      } else if (isTerminales) {
+        renderTerminalesInfo();
+      } else {
+        selectedAnimal = null;
+        renderAnimales();
+      }
+      renderResumen();
+      updateColumnMode();
+    }
+
+    function clearTicket() {
+      ticketLines = [];
+      selectedAnimal = null;
+      selectedSigno = null;
+      tripleModalidad = null;
+      tripleModalidadLabel = null;
+      selectedHorario = null;
+      document.getElementById('qt-numero').value = '';
+      document.getElementById('qt-monto').value = '';
+      if (animalesCache.length > 0) renderAnimales();
+      switchToJuegos();
+      saveToLocalStorage();
+      renderResumen();
+    }
+
+    function removeLine(index) {
+      ticketLines.splice(index, 1);
+      if (ticketLines.length === 0) {
+        selectedAnimal = null;
+        selectedSigno = null;
+        tripleModalidad = null;
+        tripleModalidadLabel = null;
+        selectedHorario = null;
+        document.getElementById('qt-numero').value = '';
+        renderAnimales();
+        switchToJuegos();
+      }
+      renderResumen();
+    }
+
+    async function handleConfirm() {
+      if (ticketLines.length === 0) return;
+      const confirmBtn = document.getElementById('qt-confirm');
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = 'Guardando...';
+      try {
+        for (const line of ticketLines) {
+          const combinacion = line.tripleModalidad
+            ? { tipo: line.tripleModalidad, numero: line.numero, signo: line.animal }
+            : (line.juegoType === 'terminales'
+              ? { numero: line.numero }
+              : { animal: line.animal || line.numero, numero: line.numero });
+          await apiFetch('POST', '/apuestas', {
+            juego_id: line.juegoId,
+            combinacion: combinacion,
+            amount_bs: line.moneda === 'bs' ? line.monto : 0,
+            amount_usd: line.moneda === 'usd' ? line.monto : 0,
+            sorteo_hora: line.horario ? formatDateWithHorario(line.horario) : new Date().toISOString(),
+          });
+        }
+        alert('Apuestas creadas exitosamente');
+        ticketLines = [];
+        renderResumen();
+        localStorage.removeItem('currentTicket');
+        loadTicket();
+      } catch (e) {
+        alert('Error al guardar: ' + e.message);
+      }
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = '✅ Confirmar';
+    }
+
+    async function handlePrint() {
+      if (ticketLines.length === 0) return;
+      const printBtn = document.getElementById('qt-print');
+      printBtn.disabled = true;
+      try {
+        for (const line of ticketLines) {
+          const combinacion = line.tripleModalidad
+            ? { tipo: line.tripleModalidad, numero: line.numero, signo: line.animal }
+            : (line.juegoType === 'terminales'
+              ? { numero: line.numero }
+              : { animal: line.animal || line.numero, numero: line.numero });
+          await apiFetch('POST', '/apuestas', {
+            juego_id: line.juegoId,
+            combinacion: combinacion,
+            amount_bs: line.moneda === 'bs' ? line.monto : 0,
+            amount_usd: line.moneda === 'usd' ? line.monto : 0,
+            sorteo_hora: line.horario ? formatDateWithHorario(line.horario) : new Date().toISOString(),
+          });
+        }
+        const ticketData = {
+          ticketCode: 'TICKET-' + Date.now(),
+          date: new Date().toLocaleDateString('es-VE'),
+          time: new Date().toLocaleTimeString('es-VE'),
+          game: selectedGames.length > 0 ? selectedGames.map(g => g.name).join(', ') : 'Apuesta',
+          lines: ticketLines.map(l => ({ animal: l.animal || l.numero, number: l.numero, amountBs: l.moneda === 'bs' ? l.monto : 0, amountUsd: l.moneda === 'usd' ? l.monto : 0 })),
+        };
+        if (window.electron?.printTicket) {
+          await window.electron.printTicket({ ticketData });
+        } else {
+          alert('Impresión no disponible fuera de Electron');
+        }
+        ticketLines = [];
+        renderResumen();
+        localStorage.removeItem('currentTicket');
+        loadTicket();
+      } catch (e) {
+        alert('Error: ' + e.message);
+      }
+      printBtn.disabled = false;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initClock();
+      localStorage.removeItem('currentTicket');
+      loadTicket();
+      loadTasa();
+      loadJuegos();
+      renderJuegosTabs();
+
+      setInterval(loadTicket, 2000);
+
+      document.getElementById('juegos-list').addEventListener('click', (e) => {
+        const card = e.target.closest('.juego-card');
+        if (!card) return;
+        const id = parseInt(card.dataset.id);
+        const juego = juegosCache.find(j => j.id === id);
+        if (!juego) return;
+
+        const yaSeleccionado = selectedGames.some(g => g.id === id);
+        if (yaSeleccionado) {
+          selectedGames = [];
+        } else {
+          selectedGames = [juego];
+        }
+        selectedSigno = null;
+        selectedAnimal = null;
+        tripleModalidad = null;
+        tripleModalidadLabel = null;
+
+        renderJuegos();
+        if (selectedGames.length > 0) {
+          if (juego.type === 'animalitos') {
+            loadAnimales(id);
+          } else if (juego.type === 'tripletas') {
+            loadTripleReglas(juego.id);
+          } else if (juego.type === 'terminales') {
+            renderTerminalesInfo();
+          } else {
+            renderLogo();
+          }
+          loadHorarios(juego.id);
+        } else {
+          document.getElementById('seleccion-content').innerHTML = '<div class="seleccion-placeholder">Seleccione un juego</div>';
+          horariosCache = [];
+          selectedHorario = null;
+          switchToJuegos();
+        }
+        updateColumnMode();
+      });
+
+      document.getElementById('horarios-grid').addEventListener('click', (e) => {
+        const item = e.target.closest('.horario-item');
+        if (!item) return;
+        document.querySelectorAll('.horario-item.selected').forEach(b => b.classList.remove('selected'));
+        item.classList.add('selected');
+        selectedHorario = item.dataset.hora;
+      });
+      if (document.getElementById('back-to-juegos')) {
+        document.getElementById('back-to-juegos').addEventListener('click', () => {
+          switchToJuegos();
+          document.getElementById('juegos-col-title').textContent = 'Juegos';
+        });
+      }
+
+      document.getElementById('qt-add').addEventListener('click', addLine);
+
+      document.getElementById('resumen-content').addEventListener('click', (e) => {
+        const btn = e.target.closest('.btn-rm');
+        if (btn) removeLine(parseInt(btn.dataset.index));
+      });
+
+      document.getElementById('qt-clear').addEventListener('click', clearTicket);
+      document.getElementById('qt-confirm').addEventListener('click', handleConfirm);
+      document.getElementById('qt-print').addEventListener('click', handlePrint);
+
+      document.getElementById('qt-numero').addEventListener('input', (e) => {
+        if (!selectedGames[0] || selectedGames[0].type !== 'animalitos') return;
+        if (animalesCache.length === 0) return;
+        const val = parseInt(e.target.value);
+        if (isNaN(val)) { selectedAnimal = null; renderAnimales(); updateColumnMode(); return; }
+        const animal = animalesCache.find(a => a.numero === val);
+        if (animal) {
+          selectedAnimal = { numero: animal.numero, label: animal.label };
+          renderAnimales();
+          updateColumnMode();
+        }
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'INPUT' && e.key === 'Enter') {
+          addLine();
+        }
+      });
+    });
   </script>
 </MainLayout>

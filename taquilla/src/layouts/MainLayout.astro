@@ -1,19 +1,28 @@
 ---
 interface Props {
-  tasa?: number;
-  hora?: string;
   taquillaName?: string;
   userName?: string;
   currentPage?: string;
 }
 
 const { 
-  tasa = 36.50, 
-  hora = new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }), 
   taquillaName = 'Taquilla Principal',
   userName,
   currentPage = 'dashboard'
 } = Astro.props;
+
+const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
+
+let tasaInicial = 36.50;
+try {
+  const response = await fetch(apiUrl + '/exchange-rate/active', {
+    signal: AbortSignal.timeout(3000)
+  });
+  if (response.ok) {
+    const data = await response.json();
+    tasaInicial = data.rate;
+  }
+} catch (_) {}
 ---
 
 <!DOCTYPE html>
@@ -39,7 +48,6 @@ const {
       }
 
       .main-content {
-        margin-left: 240px;
         min-height: 100vh;
       }
 
@@ -51,179 +59,203 @@ const {
   </head>
   <body>
     <div class="app-container">
-      <nav class="sidebar">
-        <div class="sidebar-header">
-          <h2>Menú</h2>
+      <header class="top-header">
+        <div class="header-nav">
+          <a href="/dashboard" class={"nav-link" + (currentPage === 'dashboard' ? ' active' : '')} title="Dashboard">
+            <span class="nav-icon">🏠</span>
+          </a>
+          <a href="/historial" class={"nav-link" + (currentPage === 'historial' ? ' active' : '')} title="Historial">
+            <span class="nav-icon">📋</span>
+          </a>
+          <a href="/resultados" class={"nav-link" + (currentPage === 'resultados' ? ' active' : '')} title="Resultados">
+            <span class="nav-icon">🏆</span>
+          </a>
+          <a href="/cierre" class={"nav-link" + (currentPage === 'cierre' ? ' active' : '')} title="Cierre de Caja">
+            <span class="nav-icon">💰</span>
+          </a>
         </div>
-        
-        <ul class="menu">
-          <li class="menu-item {currentPage === 'dashboard' ? 'active' : ''}">
-            <a href="/dashboard">
-              <span class="icon">🏠</span>
-              <span class="text">Dashboard</span>
-            </a>
-          </li>
-          
-          <li class="menu-item {currentPage === 'nueva-apuesta' ? 'active' : ''}">
-            <a href="/dashboard/nueva-apuesta">
-              <span class="icon">🎰</span>
-              <span class="text">Nueva Apuesta</span>
-            </a>
-          </li>
-          
-          <li class="menu-item {currentPage === 'historial' ? 'active' : ''}">
-            <a href="/dashboard/historial">
-              <span class="icon">📋</span>
-              <span class="text">Historial</span>
-            </a>
-          </li>
-          
-          <li class="menu-item {currentPage === 'resultados' ? 'active' : ''}">
-            <a href="/dashboard/resultados">
-              <span class="icon">🏆</span>
-              <span class="text">Resultados</span>
-            </a>
-          </li>
-          
-          <li class="menu-item {currentPage === 'cierre' ? 'active' : ''}">
-            <a href="/dashboard/cierre">
-              <span class="icon">💰</span>
-              <span class="text">Cierre de Caja</span>
-            </a>
-          </li>
-        </ul>
-        
-        <div class="sidebar-footer">
-          <div class="connection-status">
-            <span class="status-dot active"></span>
-            <span>Conectado</span>
-          </div>
-          <div class="version">v0.1.0</div>
+
+        <div class="header-brand">
+          <h1 class="logo">🎰 Lotto Taquilla</h1>
         </div>
-      </nav>
-      
-      <div class="main-content">
-        <header class="header">
-          <div class="header-left">
-            <h1 class="logo">🎰 Lotto Taquilla</h1>
+
+        <div class="header-info">
+          <div class="info-item">
+            <span class="info-label">Tasa:</span>
+            <span class="info-value" id="header-tasa">{tasaInicial.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</span>
           </div>
-          
-          <div class="header-center">
-            <div class="info-item">
-              <span class="label">Tasa USD:</span>
-              <span class="value">{tasa.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</span>
-            </div>
-            <div class="info-item">
-              <span class="label">Hora:</span>
-              <span class="value">{hora}</span>
-            </div>
+          <div class="info-item">
+            <span class="info-label">Hora:</span>
+            <span class="info-value" id="header-clock">--:--:--</span>
           </div>
-          
-          <div class="header-right">
-            <div class="user-info">
-              {userName && <span class="user-name">{userName}</span>}
-              <span class="taquilla-name">{taquillaName}</span>
-            </div>
-            <button class="logout-btn" onclick="handleLogout()">
-              🚪 Salir
+          <div class="connection-status" id="connection-status">
+            <span class="status-dot" id="status-dot"></span>
+            <span class="status-text" id="status-text">Conectado</span>
+          </div>
+          <div class="user-section">
+            {userName && <span class="user-name">{userName}</span>}
+            <button class="logout-btn" id="logout-btn" title="Cerrar sesión">
+              🚪
             </button>
           </div>
-        </header>
-        
+        </div>
+      </header>
+      
+      <div class="main-content">
         <div class="content-wrapper">
           <slot />
         </div>
       </div>
     </div>
     
-    <script>
-      function handleLogout() {
-        if (confirm('¿Está seguro que desea cerrar sesión?')) {
-          localStorage.removeItem('auth_token');
-          window.location.href = '/login';
+    <script define:vars={{ apiUrl }}>
+      let connected = navigator.onLine;
+
+      function updateConnectionStatus(status) {
+        connected = status;
+        const dot = document.getElementById('status-dot');
+        const text = document.getElementById('status-text');
+        if (status) {
+          dot.className = 'status-dot';
+          text.textContent = 'Conectado';
+        } else {
+          dot.className = 'status-dot inactive';
+          text.textContent = 'Desconectado';
         }
       }
+
+      const originalFetch = window.fetch;
+      window.fetch = function() {
+        return originalFetch.apply(this, arguments)
+          .then(r => { updateConnectionStatus(true); return r; })
+          .catch(e => { updateConnectionStatus(false); throw e; });
+      };
+
+      window.addEventListener('offline', () => updateConnectionStatus(false));
+      window.addEventListener('online', () => updateConnectionStatus(true));
+
+      function updateHeaderClock() {
+        const now = new Date();
+        const opts = { timeZone: 'America/Caracas', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
+        document.getElementById('header-clock').textContent = now.toLocaleTimeString('es-VE', opts);
+      }
+      updateHeaderClock();
+      setInterval(updateHeaderClock, 1000);
+
+      async function refreshTasa() {
+        try {
+          const res = await fetch(apiUrl + '/exchange-rate/active');
+          if (res.ok) {
+            const data = await res.json();
+            document.getElementById('header-tasa').textContent = Number(data.rate).toLocaleString('es-VE', { minimumFractionDigits: 2 });
+          }
+        } catch (_) {}
+      }
+      setInterval(refreshTasa, 60000);
+
+      document.getElementById('logout-btn').addEventListener('click', async () => {
+        if (!confirm('¿Está seguro que desea cerrar sesión?')) return;
+        try {
+          const token = localStorage.getItem('auth_token');
+          await fetch(apiUrl + '/logout', {
+            method: 'POST',
+            headers: {
+              'Authorization': 'Bearer ' + token,
+              'Content-Type': 'application/json',
+            }
+          });
+        } catch (_) {}
+        localStorage.removeItem('auth_token');
+        window.location.href = '/login';
+      });
     </script>
   </body>
 </html>
 
 <style>
-  .sidebar {
-    width: 240px;
-    background: #2c3e50;
+  .top-header {
+    background: linear-gradient(135deg, #1a2a6c 0%, #b21f1f 100%);
     color: white;
+    padding: 0 16px;
     display: flex;
-    flex-direction: column;
-    height: 100vh;
-    position: fixed;
-    left: 0;
-    top: 0;
-    overflow-y: auto;
+    align-items: center;
+    justify-content: space-between;
+    height: 48px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
   }
 
-  .sidebar-header {
-    padding: 20px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  .header-nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
   }
 
-  .sidebar-header h2 {
-    margin: 0;
+  .nav-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: all 0.15s ease;
+  }
+
+  .nav-link:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  .nav-link.active {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  .nav-icon {
     font-size: 18px;
-    font-weight: 600;
   }
 
-  .menu {
-    list-style: none;
-    padding: 0;
+  .header-brand {
+    display: flex;
+    align-items: center;
+  }
+
+  .logo {
+    font-size: 16px;
+    font-weight: 700;
     margin: 0;
-    flex: 1;
   }
 
-  .menu-item {
-    margin: 0;
-  }
-
-  .menu-item a {
+  .header-info {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 14px 20px;
-    color: rgba(255, 255, 255, 0.7);
-    text-decoration: none;
-    transition: all 0.2s ease;
-    border-left: 3px solid transparent;
   }
 
-  .menu-item:hover a {
+  .info-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
     background: rgba(255, 255, 255, 0.1);
-    color: white;
+    padding: 4px 10px;
+    border-radius: 6px;
   }
 
-  .menu-item.active a {
-    background: rgba(255, 255, 255, 0.15);
-    color: white;
-    border-left-color: #667eea;
+  .info-label {
+    font-size: 11px;
+    opacity: 0.8;
   }
 
-  .icon {
-    font-size: 20px;
-  }
-
-  .text {
-    font-size: 14px;
-    font-weight: 500;
-  }
-
-  .sidebar-footer {
-    padding: 20px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  .info-value {
+    font-size: 13px;
+    font-weight: 600;
   }
 
   .connection-status {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 4px 10px;
+    border-radius: 6px;
   }
 
   .status-dot {
@@ -233,85 +265,38 @@ const {
     background: #28a745;
   }
 
-  .status-dot.active {
-    background: #28a745;
-  }
-
   .status-dot.inactive {
     background: #dc3545;
   }
 
-  .version {
-    font-size: 12px;
-    opacity: 0.6;
+  .status-text {
+    font-size: 11px;
   }
 
-  .header {
-    background: linear-gradient(135deg, #1a2a6c 0%, #b21f1f 100%);
-    color: white;
-    padding: 12px 24px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-  }
-
-  .header-left, .header-center, .header-right {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .logo {
-    font-size: 24px;
-    font-weight: bold;
-    margin: 0;
-  }
-
-  .info-item {
+  .user-section {
     display: flex;
     align-items: center;
     gap: 8px;
-    background: rgba(255, 255, 255, 0.1);
-    padding: 6px 12px;
-    border-radius: 6px;
-  }
-
-  .label {
-    font-size: 12px;
-    opacity: 0.8;
-  }
-
-  .value {
-    font-size: 14px;
-    font-weight: bold;
-  }
-
-  .user-info {
-    text-align: right;
   }
 
   .user-name {
-    display: block;
-    font-size: 14px;
-    font-weight: 600;
-  }
-
-  .taquilla-name {
-    display: block;
-    font-size: 12px;
-    opacity: 0.8;
+    font-size: 13px;
+    font-weight: 500;
   }
 
   .logout-btn {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.15);
     border: none;
     color: white;
-    padding: 8px 16px;
+    width: 32px;
+    height: 32px;
     border-radius: 6px;
     cursor: pointer;
-    font-size: 14px;
-    transition: background 0.2s ease;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease;
   }
 
   .logout-btn:hover {
