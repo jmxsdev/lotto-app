@@ -111,6 +111,26 @@ class Animalitos implements JuegoInterface
         return $opciones;
     }
 
+    public function obtenerHorarios(): array
+    {
+        return ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00',
+                '15:00', '16:00', '17:00', '18:00', '19:00'];
+    }
+
+    public function obtenerModalidades(): array
+    {
+        return [
+            [
+                'code' => 'animal',
+                'label' => 'Animal',
+                'digitos' => null,
+                'requiere_signo' => false,
+                'descripcion' => 'Seleccione un animal (0-36)',
+                'opciones_url' => null,
+            ],
+        ];
+    }
+
     public function obtenerMultiplicador(): float
     {
         return (float) $this->multiplicador;

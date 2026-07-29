@@ -5,7 +5,7 @@ namespace App\Plugins\Juegos;
 use App\Plugins\Contracts\JuegoInterface;
 use Illuminate\Validation\Rule;
 
-class TripleZulia implements JuegoInterface
+class Tripletas implements JuegoInterface
 {
     protected array $signos = [
         'ARI', 'TAU', 'GEM', 'CAN', 'LEO', 'VIR',
@@ -92,11 +92,6 @@ class TripleZulia implements JuegoInterface
         return [
             'descripcion' => 'Acierta el número de 3 cifras y gana ' . $this->multiplicador . ' veces tu apuesta.',
             'tipo' => 'numero',
-            'modalidades' => [
-                'triple_a' => 'Número de 3 cifras',
-                'triple_b' => 'Número de 3 cifras',
-                'triple_c' => 'Número de 3 cifras + signo zodiacal',
-            ],
             'multiplicador' => (float) $this->multiplicador,
             'rango_numeros' => '000-999',
         ];
@@ -114,6 +109,38 @@ class TripleZulia implements JuegoInterface
             ];
         }
         return $opciones;
+    }
+
+    public function obtenerHorarios(): array
+    {
+        return ['12:45', '16:45', '19:05'];
+    }
+
+    public function obtenerModalidades(): array
+    {
+        return [
+            [
+                'code' => 'triple_a',
+                'label' => 'Triple A',
+                'digitos' => 3,
+                'requiere_signo' => false,
+                'descripcion' => 'Número de 3 cifras',
+            ],
+            [
+                'code' => 'triple_b',
+                'label' => 'Triple B',
+                'digitos' => 3,
+                'requiere_signo' => false,
+                'descripcion' => 'Número de 3 cifras',
+            ],
+            [
+                'code' => 'triple_c',
+                'label' => 'Triple C',
+                'digitos' => 3,
+                'requiere_signo' => true,
+                'descripcion' => 'Número de 3 cifras + signo zodiacal',
+            ],
+        ];
     }
 
     public function obtenerMultiplicador(): float
