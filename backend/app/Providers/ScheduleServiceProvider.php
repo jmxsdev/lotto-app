@@ -7,12 +7,17 @@ use App\Models\Juego;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schedule;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 
 class ScheduleServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        if (!Schema::hasTable('juegos')) {
+            return;
+        }
+
         $juegos = Juego::where('requires_scraper', true)->with('horarios')->get();
 
         foreach ($juegos as $juego) {
