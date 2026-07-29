@@ -73,7 +73,11 @@ const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
       async function init() {
         let fp = localStorage.getItem('device_fingerprint');
         if (!fp) {
-          fp = 'demo-device-001';
+          if (window.electron?.getVersion) {
+            fp = crypto.randomUUID();
+          } else {
+            fp = 'demo-device-001';
+          }
           localStorage.setItem('device_fingerprint', fp);
         }
 
@@ -86,15 +90,9 @@ const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
           }
         }
 
-        const token = localStorage.getItem('auth_token');
-        if (token) {
-          window.location.href = '/dashboard';
-          return;
-        }
-
-        const apiBase = window.location.origin.includes('localhost') || window.location.origin.includes('render') || window.location.origin.includes('vercel')
-          ? (window.location.origin.includes('3000') ? 'http://localhost:8000/api' : 'https://lotto-api.onrender.com/api')
-          : 'http://localhost:8000/api';
+        const apiBase = window.location.origin.includes('3000')
+          ? 'http://localhost:8000/api'
+          : 'https://lotto-api.onrender.com/api';
 
         try {
           const res = await fetch(apiBase + '/dispositivo/verificar', {
@@ -109,7 +107,8 @@ const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
             window.location.href = '/activacion';
           }
         } catch (_) {
-          window.location.href = '/login';
+          document.querySelector('.container p:nth-child(3)').textContent = 'Error de conexión con el servidor';
+          document.querySelector('.spinner').style.display = 'none';
         }
       }
 
