@@ -730,7 +730,8 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
         try {
           const mac = await window.electron.getMac();
           if (mac && mac !== '00:00:00:00:00:00') API_MAC = mac;
-        } catch { /* keep default */ }
+          else API_MAC = null;
+        } catch { API_MAC = null; }
       }
     }
 

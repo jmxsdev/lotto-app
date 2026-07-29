@@ -14,9 +14,9 @@ use App\Http\Controllers\Api\ActivacionController;
 use App\Http\Controllers\Api\PagoController;
 
 // Rutas públicas (sin autenticación)
-Route::post('/login', [AuthController::class, 'login']);
-Route::get('/exchange-rate/active', [ExchangeRateController::class, 'active']); // pública
-Route::post('/activar', [ActivacionController::class, 'activar']); // activación taquilla
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+Route::get('/exchange-rate/active', [ExchangeRateController::class, 'active']);
+Route::post('/activar', [ActivacionController::class, 'activar'])->middleware('throttle:10,60');
 
 // Rutas protegidas solo con Sanctum (sin verificación MAC)
 Route::middleware(['auth:sanctum'])->group(function () {

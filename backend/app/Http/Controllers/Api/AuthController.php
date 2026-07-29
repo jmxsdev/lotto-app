@@ -27,6 +27,16 @@ class AuthController extends Controller
             return response()->json(['message' => 'Usuario inactivo'], 403);
         }
 
+        if ($user->role === 'taquilla' && $user->taquilla_id) {
+            $taquilla = $user->taquilla;
+            if (!$taquilla || !$taquilla->active) {
+                return response()->json(['message' => 'Este dispositivo no ha sido activado. Use el código de activación.'], 403);
+            }
+            if (!$taquilla->mac_address) {
+                return response()->json(['message' => 'Dispositivo no registrado. Complete la activación.'], 403);
+            }
+        }
+
         $token = $user->createToken('taquilla-token')->plainTextToken;
 
         return response()->json([
