@@ -6,10 +6,10 @@ use App\Models\Juego;
 use App\Models\Resultado;
 use Illuminate\Support\Carbon;
 
-class TripleZuliaScraper extends BaseScraper
+class TripletasScraper extends BaseScraper
 {
     protected string $baseUrl = 'https://resultadostriplezulia.com';
-    protected string $scraperName = 'TripleZuliaScraper';
+    protected string $scraperName = 'TripletasScraper';
     protected string $productId = '2';
 
     public function execute(string $fecha = null): array
@@ -129,8 +129,8 @@ class TripleZuliaScraper extends BaseScraper
             ['slug' => 'triple-zulia'],
             [
                 'name' => 'Triple Zulia',
-                'type' => 'triple_zulia',
-                'config' => json_encode(['premio_multiplo' => 30]),
+                'type' => 'tripletas',
+                'config' => ['premio_multiplo' => 30],
                 'requires_scraper' => true,
                 'scraper_url' => $this->baseUrl . '/',
                 'active' => true,

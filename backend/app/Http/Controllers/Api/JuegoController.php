@@ -107,7 +107,17 @@ class JuegoController extends Controller
 
     public function horarios(Juego $juego)
     {
-        return response()->json($juego->horarios()->get());
+        $horarios = $juego->horarios()->get();
+
+        if ($horarios->isEmpty()) {
+            $plugin = app(JuegoPluginManager::class)->getPlugin($juego);
+            if ($plugin) {
+                $pluginHorarios = $plugin->obtenerHorarios();
+                return response()->json(array_map(fn ($h) => ['hora' => $h], $pluginHorarios));
+            }
+        }
+
+        return response()->json($horarios);
     }
 
     public function reglas(Juego $juego)
@@ -118,6 +128,14 @@ class JuegoController extends Controller
             return response()->json(['message' => 'No hay plugin registrado para este juego.'], 404);
         }
 
-        return response()->json($plugin->obtenerReglas());
+        $reglas = $plugin->obtenerReglas();
+        $modalidades = $plugin->obtenerModalidades();
+        $config = $juego->config;
+        if (is_array($config) && !empty($config['modalidades_permitidas'])) {
+            $modalidades = array_filter($modalidades, fn ($m) => in_array($m['code'], $config['modalidades_permitidas']));
+        }
+        $reglas['modalidades'] = array_values($modalidades);
+
+        return response()->json($reglas);
     }
 }
