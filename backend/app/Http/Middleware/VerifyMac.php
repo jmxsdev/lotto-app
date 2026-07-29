@@ -72,6 +72,13 @@ class VerifyMac
             ], 403);
         }
 
+        $fingerprint = $request->header('X-Device-Fingerprint');
+        if ($taquilla->device_fingerprint && (!$fingerprint || $fingerprint !== $taquilla->device_fingerprint)) {
+            return response()->json([
+                'message' => 'Huella digital del dispositivo no coincide.',
+            ], 403);
+        }
+
         // Actualizar last_connection_at
         $taquilla->update(['last_connection_at' => now()]);
 

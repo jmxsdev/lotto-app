@@ -83,6 +83,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
             const headers = { 'Content-Type': 'application/json' };
             if (token) headers['Authorization'] = 'Bearer ' + token;
             headers['X-Device-MAC'] = _mac;
+            headers['X-Device-Fingerprint'] = localStorage.getItem('device_fingerprint') || 'demo-device-001';
             const opts = { method, headers };
             if (body) opts.body = JSON.stringify(body);
             const res = await fetch(API_BASE + url, opts);

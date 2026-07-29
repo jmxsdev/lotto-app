@@ -20,10 +20,12 @@ class ActivacionController extends Controller
         $validator = Validator::make($request->all(), [
             'activation_code' => 'required|string|max:32',
             'mac_address' => 'required|string|regex:/^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/',
+            'device_fingerprint' => 'required|string|max:255',
         ], [
             'activation_code.required' => 'El código de activación es obligatorio.',
             'mac_address.required' => 'La dirección MAC es obligatoria.',
             'mac_address.regex' => 'El formato de la dirección MAC no es válido (ej: AA:BB:CC:DD:EE:FF).',
+            'device_fingerprint.required' => 'La huella digital del dispositivo es obligatoria.',
         ]);
 
         if ($validator->fails()) {
@@ -36,6 +38,7 @@ class ActivacionController extends Controller
 
         $codigo = $request->input('activation_code');
         $mac = strtoupper($request->input('mac_address'));
+        $fingerprint = $request->input('device_fingerprint');
 
         // Buscar taquilla por activation_code
         $taquilla = Taquilla::where('activation_code', $codigo)->first();
@@ -85,7 +88,7 @@ class ActivacionController extends Controller
             ->first();
 
         if ($otraTaquilla) {
-            $otraTaquilla->update(['active' => false, 'mac_address' => null]);
+            $otraTaquilla->update(['active' => false, 'mac_address' => null, 'device_fingerprint' => null]);
             
             $this->logActivacion(
                 $otraTaquilla->id,
@@ -100,6 +103,7 @@ class ActivacionController extends Controller
         $taquilla->update([
             'active' => true,
             'mac_address' => $mac,
+            'device_fingerprint' => $fingerprint,
             'last_connection_at' => now(),
         ]);
 

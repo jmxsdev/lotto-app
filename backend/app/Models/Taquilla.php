@@ -11,7 +11,7 @@ class Taquilla extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'name', 'code', 'grupo_id', 'mac_address', 'activation_code',
+        'name', 'code', 'grupo_id', 'mac_address', 'device_fingerprint', 'activation_code',
         'active', 'last_connection_at', 'created_by'
     ];
 

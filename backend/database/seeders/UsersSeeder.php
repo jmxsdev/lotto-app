@@ -92,6 +92,7 @@ class UsersSeeder extends Seeder
             'grupo_id' => $grupo->id,
             'activation_code' => 'DEMO01',
             'mac_address' => '00:1A:2B:3C:4D:5E',
+            'device_fingerprint' => 'demo-device-001',
             'active' => true,
             'created_by' => $super->id,
         ]);
