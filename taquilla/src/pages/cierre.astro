@@ -1,0 +1,54 @@
+---
+import MainLayout from '../layouts/MainLayout.astro';
+
+const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
+---
+
+<MainLayout currentPage="cierre">
+  <div class="cierre-page">
+    <h2 class="page-title">💰 Cierre de Caja</h2>
+    <div class="placeholder-card">
+      <div class="placeholder-icon">🔒</div>
+      <p>Módulo de cierre de caja próximamente.</p>
+      <p class="placeholder-sub">Esta funcionalidad estará disponible en una próxima actualización.</p>
+    </div>
+  </div>
+</MainLayout>
+
+<style is:global>
+  .cierre-page {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .page-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 16px;
+  }
+
+  .placeholder-card {
+    background: white;
+    border-radius: 12px;
+    padding: 60px 40px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+
+  .placeholder-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+  }
+
+  .placeholder-card p {
+    font-size: 18px;
+    color: #555;
+    margin: 8px 0;
+  }
+
+  .placeholder-sub {
+    font-size: 14px !important;
+    color: #999 !important;
+  }
+</style>
