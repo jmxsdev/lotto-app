@@ -33,13 +33,16 @@ CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-*}
 SANCTUM_STATEFUL_DOMAINS=${SANCTUM_STATEFUL_DOMAINS:-localhost}
 EOF
 
-# Migraciones
-echo "📦 Ejecutando migraciones..."
-php artisan migrate --force
-
-# Seed inicial (no falla si ya existen datos)
-echo "🌱 Ejecutando seeders..."
-php artisan db:seed --force --class=DatabaseSeeder 2>/dev/null || echo "   (datos ya existentes, omitiendo seed)"
+# Migraciones — solo si es primera vez
+if php -r "require 'vendor/autoload.php'; \$app = require 'bootstrap/app.php'; \$app->make('db'); echo Schema::hasTable('migrations') ? 'EXISTS' : 'EMPTY';" 2>/dev/null | grep -q "EXISTS"; then
+    echo "📦 Migraciones ya ejecutadas, verificando pendientes..."
+    php artisan migrate --force 2>/dev/null || echo "   (sin migraciones pendientes)"
+else
+    echo "📦 Ejecutando migraciones iniciales..."
+    php artisan migrate --force
+    echo "🌱 Ejecutando seeders..."
+    php artisan db:seed --force --class=DatabaseSeeder 2>/dev/null || echo "   (ok)"
+fi
 
 # Iniciar servidor
 PORT=${PORT:-10000}
