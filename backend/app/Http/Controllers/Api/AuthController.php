@@ -32,8 +32,12 @@ class AuthController extends Controller
             if (!$taquilla || !$taquilla->active) {
                 return response()->json(['message' => 'Este dispositivo no ha sido activado. Use el código de activación.'], 403);
             }
-            if (!$taquilla->mac_address) {
+            if (!$taquilla->mac_address || !$taquilla->device_fingerprint) {
                 return response()->json(['message' => 'Dispositivo no registrado. Complete la activación.'], 403);
+            }
+            $reqFingerprint = $request->header('X-Device-Fingerprint');
+            if (!$reqFingerprint || $reqFingerprint !== $taquilla->device_fingerprint) {
+                return response()->json(['message' => 'Huella digital del dispositivo no coincide.'], 403);
             }
         }
 

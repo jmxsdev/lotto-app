@@ -207,6 +207,7 @@ import api from '../utils/api';
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              'X-Device-Fingerprint': localStorage.getItem('device_fingerprint') || 'demo-device-001',
             },
             body: JSON.stringify({
               email: email,
@@ -228,6 +229,14 @@ import api from '../utils/api';
             setTimeout(() => {
               window.location.href = '/dashboard';
             }, 1000);
+          } else if (response.status === 403) {
+            showAlert(data.message || 'Acceso denegado.', 'warning');
+            if (data.message && (data.message.includes('activado') || data.message.includes('Dispositivo') || data.message.includes('huella'))) {
+              setTimeout(() => { window.location.href = '/activacion'; }, 1500);
+              return;
+            }
+            btn.disabled = false;
+            btn.textContent = 'Iniciar Sesión';
           } else {
             showAlert(data.message || 'Credenciales incorrectas.', 'error');
             btn.disabled = false;

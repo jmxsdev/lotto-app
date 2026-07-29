@@ -725,6 +725,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
     let columnMode = 'juegos';
 
     let API_MAC = '00:1A:2B:3C:4D:5E';
+    let DEVICE_FP = 'demo-device-001';
     async function initMac() {
       if (typeof window !== 'undefined' && window.electron?.getMac) {
         try {
@@ -763,6 +764,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
       const headers = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = 'Bearer ' + token;
       headers['X-Device-MAC'] = API_MAC;
+      if (DEVICE_FP) headers['X-Device-Fingerprint'] = DEVICE_FP;
       const opts = { method, headers };
       if (body) opts.body = JSON.stringify(body);
       const res = await fetch(API_BASE + url, opts);
@@ -1337,6 +1339,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
     }
 
     document.addEventListener('DOMContentLoaded', async () => {
+      DEVICE_FP = typeof window !== 'undefined' ? (localStorage.getItem('device_fingerprint') || 'demo-device-001') : 'demo-device-001';
       await initMac();
       initClock();
       localStorage.removeItem('currentTicket');

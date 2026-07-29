@@ -71,25 +71,44 @@ const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
 
     <script>
       async function init() {
-        // Obtener MAC
+        let fp = localStorage.getItem('device_fingerprint');
+        if (!fp) {
+          fp = 'demo-device-001';
+          localStorage.setItem('device_fingerprint', fp);
+        }
+
         if (window.electron?.getMac) {
           try {
             const mac = await window.electron.getMac();
-            document.getElementById('mac-info').textContent = `MAC: ${mac || 'No disponible'}`;
-          } catch (error) {
+            document.getElementById('mac-info').textContent = 'MAC: ' + (mac || 'No disponible');
+          } catch (_) {
             document.getElementById('mac-info').textContent = 'MAC: Error al obtener';
           }
         }
 
-        // Verificar si hay token guardado
         const token = localStorage.getItem('auth_token');
-        
         if (token) {
-          // Si hay token, ir directamente a dashboard
           window.location.href = '/dashboard';
-        } else {
-          // Si no hay token, verificar si necesita activación
-          // Por ahora, ir a pantalla de login
+          return;
+        }
+
+        const apiBase = window.location.origin.includes('localhost') || window.location.origin.includes('render') || window.location.origin.includes('vercel')
+          ? (window.location.origin.includes('3000') ? 'http://localhost:8000/api' : 'https://lotto-api.onrender.com/api')
+          : 'http://localhost:8000/api';
+
+        try {
+          const res = await fetch(apiBase + '/dispositivo/verificar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ device_fingerprint: fp }),
+          });
+          const data = await res.json();
+          if (data.status === 'active') {
+            window.location.href = '/login';
+          } else {
+            window.location.href = '/activacion';
+          }
+        } catch (_) {
           window.location.href = '/login';
         }
       }

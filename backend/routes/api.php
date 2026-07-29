@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\ExchangeRateController;
 use App\Http\Controllers\Api\JuegoController;
 use App\Http\Controllers\Api\ResultadoController;
 use App\Http\Controllers\Api\ApuestaController;
+use App\Http\Controllers\Api\DispositivoController;
 use App\Http\Controllers\Api\ActivacionController;
 use App\Http\Controllers\Api\PagoController;
 
@@ -17,6 +18,7 @@ use App\Http\Controllers\Api\PagoController;
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
 Route::get('/exchange-rate/active', [ExchangeRateController::class, 'active']);
 Route::post('/activar', [ActivacionController::class, 'activar'])->middleware('throttle:10,60');
+Route::post('/dispositivo/verificar', [DispositivoController::class, 'verificar']);
 
 // Rutas protegidas solo con Sanctum (sin verificación MAC)
 Route::middleware(['auth:sanctum'])->group(function () {
