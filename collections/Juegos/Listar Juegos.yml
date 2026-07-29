@@ -9,6 +9,11 @@ http:
   headers:
     - name: Authorization
       value: Bearer {{token}}
+    - name: X-Device-MAC
+      value: "{{macAddress}}"
+  body:
+    type: json
+    data: ""
   auth: inherit
 
 settings:
