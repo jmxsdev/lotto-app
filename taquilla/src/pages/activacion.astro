@@ -1,6 +1,7 @@
 ---
-import api from '../utils/api';
 import { formatBs } from '../utils/currency';
+
+const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
 ---
 
 <!DOCTYPE html>
@@ -148,7 +149,8 @@ import { formatBs } from '../utils/currency';
       </div>
     </div>
 
-    <script>
+    <script define:vars={{ apiUrl }}>
+      const API_BASE = apiUrl;
       let macAddress = '';
 
       async function getMac() {
@@ -191,7 +193,7 @@ import { formatBs } from '../utils/currency';
         btn.textContent = 'Activando...';
 
         try {
-          const response = await fetch('/api/activar', {
+          const response = await fetch(API_BASE + '/activar', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
