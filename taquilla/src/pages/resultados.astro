@@ -59,15 +59,25 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
 
     <script define:vars={{ apiUrl }}>
         const API_BASE = apiUrl;
+        const API_MAC = '00:1A:2B:3C:4D:5E';
 
-        async function apiRequest(method, url) {
+        async function apiFetch(method, url, body) {
             const token = localStorage.getItem('auth_token');
             const headers = { 'Content-Type': 'application/json' };
             if (token) headers['Authorization'] = 'Bearer ' + token;
+            headers['X-Device-MAC'] = API_MAC;
             const opts = { method, headers };
+            if (body) opts.body = JSON.stringify(body);
             const res = await fetch(API_BASE + url, opts);
-            if (res.status === 401) { localStorage.removeItem('auth_token'); window.location.href = '/login'; }
-            if (!res.ok) throw new Error('Error de red');
+            if (res.status === 401) {
+                localStorage.removeItem('auth_token');
+                window.location.href = '/login';
+                throw new Error('No autorizado');
+            }
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text || res.statusText);
+            }
             return res.json();
         }
 
@@ -98,18 +108,22 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
 
             let html = `<table class="resultados-table">
                 <thead><tr>
-                    <th>Juego</th><th>Fecha</th><th>Hora</th><th>Numero</th><th>Animal</th><th>Color</th>
+                    <th>Juego</th><th>Fecha</th><th>Hora</th><th>Números</th><th>Animal</th><th>Color</th>
                 </tr></thead><tbody>`;
             resultados.forEach(r => {
-                const numeros = Array.isArray(r.numeros_ganadores) ? r.numeros_ganadores : [];
-                const nums = numeros.map(n => `<span class="numero-ganador">${n}</span>`).join(' ');
+                const ganadores = (typeof r.numeros_ganadores === 'object' && r.numeros_ganadores !== null) ? r.numeros_ganadores : {};
+                const nombreAnimal = ganadores.nombre_animal || '-';
+                const colorAnimal = ganadores.color_animal || null;
+                const numero = ganadores.numero !== undefined ? `<span class="numero-ganador">${ganadores.numero}</span>` : null;
+                const triples = ['triple_a', 'triple_b', 'triple_c'].filter(k => ganadores[k]).map(k => `<span class="numero-ganador">${ganadores[k]}</span>`).join(' ');
+                const nums = numero || triples || (Object.keys(ganadores).filter(k => k !== 'nombre_animal' && k !== 'imagen_animal' && k !== 'color_animal' && k !== 'pais').length > 0 ? JSON.stringify(ganadores) : '<span class="sin-resultado">Pendiente</span>');
                 html += `<tr>
                     <td><strong>${r.juego?.name || '-'}</strong></td>
                     <td>${new Date(r.fecha_sorteo).toLocaleDateString('es-VE')}</td>
                     <td>${r.hora_sorteo || '-'}</td>
-                    <td>${nums || '<span class="sin-resultado">Pendiente</span>'}</td>
-                    <td>${r.nombre_animal ? `<span class="animal-badge ${getColorClass(r.color_animal)}">${r.nombre_animal}</span>` : '-'}</td>
-                    <td>${r.color_animal ? `<span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:${r.color_animal};border:1px solid #ddd;"></span>` : '-'}</td>
+                    <td>${nums}</td>
+                    <td>${nombreAnimal !== '-' ? `<span class="animal-badge ${getColorClass(colorAnimal)}">${nombreAnimal}</span>` : '-'}</td>
+                    <td>${colorAnimal ? `<span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:${colorAnimal};border:1px solid #ddd;"></span>` : '-'}</td>
                 </tr>`;
             });
             html += '</tbody></table>';
@@ -135,7 +149,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
                 let url = '/resultados?per_page=20&page=' + (page || 1);
                 if (fecha) url += '&fecha=' + fecha;
                 if (juegoId) url += '&juego_id=' + juegoId;
-                const data = await apiRequest('GET', url);
+                const data = await apiFetch('GET', url);
                 renderResultados(data);
             } catch (error) {
                 container.innerHTML = '<div class="error-state">Error al cargar resultados: ' + error.message + '</div>';
@@ -144,7 +158,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
 
         async function loadJuegos() {
             try {
-                const data = await apiRequest('GET', '/juegos');
+                const data = await apiFetch('GET', '/juegos');
                 juegosCache = data.data || [];
                 const select = document.getElementById('filter-juego');
                 juegosCache.forEach(j => {

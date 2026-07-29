@@ -57,24 +57,34 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
         .btn-pay { color: #28a745; }
         .btn-delete { color: #dc3545; }
         .btn-print { color: #6c757d; }
+        .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
+        .page-btn { padding: 8px 14px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-size: 14px; }
+        .page-btn.active { background: #667eea; color: white; border-color: #667eea; }
+        .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
 
     <script define:vars={{ apiUrl }}>
         const API_BASE = apiUrl;
 
-        async function apiRequest(method, url, data) {
+        const API_MAC = '00:1A:2B:3C:4D:5E';
+
+        async function apiFetch(method, url, body) {
             const token = localStorage.getItem('auth_token');
             const headers = { 'Content-Type': 'application/json' };
             if (token) headers['Authorization'] = 'Bearer ' + token;
-            if (window.electron?.getMac) {
-                try { const mac = await window.electron.getMac(); if (mac && mac !== '00:00:00:00:00:00') headers['X-Device-MAC'] = mac; } catch (_) {}
-            }
+            headers['X-Device-MAC'] = API_MAC;
             const opts = { method, headers };
-            if (data) opts.body = JSON.stringify(data);
+            if (body) opts.body = JSON.stringify(body);
             const res = await fetch(API_BASE + url, opts);
-            if (res.status === 401) { localStorage.removeItem('auth_token'); window.location.href = '/login'; }
-            if (res.status === 403) { alert('Acceso denegado.'); window.location.href = '/login'; }
-            if (!res.ok) { const err = await res.json().catch(() => ({ message: res.statusText })); throw new Error(err.message || 'Error de red'); }
+            if (res.status === 401) {
+                localStorage.removeItem('auth_token');
+                window.location.href = '/login';
+                throw new Error('No autorizado');
+            }
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text || res.statusText);
+            }
             return res.json();
         }
 
@@ -128,6 +138,18 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
                 </tr>`;
             });
             html += '</tbody></table>';
+
+            if (lastPage > 1) {
+                html += '<div class="pagination">';
+                html += `<button class="page-btn" data-page="${currentPage - 1}" ${currentPage <= 1 ? 'disabled' : ''}>Anterior</button>`;
+                for (let p = Math.max(1, currentPage - 2); p <= Math.min(lastPage, currentPage + 2); p++) {
+                    html += `<button class="page-btn ${p === currentPage ? 'active' : ''}" data-page="${p}">${p}</button>`;
+                }
+                html += `<button class="page-btn" data-page="${currentPage + 1}" ${currentPage >= lastPage ? 'disabled' : ''}>Siguiente</button>`;
+                html += `<span style="padding:8px 12px;color:#666;">Página ${currentPage} de ${lastPage}</span>`;
+                html += '</div>';
+            }
+
             container.innerHTML = html;
         }
 
@@ -142,14 +164,18 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
         let filterEstado = '';
         let searchTimeout = null;
         let apuestasCache = [];
+        let currentPage = 1;
+        let lastPage = 1;
 
-        async function loadApuestas() {
+        async function loadApuestas(page) {
             renderLoading();
             try {
-                let url = '/apuestas?per_page=50';
+                let url = '/apuestas?per_page=50&page=' + (page || 1);
                 if (filterEstado) url += '&estado=' + filterEstado;
-                const response = await apiRequest('GET', url);
+                const response = await apiFetch('GET', url);
                 apuestasCache = response.data?.data || [];
+                currentPage = response.data?.current_page || 1;
+                lastPage = response.data?.last_page || 1;
                 renderApuestas(apuestasCache);
             } catch (error) {
                 console.error('Error cargando apuestas:', error);
@@ -174,7 +200,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
             const monto = prompt('Ingresa el monto a pagar (BS):');
             if (!monto) return;
             try {
-                await apiRequest('POST', '/pagos', {
+                await apiFetch('POST', '/pagos', {
                     apuesta_id: apuesta.id,
                     amount_bs: parseFloat(monto) || 0,
                     amount_usd: 0,
@@ -190,7 +216,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
         async function deleteApuesta(apuesta) {
             if (!confirm('Esta seguro que desea anular esta apuesta?')) return;
             try {
-                await apiRequest('DELETE', '/apuestas/' + apuesta.id);
+                await apiFetch('DELETE', '/apuestas/' + apuesta.id);
                 alert('Apuesta anulada');
                 loadApuestas();
             } catch (error) {
@@ -237,6 +263,12 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
             });
 
             document.getElementById('historial-content').addEventListener('click', (e) => {
+                const pageBtn = e.target.closest('.page-btn');
+                if (pageBtn && !pageBtn.disabled) {
+                    const page = parseInt(pageBtn.dataset.page);
+                    if (page >= 1 && page <= lastPage) loadApuestas(page);
+                    return;
+                }
                 const btn = e.target.closest('.btn-action');
                 if (!btn) return;
                 const id = parseInt(btn.dataset.id);
