@@ -13,14 +13,19 @@ class DatabaseSeeder extends Seeder
     /**
      * Seed the application's database.
      */
-    // database/seeders/DatabaseSeeder.php
-public function run(): void
-{
-    $this->call([
-        RolesAndPermissionsSeeder::class,
-        UsersSeeder::class,
-        ExchangeRateSeeder::class,
-        JuegoAnimalitosSeeder::class,
-        TripleZuliaSeeder::class,
-    ]);
-}}
+    public function run(): void
+    {
+        $this->call([
+            RolesAndPermissionsSeeder::class,
+            UsersSeeder::class,
+            ExchangeRateSeeder::class,
+            JuegoAnimalitosSeeder::class,
+            TripleZuliaSeeder::class,
+            TerminalesSeeder::class,
+            LottoActivoRDSeeder::class,
+            LottoActivoRDSDSeeder::class,
+            MonjeMillonarioSeeder::class,
+            TrioActivoSeeder::class,
+        ]);
+    }
+}
