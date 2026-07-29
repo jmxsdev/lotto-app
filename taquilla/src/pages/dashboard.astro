@@ -724,7 +724,15 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
     let selectedAnimal = null;
     let columnMode = 'juegos';
 
-    const API_MAC = '00:1A:2B:3C:4D:5E';
+    let API_MAC = '00:1A:2B:3C:4D:5E';
+    async function initMac() {
+      if (typeof window !== 'undefined' && window.electron?.getMac) {
+        try {
+          const mac = await window.electron.getMac();
+          if (mac && mac !== '00:00:00:00:00:00') API_MAC = mac;
+        } catch { /* keep default */ }
+      }
+    }
 
     const ANIMAL_EMOJIS = ['🐬','🐏','🐂','🐆','🐸','🐕','🐈','🕊️','🦜','🐿️','🐅','🦁','🐄','🦅','🦊','🐒','🦚','🐎','🐻','🫏','🐓','🐪','🐈‍⬛','🐍','🦌','🐐','🐘','🐖','🦆','🐊','🦚','🐟','🦀','🦔','🐇','🐦','🐔'];
 
@@ -1327,7 +1335,8 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
       printBtn.disabled = false;
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
+      await initMac();
       initClock();
       localStorage.removeItem('currentTicket');
       loadTicket();

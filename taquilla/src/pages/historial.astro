@@ -67,12 +67,21 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
         const API_BASE = apiUrl;
 
         const API_MAC = '00:1A:2B:3C:4D:5E';
+        let _mac = API_MAC;
+        async function initMac() {
+          if (typeof window !== 'undefined' && window.electron?.getMac) {
+            try {
+              const mac = await window.electron.getMac();
+              if (mac && mac !== '00:00:00:00:00:00') _mac = mac;
+            } catch { /* keep default */ }
+          }
+        }
 
         async function apiFetch(method, url, body) {
             const token = localStorage.getItem('auth_token');
             const headers = { 'Content-Type': 'application/json' };
             if (token) headers['Authorization'] = 'Bearer ' + token;
-            headers['X-Device-MAC'] = API_MAC;
+            headers['X-Device-MAC'] = _mac;
             const opts = { method, headers };
             if (body) opts.body = JSON.stringify(body);
             const res = await fetch(API_BASE + url, opts);
@@ -248,7 +257,8 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
             return apuestasCache.find(a => a.id == id);
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            await initMac();
             loadApuestas();
 
             document.querySelectorAll('.filter-btn').forEach(btn => {

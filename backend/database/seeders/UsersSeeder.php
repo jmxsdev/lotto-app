@@ -64,13 +64,13 @@ class UsersSeeder extends Seeder
         ]);
         $grupoUser->assignRole('grupo');
 
-        // Taquilla (necesitamos una taquilla)
+        // Taquilla normal (requiere activación manual)
         $taquilla = \App\Models\Taquilla::create([
             'name' => 'Taquilla Test',
             'code' => 'TT001',
             'grupo_id' => $grupo->id,
             'activation_code' => 'ABCDE',
-            'active' => true,
+            'active' => false,
             'created_by' => $super->id,
         ]);
         $taquillaUser = User::create([
@@ -84,5 +84,27 @@ class UsersSeeder extends Seeder
             'active' => true,
         ]);
         $taquillaUser->assignRole('taquilla');
+
+        // Taquilla DEMO (pre-activada para web/Vercel)
+        $demoTaquilla = \App\Models\Taquilla::create([
+            'name' => 'Taquilla Demo',
+            'code' => 'DEMO01',
+            'grupo_id' => $grupo->id,
+            'activation_code' => 'DEMO01',
+            'mac_address' => '00:1A:2B:3C:4D:5E',
+            'active' => true,
+            'created_by' => $super->id,
+        ]);
+        $demoUser = User::create([
+            'name' => 'Demo User',
+            'email' => 'demo@lotto.com',
+            'password' => Hash::make('password'),
+            'role' => 'taquilla',
+            'banca_id' => $grupo->banca_id,
+            'grupo_id' => $grupo->id,
+            'taquilla_id' => $demoTaquilla->id,
+            'active' => true,
+        ]);
+        $demoUser->assignRole('taquilla');
     }
 }

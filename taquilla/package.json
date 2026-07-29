@@ -10,7 +10,8 @@
     "preview": "astro preview",
     "electron:dev": "node scripts/electron-dev.mjs",
     "electron:build": "npm run build && electron-builder",
-    "electron:build:win": "npm run build && electron-builder --win"
+    "electron:build:win": "npm run build && electron-builder --win",
+    "vercel-build": "npm run build"
   },
   "dependencies": {
     "astro": "^4.0.0",
