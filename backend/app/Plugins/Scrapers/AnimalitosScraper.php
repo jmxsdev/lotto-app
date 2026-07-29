@@ -95,7 +95,7 @@ class AnimalitosScraper extends BaseScraper
             [
                 'name' => $name,
                 'type' => 'animalitos',
-                'config' => json_encode(['premio_multiplo' => 30]),
+                'config' => ['premio_multiplo' => 30],
                 'requires_scraper' => true,
                 'scraper_url' => $this->baseUrl . '/resultados/animalitos/',
                 'active' => true,

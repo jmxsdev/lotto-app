@@ -7,7 +7,6 @@ use App\Models\Juego;
 use App\Models\JuegoOpcion;
 use App\Models\JuegoHorario;
 use App\Models\PluginJuego;
-use App\Plugins\Juegos\Animalitos;
 
 class JuegoAnimalitosSeeder extends Seeder
 {
@@ -52,19 +51,14 @@ class JuegoAnimalitosSeeder extends Seeder
         ['label' => 'Culebra', 'value' => 'culebra', 'numero' => 36],
     ];
 
-    protected array $horarios = [
-        '09:00', '10:00', '11:00', '12:00', '13:00', '14:00',
-        '15:00', '16:00', '17:00', '18:00', '19:00',
-    ];
-
     public function run(): void
     {
         $juego = Juego::firstOrCreate(
-            ['slug' => 'animalitos'],
+            ['slug' => 'lotto-activo'],
             [
-                'name' => 'Animalitos',
+                'name' => 'Lotto Activo',
                 'type' => 'animalitos',
-                'config' => json_encode(['premio_multiplo' => 30]),
+                'config' => ['premio_multiplo' => 30],
                 'costo_minimo' => 3600,
                 'requires_scraper' => true,
                 'scraper_url' => 'https://www.lottoactivo.com/resultados/animalitos/',
@@ -75,7 +69,7 @@ class JuegoAnimalitosSeeder extends Seeder
         PluginJuego::firstOrCreate(
             ['juego_id' => $juego->id],
             [
-                'class_namespace' => Animalitos::class,
+                'class_namespace' => \App\Plugins\Juegos\Animalitos::class,
                 'version' => '1.0.0',
                 'active' => true,
             ]
@@ -93,13 +87,14 @@ class JuegoAnimalitosSeeder extends Seeder
             );
         }
 
-        foreach ($this->horarios as $hora) {
+        foreach (range(8, 19) as $h) {
+            $hora = str_pad($h, 2, '0', STR_PAD_LEFT) . ':00';
             JuegoHorario::firstOrCreate(
                 ['juego_id' => $juego->id, 'hora' => $hora],
                 ['active' => true]
             );
         }
 
-        $this->command->info("Juego Animalitos creado con " . count($this->animales) . " animales y " . count($this->horarios) . " horarios.");
+        $this->command->info("Juego Lotto Activo creado con " . count($this->animales) . " animales y 12 horarios.");
     }
 }
