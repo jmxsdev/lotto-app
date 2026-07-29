@@ -1,14 +1,16 @@
 info:
-  name: Opciones del Juego
+  name: Opciones (Terminales)
   type: http
-  seq: 5
+  seq: 9
 
 http:
   method: GET
-  url: "{{baseUrl}}/api/juegos/2/opciones"
+  url: "{{baseUrl}}/api/juegos/3/opciones"
   headers:
     - name: Authorization
       value: Bearer {{token}}
+    - name: X-Device-MAC
+      value: "{{macAddress}}"
   auth: inherit
 
 settings:

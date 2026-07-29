@@ -1,14 +1,16 @@
 info:
-  name: Horarios del Juego
+  name: Opciones (Tripletas)
   type: http
   seq: 6
 
 http:
   method: GET
-  url: "{{baseUrl}}/api/juegos/2/horarios"
+  url: "{{baseUrl}}/api/juegos/2/opciones"
   headers:
     - name: Authorization
       value: Bearer {{token}}
+    - name: X-Device-MAC
+      value: "{{macAddress}}"
   auth: inherit
 
 settings:

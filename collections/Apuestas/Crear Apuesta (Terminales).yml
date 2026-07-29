@@ -1,7 +1,7 @@
 info:
-  name: Crear Apuesta (Triple Zulia)
+  name: Crear Apuesta (Terminales)
   type: http
-  seq: 7
+  seq: 8
 
 http:
   method: POST
@@ -17,15 +17,11 @@ http:
     type: json
     data: |-
       {
-        "juego_id": 2,
-        "combinacion": {
-          "tipo": "triple_c",
-          "numero": "123",
-          "signo": "LEO"
-        },
+        "juego_id": 3,
+        "combinacion": {"numero": "42"},
         "amount_bs": 3600,
         "amount_usd": 0,
-        "sorteo_hora": "2026-07-30 12:45:00"
+        "sorteo_hora": "2026-07-30 14:00:00"
       }
   auth: inherit
 
