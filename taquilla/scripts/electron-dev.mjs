@@ -22,9 +22,9 @@ setTimeout(() => {
     console.log('\n⚡ Iniciando Electron...');
     
     try {
-        const electronPath = require.resolve('electron');
-        
-        electronProcess = spawn(electronPath, [], {
+        electronProcess = spawn('npx', ['electron', '.'], {
+            cwd: process.cwd(),
+            shell: true,
             env: {
                 ...process.env,
                 NODE_ENV: 'development',

@@ -2,7 +2,7 @@
   "name": "lotto-taquilla",
   "version": "0.1.0",
   "description": "Aplicación de escritorio para taquillas de lotería (Electron + Astro)",
-  "main": "electron/main/main.js",
+  "main": "electron/main/main.cjs",
   "type": "module",
   "scripts": {
     "dev": "astro dev",
