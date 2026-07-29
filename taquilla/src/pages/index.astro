@@ -62,7 +62,7 @@ const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
       <h1>🎰 {appName}</h1>
       <p class="subtitle">Sistema de Loterías Multi-Moneda</p>
       <div class="spinner"></div>
-      <p>Iniciando taquilla...</p>
+      <p id="splash-status">Iniciando taquilla...</p>
       <div class="footer">
         <p>Versión: 0.1.0</p>
         <p id="mac-info">MAC: Cargando...</p>
@@ -107,7 +107,7 @@ const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
             window.location.href = '/activacion';
           }
         } catch (_) {
-          document.querySelector('.container p:nth-child(3)').textContent = 'Error de conexión con el servidor';
+          document.getElementById('splash-status').textContent = 'Error de conexión con el servidor';
           document.querySelector('.spinner').style.display = 'none';
         }
       }
