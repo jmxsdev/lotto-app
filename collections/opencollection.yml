@@ -20,11 +20,11 @@ request:
     token: "{{token}}"
   variables:
     - name: baseUrl
-      value: https://localhost:8000
+      value: http://localhost:8000
     - name: token
       value: ""
     - name: macAddress
-      value: 00:1A:2B:3C:4D:5E
+      value: d8:f3:bc:65:d1:c5
 bundled: false
 extensions:
   bruno:

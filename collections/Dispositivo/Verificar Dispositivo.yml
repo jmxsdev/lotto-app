@@ -1,11 +1,11 @@
 info:
-  name: Activar Taquilla
+  name: Verificar Dispositivo
   type: http
   seq: 1
 
 http:
   method: POST
-  url: "{{baseUrl}}/api/activar"
+  url: "{{baseUrl}}/api/dispositivo/verificar"
   headers:
     - name: Content-Type
       value: application/json
@@ -13,9 +13,7 @@ http:
     type: json
     data: |-
       {
-        "activation_code": "ABCDE",
-        "mac_address": "d8:f3:bc:65:d1:c5",
-        "device_fingerprint": "550e8400-e29b-41d4-a716-446655440000"
+        "device_fingerprint": "demo-device-001"
       }
 
 settings:

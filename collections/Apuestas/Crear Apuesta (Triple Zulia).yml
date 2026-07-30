@@ -12,6 +12,8 @@ http:
     - name: Content-Type
       value: application/json
     - name: X-Device-MAC
+    - name: X-Device-Fingerprint
+      value: "demo-device-001"
       value: "{{macAddress}}"
   body:
     type: json

@@ -218,7 +218,8 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
             btn.textContent = 'Activar Taquilla';
           }
         } catch (error) {
-          showAlert('Error de conexión. Verifique su internet e intente nuevamente.', 'error');
+          showAlert('Error: ' + (error.message || 'Error de conexión'), 'error');
+          console.error('Activation error:', error);
           btn.disabled = false;
           btn.textContent = 'Activar Taquilla';
         }
