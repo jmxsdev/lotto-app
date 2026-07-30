@@ -765,7 +765,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
       if (token) headers['Authorization'] = 'Bearer ' + token;
       headers['X-Device-MAC'] = API_MAC;
       if (DEVICE_FP) headers['X-Device-Fingerprint'] = DEVICE_FP;
-      const opts = { method, headers };
+      const opts = { method, headers, credentials: 'omit' };
       if (body) opts.body = JSON.stringify(body);
       const res = await fetch(API_BASE + url, opts);
       if (res.status === 401) {
@@ -1244,7 +1244,11 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
       selectedHorario = null;
       document.getElementById('qt-numero').value = '';
       document.getElementById('qt-monto').value = '';
-      if (animalesCache.length > 0) renderAnimales();
+      if (activeTab === 'animalitos' && animalesCache.length > 0) {
+        renderAnimales();
+      } else {
+        document.getElementById('seleccion-content').innerHTML = '<div class="seleccion-placeholder">Seleccione un juego</div>';
+      }
       switchToJuegos();
       saveToLocalStorage();
       renderResumen();
@@ -1259,10 +1263,31 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
         tripleModalidadLabel = null;
         selectedHorario = null;
         document.getElementById('qt-numero').value = '';
-        renderAnimales();
+        if (activeTab === 'animalitos' && animalesCache.length > 0) {
+          renderAnimales();
+        } else {
+          document.getElementById('seleccion-content').innerHTML = '<div class="seleccion-placeholder">Seleccione un juego</div>';
+        }
         switchToJuegos();
       }
       renderResumen();
+    }
+
+    async function createApuestas() {
+      for (const line of ticketLines) {
+        const combinacion = line.tripleModalidad
+          ? { tipo: line.tripleModalidad, numero: line.numero, signo: line.animal }
+          : (line.juegoType === 'terminales'
+            ? { numero: line.numero }
+            : { animal: line.animal || line.numero, numero: line.numero });
+        await apiFetch('POST', '/apuestas', {
+          juego_id: line.juegoId,
+          combinacion: combinacion,
+          amount_bs: line.moneda === 'bs' ? line.monto : 0,
+          amount_usd: line.moneda === 'usd' ? line.monto : 0,
+          sorteo_hora: line.horario ? formatDateWithHorario(line.horario) : new Date().toISOString(),
+        });
+      }
     }
 
     async function handleConfirm() {
@@ -1271,20 +1296,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
       confirmBtn.disabled = true;
       confirmBtn.textContent = 'Guardando...';
       try {
-        for (const line of ticketLines) {
-          const combinacion = line.tripleModalidad
-            ? { tipo: line.tripleModalidad, numero: line.numero, signo: line.animal }
-            : (line.juegoType === 'terminales'
-              ? { numero: line.numero }
-              : { animal: line.animal || line.numero, numero: line.numero });
-          await apiFetch('POST', '/apuestas', {
-            juego_id: line.juegoId,
-            combinacion: combinacion,
-            amount_bs: line.moneda === 'bs' ? line.monto : 0,
-            amount_usd: line.moneda === 'usd' ? line.monto : 0,
-            sorteo_hora: line.horario ? formatDateWithHorario(line.horario) : new Date().toISOString(),
-          });
-        }
+        await createApuestas();
         alert('Apuestas creadas exitosamente');
         ticketLines = [];
         renderResumen();
@@ -1302,20 +1314,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
       const printBtn = document.getElementById('qt-print');
       printBtn.disabled = true;
       try {
-        for (const line of ticketLines) {
-          const combinacion = line.tripleModalidad
-            ? { tipo: line.tripleModalidad, numero: line.numero, signo: line.animal }
-            : (line.juegoType === 'terminales'
-              ? { numero: line.numero }
-              : { animal: line.animal || line.numero, numero: line.numero });
-          await apiFetch('POST', '/apuestas', {
-            juego_id: line.juegoId,
-            combinacion: combinacion,
-            amount_bs: line.moneda === 'bs' ? line.monto : 0,
-            amount_usd: line.moneda === 'usd' ? line.monto : 0,
-            sorteo_hora: line.horario ? formatDateWithHorario(line.horario) : new Date().toISOString(),
-          });
-        }
+        await createApuestas();
         const ticketData = {
           ticketCode: 'TICKET-' + Date.now(),
           date: new Date().toLocaleDateString('es-VE'),
