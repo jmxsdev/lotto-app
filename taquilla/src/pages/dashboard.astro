@@ -739,10 +739,10 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
     const GAMES_CONFIG = {
       animalitos: {
         games: [
-          { id:1, name:'Lotto Activo', slug:'lotto-activo', multiplicador:30, horarios:['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00'] },
-          { id:4, name:'Lotto Activo RD Internacional', slug:'lotto-activo-rd', multiplicador:30, horarios:['08:30','09:30','10:30','11:30','12:30','13:30','14:30','15:30','16:30','17:30','18:30','19:30'] },
-          { id:5, name:'Lotto Activo Rep. Dominicana', slug:'lotto-activo-rep-dom', multiplicador:30, horarios:['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00'] },
-          { id:6, name:'Monje Millonario', slug:'monje-millonario', multiplicador:30, horarios:['08:05','09:05','10:05','11:05','12:05','13:05','14:05','15:05','16:05','17:05','18:05','19:05'] },
+          { id:1, type:'animalitos', name:'Lotto Activo', slug:'lotto-activo', multiplicador:30, horarios:['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00'] },
+          { id:4, type:'animalitos', name:'Lotto Activo RD Internacional', slug:'lotto-activo-rd', multiplicador:30, horarios:['08:30','09:30','10:30','11:30','12:30','13:30','14:30','15:30','16:30','17:30','18:30','19:30'] },
+          { id:5, type:'animalitos', name:'Lotto Activo Rep. Dominicana', slug:'lotto-activo-rep-dom', multiplicador:30, horarios:['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00'] },
+          { id:6, type:'animalitos', name:'Monje Millonario', slug:'monje-millonario', multiplicador:30, horarios:['08:05','09:05','10:05','11:05','12:05','13:05','14:05','15:05','16:05','17:05','18:05','19:05'] },
         ],
         animales: [
           { numero:0, label:'Delfín' },{ numero:1, label:'Carnero' },{ numero:2, label:'Toro' },{ numero:3, label:'Ciempiés' },
@@ -759,8 +759,8 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
       },
       tripletas: {
         games: [
-          { id:2, name:'Triple Zulia', slug:'triple-zulia', multiplicador:30, horarios:['12:45','16:45','19:05'] },
-          { id:7, name:'Trío Activo', slug:'trio-activo', multiplicador:30, horarios:['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00'], soloTripleA:true },
+          { id:2, type:'tripletas', name:'Triple Zulia', slug:'triple-zulia', multiplicador:30, horarios:['12:45','16:45','19:05'] },
+          { id:7, type:'tripletas', name:'Trío Activo', slug:'trio-activo', multiplicador:30, horarios:['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00'], soloTripleA:true },
         ],
         signos: [
           { value:'ARI', label:'Aries', numero:1 },
@@ -784,7 +784,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
       },
       terminales: {
         games: [
-          { id:3, name:'Terminal Trío', slug:'terminal-trio', multiplicador:20, horarios:['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00'] },
+          { id:3, type:'terminales', name:'Terminal Trío', slug:'terminal-trio', multiplicador:20, horarios:['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00'] },
         ],
       },
     };
