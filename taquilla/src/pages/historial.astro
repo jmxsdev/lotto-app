@@ -28,7 +28,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
         </div>
     </div>
 
-    <style>
+    <style is:global>
         .historial-page { max-width: 1400px; margin: 0 auto; }
         .page-title { font-size: 28px; font-weight: 700; color: #333; margin-bottom: 24px; }
         .filters { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
@@ -168,7 +168,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
                     <div class="jugadas-container" data-jugadas="${t.id}">
                         <table class="jugadas-table">
                             <thead><tr>
-                                <th>Juego</th><th>Animal / N°</th><th>Monto BS</th><th>Monto USD</th><th>Total Eq.</th><th>Estado</th>
+                                <th>Juego</th><th>Sorteo</th><th>Animal / N°</th><th>Monto BS</th><th>Monto USD</th><th>Total Eq.</th><th>Estado</th>
                             </tr></thead>
                             <tbody>${(t.apuestas || []).map(a => {
                                 const c = typeof a.combinacion === 'string' ? JSON.parse(a.combinacion) : (a.combinacion || {});
@@ -178,6 +178,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
                                 if (c.tipo) combo += ' (' + c.tipo + ')';
                                 return `<tr>
                                     <td>${a.juego?.name || '-'}</td>
+                                    <td>${a.sorteo_hora ? new Date(a.sorteo_hora).toLocaleTimeString('es-VE', {hour:'2-digit',minute:'2-digit'}) : '-'}</td>
                                     <td>${combo}</td>
                                     <td>Bs. ${Number(a.amount_bs||0).toFixed(2)}</td>
                                     <td>$ ${Number(a.amount_usd||0).toFixed(2)}</td>
