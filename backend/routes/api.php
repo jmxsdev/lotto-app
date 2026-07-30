@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\ResultadoController;
 use App\Http\Controllers\Api\ApuestaController;
 use App\Http\Controllers\Api\DispositivoController;
 use App\Http\Controllers\Api\ActivacionController;
+use App\Http\Controllers\Api\TicketController;
 use App\Http\Controllers\Api\PagoController;
 
 // Rutas públicas (sin autenticación)
@@ -93,6 +94,13 @@ Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
         Route::get('/apuestas/resumen', [ApuestaController::class, 'resumen']);
         Route::get('/apuestas/{apuesta}', [ApuestaController::class, 'show']);
         Route::delete('/apuestas/{apuesta}', [ApuestaController::class, 'destroy']);
+    });
+
+    // ==================================================
+    // TICKETS (todos los roles que pueden crear apuestas)
+    // ==================================================
+    Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
+        Route::post('/tickets', [TicketController::class, 'store']);
     });
 
     // ==================================================
