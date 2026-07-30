@@ -100,7 +100,11 @@ Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
     // TICKETS (todos los roles que pueden crear apuestas)
     // ==================================================
     Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
+        Route::get('/tickets', [TicketController::class, 'index']);
         Route::post('/tickets', [TicketController::class, 'store']);
+        Route::get('/tickets/ganadores', [TicketController::class, 'ganadores']);
+        Route::get('/tickets/{ticket}', [TicketController::class, 'show']);
+        Route::delete('/tickets/{ticket}', [TicketController::class, 'destroy']);
     });
 
     // ==================================================

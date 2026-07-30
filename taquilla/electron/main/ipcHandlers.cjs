@@ -1,4 +1,4 @@
-const { ipcMain } = require('electron');
+const { ipcMain, BrowserWindow } = require('electron');
 const os = require('os');
 
 function getMacAddress() {
@@ -25,11 +25,11 @@ function generateTicketHtml(ticketData) {
     return `
         <style>
             @page { margin: 0; size: 80mm auto; }
-            body { font-family: 'Courier New', monospace; font-size: 12px; width: 72mm; margin: 0 auto; padding: 5px 3mm; }
-            h2 { text-align: center; font-size: 16px; margin: 0 0 5px; }
-            hr { border: none; border-top: 1px dashed #000; margin: 5px 0; }
-            table { width: 100%; border-collapse: collapse; font-size: 11px; }
-            th, td { text-align: left; padding: 2px 0; }
+            body { font-family: 'Courier New', monospace; font-size: 11px; width: 72mm; margin: 0 auto; padding: 4px 2mm; }
+            h2 { text-align: center; font-size: 14px; margin: 0 0 4px; }
+            hr { border: none; border-top: 1px dashed #000; margin: 4px 0; }
+            table { width: 100%; border-collapse: collapse; font-size: 10px; }
+            th, td { text-align: left; padding: 1px 0; }
             th { border-bottom: 1px solid #000; }
             .total { font-weight: bold; }
             .text-center { text-align: center; }
@@ -54,6 +54,37 @@ function generateTicketHtml(ticketData) {
     `;
 }
 
+async function printWithSystemDialog(win, html) {
+    return new Promise((resolve, reject) => {
+        const printWin = new BrowserWindow({
+            width: 300,
+            height: 400,
+            show: false,
+            webPreferences: { nodeIntegration: false, contextIsolation: true }
+        });
+
+        printWin.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+
+        printWin.webContents.on('did-finish-load', () => {
+            printWin.webContents.print({
+                silent: false,
+                printBackground: true,
+                margins: { marginType: 'none' },
+                pageSize: { width: 80000, height: 150000 }
+            }, (success, failureReason) => {
+                printWin.close();
+                if (success) resolve({ success: true, message: 'Ticket enviado a impresora' });
+                else reject(new Error(failureReason || 'Impresion cancelada'));
+            });
+        });
+
+        printWin.webContents.on('did-fail-load', (event, code, desc) => {
+            printWin.close();
+            reject(new Error('Error cargando ticket: ' + desc));
+        });
+    });
+}
+
 function registerIpcHandlers() {
     ipcMain.handle('get-mac', () => {
         return getMacAddress();
@@ -65,34 +96,51 @@ function registerIpcHandlers() {
             return { success: false, message: 'Datos de ticket invalidos' };
         }
 
-        try {
-            const html = generateTicketHtml(ticketData);
+        const win = BrowserWindow.getFocusedWindow();
+        const html = generateTicketHtml(ticketData);
 
-            let posPrinter;
+        const posPrinterAvailable = (() => {
             try {
-                posPrinter = require('electron-pos-printer');
+                require('electron-pos-printer');
+                return true;
             } catch (e) {
-                console.log('electron-pos-printer no disponible, usando impresion simulada');
-                console.log('Ticket HTML:', html);
-                return { success: true, message: 'Impresion simulada (electron-pos-printer no instalado)' };
+                return false;
             }
+        })();
 
-            const printerOptions = {
-                preview: false,
-                width: '80mm',
-                margin: '0 0 0 0',
-                copies: 1,
-                printerName: 'POS-80',
-                timeOutPerLine: 400,
-                pageSize: { height: 150000, width: 800 }
-            };
+        if (posPrinterAvailable) {
+            try {
+                const posPrinter = require('electron-pos-printer');
+                const printers = await posPrinter.POSPrinter.getPrinterList();
+                const posPrinters = printers.filter(p =>
+                    p.name.toLowerCase().includes('pos') ||
+                    p.name.toLowerCase().includes('thermal') ||
+                    p.name.toLowerCase().includes('ticket') ||
+                    p.name.toLowerCase().includes('receipt')
+                );
 
-            await posPrinter.POSPrinter.print(html, printerOptions);
+                if (posPrinters.length > 0) {
+                    const printerName = posPrinters[0].name;
+                    await posPrinter.POSPrinter.print(html, {
+                        preview: false,
+                        width: '80mm',
+                        margin: '0 0 0 0',
+                        copies: 1,
+                        printerName: printerName,
+                        timeOutPerLine: 400,
+                        pageSize: { height: 150000, width: 800 }
+                    });
+                    return { success: true, message: 'Ticket impreso en ' + printerName };
+                }
+            } catch (e) {
+                console.warn('electron-pos-printer fallo, usando dialogo del sistema:', e.message);
+            }
+        }
 
-            return { success: true, message: 'Ticket impreso correctamente' };
-        } catch (error) {
-            console.error('Error imprimiendo ticket:', error);
-            return { success: false, message: error.message };
+        try {
+            return await printWithSystemDialog(win, html);
+        } catch (e) {
+            return { success: false, message: e.message };
         }
     });
 

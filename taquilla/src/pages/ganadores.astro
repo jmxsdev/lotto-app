@@ -1,0 +1,171 @@
+---
+import MainLayout from '../layouts/MainLayout.astro';
+
+const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
+---
+
+<MainLayout currentPage="ganadores">
+    <div class="ganadores-page">
+        <h2 class="page-title">Tickets Ganadores</h2>
+
+        <div class="filters">
+            <input type="date" id="fecha" class="date-input" />
+            <button id="btn-buscar" class="btn-buscar">🔍 Buscar</button>
+        </div>
+
+        <div id="ganadores-content">
+            <div class="placeholder">Seleccione una fecha para buscar ganadores</div>
+        </div>
+    </div>
+
+    <style>
+        .ganadores-page { max-width: 1400px; margin: 0 auto; }
+        .page-title { font-size: 28px; font-weight: 700; color: #333; margin-bottom: 24px; }
+        .filters { display: flex; gap: 12px; margin-bottom: 24px; align-items: center; }
+        .date-input { padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; }
+        .date-input:focus { border-color: #667eea; outline: none; }
+        .btn-buscar { padding: 12px 24px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; font-weight: 600; }
+        .btn-buscar:disabled { opacity: 0.5; cursor: not-allowed; }
+        .placeholder { text-align: center; padding: 40px; color: #999; font-style: italic; }
+        .loading { text-align: center; padding: 40px; color: #666; }
+        .empty-state { text-align: center; padding: 40px; color: #999; font-style: italic; }
+        .error-state { text-align: center; padding: 40px; color: #dc3545; }
+        .ganador-card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 5px solid #28a745; }
+        .ganador-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .ticket-code { font-size: 18px; font-weight: 700; color: #333; }
+        .ticket-juego { font-size: 14px; color: #666; margin-top: 4px; }
+        .premio-total { text-align: right; }
+        .premio-bs { font-size: 22px; font-weight: 700; color: #28a745; }
+        .premio-usd { font-size: 14px; color: #666; }
+        .jugadas-title { font-size: 13px; font-weight: 600; color: #666; margin-bottom: 8px; }
+        .jugada-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #f8f9fa; border-radius: 6px; margin-bottom: 6px; }
+        .jugada-combinacion { font-size: 14px; }
+        .jugada-premio { font-weight: 600; color: #28a745; }
+        .btn-pagar-ticket { padding: 8px 20px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; margin-top: 12px; }
+        .btn-pagar-ticket:hover { background: #218838; }
+        .btn-pagar-ticket:disabled { opacity: 0.5; cursor: not-allowed; }
+    </style>
+
+    <script define:vars={{ apiUrl }}>
+        const API_BASE = apiUrl;
+
+        const API_MAC = '00:1A:2B:3C:4D:5E';
+        let _mac = API_MAC;
+        async function initMac() {
+          if (typeof window !== 'undefined' && window.electron?.getMac) {
+            try {
+              const mac = await window.electron.getMac();
+              if (mac && mac !== '00:00:00:00:00:00') _mac = mac;
+              else _mac = null;
+            } catch { _mac = null; }
+          }
+        }
+
+        async function apiFetch(method, url, body) {
+            const token = localStorage.getItem('auth_token');
+            const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+            if (token) headers['Authorization'] = 'Bearer ' + token;
+            headers['X-Device-MAC'] = _mac;
+            headers['X-Device-Fingerprint'] = localStorage.getItem('device_fingerprint') || 'demo-device-001';
+            const opts = { method, headers, credentials: 'omit' };
+            if (body) opts.body = JSON.stringify(body);
+            const res = await fetch(API_BASE + url, opts);
+            if (res.status === 401) {
+                localStorage.removeItem('auth_token');
+                window.location.href = '/login';
+                throw new Error('No autorizado');
+            }
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text || res.statusText);
+            }
+            return res.json();
+        }
+
+        function renderGanadores(ganadores) {
+            const container = document.getElementById('ganadores-content');
+            if (!ganadores || ganadores.length === 0) {
+                container.innerHTML = '<div class="empty-state">No hay tickets ganadores para esta fecha</div>';
+                return;
+            }
+
+            let html = '';
+            ganadores.forEach(g => {
+                html += `
+                <div class="ganador-card">
+                    <div class="ganador-header">
+                        <div>
+                            <div class="ticket-code">🎫 ${g.ticket_code}</div>
+                            <div class="ticket-juego">${g.juego || '-'}</div>
+                        </div>
+                        <div class="premio-total">
+                            ${g.premio_total_bs > 0 ? `<div class="premio-bs">Bs. ${Number(g.premio_total_bs).toLocaleString('es-VE', {minimumFractionDigits: 2})}</div>` : ''}
+                            ${g.premio_total_usd > 0 ? `<div class="premio-usd">$ ${Number(g.premio_total_usd).toLocaleString('en-US', {minimumFractionDigits: 2})}</div>` : ''}
+                        </div>
+                    </div>
+                    <div class="jugadas-title">${g.jugadas_ganadoras} jugada(s) ganadora(s):</div>
+                    ${g.jugadas.map(j => {
+                        const c = typeof j.combinacion === 'string' ? JSON.parse(j.combinacion) : (j.combinacion || {});
+                        return `<div class="jugada-row">
+                            <span class="jugada-combinacion">${(c.animal || '-').toUpperCase()} ${c.numero ? '#' + c.numero : ''} ${c.signo ? '- ' + c.signo : ''} ${c.tipo ? '(' + c.tipo + ')' : ''}</span>
+                            <span class="jugada-premio">${j.premio_bs > 0 ? 'Bs. ' + Number(j.premio_bs).toLocaleString('es-VE', {minimumFractionDigits: 2}) : ''} ${j.premio_usd > 0 ? '$ ' + Number(j.premio_usd).toLocaleString('en-US', {minimumFractionDigits: 2}) : ''}</span>
+                        </div>`;
+                    }).join('')}
+                    <button class="btn-pagar-ticket" data-ticket="${g.ticket_code}" data-total-bs="${g.premio_total_bs}">💰 Pagar Premio</button>
+                </div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        async function pagarTicket(ticketCode, totalBs) {
+            if (!confirm('Registrar pago de Bs. ' + Number(totalBs).toLocaleString('es-VE', {minimumFractionDigits: 2}) + ' para el ticket ' + ticketCode + '?')) return;
+            try {
+                const tickets = await apiFetch('GET', '/tickets?ticket_code=' + ticketCode);
+                const ticket = tickets.data?.data?.[0];
+                if (!ticket) { alert('Ticket no encontrado'); return; }
+                for (const apuesta of ticket.apuestas) {
+                    if (apuesta.estado === 'pendiente') {
+                        await apiFetch('POST', '/pagos', {
+                            apuesta_id: apuesta.id,
+                            amount_bs: Number(apuesta.amount_bs || 0),
+                            amount_usd: Number(apuesta.amount_usd || 0),
+                            tipo: 'bs'
+                        });
+                    }
+                }
+                alert('Pago registrado exitosamente!');
+                document.getElementById('btn-buscar').click();
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        async function buscarGanadores() {
+            const fecha = document.getElementById('fecha').value;
+            if (!fecha) return;
+            document.getElementById('ganadores-content').innerHTML = '<div class="loading">Buscando...</div>';
+            try {
+                const data = await apiFetch('GET', '/tickets/ganadores?fecha=' + fecha);
+                renderGanadores(data.data);
+            } catch (e) {
+                document.getElementById('ganadores-content').innerHTML = '<div class="error-state">Error: ' + e.message + '</div>';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await initMac();
+            const fechaInput = document.getElementById('fecha');
+            const now = new Date();
+            fechaInput.value = now.toISOString().split('T')[0];
+
+            document.getElementById('btn-buscar').addEventListener('click', buscarGanadores);
+            fechaInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') buscarGanadores(); });
+
+            document.getElementById('ganadores-content').addEventListener('click', (e) => {
+                const btn = e.target.closest('.btn-pagar-ticket');
+                if (!btn) return;
+                pagarTicket(btn.dataset.ticket, btn.dataset.totalBs);
+            });
+        });
+    </script>
+</MainLayout>

@@ -6,11 +6,19 @@ use App\Http\Controllers\Controller;
 use App\Jobs\ScrapeResultsJob;
 use App\Models\Juego;
 use App\Models\Resultado;
+use App\Services\ApuestaService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class ResultadoController extends Controller
 {
+    protected ApuestaService $apuestaService;
+
+    public function __construct(ApuestaService $apuestaService)
+    {
+        $this->apuestaService = $apuestaService;
+    }
+
     public function index(Request $request)
     {
         $query = Resultado::with('juego');
@@ -65,8 +73,18 @@ class ResultadoController extends Controller
                 $job = new ScrapeResultsJob($juego->id, $fecha);
                 $job->handle();
 
+                $ultimosResultados = Resultado::where('juego_id', $juego->id)
+                    ->whereDate('fecha_sorteo', $fecha)
+                    ->get();
+
+                $ganadorasTotales = 0;
+                foreach ($ultimosResultados as $resultado) {
+                    $ganadorasTotales += $this->apuestaService->verificarGanadores($resultado);
+                }
+
                 $resultados[$juego->name] = [
                     'status' => 'ok',
+                    'ganadoras_detectadas' => $ganadorasTotales,
                 ];
             } catch (\Exception $e) {
                 Log::error("Error scraping {$juego->name}: " . $e->getMessage());
