@@ -9,6 +9,7 @@ use App\Models\Juego;
 use App\Models\JuegoHorario;
 use App\Models\Resultado;
 use App\Models\Ticket;
+use Carbon\Carbon;
 
 class ApuestaService
 {
@@ -162,6 +163,16 @@ class ApuestaService
 
         $combinacion = $data['combinacion'] ?? [];
 
+        $sorteoHora = $data['sorteo_hora'] ?? null;
+        if ($sorteoHora) {
+            $sorteoHora = Carbon::parse($sorteoHora);
+            if ($sorteoHora->isPast()) {
+                $sorteoHora = Carbon::parse($this->getNextDrawTime($data['juego_id']));
+            }
+        } else {
+            $sorteoHora = Carbon::parse($this->getNextDrawTime($data['juego_id']));
+        }
+
         $apuestaData = [
             'taquilla_id' => $taquillaId,
             'juego_id' => $data['juego_id'],
@@ -172,7 +183,7 @@ class ApuestaService
             'total_bs_equivalent' => $totalBsEquivalent,
             'estado' => 'pendiente',
             'fecha_hora' => now(),
-            'sorteo_hora' => $data['sorteo_hora'] ?? $this->getNextDrawTime($data['juego_id']),
+            'sorteo_hora' => $sorteoHora->format('Y-m-d H:i:s'),
         ];
 
         if ($ticketId) {
@@ -233,14 +244,21 @@ class ApuestaService
             return 0;
         }
 
+        $horaSorteo = $resultado->hora_sorteo;
+        if ($horaSorteo && preg_match('/AM|PM/i', $horaSorteo)) {
+            $horaSorteo = Carbon::createFromFormat('h:i A', trim($horaSorteo))->format('H:i:s');
+        }
+
         $apuestas = Apuesta::with('ticket')
             ->where('juego_id', $resultado->juego_id)
             ->where('estado', 'pendiente')
             ->whereDate('sorteo_hora', $resultado->fecha_sorteo->toDateString())
+            ->whereTime('sorteo_hora', $horaSorteo)
             ->get();
 
         $ganadoras = 0;
         $ticketPremios = [];
+        $ticketsGanadores = [];
 
         foreach ($apuestas as $apuesta) {
             $combinacion = $apuesta->combinacion;
@@ -260,6 +278,9 @@ class ApuestaService
             $premioBs = $premio['premio_bs'] ?? 0;
             $premioUsd = $premio['premio_usd'] ?? 0;
 
+            $apuesta->resultado_id = $resultado->id;
+            $apuesta->save();
+
             DetalleApuesta::where('apuesta_id', $apuesta->id)->update([
                 'premio_ganado' => $premioBs > 0 ? $premioBs : null,
                 'premio_ganado_usd' => $premioUsd > 0 ? $premioUsd : null,
@@ -275,7 +296,11 @@ class ApuestaService
                     }
                     $ticketPremios[$ticketId]['bs'] += $premioBs;
                     $ticketPremios[$ticketId]['usd'] += $premioUsd;
+                    $ticketsGanadores[$ticketId] = true;
                 }
+            } else {
+                $apuesta->estado = 'perdida';
+                $apuesta->save();
             }
         }
 
@@ -284,6 +309,12 @@ class ApuestaService
                 'premio_total_bs' => $premios['bs'],
                 'premio_total_usd' => $premios['usd'],
             ]);
+        }
+
+        if (!empty($ticketsGanadores)) {
+            Ticket::whereIn('id', array_keys($ticketsGanadores))
+                ->where('estado', 'pendiente')
+                ->update(['estado' => 'ganador']);
         }
 
         return $ganadoras;

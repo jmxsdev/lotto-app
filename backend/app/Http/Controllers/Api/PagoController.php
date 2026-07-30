@@ -58,6 +58,11 @@ class PagoController extends Controller
             ], 404);
         }
 
+        // Verificar ownership
+        if ($user->role === 'taquilla' && $apuesta->taquilla_id !== $user->taquilla_id) {
+            return response()->json(['message' => 'No autorizado.'], 403);
+        }
+
         // Verificar que la apuesta esté pendiente
         if ($apuesta->estado !== 'pendiente') {
             return response()->json([
@@ -129,6 +134,19 @@ class PagoController extends Controller
             ]);
         }
 
+        // Cascada al ticket: si todas las jugadas estan resueltas, marcar pagada
+        if ($apuesta->ticket_id) {
+            $ticket = \App\Models\Ticket::with('apuestas')->find($apuesta->ticket_id);
+            if ($ticket && $ticket->estado !== 'pagada') {
+                $todasResueltas = $ticket->apuestas->every(function ($a) {
+                    return $a->estado === 'pagada' || $a->estado === 'anulada' || $a->estado === 'perdida' || $a->trashed();
+                });
+                if ($todasResueltas) {
+                    $ticket->update(['estado' => 'pagada']);
+                }
+            }
+        }
+
         // Registrar log de auditoría
         Log::create([
             'user_id' => $user->id,
@@ -157,6 +175,8 @@ class PagoController extends Controller
      */
     public function showByApuesta(Apuesta $apuesta)
     {
+        $this->authorize('view', $apuesta);
+
         $pagos = Pago::where('apuesta_id', $apuesta->id)->get();
 
         return response()->json([
