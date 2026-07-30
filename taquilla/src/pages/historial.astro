@@ -49,13 +49,15 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
         .ticket-expand.expanded { color: #667eea; }
         .ticket-code-col { font-weight: 700; color: #333; min-width: 130px; font-size: 15px; }
         .ticket-date { color: #666; min-width: 90px; font-size: 13px; }
-        .ticket-juego { color: #444; flex: 1; font-size: 14px; }
+        .ticket-juego { color: #444; flex: 1; font-size: 14px; padding-left: 15px;}
         .ticket-info { min-width: 90px; text-align: center; font-size: 13px; color: #666; }
         .ticket-total { min-width: 130px; text-align: right; font-weight: 600; font-size: 14px; }
         .badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; min-width: 85px; text-align: center; }
         .badge-pendiente { background: #fff3cd; color: #856404; }
         .badge-pagada { background: #d4edda; color: #155724; }
         .badge-anulada { background: #f8d7da; color: #721c24; }
+        .badge-ganador { background: linear-gradient(135deg, #fff9c4, #fff176); color: #6d4c00; border: 1px solid #ffd54f; font-weight: 700; }
+        .badge-perdida { background: #f0f0f0; color: #888; }
         .ticket-actions { display: flex; gap: 6px; margin-left: 8px; }
         .btn-action { padding: 6px 12px; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all .15s; background: white; }
         .btn-action:hover { transform: translateY(-1px); }
@@ -66,6 +68,13 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
         .btn-print { color: #6c757d; border-color: #6c757d; }
         .btn-print:hover { background: #e9ecef; }
         .btn-action:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+        .confirm-actions { display: flex; align-items: center; gap: 6px; min-width: 0; }
+        .confirm-text { color: #dc3545; font-size: 13px; font-weight: 600; white-space: nowrap; }
+        .confirm-btn { padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; border: 1px solid; background: white; transition: all .15s; }
+        .confirm-yes { color: #dc3545; border-color: #dc3545; }
+        .confirm-yes:hover { background: #f8d7da; }
+        .confirm-no { color: #666; border-color: #ccc; }
+        .confirm-no:hover { background: #e9ecef; }
         .jugadas-container { display: none; border-top: 1px solid #e9ecef; background: #fafbfc; }
         .jugadas-container.open { display: block; }
         .jugadas-table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -119,6 +128,8 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
                 case 'pendiente': return 'badge-pendiente';
                 case 'pagada': return 'badge-pagada';
                 case 'anulada': return 'badge-anulada';
+                case 'ganador': return 'badge-ganador';
+                case 'perdida': return 'badge-perdida';
                 default: return '';
             }
         }
@@ -166,7 +177,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
                         <span class="ticket-info">${jugadasCount} jug.</span>
                         <span class="ticket-total">Bs. ${totalBs.toLocaleString('es-VE', {minimumFractionDigits:2})} ${totalUsd > 0 ? '/ $'+totalUsd.toFixed(2) : ''}</span>
                         <span class="badge ${getStatusClass(t.estado)}">${t.estado.toUpperCase()}</span>
-                        <div class="ticket-actions" onclick="event.stopPropagation()">
+                        <div class="ticket-actions">
                             ${t.estado === 'pendiente' && esGanador ? `
                                 <button class="btn-action btn-pay" data-action="pay" data-id="${t.id}">💰 Pagar</button>
                             ` : ''}
@@ -204,8 +215,46 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
             container.innerHTML = html;
         }
 
+        function showConfirmDelete(ticket) {
+            const card = document.querySelector(`[data-ticket-id="${ticket.id}"]`);
+            if (!card) return;
+            const actionsDiv = card.querySelector('.ticket-actions');
+            if (!actionsDiv) return;
+            actionsDiv._originalHtml = actionsDiv.innerHTML;
+            actionsDiv.innerHTML = `
+                <span class="confirm-text">¿Anular ticket?</span>
+                <button class="confirm-btn confirm-yes" data-confirm="yes" data-id="${ticket.id}">✓ Sí</button>
+                <button class="confirm-btn confirm-no" data-confirm="no" data-id="${ticket.id}">✗ No</button>
+            `;
+        }
+
+        function restoreActions(ticketId) {
+            const card = document.querySelector(`[data-ticket-id="${ticketId}"]`);
+            if (!card) return;
+            const actionsDiv = card.querySelector('.ticket-actions');
+            if (actionsDiv && actionsDiv._originalHtml) {
+                actionsDiv.innerHTML = actionsDiv._originalHtml;
+                delete actionsDiv._originalHtml;
+            }
+        }
+
+        async function deleteTicket(ticket) {
+            try {
+                await apiFetch('DELETE', '/tickets/' + ticket.id);
+                loadTickets();
+                await window.showModal({ message: 'Ticket anulado', type: 'success' });
+            } catch (e) {
+                restoreActions(ticket.id);
+                await window.showModal({ message: 'Error al anular: ' + e.message, type: 'error' });
+            }
+        }
+
         async function pagarTicket(ticket) {
-            if (!confirm('Registrar pago completo del ticket ' + ticket.ticket_code + ' por Bs. ' + Number(ticket.total_bs||0).toFixed(2) + '?')) return;
+            const ok = await window.showModal({
+                message: 'Registrar pago completo del ticket ' + ticket.ticket_code + ' por Bs. ' + Number(ticket.total_bs||0).toFixed(2) + '?',
+                type: 'confirm'
+            });
+            if (!ok) return;
             let success = true;
             for (const apuesta of (ticket.apuestas || [])) {
                 if (apuesta.estado !== 'pendiente') continue;
@@ -218,22 +267,11 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
                     });
                 } catch (e) {
                     success = false;
-                    alert('Error en jugada #' + apuesta.id + ': ' + e.message);
+                    await window.showModal({ message: 'Error en jugada #' + apuesta.id + ': ' + e.message, type: 'error' });
                 }
             }
-            if (success) alert('Pago registrado exitosamente!');
-            loadTickets();
-        }
-
-        async function deleteTicket(ticket) {
-            if (!confirm('Anular ticket ' + ticket.ticket_code + ' y todas sus jugadas?')) return;
-            try {
-                await apiFetch('DELETE', '/tickets/' + ticket.id);
-                alert('Ticket anulado');
-                loadTickets();
-            } catch (e) {
-                alert('Error al anular: ' + e.message);
-            }
+            if (success) loadTickets();
+            await window.showModal({ message: 'Pago registrado exitosamente!', type: 'success' });
         }
 
         async function printTicket(ticket) {
@@ -257,10 +295,10 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
                 if (window.electron?.printTicket) {
                     await window.electron.printTicket({ ticketData });
                 } else {
-                    alert('Impresion no disponible fuera de Electron');
+                    await window.showModal({ message: 'Impresion no disponible fuera de Electron', type: 'error' });
                 }
             } catch (e) {
-                alert('Error al imprimir: ' + e.message);
+                await window.showModal({ message: 'Error al imprimir: ' + e.message, type: 'error' });
             }
         }
 
@@ -335,6 +373,19 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
                     return;
                 }
 
+                const confirmBtn = e.target.closest('.confirm-btn');
+                if (confirmBtn) {
+                    const id = parseInt(confirmBtn.dataset.id);
+                    const ticket = getTicketById(id);
+                    if (!ticket) return;
+                    if (confirmBtn.dataset.confirm === 'yes') {
+                        deleteTicket(ticket);
+                    } else {
+                        restoreActions(id);
+                    }
+                    return;
+                }
+
                 const actionBtn = e.target.closest('.btn-action');
                 if (actionBtn) {
                     const id = parseInt(actionBtn.dataset.id);
@@ -342,7 +393,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
                     if (!ticket) return;
                     switch (actionBtn.dataset.action) {
                         case 'pay': pagarTicket(ticket); break;
-                        case 'delete': deleteTicket(ticket); break;
+                        case 'delete': showConfirmDelete(ticket); break;
                         case 'print': printTicket(ticket); break;
                     }
                     return;
