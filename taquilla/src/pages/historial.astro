@@ -128,7 +128,12 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
             const ahora = new Date();
             const created = new Date(ticket.created_at);
             const diffMinutes = (ahora - created) / (1000 * 60);
-            return diffMinutes < 5;
+            if (diffMinutes >= 5) return false;
+            const sorteoVencido = (ticket.apuestas || []).some(a => {
+                if (!a.sorteo_hora) return false;
+                return new Date(a.sorteo_hora) < ahora;
+            });
+            return !sorteoVencido;
         }
 
         function getTicketJuegos(ticket) {
@@ -147,20 +152,26 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
                 const totalBs = Number(t.total_bs || 0);
                 const totalUsd = Number(t.total_usd || 0);
                 const jugadasCount = t.apuestas?.length || 0;
+                const esGanador = t.tiene_ganadores === true;
+                const fechaHora = new Date(t.created_at);
+                const fechaStr = fechaHora.toLocaleDateString('es-VE', {day:'2-digit',month:'2-digit',year:'numeric'});
+                const horaStr = fechaHora.toLocaleTimeString('es-VE', {hour:'2-digit',minute:'2-digit'});
                 html += `
                 <div class="ticket-card" data-ticket-id="${t.id}">
                     <div class="ticket-row" data-toggle="${t.id}">
                         <span class="ticket-expand">▶</span>
                         <span class="ticket-code-col">🎫 ${t.ticket_code}</span>
-                        <span class="ticket-date">${new Date(t.created_at).toLocaleDateString('es-VE', {day:'2-digit',month:'2-digit',year:'numeric'})}</span>
+                        <span class="ticket-date">${fechaStr} ${horaStr}</span>
                         <span class="ticket-juego">${getTicketJuegos(t)}</span>
                         <span class="ticket-info">${jugadasCount} jug.</span>
                         <span class="ticket-total">Bs. ${totalBs.toLocaleString('es-VE', {minimumFractionDigits:2})} ${totalUsd > 0 ? '/ $'+totalUsd.toFixed(2) : ''}</span>
                         <span class="badge ${getStatusClass(t.estado)}">${t.estado.toUpperCase()}</span>
                         <div class="ticket-actions" onclick="event.stopPropagation()">
-                            ${t.estado === 'pendiente' ? `
+                            ${t.estado === 'pendiente' && esGanador ? `
                                 <button class="btn-action btn-pay" data-action="pay" data-id="${t.id}">💰 Pagar</button>
-                                ${canDeleteTicket(t) ? `<button class="btn-action btn-delete" data-action="delete" data-id="${t.id}">❌ Anular</button>` : ''}
+                            ` : ''}
+                            ${t.estado === 'pendiente' && canDeleteTicket(t) ? `
+                                <button class="btn-action btn-delete" data-action="delete" data-id="${t.id}">❌ Anular</button>
                             ` : ''}
                             <button class="btn-action btn-print" data-action="print" data-id="${t.id}">🖨️ Imprimir</button>
                         </div>
