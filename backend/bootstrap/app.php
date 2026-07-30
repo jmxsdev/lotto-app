@@ -38,25 +38,25 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->render(function (NotFoundHttpException $e, Request $request) {
-            if ($request->expectsJson() && app()->isProduction()) {
+            if ($request->expectsJson()) {
                 return response()->json(['message' => 'Recurso no encontrado.'], 404);
             }
         });
 
         $exceptions->render(function (AuthenticationException $e, Request $request) {
-            if ($request->expectsJson() && app()->isProduction()) {
+            if ($request->expectsJson()) {
                 return response()->json(['message' => 'No autenticado.'], 401);
             }
         });
 
         $exceptions->render(function (AuthorizationException|UnauthorizedException $e, Request $request) {
-            if ($request->expectsJson() && app()->isProduction()) {
+            if ($request->expectsJson()) {
                 return response()->json(['message' => 'No autorizado.'], 403);
             }
         });
 
         $exceptions->render(function (ModelNotFoundException $e, Request $request) {
-            if ($request->expectsJson() && app()->isProduction()) {
+            if ($request->expectsJson()) {
                 return response()->json(['message' => 'Recurso no encontrado.'], 404);
             }
         });

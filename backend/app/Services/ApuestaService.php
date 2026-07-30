@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ExchangeRate;
 use App\Models\Juego;
+use App\Models\JuegoHorario;
 
 class ApuestaService
 {
@@ -87,6 +88,31 @@ class ApuestaService
     }
 
     /**
+     * Obtener el siguiente sorteo según horarios del juego
+     */
+    public function getNextDrawTime(int $juegoId): string
+    {
+        $horarios = JuegoHorario::where('juego_id', $juegoId)
+            ->where('active', true)
+            ->orderBy('hora')
+            ->pluck('hora');
+
+        if ($horarios->isEmpty()) {
+            return now()->addHours(2)->format('Y-m-d H:i:s');
+        }
+
+        $now = now();
+        foreach ($horarios as $hora) {
+            $drawTime = $now->copy()->setTimeFromTimeString($hora);
+            if ($drawTime->isFuture()) {
+                return $drawTime->format('Y-m-d H:i:s');
+            }
+        }
+
+        return $now->copy()->addDay()->setTimeFromTimeString($horarios->first())->format('Y-m-d H:i:s');
+    }
+
+    /**
      * Obtener resumen estadístico de apuestas
      */
     public function obtenerResumen($query): array
@@ -107,5 +133,87 @@ class ApuestaService
             'pagada_count' => $pagadaCount,
             'anulada_count' => $anuladaCount,
         ];
+    }
+
+    /**
+     * Crear una apuesta individual (reutilizable desde ApuestaController y TicketController)
+     */
+    public function createApuesta(array $data, int $taquillaId, int $userId, ?int $ticketId = null): \App\Models\Apuesta
+    {
+        $tasaActiva = ExchangeRate::where('is_active', true)->first();
+
+        if (!$tasaActiva) {
+            throw new \RuntimeException('No hay tasa de cambio activa configurada. Contacte al administrador.');
+        }
+
+        $amountBs = (float) ($data['amount_bs'] ?? 0);
+        $amountUsd = (float) ($data['amount_usd'] ?? 0);
+        $totalBsEquivalent = $amountBs + ($amountUsd * $tasaActiva->rate);
+
+        $validacion = $this->validarCostoMinimo($totalBsEquivalent, $data['juego_id']);
+
+        if (!$validacion['valid']) {
+            throw new \RuntimeException($validacion['message'] . ' (Monto actual: ' . round($totalBsEquivalent, 2) . ' Bs)');
+        }
+
+        $combinacion = $data['combinacion'] ?? [];
+
+        $apuestaData = [
+            'taquilla_id' => $taquillaId,
+            'juego_id' => $data['juego_id'],
+            'combinacion' => json_encode($combinacion),
+            'amount_bs' => $amountBs,
+            'amount_usd' => $amountUsd,
+            'exchange_rate_applied' => $tasaActiva->rate,
+            'total_bs_equivalent' => $totalBsEquivalent,
+            'estado' => 'pendiente',
+            'fecha_hora' => now(),
+            'sorteo_hora' => $data['sorteo_hora'] ?? $this->getNextDrawTime($data['juego_id']),
+        ];
+
+        if ($ticketId) {
+            $apuestaData['ticket_id'] = $ticketId;
+        }
+
+        $apuesta = \App\Models\Apuesta::create($apuestaData);
+
+        // Generar detalles con plugin
+        $juego = \App\Models\Juego::find($data['juego_id']);
+        if ($juego) {
+            $plugin = app(\App\Services\JuegoPluginManager::class)->getPlugin($juego);
+            $premio = $plugin
+                ? $plugin->calcularPremio(
+                    ['combinacion' => $combinacion, 'total_bs_equivalent' => $totalBsEquivalent, 'amount_bs' => $amountBs, 'amount_usd' => $amountUsd],
+                    []
+                )
+                : ['premio_bs' => $totalBsEquivalent, 'premio_usd' => 0];
+
+            \App\Models\DetalleApuesta::create([
+                'apuesta_id' => $apuesta->id,
+                'combinacion' => json_encode($combinacion),
+                'monto' => $totalBsEquivalent,
+                'premio_posible' => $premio['premio_bs'],
+                'premio_posible_usd' => $premio['premio_usd'],
+                'premio_ganado' => null,
+                'premio_ganado_usd' => null,
+            ]);
+        }
+
+        // Crear pago
+        $moneda = $amountBs > 0 && $amountUsd > 0 ? 'mixto' : ($amountUsd > 0 ? 'usd' : 'bs');
+
+        \App\Models\Pago::create([
+            'taquilla_id' => $taquillaId,
+            'apuesta_id' => $apuesta->id,
+            'amount_bs' => $amountBs,
+            'amount_usd' => $amountUsd,
+            'exchange_rate_applied' => $tasaActiva->rate,
+            'tipo' => 'ingreso',
+            'moneda' => $moneda,
+            'concepto' => 'Compra de ticket',
+            'created_by' => $userId,
+        ]);
+
+        return $apuesta;
     }
 }

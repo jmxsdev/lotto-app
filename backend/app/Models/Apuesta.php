@@ -14,7 +14,7 @@ class Apuesta extends Model
     protected $fillable = [
         'taquilla_id', 'juego_id', 'resultado_id', 'combinacion', 'ticket_code',
         'amount_bs', 'amount_usd', 'exchange_rate_applied', 'total_bs_equivalent',
-        'estado', 'fecha_hora', 'sorteo_hora'
+        'estado', 'fecha_hora', 'sorteo_hora', 'ticket_id'
     ];
 
     protected $casts = [
@@ -33,7 +33,12 @@ class Apuesta extends Model
 
         static::creating(function ($apuesta) {
             if (!$apuesta->ticket_code) {
-                $apuesta->ticket_code = strtoupper(Str::random(8));
+                if ($apuesta->ticket_id) {
+                    $apuesta->ticket_code = \App\Models\Ticket::find($apuesta->ticket_id)?->ticket_code
+                        ?? strtoupper(Str::random(8));
+                } else {
+                    $apuesta->ticket_code = strtoupper(Str::random(8));
+                }
             }
         });
     }
@@ -61,6 +66,11 @@ class Apuesta extends Model
     public function pago()
     {
         return $this->hasOne(Pago::class);
+    }
+
+    public function ticket()
+    {
+        return $this->belongsTo(Ticket::class);
     }
     
     public function getAnimalApostadoAttribute(): ?string

@@ -113,84 +113,12 @@ class ApuestaController extends Controller
             ], 403);
         }
 
-        $taquillaId = $user->taquilla_id;
-
         try {
-            // Obtener tasa activa del momento
-            $tasaActiva = ExchangeRate::where('is_active', true)->first();
-            
-            if (!$tasaActiva) {
-                return response()->json([
-                    'message' => 'No hay tasa de cambio activa configurada. Contacte al administrador.'
-                ], 422);
-            }
-
-            // Calcular total_bs_equivalent
-            $amountBs = (float) $request->amount_bs;
-            $amountUsd = (float) $request->amount_usd;
-            $totalBsEquivalent = $amountBs + ($amountUsd * $tasaActiva->rate);
-
-            // Validar que cubre costo mínimo del juego
-            $validacion = $this->apuestaService->validarCostoMinimo($totalBsEquivalent, $request->juego_id);
-            
-            if (!$validacion['valid']) {
-                return response()->json([
-                    'message' => $validacion['message'],
-                    'costo_minimo' => $validacion['required_min'] ?? null,
-                    'monto_actual' => round($totalBsEquivalent, 2),
-                ], 422);
-            }
-
-            // Guardar apuesta con tasa histórica immutable
-            $combinacion = $request->combinacion;
-
-            $apuesta = Apuesta::create([
-                'taquilla_id' => $taquillaId,
-                'juego_id' => $request->juego_id,
-                'resultado_id' => null,
-                'combinacion' => json_encode($combinacion),
-                'amount_bs' => $amountBs,
-                'amount_usd' => $amountUsd,
-                'exchange_rate_applied' => $tasaActiva->rate,
-                'total_bs_equivalent' => $totalBsEquivalent,
-                'estado' => 'pendiente',
-                'fecha_hora' => now(),
-                'sorteo_hora' => $request->sorteo_hora ?? $this->getNextDrawTime($request->juego_id),
-            ]);
-
-            // Generar detalles de la apuesta con plugin
-            $juego = Juego::find($request->juego_id);
-            $plugin = app(JuegoPluginManager::class)->getPlugin($juego);
-            $premio = $plugin
-                ? $plugin->calcularPremio(
-                    ['combinacion' => $combinacion, 'total_bs_equivalent' => $totalBsEquivalent, 'amount_bs' => $amountBs, 'amount_usd' => $amountUsd],
-                    []
-                )
-                : ['premio_bs' => $totalBsEquivalent, 'premio_usd' => 0];
-
-            \App\Models\DetalleApuesta::create([
-                'apuesta_id' => $apuesta->id,
-                'combinacion' => json_encode($combinacion),
-                'monto' => $totalBsEquivalent,
-                'premio_posible' => $premio['premio_bs'],
-                'premio_posible_usd' => $premio['premio_usd'],
-                'premio_ganado' => null,
-                'premio_ganado_usd' => null,
-            ]);
-
-            $moneda = $amountBs > 0 && $amountUsd > 0 ? 'mixto' : ($amountUsd > 0 ? 'usd' : 'bs');
-
-            \App\Models\Pago::create([
-                'taquilla_id' => $taquillaId,
-                'apuesta_id' => $apuesta->id,
-                'amount_bs' => $amountBs,
-                'amount_usd' => $amountUsd,
-                'exchange_rate_applied' => $tasaActiva->rate,
-                'tipo' => 'ingreso',
-                'moneda' => $moneda,
-                'concepto' => 'Compra de ticket',
-                'created_by' => $user->id,
-            ]);
+            $apuesta = $this->apuestaService->createApuesta(
+                $request->validated(),
+                $user->taquilla_id,
+                $user->id
+            );
 
             return response()->json([
                 'message' => 'Apuesta creada exitosamente.',

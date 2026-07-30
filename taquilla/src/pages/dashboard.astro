@@ -760,7 +760,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
 
     async function apiFetch(method, url, body) {
       const token = localStorage.getItem('auth_token');
-      const headers = { 'Content-Type': 'application/json' };
+      const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
       if (token) headers['Authorization'] = 'Bearer ' + token;
       headers['X-Device-MAC'] = API_MAC;
       if (DEVICE_FP) headers['X-Device-Fingerprint'] = DEVICE_FP;
@@ -1269,31 +1269,27 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
       renderResumen();
     }
 
-    async function createApuestas() {
-      for (const line of ticketLines) {
-        const combinacion = line.tripleModalidad
-          ? { tipo: line.tripleModalidad, numero: line.numero, signo: line.animal }
-          : (line.juegoType === 'terminales'
-            ? { numero: line.numero }
-            : { animal: line.animal || line.numero, numero: line.numero });
-        await apiFetch('POST', '/apuestas', {
-          juego_id: line.juegoId,
-          combinacion: combinacion,
-          amount_bs: line.moneda === 'bs' ? line.monto : 0,
-          amount_usd: line.moneda === 'usd' ? line.monto : 0,
-          sorteo_hora: line.horario ? formatDateWithHorario(line.horario) : new Date().toISOString(),
-        });
-      }
-    }
-
     async function handlePrint() {
       if (ticketLines.length === 0) return;
       const printBtn = document.getElementById('qt-print');
       printBtn.disabled = true;
       try {
-        await createApuestas();
+        const lines = ticketLines.map(line => ({
+          juego_id: line.juegoId,
+          combinacion: line.tripleModalidad
+            ? { tipo: line.tripleModalidad, numero: line.numero, signo: line.animal }
+            : (line.juegoType === 'terminales'
+              ? { numero: line.numero }
+              : { animal: line.animal || line.numero, numero: line.numero }),
+          amount_bs: line.moneda === 'bs' ? line.monto : 0,
+          amount_usd: line.moneda === 'usd' ? line.monto : 0,
+          sorteo_hora: line.horario ? formatDateWithHorario(line.horario) : new Date().toISOString(),
+        }));
+
+        const result = await apiFetch('POST', '/tickets', { lines });
+
         const ticketData = {
-          ticketCode: 'TICKET-' + Date.now(),
+          ticketCode: result.data.ticket_code,
           date: new Date().toLocaleDateString('es-VE'),
           time: new Date().toLocaleTimeString('es-VE'),
           game: selectedGames.length > 0 ? selectedGames.map(g => g.name).join(', ') : 'Apuesta',
@@ -1302,7 +1298,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
         if (window.electron?.printTicket) {
           await window.electron.printTicket({ ticketData });
         } else {
-          alert('Apuestas creadas exitosamente. Impresión no disponible.');
+          alert('Ticket ' + result.data.ticket_code + ' creado exitosamente. Impresión no disponible.');
         }
         ticketLines = [];
         renderResumen();
