@@ -81,8 +81,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
           </div>
           <div class="qt-actions">
             <button id="qt-clear" class="btn btn-clear" disabled>🗑️ Limpiar</button>
-            <button id="qt-print" class="btn btn-info" disabled>🖨️ Imprimir</button>
-            <button id="qt-confirm" class="btn btn-primary" disabled>✅ Confirmar</button>
+            <button id="qt-print" class="btn btn-primary" disabled>🖨️ Imprimir</button>
           </div>
         </div>
       </div>
@@ -1130,7 +1129,6 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
     function renderResumen() {
       const container = document.getElementById('resumen-content');
       const totalEl = document.getElementById('qt-total-amount');
-      const confirmBtn = document.getElementById('qt-confirm');
       const printBtn = document.getElementById('qt-print');
       const clearBtn = document.getElementById('qt-clear');
       const hasLines = ticketLines.length > 0;
@@ -1138,9 +1136,11 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
       if (!hasLines) {
         container.innerHTML = '<div class="empty-state">Sin jugadas aún</div>';
         totalEl.textContent = 'Bs. 0,00';
-        confirmBtn.disabled = true;
         printBtn.disabled = true;
         clearBtn.disabled = true;
+        saveToLocalStorage();
+        return;
+      }
         saveToLocalStorage();
         return;
       }
@@ -1173,7 +1173,6 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
       container.innerHTML = html;
 
       totalEl.textContent = `Bs. ${getTicketTotal().toLocaleString('es-VE', { minimumFractionDigits: 2 })}`;
-      confirmBtn.disabled = false;
       printBtn.disabled = false;
       clearBtn.disabled = false;
       saveToLocalStorage();
@@ -1290,25 +1289,6 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
       }
     }
 
-    async function handleConfirm() {
-      if (ticketLines.length === 0) return;
-      const confirmBtn = document.getElementById('qt-confirm');
-      confirmBtn.disabled = true;
-      confirmBtn.textContent = 'Guardando...';
-      try {
-        await createApuestas();
-        alert('Apuestas creadas exitosamente');
-        ticketLines = [];
-        renderResumen();
-        localStorage.removeItem('currentTicket');
-        loadTicket();
-      } catch (e) {
-        alert('Error al guardar: ' + e.message);
-      }
-      confirmBtn.disabled = false;
-      confirmBtn.textContent = '✅ Confirmar';
-    }
-
     async function handlePrint() {
       if (ticketLines.length === 0) return;
       const printBtn = document.getElementById('qt-print');
@@ -1325,7 +1305,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
         if (window.electron?.printTicket) {
           await window.electron.printTicket({ ticketData });
         } else {
-          alert('Impresión no disponible fuera de Electron');
+          alert('Apuestas creadas exitosamente. Impresión no disponible.');
         }
         ticketLines = [];
         renderResumen();
@@ -1426,7 +1406,6 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
       });
 
       document.getElementById('qt-clear').addEventListener('click', clearTicket);
-      document.getElementById('qt-confirm').addEventListener('click', handleConfirm);
       document.getElementById('qt-print').addEventListener('click', handlePrint);
 
       document.getElementById('qt-numero').addEventListener('input', (e) => {
@@ -1442,9 +1421,14 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
         }
       });
 
+      let addingLine = false;
       document.addEventListener('keydown', (e) => {
         if (e.target.tagName === 'INPUT' && e.key === 'Enter') {
+          e.preventDefault();
+          if (addingLine) return;
+          addingLine = true;
           addLine();
+          setTimeout(() => { addingLine = false; }, 500);
         }
       });
     });
