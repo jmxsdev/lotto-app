@@ -156,8 +156,39 @@ try {
       }
       setInterval(refreshTasa, 60000);
 
+      function showModal({ message, type = 'info' }) {
+        return new Promise((resolve) => {
+          const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'confirm' ? '⚠️' : 'ℹ️';
+          const buttons = type === 'confirm'
+            ? `<button class="modal-btn modal-btn-secondary cancel-btn">✗ No</button>
+               <button class="modal-btn modal-btn-danger ok-btn">✓ Sí</button>`
+            : `<button class="modal-btn modal-btn-primary ok-btn">✓ Aceptar</button>`;
+          const overlay = document.createElement('div');
+          overlay.className = 'modal-overlay';
+          overlay.innerHTML = `<div class="modal-dialog">
+            <div class="modal-icon">${icon}</div>
+            <p class="modal-message">${message}</p>
+            <div class="modal-buttons">${buttons}</div>
+          </div>`;
+          document.body.appendChild(overlay);
+          overlay.querySelector('.ok-btn')?.addEventListener('click', () => {
+            overlay.remove();
+            resolve(true);
+          });
+          overlay.querySelector('.cancel-btn')?.addEventListener('click', () => {
+            overlay.remove();
+            resolve(false);
+          });
+          overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) { overlay.remove(); resolve(false); }
+          });
+        });
+      }
+      window.showModal = showModal;
+
       document.getElementById('logout-btn').addEventListener('click', async () => {
-        if (!confirm('¿Está seguro que desea cerrar sesión?')) return;
+        const ok = await showModal({ message: '¿Está seguro que desea cerrar sesión?', type: 'confirm' });
+        if (!ok) return;
         try {
           const token = localStorage.getItem('auth_token');
           await fetch(apiUrl + '/logout', {
@@ -305,4 +336,31 @@ try {
   .logout-btn:hover {
     background: rgba(255, 255, 255, 0.3);
   }
+</style>
+
+<style is:global>
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    display: flex; align-items: center; justify-content: center; z-index: 9999;
+    animation: modalFadeIn .2s ease;
+  }
+  .modal-dialog {
+    background: white; border-radius: 12px; padding: 28px 24px 20px;
+    max-width: 400px; width: 90%; text-align: center;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+    animation: modalSlideIn .25s ease;
+  }
+  .modal-icon { font-size: 36px; margin-bottom: 10px; }
+  .modal-message { font-size: 15px; color: #333; margin-bottom: 22px; line-height: 1.5; word-wrap: break-word; }
+  .modal-buttons { display: flex; gap: 8px; justify-content: center; }
+  .modal-btn {
+    padding: 10px 22px; border-radius: 8px; font-size: 14px; font-weight: 600;
+    cursor: pointer; border: none; transition: all .15s;
+  }
+  .modal-btn:hover { filter: brightness(0.9); transform: translateY(-1px); }
+  .modal-btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+  .modal-btn-danger { background: #dc3545; color: white; }
+  .modal-btn-secondary { background: #e9ecef; color: #333; }
+  @keyframes modalFadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes modalSlideIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
 </style>
