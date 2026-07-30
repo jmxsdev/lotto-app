@@ -4,12 +4,13 @@ export function getFingerprint() {
   if (cachedFingerprint) return cachedFingerprint;
 
   if (typeof window !== 'undefined' && window.electron?.getVersion) {
-    const stored = localStorage.getItem('device_fingerprint');
-    if (stored) { cachedFingerprint = stored; return stored; }
-    const id = crypto.randomUUID();
-    localStorage.setItem('device_fingerprint', id);
-    cachedFingerprint = id;
-    return id;
+    let stored = localStorage.getItem('device_fingerprint');
+    if (!stored || stored === 'demo-device-001') {
+      stored = crypto.randomUUID();
+      localStorage.setItem('device_fingerprint', stored);
+    }
+    cachedFingerprint = stored;
+    return stored;
   }
 
   if (typeof window !== 'undefined') {

@@ -72,7 +72,7 @@ const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
     <script>
       async function init() {
         let fp = localStorage.getItem('device_fingerprint');
-        if (!fp) {
+        if (!fp || (fp === 'demo-device-001' && window.electron?.getVersion)) {
           if (window.electron?.getVersion) {
             fp = crypto.randomUUID();
           } else {
