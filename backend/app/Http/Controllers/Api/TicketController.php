@@ -8,6 +8,7 @@ use App\Models\Apuesta;
 use App\Services\ApuestaService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class TicketController extends Controller
 {
@@ -22,7 +23,13 @@ class TicketController extends Controller
     {
         $user = $request->user();
 
-        $query = Ticket::with(['apuestas.juego', 'taquilla'])
+        $query = Ticket::with(['apuestas.juego', 'apuestas.detalles', 'taquilla'])
+            ->withCount(['apuestas as ganadoras_count' => function ($q) {
+                $q->whereHas('detalles', function ($q2) {
+                    $q2->whereNotNull('premio_ganado')
+                       ->orWhereNotNull('premio_ganado_usd');
+                });
+            }])
             ->latest();
 
         if ($user->role === 'taquilla') {
@@ -52,14 +59,26 @@ class TicketController extends Controller
 
         $tickets = $query->paginate($request->input('per_page', 25));
 
+        $tickets->getCollection()->transform(function ($ticket) {
+            $ticket->tiene_ganadores = $ticket->ganadoras_count > 0;
+            return $ticket;
+        });
+
         return response()->json(['data' => $tickets]);
     }
 
     public function show(Ticket $ticket)
     {
-        return response()->json([
-            'data' => $ticket->load(['apuestas.juego', 'apuestas.detalles', 'taquilla']),
-        ]);
+        $ticket->load(['apuestas.juego', 'apuestas.detalles', 'taquilla']);
+        $ticket->loadCount(['apuestas as ganadoras_count' => function ($q) {
+            $q->whereHas('detalles', function ($q2) {
+                $q2->whereNotNull('premio_ganado')
+                   ->orWhereNotNull('premio_ganado_usd');
+            });
+        }]);
+        $ticket->tiene_ganadores = $ticket->ganadoras_count > 0;
+
+        return response()->json(['data' => $ticket]);
     }
 
     public function store(Request $request)
@@ -132,20 +151,26 @@ class TicketController extends Controller
     {
         $user = $request->user();
 
-        if ($user->role === 'taquilla' && $ticket->taquilla_id !== $user->taquilla_id) {
-            return response()->json(['message' => 'No autorizado.'], 403);
-        }
-
         if ($ticket->estado !== 'pendiente') {
             return response()->json(['message' => 'Solo se pueden anular tickets pendientes.'], 422);
         }
 
-        $oldestApuesta = $ticket->apuestas()->orderBy('created_at')->first();
-        if ($oldestApuesta) {
-            $diffMinutes = now()->diffInMinutes($oldestApuesta->created_at);
-            if ($diffMinutes >= 5) {
-                return response()->json(['message' => 'El ticket excedio los 5 minutos para ser anulado.'], 422);
+        $rechazada = null;
+        foreach ($ticket->apuestas as $apuesta) {
+            if (Gate::denies('delete', $apuesta)) {
+                if ($apuesta->created_at->diffInMinutes(now()) >= 5) {
+                    $rechazada = 'El ticket excedio los 5 minutos para ser anulado.';
+                } elseif ($apuesta->sorteo_hora && $apuesta->sorteo_hora->isPast()) {
+                    $rechazada = 'El sorteo de una o mas jugadas ya ocurrio, no se puede anular.';
+                } else {
+                    $rechazada = 'No se puede anular el ticket.';
+                }
+                break;
             }
+        }
+
+        if ($rechazada) {
+            return response()->json(['message' => $rechazada], 422);
         }
 
         DB::transaction(function () use ($ticket, $user) {

@@ -8,6 +8,7 @@ use App\Models\ExchangeRate;
 use App\Models\Juego;
 use App\Models\JuegoHorario;
 use App\Models\Resultado;
+use App\Models\Ticket;
 
 class ApuestaService
 {
@@ -232,12 +233,14 @@ class ApuestaService
             return 0;
         }
 
-        $apuestas = Apuesta::where('juego_id', $resultado->juego_id)
+        $apuestas = Apuesta::with('ticket')
+            ->where('juego_id', $resultado->juego_id)
             ->where('estado', 'pendiente')
             ->whereDate('sorteo_hora', $resultado->fecha_sorteo->toDateString())
             ->get();
 
         $ganadoras = 0;
+        $ticketPremios = [];
 
         foreach ($apuestas as $apuesta) {
             $combinacion = $apuesta->combinacion;
@@ -264,7 +267,23 @@ class ApuestaService
 
             if ($premioBs > 0 || $premioUsd > 0) {
                 $ganadoras++;
+
+                $ticketId = $apuesta->ticket_id;
+                if ($ticketId) {
+                    if (!isset($ticketPremios[$ticketId])) {
+                        $ticketPremios[$ticketId] = ['bs' => 0, 'usd' => 0];
+                    }
+                    $ticketPremios[$ticketId]['bs'] += $premioBs;
+                    $ticketPremios[$ticketId]['usd'] += $premioUsd;
+                }
             }
+        }
+
+        foreach ($ticketPremios as $ticketId => $premios) {
+            Ticket::where('id', $ticketId)->update([
+                'premio_total_bs' => $premios['bs'],
+                'premio_total_usd' => $premios['usd'],
+            ]);
         }
 
         return $ganadoras;

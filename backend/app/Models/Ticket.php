@@ -16,6 +16,8 @@ class Ticket extends Model
         'taquilla_id',
         'total_bs',
         'total_usd',
+        'premio_total_bs',
+        'premio_total_usd',
         'estado',
     ];
 
