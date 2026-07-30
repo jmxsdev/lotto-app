@@ -9,14 +9,11 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
         <h2 class="page-title">Resultados de Sorteos</h2>
 
         <div class="filters">
-            <input
-                type="date"
-                id="filter-fecha"
-                class="filter-input"
-            />
+            <input type="date" id="filter-fecha" class="filter-input" />
             <select id="filter-juego" class="filter-input">
                 <option value="">Todos los juegos</option>
             </select>
+            <input type="text" id="filter-search" class="filter-input search-input" placeholder="Buscar por juego, animal o número..." />
             <button id="btn-filter" class="btn btn-primary">Filtrar</button>
             <button id="btn-refresh" class="btn btn-secondary">Actualizar</button>
         </div>
@@ -26,12 +23,13 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
         </div>
     </div>
 
-    <style>
+    <style is:global>
         .resultados-page { max-width: 1200px; margin: 0 auto; }
         .page-title { font-size: 28px; font-weight: 700; color: #333; margin-bottom: 24px; }
         .filters { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; align-items: center; }
         .filter-input { padding: 10px 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px; }
         .filter-input:focus { border-color: #667eea; outline: none; }
+        .search-input { flex: 1; min-width: 200px; }
         .btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .2s ease; }
         .btn:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
         .btn-primary { background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); color: white; }
@@ -39,20 +37,25 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
         .loading { text-align: center; padding: 40px; color: #666; }
         .empty-state { text-align: center; padding: 40px; color: #999; font-style: italic; }
         .error-state { text-align: center; padding: 40px; color: #dc3545; }
-        .resultados-table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-        .resultados-table th { background: #f5f7fa; padding: 12px; text-align: left; font-weight: 600; color: #666; font-size: 13px; border-bottom: 2px solid #e9ecef; }
-        .resultados-table td { padding: 12px; border-bottom: 1px solid #e9ecef; font-size: 14px; vertical-align: middle; }
-        .resultados-table tr:hover { background: #f8f9fa; }
-        .resultados-table tr.sin-resultado td { color: #999; font-style: italic; }
-        .animal-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-weight: 600; font-size: 13px; }
-        .animal-badge.verde { background: #d4edda; color: #155724; }
-        .animal-badge.azul { background: #d1ecf1; color: #0c5460; }
-        .animal-badge.rojo { background: #f8d7da; color: #721c24; }
-        .animal-badge.amarillo { background: #fff3cd; color: #856404; }
-        .animal-badge.default { background: #e2e3e5; color: #383d41; }
-        .numero-ganador { display: inline-block; background: #667eea; color: white; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 14px; }
-        .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 20px; }
-        .page-btn { padding: 8px 14px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; }
+        .resultados-table { width: 100%; border-collapse: separate; border-spacing: 0; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
+        .resultados-table thead th { background: linear-gradient(180deg, #f8f9fb 0%, #eef0f4 100%); padding: 14px 16px; text-align: left; font-weight: 700; color: #444; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #dde; }
+        .resultados-table tbody td { padding: 14px 16px; border-bottom: 1px solid #eef0f4; font-size: 14px; vertical-align: middle; color: #333; }
+        .resultados-table tbody tr:nth-child(even) { background: #fafbfc; }
+        .resultados-table tbody tr:nth-child(odd) { background: #fff; }
+        .resultados-table tbody tr:hover { background: #eef0ff; }
+        .resultados-table tbody tr:last-child td { border-bottom: none; }
+        .animal-badge { display: inline-block; padding: 5px 14px; border-radius: 20px; font-weight: 700; font-size: 14px; letter-spacing: 0.3px; }
+        .animal-badge.verde { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .animal-badge.azul { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .animal-badge.rojo { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .animal-badge.amarillo { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .animal-badge.default { background: #e9ecef; color: #495057; border: 1px solid #dee2e6; }
+        .numero-ganador { display: inline-block; background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 3px 10px; border-radius: 6px; font-weight: 700; font-size: 14px; margin-right: 4px; margin-bottom: 2px; }
+        .color-swatch { display: inline-block; width: 24px; height: 24px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.15); vertical-align: middle; }
+        .btn-ganadores { background: none; border: 1px solid transparent; cursor: pointer; font-size: 20px; padding: 4px 8px; border-radius: 8px; transition: all .2s ease; }
+        .btn-ganadores:hover { background: #f0e6ff; border-color: #d4c4f0; transform: scale(1.15); }
+        .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 20px; align-items: center; }
+        .page-btn { padding: 8px 14px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-size: 14px; }
         .page-btn.active { background: #667eea; color: white; border-color: #667eea; }
         .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
@@ -95,6 +98,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
         let currentPage = 1;
         let lastPage = 1;
         let juegosCache = [];
+        let searchTimeout = null;
 
         function getColorClass(color) {
             if (!color) return 'default';
@@ -112,32 +116,57 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
             currentPage = data.current_page || 1;
             lastPage = data.last_page || 1;
 
+            const searchTerm = (document.getElementById('filter-search')?.value || '').toLowerCase().trim();
+            const filtered = searchTerm
+                ? resultados.filter(r => {
+                    const ganadores = (typeof r.numeros_ganadores === 'object' && r.numeros_ganadores !== null) ? r.numeros_ganadores : {};
+                    const animal = (ganadores.nombre_animal || '').toLowerCase();
+                    const juego = (r.juego?.name || '').toLowerCase();
+                    const triples = ['triple_a','triple_b','triple_c'].map(k => ganadores[k] || '').join(' ');
+                    const nums = String(ganadores.numero ?? '');
+                    const all = [juego, animal, nums, triples].join(' ');
+                    return all.includes(searchTerm);
+                })
+                : resultados;
+
             if (resultados.length === 0) {
                 container.innerHTML = '<div class="empty-state">No hay resultados para esta fecha</div>';
                 return;
             }
 
-            let html = `<table class="resultados-table">
-                <thead><tr>
-                    <th>Juego</th><th>Fecha</th><th>Hora</th><th>Números</th><th>Animal</th><th>Color</th>
-                </tr></thead><tbody>`;
-            resultados.forEach(r => {
-                const ganadores = (typeof r.numeros_ganadores === 'object' && r.numeros_ganadores !== null) ? r.numeros_ganadores : {};
-                const nombreAnimal = ganadores.nombre_animal || '-';
-                const colorAnimal = ganadores.color_animal || null;
-                const numero = ganadores.numero !== undefined ? `<span class="numero-ganador">${ganadores.numero}</span>` : null;
-                const triples = ['triple_a', 'triple_b', 'triple_c'].filter(k => ganadores[k]).map(k => `<span class="numero-ganador">${ganadores[k]}</span>`).join(' ');
-                const nums = numero || triples || (Object.keys(ganadores).filter(k => k !== 'nombre_animal' && k !== 'imagen_animal' && k !== 'color_animal' && k !== 'pais').length > 0 ? JSON.stringify(ganadores) : '<span class="sin-resultado">Pendiente</span>');
-                html += `<tr>
-                    <td><strong>${r.juego?.name || '-'}</strong></td>
-                    <td>${new Date(r.fecha_sorteo).toLocaleDateString('es-VE')}</td>
-                    <td>${r.hora_sorteo || '-'}</td>
-                    <td>${nums}</td>
-                    <td>${nombreAnimal !== '-' ? `<span class="animal-badge ${getColorClass(colorAnimal)}">${nombreAnimal}</span>` : '-'}</td>
-                    <td>${colorAnimal ? `<span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:${colorAnimal};border:1px solid #ddd;"></span>` : '-'}</td>
-                </tr>`;
-            });
-            html += '</tbody></table>';
+            const fechaSorteoRaw = resultados[0]?.fecha_sorteo || '';
+            const fechaSorteo = fechaSorteoRaw ? new Date(fechaSorteoRaw).toISOString().split('T')[0] : '';
+
+            let html = '<div class="resultados-wrapper"><table class="resultados-table"><thead><tr>';
+            html += '<th>Juego</th><th>Fecha</th><th>Hora</th><th>Números</th><th>Animal</th><th>Color</th>';
+            if (fechaSorteo) html += '<th style="width:50px;text-align:center">🏆</th>';
+            html += '</tr></thead><tbody>';
+
+            const displayResults = searchTerm ? filtered : resultados;
+
+            if (displayResults.length === 0) {
+                html += '<tr><td colspan="' + (fechaSorteo ? '7' : '6') + '" style="text-align:center;color:#999;font-style:italic;padding:30px;">Sin coincidencias</td></tr>';
+            } else {
+                displayResults.forEach(r => {
+                    const ganadores = (typeof r.numeros_ganadores === 'object' && r.numeros_ganadores !== null) ? r.numeros_ganadores : {};
+                    const nombreAnimal = ganadores.nombre_animal || '-';
+                    const colorAnimal = ganadores.color_animal || null;
+                    const numero = ganadores.numero !== undefined ? `<span class="numero-ganador">${ganadores.numero}</span>` : null;
+                    const triples = ['triple_a', 'triple_b', 'triple_c'].filter(k => ganadores[k]).map(k => `<span class="numero-ganador">${ganadores[k]}</span>`).join(' ');
+                    const nums = numero || triples || (Object.keys(ganadores).filter(k => k !== 'nombre_animal' && k !== 'imagen_animal' && k !== 'color_animal' && k !== 'pais').length > 0 ? JSON.stringify(ganadores) : '<span style="color:#999;font-style:italic">Pendiente</span>');
+                    const rFecha = r.fecha_sorteo ? new Date(r.fecha_sorteo).toISOString().split('T')[0] : '';
+                    html += `<tr>
+                        <td><strong>${r.juego?.name || '-'}</strong></td>
+                        <td>${new Date(r.fecha_sorteo).toLocaleDateString('es-VE')}</td>
+                        <td>${r.hora_sorteo || '-'}</td>
+                        <td>${nums}</td>
+                        <td>${nombreAnimal !== '-' ? `<span class="animal-badge ${getColorClass(colorAnimal)}">${nombreAnimal}</span>` : '-'}</td>
+                        <td>${colorAnimal ? `<span class="color-swatch" style="background:${colorAnimal};" title="${colorAnimal}"></span>` : '-'}</td>
+                        ${rFecha ? `<td style="text-align:center"><button class="btn-ganadores" title="Ver tickets ganadores de este sorteo" data-fecha="${rFecha}">🏆</button></td>` : (fechaSorteo ? '<td></td>' : '')}
+                    </tr>`;
+                });
+            }
+            html += '</tbody></table></div>';
 
             if (lastPage > 1) {
                 html += '<div class="pagination">';
@@ -194,11 +223,29 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
             document.getElementById('btn-filter').addEventListener('click', () => loadResultados(1));
             document.getElementById('btn-refresh').addEventListener('click', () => loadResultados(1));
 
+            document.getElementById('filter-search').addEventListener('input', () => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => loadResultados(1), 300);
+            });
+
             document.getElementById('resultados-content').addEventListener('click', (e) => {
                 const btn = e.target.closest('.page-btn');
                 if (btn && !btn.disabled) {
                     const page = parseInt(btn.dataset.page);
                     if (page >= 1 && page <= lastPage) loadResultados(page);
+                    return;
+                }
+                const ganBtn = e.target.closest('.btn-ganadores');
+                if (ganBtn) {
+                    window.location.href = '/ganadores?fecha=' + ganBtn.dataset.fecha;
+                }
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+                if (e.key === '/') {
+                    e.preventDefault();
+                    document.getElementById('filter-search')?.focus();
                 }
             });
         });
