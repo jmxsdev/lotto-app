@@ -10,12 +10,15 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
 
         <div class="filters">
             <input type="date" id="filter-fecha" class="filter-input" />
-            <select id="filter-juego" class="filter-input">
-                <option value="">Todos los juegos</option>
-            </select>
             <input type="text" id="filter-search" class="filter-input search-input" placeholder="Buscar por juego, animal o número..." />
             <button id="btn-filter" class="btn btn-primary">Filtrar</button>
             <button id="btn-refresh" class="btn btn-secondary">Actualizar</button>
+        </div>
+
+        <div class="resultados-tabs" id="resultados-tabs">
+            <button class="result-tab active" data-tab="animalitos">🐾 Animalitos</button>
+            <button class="result-tab" data-tab="tripletas">🎲 Tripletas</button>
+            <button class="result-tab" data-tab="terminales">🎯 Terminales</button>
         </div>
 
         <div id="resultados-content">
@@ -26,7 +29,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
     <style is:global>
         .resultados-page { max-width: 1200px; margin: 0 auto; }
         .page-title { font-size: 28px; font-weight: 700; color: #333; margin-bottom: 24px; }
-        .filters { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; align-items: center; }
+        .filters { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
         .filter-input { padding: 10px 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px; }
         .filter-input:focus { border-color: #667eea; outline: none; }
         .search-input { flex: 1; min-width: 200px; }
@@ -34,6 +37,13 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
         .btn:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
         .btn-primary { background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); color: white; }
         .btn-secondary { background: #6c757d; color: white; }
+        .resultados-tabs { display: flex; gap: 0; margin-bottom: 18px; }
+        .result-tab { padding: 10px 22px; border: 2px solid #ddd; background: white; cursor: pointer; font-size: 14px; font-weight: 600; color: #666; transition: all .15s; }
+        .result-tab:first-child { border-radius: 8px 0 0 8px; }
+        .result-tab:last-child { border-radius: 0 8px 8px 0; }
+        .result-tab:not(:last-child) { border-right: none; }
+        .result-tab:hover { background: #f0f3ff; border-color: #c4cdf0; color: #667eea; }
+        .result-tab.active { background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-color: #667eea; }
         .loading { text-align: center; padding: 40px; color: #666; }
         .empty-state { text-align: center; padding: 40px; color: #999; font-style: italic; }
         .error-state { text-align: center; padding: 40px; color: #dc3545; }
@@ -51,6 +61,11 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
         .animal-badge.amarillo { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
         .animal-badge.default { background: #e9ecef; color: #495057; border: 1px solid #dee2e6; }
         .numero-ganador { display: inline-block; background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 3px 10px; border-radius: 6px; font-weight: 700; font-size: 14px; margin-right: 4px; margin-bottom: 2px; }
+        .triple-badge { display: inline-block; padding: 3px 10px; border-radius: 6px; font-weight: 700; font-size: 13px; margin-right: 4px; margin-bottom: 2px; }
+        .triple-badge.triple-a { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+        .triple-badge.triple-b { background: #e3f2fd; color: #1565c0; border: 1px solid #90caf9; }
+        .triple-badge.triple-c { background: #fff3e0; color: #e65100; border: 1px solid #ffcc80; }
+        .signo-badge { display: inline-block; padding: 3px 10px; border-radius: 6px; font-weight: 700; font-size: 13px; background: #f3e5f5; color: #7b1fa2; border: 1px solid #ce93d8; }
         .color-swatch { display: inline-block; width: 24px; height: 24px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.15); vertical-align: middle; }
         .btn-ganadores { background: none; border: 1px solid transparent; cursor: pointer; font-size: 20px; padding: 4px 8px; border-radius: 8px; transition: all .2s ease; }
         .btn-ganadores:hover { background: #f0e6ff; border-color: #d4c4f0; transform: scale(1.15); }
@@ -97,7 +112,8 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
 
         let currentPage = 1;
         let lastPage = 1;
-        let juegosCache = [];
+        let resultadosCache = [];
+        let activeTab = 'animalitos';
         let searchTimeout = null;
 
         function getColorClass(color) {
@@ -110,60 +126,103 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
             return 'default';
         }
 
-        function renderResultados(data) {
+        function normalizeHora(hora) {
+            if (!hora) return '99:99:99';
+            const m = String(hora).match(/^(\d+):(\d+)(?::(\d+))?\s*(AM|PM)?$/i);
+            if (!m) return '99:99:99';
+            let h = parseInt(m[1]);
+            const min = m[2];
+            const sec = m[3] || '00';
+            const ampm = (m[4] || '').toUpperCase();
+            if (ampm === 'PM' && h !== 12) h += 12;
+            if (ampm === 'AM' && h === 12) h = 0;
+            return String(h).padStart(2,'0') + ':' + min.padStart(2,'0') + ':' + sec.padStart(2,'0');
+        }
+
+        function renderResultados() {
             const container = document.getElementById('resultados-content');
-            const resultados = data.data || [];
-            currentPage = data.current_page || 1;
-            lastPage = data.last_page || 1;
 
-            const searchTerm = (document.getElementById('filter-search')?.value || '').toLowerCase().trim();
-            const filtered = searchTerm
-                ? resultados.filter(r => {
-                    const ganadores = (typeof r.numeros_ganadores === 'object' && r.numeros_ganadores !== null) ? r.numeros_ganadores : {};
-                    const animal = (ganadores.nombre_animal || '').toLowerCase();
-                    const juego = (r.juego?.name || '').toLowerCase();
-                    const triples = ['triple_a','triple_b','triple_c'].map(k => ganadores[k] || '').join(' ');
-                    const nums = String(ganadores.numero ?? '');
-                    const all = [juego, animal, nums, triples].join(' ');
-                    return all.includes(searchTerm);
-                })
-                : resultados;
-
-            if (resultados.length === 0) {
+            if (resultadosCache.length === 0) {
                 container.innerHTML = '<div class="empty-state">No hay resultados para esta fecha</div>';
                 return;
             }
 
-            const fechaSorteoRaw = resultados[0]?.fecha_sorteo || '';
+            const searchTerm = (document.getElementById('filter-search')?.value || '').toLowerCase().trim();
+
+            let filtered = resultadosCache.filter(r => {
+                const type = r.juego?.type || 'animalitos';
+                return type === activeTab;
+            });
+
+            if (searchTerm) {
+                filtered = filtered.filter(r => {
+                    const g = (typeof r.numeros_ganadores === 'object' && r.numeros_ganadores !== null) ? r.numeros_ganadores : {};
+                    const animal = (g.nombre_animal || '').toLowerCase();
+                    const signo = (g.signo || '').toLowerCase();
+                    const juego = (r.juego?.name || '').toLowerCase();
+                    const triples = ['triple_a','triple_b','triple_c'].map(k => g[k] || '').join(' ');
+                    const nums = String(g.numero ?? '');
+                    const all = [juego, animal, signo, nums, triples].join(' ');
+                    return all.includes(searchTerm);
+                });
+            }
+
+            if (resultadosCache.length === 0) {
+                container.innerHTML = '<div class="empty-state">No hay resultados para esta fecha</div>';
+                return;
+            }
+
+            const fechaSorteoRaw = resultadosCache[0]?.fecha_sorteo || '';
             const fechaSorteo = fechaSorteoRaw ? new Date(fechaSorteoRaw).toISOString().split('T')[0] : '';
 
             let html = '<div class="resultados-wrapper"><table class="resultados-table"><thead><tr>';
-            html += '<th>Juego</th><th>Fecha</th><th>Hora</th><th>Números</th><th>Animal</th><th>Color</th>';
+            html += '<th>Juego</th><th>Fecha</th><th>Hora</th><th>Números</th>';
+            if (activeTab === 'animalitos') {
+                html += '<th>Animal</th><th>Color</th>';
+            }
             if (fechaSorteo) html += '<th style="width:50px;text-align:center">🏆</th>';
             html += '</tr></thead><tbody>';
 
-            const displayResults = searchTerm ? filtered : resultados;
-
-            if (displayResults.length === 0) {
-                html += '<tr><td colspan="' + (fechaSorteo ? '7' : '6') + '" style="text-align:center;color:#999;font-style:italic;padding:30px;">Sin coincidencias</td></tr>';
+            if (filtered.length === 0) {
+                html += '<tr><td colspan="' + (fechaSorteo ? (activeTab === 'animalitos' ? '7' : '5') : (activeTab === 'animalitos' ? '6' : '4')) + '" style="text-align:center;color:#999;font-style:italic;padding:30px;">Sin coincidencias</td></tr>';
             } else {
-                displayResults.forEach(r => {
-                    const ganadores = (typeof r.numeros_ganadores === 'object' && r.numeros_ganadores !== null) ? r.numeros_ganadores : {};
-                    const nombreAnimal = ganadores.nombre_animal || '-';
-                    const colorAnimal = ganadores.color_animal || null;
-                    const numero = ganadores.numero !== undefined ? `<span class="numero-ganador">${ganadores.numero}</span>` : null;
-                    const triples = ['triple_a', 'triple_b', 'triple_c'].filter(k => ganadores[k]).map(k => `<span class="numero-ganador">${ganadores[k]}</span>`).join(' ');
-                    const nums = numero || triples || (Object.keys(ganadores).filter(k => k !== 'nombre_animal' && k !== 'imagen_animal' && k !== 'color_animal' && k !== 'pais').length > 0 ? JSON.stringify(ganadores) : '<span style="color:#999;font-style:italic">Pendiente</span>');
+                filtered.forEach(r => {
+                    const g = (typeof r.numeros_ganadores === 'object' && r.numeros_ganadores !== null) ? r.numeros_ganadores : {};
                     const rFecha = r.fecha_sorteo ? new Date(r.fecha_sorteo).toISOString().split('T')[0] : '';
+                    const type = r.juego?.type || 'animalitos';
+
+                    let numerosHtml = '';
+                    if (type === 'animalitos') {
+                        numerosHtml = g.numero !== undefined ? `<span class="numero-ganador">#${g.numero}</span>` : '<span style="color:#999;font-style:italic">Pendiente</span>';
+                    } else if (type === 'tripletas') {
+                        const parts = [];
+                        if (g.triple_a) parts.push(`<span class="triple-badge triple-a">A: ${g.triple_a}</span>`);
+                        if (g.triple_b) parts.push(`<span class="triple-badge triple-b">B: ${g.triple_b}</span>`);
+                        if (g.triple_c) parts.push(`<span class="triple-badge triple-c">C: ${g.triple_c}</span>`);
+                        if (g.signo) parts.push(`<span class="signo-badge">${g.signo}</span>`);
+                        numerosHtml = parts.length > 0 ? parts.join('') : '<span style="color:#999;font-style:italic">Pendiente</span>';
+                    } else {
+                        numerosHtml = g.numero !== undefined ? `<span class="numero-ganador">#${String(g.numero).padStart(2,'0')}</span>` : '<span style="color:#999;font-style:italic">Pendiente</span>';
+                    }
+
                     html += `<tr>
                         <td><strong>${r.juego?.name || '-'}</strong></td>
                         <td>${new Date(r.fecha_sorteo).toLocaleDateString('es-VE')}</td>
                         <td>${r.hora_sorteo || '-'}</td>
-                        <td>${nums}</td>
-                        <td>${nombreAnimal !== '-' ? `<span class="animal-badge ${getColorClass(colorAnimal)}">${nombreAnimal}</span>` : '-'}</td>
-                        <td>${colorAnimal ? `<span class="color-swatch" style="background:${colorAnimal};" title="${colorAnimal}"></span>` : '-'}</td>
-                        ${rFecha ? `<td style="text-align:center"><button class="btn-ganadores" title="Ver tickets ganadores de este sorteo" data-fecha="${rFecha}">🏆</button></td>` : (fechaSorteo ? '<td></td>' : '')}
-                    </tr>`;
+                        <td>${numerosHtml}</td>`;
+
+                    if (type === 'animalitos') {
+                        const nombre = g.nombre_animal || '-';
+                        const color = g.color_animal || null;
+                        html += `<td>${nombre !== '-' ? `<span class="animal-badge ${getColorClass(color)}">${nombre}</span>` : '-'}</td>`;
+                        html += `<td>${color ? `<span class="color-swatch" style="background:${color};" title="${color}"></span>` : '-'}</td>`;
+                    }
+
+                    if (fechaSorteo) {
+                        html += `<td style="text-align:center"><button class="btn-ganadores" title="Ver tickets ganadores de este sorteo" data-fecha="${rFecha}">🏆</button></td>`;
+                    }
+
+                    html += '</tr>';
                 });
             }
             html += '</tbody></table></div>';
@@ -179,36 +238,34 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
             container.innerHTML = html;
         }
 
+        function setActiveTab(tab) {
+            activeTab = tab;
+            document.querySelectorAll('.result-tab').forEach(t => {
+                t.classList.toggle('active', t.dataset.tab === tab);
+            });
+        }
+
         async function loadResultados(page) {
             const container = document.getElementById('resultados-content');
             container.innerHTML = '<div class="loading">Cargando resultados...</div>';
 
             try {
                 const fecha = document.getElementById('filter-fecha').value;
-                const juegoId = document.getElementById('filter-juego').value;
-                let url = '/resultados?per_page=20&page=' + (page || 1);
+                let url = '/resultados?per_page=100&page=' + (page || 1);
                 if (fecha) url += '&fecha=' + fecha;
-                if (juegoId) url += '&juego_id=' + juegoId;
                 const data = await apiFetch('GET', url);
-                renderResultados(data);
+
+                currentPage = data.current_page || 1;
+                lastPage = data.last_page || 1;
+                resultadosCache = (data.data || []).sort((a, b) => {
+                    const ha = normalizeHora(a.hora_sorteo);
+                    const hb = normalizeHora(b.hora_sorteo);
+                    return ha.localeCompare(hb);
+                });
+
+                renderResultados();
             } catch (error) {
                 container.innerHTML = '<div class="error-state">Error al cargar resultados: ' + error.message + '</div>';
-            }
-        }
-
-        async function loadJuegos() {
-            try {
-                const data = await apiFetch('GET', '/juegos');
-                juegosCache = data.data || [];
-                const select = document.getElementById('filter-juego');
-                juegosCache.forEach(j => {
-                    const opt = document.createElement('option');
-                    opt.value = j.id;
-                    opt.textContent = j.name;
-                    select.appendChild(opt);
-                });
-            } catch (error) {
-                console.warn('No se pudieron cargar los juegos:', error);
             }
         }
 
@@ -217,7 +274,6 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('filter-fecha').value = today;
 
-            loadJuegos();
             loadResultados(1);
 
             document.getElementById('btn-filter').addEventListener('click', () => loadResultados(1));
@@ -225,13 +281,20 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
 
             document.getElementById('filter-search').addEventListener('input', () => {
                 clearTimeout(searchTimeout);
-                searchTimeout = setTimeout(() => loadResultados(1), 300);
+                searchTimeout = setTimeout(() => renderResultados(), 300);
+            });
+
+            document.querySelectorAll('.result-tab').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    setActiveTab(btn.dataset.tab);
+                    renderResultados();
+                });
             });
 
             document.getElementById('resultados-content').addEventListener('click', (e) => {
-                const btn = e.target.closest('.page-btn');
-                if (btn && !btn.disabled) {
-                    const page = parseInt(btn.dataset.page);
+                const pBtn = e.target.closest('.page-btn');
+                if (pBtn && !pBtn.disabled) {
+                    const page = parseInt(pBtn.dataset.page);
                     if (page >= 1 && page <= lastPage) loadResultados(page);
                     return;
                 }
