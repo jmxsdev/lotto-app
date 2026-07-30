@@ -6,13 +6,13 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
 
 <MainLayout currentPage="historial">
     <div class="historial-page">
-        <h2 class="page-title">Historial de Apuestas</h2>
+        <h2 class="page-title">Historial de Tickets</h2>
 
         <div class="filters">
             <input
                 type="text"
                 id="search"
-                placeholder="Buscar por ticket o animal..."
+                placeholder="Buscar por código de ticket..."
                 class="search-input"
             />
             <div class="filter-buttons">
@@ -35,29 +35,44 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
         .search-input { flex: 1; min-width: 200px; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; }
         .search-input:focus { border-color: #667eea; outline: none; }
         .filter-buttons { display: flex; gap: 8px; }
-        .filter-btn { padding: 8px 16px; border: 2px solid #ddd; background: white; border-radius: 6px; cursor: pointer; transition: all .2s ease; }
+        .filter-btn { padding: 8px 16px; border: 2px solid #ddd; background: white; border-radius: 6px; cursor: pointer; transition: all .2s ease; font-weight: 500; }
         .filter-btn:hover { border-color: #667eea; }
         .filter-btn.active { background: #667eea; color: white; border-color: #667eea; }
-        .btn-refresh { padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; }
+        .btn-refresh { padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; }
         .loading { text-align: center; padding: 40px; color: #666; }
         .empty-state { text-align: center; padding: 40px; color: #999; font-style: italic; }
         .error-state { text-align: center; padding: 40px; color: #dc3545; }
-        .apuestas-table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-        .apuestas-table th { background: #f5f7fa; padding: 12px; text-align: left; font-weight: 600; color: #666; font-size: 13px; border-bottom: 2px solid #e9ecef; }
-        .apuestas-table td { padding: 12px; border-bottom: 1px solid #e9ecef; font-size: 14px; }
-        .apuestas-table tr:hover { background: #f8f9fa; }
-        .badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        .ticket-card { background: white; border-radius: 10px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); overflow: hidden; }
+        .ticket-row { display: flex; align-items: center; padding: 14px 16px; cursor: pointer; transition: background .15s; }
+        .ticket-row:hover { background: #f8f9fa; }
+        .ticket-expand { width: 28px; font-size: 14px; color: #999; flex-shrink: 0; }
+        .ticket-expand.expanded { color: #667eea; }
+        .ticket-code-col { font-weight: 700; color: #333; min-width: 130px; font-size: 15px; }
+        .ticket-date { color: #666; min-width: 90px; font-size: 13px; }
+        .ticket-juego { color: #444; flex: 1; font-size: 14px; }
+        .ticket-info { min-width: 90px; text-align: center; font-size: 13px; color: #666; }
+        .ticket-total { min-width: 130px; text-align: right; font-weight: 600; font-size: 14px; }
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; min-width: 85px; text-align: center; }
         .badge-pendiente { background: #fff3cd; color: #856404; }
         .badge-pagada { background: #d4edda; color: #155724; }
         .badge-anulada { background: #f8d7da; color: #721c24; }
-        .actions-cell { display: flex; gap: 8px; }
-        .btn-action { background: none; border: none; cursor: pointer; font-size: 18px; padding: 4px; transition: transform .2s ease; }
-        .btn-action:hover { transform: scale(1.2); }
-        .btn-view { color: #17a2b8; }
-        .btn-pay { color: #28a745; }
-        .btn-delete { color: #dc3545; }
-        .btn-print { color: #6c757d; }
-        .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
+        .ticket-actions { display: flex; gap: 6px; margin-left: 8px; }
+        .btn-action { padding: 6px 12px; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all .15s; background: white; }
+        .btn-action:hover { transform: translateY(-1px); }
+        .btn-pay { color: #28a745; border-color: #28a745; }
+        .btn-pay:hover { background: #d4edda; }
+        .btn-delete { color: #dc3545; border-color: #dc3545; }
+        .btn-delete:hover { background: #f8d7da; }
+        .btn-print { color: #6c757d; border-color: #6c757d; }
+        .btn-print:hover { background: #e9ecef; }
+        .btn-action:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+        .jugadas-container { display: none; border-top: 1px solid #e9ecef; background: #fafbfc; }
+        .jugadas-container.open { display: block; }
+        .jugadas-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .jugadas-table th { background: #f1f3f5; padding: 8px 16px; text-align: left; font-weight: 600; color: #666; font-size: 12px; border-bottom: 1px solid #dee2e6; }
+        .jugadas-table td { padding: 10px 16px; border-bottom: 1px solid #e9ecef; }
+        .jugada-badge { display: inline-block; padding: 2px 8px; border-radius: 8px; font-size: 11px; font-weight: 600; }
+        .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 20px; flex-wrap: wrap; align-items: center; }
         .page-btn { padding: 8px 14px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-size: 14px; }
         .page-btn.active { background: #667eea; color: white; border-color: #667eea; }
         .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -84,7 +99,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
             if (token) headers['Authorization'] = 'Bearer ' + token;
             headers['X-Device-MAC'] = _mac;
             headers['X-Device-Fingerprint'] = localStorage.getItem('device_fingerprint') || 'demo-device-001';
-            const opts = { method, headers };
+            const opts = { method, headers, credentials: 'omit' };
             if (body) opts.body = JSON.stringify(body);
             const res = await fetch(API_BASE + url, opts);
             if (res.status === 401) {
@@ -108,89 +123,172 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
             }
         }
 
-        function canDeleteApuesta(apuesta) {
+        function canDeleteTicket(ticket) {
+            if (ticket.estado !== 'pendiente') return false;
             const ahora = new Date();
-            const created = new Date(apuesta.created_at);
+            const created = new Date(ticket.created_at);
             const diffMinutes = (ahora - created) / (1000 * 60);
-            return diffMinutes < 5 && apuesta.estado === 'pendiente' && !apuesta.resultado;
+            return diffMinutes < 5;
         }
 
-        function renderApuestas(apuestas) {
+        function getTicketJuegos(ticket) {
+            const nombres = ticket.apuestas?.map(a => a.juego?.name).filter(Boolean) || [];
+            return [...new Set(nombres)].join(', ') || '-';
+        }
+
+        function renderTickets(tickets) {
             const container = document.getElementById('historial-content');
-            if (!apuestas || apuestas.length === 0) {
-                container.innerHTML = '<div class="empty-state">No hay apuestas registradas</div>';
+            if (!tickets || tickets.length === 0) {
+                container.innerHTML = '<div class="empty-state">No hay tickets registrados</div>';
                 return;
             }
-            let html = `<table class="apuestas-table">
-                <thead><tr>
-                    <th>Ticket</th><th>Hora</th><th>Juego</th><th>Animal</th><th>N</th>
-                    <th>Monto BS</th><th>Monto USD</th><th>Total Eq.</th><th>Estado</th><th>Acciones</th>
-                </tr></thead><tbody>`;
-            apuestas.forEach(a => {
-                const c = typeof a.combinacion === 'string' ? JSON.parse(a.combinacion) : (a.combinacion || {});
-                html += `<tr>
-                    <td>${a.ticket_code || '-'}</td>
-                    <td>${new Date(a.created_at).toLocaleTimeString('es-VE')}</td>
-                    <td>${a.juego?.name || '-'}</td>
-                    <td>${(c.animal || '-').toUpperCase()}</td>
-                    <td>${c.numero ?? '-'}</td>
-                    <td>Bs. ${Number(a.amount_bs || 0).toFixed(2)}</td>
-                    <td>$ ${Number(a.amount_usd || 0).toFixed(2)}</td>
-                    <td>Bs. ${Number(a.total_bs_equivalent || 0).toFixed(2)}</td>
-                    <td><span class="badge ${getStatusClass(a.estado)}">${(a.estado || 'pendiente').toUpperCase()}</span></td>
-                    <td class="actions-cell">
-                        <button class="btn-action btn-view" data-action="view" data-id="${a.id}" title="Ver detalle"></button>
-                        ${a.estado === 'pendiente' ? `
-                            <button class="btn-action btn-pay" data-action="pay" data-id="${a.id}" title="Pagar premio"></button>
-                            ${canDeleteApuesta(a) ? `<button class="btn-action btn-delete" data-action="delete" data-id="${a.id}" title="Anular apuesta"></button>` : ''}
-                        ` : ''}
-                        <button class="btn-action btn-print" data-action="print" data-id="${a.id}" title="Imprimir"></button>
-                    </td>
-                </tr>`;
+            let html = '';
+            tickets.forEach(t => {
+                const totalBs = Number(t.total_bs || 0);
+                const totalUsd = Number(t.total_usd || 0);
+                const jugadasCount = t.apuestas?.length || 0;
+                html += `
+                <div class="ticket-card" data-ticket-id="${t.id}">
+                    <div class="ticket-row" data-toggle="${t.id}">
+                        <span class="ticket-expand">▶</span>
+                        <span class="ticket-code-col">🎫 ${t.ticket_code}</span>
+                        <span class="ticket-date">${new Date(t.created_at).toLocaleDateString('es-VE', {day:'2-digit',month:'2-digit',year:'numeric'})}</span>
+                        <span class="ticket-juego">${getTicketJuegos(t)}</span>
+                        <span class="ticket-info">${jugadasCount} jug.</span>
+                        <span class="ticket-total">Bs. ${totalBs.toLocaleString('es-VE', {minimumFractionDigits:2})} ${totalUsd > 0 ? '/ $'+totalUsd.toFixed(2) : ''}</span>
+                        <span class="badge ${getStatusClass(t.estado)}">${t.estado.toUpperCase()}</span>
+                        <div class="ticket-actions" onclick="event.stopPropagation()">
+                            ${t.estado === 'pendiente' ? `
+                                <button class="btn-action btn-pay" data-action="pay" data-id="${t.id}">💰 Pagar</button>
+                                ${canDeleteTicket(t) ? `<button class="btn-action btn-delete" data-action="delete" data-id="${t.id}">❌ Anular</button>` : ''}
+                            ` : ''}
+                            <button class="btn-action btn-print" data-action="print" data-id="${t.id}">🖨️ Imprimir</button>
+                        </div>
+                    </div>
+                    <div class="jugadas-container" data-jugadas="${t.id}">
+                        <table class="jugadas-table">
+                            <thead><tr>
+                                <th>Juego</th><th>Animal / N°</th><th>Monto BS</th><th>Monto USD</th><th>Total Eq.</th><th>Estado</th>
+                            </tr></thead>
+                            <tbody>${(t.apuestas || []).map(a => {
+                                const c = typeof a.combinacion === 'string' ? JSON.parse(a.combinacion) : (a.combinacion || {});
+                                let combo = (c.animal || '-').toUpperCase();
+                                if (c.numero) combo += ' #' + c.numero;
+                                if (c.signo) combo += ' - ' + c.signo;
+                                if (c.tipo) combo += ' (' + c.tipo + ')';
+                                return `<tr>
+                                    <td>${a.juego?.name || '-'}</td>
+                                    <td>${combo}</td>
+                                    <td>Bs. ${Number(a.amount_bs||0).toFixed(2)}</td>
+                                    <td>$ ${Number(a.amount_usd||0).toFixed(2)}</td>
+                                    <td>Bs. ${Number(a.total_bs_equivalent||0).toFixed(2)}</td>
+                                    <td><span class="jugada-badge ${getStatusClass(a.estado)}">${(a.estado||'pendiente').toUpperCase()}</span></td>
+                                </tr>`;
+                            }).join('')}</tbody>
+                        </table>
+                    </div>
+                </div>`;
             });
-            html += '</tbody></table>';
-
-            if (lastPage > 1) {
-                html += '<div class="pagination">';
-                html += `<button class="page-btn" data-page="${currentPage - 1}" ${currentPage <= 1 ? 'disabled' : ''}>Anterior</button>`;
-                for (let p = Math.max(1, currentPage - 2); p <= Math.min(lastPage, currentPage + 2); p++) {
-                    html += `<button class="page-btn ${p === currentPage ? 'active' : ''}" data-page="${p}">${p}</button>`;
-                }
-                html += `<button class="page-btn" data-page="${currentPage + 1}" ${currentPage >= lastPage ? 'disabled' : ''}>Siguiente</button>`;
-                html += `<span style="padding:8px 12px;color:#666;">Página ${currentPage} de ${lastPage}</span>`;
-                html += '</div>';
-            }
-
             container.innerHTML = html;
         }
 
-        function renderLoading() {
-            document.getElementById('historial-content').innerHTML = '<div class="loading">Cargando...</div>';
+        async function pagarTicket(ticket) {
+            if (!confirm('Registrar pago completo del ticket ' + ticket.ticket_code + ' por Bs. ' + Number(ticket.total_bs||0).toFixed(2) + '?')) return;
+            let success = true;
+            for (const apuesta of (ticket.apuestas || [])) {
+                if (apuesta.estado !== 'pendiente') continue;
+                try {
+                    await apiFetch('POST', '/pagos', {
+                        apuesta_id: apuesta.id,
+                        amount_bs: Number(apuesta.amount_bs || 0),
+                        amount_usd: Number(apuesta.amount_usd || 0),
+                        tipo: 'bs'
+                    });
+                } catch (e) {
+                    success = false;
+                    alert('Error en jugada #' + apuesta.id + ': ' + e.message);
+                }
+            }
+            if (success) alert('Pago registrado exitosamente!');
+            loadTickets();
         }
 
-        function renderError(msg) {
-            document.getElementById('historial-content').innerHTML = '<div class="error-state">Error: ' + msg + '</div>';
+        async function deleteTicket(ticket) {
+            if (!confirm('Anular ticket ' + ticket.ticket_code + ' y todas sus jugadas?')) return;
+            try {
+                await apiFetch('DELETE', '/tickets/' + ticket.id);
+                alert('Ticket anulado');
+                loadTickets();
+            } catch (e) {
+                alert('Error al anular: ' + e.message);
+            }
+        }
+
+        async function printTicket(ticket) {
+            const lines = (ticket.apuestas || []).map(a => {
+                const c = typeof a.combinacion === 'string' ? JSON.parse(a.combinacion) : (a.combinacion || {});
+                return {
+                    animal: c.animal || c.signo || '-',
+                    number: c.numero || '-',
+                    amountBs: Number(a.amount_bs || 0),
+                    amountUsd: Number(a.amount_usd || 0)
+                };
+            });
+            const ticketData = {
+                ticketCode: ticket.ticket_code,
+                date: new Date(ticket.created_at).toLocaleDateString('es-VE'),
+                time: new Date(ticket.created_at).toLocaleTimeString('es-VE'),
+                game: getTicketJuegos(ticket),
+                lines: lines
+            };
+            try {
+                if (window.electron?.printTicket) {
+                    await window.electron.printTicket({ ticketData });
+                } else {
+                    alert('Impresion no disponible fuera de Electron');
+                }
+            } catch (e) {
+                alert('Error al imprimir: ' + e.message);
+            }
+        }
+
+        function getTicketById(id) {
+            return ticketsCache.find(t => t.id == id);
         }
 
         let filterEstado = '';
         let searchTimeout = null;
-        let apuestasCache = [];
+        let ticketsCache = [];
         let currentPage = 1;
         let lastPage = 1;
 
-        async function loadApuestas(page) {
-            renderLoading();
+        async function loadTickets(page) {
+            document.getElementById('historial-content').innerHTML = '<div class="loading">Cargando...</div>';
             try {
-                let url = '/apuestas?per_page=50&page=' + (page || 1);
+                let url = '/tickets?per_page=25&page=' + (page || 1);
                 if (filterEstado) url += '&estado=' + filterEstado;
+                const searchVal = document.getElementById('search')?.value?.trim();
+                if (searchVal) url += '&ticket_code=' + encodeURIComponent(searchVal);
                 const response = await apiFetch('GET', url);
-                apuestasCache = response.data?.data || [];
+                ticketsCache = response.data?.data || [];
                 currentPage = response.data?.current_page || 1;
                 lastPage = response.data?.last_page || 1;
-                renderApuestas(apuestasCache);
+                renderTickets(ticketsCache);
+
+                if (lastPage > 1) {
+                    const container = document.getElementById('historial-content');
+                    let ph = '<div class="pagination">';
+                    ph += `<button class="page-btn" data-page="${currentPage - 1}" ${currentPage <= 1 ? 'disabled' : ''}>Anterior</button>`;
+                    for (let p = Math.max(1, currentPage - 2); p <= Math.min(lastPage, currentPage + 2); p++) {
+                        ph += `<button class="page-btn ${p === currentPage ? 'active' : ''}" data-page="${p}">${p}</button>`;
+                    }
+                    ph += `<button class="page-btn" data-page="${currentPage + 1}" ${currentPage >= lastPage ? 'disabled' : ''}>Siguiente</button>`;
+                    ph += `<span style="padding:8px 12px;color:#666;">Página ${currentPage} de ${lastPage}</span>`;
+                    ph += '</div>';
+                    container.innerHTML += ph;
+                }
             } catch (error) {
-                console.error('Error cargando apuestas:', error);
-                renderError(error.message);
+                document.getElementById('historial-content').innerHTML = '<div class="error-state">Error: ' + error.message + '</div>';
             }
         }
 
@@ -199,107 +297,57 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
             document.querySelectorAll('.filter-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.filter === filterEstado);
             });
-            loadApuestas();
-        }
-
-        async function viewDetail(apuesta) {
-            const c = typeof apuesta.combinacion === 'string' ? JSON.parse(apuesta.combinacion) : (apuesta.combinacion || {});
-            alert('Detalle de apuesta:\n\nTicket: ' + apuesta.ticket_code + '\nAnimal: ' + (c.animal || 'N/A') + '\nMonto: Bs. ' + Number(apuesta.amount_bs || 0).toFixed(2) + ' / $ ' + Number(apuesta.amount_usd || 0).toFixed(2));
-        }
-
-        async function payPrize(apuesta) {
-            const monto = prompt('Ingresa el monto a pagar (BS):');
-            if (!monto) return;
-            try {
-                await apiFetch('POST', '/pagos', {
-                    apuesta_id: apuesta.id,
-                    amount_bs: parseFloat(monto) || 0,
-                    amount_usd: 0,
-                    tipo: 'bs'
-                });
-                alert('Pago registrado exitosamente!');
-                loadApuestas();
-            } catch (error) {
-                alert('Error al registrar pago: ' + error.message);
-            }
-        }
-
-        async function deleteApuesta(apuesta) {
-            if (!confirm('Esta seguro que desea anular esta apuesta?')) return;
-            try {
-                await apiFetch('DELETE', '/apuestas/' + apuesta.id);
-                alert('Apuesta anulada');
-                loadApuestas();
-            } catch (error) {
-                alert('Error al anular: ' + error.message);
-            }
-        }
-
-        async function printTicket(apuesta) {
-            const c = typeof apuesta.combinacion === 'string' ? JSON.parse(apuesta.combinacion) : (apuesta.combinacion || {});
-            const ticketData = {
-                ticketCode: apuesta.ticket_code,
-                date: new Date(apuesta.created_at).toLocaleDateString('es-VE'),
-                time: new Date(apuesta.created_at).toLocaleTimeString('es-VE'),
-                game: apuesta.juego?.name || 'Animalitos',
-                lines: [{ animal: c.animal || '-', number: c.numero || '-', amountBs: Number(apuesta.amount_bs || 0), amountUsd: Number(apuesta.amount_usd || 0) }]
-            };
-            try {
-                if (window.electron?.printTicket) {
-                    await window.electron.printTicket({ ticketData });
-                } else {
-                    alert('Impresion no disponible fuera de Electron');
-                }
-            } catch (error) {
-                console.warn('Error imprimiendo:', error);
-            }
-        }
-
-        function getApuestaById(id) {
-            return apuestasCache.find(a => a.id == id);
+            loadTickets();
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
             await initMac();
-            loadApuestas();
+            loadTickets();
 
             document.querySelectorAll('.filter-btn').forEach(btn => {
                 btn.addEventListener('click', () => filterByEstado(btn.dataset.filter));
             });
 
-            document.getElementById('btn-refresh').addEventListener('click', loadApuestas);
+            document.getElementById('btn-refresh').addEventListener('click', () => loadTickets());
 
-            document.getElementById('search').addEventListener('input', (e) => {
+            document.getElementById('search').addEventListener('input', () => {
                 clearTimeout(searchTimeout);
-                searchTimeout = setTimeout(() => loadApuestas(), 300);
+                searchTimeout = setTimeout(() => loadTickets(), 300);
             });
 
             document.getElementById('historial-content').addEventListener('click', (e) => {
                 const pageBtn = e.target.closest('.page-btn');
                 if (pageBtn && !pageBtn.disabled) {
                     const page = parseInt(pageBtn.dataset.page);
-                    if (page >= 1 && page <= lastPage) loadApuestas(page);
+                    if (page >= 1 && page <= lastPage) loadTickets(page);
                     return;
                 }
-                const btn = e.target.closest('.btn-action');
-                if (!btn) return;
-                const id = parseInt(btn.dataset.id);
-                const apuesta = getApuestaById(id);
-                if (!apuesta) return;
-                switch (btn.dataset.action) {
-                    case 'view': viewDetail(apuesta); break;
-                    case 'pay': payPrize(apuesta); break;
-                    case 'delete': deleteApuesta(apuesta); break;
-                    case 'print': printTicket(apuesta); break;
-                }
-            });
 
-            document.addEventListener('keydown', (e) => {
-                if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
-                switch (e.key) {
-                    case '/': e.preventDefault(); document.getElementById('search')?.focus(); break;
-                    case 'p': document.querySelector('.btn-pay')?.click(); break;
-                    case 'i': document.querySelector('.btn-print')?.click(); break;
+                const actionBtn = e.target.closest('.btn-action');
+                if (actionBtn) {
+                    const id = parseInt(actionBtn.dataset.id);
+                    const ticket = getTicketById(id);
+                    if (!ticket) return;
+                    switch (actionBtn.dataset.action) {
+                        case 'pay': pagarTicket(ticket); break;
+                        case 'delete': deleteTicket(ticket); break;
+                        case 'print': printTicket(ticket); break;
+                    }
+                    return;
+                }
+
+                const toggleRow = e.target.closest('.ticket-row');
+                if (toggleRow) {
+                    const ticketId = toggleRow.dataset.toggle;
+                    const jugadasDiv = document.querySelector(`[data-jugadas="${ticketId}"]`);
+                    const expandIcon = toggleRow.querySelector('.ticket-expand');
+                    if (jugadasDiv) {
+                        jugadasDiv.classList.toggle('open');
+                        if (expandIcon) {
+                            expandIcon.classList.toggle('expanded', jugadasDiv.classList.contains('open'));
+                            expandIcon.textContent = jugadasDiv.classList.contains('open') ? '▼' : '▶';
+                        }
+                    }
                 }
             });
         });

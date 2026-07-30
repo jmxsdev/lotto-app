@@ -2,9 +2,12 @@
 
 namespace App\Services;
 
+use App\Models\Apuesta;
+use App\Models\DetalleApuesta;
 use App\Models\ExchangeRate;
 use App\Models\Juego;
 use App\Models\JuegoHorario;
+use App\Models\Resultado;
 
 class ApuestaService
 {
@@ -215,5 +218,55 @@ class ApuestaService
         ]);
 
         return $apuesta;
+    }
+
+    /**
+     * Verificar apuestas pendientes contra un resultado recién guardado
+     */
+    public function verificarGanadores(Resultado $resultado): int
+    {
+        $pluginManager = app(\App\Services\JuegoPluginManager::class);
+        $plugin = $pluginManager->getPlugin($resultado->juego);
+
+        if (!$plugin) {
+            return 0;
+        }
+
+        $apuestas = Apuesta::where('juego_id', $resultado->juego_id)
+            ->where('estado', 'pendiente')
+            ->whereDate('sorteo_hora', $resultado->fecha_sorteo->toDateString())
+            ->get();
+
+        $ganadoras = 0;
+
+        foreach ($apuestas as $apuesta) {
+            $combinacion = $apuesta->combinacion;
+            if (is_string($combinacion)) {
+                $combinacion = json_decode($combinacion, true);
+            }
+
+            $premio = $plugin->calcularPremio(
+                [
+                    'combinacion' => $combinacion ?? [],
+                    'amount_bs' => (float) $apuesta->amount_bs,
+                    'amount_usd' => (float) $apuesta->amount_usd,
+                ],
+                ['numeros_ganadores' => $resultado->numeros_ganadores]
+            );
+
+            $premioBs = $premio['premio_bs'] ?? 0;
+            $premioUsd = $premio['premio_usd'] ?? 0;
+
+            DetalleApuesta::where('apuesta_id', $apuesta->id)->update([
+                'premio_ganado' => $premioBs > 0 ? $premioBs : null,
+                'premio_ganado_usd' => $premioUsd > 0 ? $premioUsd : null,
+            ]);
+
+            if ($premioBs > 0 || $premioUsd > 0) {
+                $ganadoras++;
+            }
+        }
+
+        return $ganadoras;
     }
 }
