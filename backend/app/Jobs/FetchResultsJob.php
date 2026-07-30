@@ -3,7 +3,9 @@
 namespace App\Jobs;
 
 use App\Models\Log;
+use App\Models\Resultado;
 use App\Plugins\Scrapers\AnimalitosScraper;
+use App\Services\ApuestaService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -41,6 +43,17 @@ class FetchResultsJob implements ShouldQueue
             $guardados = $scraper->saveResults($resultados, $fecha);
             
             FacadeLog::info("Resultados guardados: {$guardados}");
+
+            $ultimosResultados = Resultado::with('juego')
+                ->whereDate('fecha_sorteo', $fecha)
+                ->get();
+
+            $apuestaService = app(ApuestaService::class);
+            $totalGanadoras = 0;
+            foreach ($ultimosResultados as $resultado) {
+                $totalGanadoras += $apuestaService->verificarGanadores($resultado);
+            }
+            FacadeLog::info("Jugadas ganadoras detectadas: {$totalGanadoras}");
             $this->logToDatabase('info', "Scrape completado exitosamente", [
                 'fecha' => $fecha,
                 'resultados_guardados' => $guardados,

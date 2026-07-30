@@ -4,6 +4,8 @@ namespace App\Jobs;
 
 use App\Models\Juego;
 use App\Models\Log;
+use App\Models\Resultado;
+use App\Services\ApuestaService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -75,6 +77,18 @@ class ScrapeResultsJob implements ShouldQueue
             $guardados = $scraper->saveResults($resultados, $fecha);
 
             FacadeLog::info("{$juego->name}: {$guardados} resultados guardados");
+
+            $ultimosResultados = Resultado::with('juego')
+                ->where('juego_id', $juego->id)
+                ->whereDate('fecha_sorteo', $fecha)
+                ->get();
+
+            $apuestaService = app(ApuestaService::class);
+            $totalGanadoras = 0;
+            foreach ($ultimosResultados as $resultado) {
+                $totalGanadoras += $apuestaService->verificarGanadores($resultado);
+            }
+            FacadeLog::info("{$juego->name}: jugadas ganadoras detectadas: {$totalGanadoras}");
             $this->logToDatabase('info', "Scrape completado", [
                 'juego' => $juego->name,
                 'fecha' => $fecha,

@@ -67,8 +67,19 @@ class TicketController extends Controller
         return response()->json(['data' => $tickets]);
     }
 
-    public function show(Ticket $ticket)
+    public function show(Request $request, Ticket $ticket)
     {
+        $user = $request->user();
+
+        if ($user->role === 'taquilla' && $ticket->taquilla_id !== $user->taquilla_id) {
+            return response()->json(['message' => 'No autorizado.'], 403);
+        } elseif ($user->role === 'grupo' && $ticket->taquilla?->grupo_id !== $user->grupo_id) {
+            return response()->json(['message' => 'No autorizado.'], 403);
+        } elseif ($user->role === 'banca' && $ticket->taquilla?->grupo?->banca_id !== $user->banca_id) {
+            return response()->json(['message' => 'No autorizado.'], 403);
+        }
+
+        $ticket->load(['apuestas.juego', 'apuestas.detalles', 'taquilla']);
         $ticket->load(['apuestas.juego', 'apuestas.detalles', 'taquilla']);
         $ticket->loadCount(['apuestas as ganadoras_count' => function ($q) {
             $q->whereHas('detalles', function ($q2) {
@@ -188,6 +199,7 @@ class TicketController extends Controller
     {
         $request->validate(['fecha' => 'required|date_format:Y-m-d']);
 
+        $user = $request->user();
         $fecha = $request->fecha;
 
         $resultados = \App\Models\Resultado::with('juego')
@@ -202,11 +214,20 @@ class TicketController extends Controller
         $pluginManager = app(\App\Services\JuegoPluginManager::class);
 
         foreach ($resultados as $resultado) {
-            $apuestas = Apuesta::with(['ticket', 'juego'])
+            $apuestasQuery = Apuesta::with(['ticket', 'juego'])
                 ->where('juego_id', $resultado->juego_id)
                 ->where('estado', 'pendiente')
-                ->whereDate('sorteo_hora', $fecha)
-                ->get();
+                ->whereDate('sorteo_hora', $fecha);
+
+            if ($user->role === 'taquilla') {
+                $apuestasQuery->where('taquilla_id', $user->taquilla_id);
+            } elseif ($user->role === 'grupo') {
+                $apuestasQuery->whereHas('taquilla.grupo', fn($q) => $q->where('grupo_id', $user->grupo_id));
+            } elseif ($user->role === 'banca') {
+                $apuestasQuery->whereHas('taquilla.grupo.banca', fn($q) => $q->where('banca_id', $user->banca_id));
+            }
+
+            $apuestas = $apuestasQuery->get();
 
             $plugin = $pluginManager->getPlugin($resultado->juego);
 
@@ -246,8 +267,13 @@ class TicketController extends Controller
                     $ganadores[$ticketCode]['jugadas'][] = [
                         'apuesta_id' => $apuesta->id,
                         'combinacion' => $combinacion,
+                        'amount_bs' => (float) $apuesta->amount_bs,
+                        'amount_usd' => (float) $apuesta->amount_usd,
+                        'total_bs_equivalent' => (float) $apuesta->total_bs_equivalent,
+                        'sorteo_hora' => $apuesta->sorteo_hora?->format('Y-m-d H:i:s'),
                         'premio_bs' => $premio['premio_bs'] ?? 0,
                         'premio_usd' => $premio['premio_usd'] ?? 0,
+                        'multiplicador' => $plugin ? $plugin->obtenerMultiplicador() : 0,
                         'estado' => $apuesta->estado,
                     ];
                 }
