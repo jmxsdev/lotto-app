@@ -18,31 +18,48 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
         </div>
     </div>
 
-    <style>
-        .ganadores-page { max-width: 1400px; margin: 0 auto; }
+    <style is:global>
+        .ganadores-page { max-width: 1200px; margin: 0 auto; }
         .page-title { font-size: 28px; font-weight: 700; color: #333; margin-bottom: 24px; }
         .filters { display: flex; gap: 12px; margin-bottom: 24px; align-items: center; }
         .date-input { padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; }
         .date-input:focus { border-color: #667eea; outline: none; }
         .btn-buscar { padding: 12px 24px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; font-weight: 600; }
         .btn-buscar:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-buscar:hover { transform: translateY(-1px); box-shadow: 0 3px 12px rgba(102,126,234,0.3); }
         .placeholder { text-align: center; padding: 40px; color: #999; font-style: italic; }
         .loading { text-align: center; padding: 40px; color: #666; }
         .empty-state { text-align: center; padding: 40px; color: #999; font-style: italic; }
         .error-state { text-align: center; padding: 40px; color: #dc3545; }
-        .ganador-card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 5px solid #28a745; }
-        .ganador-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-        .ticket-code { font-size: 18px; font-weight: 700; color: #333; }
-        .ticket-juego { font-size: 14px; color: #666; margin-top: 4px; }
-        .premio-total { text-align: right; }
-        .premio-bs { font-size: 22px; font-weight: 700; color: #28a745; }
-        .premio-usd { font-size: 14px; color: #666; }
-        .jugadas-title { font-size: 13px; font-weight: 600; color: #666; margin-bottom: 8px; }
-        .jugada-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #f8f9fa; border-radius: 6px; margin-bottom: 6px; }
-        .jugada-combinacion { font-size: 14px; }
-        .jugada-premio { font-weight: 600; color: #28a745; }
-        .btn-pagar-ticket { padding: 8px 20px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; margin-top: 12px; }
-        .btn-pagar-ticket:hover { background: #218838; }
+        .ganador-card { background: white; border-radius: 12px; margin-bottom: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); overflow: hidden; border-left: 0; }
+        .ganador-header { display: flex; justify-content: space-between; align-items: center; padding: 18px 20px; cursor: pointer; transition: background .15s; }
+        .ganador-header:hover { background: #fafbfc; }
+        .ganador-left { display: flex; align-items: center; gap: 14px; }
+        .ganador-expand { font-size: 12px; color: #999; width: 18px; text-align: center; transition: transform .2s; }
+        .ganador-expand.open { color: #667eea; transform: rotate(90deg); }
+        .ticket-code { font-size: 16px; font-weight: 700; color: #333; }
+        .ticket-juego { font-size: 13px; color: #888; margin-top: 2px; }
+        .ganador-meta { display: flex; align-items: center; gap: 16px; }
+        .meta-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .meta-label { font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 0.5px; }
+        .meta-value { font-size: 15px; font-weight: 700; color: #28a745; }
+        .meta-value.ganadas { color: #00a86b; }
+        .ganador-details { display: none; border-top: 1px solid #eef0f4; background: #fafbfc; }
+        .ganador-details.open { display: block; }
+        .ganador-detail-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 12px; align-items: center; padding: 16px 20px; border-bottom: 1px solid #eef0f4; }
+        .ganador-detail-row:last-child { border-bottom: none; }
+        .detail-left { min-width: 0; }
+        .detail-combo { font-weight: 600; color: #333; font-size: 15px; }
+        .detail-combo .animal { color: inherit; }
+        .detail-combo .numero { color: #764ba2; }
+        .detail-meta { font-size: 12px; color: #888; margin-top: 3px; }
+        .detail-amounts { text-align: right; white-space: nowrap; }
+        .detail-jugado { font-size: 13px; color: #666; }
+        .detail-premio { font-size: 15px; font-weight: 700; color: #28a745; }
+        .detail-mult { font-size: 12px; color: #764ba2; }
+        .ganador-actions { display: flex; gap: 8px; padding: 14px 20px; justify-content: flex-end; }
+        .btn-pagar-ticket { padding: 10px 24px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; transition: all .15s; }
+        .btn-pagar-ticket:hover { background: #218838; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(40,167,69,0.3); }
         .btn-pagar-ticket:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
 
@@ -82,6 +99,11 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
             return res.json();
         }
 
+        function formatHora(iso) {
+            if (!iso) return '-';
+            return new Date(iso).toLocaleTimeString('es-VE', {hour:'2-digit', minute:'2-digit'});
+        }
+
         function renderGanadores(ganadores) {
             const container = document.getElementById('ganadores-content');
             if (!ganadores || ganadores.length === 0) {
@@ -91,38 +113,79 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
 
             let html = '';
             ganadores.forEach(g => {
+                const totalBs = Number(g.premio_total_bs || 0);
+                const totalUsd = Number(g.premio_total_usd || 0);
                 html += `
-                <div class="ganador-card">
-                    <div class="ganador-header">
-                        <div>
-                            <div class="ticket-code">🎫 ${g.ticket_code}</div>
-                            <div class="ticket-juego">${g.juego || '-'}</div>
+                <div class="ganador-card" data-ticket-code="${g.ticket_code}">
+                    <div class="ganador-header" data-toggle="${g.ticket_code}">
+                        <div class="ganador-left">
+                            <span class="ganador-expand">▶</span>
+                            <div>
+                                <div class="ticket-code">🎫 ${g.ticket_code}</div>
+                                <div class="ticket-juego">${g.juego || '-'} · ${g.fecha_sorteo || ''}</div>
+                            </div>
                         </div>
-                        <div class="premio-total">
-                            ${g.premio_total_bs > 0 ? `<div class="premio-bs">Bs. ${Number(g.premio_total_bs).toLocaleString('es-VE', {minimumFractionDigits: 2})}</div>` : ''}
-                            ${g.premio_total_usd > 0 ? `<div class="premio-usd">$ ${Number(g.premio_total_usd).toLocaleString('en-US', {minimumFractionDigits: 2})}</div>` : ''}
+                        <div class="ganador-meta">
+                            <div class="meta-item">
+                                <span class="meta-label">Ganadoras</span>
+                                <span class="meta-value ganadas">${g.jugadas_ganadoras}</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-label">Premio Total</span>
+                                <span class="meta-value">Bs. ${totalBs.toLocaleString('es-VE', {minimumFractionDigits:2})}</span>
+                            </div>
                         </div>
                     </div>
-                    <div class="jugadas-title">${g.jugadas_ganadoras} jugada(s) ganadora(s):</div>
-                    ${g.jugadas.map(j => {
-                        const c = typeof j.combinacion === 'string' ? JSON.parse(j.combinacion) : (j.combinacion || {});
-                        return `<div class="jugada-row">
-                            <span class="jugada-combinacion">${(c.animal || '-').toUpperCase()} ${c.numero ? '#' + c.numero : ''} ${c.signo ? '- ' + c.signo : ''} ${c.tipo ? '(' + c.tipo + ')' : ''}</span>
-                            <span class="jugada-premio">${j.premio_bs > 0 ? 'Bs. ' + Number(j.premio_bs).toLocaleString('es-VE', {minimumFractionDigits: 2}) : ''} ${j.premio_usd > 0 ? '$ ' + Number(j.premio_usd).toLocaleString('en-US', {minimumFractionDigits: 2}) : ''}</span>
-                        </div>`;
-                    }).join('')}
-                    <button class="btn-pagar-ticket" data-ticket="${g.ticket_code}" data-total-bs="${g.premio_total_bs}">💰 Pagar Premio</button>
+                    <div class="ganador-details" data-detail="${g.ticket_code}">
+                        ${g.jugadas.map(j => {
+                            const c = typeof j.combinacion === 'string' ? JSON.parse(j.combinacion) : (j.combinacion || {});
+                            const animal = (c.animal || '-').toUpperCase();
+                            const numero = c.numero ?? '';
+                            const signo = c.signo ?? '';
+                            const tipo = c.tipo ?? '';
+                            const jugadoBs = Number(j.amount_bs || 0);
+                            const jugadoUsd = Number(j.amount_usd || 0);
+                            const premioBs = Number(j.premio_bs || 0);
+                            const premioUsd = Number(j.premio_usd || 0);
+                            const mult = j.multiplicador || 0;
+                            const sorteo = formatHora(j.sorteo_hora);
+                            const comboParts = [animal];
+                            if (tipo) comboParts.push('(' + tipo + ')');
+                            if (numero) comboParts.push('#' + numero);
+                            if (signo) comboParts.push('- ' + signo);
+                            return `<div class="ganador-detail-row">
+                                <div class="detail-left">
+                                    <div class="detail-combo">${comboParts.join(' ')}</div>
+                                    <div class="detail-meta">Sorteo: ${sorteo} · ${mult}x</div>
+                                </div>
+                                <div class="detail-amounts">
+                                    <div class="detail-jugado">Jugado: ${jugadoBs > 0 ? 'Bs. ' + jugadoBs.toFixed(2) : ''}${jugadoUsd > 0 ? ' $' + jugadoUsd.toFixed(2) : ''}</div>
+                                </div>
+                                <div class="detail-amounts">
+                                    <div class="detail-premio">${premioBs > 0 ? 'Bs. ' + premioBs.toLocaleString('es-VE', {minimumFractionDigits:2}) : ''}${premioUsd > 0 ? ' $' + premioUsd.toLocaleString('en-US', {minimumFractionDigits:2}) : ''}</div>
+                                    ${mult > 0 ? `<div class="detail-mult">${mult}x</div>` : ''}
+                                </div>
+                            </div>`;
+                        }).join('')}
+                        <div class="ganador-actions">
+                            <button class="btn-pagar-ticket" data-ticket="${g.ticket_code}" data-total-bs="${g.premio_total_bs}">💰 Pagar Premio</button>
+                        </div>
+                    </div>
                 </div>`;
             });
             container.innerHTML = html;
         }
 
         async function pagarTicket(ticketCode, totalBs) {
-            if (!confirm('Registrar pago de Bs. ' + Number(totalBs).toLocaleString('es-VE', {minimumFractionDigits: 2}) + ' para el ticket ' + ticketCode + '?')) return;
+            const ok = await window.showModal({
+                message: 'Registrar pago de Bs. ' + Number(totalBs).toLocaleString('es-VE', {minimumFractionDigits: 2}) + ' para el ticket ' + ticketCode + '?',
+                type: 'confirm'
+            });
+            if (!ok) return;
             try {
                 const tickets = await apiFetch('GET', '/tickets?ticket_code=' + ticketCode);
                 const ticket = tickets.data?.data?.[0];
-                if (!ticket) { alert('Ticket no encontrado'); return; }
+                if (!ticket) { await window.showModal({ message: 'Ticket no encontrado', type: 'error' }); return; }
                 for (const apuesta of ticket.apuestas) {
                     if (apuesta.estado === 'pendiente') {
                         await apiFetch('POST', '/pagos', {
@@ -133,10 +196,10 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
                         });
                     }
                 }
-                alert('Pago registrado exitosamente!');
+                await window.showModal({ message: 'Pago registrado exitosamente!', type: 'success' });
                 document.getElementById('btn-buscar').click();
             } catch (e) {
-                alert('Error: ' + e.message);
+                await window.showModal({ message: 'Error: ' + e.message, type: 'error' });
             }
         }
 
@@ -156,15 +219,36 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
             await initMac();
             const fechaInput = document.getElementById('fecha');
             const now = new Date();
-            fechaInput.value = now.toISOString().split('T')[0];
+            const params = new URLSearchParams(window.location.search);
+            const urlFecha = params.get('fecha');
+
+            if (urlFecha && /^\d{4}-\d{2}-\d{2}$/.test(urlFecha)) {
+                fechaInput.value = urlFecha;
+                buscarGanadores();
+            } else {
+                fechaInput.value = now.toISOString().split('T')[0];
+            }
 
             document.getElementById('btn-buscar').addEventListener('click', buscarGanadores);
             fechaInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') buscarGanadores(); });
 
             document.getElementById('ganadores-content').addEventListener('click', (e) => {
-                const btn = e.target.closest('.btn-pagar-ticket');
-                if (!btn) return;
-                pagarTicket(btn.dataset.ticket, btn.dataset.totalBs);
+                const payBtn = e.target.closest('.btn-pagar-ticket');
+                if (payBtn) {
+                    pagarTicket(payBtn.dataset.ticket, payBtn.dataset.totalBs);
+                    return;
+                }
+
+                const header = e.target.closest('.ganador-header');
+                if (header) {
+                    const code = header.dataset.toggle;
+                    const details = document.querySelector(`[data-detail="${code}"]`);
+                    const expand = header.querySelector('.ganador-expand');
+                    if (details) {
+                        details.classList.toggle('open');
+                        if (expand) expand.classList.toggle('open');
+                    }
+                }
             });
         });
     </script>
