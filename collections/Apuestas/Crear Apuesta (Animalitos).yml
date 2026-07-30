@@ -12,8 +12,6 @@ http:
     - name: Content-Type
       value: application/json
     - name: X-Device-MAC
-    - name: X-Device-Fingerprint
-      value: "demo-device-001"
       value: "{{macAddress}}"
   body:
     type: json
@@ -21,9 +19,9 @@ http:
       {
         "juego_id": 1,
         "combinacion": {"animal": "perro", "numero": 27},
-        "amount_bs": 1800,
+        "amount_bs": 18000,
         "amount_usd": 50,
-        "sorteo_hora": "2026-07-26 19:05:00"
+        "sorteo_hora": "2026-08-26 19:05:00"
       }
   auth: inherit
 
