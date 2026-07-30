@@ -126,6 +126,23 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
             return 'default';
         }
 
+        function toCssColor(nombre) {
+            if (!nombre) return '#ccc';
+            const c = nombre.toLowerCase();
+            if (c.includes('roj')) return '#dc3545';
+            if (c.includes('verde')) return '#28a745';
+            if (c.includes('azul')) return '#2563eb';
+            if (c.includes('amarill')) return '#eab308';
+            if (c.includes('negro')) return '#333';
+            if (c.includes('blanco')) return '#f0f0f0';
+            if (c.includes('morado') || c.includes('púrpura') || c.includes('purpura')) return '#7c3aed';
+            if (c.includes('naranja')) return '#f97316';
+            if (c.includes('gris')) return '#6b7280';
+            if (c.includes('marrón') || c.includes('marron') || c.includes('café') || c.includes('cafe')) return '#92400e';
+            if (c.includes('rosado') || c.includes('rosa')) return '#ec4899';
+            return '#ccc';
+        }
+
         function normalizeHora(hora) {
             if (!hora) return '99:99:99';
             const m = String(hora).match(/^(\d+):(\d+)(?::(\d+))?\s*(AM|PM)?$/i);
@@ -215,7 +232,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
                         const nombre = g.nombre_animal || '-';
                         const color = g.color_animal || null;
                         html += `<td>${nombre !== '-' ? `<span class="animal-badge ${getColorClass(color)}">${nombre}</span>` : '-'}</td>`;
-                        html += `<td>${color ? `<span class="color-swatch" style="background:${color};" title="${color}"></span>` : '-'}</td>`;
+                        html += `<td>${color ? `<span class="color-swatch" style="background:${toCssColor(color)};" title="${color}"></span>` : '-'}</td>`;
                     }
 
                     if (fechaSorteo) {
@@ -260,7 +277,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
                 resultadosCache = (data.data || []).sort((a, b) => {
                     const ha = normalizeHora(a.hora_sorteo);
                     const hb = normalizeHora(b.hora_sorteo);
-                    return ha.localeCompare(hb);
+                    return hb.localeCompare(ha);
                 });
 
                 renderResultados();
