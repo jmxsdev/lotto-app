@@ -82,19 +82,17 @@ class AnimalitosScraper extends BaseScraper
     protected function findOrCreateJuego(array $juegoData): ?Juego
     {
         $name = $juegoData['name'] ?? null;
-        $link = $juegoData['link'] ?? null;
         
         if (!$name) {
             return null;
         }
-        
-        $slug = $link ?: \Str::slug($name);
+
+        $slug = \Str::slug($name);
         
         return Juego::firstOrCreate(
-            ['slug' => $slug],
+            ['name' => $name, 'type' => 'animalitos'],
             [
-                'name' => $name,
-                'type' => 'animalitos',
+                'slug' => $slug,
                 'config' => ['premio_multiplo' => 30],
                 'requires_scraper' => true,
                 'scraper_url' => $this->baseUrl . '/resultados/animalitos/',

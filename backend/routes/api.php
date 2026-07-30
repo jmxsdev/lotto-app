@@ -16,7 +16,7 @@ use App\Http\Controllers\Api\TicketController;
 use App\Http\Controllers\Api\PagoController;
 
 // Rutas públicas (sin autenticación)
-Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,2');
 Route::get('/exchange-rate/active', [ExchangeRateController::class, 'active']);
 Route::post('/activar', [ActivacionController::class, 'activar'])->middleware('throttle:10,60');
 Route::post('/dispositivo/verificar', [DispositivoController::class, 'verificar']);
