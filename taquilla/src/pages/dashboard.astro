@@ -718,7 +718,6 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
     let selectedGames = [];
     let ticketLines = [];
     let editIndex = -1;
-    let juegosCache = [];
     let animalesCache = [];
     let selectedAnimal = null;
     let columnMode = 'juegos';
@@ -737,18 +736,75 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
 
     const ANIMAL_EMOJIS = ['🐬','🐏','🐂','🐆','🐸','🐕','🐈','🕊️','🦜','🐿️','🐅','🦁','🐄','🦅','🦊','🐒','🦚','🐎','🐻','🫏','🐓','🐪','🐈‍⬛','🐍','🦌','🐐','🐘','🐖','🦆','🐊','🦚','🐟','🦀','🦔','🐇','🐦','🐔'];
 
-    const DEFAULT_ANIMALES = [
-      {numero:0,label:'Delfín'},{numero:1,label:'Carnero'},{numero:2,label:'Toro'},{numero:3,label:'Onza'},
-      {numero:4,label:'Sapo'},{numero:5,label:'Perro'},{numero:6,label:'Gato'},{numero:7,label:'Paloma'},
-      {numero:8,label:'Loro'},{numero:9,label:'Ardilla'},{numero:10,label:'Tigre'},{numero:11,label:'León'},
-      {numero:12,label:'Vaca'},{numero:13,label:'Cuervo'},{numero:14,label:'Zorro'},{numero:15,label:'Mono'},
-      {numero:16,label:'Pavo Real'},{numero:17,label:'Caballo'},{numero:18,label:'Oso'},{numero:19,label:'Burro'},
-      {numero:20,label:'Gallo'},{numero:21,label:'Camello'},{numero:22,label:'Pantera'},{numero:23,label:'Culebra'},
-      {numero:24,label:'Venado'},{numero:25,label:'Chivo'},{numero:26,label:'Elefante'},{numero:27,label:'Cochino'},
-      {numero:28,label:'Pato'},{numero:29,label:'Caimán'},{numero:30,label:'Pavorreal'},{numero:31,label:'Pescado'},
-      {numero:32,label:'Cangrejo'},{numero:33,label:'Cachicamo'},{numero:34,label:'Conejo'},{numero:35,label:'Cardenal'},
-      {numero:36,label:'Gallina'}
-    ];
+    const GAMES_CONFIG = {
+      animalitos: {
+        games: [
+          { id:1, name:'Lotto Activo', slug:'lotto-activo', multiplicador:30, horarios:['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00'] },
+          { id:4, name:'Lotto Activo RD Internacional', slug:'lotto-activo-rd', multiplicador:30, horarios:['08:30','09:30','10:30','11:30','12:30','13:30','14:30','15:30','16:30','17:30','18:30','19:30'] },
+          { id:5, name:'Lotto Activo Rep. Dominicana', slug:'lotto-activo-rep-dom', multiplicador:30, horarios:['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00'] },
+          { id:6, name:'Monje Millonario', slug:'monje-millonario', multiplicador:30, horarios:['08:05','09:05','10:05','11:05','12:05','13:05','14:05','15:05','16:05','17:05','18:05','19:05'] },
+        ],
+        animales: [
+          { numero:0, label:'Delfín' },{ numero:1, label:'Carnero' },{ numero:2, label:'Toro' },{ numero:3, label:'Ciempiés' },
+          { numero:4, label:'Alacrán' },{ numero:5, label:'León' },{ numero:6, label:'Rana' },{ numero:7, label:'Perico' },
+          { numero:8, label:'Ratón' },{ numero:9, label:'Águila' },{ numero:10, label:'Tigre' },{ numero:11, label:'Gato' },
+          { numero:12, label:'Caballo' },{ numero:13, label:'Mono' },{ numero:14, label:'Paloma' },{ numero:15, label:'Zorro' },
+          { numero:16, label:'Oso' },{ numero:17, label:'Pavo' },{ numero:18, label:'Burro' },{ numero:19, label:'Chivo' },
+          { numero:20, label:'Cochino' },{ numero:21, label:'Gallo' },{ numero:22, label:'Camello' },{ numero:23, label:'Cobra' },
+          { numero:24, label:'Iguana' },{ numero:25, label:'Gallina' },{ numero:26, label:'Vaca' },{ numero:27, label:'Perro' },
+          { numero:28, label:'Zamuro' },{ numero:29, label:'Elefante' },{ numero:30, label:'Caimán' },{ numero:31, label:'Lapa' },
+          { numero:32, label:'Ardilla' },{ numero:33, label:'Pescado' },{ numero:34, label:'Venado' },{ numero:35, label:'Jirafa' },
+          { numero:36, label:'Culebra' }
+        ],
+      },
+      tripletas: {
+        games: [
+          { id:2, name:'Triple Zulia', slug:'triple-zulia', multiplicador:30, horarios:['12:45','16:45','19:05'] },
+          { id:7, name:'Trío Activo', slug:'trio-activo', multiplicador:30, horarios:['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00'], soloTripleA:true },
+        ],
+        signos: [
+          { value:'ARI', label:'Aries', numero:1 },
+          { value:'TAU', label:'Tauro', numero:2 },
+          { value:'GEM', label:'Géminis', numero:3 },
+          { value:'CAN', label:'Cáncer', numero:4 },
+          { value:'LEO', label:'Leo', numero:5 },
+          { value:'VIR', label:'Virgo', numero:6 },
+          { value:'LIB', label:'Libra', numero:7 },
+          { value:'ESC', label:'Escorpio', numero:8 },
+          { value:'SAG', label:'Sagitario', numero:9 },
+          { value:'CAP', label:'Capricornio', numero:10 },
+          { value:'ACU', label:'Acuario', numero:11 },
+          { value:'PIS', label:'Piscis', numero:12 },
+        ],
+        modalidades: [
+          { code:'triple_a', label:'Triple A', digitos:3, requiere_signo:false, descripcion:'Acierte el número de 3 cifras exacto' },
+          { code:'triple_b', label:'Triple B', digitos:3, requiere_signo:false, descripcion:'Acierte el número de 3 cifras exacto' },
+          { code:'triple_c', label:'Triple C', digitos:3, requiere_signo:true, descripcion:'Acierte el número de 3 cifras y el signo zodiacal' },
+        ],
+      },
+      terminales: {
+        games: [
+          { id:3, name:'Terminal Trío', slug:'terminal-trio', multiplicador:20, horarios:['10:00','12:00','14:00','16:00','18:00','20:00'] },
+        ],
+      },
+    };
+
+    function getGameById(id) {
+      for (const type of Object.values(GAMES_CONFIG)) {
+        if (type.games) {
+          const found = type.games.find(g => g.id === id);
+          if (found) return found;
+        }
+      }
+      return null;
+    }
+
+    function getGameType(juegoId) {
+      if (GAMES_CONFIG.animalitos.games.some(g => g.id === juegoId)) return 'animalitos';
+      if (GAMES_CONFIG.tripletas.games.some(g => g.id === juegoId)) return 'tripletas';
+      if (GAMES_CONFIG.terminales.games.some(g => g.id === juegoId)) return 'terminales';
+      return null;
+    }
 
     let selectedHorario = null;
     let horariosCache = [];
@@ -814,12 +870,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
     }
 
     async function loadJuegos() {
-      try {
-        juegosCache = await apiFetch('GET', '/juegos');
-        renderJuegos();
-      } catch (e) {
-        document.getElementById('juegos-list').innerHTML = '<div class="empty-state">Error al cargar juegos</div>';
-      }
+      renderJuegos();
     }
 
     function renderJuegosTabs() {
@@ -854,16 +905,13 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
 
     function renderJuegos() {
       const container = document.getElementById('juegos-list');
-      const filtered = juegosCache.filter(j => j.type === activeTab);
-      if (filtered.length === 0) {
+      const config = GAMES_CONFIG[activeTab];
+      if (!config || !config.games) {
         container.innerHTML = '<div class="empty-state">Sin juegos disponibles</div>';
         return;
       }
-      container.innerHTML = filtered.map(j => {
-        let icon = '🎲';
-        if (j.type === 'animalitos') icon = '🎰';
-        else if (j.type === 'tripletas') icon = '🎯';
-        else if (j.type === 'terminales') icon = '🔢';
+      container.innerHTML = config.games.map(j => {
+        let icon = activeTab === 'animalitos' ? '🎰' : activeTab === 'tripletas' ? '🎯' : '🔢';
         const selected = selectedGames.some(g => g.id === j.id) ? ' selected' : '';
         return `<div class="juego-card${selected}" data-id="${j.id}">
           <span class="juego-icon">${icon}</span>
@@ -880,13 +928,11 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
         return;
       }
       container.style.display = 'block';
-      if (!signosCache || signosCache.length === 0) {
-        loadSignos(selectedGames[0]?.id);
-        return;
-      }
+      const signos = GAMES_CONFIG.tripletas.signos;
+      if (!signos || signos.length === 0) return;
       let html = '<div class="signo-label">Seleccione signo (opcional):</div>';
       html += '<div class="signos-grid">';
-      signosCache.forEach(s => {
+      signos.forEach(s => {
         const sel = selectedSigno && selectedSigno.value === s.value ? ' selected' : '';
         html += '<button class="signo-btn' + sel + '" data-value="' + s.value + '" data-label="' + s.label + '">' + s.label + '</button>';
       });
@@ -902,26 +948,51 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
       });
     }
 
-    async function loadAnimales(juegoId) {
-      try {
-        const data = await apiFetch('GET', '/juegos/' + juegoId + '/opciones');
-        let items = Array.isArray(data) ? data : (data.data || []);
-        if (items.length === 0 && juegosCache.find(j => j.id === juegoId)?.type === 'animalitos') {
-          items = DEFAULT_ANIMALES;
+    function loadAnimalesConfig() {
+      const game = selectedGames[0];
+      if (!game) return;
+      animalesCache = GAMES_CONFIG.animalitos.animales || [];
+      renderAnimales();
+    }
+
+    function loadHorariosConfig() {
+      const game = selectedGames[0];
+      if (!game) return;
+      const cfg = getGameById(game.id);
+      if (!cfg || !cfg.horarios) { horariosCache = []; }
+      else { horariosCache = cfg.horarios.map(h => ({ hora: h })); }
+      selectedHorario = null;
+      renderHorariosGrid();
+    }
+
+    function loadTripleConfig() {
+      const game = selectedGames[0];
+      if (!game) return;
+      const cfg = getGameById(game.id);
+      let modalidades = GAMES_CONFIG.tripletas.modalidades || [];
+      if (cfg && cfg.soloTripleA) {
+        modalidades = modalidades.filter(m => m.code === 'triple_a');
+      }
+      if (modalidades.length === 1) {
+        tripleModalidad = modalidades[0].code;
+        tripleModalidadLabel = null;
+        const container = document.getElementById('seleccion-content');
+        container.innerHTML = '<div class="modalidad-label">' + modalidades[0].label + ' — ' + modalidades[0].descripcion + '</div>' +
+          '<div class="triple-info">Ingrese número de ' + modalidades[0].digitos + ' cifras en el campo superior</div>' +
+          '<div id="signos-triple-container" style="display:none"></div>';
+        if (modalidades[0].requiere_signo) {
+          loadSignosConfig();
         }
-        if (items.length > 0 && items[0].numero !== undefined) {
-          animalesCache = items.sort((a, b) => a.numero - b.numero);
-          renderAnimales();
-        } else {
-          renderLogo();
-        }
-      } catch (e) {
-        if (juegosCache.find(j => j.id === juegoId)?.type === 'animalitos') {
-          animalesCache = DEFAULT_ANIMALES;
-          renderAnimales();
-        } else {
-          renderLogo();
-        }
+        updateColumnMode();
+      } else {
+        renderTripleModalidades(modalidades);
+      }
+    }
+
+    function loadSignosConfig() {
+      signosCache = GAMES_CONFIG.tripletas.signos || [];
+      if (signosCache.length > 0) {
+        renderSignosForModalidad();
       }
     }
 
@@ -972,8 +1043,8 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
       document.getElementById('horario-mode').style.display = 'block';
       document.getElementById('juegos-col-title').textContent = 'Horario';
       renderGameChips();
-      if (horariosCache.length === 0) {
-        loadHorarios(selectedGames[0].id);
+      if (horariosCache.length === 0 && selectedGames.length > 0) {
+        loadHorariosConfig();
       } else {
         renderHorariosGrid();
       }
@@ -1009,18 +1080,6 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
       </div>`;
     }
 
-    async function loadHorarios(juegoId) {
-      try {
-        horariosCache = await apiFetch('GET', '/juegos/' + juegoId + '/horarios');
-        selectedHorario = null;
-        renderHorariosGrid();
-      } catch (e) {
-        horariosCache = [];
-        selectedHorario = null;
-        renderHorariosGrid();
-      }
-    }
-
     function renderHorariosGrid() {
       const container = document.getElementById('horarios-grid');
       if (!horariosCache || horariosCache.length === 0) {
@@ -1031,29 +1090,6 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
         const sel = selectedHorario === h.hora ? ' selected' : '';
         return '<div class="horario-item' + sel + '" data-hora="' + h.hora + '">' + h.hora + '</div>';
       }).join('');
-    }
-
-    async function loadTripleReglas(juegoId) {
-      try {
-        const data = await apiFetch('GET', '/juegos/' + juegoId + '/reglas');
-        const modalidades = data.modalidades || [];
-        if (modalidades.length === 1) {
-          tripleModalidad = modalidades[0].code;
-          tripleModalidadLabel = null;
-          const container = document.getElementById('seleccion-content');
-          container.innerHTML = '<div class="modalidad-label">' + modalidades[0].label + ' — ' + modalidades[0].descripcion + '</div>' +
-            '<div class="triple-info">Ingrese número de ' + modalidades[0].digitos + ' cifras en el campo superior</div>' +
-            '<div id="signos-triple-container" style="display:none"></div>';
-          if (modalidades[0].requiere_signo) {
-            loadSignos(juegoId);
-          }
-          updateColumnMode();
-        } else {
-          renderTripleModalidades(modalidades);
-        }
-      } catch (e) {
-        document.getElementById('seleccion-content').innerHTML = '<div class="empty-state">Error al cargar reglas</div>';
-      }
     }
 
     function renderTripleModalidades(modalidades) {
@@ -1079,18 +1115,6 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
           updateColumnMode();
         });
       });
-    }
-
-    async function loadSignos(juegoId) {
-      try {
-        const data = await apiFetch('GET', '/juegos/' + juegoId + '/opciones');
-        signosCache = Array.isArray(data) ? data : (data.data || []);
-        if (signosCache.length > 0 && signosCache[0].label) {
-          renderSignosForModalidad();
-        }
-      } catch (e) {
-        signosCache = [];
-      }
     }
 
     function formatDateWithHorario(hora) {
@@ -1220,7 +1244,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
         tripleModalidad = null;
         tripleModalidadLabel = null;
         selectedSigno = null;
-        loadTripleReglas(selectedGames[0].id);
+        loadTripleConfig();
       } else if (isTerminales) {
         renderTerminalesInfo();
       } else {
@@ -1342,7 +1366,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
         const card = e.target.closest('.juego-card');
         if (!card) return;
         const id = parseInt(card.dataset.id);
-        const juego = juegosCache.find(j => j.id === id);
+        const juego = getGameById(id);
         if (!juego) return;
 
         const yaSeleccionado = selectedGames.some(g => g.id === id);
@@ -1358,16 +1382,17 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
 
         renderJuegos();
         if (selectedGames.length > 0) {
-          if (juego.type === 'animalitos') {
-            loadAnimales(id);
-          } else if (juego.type === 'tripletas') {
-            loadTripleReglas(juego.id);
-          } else if (juego.type === 'terminales') {
+          const type = getGameType(juego.id);
+          if (type === 'animalitos') {
+            loadAnimalesConfig();
+          } else if (type === 'tripletas') {
+            loadTripleConfig();
+          } else if (type === 'terminales') {
             renderTerminalesInfo();
           } else {
             renderLogo();
           }
-          loadHorarios(juego.id);
+          loadHorariosConfig();
         } else {
           document.getElementById('seleccion-content').innerHTML = '<div class="seleccion-placeholder">Seleccione un juego</div>';
           horariosCache = [];
