@@ -1180,19 +1180,19 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
       const monto = document.getElementById('qt-monto').value.trim();
       const moneda = document.getElementById('qt-moneda').value;
 
-      if (selectedGames.length === 0) { alert('Seleccione al menos un juego'); return; }
-      if (!monto || Number(monto) <= 0) { alert('Ingrese un monto válido'); return; }
-      if (!selectedHorario) { alert('Seleccione un horario para el sorteo'); return; }
+      if (selectedGames.length === 0) { window.showModal({ message: 'Seleccione al menos un juego', type: 'error' }); return; }
+      if (!monto || Number(monto) <= 0) { window.showModal({ message: 'Ingrese un monto válido', type: 'error' }); return; }
+      if (!selectedHorario) { window.showModal({ message: 'Seleccione un horario para el sorteo', type: 'error' }); return; }
 
       const isTriple = selectedGames.length === 1 && selectedGames[0]?.type === 'tripletas';
       const isTerminales = selectedGames.length === 1 && selectedGames[0]?.type === 'terminales';
       if (isTriple) {
-        if (!tripleModalidad) { alert('Seleccione una modalidad (Triple A/B/C)'); return; }
-        if (!numero || numero.length !== 3) { alert('Ingrese un número de exactamente 3 cifras'); return; }
+        if (!tripleModalidad) { window.showModal({ message: 'Seleccione una modalidad (Triple A/B/C)', type: 'error' }); return; }
+        if (!numero || numero.length !== 3) { window.showModal({ message: 'Ingrese un número de exactamente 3 cifras', type: 'error' }); return; }
       } else if (isTerminales) {
-        if (!numero || numero.length !== 2) { alert('Ingrese un número de exactamente 2 cifras'); return; }
+        if (!numero || numero.length !== 2) { window.showModal({ message: 'Ingrese un número de exactamente 2 cifras', type: 'error' }); return; }
       } else {
-        if (!selectedAnimal) { alert('Seleccione un animal'); return; }
+        if (!selectedAnimal) { window.showModal({ message: 'Seleccione un animal', type: 'error' }); return; }
         numero = String(selectedAnimal.numero).padStart(2, '0');
       }
 
@@ -1298,14 +1298,14 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
         if (window.electron?.printTicket) {
           await window.electron.printTicket({ ticketData });
         } else {
-          alert('Ticket ' + result.data.ticket_code + ' creado exitosamente. Impresión no disponible.');
+          await window.showModal({ message: 'Ticket ' + result.data.ticket_code + ' creado exitosamente. Impresión no disponible.', type: 'success' });
         }
         ticketLines = [];
         renderResumen();
         localStorage.removeItem('currentTicket');
         loadTicket();
       } catch (e) {
-        alert('Error: ' + e.message);
+        await window.showModal({ message: 'Error: ' + e.message, type: 'error' });
       }
       printBtn.disabled = false;
     }
