@@ -11,7 +11,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     </div>
     <div id="content"><div class="loading">Cargando...</div></div>
   </div>
-  <style>
+  <style is:global>
     .page { max-width: 1200px; } .page-header { margin-bottom: 16px; } .page-title { font-size: 24px; font-weight: 700; color: #1e293b; }
     .filters { display: flex; gap: 12px; margin-bottom: 16px; } .filter-input { padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; width: 250px; } .filter-input:focus { border-color: #3b82f6; outline: none; }
     .btn { padding: 8px 16px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; } .btn-primary { background: #3b82f6; color: #fff; }

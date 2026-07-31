@@ -7,7 +7,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     <div class="page-header"><h2 class="page-title">Juegos</h2></div>
     <div id="content"><div class="loading">Cargando...</div></div>
   </div>
-  <style>
+  <style is:global>
     .page { max-width: 1000px; } .page-header { margin-bottom: 20px; } .page-title { font-size: 24px; font-weight: 700; color: #1e293b; }
     .btn { padding: 6px 14px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; } .btn-primary { background: #3b82f6; color: #fff; } .btn-primary:hover { background: #2563eb; } .btn-sm { padding: 3px 10px; font-size: 12px; }
     .loading { text-align: center; padding: 40px; color: #666; } .table-wrap { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); } table { width: 100%; border-collapse: collapse; } th { background: #f1f5f9; padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600; color: #666; } td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }

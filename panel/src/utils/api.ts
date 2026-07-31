@@ -22,7 +22,12 @@ export async function apiFetch(method, url, body) {
     try { msg = JSON.parse(text).message || msg; } catch (_) {}
     throw new Error(msg || res.statusText);
   }
-  return res.json();
+  if (res.status === 204) return null;
+  try {
+    return await res.json();
+  } catch (_) {
+    return await res.text();
+  }
 }
 
 export function getStoredUser() {
