@@ -90,9 +90,7 @@ const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
           }
         }
 
-        const apiBase = window.location.origin.includes('3000')
-          ? 'http://localhost:8000/api'
-          : 'https://lotto-api.onrender.com/api';
+        const apiBase = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
 
         try {
           const res = await fetch(apiBase + '/dispositivo/verificar', {
