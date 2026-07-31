@@ -1,0 +1,28 @@
+info:
+  name: Ejecutar Todos los Scrapers
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/resultados/scrape-all"
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: Accept
+      value: application/json
+    - name: Authorization
+      value: Bearer {{token}}
+  body:
+    type: json
+    data: |-
+      {
+        "fecha": "2026-07-31"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

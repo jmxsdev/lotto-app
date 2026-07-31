@@ -82,6 +82,7 @@ Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
     // Scraper manual (solo Super Master y Master)
     Route::middleware(['role:super_master|master'])->group(function () {
         Route::post('/resultados/scrape', [ResultadoController::class, 'scrape']);
+    Route::post('/resultados/scrape-all', [ResultadoController::class, 'scrapeAll']);
     });
     // ==================================================
     // ==================================================

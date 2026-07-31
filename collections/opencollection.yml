@@ -19,12 +19,14 @@ request:
     type: bearer
     token: "{{token}}"
   variables:
-    - name: baseUrl
-      value: http://localhost:8000
+    - name: baseUrlWeb
+      value: https://lotto-api-6nrc.onrender.com
     - name: token
       value: ""
     - name: macAddress
       value: d8:f3:bc:65:d1:c5
+    - name: baseUrl
+      value: http://localhost:8000
 bundled: false
 extensions:
   bruno:

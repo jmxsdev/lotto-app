@@ -69,30 +69,7 @@ class ResultadoController extends Controller
         $resultados = [];
 
         foreach ($juegos as $juego) {
-            try {
-                $job = new ScrapeResultsJob($juego->id, $fecha);
-                $job->handle();
-
-                $ultimosResultados = Resultado::where('juego_id', $juego->id)
-                    ->whereDate('fecha_sorteo', $fecha)
-                    ->get();
-
-                $ganadorasTotales = 0;
-                foreach ($ultimosResultados as $resultado) {
-                    $ganadorasTotales += $this->apuestaService->verificarGanadores($resultado);
-                }
-
-                $resultados[$juego->name] = [
-                    'status' => 'ok',
-                    'ganadoras_detectadas' => $ganadorasTotales,
-                ];
-            } catch (\Exception $e) {
-                Log::error("Error scraping {$juego->name}: " . $e->getMessage());
-                $resultados[$juego->name] = [
-                    'status' => 'error',
-                    'error' => $e->getMessage(),
-                ];
-            }
+            $resultados[$juego->name] = $this->runScraperForJuego($juego->id, $fecha);
         }
 
         return response()->json([
@@ -100,5 +77,61 @@ class ResultadoController extends Controller
             'fecha' => $fecha,
             'resultados' => $resultados,
         ]);
+    }
+
+    public function scrapeAll(Request $request)
+    {
+        $fecha = $request->input('fecha', now()->format('Y-m-d'));
+
+        $juegos = Juego::where('requires_scraper', true)
+            ->where('active', true)
+            ->get();
+
+        if ($juegos->isEmpty()) {
+            return response()->json([
+                'message' => 'No hay juegos que requieran scraper',
+            ], 404);
+        }
+
+        $resultados = [];
+
+        foreach ($juegos as $juego) {
+            $resultados[$juego->name] = $this->runScraperForJuego($juego->id, $fecha);
+        }
+
+        return response()->json([
+            'message' => 'Todos los scrapers ejecutados',
+            'fecha' => $fecha,
+            'total_juegos' => $juegos->count(),
+            'resultados' => $resultados,
+        ]);
+    }
+
+    protected function runScraperForJuego(int $juegoId, string $fecha): array
+    {
+        try {
+            $job = new ScrapeResultsJob($juegoId, $fecha);
+            $job->handle();
+
+            $ultimosResultados = Resultado::where('juego_id', $juegoId)
+                ->whereDate('fecha_sorteo', $fecha)
+                ->get();
+
+            $ganadorasTotales = 0;
+            foreach ($ultimosResultados as $resultado) {
+                $ganadorasTotales += $this->apuestaService->verificarGanadores($resultado);
+            }
+
+            return [
+                'status' => 'ok',
+                'ganadoras_detectadas' => $ganadorasTotales,
+            ];
+        } catch (\Exception $e) {
+            Log::error("Error scraping juego_id {$juegoId}: " . $e->getMessage());
+            return [
+                'status' => 'error',
+                'error' => $e->getMessage(),
+            ];
+        }
     }
 }
