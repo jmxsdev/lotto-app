@@ -202,6 +202,9 @@ import api from '../utils/api';
               console.warn('No se pudo obtener MAC:', error);
             }
           }
+          if (!mac && import.meta.env.PUBLIC_DEMO_MAC) {
+            mac = import.meta.env.PUBLIC_DEMO_MAC;
+          }
 
           const response = await fetch(API_BASE + '/login', {
             method: 'POST',
