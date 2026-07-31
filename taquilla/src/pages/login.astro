@@ -168,7 +168,7 @@ import api from '../utils/api';
       </div>
     </div>
 
-    <script define:vars={{ apiUrl: import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api', demoMac: import.meta.env.PUBLIC_DEMO_MAC || '' }}>
+    <script define:vars={{ apiUrl: import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api', demoMac: import.meta.env.PUBLIC_DEMO_MAC || '', demoFp: import.meta.env.PUBLIC_DEMO_FP || 'demo-device-001' }}>
       const API_BASE = apiUrl;
 
       function showAlert(message, type) {
@@ -212,7 +212,7 @@ import api from '../utils/api';
               'Content-Type': 'application/json',
               'Accept': 'application/json',
               'X-Device-MAC': mac || null,
-              'X-Device-Fingerprint': localStorage.getItem('device_fingerprint') || 'demo-device-001',
+              'X-Device-Fingerprint': localStorage.getItem('device_fingerprint') || demoFp,
             },
             body: JSON.stringify({
               email: email,
@@ -231,8 +231,15 @@ import api from '../utils/api';
             const text = await response.text();
             let message = '';
             try { message = JSON.parse(text).message || ''; } catch (_) {}
-            showAlert(message || 'Dispositivo no activado. Redirigiendo...', 'warning');
-            setTimeout(() => { window.location.href = '/activacion'; }, 1500);
+            const msg = (message || '').toLowerCase();
+            if (msg.includes('activado') || msg.includes('dispositivo') || msg.includes('huella')) {
+              showAlert(message || 'Dispositivo no activado. Redirigiendo...', 'warning');
+              setTimeout(() => { window.location.href = '/activacion'; }, 1500);
+            } else {
+              showAlert(message || 'Acceso denegado.', 'error');
+              btn.disabled = false;
+              btn.textContent = 'Iniciar Sesión';
+            }
             return;
           }
 

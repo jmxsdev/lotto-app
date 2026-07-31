@@ -711,7 +711,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
     }
   </style>
   
-  <script define:vars={{ apiUrl, demoMac: import.meta.env.PUBLIC_DEMO_MAC || '00:1A:2B:3C:4D:5E' }}>
+  <script define:vars={{ apiUrl, demoMac: import.meta.env.PUBLIC_DEMO_MAC || '00:1A:2B:3C:4D:5E', demoFp: import.meta.env.PUBLIC_DEMO_FP || 'demo-device-001' }}>
     const API_BASE = apiUrl;
     let tasaActiva = 36.50;
 
@@ -723,7 +723,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
     let columnMode = 'juegos';
 
     let API_MAC = demoMac;
-    let DEVICE_FP = 'demo-device-001';
+    let DEVICE_FP = demoFp;
     async function initMac() {
       if (typeof window !== 'undefined' && window.electron?.getMac) {
         try {
@@ -1335,7 +1335,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
     }
 
     document.addEventListener('DOMContentLoaded', async () => {
-      DEVICE_FP = typeof window !== 'undefined' ? (localStorage.getItem('device_fingerprint') || 'demo-device-001') : 'demo-device-001';
+      DEVICE_FP = typeof window !== 'undefined' ? (localStorage.getItem('device_fingerprint') || demoFp) : demoFp;
       await initMac();
 
       if (typeof window !== 'undefined' && window.electron?.getVersion) {

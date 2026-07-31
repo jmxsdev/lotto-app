@@ -69,14 +69,14 @@ const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
       </div>
     </div>
 
-    <script define:vars={{ apiUrl: import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api', demoMac: import.meta.env.PUBLIC_DEMO_MAC || '' }}>
+    <script define:vars={{ apiUrl: import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api', demoMac: import.meta.env.PUBLIC_DEMO_MAC || '', demoFp: import.meta.env.PUBLIC_DEMO_FP || 'demo-device-001' }}>
       async function init() {
         let fp = localStorage.getItem('device_fingerprint');
-        if (!fp || (fp === 'demo-device-001' && window.electron?.getVersion)) {
+        if (!fp || (fp === demoFp && window.electron?.getVersion)) {
           if (window.electron?.getVersion) {
             fp = crypto.randomUUID();
           } else {
-            fp = 'demo-device-001';
+            fp = demoFp;
           }
           localStorage.setItem('device_fingerprint', fp);
         }

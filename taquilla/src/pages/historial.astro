@@ -87,7 +87,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
         .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
 
-    <script define:vars={{ apiUrl, demoMac: import.meta.env.PUBLIC_DEMO_MAC || '00:1A:2B:3C:4D:5E' }}>
+    <script define:vars={{ apiUrl, demoMac: import.meta.env.PUBLIC_DEMO_MAC || '00:1A:2B:3C:4D:5E', demoFp: import.meta.env.PUBLIC_DEMO_FP || 'demo-device-001' }}>
         const API_BASE = apiUrl;
 
         const API_MAC = demoMac;
@@ -107,7 +107,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
             const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
             if (token) headers['Authorization'] = 'Bearer ' + token;
             headers['X-Device-MAC'] = _mac;
-            headers['X-Device-Fingerprint'] = localStorage.getItem('device_fingerprint') || 'demo-device-001';
+            headers['X-Device-Fingerprint'] = localStorage.getItem('device_fingerprint') || demoFp;
             const opts = { method, headers, credentials: 'omit' };
             if (body) opts.body = JSON.stringify(body);
             const res = await fetch(API_BASE + url, opts);
