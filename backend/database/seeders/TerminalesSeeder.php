@@ -13,14 +13,14 @@ class TerminalesSeeder extends Seeder
     public function run(): void
     {
         $juego = Juego::firstOrCreate(
-            ['slug' => 'terminal-trio'],
+            ['slug' => 'terminal-activo'],
             [
-                'name' => 'Terminal Trío',
+                'name' => 'Terminal Activo',
                 'type' => 'terminales',
                 'config' => ['premio_multiplo' => 20],
                 'costo_minimo' => 3600,
-                'requires_scraper' => false,
-                'scraper_url' => null,
+                'requires_scraper' => true,
+                'scraper_url' => 'https://www.lottoactivo.com/resultados/terminal_activo/',
                 'active' => true,
             ]
         );
@@ -42,6 +42,6 @@ class TerminalesSeeder extends Seeder
             );
         }
 
-        $this->command->info('Juego Terminal Trío creado con 12 horarios (sin opciones seedeadas — plugin da fallback).');
+        $this->command->info('Juego Terminal Activo creado con 12 horarios (sin opciones seedeadas — plugin da fallback).');
     }
 }
