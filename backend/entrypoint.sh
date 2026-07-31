@@ -46,6 +46,9 @@ else
     php artisan db:seed --force --class=DatabaseSeeder 2>/dev/null || echo "   (ok)"
 fi
 
+echo "🧹 Limpiando cache..."
+php artisan optimize:clear
+
 # Iniciar servidor
 PORT=${PORT:-10000}
 echo "🌐 Iniciando servidor en 0.0.0.0:$PORT..."
