@@ -98,7 +98,7 @@ class AnimalitosScraper extends BaseScraper
         $slug = \Str::slug($name);
         
         return Juego::firstOrCreate(
-            ['name' => $name, 'type' => 'animalitos'],
+            ['name' => $name],
             [
                 'slug' => $slug,
                 'config' => ['premio_multiplo' => 30],
