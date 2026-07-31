@@ -88,6 +88,8 @@ const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
           } catch (_) {
             document.getElementById('mac-info').textContent = 'MAC: Error al obtener';
           }
+        } else if (import.meta.env.PUBLIC_DEMO_MAC) {
+          document.getElementById('mac-info').textContent = 'MAC: ' + import.meta.env.PUBLIC_DEMO_MAC;
         }
 
         const apiBase = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
