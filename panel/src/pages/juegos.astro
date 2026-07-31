@@ -1,0 +1,35 @@
+---
+import AdminLayout from '../layouts/AdminLayout.astro';
+---
+
+<AdminLayout>
+  <div class="page">
+    <div class="page-header"><h2 class="page-title">Juegos</h2></div>
+    <div id="content"><div class="loading">Cargando...</div></div>
+  </div>
+  <style>
+    .page { max-width: 1000px; } .page-header { margin-bottom: 20px; } .page-title { font-size: 24px; font-weight: 700; color: #1e293b; }
+    .btn { padding: 6px 14px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; } .btn-primary { background: #3b82f6; color: #fff; } .btn-primary:hover { background: #2563eb; } .btn-sm { padding: 3px 10px; font-size: 12px; }
+    .loading { text-align: center; padding: 40px; color: #666; } .table-wrap { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); } table { width: 100%; border-collapse: collapse; } th { background: #f1f5f9; padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600; color: #666; } td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+    .badge { display: inline-block; padding: 4px 12px; border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer; } .badge-active { background: #dcfce7; color: #166534; } .badge-inactive { background: #fef2f2; color: #991b1b; }
+    .type-badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; background: #e0e7ff; color: #3730a3; }
+  </style>
+  <script>
+    import { apiFetch } from '../utils/api.ts';
+    let games = [];
+    async function load() {
+      try { games = await apiFetch('GET','/juegos'); render(); } catch(e) { document.getElementById('content').innerHTML = '<div class="loading">Error: '+e.message+'</div>'; }
+    }
+    function render() {
+      let html = '<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Slug</th><th>Tipo</th><th>Multiplicador</th><th>Scraper</th><th>Estado</th></tr></thead><tbody>';
+      games.forEach(j => { html += `<tr><td><strong>${j.name}</strong></td><td>${j.slug}</td><td><span class="type-badge">${j.type}</span></td><td>${j.config?.premio_multiplo||'-'}x</td><td>${j.requires_scraper?'✅':'❌'}</td><td><span class="badge ${j.active?'badge-active':'badge-inactive'}" data-id="${j.id}" data-active="${j.active}">${j.active?'Activo':'Inactivo'}</span></td></tr>`; });
+      html += '</tbody></table></div>'; document.getElementById('content').innerHTML = html;
+    }
+    document.getElementById('content').addEventListener('click', async (e) => {
+      const badge = e.target.closest('.badge'); if (!badge) return;
+      const id = parseInt(badge.dataset.id); const active = badge.dataset.active === 'true';
+      try { await apiFetch('PATCH','/juegos/'+id+'/toggle'); load(); } catch(err) {}
+    });
+    load();
+  </script>
+</AdminLayout>

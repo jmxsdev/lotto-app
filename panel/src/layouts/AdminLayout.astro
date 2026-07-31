@@ -1,0 +1,135 @@
+---
+import { getStoredUser } from '../utils/api.ts';
+
+const user = getStoredUser();
+const role = user?.role || '';
+const name = user?.name || '';
+---
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lotto Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style is:global>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; background: #f0f2f5; color: #333; }
+
+    .app-shell { display: flex; min-height: 100vh; }
+    .sidebar {
+      width: 220px; background: #1e293b; color: #cbd5e1; flex-shrink: 0;
+      display: flex; flex-direction: column; padding: 16px 0;
+    }
+    .sidebar-brand { padding: 12px 20px; font-size: 18px; font-weight: 700; color: #fff; border-bottom: 1px solid #334155; margin-bottom: 8px; }
+    .sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 2px; padding: 0 8px; }
+    .sidebar-link {
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px;
+      text-decoration: none; color: #cbd5e1; font-size: 14px; font-weight: 500; transition: all .15s;
+    }
+    .sidebar-link:hover { background: #334155; color: #fff; }
+    .sidebar-link.active { background: #3b82f6; color: #fff; }
+    .sidebar-link-icon { font-size: 16px; width: 20px; text-align: center; }
+    .sidebar-footer { padding: 12px 20px; border-top: 1px solid #334155; }
+    .sidebar-user { font-size: 13px; color: #94a3b8; }
+    .sidebar-user strong { display: block; color: #e2e8f0; margin-bottom: 2px; }
+    .sidebar-logout { margin-top: 8px; padding: 6px 12px; background: #334155; border: none; color: #cbd5e1; border-radius: 6px; cursor: pointer; font-size: 12px; width: 100%; }
+    .sidebar-logout:hover { background: #475569; }
+    .main-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .topbar {
+      background: #fff; padding: 12px 24px; display: flex; align-items: center;
+      justify-content: space-between; border-bottom: 1px solid #e2e8f0; flex-shrink: 0;
+    }
+    .topbar-title { font-size: 16px; font-weight: 600; }
+    .topbar-info { display: flex; gap: 16px; align-items: center; font-size: 13px; color: #666; }
+    .page-content { flex: 1; padding: 24px; overflow-y: auto; }
+
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999; animation: fadeIn .2s ease; }
+    .modal-dialog { background: #fff; border-radius: 12px; padding: 28px 24px 20px; max-width: 400px; width: 90%; text-align: center; box-shadow: 0 8px 30px rgba(0,0,0,0.25); animation: slideIn .25s ease; }
+    .modal-icon { font-size: 36px; margin-bottom: 10px; }
+    .modal-message { font-size: 15px; color: #333; margin-bottom: 22px; line-height: 1.5; word-wrap: break-word; }
+    .modal-buttons { display: flex; gap: 8px; justify-content: center; }
+    .modal-btn { padding: 10px 22px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; }
+    .modal-btn:hover { filter: brightness(0.9); transform: translateY(-1px); }
+    .modal-btn-primary { background: #3b82f6; color: #fff; }
+    .modal-btn-danger { background: #dc3545; color: #fff; }
+    .modal-btn-secondary { background: #e9ecef; color: #333; }
+    @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+  <slot name="styles" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-brand">🎰 Lotto Panel</div>
+      <nav class="sidebar-nav" id="sidebar-nav">
+      </nav>
+      <div class="sidebar-footer">
+        <div class="sidebar-user">
+          <strong>{name || 'Admin'}</strong>
+          {role ? role.replace('_',' ').toUpperCase() : ''}
+        </div>
+        <button class="sidebar-logout" id="logout-btn">🚪 Cerrar sesión</button>
+      </div>
+    </aside>
+    <main class="main-area">
+      <header class="topbar">
+        <div class="topbar-title" id="topbar-title">Dashboard</div>
+        <div class="topbar-info">
+          <span id="topbar-clock">--:--:--</span>
+        </div>
+      </header>
+      <div class="page-content">
+        <slot />
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const currentPath = window.location.pathname;
+    const user = JSON.parse(localStorage.getItem('panel_user') || '{}');
+    const role = user.role || '';
+
+    const navItems = [
+      { label: 'Dashboard', href: '/dashboard', icon: '📊', roles: ['super_master','master','banca','grupo'] },
+      { label: 'Usuarios',  href: '/usuarios',  icon: '👥', roles: ['super_master','master'] },
+      { label: 'Bancas',    href: '/bancas',    icon: '🏦', roles: ['super_master','master'] },
+      { label: 'Grupos',    href: '/grupos',    icon: '📂', roles: ['super_master','master','banca'] },
+      { label: 'Taquillas', href: '/taquillas', icon: '🎫', roles: ['super_master','master','banca','grupo'] },
+      { label: 'Juegos',    href: '/juegos',    icon: '🎲', roles: ['super_master','master'] },
+      { label: 'Tasas',     href: '/tasas',     icon: '💱', roles: ['super_master','master'] },
+      { label: 'Logs',      href: '/logs',      icon: '📋', roles: ['super_master','master'] },
+    ];
+
+    const sidebarNav = document.getElementById('sidebar-nav');
+    navItems.forEach(item => {
+      if (!item.roles.includes(role)) return;
+      const active = currentPath === item.href || currentPath.startsWith(item.href + '/');
+      const a = document.createElement('a');
+      a.className = 'sidebar-link' + (active ? ' active' : '');
+      a.href = item.href;
+      a.innerHTML = `<span class="sidebar-link-icon">${item.icon}</span> ${item.label}`;
+      sidebarNav.appendChild(a);
+    });
+
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('topbar-clock').textContent = now.toLocaleTimeString('es-VE', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      const ok = await import('../utils/modal.ts').then(m => m.showModal({ message: '¿Cerrar sesión?', type: 'confirm' }));
+      if (!ok) return;
+      localStorage.removeItem('panel_token');
+      localStorage.removeItem('panel_user');
+      window.location.href = '/login';
+    });
+  </script>
+</body>
+</html>
