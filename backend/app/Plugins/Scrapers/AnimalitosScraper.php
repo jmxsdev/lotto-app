@@ -95,18 +95,37 @@ class AnimalitosScraper extends BaseScraper
             return null;
         }
 
-        $slug = \Str::slug($name);
-        
-        return Juego::firstOrCreate(
-            ['name' => $name],
-            [
-                'slug' => $slug,
-                'config' => ['premio_multiplo' => 30],
-                'requires_scraper' => true,
-                'scraper_url' => $this->baseUrl . '/resultados/' . $this->slug . '/',
-                'active' => true,
-            ]
-        );
+        $rawSlug = \Str::slug($name);
+
+        $canonicalSlug = match ($rawSlug) {
+            'lotto-activo-2-monje-millonario', 'lottoactivo2-monjemillonario' => 'monje-millonario',
+            'terminal-trio' => 'terminal-activo',
+            'lotto-activo-rd-internacional' => 'lotto-activo-rd',
+            'lotto-activo-republica-dominicana' => 'lotto-activo-rep-dom',
+            'lotto-activo' => 'lotto-activo',
+            default => $rawSlug,
+        };
+
+        $type = match ($this->slug) {
+            'trio_activo' => 'tripletas',
+            'terminal_activo' => 'terminales',
+            default => 'animalitos',
+        };
+
+        $existing = Juego::where('slug', $canonicalSlug)->first();
+        if ($existing) {
+            return $existing;
+        }
+
+        return Juego::create([
+            'slug' => $canonicalSlug,
+            'name' => $name,
+            'type' => $type,
+            'config' => ['premio_multiplo' => 30],
+            'requires_scraper' => true,
+            'scraper_url' => $this->baseUrl . '/resultados/' . $this->slug . '/',
+            'active' => true,
+        ]);
     }
 
     protected function mapToResultado(array $data, Juego $juego, array $juegoData): array
