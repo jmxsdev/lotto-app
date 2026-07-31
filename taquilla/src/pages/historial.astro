@@ -87,10 +87,10 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
         .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
 
-    <script define:vars={{ apiUrl }}>
+    <script define:vars={{ apiUrl, demoMac: import.meta.env.PUBLIC_DEMO_MAC || '00:1A:2B:3C:4D:5E' }}>
         const API_BASE = apiUrl;
 
-        const API_MAC = import.meta.env.PUBLIC_DEMO_MAC || '00:1A:2B:3C:4D:5E';
+        const API_MAC = demoMac;
         let _mac = API_MAC;
         async function initMac() {
           if (typeof window !== 'undefined' && window.electron?.getMac) {
