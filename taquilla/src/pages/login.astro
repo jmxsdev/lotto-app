@@ -232,7 +232,7 @@ import api from '../utils/api';
             let message = '';
             try { message = JSON.parse(text).message || ''; } catch (_) {}
             const msg = (message || '').toLowerCase();
-            if (msg.includes('activado') || msg.includes('dispositivo') || msg.includes('huella')) {
+            if (msg.includes('activado')) {
               showAlert(message || 'Dispositivo no activado. Redirigiendo...', 'warning');
               setTimeout(() => { window.location.href = '/activacion'; }, 1500);
             } else {
