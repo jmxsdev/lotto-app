@@ -1,0 +1,129 @@
+---
+const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
+---
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lotto Panel — Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #0f172a, #1e293b); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .login-card { background: #fff; border-radius: 16px; padding: 40px; width: 400px; max-width: 95%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+    .login-logo { font-size: 32px; text-align: center; margin-bottom: 8px; }
+    .login-title { font-size: 22px; font-weight: 700; text-align: center; color: #1e293b; margin-bottom: 4px; }
+    .login-subtitle { font-size: 13px; text-align: center; color: #666; margin-bottom: 28px; }
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px; }
+    .form-input { width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 15px; transition: border-color .15s; }
+    .form-input:focus { border-color: #3b82f6; outline: none; }
+    .btn-login { width: 100%; padding: 14px; background: #3b82f6; color: #fff; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all .15s; }
+    .btn-login:hover { background: #2563eb; }
+    .btn-login:disabled { opacity: 0.6; cursor: not-allowed; }
+    .alert { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; }
+    .alert.error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; display: block; }
+    .alert.warning { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; display: block; }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="login-logo">🎰</div>
+    <h1 class="login-title">Lotto Panel</h1>
+    <p class="login-subtitle">Panel de administración</p>
+    <div id="alert" class="alert"></div>
+    <form id="login-form">
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" id="email" class="form-input" placeholder="admin@lotto.com" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Contraseña</label>
+        <input type="password" id="password" class="form-input" placeholder="••••••••" required />
+      </div>
+      <button type="submit" class="btn-login" id="btn-login">Iniciar Sesión</button>
+    </form>
+  </div>
+
+  <script define:vars={{ apiUrl }}>
+    const API_BASE = apiUrl;
+    const ROLES_PERMITIDOS = ['super_master','master','banca','grupo'];
+    const alertEl = document.getElementById('alert');
+    const btn = document.getElementById('btn-login');
+
+    function showAlert(msg, type) {
+      alertEl.textContent = msg;
+      alertEl.className = 'alert ' + type;
+    }
+
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      if (!email || !password) return showAlert('Complete todos los campos.', 'error');
+      showAlert('', '');
+      btn.disabled = true;
+      btn.textContent = 'Iniciando sesión...';
+
+      try {
+        const response = await fetch(API_BASE + '/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Panel': 'true' },
+          body: JSON.stringify({ email, password }),
+        });
+
+        if (response.status === 429) {
+          showAlert('Demasiados intentos. Espere un momento.', 'error');
+          btn.disabled = false;
+          btn.textContent = 'Iniciar Sesión';
+          return;
+        }
+
+        if (response.status === 403) {
+          showAlert('No tiene permisos para acceder al panel.', 'warning');
+          btn.disabled = false;
+          btn.textContent = 'Iniciar Sesión';
+          return;
+        }
+
+        if (!response.ok) {
+          const text = await response.text();
+          let msg = 'Credenciales incorrectas.';
+          try { msg = JSON.parse(text).message || msg; } catch (_) {}
+          showAlert(msg, 'error');
+          btn.disabled = false;
+          btn.textContent = 'Iniciar Sesión';
+          return;
+        }
+
+        const data = await response.json();
+        if (!data.token || !data.user) {
+          showAlert('Respuesta inesperada del servidor.', 'error');
+          btn.disabled = false;
+          btn.textContent = 'Iniciar Sesión';
+          return;
+        }
+
+        if (!ROLES_PERMITIDOS.includes(data.user.role)) {
+          showAlert('Las taquillas deben usar la app de escritorio.', 'warning');
+          btn.disabled = false;
+          btn.textContent = 'Iniciar Sesión';
+          return;
+        }
+
+        localStorage.setItem('panel_token', data.token);
+        localStorage.setItem('panel_user', JSON.stringify(data.user));
+        window.location.href = '/dashboard';
+      } catch (err) {
+        showAlert('Error de conexión: ' + err.message, 'error');
+        btn.disabled = false;
+        btn.textContent = 'Iniciar Sesión';
+      }
+    });
+  </script>
+</body>
+</html>

@@ -97,6 +97,15 @@ Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
     });
 
     // ==================================================
+    // LOGS (Super Master, Master)
+    // ==================================================
+    Route::middleware(['role:super_master|master'])->group(function () {
+        Route::get('/logs', function (\Illuminate\Http\Request $request) {
+            return \App\Models\Log::with('user')->latest()->paginate($request->input('per_page', 50));
+        });
+    });
+
+    // ==================================================
     // TICKETS (todos los roles que pueden crear apuestas)
     // ==================================================
     Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {

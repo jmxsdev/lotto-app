@@ -1,0 +1,37 @@
+---
+import AdminLayout from '../layouts/AdminLayout.astro';
+---
+
+<AdminLayout>
+  <div class="page">
+    <div class="page-header"><h2 class="page-title">Logs de Auditoría</h2></div>
+    <div class="filters">
+      <input type="text" id="filter-action" placeholder="Filtrar por acción..." class="filter-input" />
+      <button class="btn btn-primary" id="btn-refresh">Actualizar</button>
+    </div>
+    <div id="content"><div class="loading">Cargando...</div></div>
+  </div>
+  <style>
+    .page { max-width: 1200px; } .page-header { margin-bottom: 16px; } .page-title { font-size: 24px; font-weight: 700; color: #1e293b; }
+    .filters { display: flex; gap: 12px; margin-bottom: 16px; } .filter-input { padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; width: 250px; } .filter-input:focus { border-color: #3b82f6; outline: none; }
+    .btn { padding: 8px 16px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; } .btn-primary { background: #3b82f6; color: #fff; }
+    .loading { text-align: center; padding: 40px; color: #666; } .table-wrap { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); } table { width: 100%; border-collapse: collapse; } th { background: #f1f5f9; padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600; color: #666; } td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; font-size: 13px; vertical-align: top; } .log-action { font-weight: 600; color: #3b82f6; } .log-details { font-size: 12px; color: #666; max-width: 300px; word-break: break-all; }
+  </style>
+  <script>
+    import { apiFetch } from '../utils/api.ts';
+    let logs = [];
+    async function load() {
+      try { logs = await apiFetch('GET','/logs?per_page=50'); render(); } catch(e) { document.getElementById('content').innerHTML = '<div class="loading">Error: '+e.message+'</div>'; }
+    }
+    function render() {
+      const filter = (document.getElementById('filter-action')?.value||'').toLowerCase().trim();
+      const filtered = filter ? logs.filter(l => (l.action||'').toLowerCase().includes(filter)) : logs;
+      let html = '<div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Detalles</th><th>IP</th></tr></thead><tbody>';
+      filtered.forEach(l => { html += `<tr><td>${new Date(l.created_at).toLocaleString('es-VE')}</td><td>${l.user?.name||'Sistema'}</td><td class="log-action">${l.action}</td><td class="log-details">${JSON.stringify(l.details||{}).substring(0,200)}</td><td>${l.ip||'-'}</td></tr>`; });
+      html += '</tbody></table></div>'; document.getElementById('content').innerHTML = filtered.length===0?'<div class="loading">Sin resultados</div>':html;
+    }
+    document.getElementById('filter-action').addEventListener('input', () => render());
+    document.getElementById('btn-refresh').addEventListener('click', load);
+    load();
+  </script>
+</AdminLayout>
