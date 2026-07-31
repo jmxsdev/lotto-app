@@ -10,10 +10,18 @@ class AnimalitosScraper extends BaseScraper
 {
     protected string $baseUrl = 'https://www.lottoactivo.com';
     protected string $scraperName = 'AnimalitosScraper';
+    protected string $slug;
+
+    public function __construct(string $slug = 'animalitos')
+    {
+        parent::__construct();
+        $this->slug = $slug;
+        $this->scraperName = \Str::studly($slug) . 'Scraper';
+    }
 
     public function fetch(string $fecha): string
     {
-        $url = $this->baseUrl . '/resultados/animalitos/' . $fecha . '/';
+        $url = $this->baseUrl . '/resultados/' . $this->slug . '/' . $fecha . '/';
         $html = $this->getHtml($url);
         
         $token = $this->extractToken($html);
@@ -24,7 +32,7 @@ class AnimalitosScraper extends BaseScraper
         
         $postData = [
             'option' => $token,
-            'loteria' => 'animalitos',
+            'loteria' => $this->slug,
             'fecha' => $fecha,
         ];
         
@@ -95,7 +103,7 @@ class AnimalitosScraper extends BaseScraper
                 'slug' => $slug,
                 'config' => ['premio_multiplo' => 30],
                 'requires_scraper' => true,
-                'scraper_url' => $this->baseUrl . '/resultados/animalitos/',
+                'scraper_url' => $this->baseUrl . '/resultados/' . $this->slug . '/',
                 'active' => true,
             ]
         );

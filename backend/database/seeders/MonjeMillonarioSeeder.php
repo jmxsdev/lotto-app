@@ -12,15 +12,15 @@ class MonjeMillonarioSeeder extends Seeder
 {
     public function run(): void
     {
-        $juego = Juego::firstOrCreate(
+        $juego = Juego::updateOrCreate(
             ['slug' => 'monje-millonario'],
             [
                 'name' => 'Monje Millonario',
                 'type' => 'animalitos',
                 'config' => ['premio_multiplo' => 30],
                 'costo_minimo' => 3600,
-                'requires_scraper' => false,
-                'scraper_url' => null,
+                'requires_scraper' => true,
+                'scraper_url' => 'https://www.lottoactivo.com/resultados/animalitos/',
                 'active' => true,
             ]
         );

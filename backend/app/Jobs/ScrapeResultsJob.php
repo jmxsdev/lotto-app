@@ -43,10 +43,10 @@ class ScrapeResultsJob implements ShouldQueue
 
         FacadeLog::info("=== INICIO ScrapeResultsJob para {$juego->name} fecha: {$fecha} ===");
 
-        $scraperClass = $this->resolveScraper($juego->type);
+        $scraperClass = $this->resolveScraper($juego);
 
         if (!$scraperClass || !class_exists($scraperClass)) {
-            FacadeLog::warning("No existe scraper para type: {$juego->type}");
+            FacadeLog::warning("No existe scraper para: {$juego->name} (type: {$juego->type}, url: {$juego->scraper_url})");
             $this->logToDatabase('warning', "No existe scraper", [
                 'juego' => $juego->name,
                 'type' => $juego->type,
@@ -55,7 +55,7 @@ class ScrapeResultsJob implements ShouldQueue
         }
 
         try {
-            $scraper = new $scraperClass();
+            $scraper = $this->instantiateScraper($scraperClass, $juego);
             $resultados = $scraper->execute($fecha);
 
             if (empty($resultados)) {
@@ -109,10 +109,35 @@ class ScrapeResultsJob implements ShouldQueue
         FacadeLog::info("=== FIN ScrapeResultsJob {$juego->name} ===");
     }
 
-    protected function resolveScraper(string $type): ?string
+    protected function resolveScraper(Juego $juego): ?string
     {
+        $url = $juego->scraper_url ?? '';
+        $type = $juego->type;
+
+        if (str_contains($url, 'lottoactivo.com')) {
+            return \App\Plugins\Scrapers\AnimalitosScraper::class;
+        }
+        if (str_contains($url, 'triplezulia')) {
+            return \App\Plugins\Scrapers\TripletasScraper::class;
+        }
+
+        // Fallback: convention-based by type
         $class = 'App\\Plugins\\Scrapers\\' . Str::studly($type) . 'Scraper';
         return class_exists($class) ? $class : null;
+    }
+
+    protected function instantiateScraper(string $class, Juego $juego): object
+    {
+        $url = $juego->scraper_url ?? '';
+
+        if ($class === \App\Plugins\Scrapers\AnimalitosScraper::class) {
+            $slug = 'animalitos';
+            if (str_contains($url, 'trio_activo')) $slug = 'trio_activo';
+            if (str_contains($url, 'terminal_activo')) $slug = 'terminal_activo';
+            return new \App\Plugins\Scrapers\AnimalitosScraper($slug);
+        }
+
+        return new $class();
     }
 
     protected function logToDatabase(string $level, string $message, array $context = []): void
