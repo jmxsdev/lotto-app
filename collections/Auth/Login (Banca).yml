@@ -9,6 +9,8 @@ http:
   headers:
     - name: Content-Type
       value: application/json
+    - name: X-Panel
+      value: true
   body:
     type: json
     data: |-
