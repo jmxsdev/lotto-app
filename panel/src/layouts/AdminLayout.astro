@@ -57,6 +57,25 @@ const name = user?.name || '';
     .modal-btn-primary { background: #3b82f6; color: #fff; }
     .modal-btn-danger { background: #dc3545; color: #fff; }
     .modal-btn-secondary { background: #e9ecef; color: #333; }
+    .sidebar-dropdown { position: relative; }
+    .sidebar-dropdown .dropdown-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 12px; border-radius: 8px; cursor: pointer;
+      color: #cbd5e1; font-size: 14px; font-weight: 500; transition: all .15s;
+    }
+    .sidebar-dropdown .dropdown-header:hover { background: #334155; color: #fff; }
+    .sidebar-dropdown .dropdown-header .header-left { display: flex; align-items: center; gap: 10px; }
+    .sidebar-dropdown .dropdown-arrow { font-size: 10px; transition: transform .2s; }
+    .sidebar-dropdown.open .dropdown-arrow { transform: rotate(180deg); }
+    .sidebar-dropdown .dropdown-menu { display: none; padding-left: 28px; }
+    .sidebar-dropdown.open .dropdown-menu { display: block; }
+    .sidebar-dropdown .dropdown-item {
+      display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 6px;
+      text-decoration: none; color: #94a3b8; font-size: 13px; transition: all .15s;
+    }
+    .sidebar-dropdown .dropdown-item:hover { background: #334155; color: #fff; }
+    .sidebar-dropdown .dropdown-item.active { background: #1d4ed8; color: #fff; }
+    .sidebar-dropdown .dropdown-count { margin-left: auto; font-size: 11px; opacity: 0.7; }
     @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
     @keyframes slideIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
   </style>
@@ -93,28 +112,110 @@ const name = user?.name || '';
     const currentPath = window.location.pathname;
     const user = JSON.parse(localStorage.getItem('panel_user') || '{}');
     const role = user.role || '';
+    const entityCounts = window.entityCounts || {};
 
-    const navItems = [
-      { label: 'Dashboard', href: '/dashboard', icon: '📊', roles: ['super_master','master','banca','grupo'] },
-      { label: 'Usuarios',  href: '/usuarios',  icon: '👥', roles: ['super_master','master'] },
-      { label: 'Bancas',    href: '/bancas',    icon: '🏦', roles: ['super_master','master'] },
-      { label: 'Grupos',    href: '/grupos',    icon: '📂', roles: ['super_master','master','banca'] },
-      { label: 'Taquillas', href: '/taquillas', icon: '🎫', roles: ['super_master','master','banca','grupo'] },
-      { label: 'Juegos',    href: '/juegos',    icon: '🎲', roles: ['super_master','master'] },
-      { label: 'Tasas',     href: '/tasas',     icon: '💱', roles: ['super_master','master'] },
-      { label: 'Logs',      href: '/logs',      icon: '📋', roles: ['super_master','master'] },
-    ];
+    // Fetch entity counts if not set by dashboard
+    async function loadCounts() {
+      if (window.entityCounts) return;
+      const API_BASE = 'http://localhost:8000/api';
+      const token = localStorage.getItem('panel_token');
+      const headers = { 'Accept': 'application/json', 'X-Panel': 'true' };
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+      try {
+        const [b, g, t] = await Promise.all([
+          fetch(API_BASE + '/bancas?per_page=1', { headers }).then(r => r.ok ? r.json() : []),
+          fetch(API_BASE + '/grupos?per_page=1', { headers }).then(r => r.ok ? r.json() : []),
+          fetch(API_BASE + '/taquillas?per_page=1', { headers }).then(r => r.ok ? r.json() : []),
+        ]);
+        window.entityCounts = {
+          bancas: Array.isArray(b) ? b.length : (b?.data?.length || b?.meta?.total || 0),
+          grupos: Array.isArray(g) ? g.length : (g?.data?.length || g?.meta?.total || 0),
+          taquillas: Array.isArray(t) ? t.length : (t?.data?.length || t?.meta?.total || 0),
+        };
+        // Update dropdown counts
+        document.querySelectorAll('.dropdown-count').forEach(el => {
+          const key = el.dataset.entity;
+          if (key && window.entityCounts[key] !== undefined) el.textContent = window.entityCounts[key];
+        });
+      } catch (_) {}
+    }
+    loadCounts();
 
-    const sidebarNav = document.getElementById('sidebar-nav');
-    navItems.forEach(item => {
-      if (!item.roles.includes(role)) return;
-      const active = currentPath === item.href || currentPath.startsWith(item.href + '/');
+    function addLink(label, href, icon) {
+      const active = currentPath === href || currentPath.startsWith(href + '/');
       const a = document.createElement('a');
       a.className = 'sidebar-link' + (active ? ' active' : '');
-      a.href = item.href;
-      a.innerHTML = `<span class="sidebar-link-icon">${item.icon}</span> ${item.label}`;
-      sidebarNav.appendChild(a);
-    });
+      a.href = href;
+      a.innerHTML = `<span class="sidebar-link-icon">${icon}</span> ${label}`;
+      return a;
+    }
+
+    function addDropdownItem(label, href, icon, count, entityKey) {
+      const active = currentPath === href || currentPath.startsWith(href + '/');
+      const a = document.createElement('a');
+      a.className = 'dropdown-item' + (active ? ' active' : '');
+      a.href = href;
+      a.innerHTML = `${icon} ${label}<span class="dropdown-count" data-entity="${entityKey}">${count !== undefined && count !== null ? count : '-'}</span>`;
+      return a;
+    }
+
+    const sidebarNav = document.getElementById('sidebar-nav');
+
+    // Dashboard (always visible)
+    sidebarNav.appendChild(addLink('Dashboard', '/dashboard', '📊'));
+
+    // Entidades dropdown — varies by role
+    const entidades = [];
+    if (role === 'super_master' || role === 'master') entidades.push({ label: 'Bancas', href: '/bancas', icon: '🏦', count: entityCounts.bancas, key: 'bancas' });
+    if (role === 'super_master' || role === 'master' || role === 'banca') entidades.push({ label: 'Grupos', href: '/grupos', icon: '📂', count: entityCounts.grupos, key: 'grupos' });
+    if (['super_master','master','banca','grupo'].includes(role)) entidades.push({ label: 'Taquillas', href: '/taquillas', icon: '🎫', count: entityCounts.taquillas, key: 'taquillas' });
+
+    if (entidades.length > 0) {
+      const dropdown = document.createElement('div');
+      dropdown.className = 'sidebar-dropdown';
+      dropdown.id = 'entity-dropdown';
+
+      const header = document.createElement('div');
+      header.className = 'dropdown-header';
+      header.innerHTML = `<span class="header-left"><span class="sidebar-link-icon">👥</span> Entidades</span><span class="dropdown-arrow">▼</span>`;
+
+      const menu = document.createElement('div');
+      menu.className = 'dropdown-menu';
+      menu.id = 'dropdown-menu';
+
+      entidades.forEach(e => menu.appendChild(addDropdownItem(e.label, e.href, e.icon, e.count, e.key)));
+      dropdown.appendChild(header);
+      dropdown.appendChild(menu);
+      sidebarNav.appendChild(dropdown);
+
+      // Hover + click toggle
+      let locked = false;
+      let isOpen = false;
+
+      function open() { isOpen = true; dropdown.classList.add('open'); }
+      function close() { if (!locked) { isOpen = false; dropdown.classList.remove('open'); } }
+
+      dropdown.addEventListener('mouseenter', () => { if (!locked) open(); });
+      dropdown.addEventListener('mouseleave', () => { if (!locked) close(); });
+      header.addEventListener('click', (e) => {
+        e.preventDefault();
+        locked = !locked;
+        if (locked) open(); else close();
+      });
+      document.addEventListener('click', (e) => {
+        if (!dropdown.contains(e.target)) { locked = false; close(); }
+      });
+      menu.addEventListener('click', (e) => e.stopPropagation());
+    }
+
+    // Juegos
+    if (['super_master','master'].includes(role)) sidebarNav.appendChild(addLink('Juegos', '/juegos', '🎲'));
+
+    // Tasas
+    if (['super_master','master'].includes(role)) sidebarNav.appendChild(addLink('Tasas', '/tasas', '💱'));
+
+    // Logs
+    if (['super_master','master'].includes(role)) sidebarNav.appendChild(addLink('Logs', '/logs', '📋'));
 
     function updateClock() {
       const now = new Date();

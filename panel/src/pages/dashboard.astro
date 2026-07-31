@@ -9,7 +9,6 @@ import AdminLayout from '../layouts/AdminLayout.astro';
       <div class="stat-card"><div class="stat-icon">🏦</div><div class="stat-value" id="stat-bancas">-</div><div class="stat-label">Bancas</div></div>
       <div class="stat-card"><div class="stat-icon">📂</div><div class="stat-value" id="stat-grupos">-</div><div class="stat-label">Grupos</div></div>
       <div class="stat-card"><div class="stat-icon">🎫</div><div class="stat-value" id="stat-taquillas">-</div><div class="stat-label">Taquillas</div></div>
-      <div class="stat-card"><div class="stat-icon">👥</div><div class="stat-value" id="stat-users">-</div><div class="stat-label">Usuarios</div></div>
       <div class="stat-card"><div class="stat-icon">🎲</div><div class="stat-value" id="stat-apuestas">-</div><div class="stat-label">Apuestas Hoy</div></div>
       <div class="stat-card"><div class="stat-icon">💎</div><div class="stat-value" id="stat-ganadores">-</div><div class="stat-label">Ganadores Hoy</div></div>
     </div>
@@ -30,20 +29,29 @@ import AdminLayout from '../layouts/AdminLayout.astro';
 
     async function loadStats() {
       try {
-        const [bancas, grupos, taquillas, users, resumen] = await Promise.all([
+        const [bancas, grupos, taquillas, resumen] = await Promise.all([
           apiFetch('GET', '/bancas?per_page=1'),
           apiFetch('GET', '/grupos?per_page=1'),
           apiFetch('GET', '/taquillas?per_page=1'),
-          apiFetch('GET', '/users?per_page=1'),
           apiFetch('GET', '/apuestas/resumen'),
         ]);
-        document.getElementById('stat-bancas').textContent = bancas.data?.total || bancas.meta?.total || '-';
-        document.getElementById('stat-grupos').textContent = grupos.data?.total || grupos.meta?.total || '-';
-        document.getElementById('stat-taquillas').textContent = taquillas.data?.total || taquillas.meta?.total || '-';
-        document.getElementById('stat-users').textContent = users.data?.total || users.meta?.total || '-';
+        const countBancas = Array.isArray(bancas) ? bancas.length : (bancas?.data?.length || bancas?.meta?.total || '-');
+        const countGrupos = Array.isArray(grupos) ? grupos.length : (grupos?.data?.length || grupos?.meta?.total || '-');
+        const countTaquillas = Array.isArray(taquillas) ? taquillas.length : (taquillas?.data?.length || taquillas?.meta?.total || '-');
+
+        document.getElementById('stat-bancas').textContent = countBancas;
+        document.getElementById('stat-grupos').textContent = countGrupos;
+        document.getElementById('stat-taquillas').textContent = countTaquillas;
+
         const r = resumen.data || resumen;
         document.getElementById('stat-apuestas').textContent = (r.pending_count || 0) + (r.pagada_count || 0);
         document.getElementById('stat-ganadores').textContent = r.pagada_count || 0;
+
+        window.entityCounts = {
+          bancas: countBancas !== '-' ? countBancas : 0,
+          grupos: countGrupos !== '-' ? countGrupos : 0,
+          taquillas: countTaquillas !== '-' ? countTaquillas : 0,
+        };
       } catch (e) {
         console.warn('Stats error:', e.message);
       }
