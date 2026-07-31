@@ -168,8 +168,8 @@ import api from '../utils/api';
       </div>
     </div>
 
-    <script>
-      const API_BASE = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
+    <script define:vars={{ apiUrl: import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api', demoMac: import.meta.env.PUBLIC_DEMO_MAC || '' }}>
+      const API_BASE = apiUrl;
 
       function showAlert(message, type) {
         const alertEl = document.getElementById('alert');
@@ -202,8 +202,8 @@ import api from '../utils/api';
               console.warn('No se pudo obtener MAC:', error);
             }
           }
-          if (!mac && import.meta.env.PUBLIC_DEMO_MAC) {
-            mac = import.meta.env.PUBLIC_DEMO_MAC;
+          if (!mac && demoMac) {
+            mac = demoMac;
           }
 
           const response = await fetch(API_BASE + '/login', {

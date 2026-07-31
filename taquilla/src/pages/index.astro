@@ -69,7 +69,7 @@ const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
       </div>
     </div>
 
-    <script>
+    <script define:vars={{ apiUrl: import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api', demoMac: import.meta.env.PUBLIC_DEMO_MAC || '' }}>
       async function init() {
         let fp = localStorage.getItem('device_fingerprint');
         if (!fp || (fp === 'demo-device-001' && window.electron?.getVersion)) {
@@ -88,11 +88,11 @@ const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
           } catch (_) {
             document.getElementById('mac-info').textContent = 'MAC: Error al obtener';
           }
-        } else if (import.meta.env.PUBLIC_DEMO_MAC) {
-          document.getElementById('mac-info').textContent = 'MAC: ' + import.meta.env.PUBLIC_DEMO_MAC;
+        } else if (demoMac) {
+          document.getElementById('mac-info').textContent = 'MAC: ' + demoMac;
         }
 
-        const apiBase = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
+        const apiBase = apiUrl;
 
         try {
           const res = await fetch(apiBase + '/dispositivo/verificar', {

@@ -149,7 +149,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
       </div>
     </div>
 
-    <script define:vars={{ apiUrl }}>
+    <script define:vars={{ apiUrl, demoMac: import.meta.env.PUBLIC_DEMO_MAC || '', isWeb: import.meta.env.PUBLIC_IS_WEB === 'true' }}>
       const API_BASE = apiUrl;
       let macAddress = '';
 
@@ -162,8 +162,8 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
           } catch (error) {
             document.getElementById('mac-address').textContent = 'Error al obtener MAC';
           }
-        } else if (import.meta.env.PUBLIC_IS_WEB === 'true' && import.meta.env.PUBLIC_DEMO_MAC) {
-          macAddress = import.meta.env.PUBLIC_DEMO_MAC;
+        } else if (isWeb && demoMac) {
+          macAddress = demoMac;
           document.getElementById('mac-address').textContent = macAddress;
         } else {
           document.getElementById('mac-address').textContent = 'Sin Electron';
