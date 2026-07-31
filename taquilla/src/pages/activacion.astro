@@ -149,7 +149,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
       </div>
     </div>
 
-    <script define:vars={{ apiUrl, demoMac: import.meta.env.PUBLIC_DEMO_MAC || '', isWeb: import.meta.env.PUBLIC_IS_WEB === 'true' }}>
+    <script define:vars={{ apiUrl, demoMac: import.meta.env.PUBLIC_DEMO_MAC || '', isWeb: import.meta.env.PUBLIC_IS_WEB === 'true', demoFp: import.meta.env.PUBLIC_DEMO_FP || 'demo-device-001' }}>
       const API_BASE = apiUrl;
       let macAddress = '';
 
@@ -204,7 +204,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
             body: JSON.stringify({
               activation_code: codigo,
               mac_address: macAddress,
-              device_fingerprint: localStorage.getItem('device_fingerprint') || 'demo-device-001',
+              device_fingerprint: localStorage.getItem('device_fingerprint') || demoFp,
             }),
           });
 
