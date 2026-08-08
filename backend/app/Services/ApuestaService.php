@@ -163,6 +163,29 @@ class ApuestaService
 
         $combinacion = $data['combinacion'] ?? [];
 
+        // Validar la combinación contra las opciones específicas del juego
+        $juego = \App\Models\Juego::find($data['juego_id']);
+        if ($juego) {
+            $plugin = app(\App\Services\JuegoPluginManager::class)->getPlugin($juego);
+            if ($plugin) {
+                $opciones = \App\Models\JuegoOpcion::where('juego_id', $juego->id)
+                    ->orderBy('numero')
+                    ->get()
+                    ->toArray();
+
+                if (empty($opciones)) {
+                    $opciones = $plugin->obtenerOpciones();
+                }
+
+                if (!$plugin->validarApuesta($data, $opciones)) {
+                    $labels = array_column($opciones, 'label');
+                    throw new \RuntimeException(
+                        'Animal no válido para este juego. Animales permitidos: ' . implode(', ', $labels)
+                    );
+                }
+            }
+        }
+
         $sorteoHora = $data['sorteo_hora'] ?? null;
         if ($sorteoHora) {
             $sorteoHora = Carbon::parse($sorteoHora);
