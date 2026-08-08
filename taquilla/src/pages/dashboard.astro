@@ -738,13 +738,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
 
     const GAMES_CONFIG = {
       animalitos: {
-        games: [
-          { id:1, type:'animalitos', name:'Lotto Activo', slug:'lotto-activo', multiplicador:30, horarios:['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00'] },
-          { id:4, type:'animalitos', name:'Lotto Activo RD Internacional', slug:'lotto-activo-rd', multiplicador:30, horarios:['08:30','09:30','10:30','11:30','12:30','13:30','14:30','15:30','16:30','17:30','18:30','19:30'] },
-          { id:5, type:'animalitos', name:'Lotto Activo Rep. Dominicana', slug:'lotto-activo-rep-dom', multiplicador:30, horarios:['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00'] },
-          { id:6, type:'animalitos', name:'Monje Millonario', slug:'monje-millonario', multiplicador:30, horarios:['08:05','09:05','10:05','11:05','12:05','13:05','14:05','15:05','16:05','17:05','18:05','19:05'] },
-        ],
-        animales: [
+        defaultAnimales: [
           { numero:0, label:'Delfín' },{ numero:1, label:'Carnero' },{ numero:2, label:'Toro' },{ numero:3, label:'Ciempiés' },
           { numero:4, label:'Alacrán' },{ numero:5, label:'León' },{ numero:6, label:'Rana' },{ numero:7, label:'Perico' },
           { numero:8, label:'Ratón' },{ numero:9, label:'Águila' },{ numero:10, label:'Tigre' },{ numero:11, label:'Gato' },
@@ -755,6 +749,12 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
           { numero:28, label:'Zamuro' },{ numero:29, label:'Elefante' },{ numero:30, label:'Caimán' },{ numero:31, label:'Lapa' },
           { numero:32, label:'Ardilla' },{ numero:33, label:'Pescado' },{ numero:34, label:'Venado' },{ numero:35, label:'Jirafa' },
           { numero:36, label:'Culebra' }
+        ],
+        games: [
+          { id:1, type:'animalitos', name:'Lotto Activo', slug:'lotto-activo', multiplicador:30, horarios:['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00'] },
+          { id:4, type:'animalitos', name:'Lotto Activo RD Internacional', slug:'lotto-activo-rd', multiplicador:30, horarios:['08:30','09:30','10:30','11:30','12:30','13:30','14:30','15:30','16:30','17:30','18:30','19:30'] },
+          { id:5, type:'animalitos', name:'Lotto Activo Rep. Dominicana', slug:'lotto-activo-rep-dom', multiplicador:30, horarios:['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00'] },
+          { id:6, type:'animalitos', name:'Monje Millonario', slug:'monje-millonario', multiplicador:30, horarios:['08:05','09:05','10:05','11:05','12:05','13:05','14:05','15:05','16:05','17:05','18:05','19:05'] },
         ],
       },
       tripletas: {
@@ -951,7 +951,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
     function loadAnimalesConfig() {
       const game = selectedGames[0];
       if (!game) return;
-      animalesCache = GAMES_CONFIG.animalitos.animales || [];
+      animalesCache = game.animales || GAMES_CONFIG.animalitos.defaultAnimales || [];
       renderAnimales();
     }
 

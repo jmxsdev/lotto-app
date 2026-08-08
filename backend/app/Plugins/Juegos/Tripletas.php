@@ -29,7 +29,7 @@ class Tripletas implements JuegoInterface
 
     protected string $multiplicador = '30';
 
-    public function validarApuesta(array $data): bool
+    public function validarApuesta(array $data, ?array $opciones = null): bool
     {
         $tipo = $data['combinacion']['tipo'] ?? null;
 

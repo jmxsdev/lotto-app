@@ -3,7 +3,6 @@
 namespace App\Plugins\Juegos;
 
 use App\Plugins\Contracts\JuegoInterface;
-use Illuminate\Validation\Rule;
 
 class Animalitos implements JuegoInterface
 {
@@ -57,12 +56,18 @@ class Animalitos implements JuegoInterface
         $this->animales = array_keys($this->map);
     }
 
-    public function validarApuesta(array $data): bool
+    public function validarApuesta(array $data, ?array $opciones = null): bool
     {
         if (!isset($data['combinacion']['animal'])) {
             return false;
         }
         $animal = strtolower(trim($data['combinacion']['animal']));
+
+        if ($opciones !== null && !empty($opciones)) {
+            $nombres = array_map('strtolower', array_column($opciones, 'label'));
+            return in_array($animal, $nombres);
+        }
+
         return in_array($animal, $this->animales);
     }
 
@@ -140,8 +145,8 @@ class Animalitos implements JuegoInterface
     {
         return [
             'combinacion' => 'required|array|min:1',
-            'combinacion.animal' => ['required', 'string', 'max:50', Rule::in($this->animales)],
-            'combinacion.numero' => 'nullable|integer|min:0|max:36',
+            'combinacion.animal' => ['required', 'string', 'max:50'],
+            'combinacion.numero' => 'nullable|integer|min:0|max:99',
         ];
     }
 
