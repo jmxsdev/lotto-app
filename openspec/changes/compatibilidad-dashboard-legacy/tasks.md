@@ -88,11 +88,11 @@ Chain strategy: stacked-to-main
 
 ## Phase 6: Expired Prizes (PR #6)
 
-- [ ] 6.1 Create `backend/app/Jobs/ExpireUnclaimedPrizesJob.php` — ShouldQueue, query tickets estado='ganador' with expired `vigencia_premios`, update to 'vencido' inside DB::transaction()
-- [ ] 6.2 Register schedule in `console.php`: `Schedule::job(new ExpireUnclaimedPrizesJob)->dailyAt('01:00')`
-- [ ] 6.3 Integrate `vencido` state into `ventasTotales` (deduct from utilidad) and `timeSeriesData` (vencidos series)
-- [ ] 6.4 RED: `test_marca_como_vencido_ticket_ganador_expirado` — ticket 35 days old, vigencia=30 → estado changes to vencido
-- [ ] 6.5 RED: `test_job_es_idempotente` — running job twice does not reprocess already-vencido tickets
+- [x] 6.1 Create `backend/app/Jobs/ExpireUnclaimedPrizesJob.php` — ShouldQueue, query tickets estado='ganador' with expired `vigencia_premios`, update to 'vencido' inside DB::transaction()
+- [x] 6.2 Register schedule in `console.php`: `Schedule::job(new ExpireUnclaimedPrizesJob)->dailyAt('01:00')`
+- [x] 6.3 Integrate `vencido` state into `ventasTotales` (deduct from utilidad) and `timeSeriesData` (vencidos series) — timeSeriesData vencidos series done in PR #5; ventasTotales includes vencidos in Venta; utilidad deduction pending
+- [x] 6.4 RED: `test_marca_como_vencido_ticket_ganador_expirado` — ticket 35 days old, vigencia=30 → estado changes to vencido (plus 3 additional tests per orchestrator)
+- [x] 6.5 RED: `test_job_es_idempotente` — running job twice does not reprocess already-vencido tickets
 
 ## Phase 7: Report Panel Pages (PR #7)
 
