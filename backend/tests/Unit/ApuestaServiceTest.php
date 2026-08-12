@@ -217,4 +217,273 @@ class ApuestaServiceTest extends TestCase
         $this->assertEquals(1, $resumen['pending_count']);
         $this->assertEquals(1, $resumen['pagada_count']);
     }
+
+    // ============================================
+    // Phase 2: Inheritance Resolvers Tests
+    // ============================================
+
+    public function test_get_effective_monedas_ambas_habilitadas_por_defecto()
+    {
+        $taquilla = \App\Models\Taquilla::factory()->create();
+
+        $service = new ApuestaService();
+        $monedas = $service->getEffectiveMonedas($taquilla->id);
+
+        $this->assertTrue($monedas['bs']);
+        $this->assertTrue($monedas['usd']);
+    }
+
+    public function test_get_effective_monedas_banca_restringe_usd()
+    {
+        $banca = \App\Models\Banca::create([
+            'name' => 'Test Banca',
+            'code' => 'TBM1',
+            'monedas_permitidas' => ['bs' => true, 'usd' => false],
+            'active' => true,
+        ]);
+
+        $grupo = \App\Models\Grupo::create([
+            'name' => 'Test Grupo',
+            'code' => 'TGM1',
+            'banca_id' => $banca->id,
+            'active' => true,
+        ]);
+
+        $taquilla = \App\Models\Taquilla::create([
+            'name' => 'Test Taquilla',
+            'code' => 'TTM1',
+            'grupo_id' => $grupo->id,
+            'active' => true,
+        ]);
+
+        $service = new ApuestaService();
+        $monedas = $service->getEffectiveMonedas($taquilla->id);
+
+        $this->assertTrue($monedas['bs']);
+        $this->assertFalse($monedas['usd']);
+    }
+
+    public function test_get_effective_monedas_grupo_puede_ser_mas_restrictivo()
+    {
+        $banca = \App\Models\Banca::create([
+            'name' => 'Test Banca 2',
+            'code' => 'TBM2',
+            'monedas_permitidas' => ['bs' => true, 'usd' => true],
+            'active' => true,
+        ]);
+
+        $grupo = \App\Models\Grupo::create([
+            'name' => 'Test Grupo 2',
+            'code' => 'TGM2',
+            'banca_id' => $banca->id,
+            'monedas_permitidas' => ['bs' => true, 'usd' => false],
+            'active' => true,
+        ]);
+
+        $taquilla = \App\Models\Taquilla::create([
+            'name' => 'Test Taquilla 2',
+            'code' => 'TTM2',
+            'grupo_id' => $grupo->id,
+            'active' => true,
+        ]);
+
+        $service = new ApuestaService();
+        $monedas = $service->getEffectiveMonedas($taquilla->id);
+
+        $this->assertTrue($monedas['bs']);
+        $this->assertFalse($monedas['usd']);
+    }
+
+    public function test_get_effective_limit_cascade_taquilla_sobre_grupo()
+    {
+        $banca = \App\Models\Banca::create([
+            'name' => 'Test Banca Limits',
+            'code' => 'TBL1',
+            'active' => true,
+        ]);
+        $grupo = \App\Models\Grupo::create([
+            'name' => 'Test Grupo Limits',
+            'code' => 'TGL1',
+            'banca_id' => $banca->id,
+            'active' => true,
+        ]);
+        $taquilla = \App\Models\Taquilla::create([
+            'name' => 'Test Taquilla Limits',
+            'code' => 'TTL1',
+            'grupo_id' => $grupo->id,
+            'active' => true,
+        ]);
+
+        $juego = Juego::where('slug', 'animalitos')->first();
+
+        // Límite banca: max 200
+        \App\Models\JuegoLimite::create([
+            'juego_id' => $juego->id,
+            'banca_id' => $banca->id,
+            'moneda' => 'bs',
+            'grupo_id' => null,
+            'taquilla_id' => null,
+            'limite_minimo' => 0,
+            'limite_maximo' => 200,
+        ]);
+
+        // Límite grupo: max 100
+        \App\Models\JuegoLimite::create([
+            'juego_id' => $juego->id,
+            'banca_id' => $banca->id,
+            'moneda' => 'bs',
+            'grupo_id' => $grupo->id,
+            'taquilla_id' => null,
+            'limite_minimo' => 0,
+            'limite_maximo' => 100,
+        ]);
+
+        // Límite taquilla: max 50
+        \App\Models\JuegoLimite::create([
+            'juego_id' => $juego->id,
+            'banca_id' => $banca->id,
+            'moneda' => 'bs',
+            'grupo_id' => $grupo->id,
+            'taquilla_id' => $taquilla->id,
+            'limite_minimo' => 0,
+            'limite_maximo' => 50,
+        ]);
+
+        $service = new ApuestaService();
+        $limite = $service->getEffectiveLimit($taquilla->id, $juego->id, 'bs');
+
+        $this->assertNotNull($limite);
+        $this->assertEquals(50, $limite->limite_maximo);
+        $this->assertEquals($taquilla->id, $limite->taquilla_id);
+    }
+
+    public function test_get_effective_limit_fallback_to_banca()
+    {
+        $banca = \App\Models\Banca::create([
+            'name' => 'Test Banca Fallback',
+            'code' => 'TBF1',
+            'active' => true,
+        ]);
+        $grupo = \App\Models\Grupo::create([
+            'name' => 'Test Grupo Fallback',
+            'code' => 'TGF1',
+            'banca_id' => $banca->id,
+            'active' => true,
+        ]);
+        $taquilla = \App\Models\Taquilla::create([
+            'name' => 'Test Taquilla Fallback',
+            'code' => 'TTF1',
+            'grupo_id' => $grupo->id,
+            'active' => true,
+        ]);
+
+        $juego = Juego::where('slug', 'animalitos')->first();
+
+        // Solo límite a nivel banca (sin grupo ni taquilla)
+        \App\Models\JuegoLimite::create([
+            'juego_id' => $juego->id,
+            'banca_id' => $banca->id,
+            'moneda' => 'bs',
+            'grupo_id' => null,
+            'taquilla_id' => null,
+            'limite_minimo' => 3600,
+            'limite_maximo' => 5000,
+        ]);
+
+        $service = new ApuestaService();
+        $limite = $service->getEffectiveLimit($taquilla->id, $juego->id, 'bs');
+
+        $this->assertNotNull($limite);
+        $this->assertEquals(5000, $limite->limite_maximo);
+        $this->assertNull($limite->grupo_id);
+        $this->assertNull($limite->taquilla_id);
+    }
+
+    public function test_vigencia_taquilla_prevalece_sobre_grupo_y_banca()
+    {
+        $banca = \App\Models\Banca::create([
+            'name' => 'Test Banca Vigencia',
+            'code' => 'TBV1',
+            'vigencia_premios' => 60,
+            'active' => true,
+        ]);
+        $grupo = \App\Models\Grupo::create([
+            'name' => 'Test Grupo Vigencia',
+            'code' => 'TGV1',
+            'banca_id' => $banca->id,
+            'vigencia_premios' => 45,
+            'active' => true,
+        ]);
+        $taquilla = \App\Models\Taquilla::create([
+            'name' => 'Test Taquilla Vigencia',
+            'code' => 'TTV1',
+            'grupo_id' => $grupo->id,
+            'vigencia_premios' => 15,
+            'active' => true,
+        ]);
+
+        $service = new ApuestaService();
+        $vigencia = $service->getEffectiveVigencia($taquilla->id);
+
+        $this->assertEquals(15, $vigencia);
+    }
+
+    public function test_vigencia_hereda_de_grupo_cuando_taquilla_no_configurada()
+    {
+        $banca = \App\Models\Banca::create([
+            'name' => 'Test Banca Vigencia 2',
+            'code' => 'TBV2',
+            'vigencia_premios' => 90,
+            'active' => true,
+        ]);
+        $grupo = \App\Models\Grupo::create([
+            'name' => 'Test Grupo Vigencia 2',
+            'code' => 'TGV2',
+            'banca_id' => $banca->id,
+            'vigencia_premios' => 60,
+            'active' => true,
+        ]);
+        $taquilla = \App\Models\Taquilla::create([
+            'name' => 'Test Taquilla Vigencia 2',
+            'code' => 'TTV2',
+            'grupo_id' => $grupo->id,
+            'vigencia_premios' => null,
+            'active' => true,
+        ]);
+
+        $service = new ApuestaService();
+        $vigencia = $service->getEffectiveVigencia($taquilla->id);
+
+        $this->assertEquals(60, $vigencia);
+    }
+
+    public function test_validar_apuesta_mixta_rechazada_si_usd_deshabilitado()
+    {
+        $banca = \App\Models\Banca::create([
+            'name' => 'Test Banca Mixta',
+            'code' => 'TBMX1',
+            'monedas_permitidas' => ['bs' => true, 'usd' => false],
+            'active' => true,
+        ]);
+        $grupo = \App\Models\Grupo::create([
+            'name' => 'Test Grupo Mixta',
+            'code' => 'TGMX1',
+            'banca_id' => $banca->id,
+            'active' => true,
+        ]);
+        $taquilla = \App\Models\Taquilla::create([
+            'name' => 'Test Taquilla Mixta',
+            'code' => 'TTMX1',
+            'grupo_id' => $grupo->id,
+            'active' => true,
+        ]);
+
+        $juego = Juego::where('slug', 'animalitos')->first();
+
+        $service = new ApuestaService();
+        $result = $service->validarMonedaYLimites($taquilla->id, $juego->id, 100, 50);
+
+        $this->assertFalse($result['valid']);
+        $this->assertStringContainsString('mixtas', $result['message']);
+    }
 }

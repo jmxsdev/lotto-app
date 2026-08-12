@@ -102,6 +102,183 @@ class ApuestaService
     }
 
     /**
+     * Resolver monedas efectivas para una taquilla.
+     * Join taquilla → grupo → banca y calcula la intersección.
+     * NULL en cualquier nivel = ambas monedas habilitadas (sin restricción).
+     *
+     * @return array ['bs' => bool, 'usd' => bool]
+     */
+    public function getEffectiveMonedas(int $taquillaId): array
+    {
+        $taquilla = \App\Models\Taquilla::with('grupo.banca')->find($taquillaId);
+
+        if (!$taquilla) {
+            return ['bs' => true, 'usd' => true];
+        }
+
+        $bancaMonedas = $taquilla->grupo?->banca?->monedas_permitidas;
+        $grupoMonedas = $taquilla->grupo?->monedas_permitidas;
+
+        return $this->intersectarMonedas($bancaMonedas, $grupoMonedas);
+    }
+
+    /**
+     * Calcular intersección de monedas entre dos niveles jerárquicos.
+     * NULL = ambas habilitadas.
+     */
+    private function intersectarMonedas(?array $parent, ?array $child): array
+    {
+        $parentBs = $parent['bs'] ?? true;   // NULL interpretado como true
+        $parentUsd = $parent['usd'] ?? true;
+        $childBs = $child['bs'] ?? true;
+        $childUsd = $child['usd'] ?? true;
+
+        return [
+            'bs' => $parentBs && $childBs,
+            'usd' => $parentUsd && $childUsd,
+        ];
+    }
+
+    /**
+     * Resolver límite efectivo para un (taquilla, juego, moneda).
+     * Cascada: taquilla → grupo → banca → null.
+     * Single query usando COALESCE en orden de precedencia.
+     */
+    public function getEffectiveLimit(int $taquillaId, int $juegoId, string $moneda): ?\App\Models\JuegoLimite
+    {
+        $taquilla = \App\Models\Taquilla::find($taquillaId);
+
+        if (!$taquilla) {
+            return null;
+        }
+
+        $grupoId = $taquilla->grupo_id;
+        $bancaId = $taquilla->grupo?->banca_id;
+
+        if (!$bancaId) {
+            return null;
+        }
+
+        // Single query: prefiere taquilla > grupo > banca, mismo juego + moneda
+        return \App\Models\JuegoLimite::where('juego_id', $juegoId)
+            ->where('moneda', $moneda)
+            ->where(function ($q) use ($taquillaId, $grupoId, $bancaId) {
+                $q->where('taquilla_id', $taquillaId)
+                  ->orWhere(function ($q2) use ($grupoId) {
+                      $q2->whereNull('taquilla_id')->where('grupo_id', $grupoId);
+                  })
+                  ->orWhere(function ($q2) use ($bancaId) {
+                      $q2->whereNull('taquilla_id')->whereNull('grupo_id')->where('banca_id', $bancaId);
+                  });
+            })
+            ->orderByRaw('taquilla_id IS NOT NULL DESC, grupo_id IS NOT NULL DESC')
+            ->first();
+    }
+
+    /**
+     * Resolver vigencia efectiva de premios para una taquilla.
+     * Cascada: taquilla.vigencia_premios → grupo.vigencia_premios → banca.vigencia_premios → null.
+     *
+     * @return int|null Días de vigencia. null = nunca expira.
+     */
+    public function getEffectiveVigencia(int $taquillaId): ?int
+    {
+        $taquilla = \App\Models\Taquilla::with('grupo.banca')
+            ->find($taquillaId);
+
+        if (!$taquilla) {
+            return null;
+        }
+
+        // COALESCE: taquilla → grupo → banca
+        return $taquilla->vigencia_premios
+            ?? $taquilla->grupo?->vigencia_premios
+            ?? $taquilla->grupo?->banca?->vigencia_premios
+            ?? null;
+    }
+
+    /**
+     * Validación unificada de moneda y límites para una apuesta.
+     * Llamado dentro de createApuesta() antes de validarCostoMinimo.
+     *
+     * @return array ['valid' => bool, 'message' => string]
+     */
+    public function validarMonedaYLimites(int $taquillaId, int $juegoId, float $amountBs, float $amountUsd): array
+    {
+        // 1. Validar moneda permitida
+        $monedas = $this->getEffectiveMonedas($taquillaId);
+        $usaBs = $amountBs > 0;
+        $usaUsd = $amountUsd > 0;
+        $esMixto = $usaBs && $usaUsd;
+
+        if ($esMixto && (!$monedas['bs'] || !$monedas['usd'])) {
+            return [
+                'valid' => false,
+                'message' => 'Ambas monedas deben estar habilitadas para apuestas mixtas.',
+            ];
+        }
+
+        if ($usaUsd && !$monedas['usd']) {
+            return [
+                'valid' => false,
+                'message' => 'Moneda USD no permitida para esta taquilla.',
+            ];
+        }
+
+        if ($usaBs && !$monedas['bs']) {
+            return [
+                'valid' => false,
+                'message' => 'Moneda BS no permitida para esta taquilla.',
+            ];
+        }
+
+        // 2. Validar límites por cada moneda usada
+        if ($usaBs) {
+            $limiteBs = $this->getEffectiveLimit($taquillaId, $juegoId, 'bs');
+            $result = $this->validarContraLimite($limiteBs, $amountBs, 'BS');
+            if (!$result['valid']) {
+                return $result;
+            }
+        }
+
+        if ($usaUsd) {
+            $limiteUsd = $this->getEffectiveLimit($taquillaId, $juegoId, 'usd');
+            $result = $this->validarContraLimite($limiteUsd, $amountUsd, 'USD');
+            if (!$result['valid']) {
+                return $result;
+            }
+        }
+
+        return ['valid' => true, 'message' => ''];
+    }
+
+    /**
+     * Validar un monto contra los límites mínimo y máximo de un JuegoLimite.
+     */
+    private function validarContraLimite(?\App\Models\JuegoLimite $limite, float $monto, string $monedaLabel): array
+    {
+        if (!$limite) {
+            return ['valid' => true, 'message' => ''];
+        }
+
+        if ($limite->limite_maximo !== null && $monto > $limite->limite_maximo) {
+            return [
+                'valid' => false,
+                'message' => "El monto excede el límite máximo de {$limite->limite_maximo} {$monedaLabel}.",
+            ];
+        }
+
+        if ($limite->limite_minimo !== null && $monto < $limite->limite_minimo) {
+            return [
+                'valid' => false,
+                'message' => "El monto está por debajo del límite mínimo de {$limite->limite_minimo} {$monedaLabel}.",
+            ];
+        }
+
+        return ['valid' => true, 'message' => ''];
+    }
+
+    /**
      * Obtener el siguiente sorteo según horarios del juego
      */
     public function getNextDrawTime(int $juegoId): string
@@ -163,6 +340,13 @@ class ApuestaService
         $amountBs = (float) ($data['amount_bs'] ?? 0);
         $amountUsd = (float) ($data['amount_usd'] ?? 0);
         $totalBsEquivalent = $amountBs + ($amountUsd * $tasaActiva->rate);
+
+        // Validar moneda permitida y límites efectivos antes de costo mínimo
+        $validacionMoneda = $this->validarMonedaYLimites($taquillaId, $data['juego_id'], $amountBs, $amountUsd);
+
+        if (!$validacionMoneda['valid']) {
+            throw new \RuntimeException($validacionMoneda['message']);
+        }
 
         $validacion = $this->validarCostoMinimo($totalBsEquivalent, $data['juego_id']);
 
