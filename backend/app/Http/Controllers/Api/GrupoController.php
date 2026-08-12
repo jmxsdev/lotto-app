@@ -74,6 +74,12 @@ class GrupoController extends Controller
             'monedas_permitidas.bs' => 'boolean',
             'monedas_permitidas.usd' => 'boolean',
             'vigencia_premios' => 'nullable|integer|min:1',
+            'rif' => 'nullable|string|max:20',
+            'email' => 'nullable|email',
+            'telefono' => 'nullable|string|max:30',
+            'direccion' => 'nullable|string|max:255',
+            'estado' => 'nullable|string|max:100',
+            'municipio' => 'nullable|string|max:100',
         ]);
 
         // Verificar que el usuario tenga acceso a la banca
@@ -109,6 +115,12 @@ class GrupoController extends Controller
             'monedas_permitidas' => $request->monedas_permitidas ?? null,
             'vigencia_premios' => $request->vigencia_premios ?? null,
             'created_by' => $user->id,
+            'rif' => $request->rif,
+            'email' => $request->email,
+            'telefono' => $request->telefono,
+            'direccion' => $request->direccion,
+            'estado' => $request->estado,
+            'municipio' => $request->municipio,
         ]);
 
         $user = User::create([
@@ -161,6 +173,12 @@ class GrupoController extends Controller
             'monedas_permitidas.bs' => 'boolean',
             'monedas_permitidas.usd' => 'boolean',
             'vigencia_premios' => 'nullable|integer|min:1',
+            'rif' => 'nullable|string|max:20',
+            'email' => 'nullable|email',
+            'telefono' => 'nullable|string|max:30',
+            'direccion' => 'nullable|string|max:255',
+            'estado' => 'nullable|string|max:100',
+            'municipio' => 'nullable|string|max:100',
         ]);
 
         if ($request->has('banca_id')) {
@@ -189,7 +207,7 @@ class GrupoController extends Controller
             }
         }
 
-        $grupo->update($request->only(['name', 'code', 'banca_id', 'active', 'monedas_permitidas', 'vigencia_premios']));
+        $grupo->update($request->only(['name', 'code', 'banca_id', 'active', 'monedas_permitidas', 'vigencia_premios', 'rif', 'email', 'telefono', 'direccion', 'estado', 'municipio']));
 
         return response()->json($grupo->load('banca'));
     }

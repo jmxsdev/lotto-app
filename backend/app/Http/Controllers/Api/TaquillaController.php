@@ -65,6 +65,13 @@ class TaquillaController extends Controller
             'grupo_id' => 'required|exists:grupos,id',
             'active' => 'boolean',
             'vigencia_premios' => 'nullable|integer|min:1',
+            'tiempo_eliminacion' => 'nullable|integer|min:1|max:120',
+            'rif' => 'nullable|string|max:20',
+            'email' => 'nullable|email',
+            'telefono' => 'nullable|string|max:30',
+            'direccion' => 'nullable|string|max:255',
+            'estado' => 'nullable|string|max:100',
+            'municipio' => 'nullable|string|max:100',
             'user_name' => 'required|string|max:255',
             'user_email' => 'required|email|unique:users,email',
             'user_password' => 'required|string|min:8',
@@ -87,8 +94,15 @@ class TaquillaController extends Controller
             'grupo_id' => $request->grupo_id,
             'activation_code' => $activationCode,
             'vigencia_premios' => $request->vigencia_premios ?? null,
+            'tiempo_eliminacion' => $request->tiempo_eliminacion ?? 5,
             'active' => $request->active ?? false,
             'created_by' => $user->id,
+            'rif' => $request->rif,
+            'email' => $request->email,
+            'telefono' => $request->telefono,
+            'direccion' => $request->direccion,
+            'estado' => $request->estado,
+            'municipio' => $request->municipio,
         ]);
 
         $user = User::create([
@@ -139,6 +153,13 @@ class TaquillaController extends Controller
             'activation_code' => 'nullable|string|unique:taquillas,activation_code,' . $taquilla->id,
             'active' => 'boolean',
             'vigencia_premios' => 'nullable|integer|min:1',
+            'tiempo_eliminacion' => 'nullable|integer|min:1|max:120',
+            'rif' => 'nullable|string|max:20',
+            'email' => 'nullable|email',
+            'telefono' => 'nullable|string|max:30',
+            'direccion' => 'nullable|string|max:255',
+            'estado' => 'nullable|string|max:100',
+            'municipio' => 'nullable|string|max:100',
         ]);
 
         if ($request->has('grupo_id')) {
@@ -151,7 +172,14 @@ class TaquillaController extends Controller
             $this->validarVigenciaContraParent($grupo, $request);
         }
 
-        $taquilla->update($request->only(['name', 'code', 'grupo_id', 'mac_address', 'activation_code', 'active', 'vigencia_premios']));
+        $data = $request->only(['name', 'code', 'grupo_id', 'mac_address', 'activation_code', 'active', 'vigencia_premios', 'tiempo_eliminacion', 'rif', 'email', 'telefono', 'direccion', 'estado', 'municipio']);
+
+        // La columna es NOT NULL con default 5: ignorar null explícito
+        if (array_key_exists('tiempo_eliminacion', $data) && $data['tiempo_eliminacion'] === null) {
+            unset($data['tiempo_eliminacion']);
+        }
+
+        $taquilla->update($data);
 
         return response()->json($taquilla->load('grupo.banca'));
     }

@@ -24,7 +24,7 @@ class PagoController extends Controller
             'apuesta_id' => 'required|exists:apuestas,id',
             'amount_bs' => 'nullable|numeric|min:0',
             'amount_usd' => 'nullable|numeric|min:0',
-            'tipo' => 'required|in:ingreso,egreso',
+            'tipo' => 'required|in:ingreso,egreso,devolucion',
             'moneda' => 'required|in:bs,usd,mixto',
             'referencia' => 'nullable|string|max:255',
             'concepto' => 'nullable|string|max:255',
@@ -32,7 +32,7 @@ class PagoController extends Controller
             'apuesta_id.required' => 'El ID de la apuesta es obligatorio.',
             'apuesta_id.exists' => 'La apuesta no existe.',
             'tipo.required' => 'Debes especificar el tipo de pago.',
-            'tipo.in' => 'El tipo debe ser ingreso o egreso.',
+            'tipo.in' => 'El tipo debe ser ingreso, egreso o devolucion.',
             'moneda.required' => 'Debes especificar la moneda del pago.',
             'moneda.in' => 'La moneda debe ser bs, usd o mixto.',
         ]);

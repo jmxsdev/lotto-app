@@ -37,6 +37,12 @@ class BancaController extends Controller
             'monedas_permitidas.bs' => 'boolean',
             'monedas_permitidas.usd' => 'boolean',
             'vigencia_premios' => 'nullable|integer|min:1',
+            'rif' => 'nullable|string|max:20',
+            'email' => 'nullable|email',
+            'telefono' => 'nullable|string|max:30',
+            'direccion' => 'nullable|string|max:255',
+            'estado' => 'nullable|string|max:100',
+            'municipio' => 'nullable|string|max:100',
             'user_name' => 'required|string|max:255',
             'user_email' => 'required|email|unique:users,email',
             'user_password' => 'required|string|min:8',
@@ -50,6 +56,12 @@ class BancaController extends Controller
             'vigencia_premios' => $request->vigencia_premios ?? null,
             'active' => $request->active ?? true,
             'created_by' => $authUser->id,
+            'rif' => $request->rif,
+            'email' => $request->email,
+            'telefono' => $request->telefono,
+            'direccion' => $request->direccion,
+            'estado' => $request->estado,
+            'municipio' => $request->municipio,
         ]);
 
         $user = User::create([
@@ -97,9 +109,15 @@ class BancaController extends Controller
             'monedas_permitidas.bs' => 'boolean',
             'monedas_permitidas.usd' => 'boolean',
             'vigencia_premios' => 'nullable|integer|min:1',
+            'rif' => 'nullable|string|max:20',
+            'email' => 'nullable|email',
+            'telefono' => 'nullable|string|max:30',
+            'direccion' => 'nullable|string|max:255',
+            'estado' => 'nullable|string|max:100',
+            'municipio' => 'nullable|string|max:100',
         ]);
 
-        $banca->update($request->only(['name', 'code', 'config', 'active', 'monedas_permitidas', 'vigencia_premios']));
+        $banca->update($request->only(['name', 'code', 'config', 'active', 'monedas_permitidas', 'vigencia_premios', 'rif', 'email', 'telefono', 'direccion', 'estado', 'municipio']));
 
         return response()->json($banca);
     }
