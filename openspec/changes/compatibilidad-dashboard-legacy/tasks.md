@@ -67,14 +67,14 @@ Chain strategy: stacked-to-main
 
 ## Phase 4: Reports API (PR #4)
 
-- [ ] 4.1 Create `backend/app/Http/Controllers/Api/ReporteController.php` — inject ApuestaService, hierarchical scope per role
-- [ ] 4.2 `ApuestaService::ventasTotales(array $filters): array` — SUM by banca with Venta/Premio/Utilidad/Participacion
-- [ ] 4.3 `ApuestaService::relacionTickets(array $filters): Paginator` — tickets with Usuario, Sorteos count, Jugadas count, Tipo
-- [ ] 4.4 `ApuestaService::rendimientoTaquillas(array $filters): array` — per-taquilla: Venta, Anulado, Premio, Ganancia, %Peso
-- [ ] 4.5 Add routes: `GET /api/reportes/{ventas-totales,relacion-tickets,rendimiento-taquillas,vencidos}`
-- [ ] 4.6 RED: `test_ventas_totales_agrupa_por_banca` — multiple bets across bancas → correct aggregation
-- [ ] 4.7 RED: `test_taquilla_solo_ve_sus_datos_en_reportes` — role=taquilla sees only own data
-- [ ] 4.8 RED: `test_rango_vacio_retorna_200` — empty date range → 200 with empty array
+- [x] 4.1 Create `backend/app/Http/Controllers/Api/ReporteController.php` — inject ApuestaService, hierarchical scope per role
+- [x] 4.2 `ApuestaService::ventasTotales(array $filters): array` — SUM by banca with Venta/Premio/Utilidad/Participacion
+- [x] 4.3 `ApuestaService::relacionTickets(array $filters): Paginator` — tickets with Usuario, Sorteos count, Jugadas count, Tipo
+- [x] 4.4 `ApuestaService::rendimientoTaquillas(array $filters): array` — per-taquilla: Venta, Anulado, Premio, Ganancia, %Peso
+- [x] 4.5 Add routes: `GET /api/reportes/{ventas-totales,relacion-tickets,rendimiento-taquillas,vencidos}`
+- [x] 4.6 RED: `test_ventas_totales_agrupa_por_banca` — multiple bets across bancas → correct aggregation
+- [x] 4.7 RED: `test_taquilla_solo_ve_sus_datos_en_reportes` — role=taquilla sees only own data
+- [x] 4.8 RED: `test_rango_vacio_retorna_200` — empty date range → 200 with empty array
 
 ## Phase 5: Charts API + Panel (PR #5)
 
