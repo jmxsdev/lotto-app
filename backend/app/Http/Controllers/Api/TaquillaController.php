@@ -85,6 +85,9 @@ class TaquillaController extends Controller
         // Validar vigencia_premios contra el grupo (más restrictivo)
         $this->validarVigenciaContraParent($grupo, $request);
 
+        // Validar tiempo_eliminacion contra el grupo/banca (más restrictivo: no puede alargar la ventana)
+        $this->validarTiempoEliminacionContraParent($grupo, $request);
+
         // Generar activation_code automáticamente si no se proporciona
         $activationCode = $request->activation_code ?? Str::random(16);
 
@@ -94,7 +97,7 @@ class TaquillaController extends Controller
             'grupo_id' => $request->grupo_id,
             'activation_code' => $activationCode,
             'vigencia_premios' => $request->vigencia_premios ?? null,
-            'tiempo_eliminacion' => $request->tiempo_eliminacion ?? 5,
+            'tiempo_eliminacion' => $request->tiempo_eliminacion ?? null,
             'active' => $request->active ?? false,
             'created_by' => $user->id,
             'rif' => $request->rif,
@@ -172,13 +175,15 @@ class TaquillaController extends Controller
             $this->validarVigenciaContraParent($grupo, $request);
         }
 
-        $data = $request->only(['name', 'code', 'grupo_id', 'mac_address', 'activation_code', 'active', 'vigencia_premios', 'tiempo_eliminacion', 'rif', 'email', 'telefono', 'direccion', 'estado', 'municipio']);
-
-        // La columna es NOT NULL con default 5: ignorar null explícito
-        if (array_key_exists('tiempo_eliminacion', $data) && $data['tiempo_eliminacion'] === null) {
-            unset($data['tiempo_eliminacion']);
+        // Validar tiempo_eliminacion contra el grupo padre
+        if ($request->has('tiempo_eliminacion')) {
+            $grupo = $taquilla->grupo;
+            $this->validarTiempoEliminacionContraParent($grupo, $request);
         }
 
+        $data = $request->only(['name', 'code', 'grupo_id', 'mac_address', 'activation_code', 'active', 'vigencia_premios', 'tiempo_eliminacion', 'rif', 'email', 'telefono', 'direccion', 'estado', 'municipio']);
+
+        // NULL = hereda del padre (columna nullable)
         $taquilla->update($data);
 
         return response()->json($taquilla->load('grupo.banca'));
@@ -229,6 +234,30 @@ class TaquillaController extends Controller
                 abort(422, json_encode([
                     'message' => "La vigencia de premios de la agencia ({$request->vigencia_premios} días) no puede ser mayor que la de la banca ({$bancaVigencia} días). La jerarquía inferior solo puede acortar el plazo."
                 ]));
+            }
+        }
+    }
+
+    /**
+     * Validar que el tiempo_eliminacion de la taquilla no exceda el efectivo del grupo/banca.
+     * El nivel hijo solo puede acortar la ventana (más restrictivo).
+     */
+    private function validarTiempoEliminacionContraParent(Grupo $grupo, Request $request): void
+    {
+        if ($request->tiempo_eliminacion === null) {
+            return;
+        }
+
+        $grupoTiempo = $grupo->tiempo_eliminacion;
+        if ($grupoTiempo !== null && $request->tiempo_eliminacion > $grupoTiempo) {
+            abort(422, "El tiempo máximo de la agencia ({$request->tiempo_eliminacion} minutos) no puede ser mayor que el del grupo ({$grupoTiempo} minutos). La jerarquía inferior solo puede acortar el plazo.");
+        }
+
+        // También validar contra banca (si el grupo no tiene tiempo configurado)
+        if ($grupoTiempo === null) {
+            $bancaTiempo = $grupo->banca?->tiempo_eliminacion ?? 5;
+            if ($request->tiempo_eliminacion > $bancaTiempo) {
+                abort(422, "El tiempo máximo de la agencia ({$request->tiempo_eliminacion} minutos) no puede ser mayor que el de la banca ({$bancaTiempo} minutos). La jerarquía inferior solo puede acortar el plazo.");
             }
         }
     }

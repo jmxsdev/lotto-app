@@ -74,6 +74,7 @@ class GrupoController extends Controller
             'monedas_permitidas.bs' => 'boolean',
             'monedas_permitidas.usd' => 'boolean',
             'vigencia_premios' => 'nullable|integer|min:1',
+            'tiempo_eliminacion' => 'nullable|integer|min:1|max:120',
             'rif' => 'nullable|string|max:20',
             'email' => 'nullable|email',
             'telefono' => 'nullable|string|max:30',
@@ -107,6 +108,17 @@ class GrupoController extends Controller
             }
         }
 
+        // Validar tiempo_eliminacion contra la banca (más restrictivo: no puede alargar la ventana)
+        if ($request->has('tiempo_eliminacion') && $request->tiempo_eliminacion !== null) {
+            $banca = \App\Models\Banca::find($request->banca_id);
+            $bancaTiempo = $banca?->tiempo_eliminacion ?? 5;
+            if ($request->tiempo_eliminacion > $bancaTiempo) {
+                return response()->json([
+                    'message' => "El tiempo máximo del grupo no puede ser mayor que el de la banca ({$bancaTiempo} minutos). La jerarquía inferior solo puede acortar el plazo.",
+                ], 422);
+            }
+        }
+
         $grupo = Grupo::create([
             'name' => $request->name,
             'code' => $request->code,
@@ -114,6 +126,7 @@ class GrupoController extends Controller
             'active' => $request->active ?? true,
             'monedas_permitidas' => $request->monedas_permitidas ?? null,
             'vigencia_premios' => $request->vigencia_premios ?? null,
+            'tiempo_eliminacion' => $request->tiempo_eliminacion ?? null,
             'created_by' => $user->id,
             'rif' => $request->rif,
             'email' => $request->email,
@@ -173,6 +186,7 @@ class GrupoController extends Controller
             'monedas_permitidas.bs' => 'boolean',
             'monedas_permitidas.usd' => 'boolean',
             'vigencia_premios' => 'nullable|integer|min:1',
+            'tiempo_eliminacion' => 'nullable|integer|min:1|max:120',
             'rif' => 'nullable|string|max:20',
             'email' => 'nullable|email',
             'telefono' => 'nullable|string|max:30',
@@ -207,7 +221,17 @@ class GrupoController extends Controller
             }
         }
 
-        $grupo->update($request->only(['name', 'code', 'banca_id', 'active', 'monedas_permitidas', 'vigencia_premios', 'rif', 'email', 'telefono', 'direccion', 'estado', 'municipio']));
+        // Validar tiempo_eliminacion contra la banca (más restrictivo: no puede alargar la ventana)
+        if ($request->has('tiempo_eliminacion') && $request->tiempo_eliminacion !== null) {
+            $bancaTiempo = $grupo->banca?->tiempo_eliminacion ?? 5;
+            if ($request->tiempo_eliminacion > $bancaTiempo) {
+                return response()->json([
+                    'message' => "El tiempo máximo del grupo no puede ser mayor que el de la banca ({$bancaTiempo} minutos). La jerarquía inferior solo puede acortar el plazo.",
+                ], 422);
+            }
+        }
+
+        $grupo->update($request->only(['name', 'code', 'banca_id', 'active', 'monedas_permitidas', 'vigencia_premios', 'tiempo_eliminacion', 'rif', 'email', 'telefono', 'direccion', 'estado', 'municipio']));
 
         return response()->json($grupo->load('banca'));
     }

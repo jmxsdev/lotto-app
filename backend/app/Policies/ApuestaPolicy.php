@@ -47,7 +47,8 @@ class ApuestaPolicy
             return false;
         }
 
-        $tiempo = $apuesta->taquilla?->tiempo_eliminacion ?? 5;
+        $tiempo = app(\App\Services\ApuestaService::class)
+            ->getEffectiveTiempoEliminacion($apuesta->taquilla_id);
         if ($apuesta->created_at->diffInMinutes(now()) >= $tiempo) {
             return false;
         }

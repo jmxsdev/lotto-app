@@ -98,10 +98,75 @@ class EliminacionApuestasTest extends TestCase
             ]);
 
         $response->assertStatus(201);
+        // NULL = hereda; el valor efectivo es el default del sistema (5)
         $this->assertDatabaseHas('taquillas', [
             'code' => 'TDFLT',
-            'tiempo_eliminacion' => 5,
+            'tiempo_eliminacion' => null,
         ]);
+
+        $taquilla = Taquilla::where('code', 'TDFLT')->first();
+        $efectivo = app(\App\Services\ApuestaService::class)
+            ->getEffectiveTiempoEliminacion($taquilla->id);
+        $this->assertEquals(5, $efectivo);
+    }
+
+    public function test_tiempo_hereda_de_grupo_cuando_taquilla_no_configurada()
+    {
+        $banca = Banca::create(['name' => 'Banca T', 'code' => 'BCT', 'active' => true, 'tiempo_eliminacion' => 15]);
+        $grupo = Grupo::create(['name' => 'Grupo T', 'code' => 'GCT', 'banca_id' => $banca->id, 'active' => true, 'tiempo_eliminacion' => 10]);
+        $taquilla = Taquilla::create(['name' => 'Agencia T', 'code' => 'TCT', 'grupo_id' => $grupo->id, 'active' => true]);
+
+        $service = new \App\Services\ApuestaService();
+        $this->assertEquals(10, $service->getEffectiveTiempoEliminacion($taquilla->id));
+    }
+
+    public function test_tiempo_hereda_de_banca_cuando_grupo_y_taquilla_no_configurados()
+    {
+        $banca = Banca::create(['name' => 'Banca B', 'code' => 'BCB', 'active' => true, 'tiempo_eliminacion' => 15]);
+        $grupo = Grupo::create(['name' => 'Grupo B', 'code' => 'GCB', 'banca_id' => $banca->id, 'active' => true]);
+        $taquilla = Taquilla::create(['name' => 'Agencia B', 'code' => 'TCB', 'grupo_id' => $grupo->id, 'active' => true]);
+
+        $service = new \App\Services\ApuestaService();
+        $this->assertEquals(15, $service->getEffectiveTiempoEliminacion($taquilla->id));
+    }
+
+    public function test_grupo_no_puede_exceder_tiempo_de_la_banca()
+    {
+        $banca = Banca::create(['name' => 'Banca R', 'code' => 'BCR', 'active' => true, 'tiempo_eliminacion' => 10]);
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/grupos', [
+                'name' => 'Grupo Exceso',
+                'code' => 'GEXC',
+                'banca_id' => $banca->id,
+                'tiempo_eliminacion' => 15,
+                'user_name' => 'Usuario Grupo',
+                'user_email' => 'grupo-exceso@lotto.com',
+                'user_password' => 'password123',
+            ]);
+
+        $response->assertStatus(422);
+        $this->assertStringContainsString('no puede ser mayor', $response->json('message'));
+    }
+
+    public function test_taquilla_no_puede_exceder_tiempo_del_grupo()
+    {
+        $banca = Banca::create(['name' => 'Banca Q', 'code' => 'BCQ', 'active' => true, 'tiempo_eliminacion' => 20]);
+        $grupo = Grupo::create(['name' => 'Grupo Q', 'code' => 'GCQ', 'banca_id' => $banca->id, 'active' => true, 'tiempo_eliminacion' => 10]);
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/taquillas', [
+                'name' => 'Agencia Exceso',
+                'code' => 'TEXC',
+                'grupo_id' => $grupo->id,
+                'tiempo_eliminacion' => 15,
+                'user_name' => 'Usuario Agencia',
+                'user_email' => 'agencia-exceso@lotto.com',
+                'user_password' => 'password123',
+            ]);
+
+        $response->assertStatus(422);
+        $this->assertStringContainsString('no puede ser mayor', $response->json('message'));
     }
 
     public function test_apuesta_dentro_ventana_se_puede_eliminar()

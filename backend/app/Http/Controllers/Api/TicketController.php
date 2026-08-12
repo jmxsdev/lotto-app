@@ -200,7 +200,8 @@ class TicketController extends Controller
             return response()->json(['message' => 'Solo se pueden anular tickets pendientes.'], 422);
         }
 
-        $tiempoEliminacion = $ticket->taquilla?->tiempo_eliminacion ?? 5;
+        $tiempoEliminacion = $this->apuestaService
+            ->getEffectiveTiempoEliminacion($ticket->taquilla_id);
 
         $rechazada = null;
         foreach ($ticket->apuestas as $apuesta) {

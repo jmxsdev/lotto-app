@@ -194,6 +194,28 @@ class ApuestaService
     }
 
     /**
+     * Resolver la ventana de eliminación efectiva (en minutos) para una taquilla.
+     * Cascada: taquilla.tiempo_eliminacion → grupo.tiempo_eliminacion → banca.tiempo_eliminacion → 5.
+     *
+     * @return int Minutos de la ventana. Default del sistema: 5.
+     */
+    public function getEffectiveTiempoEliminacion(int $taquillaId): int
+    {
+        $taquilla = \App\Models\Taquilla::with('grupo.banca')
+            ->find($taquillaId);
+
+        if (!$taquilla) {
+            return 5;
+        }
+
+        // COALESCE: taquilla → grupo → banca → default 5
+        return $taquilla->tiempo_eliminacion
+            ?? $taquilla->grupo?->tiempo_eliminacion
+            ?? $taquilla->grupo?->banca?->tiempo_eliminacion
+            ?? 5;
+    }
+
+    /**
      * Validación unificada de moneda y límites para una apuesta.
      * Llamado dentro de createApuesta() antes de validarCostoMinimo.
      *
