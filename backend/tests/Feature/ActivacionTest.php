@@ -160,7 +160,7 @@ class ActivacionTest extends TestCase
         ]);
         $user->assignRole('taquilla');
 
-        $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
+        $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF', 'X-Device-Fingerprint' => 'test-fp-001'])
             ->actingAs($user, 'sanctum')
             ->getJson('/api/apuestas');
 
