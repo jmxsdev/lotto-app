@@ -228,7 +228,7 @@ class ReporteTest extends TestCase
         $rendData = $responseRend->json('data');
 
         $this->assertCount(1, $rendData, 'Solo debe ver 1 taquilla (la suya)');
-        $this->assertEquals('T-Alpha-Scope', $rendData[0]['Taquilla']);
+        $this->assertEquals('T-Alpha-Scope', $rendData[0]['Agencia']);
         $this->assertEquals(2000, $rendData[0]['Venta']);
     }
 }
