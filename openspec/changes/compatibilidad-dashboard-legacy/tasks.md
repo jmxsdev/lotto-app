@@ -78,13 +78,13 @@ Chain strategy: stacked-to-main
 
 ## Phase 5: Charts API + Panel (PR #5)
 
-- [ ] 5.1 Create `backend/app/Http/Controllers/Api/EstadisticaController.php` — `rendimiento()` method, time-series
-- [ ] 5.2 `ApuestaService::timeSeriesData(array $filters): array` — GROUP BY DATE(fecha_hora), 6 daily series: ventas,premios,pagados,vencidos,devolucion,saldo; zero-fill gaps
-- [ ] 5.3 Add route: `GET /api/estadisticas/rendimiento`
-- [ ] 5.4 Panel: `panel/src/pages/rendimiento.astro` — Line chart (6 series) + Bar chart (totals) via Chart.js CDN
-- [ ] 5.5 Panel: `AdminLayout.astro` — add "📈 Rendimiento" nav link for all roles
-- [ ] 5.6 RED: `test_time_series_zero_fills_gaps` — bets on days 1,3,5 → 5 buckets, zeros on days 2,4
-- [ ] 5.7 RED: `test_rango_vacio_rendimiento_retorna_200` — empty date range → 200 with zero-filled series
+- [x] 5.1 Create `backend/app/Http/Controllers/Api/EstadisticaController.php` — `rendimiento()` method, time-series
+- [x] 5.2 `ApuestaService::timeSeriesData(array $filters): array` — GROUP BY DATE(fecha_hora), 6 daily series: ventas,premios,pagados,vencidos,devolucion,saldo; zero-fill gaps
+- [x] 5.3 Add route: `GET /api/estadisticas/rendimiento`
+- [x] 5.4 Panel: `panel/src/pages/rendimiento.astro` — Line chart (6 series) + Bar chart (totals) via Chart.js CDN
+- [x] 5.5 Panel: `AdminLayout.astro` — add "📈 Rendimiento" nav link for all roles
+- [x] 5.6 RED: `test_time_series_zero_fills_gaps` — bets on days 1,3,5 → 5 buckets, zeros on days 2,4
+- [x] 5.7 RED: `test_rango_vacio_rendimiento_retorna_200` — empty date range → 200 with zero-filled series
 
 ## Phase 6: Expired Prizes (PR #6)
 
