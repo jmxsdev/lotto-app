@@ -128,6 +128,24 @@ Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
     // Route::post('/cierre', [CierreController::class, 'store'])->middleware('role:super_master|master|banca|grupo|taquilla');
 
     // ==================================================
+    // LÍMITES POR JUEGO
+    // ==================================================
+    // GET: super_master, master, banca, grupo
+    Route::middleware(['role:super_master|master|banca|grupo'])->group(function () {
+        Route::get('/limites/{juego}', [JuegoController::class, 'limites']);
+    });
+
+    // PUT: super_master, master, banca (upsert individual)
+    Route::middleware(['role:super_master|master|banca'])->group(function () {
+        Route::put('/limites/{juego}', [JuegoController::class, 'updateLimites']);
+    });
+
+    // POST batch: solo super_master y master
+    Route::middleware(['role:super_master|master'])->group(function () {
+        Route::post('/limites/batch', [JuegoController::class, 'batchLimites']);
+    });
+
+    // ==================================================
     // TASAS DE CAMBIO (pública y protegida)
     // ==================================================
     Route::middleware(['permission:view_exchange_rates'])->group(function () {
