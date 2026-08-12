@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Grupo;
+use App\Models\Taquilla;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -31,6 +33,26 @@ class UserController extends Controller
                 $query->where('id', $user->id);
             }
         }
+        // Banca ve los usuarios de su banca (por vínculo directo o por cadena)
+        elseif ($user->hasRole('banca')) {
+            if (!$user->banca_id) {
+                return response()->json(['message' => 'No tienes una banca asociada.'], 403);
+            }
+            $query->where(function ($q) use ($user) {
+                $q->where('banca_id', $user->banca_id)
+                    ->orWhereHas('taquilla', fn ($t) => $t->whereHas('grupo', fn ($g) => $g->where('banca_id', $user->banca_id)));
+            });
+        }
+        // Grupo ve los usuarios de su grupo y de sus agencias
+        elseif ($user->hasRole('grupo')) {
+            if (!$user->grupo_id) {
+                return response()->json(['message' => 'No tienes un grupo asociado.'], 403);
+            }
+            $query->where(function ($q) use ($user) {
+                $q->where('grupo_id', $user->grupo_id)
+                    ->orWhereHas('taquilla', fn ($t) => $t->where('grupo_id', $user->grupo_id));
+            });
+        }
         // Otros roles no pueden listar usuarios
         else {
             return response()->json(['message' => 'No tienes permisos para ver usuarios.'], 403);
@@ -42,9 +64,9 @@ class UserController extends Controller
     }
 
     /**
-     * Crear un nuevo usuario (solo Super Master y Master).
-     * Para crear usuarios de banca/grupo/taquilla usar los endpoints
-     * POST /api/bancas, POST /api/grupos, POST /api/taquillas respectivamente.
+     * Crear un nuevo usuario.
+     * Acepta vínculos de entidad (banca_id/grupo_id/taquilla_id) con
+     * autorización jerárquica y derivación automática de la cadena.
      */
     public function store(Request $request)
     {
@@ -54,20 +76,31 @@ class UserController extends Controller
             'user_name' => 'required|string|max:255',
             'user_email' => 'required|email|unique:users,email',
             'user_password' => 'required|string|min:8',
-            'role' => ['required', Rule::in(['super_master', 'master'])],
+            'role' => ['required', Rule::in(['super_master', 'master', 'banca', 'grupo', 'taquilla'])],
             'active' => 'boolean',
+            'banca_id' => 'nullable|exists:bancas,id',
+            'grupo_id' => 'nullable|exists:grupos,id',
+            'taquilla_id' => 'nullable|exists:taquillas,id',
         ]);
 
-        // Verificar que el usuario autenticado pueda asignar este rol
-        $this->authorizeUserCreation($user, $request);
+        // Derivar la cadena de vínculos (taquilla → grupo → banca)
+        $bindings = $this->deriveEntityBindings($request);
 
-        $newUser = User::create([
+        $data = [
             'name' => $request->user_name,
             'email' => $request->user_email,
             'password' => Hash::make($request->user_password),
             'role' => $request->role,
             'active' => $request->active ?? true,
-        ]);
+        ] + $bindings;
+
+        // Consistencia rol ↔ vínculo de entidad
+        $this->validateRoleBindings($request->role, $data);
+
+        // Verificar que el usuario autenticado pueda asignar este rol y vínculos
+        $this->authorizeEntityBinding($user, $data, $request->role);
+
+        $newUser = User::create($data);
 
         $newUser->assignRole($request->role);
 
@@ -89,7 +122,9 @@ class UserController extends Controller
      */
     public function update(Request $request, User $user)
     {
-        $this->authorizeUserAccess(auth()->user(), $user);
+        $currentUser = auth()->user();
+
+        $this->authorizeUserAccess($currentUser, $user);
 
         $request->validate([
             'name' => 'sometimes|string|max:255',
@@ -97,12 +132,25 @@ class UserController extends Controller
             'password' => 'sometimes|string|min:8',
             'role' => ['sometimes', Rule::in(['super_master', 'master', 'banca', 'grupo', 'taquilla'])],
             'active' => 'boolean',
+            'banca_id' => 'nullable|exists:bancas,id',
+            'grupo_id' => 'nullable|exists:grupos,id',
+            'taquilla_id' => 'nullable|exists:taquillas,id',
         ]);
 
         $data = $request->only(['name', 'email', 'role', 'active']);
 
-        if (isset($data['role']) && auth()->user()->hasRole('master') && $data['role'] === 'super_master') {
-            return response()->json(['message' => 'No puedes asignar el rol super_master.'], 403);
+        // Derivar los nuevos vínculos de entidad si se enviaron
+        $bindings = $this->deriveEntityBindings($request);
+        if ($bindings !== []) {
+            $data = array_merge($data, $bindings);
+        }
+
+        $finalRole = $data['role'] ?? $user->role;
+
+        // Al cambiar rol o vínculos: validar consistencia y autorización jerárquica
+        if (isset($data['role']) || $bindings !== []) {
+            $this->validateRoleBindings($finalRole, $data, $user);
+            $this->authorizeEntityBinding($currentUser, $data, $finalRole, $user);
         }
 
         if ($request->filled('password')) {
@@ -119,10 +167,14 @@ class UserController extends Controller
     }
 
     /**
-     * Eliminar un usuario
+     * Eliminar un usuario (solo Super Master y Master)
      */
     public function destroy(User $user)
     {
+        if (!auth()->user()->hasRole(['super_master', 'master'])) {
+            abort(403, 'No tienes permisos para eliminar usuarios.');
+        }
+
         if ($user->id === auth()->id()) {
             return response()->json(['message' => 'No puedes eliminarte a ti mismo.'], 403);
         }
@@ -136,20 +188,55 @@ class UserController extends Controller
 
     // --- Métodos de autorización ---
 
-    private function authorizeUserCreation($currentUser, Request $request)
+    /**
+     * Autorizar la creación/asignación de un usuario con un rol y unos
+     * vínculos de entidad, según la jerarquía del usuario autenticado.
+     *
+     * super_master: todo; master: cualquier banca (no super_master);
+     * banca: solo entidades de su banca; grupo: solo entidades de su grupo.
+     */
+    private function authorizeEntityBinding($currentUser, array $data, string $role, ?User $existing = null)
     {
         if ($currentUser->hasRole('super_master')) {
             return;
         }
 
         if ($currentUser->hasRole('master')) {
-            if ($request->role === 'super_master') {
-                abort(403, 'No puedes crear un Super Master.');
+            if ($role === 'super_master') {
+                abort(403, 'No puedes asignar el rol super_master.');
             }
             return;
         }
 
-        abort(403, 'No tienes permisos para crear usuarios.');
+        if ($currentUser->hasRole('banca')) {
+            if (!$currentUser->banca_id) {
+                abort(403, 'No tienes una banca asociada.');
+            }
+            if (in_array($role, ['super_master', 'master'], true)) {
+                abort(403, 'No tienes permisos para asignar este rol.');
+            }
+            $effectiveBanca = $data['banca_id'] ?? $this->resolveBancaId($existing);
+            if ($effectiveBanca != $currentUser->banca_id) {
+                abort(403, 'No puedes vincular usuarios a entidades de otra banca.');
+            }
+            return;
+        }
+
+        if ($currentUser->hasRole('grupo')) {
+            if (!$currentUser->grupo_id) {
+                abort(403, 'No tienes un grupo asociado.');
+            }
+            if (in_array($role, ['super_master', 'master', 'banca'], true)) {
+                abort(403, 'No tienes permisos para asignar este rol.');
+            }
+            $effectiveGrupo = $data['grupo_id'] ?? $this->resolveGrupoId($existing);
+            if ($effectiveGrupo != $currentUser->grupo_id) {
+                abort(403, 'No puedes vincular usuarios a entidades de otro grupo.');
+            }
+            return;
+        }
+
+        abort(403, 'No tienes permisos para gestionar usuarios.');
     }
 
     private function authorizeUserAccess($currentUser, User $targetUser)
@@ -168,6 +255,138 @@ class UserController extends Controller
             return;
         }
 
+        // Banca solo puede gestionar usuarios dentro de su banca (vía cadena)
+        if ($currentUser->hasRole('banca')) {
+            if (!$currentUser->banca_id) {
+                abort(403, 'No tienes una banca asociada.');
+            }
+            if ($this->resolveBancaId($targetUser) != $currentUser->banca_id) {
+                abort(403, 'No tienes acceso a este usuario.');
+            }
+            return;
+        }
+
+        // Grupo solo puede gestionar usuarios dentro de su grupo (vía cadena)
+        if ($currentUser->hasRole('grupo')) {
+            if (!$currentUser->grupo_id) {
+                abort(403, 'No tienes un grupo asociado.');
+            }
+            if ($this->resolveGrupoId($targetUser) != $currentUser->grupo_id) {
+                abort(403, 'No tienes acceso a este usuario.');
+            }
+            return;
+        }
+
         abort(403, 'No tienes permiso para acceder a este usuario.');
+    }
+
+    // --- Helpers de vínculos ---
+
+    /**
+     * Deriva la cadena de vínculos a partir de lo enviado:
+     * taquilla_id → banca_id + grupo_id; grupo_id → banca_id.
+     * Limpia los vínculos inferiores cuando se vincula a un nivel superior.
+     */
+    private function deriveEntityBindings(Request $request): array
+    {
+        if ($request->filled('taquilla_id')) {
+            $taquilla = Taquilla::find($request->taquilla_id);
+
+            return [
+                'taquilla_id' => $taquilla->id,
+                'grupo_id' => $taquilla->grupo_id,
+                'banca_id' => $taquilla->grupo->banca_id,
+            ];
+        }
+
+        if ($request->filled('grupo_id')) {
+            $grupo = Grupo::find($request->grupo_id);
+
+            return [
+                'taquilla_id' => null,
+                'grupo_id' => $grupo->id,
+                'banca_id' => $grupo->banca_id,
+            ];
+        }
+
+        if ($request->filled('banca_id')) {
+            return [
+                'taquilla_id' => null,
+                'grupo_id' => null,
+                'banca_id' => $request->banca_id,
+            ];
+        }
+
+        return [];
+    }
+
+    /**
+     * Valida que el rol requiera (y tenga) el vínculo de entidad correspondiente:
+     * banca → banca_id, grupo → grupo_id, taquilla → taquilla_id.
+     */
+    private function validateRoleBindings(string $role, array $data, ?User $existing = null): void
+    {
+        $required = match ($role) {
+            'banca' => 'banca_id',
+            'grupo' => 'grupo_id',
+            'taquilla' => 'taquilla_id',
+            default => null,
+        };
+
+        if ($required === null) {
+            return;
+        }
+
+        $hasBinding = $data[$required] ?? $existing?->{$required} ?? null;
+
+        if (!$hasBinding) {
+            throw ValidationException::withMessages([
+                $required => ["Un usuario con rol '{$role}' debe estar vinculado a una entidad."],
+            ]);
+        }
+    }
+
+    /**
+     * Resuelve la banca efectiva de un usuario recorriendo su cadena de vínculos.
+     */
+    private function resolveBancaId(?User $user): ?int
+    {
+        if (!$user) {
+            return null;
+        }
+
+        if ($user->banca_id) {
+            return $user->banca_id;
+        }
+
+        if ($user->grupo_id) {
+            return Grupo::find($user->grupo_id)?->banca_id;
+        }
+
+        if ($user->taquilla_id) {
+            return Taquilla::find($user->taquilla_id)?->grupo?->banca_id;
+        }
+
+        return null;
+    }
+
+    /**
+     * Resuelve el grupo efectivo de un usuario recorriendo su cadena de vínculos.
+     */
+    private function resolveGrupoId(?User $user): ?int
+    {
+        if (!$user) {
+            return null;
+        }
+
+        if ($user->grupo_id) {
+            return $user->grupo_id;
+        }
+
+        if ($user->taquilla_id) {
+            return Taquilla::find($user->taquilla_id)?->grupo_id;
+        }
+
+        return null;
     }
 }
