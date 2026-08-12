@@ -4,7 +4,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
 
 <AdminLayout>
   <div class="page">
-    <div class="page-header"><h2 class="page-title">Límites por Juego</h2></div>
+    <div class="page-header"><h2 class="page-title">Límites por Juego</h2><button class="btn btn-primary" id="btn-create">+ Nuevo límite</button></div>
 
     <div class="filters">
       <div class="field">
@@ -37,6 +37,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
       <form id="modal-form">
         <div class="field"><label>Moneda</label><select name="moneda" required><option value="bs">BS</option><option value="usd">USD</option></select></div>
         <div class="field"><label>Nivel</label><select name="nivel" id="modal-nivel"><option value="banca">Banca</option><option value="grupo">Grupo</option><option value="taquilla">Agencia</option></select></div>
+        <div class="field" id="modal-banca-field"><label>Banca</label><select name="banca_id"></select></div>
         <div class="field" id="modal-grupo-field" style="display:none"><label>Grupo</label><select name="grupo_id"></select></div>
         <div class="field" id="modal-taquilla-field" style="display:none"><label>Agencia</label><select name="taquilla_id"></select></div>
         <div class="field"><label>Límite Mínimo</label><input name="limite_minimo" type="number" step="0.01" min="0" /></div>
@@ -45,7 +46,6 @@ import AdminLayout from '../layouts/AdminLayout.astro';
         <div class="field"><label>% Participación</label><input name="participacion" type="number" step="0.01" min="0" max="100" /></div>
         <div class="field"><label>Fracción</label><select name="fraccion"><option value="0">No</option><option value="1">Sí</option></select></div>
         <div class="field"><label>Límite Tiempo (min)</label><input name="limite_tiempo" type="number" min="1" /></div>
-        <input type="hidden" name="banca_id" />
         <div class="modal-actions">
           <button type="button" class="btn btn-secondary" id="btn-cancel">Cancelar</button>
           <button type="submit" class="btn btn-primary">Guardar</button>
@@ -91,6 +91,8 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     let juegos = [];
     let bancas = [];
     let grupos = [];
+    let taquillas = [];
+    let limitesCache = {};
     let editId = null;
 
     async function loadJuegos() {
@@ -108,11 +110,19 @@ import AdminLayout from '../layouts/AdminLayout.astro';
       try {
         const data = await apiFetch('GET', '/bancas?per_page=100');
         bancas = Array.isArray(data) ? data : (data?.data || []);
-        const s = document.getElementById('filter-banca');
-        s.innerHTML = '<option value="">Todas</option>';
-        bancas.forEach(b => s.innerHTML += `<option value="${b.id}">${b.name}</option>`);
-        document.getElementById('batch-banca').innerHTML = '<option value="">Seleccione...</option>' + bancas.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
-      } catch (_) {}
+      } catch (_) { bancas = []; }
+      // Roles banca/grupo no pueden listar bancas: derivar de la sesión
+      if (!bancas.length) {
+        const currentUser = JSON.parse(localStorage.getItem('panel_user') || '{}');
+        if (currentUser.banca_id) bancas = [{ id: currentUser.banca_id, name: 'Mi Banca' }];
+      }
+      const s = document.getElementById('filter-banca');
+      s.innerHTML = '<option value="">Todas</option>';
+      bancas.forEach(b => s.innerHTML += `<option value="${b.id}">${b.name}</option>`);
+      document.getElementById('batch-banca').innerHTML = '<option value="">Seleccione...</option>' + bancas.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+      const mb = document.querySelector('#modal-form [name="banca_id"]');
+      mb.innerHTML = '<option value="">Seleccione...</option>';
+      bancas.forEach(b => mb.innerHTML += `<option value="${b.id}">${b.name}</option>`);
     }
 
     async function loadGrupos(bancaId) {
@@ -121,6 +131,14 @@ import AdminLayout from '../layouts/AdminLayout.astro';
         const data = await apiFetch('GET', '/grupos?per_page=100');
         grupos = (Array.isArray(data) ? data : (data?.data || [])).filter(g => g.banca_id == bancaId);
       } catch (_) { grupos = []; }
+    }
+
+    async function loadTaquillas(grupoId) {
+      if (!grupoId) { taquillas = []; return; }
+      try {
+        const data = await apiFetch('GET', '/taquillas?per_page=100');
+        taquillas = (Array.isArray(data) ? data : (data?.data || [])).filter(t => t.grupo_id == grupoId);
+      } catch (_) { taquillas = []; }
     }
 
     async function loadLimites() {
@@ -132,6 +150,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
         const data = await apiFetch('GET', '/limites/' + currentJuegoId);
         const items = Array.isArray(data) ? data : (data?.data || []);
         const filtered = currentBancaId ? items.filter(l => l.banca_id == currentBancaId) : items;
+        limitesCache = Object.fromEntries(filtered.map(l => [l.id, l]));
         if (filtered.length === 0) {
           document.getElementById('content').innerHTML = '<div class="loading">No hay límites configurados para este juego.</div>';
           return;
@@ -155,28 +174,40 @@ import AdminLayout from '../layouts/AdminLayout.astro';
       }
     }
 
-    async function openModal(limite) {
+    async function openModal(limite = null) {
       editId = limite?.id || null;
       document.getElementById('modal-title').textContent = limite ? 'Editar Límite' : 'Nuevo Límite';
       const f = document.getElementById('modal-form');
       f.moneda.value = limite?.moneda || 'bs';
-      f.banca_id.value = currentBancaId || '';
       f.limite_minimo.value = limite?.limite_minimo ?? '';
       f.limite_maximo.value = limite?.limite_maximo ?? '';
       f.porcentaje_pago.value = limite?.porcentaje_pago ?? '';
       f.participacion.value = limite?.participacion ?? '';
       f.fraccion.value = limite?.fraccion ? '1' : '0';
       f.limite_tiempo.value = limite?.limite_tiempo ?? '';
-      document.getElementById('modal-nivel').value = limite?.taquilla_id ? 'taquilla' : (limite?.grupo_id ? 'grupo' : 'banca');
-      document.getElementById('modal-nivel').dispatchEvent(new Event('change'));
-      if (limite?.grupo_id) {
-        document.querySelector('#modal-form [name="grupo_id"]').value = limite.grupo_id;
-      }
-      if (limite?.taquilla_id) {
-        document.querySelector('#modal-form [name="taquilla_id"]').value = limite.taquilla_id;
-      }
+
+      const nivel = limite?.taquilla_id ? 'taquilla' : (limite?.grupo_id ? 'grupo' : 'banca');
+      document.getElementById('modal-nivel').value = nivel;
+      updateNivelUI();
+
+      const selBanca = limite?.banca_id ? String(limite.banca_id) : (currentBancaId || '');
+      const selGrupo = limite?.grupo_id ? String(limite.grupo_id) : '';
+      const selTaq = limite?.taquilla_id ? String(limite.taquilla_id) : '';
+
+      f.banca_id.value = selBanca;
+      await loadGruposForModal(selBanca);
+      f.grupo_id.value = selGrupo;
+      await loadTaquillasForModal(selGrupo);
+      f.taquilla_id.value = selTaq;
+
       document.getElementById('modal').style.display = 'flex';
-      if (currentBancaId) loadGruposForModal(currentBancaId);
+    }
+
+    function updateNivelUI() {
+      const nivel = document.getElementById('modal-nivel').value;
+      document.getElementById('modal-banca-field').style.display = '';
+      document.getElementById('modal-grupo-field').style.display = (nivel === 'grupo' || nivel === 'taquilla') ? '' : 'none';
+      document.getElementById('modal-taquilla-field').style.display = nivel === 'taquilla' ? '' : 'none';
     }
 
     async function loadGruposForModal(bancaId) {
@@ -186,9 +217,32 @@ import AdminLayout from '../layouts/AdminLayout.astro';
       grupos.forEach(g => sg.innerHTML += `<option value="${g.id}">${g.name}</option>`);
     }
 
+    async function loadTaquillasForModal(grupoId) {
+      await loadTaquillas(grupoId);
+      const st = document.querySelector('#modal-form [name="taquilla_id"]');
+      st.innerHTML = '<option value="">Seleccione...</option>';
+      taquillas.forEach(t => st.innerHTML += `<option value="${t.id}">${t.name}</option>`);
+    }
+
     document.getElementById('modal-nivel').addEventListener('change', function() {
-      document.getElementById('modal-grupo-field').style.display = (this.value === 'grupo' || this.value === 'taquilla') ? '' : 'none';
-      document.getElementById('modal-taquilla-field').style.display = this.value === 'taquilla' ? '' : 'none';
+      const f = document.getElementById('modal-form');
+      updateNivelUI();
+      if (this.value === 'grupo' || this.value === 'taquilla') loadGruposForModal(f.banca_id.value);
+      if (this.value === 'taquilla') loadTaquillasForModal(f.grupo_id.value);
+    });
+
+    document.querySelector('#modal-form [name="banca_id"]').addEventListener('change', function() {
+      const f = document.getElementById('modal-form');
+      f.grupo_id.value = '';
+      f.taquilla_id.value = '';
+      loadGruposForModal(this.value);
+      loadTaquillasForModal('');
+    });
+
+    document.querySelector('#modal-form [name="grupo_id"]').addEventListener('change', function() {
+      const f = document.getElementById('modal-form');
+      f.taquilla_id.value = '';
+      loadTaquillasForModal(this.value);
     });
 
     document.getElementById('filter-juego').addEventListener('change', function() {
@@ -208,7 +262,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
       const f = e.target;
       const nivel = f.nivel.value;
       const body = {
-        banca_id: currentBancaId || f.banca_id.value,
+        banca_id: f.banca_id.value,
         moneda: f.moneda.value,
         limite_minimo: f.limite_minimo.value || null,
         limite_maximo: f.limite_maximo.value || null,
@@ -229,11 +283,30 @@ import AdminLayout from '../layouts/AdminLayout.astro';
       }
     });
 
+    document.getElementById('btn-create').addEventListener('click', async () => {
+      if (!currentJuegoId) {
+        await showModal({ message: 'Seleccione un juego para crear un límite.', type: 'error' });
+        return;
+      }
+      openModal(null);
+    });
+
     document.getElementById('content').addEventListener('click', (e) => {
       const eb = e.target.closest('.edit-btn');
       const db = e.target.closest('.del-btn');
-      if (eb || db) {
-        e.stopPropagation();
+      if (eb) {
+        const id = parseInt(eb.dataset.id);
+        const limite = limitesCache[id];
+        if (limite) openModal(limite);
+      }
+      if (db) {
+        const id = parseInt(db.dataset.id);
+        showModal({ message: '¿Eliminar este límite?', type: 'confirm' }).then(ok => {
+          if (!ok) return;
+          apiFetch('DELETE', '/limites/' + id)
+            .then(() => loadLimites())
+            .catch(err => showModal({ message: err.message, type: 'error' }));
+        });
       }
     });
 
