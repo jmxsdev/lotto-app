@@ -444,6 +444,190 @@ class ApuestaService
         return $apuesta;
     }
 
+    // ============================================
+    // Phase 4: Report Aggregation Methods
+    // ============================================
+
+    /**
+     * Ventas totales agrupadas por banca.
+     * Recibe query pre-escalado por jerarquía y filtros desde el controlador.
+     *
+     * Columnas: Banca, Venta, Premio, Porcentaje, Utilidad, Participación, Total
+     */
+    public function ventasTotales($query, array $filters): array
+    {
+        // Clonar para no afectar el query original
+        $base = (clone $query)
+            ->join('taquillas', 'apuestas.taquilla_id', '=', 'taquillas.id')
+            ->join('grupos', 'taquillas.grupo_id', '=', 'grupos.id')
+            ->join('bancas', 'grupos.banca_id', '=', 'bancas.id')
+            ->leftJoin('detalle_apuestas', 'apuestas.id', '=', 'detalle_apuestas.apuesta_id')
+            ->where('apuestas.estado', '!=', 'anulada');
+
+        // Filtro por tipo de juego (slug)
+        if (!empty($filters['tipo_juego'])) {
+            $base->join('juegos', 'apuestas.juego_id', '=', 'juegos.id')
+                 ->where('juegos.slug', $filters['tipo_juego']);
+        }
+
+        // Filtro por moneda
+        if (!empty($filters['moneda'])) {
+            $base->where(function ($q) use ($filters) {
+                match ($filters['moneda']) {
+                    'bs' => $q->where('apuestas.amount_bs', '>', 0)->where('apuestas.amount_usd', 0),
+                    'usd' => $q->where('apuestas.amount_usd', '>', 0)->where('apuestas.amount_bs', 0),
+                    'mixto' => $q->where('apuestas.amount_bs', '>', 0)->where('apuestas.amount_usd', '>', 0),
+                    default => null,
+                };
+            });
+        }
+
+        $filas = $base
+            ->groupBy('bancas.id', 'bancas.name')
+            ->selectRaw("
+                bancas.name as Banca,
+                SUM(apuestas.total_bs_equivalent) as Venta,
+                COALESCE(SUM(detalle_apuestas.premio_ganado), 0) as Premio,
+                COUNT(DISTINCT apuestas.id) as Total
+            ")
+            ->get();
+
+        $totalVenta = $filas->sum('Venta');
+
+        return $filas->map(function ($fila) use ($totalVenta) {
+            $venta = (float) $fila->Venta;
+            $premio = (float) $fila->Premio;
+            $porcentaje = $venta > 0 ? round(($premio / $venta) * 100, 2) : 0;
+            $utilidad = $venta - $premio;
+            $participacion = $totalVenta > 0 ? round(($venta / $totalVenta) * 100, 2) : 0;
+
+            return [
+                'Banca' => $fila->Banca,
+                'Venta' => $venta,
+                'Premio' => $premio,
+                'Porcentaje' => $porcentaje,
+                'Utilidad' => $utilidad,
+                'Participación' => $participacion,
+                'Total' => (int) $fila->Total,
+            ];
+        })->values()->toArray();
+    }
+
+    /**
+     * Relación de tickets con columnas computadas.
+     * Recibe query de tickets pre-escalado desde el controlador.
+     *
+     * @return \Illuminate\Pagination\LengthAwarePaginator
+     */
+    public function relacionTickets($query, array $filters, int $perPage = 50)
+    {
+        $tickets = (clone $query)
+            ->with(['taquilla', 'apuestas'])
+            ->withCount('apuestas as jugadas_count')
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage);
+
+        // Enriquecer cada ticket con columnas computadas
+        $tickets->through(function ($ticket) {
+            $apuestas = $ticket->apuestas;
+
+            // Sorteos: conteo DISTINCT de sorteo_hora entre las apuestas del ticket
+            $sorteosDistintos = $apuestas->pluck('sorteo_hora')
+                ->map(fn($h) => $h instanceof \Carbon\Carbon ? $h->toDateString() : (string) $h)
+                ->unique()
+                ->count();
+
+            // Tipo de moneda
+            $tieneBs = $apuestas->sum('amount_bs') > 0;
+            $tieneUsd = $apuestas->sum('amount_usd') > 0;
+            $tipo = $tieneBs && $tieneUsd ? 'Mixto' : ($tieneUsd ? 'USD' : 'BS');
+
+            // Usuario: obtener del pago de la primera apuesta
+            $usuario = null;
+            $primeraApuesta = $apuestas->first();
+            if ($primeraApuesta) {
+                $pago = \App\Models\Pago::where('apuesta_id', $primeraApuesta->id)->first();
+                if ($pago && $pago->created_by) {
+                    $usuario = \App\Models\User::find($pago->created_by)?->name ?? null;
+                }
+            }
+
+            $ticket->Ticket_N = $ticket->ticket_code;
+            $ticket->Taquilla = $ticket->taquilla?->name;
+            $ticket->Usuario = $usuario;
+            $ticket->Fecha = $ticket->created_at?->format('Y-m-d');
+            $ticket->Monto = (float) ($ticket->total_bs + $ticket->total_usd);
+            $ticket->Premio = (float) ($ticket->premio_total_bs + $ticket->premio_total_usd);
+            $ticket->Sorteos = $sorteosDistintos;
+            $ticket->Jugadas = (int) $ticket->jugadas_count;
+            $ticket->Tipo = $tipo;
+
+            return $ticket;
+        });
+
+        return $tickets;
+    }
+
+    /**
+     * Rendimiento por taquilla.
+     * Recibe query de apuestas pre-escalado desde el controlador.
+     *
+     * Columnas: Taquilla, Venta, Anulado, Premio, Ganancia, % Peso Venta, % Peso Ganancia, Estado
+     */
+    public function rendimientoTaquillas($query, array $filters): array
+    {
+        // Obtener la taquilla_id de las apuestas en el query para contexto de jerarquía
+        $taquillaIds = (clone $query)->distinct()->pluck('taquilla_id');
+
+        $taquillas = \App\Models\Taquilla::whereIn('id', $taquillaIds)
+            ->with('grupo')
+            ->get()
+            ->keyBy('id');
+
+        $ventasPorTaquilla = (clone $query)
+            ->leftJoin('detalle_apuestas', 'apuestas.id', '=', 'detalle_apuestas.apuesta_id')
+            ->groupBy('apuestas.taquilla_id')
+            ->selectRaw("
+                apuestas.taquilla_id,
+                SUM(CASE WHEN apuestas.estado != 'anulada' THEN apuestas.total_bs_equivalent ELSE 0 END) as Venta,
+                SUM(CASE WHEN apuestas.estado = 'anulada' THEN 1 ELSE 0 END) as Anulado,
+                COALESCE(SUM(detalle_apuestas.premio_ganado), 0) as Premio
+            ")
+            ->get()
+            ->keyBy('taquilla_id');
+
+        $totalVenta = $ventasPorTaquilla->sum('Venta');
+        
+        // Ganancia total = Venta total - Premio total
+        $totalPremio = $ventasPorTaquilla->sum('Premio');
+        $totalGanancia = $totalVenta - $totalPremio;
+
+        $resultados = [];
+        foreach ($ventasPorTaquilla as $taquillaId => $row) {
+            $taquilla = $taquillas->get($taquillaId);
+            $venta = (float) $row->Venta;
+            $anulado = (int) $row->Anulado;
+            $premio = (float) $row->Premio;
+            $ganancia = $venta - $premio;
+
+            $pesoVenta = $totalVenta > 0 ? round(($venta / $totalVenta) * 100, 2) : 0;
+            $pesoGanancia = $totalGanancia > 0 ? round(($ganancia / $totalGanancia) * 100, 2) : 0;
+
+            $resultados[] = [
+                'Taquilla' => $taquilla?->name ?? "Taquilla #{$taquillaId}",
+                'Venta' => $venta,
+                'Anulado' => $anulado,
+                'Premio' => $premio,
+                'Ganancia' => $ganancia,
+                '% Peso Venta' => $pesoVenta,
+                '% Peso Ganancia' => $pesoGanancia,
+                'Estado' => $taquilla?->active ? 'Activa' : 'Inactiva',
+            ];
+        }
+
+        return $resultados;
+    }
+
     /**
      * Verificar apuestas pendientes contra un resultado recién guardado
      */
