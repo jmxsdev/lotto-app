@@ -452,4 +452,331 @@ class ApuestaTest extends TestCase
         $content = $response->json('message');
         $this->assertStringContainsString('tasa de cambio', $content);
     }
+
+    // ============================================
+    // Phase 2: Inheritance Resolvers + Validation Tests
+    // ============================================
+
+    protected function crearJerarquiaConMonedas(?array $bancaMonedas = null, ?array $grupoMonedas = null): \App\Models\Taquilla
+    {
+        $banca = \App\Models\Banca::create([
+            'name' => 'Banca Test Fase 2',
+            'code' => 'BTF2' . uniqid(),
+            'monedas_permitidas' => $bancaMonedas,
+            'active' => true,
+        ]);
+
+        $grupo = \App\Models\Grupo::create([
+            'name' => 'Grupo Test Fase 2',
+            'code' => 'GTF2' . uniqid(),
+            'banca_id' => $banca->id,
+            'monedas_permitidas' => $grupoMonedas,
+            'active' => true,
+        ]);
+
+        return \App\Models\Taquilla::create([
+            'name' => 'Taquilla Test Fase 2',
+            'code' => 'TTF2' . uniqid(),
+            'grupo_id' => $grupo->id,
+            'active' => true,
+        ]);
+    }
+
+    public function test_rechaza_apuesta_en_moneda_deshabilitada()
+    {
+        $user = User::where('email', 'super@lotto.com')->first();
+
+        ExchangeRate::create([
+            'rate' => 36.50,
+            'base_currency' => 'USD',
+            'reference_date' => now(),
+            'set_by' => $user->id,
+            'is_active' => true,
+        ]);
+
+        $juego = Juego::where('slug', 'animalitos')->first();
+
+        // Banca permite solo BS, no USD
+        $taquilla = $this->crearJerarquiaConMonedas(
+            ['bs' => true, 'usd' => false],
+            null // grupo hereda
+        );
+
+        $taquillaUser = User::factory()->create([
+            'taquilla_id' => $taquilla->id,
+            'role' => 'taquilla',
+        ]);
+        $taquillaUser->assignRole('taquilla');
+        $taquilla->update(['mac_address' => 'AA:BB:CC:DD:EE:FF']);
+
+        $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
+            ->actingAs($taquillaUser, 'sanctum')
+            ->postJson('/api/apuestas', [
+                'juego_id' => $juego->id,
+                'combinacion' => ['animal' => 'leon', 'numero' => 5],
+                'amount_bs' => 0,
+                'amount_usd' => 50,
+                'sorteo_hora' => now()->addHours(2)->format('Y-m-d H:i:s'),
+            ]);
+
+        $response->assertStatus(422);
+        $content = $response->json('message');
+        $this->assertStringContainsString('USD', $content);
+    }
+
+    public function test_rechaza_apuesta_que_excede_limite_maximo()
+    {
+        $user = User::where('email', 'super@lotto.com')->first();
+
+        ExchangeRate::create([
+            'rate' => 36.50,
+            'base_currency' => 'USD',
+            'reference_date' => now(),
+            'set_by' => $user->id,
+            'is_active' => true,
+        ]);
+
+        $juego = Juego::where('slug', 'animalitos')->first();
+
+        $taquilla = \App\Models\Taquilla::factory()->create();
+        $bancaId = $taquilla->grupo->banca_id;
+
+        // Configurar límite máximo: 100 BS a nivel banca
+        \App\Models\JuegoLimite::create([
+            'juego_id' => $juego->id,
+            'banca_id' => $bancaId,
+            'moneda' => 'bs',
+            'grupo_id' => null,
+            'taquilla_id' => null,
+            'limite_maximo' => 100,
+            'limite_minimo' => 3600,
+        ]);
+
+        // También necesitamos un límite mínimo para BS que el juego pide
+        \App\Models\JuegoLimite::updateOrCreate(
+            [
+                'juego_id' => $juego->id,
+                'banca_id' => $bancaId,
+                'moneda' => 'bs',
+                'grupo_id' => null,
+                'taquilla_id' => null,
+            ],
+            ['limite_minimo' => 0, 'limite_maximo' => 100]
+        );
+
+        $taquillaUser = User::factory()->create([
+            'taquilla_id' => $taquilla->id,
+            'role' => 'taquilla',
+        ]);
+        $taquillaUser->assignRole('taquilla');
+        $taquilla->update(['mac_address' => 'AA:BB:CC:DD:EE:FF']);
+
+        // Apuesta 150 BS (excede máximo 100)
+        $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
+            ->actingAs($taquillaUser, 'sanctum')
+            ->postJson('/api/apuestas', [
+                'juego_id' => $juego->id,
+                'combinacion' => ['animal' => 'leon', 'numero' => 5],
+                'amount_bs' => 150,
+                'amount_usd' => 0,
+                'sorteo_hora' => now()->addHours(2)->format('Y-m-d H:i:s'),
+            ]);
+
+        $response->assertStatus(422);
+        $content = $response->json('message');
+        $this->assertStringContainsString('límite máximo', $content);
+    }
+
+    public function test_rechaza_apuesta_debajo_limite_minimo()
+    {
+        $user = User::where('email', 'super@lotto.com')->first();
+
+        ExchangeRate::create([
+            'rate' => 36.50,
+            'base_currency' => 'USD',
+            'reference_date' => now(),
+            'set_by' => $user->id,
+            'is_active' => true,
+        ]);
+
+        $juego = Juego::where('slug', 'animalitos')->first();
+
+        $taquilla = \App\Models\Taquilla::factory()->create();
+        $bancaId = $taquilla->grupo->banca_id;
+
+        // Configurar límite mínimo: 5000 BS a nivel banca
+        \App\Models\JuegoLimite::updateOrCreate(
+            [
+                'juego_id' => $juego->id,
+                'banca_id' => $bancaId,
+                'moneda' => 'bs',
+                'grupo_id' => null,
+                'taquilla_id' => null,
+            ],
+            ['limite_minimo' => 5000, 'limite_maximo' => null]
+        );
+
+        $taquillaUser = User::factory()->create([
+            'taquilla_id' => $taquilla->id,
+            'role' => 'taquilla',
+        ]);
+        $taquillaUser->assignRole('taquilla');
+        $taquilla->update(['mac_address' => 'AA:BB:CC:DD:EE:FF']);
+
+        // Apuesta 3000 BS (por debajo del mínimo 5000)
+        $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
+            ->actingAs($taquillaUser, 'sanctum')
+            ->postJson('/api/apuestas', [
+                'juego_id' => $juego->id,
+                'combinacion' => ['animal' => 'leon', 'numero' => 5],
+                'amount_bs' => 3000,
+                'amount_usd' => 0,
+                'sorteo_hora' => now()->addHours(2)->format('Y-m-d H:i:s'),
+            ]);
+
+        $response->assertStatus(422);
+        $content = $response->json('message');
+        $this->assertStringContainsString('límite mínimo', $content);
+    }
+
+    public function test_limite_taquilla_prevalece_sobre_grupo()
+    {
+        $user = User::where('email', 'super@lotto.com')->first();
+
+        ExchangeRate::create([
+            'rate' => 36.50,
+            'base_currency' => 'USD',
+            'reference_date' => now(),
+            'set_by' => $user->id,
+            'is_active' => true,
+        ]);
+
+        $juego = Juego::where('slug', 'animalitos')->first();
+
+        $taquilla = \App\Models\Taquilla::factory()->create();
+        $bancaId = $taquilla->grupo->banca_id;
+        $grupoId = $taquilla->grupo_id;
+
+        // Limite a nivel banca: max 200
+        \App\Models\JuegoLimite::create([
+            'juego_id' => $juego->id,
+            'banca_id' => $bancaId,
+            'moneda' => 'bs',
+            'grupo_id' => null,
+            'taquilla_id' => null,
+            'limite_minimo' => 0,
+            'limite_maximo' => 200,
+        ]);
+
+        // Limite a nivel grupo: max 100 (más restrictivo que banca)
+        \App\Models\JuegoLimite::create([
+            'juego_id' => $juego->id,
+            'banca_id' => $bancaId,
+            'moneda' => 'bs',
+            'grupo_id' => $grupoId,
+            'taquilla_id' => null,
+            'limite_minimo' => 0,
+            'limite_maximo' => 100,
+        ]);
+
+        // Limite a nivel taquilla: max 50 (aún más restrictivo)
+        \App\Models\JuegoLimite::create([
+            'juego_id' => $juego->id,
+            'banca_id' => $bancaId,
+            'moneda' => 'bs',
+            'grupo_id' => $grupoId,
+            'taquilla_id' => $taquilla->id,
+            'limite_minimo' => 0,
+            'limite_maximo' => 50,
+        ]);
+
+        $taquillaUser = User::factory()->create([
+            'taquilla_id' => $taquilla->id,
+            'role' => 'taquilla',
+        ]);
+        $taquillaUser->assignRole('taquilla');
+        $taquilla->update(['mac_address' => 'AA:BB:CC:DD:EE:FF']);
+
+        // Apuesta 60 BS: debería ser rechazada porque taquilla tiene max 50
+        $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
+            ->actingAs($taquillaUser, 'sanctum')
+            ->postJson('/api/apuestas', [
+                'juego_id' => $juego->id,
+                'combinacion' => ['animal' => 'leon', 'numero' => 5],
+                'amount_bs' => 60,
+                'amount_usd' => 0,
+                'sorteo_hora' => now()->addHours(2)->format('Y-m-d H:i:s'),
+            ]);
+
+        $response->assertStatus(422);
+        $content = $response->json('message');
+        $this->assertStringContainsString('50', $content);
+    }
+
+    public function test_monedas_interseccion_banca_y_grupo()
+    {
+        $user = User::where('email', 'super@lotto.com')->first();
+
+        ExchangeRate::create([
+            'rate' => 36.50,
+            'base_currency' => 'USD',
+            'reference_date' => now(),
+            'set_by' => $user->id,
+            'is_active' => true,
+        ]);
+
+        $juego = Juego::where('slug', 'animalitos')->first();
+
+        // Banca: ambas habilitadas; Grupo: solo BS
+        $taquilla = $this->crearJerarquiaConMonedas(
+            ['bs' => true, 'usd' => true],
+            ['bs' => true, 'usd' => false]
+        );
+
+        $taquillaUser = User::factory()->create([
+            'taquilla_id' => $taquilla->id,
+            'role' => 'taquilla',
+        ]);
+        $taquillaUser->assignRole('taquilla');
+        $taquilla->update(['mac_address' => 'AA:BB:CC:DD:EE:FF']);
+
+        // Apuesta en USD debería ser rechazada (grupo deshabilitó USD)
+        $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
+            ->actingAs($taquillaUser, 'sanctum')
+            ->postJson('/api/apuestas', [
+                'juego_id' => $juego->id,
+                'combinacion' => ['animal' => 'leon', 'numero' => 5],
+                'amount_bs' => 0,
+                'amount_usd' => 50,
+                'sorteo_hora' => now()->addHours(2)->format('Y-m-d H:i:s'),
+            ]);
+
+        $response->assertStatus(422);
+        $content = $response->json('message');
+        $this->assertStringContainsString('USD', $content);
+
+        // Pero apuesta en BS sí debe pasar
+        \App\Models\JuegoLimite::updateOrCreate(
+            [
+                'juego_id' => $juego->id,
+                'banca_id' => $taquilla->grupo->banca_id,
+                'moneda' => 'bs',
+                'grupo_id' => null,
+                'taquilla_id' => null,
+            ],
+            ['limite_minimo' => 0, 'limite_maximo' => null]
+        );
+
+        $responseBs = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
+            ->actingAs($taquillaUser, 'sanctum')
+            ->postJson('/api/apuestas', [
+                'juego_id' => $juego->id,
+                'combinacion' => ['animal' => 'leon', 'numero' => 5],
+                'amount_bs' => 2000,
+                'amount_usd' => 0,
+                'sorteo_hora' => now()->addHours(2)->format('Y-m-d H:i:s'),
+            ]);
+
+        $responseBs->assertStatus(201);
+    }
 }
