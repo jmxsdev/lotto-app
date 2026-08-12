@@ -7,12 +7,12 @@ use App\Models\Log;
 use App\Models\Resultado;
 use App\Jobs\ScrapeResultsJob;
 use App\Plugins\Scrapers\TripleZuliaScraper;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 class ScrapeResultsJobTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     protected function setUp(): void
     {
@@ -25,7 +25,7 @@ class ScrapeResultsJobTest extends TestCase
 
     public function test_resolves_animalitos_scraper_by_convention()
     {
-        $juego = Juego::where('slug', 'animalitos')->first();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
         $this->assertNotNull($juego);
 
         $job = new ScrapeResultsJob($juego->id, '2026-07-23');

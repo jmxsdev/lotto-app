@@ -7,12 +7,12 @@ use App\Models\ExchangeRate;
 use App\Models\Juego;
 use App\Models\User;
 use App\Services\ApuestaService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 class ApuestaServiceTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     protected function setUp(): void
     {
@@ -77,7 +77,7 @@ class ApuestaServiceTest extends TestCase
 
     public function test_valida_costo_minimo_pasa()
     {
-        $juego = Juego::where('slug', 'animalitos')->first();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
         
         if (!$juego) {
             $this->markTestSkipped('Juego Animalitos no existe');
@@ -93,7 +93,7 @@ class ApuestaServiceTest extends TestCase
 
     public function test_valida_costo_minimo_falla()
     {
-        $juego = Juego::where('slug', 'animalitos')->first();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
         
         if (!$juego) {
             $this->markTestSkipped('Juego Animalitos no existe');
@@ -179,7 +179,7 @@ class ApuestaServiceTest extends TestCase
         ]);
 
         // Usar juego del seeder
-        $juego = Juego::where('slug', 'animalitos')->first();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
         
         if (!$juego) {
             $this->markTestSkipped('Juego Animalitos no existe');
@@ -314,7 +314,7 @@ class ApuestaServiceTest extends TestCase
             'active' => true,
         ]);
 
-        $juego = Juego::where('slug', 'animalitos')->first();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
 
         // Límite banca: max 200
         \App\Models\JuegoLimite::create([
@@ -377,7 +377,7 @@ class ApuestaServiceTest extends TestCase
             'active' => true,
         ]);
 
-        $juego = Juego::where('slug', 'animalitos')->first();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
 
         // Solo límite a nivel banca (sin grupo ni taquilla)
         \App\Models\JuegoLimite::create([
@@ -478,7 +478,7 @@ class ApuestaServiceTest extends TestCase
             'active' => true,
         ]);
 
-        $juego = Juego::where('slug', 'animalitos')->first();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
 
         $service = new ApuestaService();
         $result = $service->validarMonedaYLimites($taquilla->id, $juego->id, 100, 50);

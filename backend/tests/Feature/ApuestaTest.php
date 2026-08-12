@@ -6,12 +6,12 @@ use App\Models\Apuesta;
 use App\Models\ExchangeRate;
 use App\Models\Juego;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 class ApuestaTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     protected function setUp(): void
     {
@@ -32,7 +32,7 @@ class ApuestaTest extends TestCase
             'is_active' => true,
         ]);
 
-        $juego = Juego::where('slug', 'animalitos')->first();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
 
         $taquilla = \App\Models\Taquilla::factory()->create();
         $taquillaUser = User::factory()->create([
@@ -78,7 +78,7 @@ class ApuestaTest extends TestCase
             'is_active' => true,
         ]);
 
-        $juego = Juego::where('slug', 'animalitos')->first();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
 
         $taquilla = \App\Models\Taquilla::factory()->create();
         $taquillaUser = User::factory()->create([
@@ -115,7 +115,7 @@ class ApuestaTest extends TestCase
             'is_active' => true,
         ]);
 
-        $juego = Juego::where('slug', 'animalitos')->first();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
 
         $taquilla = \App\Models\Taquilla::factory()->create();
         $taquillaUser = User::factory()->create([
@@ -167,7 +167,7 @@ class ApuestaTest extends TestCase
             'is_active' => true,
         ]);
 
-        $juego = Juego::where('slug', 'animalitos')->first();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
 
         $taquilla1 = \App\Models\Taquilla::factory()->create();
         $taquilla2 = \App\Models\Taquilla::factory()->create();
@@ -223,7 +223,7 @@ class ApuestaTest extends TestCase
         $master = User::where('email', 'master@lotto.com')->first();
         $master->assignRole('master');
 
-        $juego = Juego::where('slug', 'animalitos')->first();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
 
         $taquilla1 = \App\Models\Taquilla::factory()->create();
         $taquilla2 = \App\Models\Taquilla::factory()->create();
@@ -267,7 +267,7 @@ class ApuestaTest extends TestCase
             'is_active' => true,
         ]);
 
-        $juego = Juego::where('slug', 'animalitos')->first();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
 
         $taquilla = \App\Models\Taquilla::factory()->create();
         $taquillaUser = User::factory()->create([
@@ -303,7 +303,7 @@ class ApuestaTest extends TestCase
             'is_active' => true,
         ]);
 
-        $juego = Juego::where('slug', 'animalitos')->first();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
 
         $taquilla = \App\Models\Taquilla::factory()->create();
         $taquillaUser = User::factory()->create([
@@ -339,7 +339,7 @@ class ApuestaTest extends TestCase
             'is_active' => true,
         ]);
 
-        $juego = Juego::where('slug', 'animalitos')->first();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
 
         $taquilla = \App\Models\Taquilla::factory()->create();
         $taquillaUser = User::factory()->create([
@@ -381,7 +381,7 @@ class ApuestaTest extends TestCase
             'is_active' => true,
         ]);
 
-        $juego = Juego::where('slug', 'animalitos')->first();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
 
         $taquilla = \App\Models\Taquilla::factory()->create();
 
@@ -427,7 +427,7 @@ class ApuestaTest extends TestCase
     {
         ExchangeRate::query()->delete();
 
-        $juego = Juego::where('slug', 'animalitos')->first();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
 
         $taquilla = \App\Models\Taquilla::factory()->create();
         $taquillaUser = User::factory()->create([
@@ -494,7 +494,7 @@ class ApuestaTest extends TestCase
             'is_active' => true,
         ]);
 
-        $juego = Juego::where('slug', 'animalitos')->first();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
 
         // Banca permite solo BS, no USD
         $taquilla = $this->crearJerarquiaConMonedas(
@@ -536,7 +536,7 @@ class ApuestaTest extends TestCase
             'is_active' => true,
         ]);
 
-        $juego = Juego::where('slug', 'animalitos')->first();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
 
         $taquilla = \App\Models\Taquilla::factory()->create();
         $bancaId = $taquilla->grupo->banca_id;
@@ -599,7 +599,7 @@ class ApuestaTest extends TestCase
             'is_active' => true,
         ]);
 
-        $juego = Juego::where('slug', 'animalitos')->first();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
 
         $taquilla = \App\Models\Taquilla::factory()->create();
         $bancaId = $taquilla->grupo->banca_id;
@@ -651,7 +651,7 @@ class ApuestaTest extends TestCase
             'is_active' => true,
         ]);
 
-        $juego = Juego::where('slug', 'animalitos')->first();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
 
         $taquilla = \App\Models\Taquilla::factory()->create();
         $bancaId = $taquilla->grupo->banca_id;
@@ -725,7 +725,7 @@ class ApuestaTest extends TestCase
             'is_active' => true,
         ]);
 
-        $juego = Juego::where('slug', 'animalitos')->first();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
 
         // Banca: ambas habilitadas; Grupo: solo BS
         $taquilla = $this->crearJerarquiaConMonedas(

@@ -5,12 +5,12 @@ namespace Tests\Feature;
 use App\Models\Log;
 use App\Models\Resultado;
 use App\Plugins\Scrapers\AnimalitosScraper;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 class FetchResultsJobTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     protected function setUp(): void
     {
