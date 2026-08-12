@@ -237,6 +237,22 @@ class GrupoController extends Controller
     }
 
     /**
+     * Alternar el estado activo de un grupo.
+     * PATCH /api/grupos/{grupo}/toggle
+     * No propaga cambios a las agencias hijas: el activo efectivo se resuelve en runtime.
+     */
+    public function toggle(Request $request, Grupo $grupo)
+    {
+        $user = auth()->user();
+
+        $this->authorizeGrupoAccess($user, $grupo);
+
+        $grupo->update(['active' => !$grupo->active]);
+
+        return response()->json($grupo->load('banca'));
+    }
+
+    /**
      * Eliminar un grupo
      */
     public function destroy(Grupo $grupo)

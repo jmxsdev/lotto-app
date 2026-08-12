@@ -190,6 +190,23 @@ class TaquillaController extends Controller
     }
 
     /**
+     * Alternar el estado activo de una agencia.
+     * PATCH /api/taquillas/{taquilla}/toggle
+     * No desregistra el dispositivo: MAC y huella permanecen intactos,
+     * por lo que al reactivar no se requiere re-activación.
+     */
+    public function toggle(Request $request, Taquilla $taquilla)
+    {
+        $user = auth()->user();
+
+        $this->authorizeTaquillaAccess($user, $taquilla);
+
+        $taquilla->update(['active' => !$taquilla->active]);
+
+        return response()->json($taquilla->load('grupo.banca'));
+    }
+
+    /**
      * Eliminar una taquilla
      */
     public function destroy(Taquilla $taquilla)

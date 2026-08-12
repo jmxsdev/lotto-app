@@ -46,6 +46,7 @@ Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
     // ==================================================
     Route::middleware(['role:super_master|master'])->group(function () {
         Route::apiResource('bancas', BancaController::class);
+        Route::patch('/bancas/{banca}/toggle', [BancaController::class, 'toggle'])->name('bancas.toggle');
     });
 
     // ==================================================
@@ -53,6 +54,7 @@ Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
     // ==================================================
     Route::middleware(['role:super_master|master|banca'])->group(function () {
         Route::apiResource('grupos', GrupoController::class);
+        Route::patch('/grupos/{grupo}/toggle', [GrupoController::class, 'toggle'])->name('grupos.toggle');
     });
 
     // ==================================================
@@ -60,6 +62,7 @@ Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
     // ==================================================
     Route::middleware(['role:super_master|master|banca|grupo'])->group(function () {
         Route::apiResource('taquillas', TaquillaController::class);
+        Route::patch('/taquillas/{taquilla}/toggle', [TaquillaController::class, 'toggle'])->name('taquillas.toggle');
     });
 
     // ==================================================

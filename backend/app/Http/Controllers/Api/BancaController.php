@@ -125,6 +125,24 @@ class BancaController extends Controller
         return response()->json($banca);
     }
 
+    /**
+     * Alternar el estado activo de una banca.
+     * PATCH /api/bancas/{banca}/toggle
+     * No propaga cambios a entidades hijas: el activo efectivo se resuelve en runtime.
+     */
+    public function toggle(Request $request, Banca $banca)
+    {
+        $user = auth()->user();
+
+        if (!$user->hasRole(['super_master', 'master'])) {
+            return response()->json(['message' => 'No tienes permiso para modificar esta banca.'], 403);
+        }
+
+        $banca->update(['active' => !$banca->active]);
+
+        return response()->json($banca);
+    }
+
     public function destroy(Banca $banca)
     {
         $user = auth()->user();
