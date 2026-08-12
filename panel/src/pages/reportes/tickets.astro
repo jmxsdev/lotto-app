@@ -85,12 +85,12 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
           return;
         }
 
-        let html = '<div class="table-wrap"><table><thead><tr><th>Ticket N°</th><th>Taquilla</th><th>Usuario</th><th>Fecha</th><th class="number">Monto</th><th class="number">Premio</th><th class="number">Sorteos</th><th class="number">Jugadas</th><th>Tipo</th></tr></thead><tbody>';
+        let html = '<div class="table-wrap"><table><thead><tr><th>Ticket N°</th><th>Agencia</th><th>Usuario</th><th>Fecha</th><th class="number">Monto</th><th class="number">Premio</th><th class="number">Sorteos</th><th class="number">Jugadas</th><th>Tipo</th></tr></thead><tbody>';
         items.forEach(row => {
           const tipoClass = row.Tipo === 'USD' ? 'tipo-usd' : (row.Tipo === 'Mixto' ? 'tipo-mixto' : 'tipo-bs');
           html += `<tr>
             <td><strong>${row.Ticket_N || row.ticket_code || '-'}</strong></td>
-            <td>${row.Taquilla || '-'}</td>
+            <td>${row.Agencia || '-'}</td>
             <td>${row.Usuario || '-'}</td>
             <td>${row.Fecha || '-'}</td>
             <td class="number">${(row.Monto || 0).toLocaleString('es-VE', {minimumFractionDigits:2})}</td>

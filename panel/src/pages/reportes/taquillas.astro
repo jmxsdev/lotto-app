@@ -4,7 +4,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
 
 <AdminLayout>
   <div class="page">
-    <div class="page-header"><h2 class="page-title">Rendimiento por Taquilla</h2></div>
+    <div class="page-header"><h2 class="page-title">Rendimiento por Agencia</h2></div>
 
     <div class="filters">
       <div class="field">
@@ -65,13 +65,13 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
           return;
         }
 
-        let html = '<div class="table-wrap"><table><thead><tr><th>Taquilla</th><th class="number">Venta</th><th class="number">Anulado</th><th class="number">Premio</th><th class="number">Ganancia</th><th class="number">% Peso Venta</th><th class="number">% Peso Ganancia</th><th>Estado</th></tr></thead><tbody>';
+        let html = '<div class="table-wrap"><table><thead><tr><th>Agencia</th><th class="number">Venta</th><th class="number">Anulado</th><th class="number">Premio</th><th class="number">Ganancia</th><th class="number">% Peso Venta</th><th class="number">% Peso Ganancia</th><th>Estado</th></tr></thead><tbody>';
         items.forEach(row => {
           const estadoClass = row.Estado === 'Activa' ? 'estado-activa' : 'estado-inactiva';
           const pVenta = row['% Peso Venta'] ?? row.peso_venta ?? '0.00';
           const pGanancia = row['% Peso Ganancia'] ?? row.peso_ganancia ?? '0.00';
           html += `<tr>
-            <td><strong>${row.Taquilla || '-'}</strong></td>
+            <td><strong>${row.Agencia || '-'}</strong></td>
             <td class="number">${(row.Venta || 0).toLocaleString('es-VE', {minimumFractionDigits:2})}</td>
             <td class="number">${row.Anulado ?? '0'}</td>
             <td class="number">${(row.Premio || 0).toLocaleString('es-VE', {minimumFractionDigits:2})}</td>

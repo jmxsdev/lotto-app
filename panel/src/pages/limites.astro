@@ -36,9 +36,9 @@ import AdminLayout from '../layouts/AdminLayout.astro';
       <h3 id="modal-title">Configurar Límite</h3>
       <form id="modal-form">
         <div class="field"><label>Moneda</label><select name="moneda" required><option value="bs">BS</option><option value="usd">USD</option></select></div>
-        <div class="field"><label>Nivel</label><select name="nivel" id="modal-nivel"><option value="banca">Banca</option><option value="grupo">Grupo</option><option value="taquilla">Taquilla</option></select></div>
+        <div class="field"><label>Nivel</label><select name="nivel" id="modal-nivel"><option value="banca">Banca</option><option value="grupo">Grupo</option><option value="taquilla">Agencia</option></select></div>
         <div class="field" id="modal-grupo-field" style="display:none"><label>Grupo</label><select name="grupo_id"></select></div>
-        <div class="field" id="modal-taquilla-field" style="display:none"><label>Taquilla</label><select name="taquilla_id"></select></div>
+        <div class="field" id="modal-taquilla-field" style="display:none"><label>Agencia</label><select name="taquilla_id"></select></div>
         <div class="field"><label>Límite Mínimo</label><input name="limite_minimo" type="number" step="0.01" min="0" /></div>
         <div class="field"><label>Límite Máximo</label><input name="limite_maximo" type="number" step="0.01" min="0" /></div>
         <div class="field"><label>% Pago</label><input name="porcentaje_pago" type="number" step="0.01" min="0" max="100" /></div>
@@ -136,7 +136,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
           document.getElementById('content').innerHTML = '<div class="loading">No hay límites configurados para este juego.</div>';
           return;
         }
-        let html = '<div class="table-wrap"><table><thead><tr><th>Banca</th><th>Grupo</th><th>Taquilla</th><th>Moneda</th><th>Mín</th><th>Máx</th><th>%Pago</th><th>%Part</th><th>Fracc</th><th>Tiempo</th><th>Acciones</th></tr></thead><tbody>';
+        let html = '<div class="table-wrap"><table><thead><tr><th>Banca</th><th>Grupo</th><th>Agencia</th><th>Moneda</th><th>Mín</th><th>Máx</th><th>%Pago</th><th>%Part</th><th>Fracc</th><th>Tiempo</th><th>Acciones</th></tr></thead><tbody>';
         filtered.forEach(l => {
           html += `<tr>
             <td>${l.banca?.name||'-'}</td>
