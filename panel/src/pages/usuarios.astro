@@ -1,0 +1,198 @@
+---
+import AdminLayout from '../layouts/AdminLayout.astro';
+---
+
+<AdminLayout>
+  <div class="page">
+    <div class="page-header"><h2 class="page-title">Usuarios</h2><button class="btn btn-primary" id="btn-create">+ Nuevo</button></div>
+    <div id="content"><div class="loading">Cargando...</div></div>
+  </div>
+  <div class="modal-overlay" id="modal" style="display:none">
+    <div class="modal-card">
+      <h3 id="modal-title">Nuevo Usuario</h3>
+      <form id="modal-form">
+        <div class="field"><label>Nombre</label><input name="name" required /></div>
+        <div class="field"><label>Email</label><input name="email" type="email" required /></div>
+        <div class="field" id="password-field"><label>Contraseña</label><input name="password" type="password" minlength="8" /></div>
+        <div class="field"><label>Rol</label><select name="role" required></select></div>
+        <div class="field" id="banca-field"><label>Banca</label><select name="banca_id"></select></div>
+        <div class="field" id="grupo-field"><label>Grupo</label><select name="grupo_id"></select></div>
+        <div class="field" id="taquilla-field"><label>Agencia</label><select name="taquilla_id"></select></div>
+        <div class="field"><div class="checkbox-group"><label><input type="checkbox" name="active" checked /> Activo</label></div></div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="btn-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <style is:global>
+    .page { max-width: 1000px; } .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; } .page-title { font-size: 24px; font-weight: 700; color: #1e293b; }
+    .btn { padding: 8px 16px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .15s; } .btn-primary { background: #3b82f6; color: #fff; } .btn-primary:hover { background: #2563eb; } .btn-secondary { background: #e2e8f0; color: #333; } .btn-secondary:hover { background: #cbd5e1; } .btn-danger { background: #ef4444; color: #fff; } .btn-danger:hover { background: #dc2626; } .btn-sm { padding: 4px 10px; font-size: 12px; }
+    .loading { text-align: center; padding: 40px; color: #666; } .table-wrap { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); } table { width: 100%; border-collapse: collapse; } th { background: #f1f5f9; padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600; color: #666; text-transform: uppercase; } td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; } tr:hover td { background: #f8fafc; }
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 600; } .badge-active { background: #dcfce7; color: #166534; } .badge-inactive { background: #fef2f2; color: #991b1b; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 9999; } .modal-card { background: #fff; border-radius: 12px; padding: 28px; width: 420px; max-width: 95%; max-height: 85vh; overflow-y: auto; box-shadow: 0 8px 30px rgba(0,0,0,0.2); } .modal-card h3 { margin-bottom: 20px; font-size: 18px; } .field { margin-bottom: 14px; } .field label { display: block; font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px; } .field input, .field select { width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px; } .field input:focus, .field select:focus { border-color: #3b82f6; outline: none; } .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; } .actions-cell { display: flex; gap: 4px; }
+    .checkbox-group { display: flex; gap: 20px; padding-top: 4px; } .checkbox-group label { display: flex; align-items: center; gap: 6px; font-weight: 400; cursor: pointer; } .checkbox-group input[type="checkbox"] { width: auto; margin: 0; }
+  </style>
+  <script>
+    import { apiFetch } from '../utils/api.ts'; import { showModal } from '../utils/modal.ts';
+
+    const currentUser = JSON.parse(localStorage.getItem('panel_user') || '{}');
+    const currentRole = currentUser.role || '';
+    let editId = null;
+    let bancas = []; let grupos = []; let taquillas = [];
+
+    const ROLE_LABELS = { super_master: 'Super Master', master: 'Master', banca: 'Banca', grupo: 'Grupo', taquilla: 'Agencia' };
+    const ROLE_ORDER = ['super_master', 'master', 'banca', 'grupo', 'taquilla'];
+
+    // Roles que el usuario actual puede asignar según su jerarquía (el backend valida igual)
+    function assignableRoles() {
+      const start = { super_master: 0, master: 1, banca: 2, grupo: 3 }[currentRole];
+      return start === undefined ? [] : ROLE_ORDER.slice(start);
+    }
+
+    const f = document.getElementById('modal-form');
+
+    function fillSelect(name, items, labelFn) {
+      const s = f[name];
+      s.innerHTML = '<option value="">Seleccione...</option>';
+      items.forEach(i => { s.innerHTML += `<option value="${i.id}">${labelFn(i)}</option>`; });
+    }
+
+    function showField(id, visible) {
+      const el = document.getElementById(id);
+      el.style.display = visible ? 'block' : 'none';
+      const sel = el.querySelector('select');
+      if (sel) sel.required = visible;
+    }
+
+    function applyRoleUI() {
+      const role = f.role.value;
+      showField('banca-field', role === 'banca' || role === 'grupo');
+      showField('grupo-field', role === 'grupo' || role === 'taquilla');
+      showField('taquilla-field', role === 'taquilla');
+    }
+
+    function renderGrupos(bancaId) {
+      const list = bancaId ? grupos.filter(g => g.banca_id == bancaId) : grupos;
+      fillSelect('grupo_id', list, g => g.name);
+    }
+
+    function renderTaquillas(grupoId) {
+      const list = grupoId ? taquillas.filter(t => t.grupo_id == grupoId) : taquillas;
+      fillSelect('taquilla_id', list, t => t.name);
+    }
+
+    async function loadGrupos() { try { const d = await apiFetch('GET', '/grupos?per_page=100'); grupos = Array.isArray(d) ? d : (d?.data || []); } catch (_) { grupos = []; } }
+    async function loadTaquillas() { try { const d = await apiFetch('GET', '/taquillas?per_page=100'); taquillas = Array.isArray(d) ? d : (d?.data || []); } catch (_) { taquillas = []; } }
+    async function loadBancas() {
+      try { const d = await apiFetch('GET', '/bancas?per_page=100'); bancas = Array.isArray(d) ? d : (d?.data || []); } catch (_) { bancas = []; }
+      // Roles banca/grupo no pueden listar bancas: derivar de los grupos en alcance o de la sesión
+      if (!bancas.length) {
+        const seen = new Map();
+        grupos.forEach(g => { if (g.banca) seen.set(g.banca.id, g.banca); });
+        bancas = [...seen.values()];
+      }
+      if (!bancas.length && currentUser.banca_id) bancas = [{ id: currentUser.banca_id, name: 'Mi Banca' }];
+      fillSelect('banca_id', bancas, b => b.name);
+    }
+
+    async function load() {
+      try {
+        const data = await apiFetch('GET', '/users?per_page=100');
+        const items = Array.isArray(data) ? data : (data?.data || []);
+        let html = '<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Entidad</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>';
+        items.forEach(u => {
+          const entidad = u.taquilla?.name || u.grupo?.name || u.banca?.name || '—';
+          const del = (currentRole === 'super_master' || currentRole === 'master') ? `<button class="btn btn-sm btn-danger del-btn" data-id="${u.id}">🗑</button>` : '';
+          html += `<tr><td><strong>${u.name}</strong></td><td>${u.email}</td><td>${ROLE_LABELS[u.role] || u.role}</td><td>${entidad}</td><td><span class="badge ${u.active ? 'badge-active' : 'badge-inactive'}">${u.active ? 'Activo' : 'Inactivo'}</span></td><td class="actions-cell"><button class="btn btn-sm btn-secondary edit-btn" data-id="${u.id}">✏️</button>${del}</td></tr>`;
+        });
+        html += '</tbody></table></div>';
+        document.getElementById('content').innerHTML = html;
+      } catch (e) { document.getElementById('content').innerHTML = '<div class="loading">Error: ' + e.message + '</div>'; }
+    }
+
+    async function openModal(u = null) {
+      editId = u?.id || null;
+      const creating = !u;
+      document.getElementById('modal-title').textContent = u ? 'Editar Usuario' : 'Nuevo Usuario';
+      f.name.value = u?.name || '';
+      f.email.value = u?.email || '';
+      f.password.value = '';
+      f.password.required = creating;
+      document.getElementById('password-field').style.display = creating ? 'block' : 'none';
+      f.active.checked = u ? !!u.active : true;
+      // Rol: solo los asignables por la jerarquía del usuario actual (se incluye el rol propio al editar)
+      let roles = assignableRoles();
+      if (u?.role && !roles.includes(u.role)) roles = [u.role, ...roles];
+      fillSelect('role', roles.map(r => ({ id: r, name: ROLE_LABELS[r] })), r => r.name);
+      f.role.value = u?.role || roles[0] || '';
+      // Vínculos: prefijar desde el usuario editado o desde la sesión
+      const bancaId = u ? (u.banca_id || u.grupo?.banca_id || u.taquilla?.grupo?.banca_id) : (currentUser.banca_id || '');
+      f.banca_id.value = bancaId ? String(bancaId) : '';
+      const grupoId = u ? (u.grupo_id || u.taquilla?.grupo_id) : (currentUser.grupo_id || '');
+      f.grupo_id.value = grupoId ? String(grupoId) : '';
+      f.taquilla_id.value = u?.taquilla_id ? String(u.taquilla_id) : '';
+      applyRoleUI();
+      const selBanca = f.banca_id.value, selGrupo = f.grupo_id.value, selTaq = f.taquilla_id.value;
+      renderGrupos(selBanca);
+      f.grupo_id.value = selGrupo;
+      renderTaquillas(selGrupo);
+      f.taquilla_id.value = selTaq;
+      document.getElementById('modal').style.display = 'flex';
+    }
+
+    f.role.addEventListener('change', () => { applyRoleUI(); renderGrupos(f.banca_id.value); renderTaquillas(f.grupo_id.value); });
+    f.banca_id.addEventListener('change', () => { f.grupo_id.value = ''; renderGrupos(f.banca_id.value); renderTaquillas(f.grupo_id.value); f.taquilla_id.value = ''; });
+    f.grupo_id.addEventListener('change', () => { renderTaquillas(f.grupo_id.value); f.taquilla_id.value = ''; });
+
+    document.getElementById('btn-create').addEventListener('click', () => openModal());
+    document.getElementById('btn-cancel').addEventListener('click', () => document.getElementById('modal').style.display = 'none');
+
+    f.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const role = f.role.value;
+      const body = { role, active: f.active.checked };
+      if (editId) {
+        body.name = f.name.value;
+        body.email = f.email.value;
+      } else {
+        body.user_name = f.name.value;
+        body.user_email = f.email.value;
+        body.user_password = f.password.value;
+      }
+      if (role === 'banca') body.banca_id = f.banca_id.value || null;
+      else if (role === 'grupo') { body.banca_id = f.banca_id.value || null; body.grupo_id = f.grupo_id.value || null; }
+      else if (role === 'taquilla') { body.grupo_id = f.grupo_id.value || null; body.taquilla_id = f.taquilla_id.value || null; }
+      try {
+        if (editId) await apiFetch('PUT', '/users/' + editId, body);
+        else await apiFetch('POST', '/users', body);
+        document.getElementById('modal').style.display = 'none';
+        load();
+      } catch (err) { await showModal({ message: err.message, type: 'error' }); }
+    });
+
+    document.getElementById('content').addEventListener('click', (e) => {
+      const eb = e.target.closest('.edit-btn');
+      const db = e.target.closest('.del-btn');
+      if (eb) {
+        const id = parseInt(eb.dataset.id);
+        apiFetch('GET', '/users/' + id).then(d => openModal(d.data || d)).catch(err => showModal({ message: err.message, type: 'error' }));
+      }
+      if (db) {
+        const id = parseInt(db.dataset.id);
+        showModal({ message: '¿Eliminar usuario?', type: 'confirm' }).then(ok => {
+          if (!ok) return;
+          apiFetch('DELETE', '/users/' + id).then(() => load()).catch(err => showModal({ message: err.message, type: 'error' }));
+        });
+      }
+    });
+
+    (async function init() {
+      await loadGrupos();
+      await loadTaquillas();
+      await loadBancas();
+      load();
+    })();
+  </script>
+</AdminLayout>
