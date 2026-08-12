@@ -7,12 +7,12 @@ use App\Models\ExchangeRate;
 use App\Models\Juego;
 use App\Models\User;
 use App\Services\ApuestaService;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class ApuestaServiceTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -83,10 +83,11 @@ class ApuestaServiceTest extends TestCase
             $this->markTestSkipped('Juego Animalitos no existe');
         }
 
+        $taquilla = $this->crearTaquillaConLimite($juego, 3600);
         $service = new ApuestaService();
         
         // Debe pasar (3625 >= 3600, límite del seeder)
-        $resultado = $service->validarCostoMinimo(3625, $juego->id);
+        $resultado = $service->validarCostoMinimo(3625, $juego->id, $taquilla->id);
         $this->assertTrue($resultado['valid']);
         $this->assertEquals(3600, $resultado['limite_minimo']);
     }
@@ -99,13 +100,30 @@ class ApuestaServiceTest extends TestCase
             $this->markTestSkipped('Juego Animalitos no existe');
         }
 
+        $taquilla = $this->crearTaquillaConLimite($juego, 3600);
         $service = new ApuestaService();
         
         // Debe fallar (3500 < 3600, límite del seeder)
-        $resultado = $service->validarCostoMinimo(3500, $juego->id);
+        $resultado = $service->validarCostoMinimo(3500, $juego->id, $taquilla->id);
         $this->assertFalse($resultado['valid']);
         $this->assertArrayHasKey('required_min', $resultado);
         $this->assertEquals(3600, $resultado['required_min']);
+    }
+
+    private function crearTaquillaConLimite($juego, $limiteMinimo)
+    {
+        $banca = \App\Models\Banca::create(['name' => 'Test', 'code' => 'TST']);
+        $grupo = \App\Models\Grupo::create(['name' => 'Test', 'code' => 'TST', 'banca_id' => $banca->id]);
+        $taquilla = \App\Models\Taquilla::create(['name' => 'Test', 'code' => 'TST', 'grupo_id' => $grupo->id, 'active' => true]);
+        
+        \App\Models\JuegoLimite::create([
+            'juego_id' => $juego->id,
+            'banca_id' => $banca->id,
+            'moneda' => 'bs',
+            'limite_minimo' => $limiteMinimo,
+        ]);
+        
+        return $taquilla;
     }
 
     public function test_convierte_bs_a_usd()

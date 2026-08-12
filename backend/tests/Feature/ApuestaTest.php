@@ -6,12 +6,12 @@ use App\Models\Apuesta;
 use App\Models\ExchangeRate;
 use App\Models\Juego;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class ApuestaTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -46,7 +46,7 @@ class ApuestaTest extends TestCase
             ->actingAs($taquillaUser, 'sanctum')
             ->postJson('/api/apuestas', [
                 'juego_id' => $juego->id,
-                'combinacion' => ['animal' => 'leon', 'numero' => 5],
+                'combinacion' => ['animal' => 'perro', 'numero' => 5],
                 'amount_bs' => 1800,
                 'amount_usd' => 50,
                 'sorteo_hora' => now()->addHours(2)->format('Y-m-d H:i:s'),
@@ -81,6 +81,12 @@ class ApuestaTest extends TestCase
         $juego = Juego::where('slug', 'lotto-activo')->first();
 
         $taquilla = \App\Models\Taquilla::factory()->create();
+        \App\Models\JuegoLimite::create([
+            'juego_id' => $juego->id,
+            'banca_id' => $taquilla->grupo->banca_id,
+            'moneda' => 'bs',
+            'limite_minimo' => 3600,
+        ]);
         $taquillaUser = User::factory()->create([
             'taquilla_id' => $taquilla->id,
             'role' => 'taquilla',
@@ -92,7 +98,7 @@ class ApuestaTest extends TestCase
             ->actingAs($taquillaUser, 'sanctum')
             ->postJson('/api/apuestas', [
                 'juego_id' => $juego->id,
-                'combinacion' => ['animal' => 'leon'],
+                'combinacion' => ['animal' => 'perro'],
                 'amount_bs' => 1000,
                 'amount_usd' => 0,
                 'sorteo_hora' => now()->addHours(2)->format('Y-m-d H:i:s'),
@@ -100,7 +106,7 @@ class ApuestaTest extends TestCase
 
         $response->assertStatus(422);
         $content = $response->json('message');
-        $this->assertStringContainsString('costo mínimo', $content);
+        $this->assertStringContainsString('límite mínimo', $content);
     }
 
     public function test_guarda_tasa_historica_inmutable()
@@ -130,7 +136,7 @@ class ApuestaTest extends TestCase
             ->actingAs($taquillaUser, 'sanctum')
             ->postJson('/api/apuestas', [
                 'juego_id' => $juego->id,
-                'combinacion' => ['animal' => 'leon'],
+                'combinacion' => ['animal' => 'perro'],
                 'amount_bs' => 1800,
                 'amount_usd' => 50,
                 'sorteo_hora' => now()->addHours(2)->format('Y-m-d H:i:s'),
@@ -281,7 +287,7 @@ class ApuestaTest extends TestCase
             ->actingAs($taquillaUser, 'sanctum')
             ->postJson('/api/apuestas', [
                 'juego_id' => $juego->id,
-                'combinacion' => ['animal' => 'leon'],
+                'combinacion' => ['animal' => 'perro'],
                 'amount_bs' => 0,
                 'amount_usd' => 0,
                 'sorteo_hora' => now()->addHours(2)->format('Y-m-d H:i:s'),
@@ -318,13 +324,13 @@ class ApuestaTest extends TestCase
             ->postJson('/api/apuestas', [
                 'juego_id' => $juego->id,
                 'combinacion' => ['animal' => 'dragon_inexistente'],
-                'amount_bs' => 1000,
+                'amount_bs' => 5000,
                 'amount_usd' => 0,
                 'sorteo_hora' => now()->addHours(2)->format('Y-m-d H:i:s'),
             ]);
 
-        $response->assertStatus(422)
-            ->assertJsonValidationErrors('combinacion.animal');
+        $response->assertStatus(422);
+        $this->assertStringContainsString('Animal no válido', $response->json('message'));
     }
 
     public function test_show_detalle_de_apuesta()
@@ -352,7 +358,7 @@ class ApuestaTest extends TestCase
         $apuesta = Apuesta::create([
             'taquilla_id' => $taquilla->id,
             'juego_id' => $juego->id,
-            'combinacion' => json_encode(['animal' => 'leon', 'numero' => 5]),
+            'combinacion' => json_encode(['animal' => 'perro', 'numero' => 5]),
             'amount_bs' => 1800,
             'amount_usd' => 50,
             'exchange_rate_applied' => 36.50,
@@ -442,7 +448,7 @@ class ApuestaTest extends TestCase
             ->actingAs($taquillaUser, 'sanctum')
             ->postJson('/api/apuestas', [
                 'juego_id' => $juego->id,
-                'combinacion' => ['animal' => 'leon'],
+                'combinacion' => ['animal' => 'perro'],
                 'amount_bs' => 1000,
                 'amount_usd' => 0,
                 'sorteo_hora' => now()->addHours(2)->format('Y-m-d H:i:s'),
@@ -513,7 +519,7 @@ class ApuestaTest extends TestCase
             ->actingAs($taquillaUser, 'sanctum')
             ->postJson('/api/apuestas', [
                 'juego_id' => $juego->id,
-                'combinacion' => ['animal' => 'leon', 'numero' => 5],
+                'combinacion' => ['animal' => 'perro', 'numero' => 5],
                 'amount_bs' => 0,
                 'amount_usd' => 50,
                 'sorteo_hora' => now()->addHours(2)->format('Y-m-d H:i:s'),
@@ -576,7 +582,7 @@ class ApuestaTest extends TestCase
             ->actingAs($taquillaUser, 'sanctum')
             ->postJson('/api/apuestas', [
                 'juego_id' => $juego->id,
-                'combinacion' => ['animal' => 'leon', 'numero' => 5],
+                'combinacion' => ['animal' => 'perro', 'numero' => 5],
                 'amount_bs' => 150,
                 'amount_usd' => 0,
                 'sorteo_hora' => now()->addHours(2)->format('Y-m-d H:i:s'),
@@ -628,7 +634,7 @@ class ApuestaTest extends TestCase
             ->actingAs($taquillaUser, 'sanctum')
             ->postJson('/api/apuestas', [
                 'juego_id' => $juego->id,
-                'combinacion' => ['animal' => 'leon', 'numero' => 5],
+                'combinacion' => ['animal' => 'perro', 'numero' => 5],
                 'amount_bs' => 3000,
                 'amount_usd' => 0,
                 'sorteo_hora' => now()->addHours(2)->format('Y-m-d H:i:s'),
@@ -702,7 +708,7 @@ class ApuestaTest extends TestCase
             ->actingAs($taquillaUser, 'sanctum')
             ->postJson('/api/apuestas', [
                 'juego_id' => $juego->id,
-                'combinacion' => ['animal' => 'leon', 'numero' => 5],
+                'combinacion' => ['animal' => 'perro', 'numero' => 5],
                 'amount_bs' => 60,
                 'amount_usd' => 0,
                 'sorteo_hora' => now()->addHours(2)->format('Y-m-d H:i:s'),
@@ -745,7 +751,7 @@ class ApuestaTest extends TestCase
             ->actingAs($taquillaUser, 'sanctum')
             ->postJson('/api/apuestas', [
                 'juego_id' => $juego->id,
-                'combinacion' => ['animal' => 'leon', 'numero' => 5],
+                'combinacion' => ['animal' => 'perro', 'numero' => 5],
                 'amount_bs' => 0,
                 'amount_usd' => 50,
                 'sorteo_hora' => now()->addHours(2)->format('Y-m-d H:i:s'),
@@ -771,7 +777,7 @@ class ApuestaTest extends TestCase
             ->actingAs($taquillaUser, 'sanctum')
             ->postJson('/api/apuestas', [
                 'juego_id' => $juego->id,
-                'combinacion' => ['animal' => 'leon', 'numero' => 5],
+                'combinacion' => ['animal' => 'perro', 'numero' => 5],
                 'amount_bs' => 2000,
                 'amount_usd' => 0,
                 'sorteo_hora' => now()->addHours(2)->format('Y-m-d H:i:s'),

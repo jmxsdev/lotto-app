@@ -41,7 +41,7 @@ class ApuestaService
      * Validar que el monto cubre el costo mínimo del juego.
      * Lee de juego_limites (nivel banca, moneda='bs') en lugar de juegos.costo_minimo.
      */
-    public function validarCostoMinimo(float $totalBsEquivalent, int $juegoId): array
+    public function validarCostoMinimo(float $totalBsEquivalent, int $juegoId, int $taquillaId): array
     {
         $juego = Juego::find($juegoId);
 
@@ -52,12 +52,8 @@ class ApuestaService
             ];
         }
 
-        // Buscar límite a nivel banca (el más genérico) para BS
-        $limite = JuegoLimite::where('juego_id', $juegoId)
-            ->where('moneda', 'bs')
-            ->whereNull('grupo_id')
-            ->whereNull('taquilla_id')
-            ->first();
+        // Usar el límite efectivo de la taquilla (herencia jerárquica)
+        $limite = $this->getEffectiveLimit($taquillaId, $juegoId, 'bs');
 
         $costoMinimo = $limite ? $limite->limite_minimo : null;
 
@@ -348,7 +344,7 @@ class ApuestaService
             throw new \RuntimeException($validacionMoneda['message']);
         }
 
-        $validacion = $this->validarCostoMinimo($totalBsEquivalent, $data['juego_id']);
+        $validacion = $this->validarCostoMinimo($totalBsEquivalent, $data['juego_id'], $taquillaId);
 
         if (!$validacion['valid']) {
             throw new \RuntimeException($validacion['message'] . ' (Monto actual: ' . round($totalBsEquivalent, 2) . ' Bs)');
