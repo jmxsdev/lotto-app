@@ -9,6 +9,8 @@ class CierreCaja extends Model
 {
     use HasFactory;
 
+    protected $table = 'cierres_caja';
+
     protected $fillable = [
         'taquilla_id', 'fecha_inicio', 'fecha_fin',
         'total_ventas_bs', 'total_ventas_usd', 'total_ventas_bs_equivalent',

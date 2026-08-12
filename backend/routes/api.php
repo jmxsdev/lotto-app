@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\BancaController;
+use App\Http\Controllers\Api\CierreController;
 use App\Http\Controllers\Api\GrupoController;
 use App\Http\Controllers\Api\TaquillaController;
 use App\Http\Controllers\Api\ExchangeRateController;
@@ -127,8 +128,14 @@ Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
     Route::get('/pagos/{apuesta}', [PagoController::class, 'showByApuesta'])->middleware('role:super_master|master|banca|grupo|taquilla');
 
     // ==================================================
-    // CIERRE DE CAJA (todos los roles) - PENDIENTE SPRINT 12
-    // Route::post('/cierre', [CierreController::class, 'store'])->middleware('role:super_master|master|banca|grupo|taquilla');
+    // CIERRE DE CAJA (jerárquico: la agencia cierra su propia caja;
+    // los roles administrativos cierran agencias dentro de su alcance)
+    // ==================================================
+    Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
+        Route::post('/cierre', [CierreController::class, 'store']);
+        Route::get('/cierre', [CierreController::class, 'index']);
+        Route::get('/cierre/{cierre}', [CierreController::class, 'show']);
+    });
 
     // ==================================================
     // LÍMITES POR JUEGO
