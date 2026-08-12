@@ -110,6 +110,40 @@ class TicketController extends Controller
             'lines.*.combinacion' => 'nullable|array',
         ]);
 
+        // Validar monedas del ticket completo antes de entrar a la transacción
+        $hasBs = false;
+        $hasUsd = false;
+        foreach ($request->lines as $line) {
+            $lineBs = (float) ($line['amount_bs'] ?? 0);
+            $lineUsd = (float) ($line['amount_usd'] ?? 0);
+            if ($lineBs > 0) $hasBs = true;
+            if ($lineUsd > 0) $hasUsd = true;
+            if ($lineBs > 0 && $lineUsd > 0) {
+                $hasBs = true;
+                $hasUsd = true;
+                break;
+            }
+        }
+
+        if ($hasBs || $hasUsd) {
+            $monedas = $this->apuestaService->getEffectiveMonedas($user->taquilla_id);
+            if ($hasUsd && !$monedas['usd']) {
+                return response()->json([
+                    'message' => 'Moneda USD no permitida para esta taquilla.',
+                ], 422);
+            }
+            if ($hasBs && !$monedas['bs']) {
+                return response()->json([
+                    'message' => 'Moneda BS no permitida para esta taquilla.',
+                ], 422);
+            }
+            if ($hasBs && $hasUsd && (!$monedas['bs'] || !$monedas['usd'])) {
+                return response()->json([
+                    'message' => 'Ambas monedas deben estar habilitadas para tickets mixtos.',
+                ], 422);
+            }
+        }
+
         try {
             $ticket = DB::transaction(function () use ($request, $user) {
                 $ticket = Ticket::create([
