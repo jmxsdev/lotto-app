@@ -33,6 +33,10 @@ class BancaController extends Controller
             'code' => 'required|string|unique:bancas,code',
             'config' => 'nullable|array',
             'active' => 'boolean',
+            'monedas_permitidas' => 'sometimes|array',
+            'monedas_permitidas.bs' => 'boolean',
+            'monedas_permitidas.usd' => 'boolean',
+            'vigencia_premios' => 'nullable|integer|min:1',
             'user_name' => 'required|string|max:255',
             'user_email' => 'required|email|unique:users,email',
             'user_password' => 'required|string|min:8',
@@ -42,6 +46,8 @@ class BancaController extends Controller
             'name' => $request->name,
             'code' => $request->code,
             'config' => $request->config,
+            'monedas_permitidas' => $request->monedas_permitidas ?? null,
+            'vigencia_premios' => $request->vigencia_premios ?? null,
             'active' => $request->active ?? true,
             'created_by' => $authUser->id,
         ]);
@@ -87,9 +93,13 @@ class BancaController extends Controller
             'code' => ['sometimes', 'string', Rule::unique('bancas')->ignore($banca->id)],
             'config' => 'nullable|array',
             'active' => 'boolean',
+            'monedas_permitidas' => 'sometimes|array',
+            'monedas_permitidas.bs' => 'boolean',
+            'monedas_permitidas.usd' => 'boolean',
+            'vigencia_premios' => 'nullable|integer|min:1',
         ]);
 
-        $banca->update($request->only(['name', 'code', 'config', 'active']));
+        $banca->update($request->only(['name', 'code', 'config', 'active', 'monedas_permitidas', 'vigencia_premios']));
 
         return response()->json($banca);
     }
