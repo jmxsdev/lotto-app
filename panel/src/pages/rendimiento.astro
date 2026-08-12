@@ -1,0 +1,241 @@
+---
+import AdminLayout from '../layouts/AdminLayout.astro';
+---
+
+<AdminLayout>
+  <div class="page">
+    <div class="page-header">
+      <h2 class="page-title">Rendimiento</h2>
+    </div>
+
+    <!-- Filtros -->
+    <div class="filters">
+      <div class="field">
+        <label>Desde</label>
+        <input type="date" id="filter-desde" />
+      </div>
+      <div class="field">
+        <label>Hasta</label>
+        <input type="date" id="filter-hasta" />
+      </div>
+      <div class="field">
+        <label>Banca</label>
+        <select id="filter-banca"><option value="">Todas</option></select>
+      </div>
+      <div class="field">
+        <label>Juego</label>
+        <select id="filter-juego"><option value="">Todos</option></select>
+      </div>
+      <div class="field">
+        <label>Moneda</label>
+        <select id="filter-moneda">
+          <option value="">Todas</option>
+          <option value="bs">BS</option>
+          <option value="usd">USD</option>
+          <option value="mixto">Mixto</option>
+        </select>
+      </div>
+      <div class="field" style="align-self:flex-end">
+        <button class="btn btn-primary" id="btn-aplicar">Aplicar</button>
+      </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <h3 class="chart-title">Movimiento Diario</h3>
+        <div class="chart-container">
+          <canvas id="chart-line"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3 class="chart-title">Análisis Comparativo</h3>
+        <div class="chart-container">
+          <canvas id="chart-bar"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div id="chart-error" style="display:none;color:#dc3545;text-align:center;padding:20px;"></div>
+  </div>
+
+  <style is:global>
+    .page { max-width: 1400px; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .page-title { font-size: 24px; font-weight: 700; color: #1e293b; }
+    .filters { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: flex-end; }
+    .field { margin-bottom: 0; min-width: 140px; }
+    .field label { display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 4px; }
+    .field input, .field select {
+      width: 100%; padding: 8px 10px; border: 2px solid #e2e8f0; border-radius: 6px;
+      font-size: 13px; background: #fff;
+    }
+    .field input:focus, .field select:focus { border-color: #3b82f6; outline: none; }
+    .btn { padding: 8px 16px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .15s; }
+    .btn-primary { background: #3b82f6; color: #fff; } .btn-primary:hover { background: #2563eb; }
+    .btn-secondary { background: #e2e8f0; color: #333; } .btn-secondary:hover { background: #cbd5e1; }
+    .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .chart-card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .chart-title { font-size: 16px; font-weight: 600; color: #1e293b; margin-bottom: 16px; }
+    .chart-container { position: relative; width: 100%; height: 360px; }
+    .chart-container canvas { width: 100% !important; height: 100% !important; }
+    @media (max-width: 960px) { .charts-grid { grid-template-columns: 1fr; } }
+  </style>
+
+  <slot name="styles" />
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <script>
+    import { apiFetch } from '../utils/api.ts';
+
+    const COLORS = ['#3b82f6','#f59e0b','#10b981','#ef4444','#8b5cf6','#06b6d4'];
+    const SERIES_KEYS = ['ventas','premios','pagados','vencidos','devolucion','saldo'];
+    const SERIES_LABELS = {
+      ventas: 'Ventas', premios: 'Premios', pagados: 'Pagados',
+      vencidos: 'Vencidos', devolucion: 'Devolución', saldo: 'Saldo',
+    };
+
+    let lineChart = null;
+    let barChart = null;
+
+    function showError(msg) {
+      const el = document.getElementById('chart-error');
+      el.textContent = msg;
+      el.style.display = msg ? '' : 'none';
+    }
+
+    function buildChartData(json) {
+      const labels = json.labels || [];
+      const series = json.series || {};
+      return { labels, series };
+    }
+
+    function renderLine(data) {
+      const ctx = document.getElementById('chart-line').getContext('2d');
+      if (lineChart) lineChart.destroy();
+
+      const datasets = SERIES_KEYS.map((key, i) => ({
+        label: SERIES_LABELS[key],
+        data: data.series[key] || [],
+        borderColor: COLORS[i],
+        backgroundColor: COLORS[i] + '20',
+        fill: false,
+        tension: 0.3,
+        pointRadius: 2,
+        pointHoverRadius: 5,
+      }));
+
+      lineChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: data.labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { position: 'top', labels: { font: { size: 11 }, boxWidth: 14 } },
+            tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${parseFloat(ctx.raw).toLocaleString('es-VE', {minimumFractionDigits:2})}` } },
+          },
+          scales: {
+            x: { ticks: { maxTicksLimit: 15, font: { size: 10 } } },
+            y: { ticks: { font: { size: 10 }, callback: v => parseFloat(v).toLocaleString('es-VE', {minimumFractionDigits:0}) } },
+          },
+        },
+      });
+    }
+
+    function renderBar(data) {
+      const ctx = document.getElementById('chart-bar').getContext('2d');
+      if (barChart) barChart.destroy();
+
+      // Totales por serie en el período
+      const totals = SERIES_KEYS.map(key => {
+        const vals = data.series[key] || [];
+        return vals.reduce((a, b) => a + b, 0);
+      });
+
+      barChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: SERIES_KEYS.map(k => SERIES_LABELS[k]),
+          datasets: [{
+            label: 'Total del Período',
+            data: totals,
+            backgroundColor: COLORS,
+            borderRadius: 6,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: ctx => `Total: ${parseFloat(ctx.raw).toLocaleString('es-VE', {minimumFractionDigits:2})}` } },
+          },
+          scales: {
+            x: { ticks: { font: { size: 12 } } },
+            y: { ticks: { font: { size: 10 }, callback: v => parseFloat(v).toLocaleString('es-VE', {minimumFractionDigits:0}) } },
+          },
+        },
+      });
+    }
+
+    async function loadData() {
+      showError('');
+      const params = new URLSearchParams();
+      const desde = document.getElementById('filter-desde').value;
+      const hasta = document.getElementById('filter-hasta').value;
+      const banca = document.getElementById('filter-banca').value;
+      const juego = document.getElementById('filter-juego').value;
+      const moneda = document.getElementById('filter-moneda').value;
+
+      if (desde) params.set('fecha_desde', desde);
+      if (hasta) params.set('fecha_hasta', hasta);
+      if (banca) params.set('banca_id', banca);
+      if (juego) params.set('tipo_juego', juego);
+      if (moneda) params.set('moneda', moneda);
+
+      try {
+        const json = await apiFetch('GET', `/estadisticas/rendimiento?${params.toString()}`);
+        const data = buildChartData(json);
+        renderLine(data);
+        renderBar(data);
+      } catch (err) {
+        showError('Error al cargar datos: ' + err.message);
+      }
+    }
+
+    async function loadBancas() {
+      try {
+        const data = await apiFetch('GET', '/bancas?per_page=100');
+        const bancas = Array.isArray(data) ? data : (data?.data || []);
+        const s = document.getElementById('filter-banca');
+        bancas.forEach(b => { s.innerHTML += `<option value="${b.id}">${b.name}</option>`; });
+      } catch (_) {}
+    }
+
+    async function loadJuegos() {
+      try {
+        const data = await apiFetch('GET', '/juegos');
+        const juegos = Array.isArray(data) ? data : (data?.data || []);
+        const s = document.getElementById('filter-juego');
+        juegos.forEach(j => { s.innerHTML += `<option value="${j.slug}">${j.name}</option>`; });
+      } catch (_) {}
+    }
+
+    // Inicializar fechas por defecto (últimos 30 días)
+    function initDates() {
+      const hoy = new Date();
+      const hace30 = new Date();
+      hace30.setDate(hace30.getDate() - 30);
+      document.getElementById('filter-desde').value = hace30.toISOString().split('T')[0];
+      document.getElementById('filter-hasta').value = hoy.toISOString().split('T')[0];
+    }
+
+    document.getElementById('btn-aplicar').addEventListener('click', loadData);
+
+    initDates();
+    Promise.all([loadBancas(), loadJuegos()]).then(() => loadData());
+  </script>
+</AdminLayout>
