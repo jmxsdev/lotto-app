@@ -644,6 +644,155 @@ class ApuestaService
         return $resultados;
     }
 
+    // ============================================
+    // Phase 5: Time-Series Data for Charts
+    // ============================================
+
+    /**
+     * Datos de series temporales diarias para gráficos de rendimiento.
+     * Recibe query de apuestas pre-escalado desde el controlador.
+     * Retorna 6 series: ventas, premios, pagados, vencidos, devolucion, saldo.
+     *
+     * @return array { labels: string[], series: { ventas: float[], premios: float[], pagados: float[], vencidos: float[], devolucion: float[], saldo: float[] } }
+     */
+    public function timeSeriesData($query, array $filters): array
+    {
+        $desde = $filters['fecha_desde'] ?? null;
+        $hasta = $filters['fecha_hasta'] ?? null;
+
+        // Default: últimos 30 días si no se especifica rango
+        if (!$desde) {
+            $desde = now()->subDays(30)->toDateString();
+        }
+        if (!$hasta) {
+            $hasta = now()->toDateString();
+        }
+
+        // Generar todos los días del rango
+        $period = \Carbon\CarbonPeriod::create($desde, $hasta);
+        $labels = [];
+        foreach ($period as $date) {
+            $labels[] = $date->toDateString();
+        }
+
+        // Inicializar buckets diarios en cero
+        $buckets = [];
+        foreach ($labels as $label) {
+            $buckets[$label] = [
+                'ventas' => 0.0,
+                'premios' => 0.0,
+                'pagados' => 0.0,
+                'vencidos' => 0.0,
+                'devolucion' => 0.0,
+            ];
+        }
+
+        // 1. Ventas: SUM de apuestas no anuladas agrupadas por DATE(fecha_hora)
+        $ventas = (clone $query)
+            ->where('apuestas.estado', '!=', 'anulada')
+            ->whereDate('apuestas.fecha_hora', '>=', $desde)
+            ->whereDate('apuestas.fecha_hora', '<=', $hasta)
+            ->groupBy(\DB::raw('DATE(apuestas.fecha_hora)'))
+            ->selectRaw("DATE(apuestas.fecha_hora) as fecha, SUM(apuestas.total_bs_equivalent) as total")
+            ->pluck('total', 'fecha');
+
+        foreach ($ventas as $fecha => $total) {
+            if (isset($buckets[$fecha])) {
+                $buckets[$fecha]['ventas'] = (float) $total;
+            }
+        }
+
+        // 2. Premios: SUM de premio_ganado de detalle_apuestas
+        $premios = (clone $query)
+            ->join('detalle_apuestas', 'apuestas.id', '=', 'detalle_apuestas.apuesta_id')
+            ->where('apuestas.estado', '!=', 'anulada')
+            ->whereDate('apuestas.fecha_hora', '>=', $desde)
+            ->whereDate('apuestas.fecha_hora', '<=', $hasta)
+            ->groupBy(\DB::raw('DATE(apuestas.fecha_hora)'))
+            ->selectRaw("DATE(apuestas.fecha_hora) as fecha, COALESCE(SUM(detalle_apuestas.premio_ganado), 0) as total")
+            ->pluck('total', 'fecha');
+
+        foreach ($premios as $fecha => $total) {
+            if (isset($buckets[$fecha])) {
+                $buckets[$fecha]['premios'] = (float) $total;
+            }
+        }
+
+        // 3. Pagados: SUM de pagos tipo='egreso' agrupados por DATE(created_at)
+        // Obtener las taquilla_ids del query para filtrar pagos del mismo alcance jerárquico
+        $taquillaIds = (clone $query)->distinct()->pluck('apuestas.taquilla_id');
+
+        $pagos = \App\Models\Pago::whereIn('taquilla_id', $taquillaIds)
+            ->where('tipo', 'egreso')
+            ->whereDate('created_at', '>=', $desde)
+            ->whereDate('created_at', '<=', $hasta)
+            ->groupBy(\DB::raw('DATE(created_at)'))
+            ->selectRaw("DATE(created_at) as fecha, SUM(amount_bs + (amount_usd * COALESCE(exchange_rate_applied, 0))) as total")
+            ->pluck('total', 'fecha');
+
+        foreach ($pagos as $fecha => $total) {
+            if (isset($buckets[$fecha])) {
+                $buckets[$fecha]['pagados'] = (float) $total;
+            }
+        }
+
+        // 4. Vencidos: SUM de apuestas estado='vencido' agrupadas por DATE(fecha_hora)
+        $vencidos = (clone $query)
+            ->where('apuestas.estado', 'vencido')
+            ->whereDate('apuestas.fecha_hora', '>=', $desde)
+            ->whereDate('apuestas.fecha_hora', '<=', $hasta)
+            ->groupBy(\DB::raw('DATE(apuestas.fecha_hora)'))
+            ->selectRaw("DATE(apuestas.fecha_hora) as fecha, SUM(apuestas.total_bs_equivalent) as total")
+            ->pluck('total', 'fecha');
+
+        foreach ($vencidos as $fecha => $total) {
+            if (isset($buckets[$fecha])) {
+                $buckets[$fecha]['vencidos'] = (float) $total;
+            }
+        }
+
+        // 5. Devolución: SUM de pagos tipo='devolucion' agrupados por DATE(created_at)
+        $devoluciones = \App\Models\Pago::whereIn('taquilla_id', $taquillaIds)
+            ->where('tipo', 'devolucion')
+            ->whereDate('created_at', '>=', $desde)
+            ->whereDate('created_at', '<=', $hasta)
+            ->groupBy(\DB::raw('DATE(created_at)'))
+            ->selectRaw("DATE(created_at) as fecha, SUM(amount_bs + (amount_usd * COALESCE(exchange_rate_applied, 0))) as total")
+            ->pluck('total', 'fecha');
+
+        foreach ($devoluciones as $fecha => $total) {
+            if (isset($buckets[$fecha])) {
+                $buckets[$fecha]['devolucion'] = (float) $total;
+            }
+        }
+
+        // 6. Construir arreglo final: Saldo = Ventas - (Premios + Pagados + Devolución)
+        $series = [
+            'ventas' => [],
+            'premios' => [],
+            'pagados' => [],
+            'vencidos' => [],
+            'devolucion' => [],
+            'saldo' => [],
+        ];
+
+        foreach ($labels as $fecha) {
+            $b = $buckets[$fecha];
+            $saldo = $b['ventas'] - ($b['premios'] + $b['pagados'] + $b['devolucion']);
+            $series['ventas'][] = round($b['ventas'], 2);
+            $series['premios'][] = round($b['premios'], 2);
+            $series['pagados'][] = round($b['pagados'], 2);
+            $series['vencidos'][] = round($b['vencidos'], 2);
+            $series['devolucion'][] = round($b['devolucion'], 2);
+            $series['saldo'][] = round($saldo, 2);
+        }
+
+        return [
+            'labels' => $labels,
+            'series' => $series,
+        ];
+    }
+
     /**
      * Verificar apuestas pendientes contra un resultado recién guardado
      */
