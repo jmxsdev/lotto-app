@@ -200,11 +200,13 @@ class TicketController extends Controller
             return response()->json(['message' => 'Solo se pueden anular tickets pendientes.'], 422);
         }
 
+        $tiempoEliminacion = $ticket->taquilla?->tiempo_eliminacion ?? 5;
+
         $rechazada = null;
         foreach ($ticket->apuestas as $apuesta) {
             if (Gate::denies('delete', $apuesta)) {
-                if ($apuesta->created_at->diffInMinutes(now()) >= 5) {
-                    $rechazada = 'El ticket excedio los 5 minutos para ser anulado.';
+                if ($apuesta->created_at->diffInMinutes(now()) >= $tiempoEliminacion) {
+                    $rechazada = "El ticket excedió los {$tiempoEliminacion} minutos para ser anulado.";
                 } elseif ($apuesta->sorteo_hora && $apuesta->sorteo_hora->isPast()) {
                     $rechazada = 'El sorteo de una o mas jugadas ya ocurrio, no se puede anular.';
                 } else {

@@ -11,7 +11,8 @@ class Banca extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'name', 'code', 'config', 'monedas_permitidas', 'vigencia_premios', 'active', 'created_by'
+        'name', 'code', 'config', 'monedas_permitidas', 'vigencia_premios', 'active', 'created_by',
+        'rif', 'email', 'telefono', 'direccion', 'estado', 'municipio'
     ];
 
     protected $casts = [

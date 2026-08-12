@@ -11,7 +11,8 @@ class Grupo extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'name', 'code', 'banca_id', 'monedas_permitidas', 'vigencia_premios', 'active', 'created_by'
+        'name', 'code', 'banca_id', 'monedas_permitidas', 'vigencia_premios', 'active', 'created_by',
+        'rif', 'email', 'telefono', 'direccion', 'estado', 'municipio'
     ];
 
     protected $casts = [

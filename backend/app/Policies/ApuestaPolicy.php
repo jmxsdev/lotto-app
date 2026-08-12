@@ -47,7 +47,8 @@ class ApuestaPolicy
             return false;
         }
 
-        if ($apuesta->created_at->diffInMinutes(now()) >= 5) {
+        $tiempo = $apuesta->taquilla?->tiempo_eliminacion ?? 5;
+        if ($apuesta->created_at->diffInMinutes(now()) >= $tiempo) {
             return false;
         }
 
