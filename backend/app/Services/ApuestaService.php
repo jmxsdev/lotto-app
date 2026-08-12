@@ -8,9 +8,11 @@ use App\Models\ExchangeRate;
 use App\Models\Juego;
 use App\Models\JuegoHorario;
 use App\Models\JuegoLimite;
+use App\Models\Pago;
 use App\Models\Resultado;
 use App\Models\Ticket;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 
 class ApuestaService
 {
@@ -664,6 +666,172 @@ class ApuestaService
         }
 
         return $resultados;
+    }
+
+    /**
+     * Cuadre de caja por entidad.
+     * Recibe query de apuestas pre-escalado desde el controlador.
+     *
+     * Ventas y vencidos se agregan en un solo query agrupado por nivel;
+     * pagos (egreso/devolucion) se consultan por separado acotados por las
+     * taquillas del alcance para evitar la multiplicación de filas por join.
+     *
+     * Columnas: Entidad, Venta, Pagados, Devoluciones, Vencidos, Efectivo,
+     * PesoVenta (%), Participacion (%). PesoVenta y Participacion son ambas
+     * el peso de la venta de la entidad sobre las ventas totales visibles.
+     *
+     * @return array { data: array, totales: array }
+     */
+    public function cuadreCaja($query, array $filters): array
+    {
+        // Nivel de agrupación: banca (default), grupo, agencia (taquillas)
+        $nivel = $filters['nivel'] ?? 'banca';
+
+        $groupCols = match ($nivel) {
+            'agencia' => ['taquillas.id', 'taquillas.name'],
+            'grupo' => ['grupos.id', 'grupos.name'],
+            default => ['bancas.id', 'bancas.name'],
+        };
+
+        $labelCol = match ($nivel) {
+            'agencia' => 'taquillas.name',
+            'grupo' => 'grupos.name',
+            default => 'bancas.name',
+        };
+
+        // Columna de monto según filtro de moneda
+        $sumColumn = match ($filters['moneda'] ?? null) {
+            'bs' => 'apuestas.amount_bs',
+            'usd' => 'apuestas.amount_usd',
+            default => 'apuestas.total_bs_equivalent',
+        };
+
+        // 1. Ventas + Vencidos: un query agrupado por nivel (excluye anuladas)
+        $base = (clone $query)
+            ->join('taquillas', 'apuestas.taquilla_id', '=', 'taquillas.id')
+            ->join('grupos', 'taquillas.grupo_id', '=', 'grupos.id')
+            ->join('bancas', 'grupos.banca_id', '=', 'bancas.id')
+            ->where('apuestas.estado', '!=', 'anulada');
+
+        // Filtro por tipo de juego (slug)
+        if (!empty($filters['tipo_juego'])) {
+            $base->join('juegos', 'apuestas.juego_id', '=', 'juegos.id')
+                 ->where('juegos.slug', $filters['tipo_juego']);
+        }
+
+        // Filtro por moneda (precedente ventasTotales)
+        if (!empty($filters['moneda'])) {
+            $base->where(function ($q) use ($filters) {
+                match ($filters['moneda']) {
+                    'bs' => $q->where('apuestas.amount_bs', '>', 0)->where('apuestas.amount_usd', 0),
+                    'usd' => $q->where('apuestas.amount_usd', '>', 0)->where('apuestas.amount_bs', 0),
+                    'mixto' => $q->where('apuestas.amount_bs', '>', 0)->where('apuestas.amount_usd', '>', 0),
+                    default => null,
+                };
+            });
+        }
+
+        $filas = $base
+            ->groupBy(...$groupCols)
+            ->selectRaw("
+                {$labelCol} as Entidad,
+                SUM(CASE WHEN apuestas.estado != 'anulada' THEN {$sumColumn} ELSE 0 END) as Venta,
+                SUM(CASE WHEN apuestas.estado = 'vencido' THEN {$sumColumn} ELSE 0 END) as Vencidos
+            ")
+            ->get()
+            ->keyBy('Entidad');
+
+        // 2. Pagados (egreso) y Devoluciones: queries separados sobre pagos,
+        // acotados por las taquillas del alcance jerárquico
+        $taquillaIds = (clone $query)->distinct()->pluck('apuestas.taquilla_id');
+        $desde = $filters['fecha_desde'] ?? null;
+        $hasta = $filters['fecha_hasta'] ?? null;
+        $moneda = $filters['moneda'] ?? null;
+
+        $egresos = $this->pagosCuadrePorNivel($taquillaIds, $desde, $hasta, 'egreso', $moneda, $groupCols, $labelCol);
+        $devoluciones = $this->pagosCuadrePorNivel($taquillaIds, $desde, $hasta, 'devolucion', $moneda, $groupCols, $labelCol);
+
+        // 3. Merge en PHP: filas por entidad con todas las columnas.
+        // Se incluyen entidades con pagos aunque no tengan ventas en el rango.
+        $rows = [];
+        $entidades = $filas->keys()
+            ->merge($egresos->keys())
+            ->merge($devoluciones->keys())
+            ->unique()
+            ->values();
+
+        foreach ($entidades as $entidad) {
+            $venta = (float) ($filas[$entidad]->Venta ?? 0);
+            $vencidos = (float) ($filas[$entidad]->Vencidos ?? 0);
+            $pagados = (float) ($egresos[$entidad] ?? 0);
+            $devolucionesTotal = (float) ($devoluciones[$entidad] ?? 0);
+
+            $rows[$entidad] = [
+                'Entidad' => $entidad,
+                'Venta' => $venta,
+                'Pagados' => $pagados,
+                'Devoluciones' => $devolucionesTotal,
+                'Vencidos' => $vencidos,
+                'Efectivo' => $venta - $pagados - $devolucionesTotal - $vencidos,
+            ];
+        }
+
+        // 4. PesoVenta y Participacion: ambas = peso de la venta sobre el total
+        $totalVenta = array_sum(array_column($rows, 'Venta'));
+
+        foreach ($rows as $entidad => $row) {
+            $peso = $totalVenta > 0 ? round(($row['Venta'] / $totalVenta) * 100, 2) : 0;
+            $rows[$entidad]['PesoVenta'] = $peso;
+            $rows[$entidad]['Participacion'] = $peso;
+        }
+
+        // 5. Totales: suma de cada columna sobre todas las filas visibles
+        $totales = [
+            'Venta' => round($totalVenta, 2),
+            'Pagados' => round(array_sum(array_column($rows, 'Pagados')), 2),
+            'Devoluciones' => round(array_sum(array_column($rows, 'Devoluciones')), 2),
+            'Vencidos' => round(array_sum(array_column($rows, 'Vencidos')), 2),
+            'Efectivo' => round(array_sum(array_column($rows, 'Efectivo')), 2),
+            'PesoVenta' => round(array_sum(array_column($rows, 'PesoVenta')), 2),
+            'Participacion' => round(array_sum(array_column($rows, 'Participacion')), 2),
+        ];
+
+        return [
+            'data' => array_values($rows),
+            'totales' => $totales,
+        ];
+    }
+
+    /**
+     * Suma de pagos por tipo y nivel de agrupación, acotada por taquillas.
+     *
+     * @return Collection<string, string|float>
+     */
+    private function pagosCuadrePorNivel($taquillaIds, ?string $desde, ?string $hasta, string $tipo, ?string $moneda, array $groupCols, string $labelCol): Collection
+    {
+        $sumExpr = match ($moneda) {
+            'bs' => 'SUM(pagos.amount_bs)',
+            'usd' => 'SUM(pagos.amount_usd)',
+            default => 'SUM(pagos.amount_bs + (pagos.amount_usd * COALESCE(pagos.exchange_rate_applied, 0)))',
+        };
+
+        $query = Pago::whereIn('pagos.taquilla_id', $taquillaIds)
+            ->where('pagos.tipo', $tipo)
+            ->join('taquillas', 'pagos.taquilla_id', '=', 'taquillas.id')
+            ->join('grupos', 'taquillas.grupo_id', '=', 'grupos.id')
+            ->join('bancas', 'grupos.banca_id', '=', 'bancas.id');
+
+        if ($desde) {
+            $query->whereDate('pagos.created_at', '>=', $desde);
+        }
+        if ($hasta) {
+            $query->whereDate('pagos.created_at', '<=', $hasta);
+        }
+
+        return $query
+            ->groupBy(...$groupCols)
+            ->selectRaw("{$labelCol} as Entidad, {$sumExpr} as Total")
+            ->pluck('Total', 'Entidad');
     }
 
     // ============================================

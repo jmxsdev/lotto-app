@@ -165,6 +165,7 @@ Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
     // ==================================================
     Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
         Route::get('/reportes/ventas-totales', [ReporteController::class, 'ventasTotales']);
+        Route::get('/reportes/cuadre-caja', [ReporteController::class, 'cuadreCaja']);
         Route::get('/reportes/relacion-tickets', [ReporteController::class, 'relacionTickets']);
         Route::get('/reportes/rendimiento-taquillas', [ReporteController::class, 'rendimientoTaquillas']);
         Route::get('/reportes/vencidos', [ReporteController::class, 'vencidos']);

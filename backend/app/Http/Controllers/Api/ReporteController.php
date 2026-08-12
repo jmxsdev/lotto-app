@@ -112,6 +112,34 @@ class ReporteController extends Controller
     }
 
     /**
+     * GET /api/reportes/cuadre-caja
+     *
+     * Cuadre de caja por entidad con las columnas Entidad, Venta, Pagados,
+     * Devoluciones, Vencidos, Efectivo, PesoVenta y Participacion.
+     * Filtros: fecha_desde, fecha_hasta, nivel (banca|grupo|agencia),
+     * moneda (bs/usd/mixto), tipo_juego (slug).
+     */
+    public function cuadreCaja(Request $request)
+    {
+        $query = $this->buildApuestaQuery($request);
+
+        $filters = [
+            'fecha_desde' => $request->input('fecha_desde'),
+            'fecha_hasta' => $request->input('fecha_hasta'),
+            'nivel' => $request->input('nivel', 'banca'), // banca, grupo, agencia
+            'moneda' => $request->input('moneda'),
+            'tipo_juego' => $request->input('tipo_juego'),
+        ];
+
+        $resultado = $this->apuestaService->cuadreCaja($query, $filters);
+
+        return response()->json([
+            'data' => $resultado['data'],
+            'totales' => $resultado['totales'],
+        ]);
+    }
+
+    /**
      * GET /api/reportes/relacion-tickets
      *
      * Lista de tickets con columnas computadas.
