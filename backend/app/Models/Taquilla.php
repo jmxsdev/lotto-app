@@ -54,4 +54,9 @@ class Taquilla extends Model
     {
         return $this->hasMany(Comision::class);
     }
+
+    public function juegoLimites()
+    {
+        return $this->hasMany(JuegoLimite::class);
+    }
 }

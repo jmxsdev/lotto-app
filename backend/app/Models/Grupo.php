@@ -11,10 +11,12 @@ class Grupo extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'name', 'code', 'banca_id', 'active', 'created_by'
+        'name', 'code', 'banca_id', 'monedas_permitidas', 'vigencia_premios', 'active', 'created_by'
     ];
 
     protected $casts = [
+        'monedas_permitidas' => 'array',
+        'vigencia_premios' => 'integer',
         'active' => 'boolean',
     ];
 
@@ -41,6 +43,11 @@ class Grupo extends Model
     public function comisiones()
     {
         return $this->hasMany(Comision::class);
+    }
+
+    public function juegoLimites()
+    {
+        return $this->hasMany(JuegoLimite::class);
     }
 }
 

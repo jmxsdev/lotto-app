@@ -11,11 +11,12 @@ class Banca extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'name', 'code', 'config', 'active', 'created_by'
+        'name', 'code', 'config', 'monedas_permitidas', 'active', 'created_by'
     ];
 
     protected $casts = [
         'config' => 'array',
+        'monedas_permitidas' => 'array',
         'active' => 'boolean',
     ];
 
@@ -43,5 +44,10 @@ class Banca extends Model
     public function comisiones()
     {
         return $this->hasMany(Comision::class);
+    }
+
+    public function juegoLimites()
+    {
+        return $this->hasMany(JuegoLimite::class);
     }
 }
