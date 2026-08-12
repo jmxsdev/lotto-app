@@ -65,18 +65,17 @@ class JuegoController extends Controller
         $request->validate([
             'name' => 'sometimes|string|max:255',
             'config' => 'nullable|array',
-            'costo_minimo' => 'sometimes|numeric|min:0',
         ]);
 
-        $changes = $request->only(['name', 'config', 'costo_minimo']);
+        $changes = $request->only(['name', 'config']);
 
         if (empty($changes)) {
             return response()->json($juego->load('pluginJuego'));
         }
 
-        $before = $juego->only(['name', 'config', 'costo_minimo']);
+        $before = $juego->only(['name', 'config']);
         $juego->update(array_merge($changes, ['updated_by' => $user->id]));
-        $after = $juego->only(['name', 'config', 'costo_minimo']);
+        $after = $juego->only(['name', 'config']);
 
         JuegoAuditoria::create([
             'juego_id' => $juego->id,

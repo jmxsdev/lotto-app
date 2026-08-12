@@ -7,6 +7,7 @@ use App\Models\DetalleApuesta;
 use App\Models\ExchangeRate;
 use App\Models\Juego;
 use App\Models\JuegoHorario;
+use App\Models\JuegoLimite;
 use App\Models\Resultado;
 use App\Models\Ticket;
 use Carbon\Carbon;
@@ -37,7 +38,8 @@ class ApuestaService
     }
 
     /**
-     * Validar que el monto cubre el costo mínimo del juego
+     * Validar que el monto cubre el costo mínimo del juego.
+     * Lee de juego_limites (nivel banca, moneda='bs') en lugar de juegos.costo_minimo.
      */
     public function validarCostoMinimo(float $totalBsEquivalent, int $juegoId): array
     {
@@ -50,12 +52,19 @@ class ApuestaService
             ];
         }
 
-        $costoMinimo = $juego->costo_minimo;
+        // Buscar límite a nivel banca (el más genérico) para BS
+        $limite = JuegoLimite::where('juego_id', $juegoId)
+            ->where('moneda', 'bs')
+            ->whereNull('grupo_id')
+            ->whereNull('taquilla_id')
+            ->first();
+
+        $costoMinimo = $limite ? $limite->limite_minimo : null;
 
         if ($costoMinimo === null) {
             return [
                 'valid' => true,
-                'costo_minimo' => null,
+                'limite_minimo' => null,
             ];
         }
 
@@ -70,7 +79,7 @@ class ApuestaService
 
         return [
             'valid' => true,
-            'costo_minimo' => (float) $costoMinimo,
+            'limite_minimo' => (float) $costoMinimo,
         ];
     }
 

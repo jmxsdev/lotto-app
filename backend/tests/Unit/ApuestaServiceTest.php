@@ -83,15 +83,12 @@ class ApuestaServiceTest extends TestCase
             $this->markTestSkipped('Juego Animalitos no existe');
         }
 
-        // Actualizar config del juego con precio custom
-        $juego->update(['config' => json_encode(['precio' => 3600])]);
-
         $service = new ApuestaService();
         
-        // Debe pasar (3625 >= 3600)
+        // Debe pasar (3625 >= 3600, límite del seeder)
         $resultado = $service->validarCostoMinimo(3625, $juego->id);
         $this->assertTrue($resultado['valid']);
-        $this->assertEquals(3600, $resultado['costo_minimo']);
+        $this->assertEquals(3600, $resultado['limite_minimo']);
     }
 
     public function test_valida_costo_minimo_falla()
@@ -102,11 +99,9 @@ class ApuestaServiceTest extends TestCase
             $this->markTestSkipped('Juego Animalitos no existe');
         }
 
-        $juego->update(['config' => json_encode(['precio' => 3600])]);
-
         $service = new ApuestaService();
         
-        // Debe fallar (3500 < 3600)
+        // Debe fallar (3500 < 3600, límite del seeder)
         $resultado = $service->validarCostoMinimo(3500, $juego->id);
         $this->assertFalse($resultado['valid']);
         $this->assertArrayHasKey('required_min', $resultado);

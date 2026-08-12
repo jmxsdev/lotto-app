@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\Juego;
+use App\Models\JuegoLimite;
 use App\Models\JuegoOpcion;
 use App\Models\JuegoHorario;
 use App\Models\PluginJuego;
@@ -59,12 +60,28 @@ class JuegoAnimalitosSeeder extends Seeder
                 'name' => 'Lotto Activo',
                 'type' => 'animalitos',
                 'config' => ['premio_multiplo' => 30],
-                'costo_minimo' => 3600,
                 'requires_scraper' => true,
                 'scraper_url' => 'https://www.lottoactivo.com/resultados/animalitos/',
                 'active' => true,
             ]
         );
+
+        // Insertar límite mínimo por defecto a nivel banca (moneda BS)
+        $bancaId = \App\Models\Banca::value('id');
+        if ($bancaId) {
+            JuegoLimite::firstOrCreate(
+                [
+                    'juego_id' => $juego->id,
+                    'banca_id' => $bancaId,
+                    'moneda' => 'bs',
+                    'grupo_id' => null,
+                    'taquilla_id' => null,
+                ],
+                [
+                    'limite_minimo' => 3600,
+                ]
+            );
+        }
 
         PluginJuego::firstOrCreate(
             ['juego_id' => $juego->id],
