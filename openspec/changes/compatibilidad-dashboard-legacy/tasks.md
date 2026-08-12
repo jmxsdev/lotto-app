@@ -96,8 +96,8 @@ Chain strategy: stacked-to-main
 
 ## Phase 7: Report Panel Pages (PR #7)
 
-- [ ] 7.1 Panel: `panel/src/pages/reportes/ventas.astro` — date filter + banca aggregation table
-- [ ] 7.2 Panel: `panel/src/pages/reportes/tickets.astro` — paginated ticket table with computed columns
-- [ ] 7.3 Panel: `panel/src/pages/reportes/taquillas.astro` — taquilla performance table with % weights
-- [ ] 7.4 Panel: `panel/src/pages/reportes/vencidos.astro` — expired ticket list with grupo/vigencia info
-- [ ] 7.5 Panel: `AdminLayout.astro` — add "📊 Reportes" dropdown with sub-links for all roles
+- [x] 7.1 Panel: `panel/src/pages/reportes/ventas.astro` — date filter + banca aggregation table
+- [x] 7.2 Panel: `panel/src/pages/reportes/tickets.astro` — paginated ticket table with computed columns
+- [x] 7.3 Panel: `panel/src/pages/reportes/taquillas.astro` — taquilla performance table with % weights
+- [x] 7.4 Panel: `panel/src/pages/reportes/vencidos.astro` — expired ticket list with grupo/vigencia info
+- [x] 7.5 Panel: `AdminLayout.astro` — add "📊 Reportes" dropdown with sub-links for all roles

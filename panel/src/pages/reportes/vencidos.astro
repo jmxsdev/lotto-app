@@ -1,0 +1,127 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+---
+
+<AdminLayout>
+  <div class="page">
+    <div class="page-header"><h2 class="page-title">Premios Vencidos</h2></div>
+
+    <div class="filters">
+      <div class="field">
+        <label>Desde</label>
+        <input type="date" id="filter-desde" />
+      </div>
+      <div class="field">
+        <label>Hasta</label>
+        <input type="date" id="filter-hasta" />
+      </div>
+      <div class="field" style="align-self:flex-end">
+        <button class="btn btn-primary" id="btn-buscar">🔍 Buscar</button>
+      </div>
+    </div>
+
+    <div id="content"><div class="loading">Cargando...</div></div>
+
+    <div class="pagination" id="pagination" style="display:none"></div>
+  </div>
+
+  <style is:global>
+    .page { max-width: 1100px; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .page-title { font-size: 24px; font-weight: 700; color: #1e293b; }
+    .btn { padding: 8px 16px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .15s; }
+    .btn-primary { background: #3b82f6; color: #fff; } .btn-primary:hover { background: #2563eb; }
+    .btn-secondary { background: #e2e8f0; color: #333; } .btn-secondary:hover { background: #cbd5e1; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .loading { text-align: center; padding: 40px; color: #666; }
+    .filters { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 16px; align-items: flex-end; }
+    .field { margin-bottom: 14px; } .field label { display: block; font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px; }
+    .field input { width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px; min-width: 150px; } .field input:focus { border-color: #3b82f6; outline: none; }
+    .table-wrap { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    table { width: 100%; border-collapse: collapse; } th { background: #f1f5f9; padding: 10px 12px; text-align: left; font-size: 12px; font-weight: 600; color: #666; text-transform: uppercase; } td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; } tr:hover td { background: #f8fafc; }
+    .number { text-align: right; font-variant-numeric: tabular-nums; }
+    .error { color: #ef4444; text-align: center; padding: 20px; }
+    .empty { text-align: center; padding: 40px; color: #999; }
+    .pagination { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 16px; }
+    .pagination .page-info { font-size: 13px; color: #666; margin: 0 8px; }
+    .vencido-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; background: #fce7f3; color: #9d174d; }
+  </style>
+
+  <script>
+    import { apiFetch } from '../../utils/api.ts';
+
+    let currentPage = 1;
+    let lastPage = 1;
+
+    async function load(page) {
+      const desde = document.getElementById('filter-desde').value;
+      const hasta = document.getElementById('filter-hasta').value;
+
+      const content = document.getElementById('content');
+      content.innerHTML = '<div class="loading">Cargando...</div>';
+
+      const params = new URLSearchParams();
+      if (desde) params.set('fecha_desde', desde);
+      if (hasta) params.set('fecha_hasta', hasta);
+      params.set('page', page || 1);
+      params.set('per_page', '20');
+
+      try {
+        const response = await apiFetch('GET', '/reportes/vencidos?' + params.toString());
+        const items = response?.data || [];
+        const meta = response?.meta || {};
+        currentPage = meta.current_page || 1;
+        lastPage = meta.last_page || 1;
+
+        if (items.length === 0) {
+          content.innerHTML = '<div class="empty">No hay datos disponibles para los filtros seleccionados.</div>';
+          document.getElementById('pagination').style.display = 'none';
+          return;
+        }
+
+        let html = '<div class="table-wrap"><table><thead><tr><th>Ticket N°</th><th>Taquilla</th><th>Banca</th><th>Grupo</th><th>Fecha</th><th class="number">Monto</th><th class="number">Premio</th><th class="number">Jugadas</th></tr></thead><tbody>';
+        items.forEach(row => {
+          html += `<tr>
+            <td><strong>${row.Ticket_N || row.ticket_code || '-'}</strong></td>
+            <td>${row.Taquilla || '-'}</td>
+            <td>${row.Banca || '-'}</td>
+            <td>${row.Grupo || '-'}</td>
+            <td>${row.Fecha || '-'}</td>
+            <td class="number">${(row.Monto || 0).toLocaleString('es-VE', {minimumFractionDigits:2})}</td>
+            <td class="number">${(row.Premio || 0).toLocaleString('es-VE', {minimumFractionDigits:2})}</td>
+            <td class="number">${row.Jugadas ?? '-'}</td>
+          </tr>`;
+        });
+        html += '</tbody></table></div>';
+        content.innerHTML = html;
+
+        renderPagination();
+      } catch (e) {
+        content.innerHTML = '<div class="error">Error: ' + (e.message || 'No se pudo cargar el reporte.') + '</div>';
+        document.getElementById('pagination').style.display = 'none';
+      }
+    }
+
+    function renderPagination() {
+      const pag = document.getElementById('pagination');
+      if (lastPage <= 1) { pag.style.display = 'none'; return; }
+      pag.style.display = 'flex';
+      pag.innerHTML = `
+        <button class="btn btn-secondary btn-sm" id="btn-prev" ${currentPage <= 1 ? 'disabled' : ''}>← Anterior</button>
+        <span class="page-info">Página ${currentPage} de ${lastPage}</span>
+        <button class="btn btn-secondary btn-sm" id="btn-next" ${currentPage >= lastPage ? 'disabled' : ''}>Siguiente →</button>
+      `;
+      document.getElementById('btn-prev')?.addEventListener('click', () => { if (currentPage > 1) load(currentPage - 1); });
+      document.getElementById('btn-next')?.addEventListener('click', () => { if (currentPage < lastPage) load(currentPage + 1); });
+    }
+
+    // Set default date range (last 90 days — vencidos typically span wider)
+    const today = new Date();
+    const ninetyDaysAgo = new Date(today.getTime() - 90 * 86400000);
+    document.getElementById('filter-hasta').value = today.toISOString().split('T')[0];
+    document.getElementById('filter-desde').value = ninetyDaysAgo.toISOString().split('T')[0];
+
+    document.getElementById('btn-buscar').addEventListener('click', () => load(1));
+    load(1);
+  </script>
+</AdminLayout>

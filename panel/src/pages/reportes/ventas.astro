@@ -1,0 +1,132 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+---
+
+<AdminLayout>
+  <div class="page">
+    <div class="page-header"><h2 class="page-title">Ventas Totales</h2></div>
+
+    <div class="filters">
+      <div class="field">
+        <label>Desde</label>
+        <input type="date" id="filter-desde" />
+      </div>
+      <div class="field">
+        <label>Hasta</label>
+        <input type="date" id="filter-hasta" />
+      </div>
+      <div class="field">
+        <label>Nivel</label>
+        <select id="filter-nivel">
+          <option value="banca">Banca</option>
+          <option value="grupo">Grupo</option>
+          <option value="taquilla">Taquilla</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Tipo de Juego</label>
+        <select id="filter-juego"><option value="">Todos</option></select>
+      </div>
+      <div class="field">
+        <label>Moneda</label>
+        <select id="filter-moneda">
+          <option value="">Todas</option>
+          <option value="bs">BS</option>
+          <option value="usd">USD</option>
+          <option value="mixto">Mixto</option>
+        </select>
+      </div>
+      <div class="field" style="align-self:flex-end">
+        <button class="btn btn-primary" id="btn-buscar">🔍 Buscar</button>
+      </div>
+    </div>
+
+    <div id="content"><div class="loading">Cargando...</div></div>
+  </div>
+
+  <style is:global>
+    .page { max-width: 1100px; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .page-title { font-size: 24px; font-weight: 700; color: #1e293b; }
+    .btn { padding: 8px 16px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .15s; }
+    .btn-primary { background: #3b82f6; color: #fff; } .btn-primary:hover { background: #2563eb; }
+    .loading { text-align: center; padding: 40px; color: #666; }
+    .filters { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 16px; align-items: flex-end; }
+    .field { margin-bottom: 14px; } .field label { display: block; font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px; }
+    .field input, .field select { width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px; min-width: 140px; } .field input:focus, .field select:focus { border-color: #3b82f6; outline: none; }
+    .table-wrap { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    table { width: 100%; border-collapse: collapse; } th { background: #f1f5f9; padding: 10px 12px; text-align: left; font-size: 12px; font-weight: 600; color: #666; text-transform: uppercase; } td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; } tr:hover td { background: #f8fafc; }
+    .number { text-align: right; font-variant-numeric: tabular-nums; }
+    .error { color: #ef4444; text-align: center; padding: 20px; }
+    .empty { text-align: center; padding: 40px; color: #999; }
+  </style>
+
+  <script>
+    import { apiFetch } from '../../utils/api.ts';
+
+    async function loadJuegos() {
+      try {
+        const data = await apiFetch('GET', '/juegos?per_page=100');
+        const juegos = Array.isArray(data) ? data : (data?.data || []);
+        const s = document.getElementById('filter-juego');
+        s.innerHTML = '<option value="">Todos</option>';
+        juegos.forEach(j => s.innerHTML += `<option value="${j.slug || j.id}">${j.name || j.nombre}</option>`);
+      } catch (_) {}
+    }
+
+    async function load() {
+      const desde = document.getElementById('filter-desde').value;
+      const hasta = document.getElementById('filter-hasta').value;
+      const nivel = document.getElementById('filter-nivel').value;
+      const juego = document.getElementById('filter-juego').value;
+      const moneda = document.getElementById('filter-moneda').value;
+
+      const content = document.getElementById('content');
+      content.innerHTML = '<div class="loading">Cargando...</div>';
+
+      const params = new URLSearchParams();
+      if (desde) params.set('fecha_desde', desde);
+      if (hasta) params.set('fecha_hasta', hasta);
+      if (nivel) params.set('nivel', nivel);
+      if (juego) params.set('tipo_juego', juego);
+      if (moneda) params.set('moneda', moneda);
+
+      try {
+        const response = await apiFetch('GET', '/reportes/ventas-totales?' + params.toString());
+        const items = Array.isArray(response) ? response : (response?.data || []);
+
+        if (items.length === 0) {
+          content.innerHTML = '<div class="empty">No hay datos disponibles para los filtros seleccionados.</div>';
+          return;
+        }
+
+        let html = '<div class="table-wrap"><table><thead><tr><th>Entidad</th><th class="number">Venta</th><th class="number">Premio</th><th class="number">Porcentaje</th><th class="number">Utilidad</th><th class="number">Participación</th><th class="number">Total</th></tr></thead><tbody>';
+        items.forEach(row => {
+          html += `<tr>
+            <td><strong>${row.Entidad || '-'}</strong></td>
+            <td class="number">${row.Venta?.toLocaleString('es-VE', {minimumFractionDigits:2}) || '0.00'}</td>
+            <td class="number">${row.Premio?.toLocaleString('es-VE', {minimumFractionDigits:2}) || '0.00'}</td>
+            <td class="number">${row.Porcentaje ?? '0.00'}%</td>
+            <td class="number">${row.Utilidad?.toLocaleString('es-VE', {minimumFractionDigits:2}) || '0.00'}</td>
+            <td class="number">${row.Participación ?? row.Participacion ?? '0.00'}%</td>
+            <td class="number">${row.Total ?? '-'}</td>
+          </tr>`;
+        });
+        html += '</tbody></table></div>';
+        content.innerHTML = html;
+      } catch (e) {
+        content.innerHTML = '<div class="error">Error: ' + (e.message || 'No se pudo cargar el reporte.') + '</div>';
+      }
+    }
+
+    // Set default date range (last 30 days)
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today.getTime() - 30 * 86400000);
+    document.getElementById('filter-hasta').value = today.toISOString().split('T')[0];
+    document.getElementById('filter-desde').value = thirtyDaysAgo.toISOString().split('T')[0];
+
+    document.getElementById('btn-buscar').addEventListener('click', load);
+    loadJuegos();
+    load();
+  </script>
+</AdminLayout>
