@@ -145,8 +145,9 @@ class JuegoController extends Controller
     // ==================================================
 
     /**
-     * Listar límites de un juego, filtrados por jerarquía del usuario.
-     * GET /api/limites/{juego}
+     * Listar límites de un juego, filtrados por jerarquía del usuario
+     * y opcionalmente por grupo o taquilla.
+     * GET /api/limites/{juego}?grupo_id=&taquilla_id=
      */
     public function limites(Request $request, Juego $juego)
     {
@@ -155,6 +156,11 @@ class JuegoController extends Controller
         if (!in_array($user->role, ['super_master', 'master', 'banca', 'grupo'])) {
             return response()->json(['message' => 'No tienes permiso para ver límites.'], 403);
         }
+
+        $filtros = $request->validate([
+            'grupo_id' => 'nullable|integer|exists:grupos,id',
+            'taquilla_id' => 'nullable|integer|exists:taquillas,id',
+        ]);
 
         $query = JuegoLimite::where('juego_id', $juego->id)
             ->with(['banca', 'grupo', 'taquilla']);
@@ -172,6 +178,15 @@ class JuegoController extends Controller
                          ->whereHas('grupo', fn ($g) => $g->where('banca_id', $user->banca_id));
                   });
             });
+        }
+
+        // Filtros explícitos por grupo o taquilla (validados previamente)
+        if (isset($filtros['grupo_id'])) {
+            $query->where('grupo_id', $filtros['grupo_id']);
+        }
+
+        if (isset($filtros['taquilla_id'])) {
+            $query->where('taquilla_id', $filtros['taquilla_id']);
         }
 
         $limites = $query->get();
@@ -296,6 +311,30 @@ class JuegoController extends Controller
         });
 
         return response()->json($resultados, 201);
+    }
+
+    /**
+     * Eliminar un límite configurado.
+     * DELETE /api/limites/{limite}
+     *
+     * super_master/master eliminan cualquier límite; banca solo los de su banca.
+     * El modelo se resuelve por binding implícito (404 si no existe).
+     */
+    public function destroyLimite(Request $request, JuegoLimite $limite)
+    {
+        $user = $request->user();
+
+        if (!in_array($user->role, ['super_master', 'master', 'banca'])) {
+            return response()->json(['message' => 'No tienes permiso para eliminar límites.'], 403);
+        }
+
+        if ($user->role === 'banca' && (!$user->banca_id || $user->banca_id != $limite->banca_id)) {
+            return response()->json(['message' => 'No tienes acceso a los límites de esta banca.'], 403);
+        }
+
+        $limite->delete();
+
+        return response()->json(['message' => 'Límite eliminado correctamente.']);
     }
 
     // ==================================================

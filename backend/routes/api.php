@@ -139,8 +139,10 @@ Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
     });
 
     // PUT: super_master, master, banca (upsert individual)
+    // DELETE: super_master, master, banca (autorización jerárquica en el controlador)
     Route::middleware(['role:super_master|master|banca'])->group(function () {
         Route::put('/limites/{juego}', [JuegoController::class, 'updateLimites']);
+        Route::delete('/limites/{limite}', [JuegoController::class, 'destroyLimite']);
     });
 
     // POST batch: solo super_master y master
