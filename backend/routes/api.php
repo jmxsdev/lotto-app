@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\DispositivoController;
 use App\Http\Controllers\Api\ActivacionController;
 use App\Http\Controllers\Api\TicketController;
 use App\Http\Controllers\Api\PagoController;
+use App\Http\Controllers\Api\ReporteController;
 
 // Rutas públicas (sin autenticación)
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,2');
@@ -143,6 +144,16 @@ Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
     // POST batch: solo super_master y master
     Route::middleware(['role:super_master|master'])->group(function () {
         Route::post('/limites/batch', [JuegoController::class, 'batchLimites']);
+    });
+
+    // ==================================================
+    // REPORTES (todos los roles autenticados)
+    // ==================================================
+    Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
+        Route::get('/reportes/ventas-totales', [ReporteController::class, 'ventasTotales']);
+        Route::get('/reportes/relacion-tickets', [ReporteController::class, 'relacionTickets']);
+        Route::get('/reportes/rendimiento-taquillas', [ReporteController::class, 'rendimientoTaquillas']);
+        Route::get('/reportes/vencidos', [ReporteController::class, 'vencidos']);
     });
 
     // ==================================================
