@@ -16,6 +16,13 @@ import AdminLayout from '../layouts/AdminLayout.astro';
         <div class="field"><label>Monedas Permitidas</label><div class="checkbox-group"><label><input type="checkbox" name="moneda_bs" checked /> BS</label><label><input type="checkbox" name="moneda_usd" checked /> USD</label></div></div>
         <div class="field"><label>Vigencia Premios (días)</label><input name="vigencia_premios" type="number" min="1" /></div>
         <div class="field"><label>Tiempo máximo (min)</label><input name="tiempo_eliminacion" type="number" min="1" max="120" placeholder="Vacío = default 5" /></div>
+        <div class="field-section" id="user-section">
+          <h4>👤 Usuario Jefe</h4>
+          <div class="field"><label>Nombre de Usuario</label><input name="user_name" /></div>
+          <div class="field"><label>Email de Usuario</label><input name="user_email" type="email" /></div>
+          <div class="field"><label>Contraseña</label><input name="user_password" type="password" minlength="8" /></div>
+        </div>
+        <p class="user-hint" id="user-hint" style="display:none">El usuario se gestiona desde Usuarios.</p>
         <div class="field"><label>RIF</label><input name="rif" /></div>
         <div class="field"><label>Email</label><input name="email" type="email" /></div>
         <div class="field"><label>Teléfono</label><input name="telefono" /></div>
@@ -48,6 +55,8 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
     .actions-cell { display: flex; gap: 4px; }
     .checkbox-group { display: flex; gap: 20px; padding-top: 4px; } .checkbox-group label { display: flex; align-items: center; gap: 6px; font-weight: 400; cursor: pointer; } .checkbox-group input[type="checkbox"] { width: auto; margin: 0; }
+    .field-section { border-top: 1px solid #e2e8f0; margin-top: 16px; padding-top: 12px; } .field-section h4 { font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 10px; }
+    .user-hint { font-size: 12px; color: #64748b; background: #f1f5f9; border-radius: 6px; padding: 8px 10px; margin-bottom: 12px; }
   </style>
   <script>
     import { apiFetch } from '../utils/api.ts'; import { showModal } from '../utils/modal.ts';
@@ -59,10 +68,10 @@ import AdminLayout from '../layouts/AdminLayout.astro';
         html += '</tbody></table></div>'; document.getElementById('content').innerHTML = html;
       } catch(e) { document.getElementById('content').innerHTML = '<div class="loading">Error: '+e.message+'</div>'; }
     }
-    async function openModal(b=null) { editId = b?.id||null; document.getElementById('modal-title').textContent=b?'Editar Banca':'Nueva Banca'; const f=document.getElementById('modal-form'); f.name.value=b?.name||''; f.code.value=b?.code||''; f.vigencia_premios.value=b?.vigencia_premios||''; f.tiempo_eliminacion.value=b?.tiempo_eliminacion??''; f.moneda_bs.checked=(b?.monedas_permitidas?.bs??true); f.moneda_usd.checked=(b?.monedas_permitidas?.usd??true); f.rif.value=b?.rif||''; f.email.value=b?.email||''; f.telefono.value=b?.telefono||''; f.direccion.value=b?.direccion||''; f.estado.value=b?.estado||''; f.municipio.value=b?.municipio||''; document.getElementById('modal').style.display='flex'; }
+    async function openModal(b=null) { editId = b?.id||null; const creating=!b; document.getElementById('modal-title').textContent=b?'Editar Banca':'Nueva Banca'; const f=document.getElementById('modal-form'); f.name.value=b?.name||''; f.code.value=b?.code||''; f.vigencia_premios.value=b?.vigencia_premios||''; f.tiempo_eliminacion.value=b?.tiempo_eliminacion??''; f.moneda_bs.checked=(b?.monedas_permitidas?.bs??true); f.moneda_usd.checked=(b?.monedas_permitidas?.usd??true); f.rif.value=b?.rif||''; f.email.value=b?.email||''; f.telefono.value=b?.telefono||''; f.direccion.value=b?.direccion||''; f.estado.value=b?.estado||''; f.municipio.value=b?.municipio||''; document.getElementById('user-section').style.display=creating?'block':'none'; document.getElementById('user-hint').style.display=creating?'none':'block'; f.user_name.required=creating; f.user_email.required=creating; f.user_password.required=creating; document.getElementById('modal').style.display='flex'; }
     document.getElementById('btn-create').addEventListener('click',()=>openModal());
     document.getElementById('btn-cancel').addEventListener('click',()=>document.getElementById('modal').style.display='none');
-    document.getElementById('modal-form').addEventListener('submit',async(e)=>{e.preventDefault();const f=e.target;const body={name:f.name.value,code:f.code.value,monedas_permitidas:{bs:f.moneda_bs.checked,usd:f.moneda_usd.checked},vigencia_premios:f.vigencia_premios.value?parseInt(f.vigencia_premios.value):null,tiempo_eliminacion:f.tiempo_eliminacion.value?parseInt(f.tiempo_eliminacion.value):null,rif:f.rif.value||null,email:f.email.value||null,telefono:f.telefono.value||null,direccion:f.direccion.value||null,estado:f.estado.value||null,municipio:f.municipio.value||null};try{if(editId)await apiFetch('PUT','/bancas/'+editId,body);else await apiFetch('POST','/bancas',body);document.getElementById('modal').style.display='none';load();}catch(err){await showModal({message:err.message,type:'error'});}});
+    document.getElementById('modal-form').addEventListener('submit',async(e)=>{e.preventDefault();const f=e.target;const body={name:f.name.value,code:f.code.value,monedas_permitidas:{bs:f.moneda_bs.checked,usd:f.moneda_usd.checked},vigencia_premios:f.vigencia_premios.value?parseInt(f.vigencia_premios.value):null,tiempo_eliminacion:f.tiempo_eliminacion.value?parseInt(f.tiempo_eliminacion.value):null,rif:f.rif.value||null,email:f.email.value||null,telefono:f.telefono.value||null,direccion:f.direccion.value||null,estado:f.estado.value||null,municipio:f.municipio.value||null};if(!editId){body.user_name=f.user_name.value;body.user_email=f.user_email.value;body.user_password=f.user_password.value;}try{if(editId)await apiFetch('PUT','/bancas/'+editId,body);else await apiFetch('POST','/bancas',body);document.getElementById('modal').style.display='none';load();}catch(err){await showModal({message:err.message,type:'error'});}});
     document.getElementById('content').addEventListener('click',(e)=>{const eb=e.target.closest('.edit-btn');const db=e.target.closest('.del-btn');if(eb){const id=parseInt(eb.dataset.id);apiFetch('GET','/bancas/'+id).then(d=>openModal(d.data||d)).catch(e=>showModal({message:e.message,type:'error'}));}if(db){const id=parseInt(db.dataset.id);showModal({message:'¿Eliminar banca?',type:'confirm'}).then(ok=>{if(!ok)return;apiFetch('DELETE','/bancas/'+id).then(()=>load()).catch(e=>showModal({message:e.message,type:'error'}));});}});
     load();
   </script>
