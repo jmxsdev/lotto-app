@@ -269,6 +269,9 @@ const name = user?.name || '';
     // Tasas
     if (['super_master','master'].includes(role)) sidebarNav.appendChild(addLink('Tasas', '/tasas', '💱'));
 
+    // Usuarios — todos los roles (el backend limita los datos según jerarquía)
+    sidebarNav.appendChild(addLink('Usuarios', '/usuarios', '👤'));
+
     // Logs
     if (['super_master','master'].includes(role)) sidebarNav.appendChild(addLink('Logs', '/logs', '📋'));
 
