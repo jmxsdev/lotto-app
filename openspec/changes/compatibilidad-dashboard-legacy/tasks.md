@@ -55,15 +55,15 @@ Chain strategy: stacked-to-main
 
 ## Phase 3: Limits API + Panel (PR #3)
 
-- [ ] 3.1 `JuegoController::limites(Juego $juego)` — GET `/api/limites/{juego}` returns limits scoped by user hierarchy
-- [ ] 3.2 `JuegoController::updateLimites(Juego $juego)` — PUT upsert, validates restrictiveness (child≤parent)
-- [ ] 3.3 `JuegoController::batchLimites()` — POST `/api/limites/batch` atomic upsert array of limits
-- [ ] 3.4 Add routes: `GET|PUT /api/limites/{juego}`, `POST /api/limites/batch` inside auth:sanctum,verify.mac group
-- [ ] 3.5 `GrupoController::store/update` — accept `monedas_permitidas`, `vigencia_premios` in validation
-- [ ] 3.6 Panel: `panel/src/pages/limites.astro` — game selector + banca selector + moneda toggle + limit form + batch button
-- [ ] 3.7 Panel: add BS/USD checkboxes to `grupos.astro` edit form
-- [ ] 3.8 Panel: `AdminLayout.astro` — add "🎯 Límites" nav link for super_master|master|banca roles
-- [ ] 3.9 RED: `test_grupo_no_excede_limite_banca` — grupo attempts max=200 when banca max=100 → 422
+- [x] 3.1 `JuegoController::limites(Juego $juego)` — GET `/api/limites/{juego}` returns limits scoped by user hierarchy
+- [x] 3.2 `JuegoController::updateLimites(Juego $juego)` — PUT upsert, validates restrictiveness (child≤parent)
+- [x] 3.3 `JuegoController::batchLimites()` — POST `/api/limites/batch` atomic upsert array of limits
+- [x] 3.4 Add routes: `GET|PUT /api/limites/{juego}`, `POST /api/limites/batch` inside auth:sanctum,verify.mac group
+- [x] 3.5 `GrupoController::store/update` — accept `monedas_permitidas`, `vigencia_premios` in validation
+- [x] 3.6 Panel: `panel/src/pages/limites.astro` — game selector + banca selector + moneda toggle + limit form + batch button
+- [x] 3.7 Panel: add BS/USD checkboxes to `grupos.astro` edit form
+- [x] 3.8 Panel: `AdminLayout.astro` — add "🎯 Límites" nav link for super_master|master|banca roles
+- [x] 3.9 RED: `test_grupo_no_excede_limite_banca` — grupo attempts max=200 when banca max=100 → 422
 
 ## Phase 4: Reports API (PR #4)
 

@@ -1,0 +1,49 @@
+info:
+  name: Configurar Limite (Batch)
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/limites/batch"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "limites": [
+          {
+            "juego_id": 1,
+            "banca_id": 1,
+            "moneda": "bs",
+            "limite_minimo": 100,
+            "limite_maximo": 5000,
+            "porcentaje_pago": 80.00,
+            "participacion": 5.00,
+            "fraccion": false,
+            "limite_tiempo": 60
+          },
+          {
+            "juego_id": 1,
+            "banca_id": 1,
+            "moneda": "usd",
+            "limite_minimo": 1,
+            "limite_maximo": 100,
+            "porcentaje_pago": 80.00,
+            "participacion": 5.00,
+            "fraccion": false,
+            "limite_tiempo": 60
+          }
+        ]
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

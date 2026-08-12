@@ -1,0 +1,33 @@
+info:
+  name: Configurar Limite
+  type: http
+  seq: 2
+
+http:
+  method: PUT
+  url: "{{baseUrl}}/api/limites/1"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "banca_id": 1,
+        "moneda": "bs",
+        "limite_minimo": 100,
+        "limite_maximo": 5000,
+        "porcentaje_pago": 80.00,
+        "participacion": 5.00,
+        "fraccion": false,
+        "limite_tiempo": 60
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
