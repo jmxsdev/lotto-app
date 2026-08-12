@@ -12,10 +12,11 @@ class Taquilla extends Model
 
     protected $fillable = [
         'name', 'code', 'grupo_id', 'mac_address', 'device_fingerprint', 'activation_code',
-        'active', 'last_connection_at', 'created_by'
+        'vigencia_premios', 'active', 'last_connection_at', 'created_by'
     ];
 
     protected $casts = [
+        'vigencia_premios' => 'integer',
         'active' => 'boolean',
         'last_connection_at' => 'datetime',
     ];
