@@ -64,6 +64,7 @@ class TaquillaController extends Controller
             'code' => 'required|string|unique:taquillas,code',
             'grupo_id' => 'required|exists:grupos,id',
             'active' => 'boolean',
+            'vigencia_premios' => 'nullable|integer|min:1',
             'user_name' => 'required|string|max:255',
             'user_email' => 'required|email|unique:users,email',
             'user_password' => 'required|string|min:8',
@@ -72,16 +73,20 @@ class TaquillaController extends Controller
         // Verificar acceso al grupo
         $this->authorizeGrupoAccess($user, $request->grupo_id);
 
+        $grupo = Grupo::find($request->grupo_id);
+
+        // Validar vigencia_premios contra el grupo (más restrictivo)
+        $this->validarVigenciaContraParent($grupo, $request);
+
         // Generar activation_code automáticamente si no se proporciona
         $activationCode = $request->activation_code ?? Str::random(16);
-
-        $grupo = Grupo::find($request->grupo_id);
 
         $taquilla = Taquilla::create([
             'name' => $request->name,
             'code' => $request->code,
             'grupo_id' => $request->grupo_id,
             'activation_code' => $activationCode,
+            'vigencia_premios' => $request->vigencia_premios ?? null,
             'active' => $request->active ?? false,
             'created_by' => $user->id,
         ]);
@@ -133,13 +138,20 @@ class TaquillaController extends Controller
             'mac_address' => 'nullable|string',
             'activation_code' => 'nullable|string|unique:taquillas,activation_code,' . $taquilla->id,
             'active' => 'boolean',
+            'vigencia_premios' => 'nullable|integer|min:1',
         ]);
 
         if ($request->has('grupo_id')) {
             $this->authorizeGrupoAccess($user, $request->grupo_id);
         }
 
-        $taquilla->update($request->only(['name', 'code', 'grupo_id', 'mac_address', 'activation_code', 'active']));
+        // Validar vigencia_premios contra el grupo padre
+        if ($request->has('vigencia_premios')) {
+            $grupo = $taquilla->grupo;
+            $this->validarVigenciaContraParent($grupo, $request);
+        }
+
+        $taquilla->update($request->only(['name', 'code', 'grupo_id', 'mac_address', 'activation_code', 'active', 'vigencia_premios']));
 
         return response()->json($taquilla->load('grupo.banca'));
     }
@@ -164,6 +176,34 @@ class TaquillaController extends Controller
     }
 
     // --- Métodos de autorización ---
+
+    /**
+     * Validar que la vigencia_premios de la taquilla no exceda la del grupo.
+     * El nivel hijo solo puede ser más restrictivo (menor o igual).
+     */
+    private function validarVigenciaContraParent(Grupo $grupo, Request $request): void
+    {
+        if ($request->vigencia_premios === null) {
+            return;
+        }
+
+        $grupoVigencia = $grupo->vigencia_premios;
+        if ($grupoVigencia !== null && $request->vigencia_premios > $grupoVigencia) {
+            abort(422, json_encode([
+                'message' => "La vigencia de premios de la taquilla ({$request->vigencia_premios} días) no puede ser mayor que la del grupo ({$grupoVigencia} días). La jerarquía inferior solo puede acortar el plazo."
+            ]));
+        }
+
+        // También validar contra banca (si el grupo no tiene vigencia configurada)
+        if ($grupoVigencia === null) {
+            $bancaVigencia = $grupo->banca?->vigencia_premios;
+            if ($bancaVigencia !== null && $request->vigencia_premios > $bancaVigencia) {
+                abort(422, json_encode([
+                    'message' => "La vigencia de premios de la taquilla ({$request->vigencia_premios} días) no puede ser mayor que la de la banca ({$bancaVigencia} días). La jerarquía inferior solo puede acortar el plazo."
+                ]));
+            }
+        }
+    }
 
     private function authorizeGrupoAccess($user, $grupoId)
     {

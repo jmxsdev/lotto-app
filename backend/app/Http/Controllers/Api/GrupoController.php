@@ -85,7 +85,7 @@ class GrupoController extends Controller
             $bancaMonedas = $banca?->monedas_permitidas;
             if (!$this->validarMonedasContraParent($bancaMonedas, $request->monedas_permitidas)) {
                 return response()->json([
-                    'message' => 'El grupo no puede habilitar una moneda que la banca ha deshabilitado.',
+                    'message' => 'El grupo no puede habilitar una moneda que la banca ha deshabilitado. La jerarquía inferior solo puede restringir, no expandir.',
                 ], 422);
             }
         }
@@ -172,7 +172,7 @@ class GrupoController extends Controller
             $bancaMonedas = $grupo->banca?->monedas_permitidas;
             if (!$this->validarMonedasContraParent($bancaMonedas, $request->monedas_permitidas)) {
                 return response()->json([
-                    'message' => 'El grupo no puede habilitar una moneda que la banca ha deshabilitado.',
+                    'message' => 'El grupo no puede habilitar una moneda que la banca ha deshabilitado. La jerarquía inferior solo puede restringir, no expandir.',
                 ], 422);
             }
         }
