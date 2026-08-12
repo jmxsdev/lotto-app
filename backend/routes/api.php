@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\ActivacionController;
 use App\Http\Controllers\Api\TicketController;
 use App\Http\Controllers\Api\PagoController;
 use App\Http\Controllers\Api\ReporteController;
+use App\Http\Controllers\Api\EstadisticaController;
 
 // Rutas públicas (sin autenticación)
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,2');
@@ -154,6 +155,13 @@ Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
         Route::get('/reportes/relacion-tickets', [ReporteController::class, 'relacionTickets']);
         Route::get('/reportes/rendimiento-taquillas', [ReporteController::class, 'rendimientoTaquillas']);
         Route::get('/reportes/vencidos', [ReporteController::class, 'vencidos']);
+    });
+
+    // ==================================================
+    // ESTADÍSTICAS (todos los roles autenticados)
+    // ==================================================
+    Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
+        Route::get('/estadisticas/rendimiento', [EstadisticaController::class, 'rendimiento']);
     });
 
     // ==================================================
