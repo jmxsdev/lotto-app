@@ -205,7 +205,7 @@ class GrupoController extends Controller
 
         // Verificar que no tenga taquillas asociadas (opcional)
         if ($grupo->taquillas()->count() > 0) {
-            return response()->json(['message' => 'No se puede eliminar el grupo porque tiene taquillas asociadas.'], 422);
+            return response()->json(['message' => 'No se puede eliminar el grupo porque tiene agencias asociadas.'], 422);
         }
 
         $grupo->delete();

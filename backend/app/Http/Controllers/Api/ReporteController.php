@@ -201,7 +201,7 @@ class ReporteController extends Controller
             $ticket->Premio = (float) ($ticket->premio_total_bs + $ticket->premio_total_usd);
             $ticket->Banca = $ticket->taquilla?->grupo?->banca?->name;
             $ticket->Grupo = $ticket->taquilla?->grupo?->name;
-            $ticket->Taquilla = $ticket->taquilla?->name;
+            $ticket->Agencia = $ticket->taquilla?->name;
             $ticket->Fecha = $ticket->created_at?->format('Y-m-d');
             $ticket->Jugadas = $ticket->apuestas?->count() ?? 0;
 

@@ -98,7 +98,7 @@ class TicketController extends Controller
 
         if (!$user->taquilla_id) {
             return response()->json([
-                'message' => 'Solo las taquillas pueden crear tickets.',
+                'message' => 'Solo las agencias pueden crear tickets.',
             ], 403);
         }
 
@@ -129,12 +129,12 @@ class TicketController extends Controller
             $monedas = $this->apuestaService->getEffectiveMonedas($user->taquilla_id);
             if ($hasUsd && !$monedas['usd']) {
                 return response()->json([
-                    'message' => 'Moneda USD no permitida para esta taquilla.',
+                    'message' => 'Moneda USD no permitida para esta agencia.',
                 ], 422);
             }
             if ($hasBs && !$monedas['bs']) {
                 return response()->json([
-                    'message' => 'Moneda BS no permitida para esta taquilla.',
+                    'message' => 'Moneda BS no permitida para esta agencia.',
                 ], 422);
             }
             if ($hasBs && $hasUsd && (!$monedas['bs'] || !$monedas['usd'])) {

@@ -44,7 +44,7 @@ class AuthController extends Controller
         // Validar rol según tipo de cliente
         if ($request->header('X-Panel') === 'true') {
             if (!in_array($user->role, ['super_master','master','banca','grupo'])) {
-                return response()->json(['message' => 'Las taquillas deben usar la app de escritorio.'], 403);
+                return response()->json(['message' => 'Las agencias deben usar la app de escritorio.'], 403);
             }
         } else {
             if ($user->role !== 'taquilla') {

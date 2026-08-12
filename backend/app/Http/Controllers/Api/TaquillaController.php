@@ -44,7 +44,7 @@ class TaquillaController extends Controller
             }
             $query->where('grupo_id', $user->grupo_id);
         } else {
-            return response()->json(['message' => 'No tienes permiso para ver taquillas.'], 403);
+            return response()->json(['message' => 'No tienes permiso para ver agencias.'], 403);
         }
 
         $taquillas = $query->with('grupo.banca')->get();
@@ -167,12 +167,12 @@ class TaquillaController extends Controller
 
         // Verificar que no tenga apuestas (opcional)
         if ($taquilla->apuestas()->count() > 0) {
-            return response()->json(['message' => 'No se puede eliminar la taquilla porque tiene apuestas asociadas.'], 422);
+            return response()->json(['message' => 'No se puede eliminar la agencia porque tiene apuestas asociadas.'], 422);
         }
 
         $taquilla->delete();
 
-        return response()->json(['message' => 'Taquilla eliminada correctamente.']);
+        return response()->json(['message' => 'Agencia eliminada correctamente.']);
     }
 
     // --- Métodos de autorización ---
@@ -190,7 +190,7 @@ class TaquillaController extends Controller
         $grupoVigencia = $grupo->vigencia_premios;
         if ($grupoVigencia !== null && $request->vigencia_premios > $grupoVigencia) {
             abort(422, json_encode([
-                'message' => "La vigencia de premios de la taquilla ({$request->vigencia_premios} días) no puede ser mayor que la del grupo ({$grupoVigencia} días). La jerarquía inferior solo puede acortar el plazo."
+                'message' => "La vigencia de premios de la agencia ({$request->vigencia_premios} días) no puede ser mayor que la del grupo ({$grupoVigencia} días). La jerarquía inferior solo puede acortar el plazo."
             ]));
         }
 
@@ -199,7 +199,7 @@ class TaquillaController extends Controller
             $bancaVigencia = $grupo->banca?->vigencia_premios;
             if ($bancaVigencia !== null && $request->vigencia_premios > $bancaVigencia) {
                 abort(422, json_encode([
-                    'message' => "La vigencia de premios de la taquilla ({$request->vigencia_premios} días) no puede ser mayor que la de la banca ({$bancaVigencia} días). La jerarquía inferior solo puede acortar el plazo."
+                    'message' => "La vigencia de premios de la agencia ({$request->vigencia_premios} días) no puede ser mayor que la de la banca ({$bancaVigencia} días). La jerarquía inferior solo puede acortar el plazo."
                 ]));
             }
         }
@@ -247,7 +247,7 @@ class TaquillaController extends Controller
         if ($user->hasRole('banca')) {
             $grupo = $taquilla->grupo;
             if (!$user->banca_id || $user->banca_id != $grupo->banca_id) {
-                abort(403, 'No tienes acceso a esta taquilla.');
+                abort(403, 'No tienes acceso a esta agencia.');
             }
             return;
         }
@@ -255,11 +255,11 @@ class TaquillaController extends Controller
         // Grupo puede acceder solo a sus taquillas
         if ($user->hasRole('grupo')) {
             if (!$user->grupo_id || $user->grupo_id != $taquilla->grupo_id) {
-                abort(403, 'No tienes acceso a esta taquilla.');
+                abort(403, 'No tienes acceso a esta agencia.');
             }
             return;
         }
 
-        abort(403, 'No tienes permiso para acceder a esta taquilla.');
+        abort(403, 'No tienes permiso para acceder a esta agencia.');
     }
 }

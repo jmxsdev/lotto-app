@@ -31,7 +31,7 @@ class DispositivoController extends Controller
         return response()->json([
             'status' => 'pending',
             'taquilla_name' => null,
-            'message' => 'Dispositivo no registrado. Active su taquilla.',
+            'message' => 'Dispositivo no registrado. Active su agencia.',
         ]);
     }
 }

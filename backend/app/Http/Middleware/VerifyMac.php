@@ -45,7 +45,7 @@ class VerifyMac
         // Verificar que usuario tenga taquilla asociada
         if (!$user->taquilla_id) {
             return response()->json([
-                'message' => 'Usuario sin taquilla asociada.',
+                'message' => 'Usuario sin agencia asociada.',
             ], 403);
         }
 
@@ -54,21 +54,21 @@ class VerifyMac
 
         if (!$taquilla) {
             return response()->json([
-                'message' => 'Taquilla no encontrada.',
+                'message' => 'Agencia no encontrada.',
             ], 403);
         }
 
         // Verificar que la taquilla esté activa
         if (!$taquilla->active) {
             return response()->json([
-                'message' => 'La taquilla está desactivada.',
+                'message' => 'La agencia está desactivada.',
             ], 403);
         }
 
         // Comparar MAC del header con MAC registrada
         if ($taquilla->mac_address !== $mac) {
             return response()->json([
-                'message' => 'MAC address no coincide con la taquilla registrada.',
+                'message' => 'MAC address no coincide con la agencia registrada.',
             ], 403);
         }
 

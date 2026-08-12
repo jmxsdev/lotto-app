@@ -109,7 +109,7 @@ class ApuestaController extends Controller
 
         if (!$user->taquilla_id) {
             return response()->json([
-                'message' => 'Solo las taquillas pueden crear apuestas.',
+                'message' => 'Solo las agencias pueden crear apuestas.',
             ], 403);
         }
 

@@ -217,14 +217,14 @@ class ApuestaService
         if ($usaUsd && !$monedas['usd']) {
             return [
                 'valid' => false,
-                'message' => 'Moneda USD no permitida para esta taquilla.',
+                'message' => 'Moneda USD no permitida para esta agencia.',
             ];
         }
 
         if ($usaBs && !$monedas['bs']) {
             return [
                 'valid' => false,
-                'message' => 'Moneda BS no permitida para esta taquilla.',
+                'message' => 'Moneda BS no permitida para esta agencia.',
             ];
         }
 
@@ -569,7 +569,7 @@ class ApuestaService
             }
 
             $ticket->Ticket_N = $ticket->ticket_code;
-            $ticket->Taquilla = $ticket->taquilla?->name;
+            $ticket->Agencia = $ticket->taquilla?->name;
             $ticket->Usuario = $usuario;
             $ticket->Fecha = $ticket->created_at?->format('Y-m-d');
             $ticket->Monto = (float) ($ticket->total_bs + $ticket->total_usd);
@@ -630,7 +630,7 @@ class ApuestaService
             $pesoGanancia = $totalGanancia > 0 ? round(($ganancia / $totalGanancia) * 100, 2) : 0;
 
             $resultados[] = [
-                'Taquilla' => $taquilla?->name ?? "Taquilla #{$taquillaId}",
+                'Agencia' => $taquilla?->name ?? "Agencia #{$taquillaId}",
                 'Venta' => $venta,
                 'Anulado' => $anulado,
                 'Premio' => $premio,
