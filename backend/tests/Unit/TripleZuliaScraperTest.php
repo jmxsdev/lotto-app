@@ -2,17 +2,17 @@
 
 namespace Tests\Unit;
 
-use App\Plugins\Scrapers\TripleZuliaScraper;
+use App\Plugins\Scrapers\TripletasScraper;
 use Tests\TestCase;
 
-class TripleZuliaScraperTest extends TestCase
+class TripletasScraperTest extends TestCase
 {
-    protected TripleZuliaScraper $scraper;
+    protected TripletasScraper $scraper;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->scraper = new TripleZuliaScraper();
+        $this->scraper = new TripletasScraper();
     }
 
     public function test_parses_json_response()

@@ -6,13 +6,13 @@ use App\Models\Juego;
 use App\Models\Log;
 use App\Models\Resultado;
 use App\Jobs\ScrapeResultsJob;
-use App\Plugins\Scrapers\TripleZuliaScraper;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use App\Plugins\Scrapers\TripletasScraper;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class ScrapeResultsJobTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -34,7 +34,7 @@ class ScrapeResultsJobTest extends TestCase
         $method = $reflection->getMethod('resolveScraper');
         $method->setAccessible(true);
 
-        $scraperClass = $method->invoke($job, $juego->type);
+        $scraperClass = $method->invoke($job, $juego);
         $this->assertEquals(\App\Plugins\Scrapers\AnimalitosScraper::class, $scraperClass);
     }
 
@@ -49,8 +49,8 @@ class ScrapeResultsJobTest extends TestCase
         $method = $reflection->getMethod('resolveScraper');
         $method->setAccessible(true);
 
-        $scraperClass = $method->invoke($job, $juego->type);
-        $this->assertEquals(\App\Plugins\Scrapers\TripleZuliaScraper::class, $scraperClass);
+        $scraperClass = $method->invoke($job, $juego);
+        $this->assertEquals(\App\Plugins\Scrapers\TripletasScraper::class, $scraperClass);
     }
 
     public function test_triple_zulia_scraper_parses_and_saves()
@@ -59,7 +59,7 @@ class ScrapeResultsJobTest extends TestCase
 
         $jsonResponse = file_get_contents(base_path('tests/Fixtures/triplezulia_response.json'));
 
-        $scraper = new TripleZuliaScraper();
+        $scraper = new TripletasScraper();
         $fecha = '2026-07-25';
 
         $resultados = $scraper->parse($jsonResponse);
@@ -80,7 +80,7 @@ class ScrapeResultsJobTest extends TestCase
 
         $jsonResponse = file_get_contents(base_path('tests/Fixtures/triplezulia_response.json'));
 
-        $scraper = new TripleZuliaScraper();
+        $scraper = new TripletasScraper();
         $fecha = '2026-07-25';
 
         $resultados = $scraper->parse($jsonResponse);
