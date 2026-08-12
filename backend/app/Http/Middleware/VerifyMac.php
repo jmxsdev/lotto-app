@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Taquilla;
+use App\Services\ActivacionEfectivaService;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -49,8 +50,8 @@ class VerifyMac
             ], 403);
         }
 
-        // Obtener la taquilla del usuario
-        $taquilla = Taquilla::where('id', $user->taquilla_id)->first();
+        // Obtener la taquilla del usuario (con su cadena para activación efectiva)
+        $taquilla = Taquilla::with('grupo.banca')->where('id', $user->taquilla_id)->first();
 
         if (!$taquilla) {
             return response()->json([
@@ -58,10 +59,16 @@ class VerifyMac
             ], 403);
         }
 
-        // Verificar que la taquilla esté activa
-        if (!$taquilla->active) {
+        // Verificar la activación efectiva: propia + grupo + banca (sin escrituras en cascada)
+        $estado = app(ActivacionEfectivaService::class)->estadoTaquilla($taquilla);
+
+        if (!$estado['active']) {
             return response()->json([
-                'message' => 'La agencia está desactivada.',
+                'message' => match ($estado['causa']) {
+                    'grupo' => 'La agencia está pausada porque su grupo está desactivado.',
+                    'banca' => 'La agencia está pausada porque su banca está desactivada.',
+                    default => 'La agencia está desactivada.',
+                },
             ], 403);
         }
 

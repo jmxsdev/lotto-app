@@ -41,6 +41,14 @@ class AuthController extends Controller
             }
         }
 
+        // Verificar activación efectiva de la cadena (banca → grupo → agencia).
+        // El flag propio de la agencia ya está cubierto por el flujo de activación;
+        // aquí se bloquea cuando un ancestro está inactivo. super_master/master no aplican.
+        $mensajeCadena = $this->mensajeCadenaInactiva($user);
+        if ($mensajeCadena) {
+            return response()->json(['message' => $mensajeCadena], 403);
+        }
+
         // Validar rol según tipo de cliente
         if ($request->header('X-Panel') === 'true') {
             if (!in_array($user->role, ['super_master','master','banca','grupo'])) {
@@ -70,5 +78,60 @@ class AuthController extends Controller
     public function user(Request $request)
     {
         return $request->user();
+    }
+
+    /**
+     * Devuelve el mensaje de bloqueo si la cadena de la entidad del usuario
+     * (banca → grupo → agencia) contiene una entidad inactiva, o null si puede entrar.
+     * Bindings faltantes se consideran activos; super_master/master no aplican.
+     */
+    private function mensajeCadenaInactiva(User $user): ?string
+    {
+        if ($user->role === 'taquilla' && $user->taquilla_id) {
+            $taquilla = $user->taquilla;
+            if (!$taquilla) {
+                return null;
+            }
+
+            $estado = app(\App\Services\ActivacionEfectivaService::class)->estadoTaquilla($taquilla);
+            if ($estado['active'] || $estado['causa'] === 'taquilla') {
+                // Flag propio: cubierto por el flujo de activación previo
+                return null;
+            }
+
+            return match ($estado['causa']) {
+                'grupo' => 'Tu cuenta está pausada porque su grupo está desactivado.',
+                default => 'Tu cuenta está pausada porque su banca está desactivada.',
+            };
+        }
+
+        if ($user->role === 'grupo' && $user->grupo_id) {
+            $grupo = $user->grupo;
+            if (!$grupo) {
+                return null;
+            }
+            if (!$grupo->active) {
+                return 'Tu cuenta está pausada porque su grupo está desactivado.';
+            }
+            if ($grupo->banca && !$grupo->banca->active) {
+                return 'Tu cuenta está pausada porque su banca está desactivada.';
+            }
+
+            return null;
+        }
+
+        if ($user->role === 'banca' && $user->banca_id) {
+            $banca = $user->banca;
+            if (!$banca) {
+                return null;
+            }
+            if (!$banca->active) {
+                return 'Tu cuenta está pausada porque su banca está desactivada.';
+            }
+
+            return null;
+        }
+
+        return null;
     }
 }
