@@ -89,13 +89,13 @@ class ReporteTest extends TestCase
         $this->assertCount(2, $data, 'Debe haber 2 filas, una por banca');
 
         // Buscar fila de Banca Alpha
-        $alpha = collect($data)->firstWhere('Banca', 'Banca Alpha');
+        $alpha = collect($data)->firstWhere('Entidad', 'Banca Alpha');
         $this->assertNotNull($alpha, 'Banca Alpha debe estar presente');
         $this->assertEquals(3000, $alpha['Venta'], 'Venta de Banca Alpha debe ser 3000');
         $this->assertEquals(3, $alpha['Total'], 'Total de apuestas en Banca Alpha debe ser 3');
 
         // Buscar fila de Banca Beta
-        $beta = collect($data)->firstWhere('Banca', 'Banca Beta');
+        $beta = collect($data)->firstWhere('Entidad', 'Banca Beta');
         $this->assertNotNull($beta, 'Banca Beta debe estar presente');
         $this->assertEquals(2500, $beta['Venta'], 'Venta de Banca Beta debe ser 2500');
         $this->assertEquals(5, $beta['Total'], 'Total de apuestas en Banca Beta debe ser 5');

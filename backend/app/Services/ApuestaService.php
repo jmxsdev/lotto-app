@@ -456,6 +456,9 @@ class ApuestaService
      */
     public function ventasTotales($query, array $filters): array
     {
+        // Determinar nivel de agrupación: banca (default), grupo, taquilla
+        $nivel = $filters['nivel'] ?? 'banca';
+
         // Clonar para no afectar el query original
         $base = (clone $query)
             ->join('taquillas', 'apuestas.taquilla_id', '=', 'taquillas.id')
@@ -482,10 +485,23 @@ class ApuestaService
             });
         }
 
+        // Configurar groupBy y label según nivel
+        $groupCols = match ($nivel) {
+            'taquilla' => ['taquillas.id', 'taquillas.name'],
+            'grupo' => ['grupos.id', 'grupos.name'],
+            default => ['bancas.id', 'bancas.name'], // 'banca' o cualquier otro
+        };
+
+        $labelCol = match ($nivel) {
+            'taquilla' => 'taquillas.name',
+            'grupo' => 'grupos.name',
+            default => 'bancas.name',
+        };
+
         $filas = $base
-            ->groupBy('bancas.id', 'bancas.name')
+            ->groupBy(...$groupCols)
             ->selectRaw("
-                bancas.name as Banca,
+                {$labelCol} as Entidad,
                 SUM(apuestas.total_bs_equivalent) as Venta,
                 COALESCE(SUM(detalle_apuestas.premio_ganado), 0) as Premio,
                 COUNT(DISTINCT apuestas.id) as Total
@@ -502,7 +518,7 @@ class ApuestaService
             $participacion = $totalVenta > 0 ? round(($venta / $totalVenta) * 100, 2) : 0;
 
             return [
-                'Banca' => $fila->Banca,
+                'Entidad' => $fila->Entidad,
                 'Venta' => $venta,
                 'Premio' => $premio,
                 'Porcentaje' => $porcentaje,

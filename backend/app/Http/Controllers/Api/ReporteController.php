@@ -38,12 +38,7 @@ class ReporteController extends Controller
                 $q->where('banca_id', $user->banca_id);
             });
         } elseif ($user->role === 'master') {
-            // master ve las apuestas de su banca asignada (si tiene una)
-            if ($user->banca_id) {
-                $query->whereHas('taquilla.grupo.banca', function ($q) use ($user) {
-                    $q->where('banca_id', $user->banca_id);
-                });
-            }
+            // master ve todas las bancas que administra (mismo alcance que super_master en reportes)
         }
         // super_master ve todo (sin filtro adicional)
 
@@ -79,11 +74,7 @@ class ReporteController extends Controller
                 $q->where('banca_id', $user->banca_id);
             });
         } elseif ($user->role === 'master') {
-            if ($user->banca_id) {
-                $query->whereHas('taquilla.grupo.banca', function ($q) use ($user) {
-                    $q->where('banca_id', $user->banca_id);
-                });
-            }
+            // master ve todas las bancas que administra
         }
 
         // Filtros de fecha
@@ -110,6 +101,7 @@ class ReporteController extends Controller
         $filters = [
             'tipo_juego' => $request->input('tipo_juego'),
             'moneda' => $request->input('moneda'),
+            'nivel' => $request->input('nivel', 'banca'), // banca, grupo, taquilla
         ];
 
         $data = $this->apuestaService->ventasTotales($query, $filters);
