@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Models\Banca;
 use App\Models\Grupo;
+use App\Models\Juego;
+use App\Models\JuegoLimite;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -112,5 +114,42 @@ class RoleAuthorizationTest extends TestCase
                          ]);
 
         $response->assertStatus(201);
+    }
+
+    public function test_grupo_no_excede_limite_banca()
+    {
+        $master = User::where('email', 'master@lotto.com')->first();
+        $master->assignRole('master');
+
+        $banca = Banca::factory()->create(['name' => 'Banca Test', 'active' => true]);
+        $grupo = Grupo::factory()->create(['name' => 'Grupo Test', 'banca_id' => $banca->id, 'active' => true]);
+
+        $juego = \App\Models\Juego::first();
+        if (!$juego) {
+            $juego = \App\Models\Juego::create(['name' => 'Test', 'slug' => 'test-juego', 'active' => true]);
+        }
+
+        // Configurar límite a nivel banca: max 100 BS
+        JuegoLimite::create([
+            'juego_id' => $juego->id,
+            'banca_id' => $banca->id,
+            'moneda' => 'bs',
+            'grupo_id' => null,
+            'taquilla_id' => null,
+            'limite_maximo' => 100,
+        ]);
+
+        // Intentar configurar límite a nivel grupo con max 200 BS (más permisivo que banca)
+        $response = $this->actingAs($master, 'sanctum')
+            ->putJson('/api/limites/' . $juego->id, [
+                'banca_id' => $banca->id,
+                'grupo_id' => $grupo->id,
+                'moneda' => 'bs',
+                'limite_maximo' => 200,
+            ]);
+
+        $response->assertStatus(422);
+        $content = $response->json('message') ?? $response->getContent();
+        $this->assertStringContainsString('100', $content);
     }
 }
