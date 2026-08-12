@@ -44,6 +44,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     .btn-primary { background: #3b82f6; color: #fff; } .btn-primary:hover { background: #2563eb; }
     .btn-secondary { background: #e2e8f0; color: #333; } .btn-secondary:hover { background: #cbd5e1; }
     .btn-danger { background: #ef4444; color: #fff; } .btn-danger:hover { background: #dc2626; }
+    .btn-success { background: #22c55e; color: #fff; } .btn-success:hover { background: #16a34a; }
     .btn-sm { padding: 4px 10px; font-size: 12px; }
     .loading { text-align: center; padding: 40px; color: #666; }
     .table-wrap { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
@@ -64,7 +65,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     async function load() {
       try { const data = await apiFetch('GET','/bancas?per_page=100'); const items = Array.isArray(data) ? data : (data?.data || []);
         let html = '<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Código</th><th>Creado</th><th>Acciones</th></tr></thead><tbody>';
-        items.forEach(b => { html += `<tr><td><strong>${b.name}</strong></td><td>${b.code}</td><td>${new Date(b.created_at).toLocaleDateString('es-VE')}</td><td class="actions-cell"><button class="btn btn-sm btn-secondary edit-btn" data-id="${b.id}">✏️</button><button class="btn btn-sm btn-danger del-btn" data-id="${b.id}">🗑</button></td></tr>`; });
+        items.forEach(b => { html += `<tr><td><strong>${b.name}</strong></td><td>${b.code}</td><td>${new Date(b.created_at).toLocaleDateString('es-VE')}</td><td class="actions-cell"><button class="btn btn-sm ${b.active?'btn-danger':'btn-success'} toggle-btn" data-id="${b.id}" data-active="${b.active?'1':'0'}" title="${b.active?'Desactivar':'Activar'}">${b.active?'🔴':'🟢'}</button><button class="btn btn-sm btn-secondary edit-btn" data-id="${b.id}">✏️</button><button class="btn btn-sm btn-danger del-btn" data-id="${b.id}">🗑</button></td></tr>`; });
         html += '</tbody></table></div>'; document.getElementById('content').innerHTML = html;
       } catch(e) { document.getElementById('content').innerHTML = '<div class="loading">Error: '+e.message+'</div>'; }
     }
@@ -72,7 +73,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     document.getElementById('btn-create').addEventListener('click',()=>openModal());
     document.getElementById('btn-cancel').addEventListener('click',()=>document.getElementById('modal').style.display='none');
     document.getElementById('modal-form').addEventListener('submit',async(e)=>{e.preventDefault();const f=e.target;const body={name:f.name.value,code:f.code.value,monedas_permitidas:{bs:f.moneda_bs.checked,usd:f.moneda_usd.checked},vigencia_premios:f.vigencia_premios.value?parseInt(f.vigencia_premios.value):null,tiempo_eliminacion:f.tiempo_eliminacion.value?parseInt(f.tiempo_eliminacion.value):null,rif:f.rif.value||null,email:f.email.value||null,telefono:f.telefono.value||null,direccion:f.direccion.value||null,estado:f.estado.value||null,municipio:f.municipio.value||null};if(!editId){body.user_name=f.user_name.value;body.user_email=f.user_email.value;body.user_password=f.user_password.value;}try{if(editId)await apiFetch('PUT','/bancas/'+editId,body);else await apiFetch('POST','/bancas',body);document.getElementById('modal').style.display='none';load();}catch(err){await showModal({message:err.message,type:'error'});}});
-    document.getElementById('content').addEventListener('click',(e)=>{const eb=e.target.closest('.edit-btn');const db=e.target.closest('.del-btn');if(eb){const id=parseInt(eb.dataset.id);apiFetch('GET','/bancas/'+id).then(d=>openModal(d.data||d)).catch(e=>showModal({message:e.message,type:'error'}));}if(db){const id=parseInt(db.dataset.id);showModal({message:'¿Eliminar banca?',type:'confirm'}).then(ok=>{if(!ok)return;apiFetch('DELETE','/bancas/'+id).then(()=>load()).catch(e=>showModal({message:e.message,type:'error'}));});}});
+    document.getElementById('content').addEventListener('click',(e)=>{const eb=e.target.closest('.edit-btn');const db=e.target.closest('.del-btn');const tb=e.target.closest('.toggle-btn');if(eb){const id=parseInt(eb.dataset.id);apiFetch('GET','/bancas/'+id).then(d=>openModal(d.data||d)).catch(e=>showModal({message:e.message,type:'error'}));}if(db){const id=parseInt(db.dataset.id);showModal({message:'¿Eliminar banca?',type:'confirm'}).then(ok=>{if(!ok)return;apiFetch('DELETE','/bancas/'+id).then(()=>load()).catch(e=>showModal({message:e.message,type:'error'}));});}if(tb){const id=parseInt(tb.dataset.id);const activa=tb.dataset.active==='1';showModal({message:activa?'¿Desactivar banca? Sus grupos y agencias quedarán pausados hasta reactivarla.':'¿Activar banca?',type:'confirm'}).then(ok=>{if(!ok)return;apiFetch('PATCH','/bancas/'+id+'/toggle').then(()=>load()).catch(e=>showModal({message:e.message,type:'error'}));});}});
     load();
   </script>
 </AdminLayout>
