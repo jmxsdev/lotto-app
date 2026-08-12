@@ -13,6 +13,8 @@ import AdminLayout from '../layouts/AdminLayout.astro';
       <form id="modal-form">
         <div class="field"><label>Nombre</label><input name="name" required /></div>
         <div class="field"><label>Código</label><input name="code" required /></div>
+        <div class="field"><label>Monedas Permitidas</label><div class="checkbox-group"><label><input type="checkbox" name="moneda_bs" checked /> BS</label><label><input type="checkbox" name="moneda_usd" checked /> USD</label></div></div>
+        <div class="field"><label>Vigencia Premios (días)</label><input name="vigencia_premios" type="number" min="1" /></div>
         <div class="modal-actions">
           <button type="button" class="btn btn-secondary" id="btn-cancel">Cancelar</button>
           <button type="submit" class="btn btn-primary">Guardar</button>
@@ -38,6 +40,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     .field { margin-bottom: 14px; } .field label { display: block; font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px; } .field input { width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px; } .field input:focus { border-color: #3b82f6; outline: none; }
     .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
     .actions-cell { display: flex; gap: 4px; }
+    .checkbox-group { display: flex; gap: 20px; padding-top: 4px; } .checkbox-group label { display: flex; align-items: center; gap: 6px; font-weight: 400; cursor: pointer; } .checkbox-group input[type="checkbox"] { width: auto; margin: 0; }
   </style>
   <script>
     import { apiFetch } from '../utils/api.ts'; import { showModal } from '../utils/modal.ts';
@@ -49,10 +52,10 @@ import AdminLayout from '../layouts/AdminLayout.astro';
         html += '</tbody></table></div>'; document.getElementById('content').innerHTML = html;
       } catch(e) { document.getElementById('content').innerHTML = '<div class="loading">Error: '+e.message+'</div>'; }
     }
-    async function openModal(b=null) { editId = b?.id||null; document.getElementById('modal-title').textContent=b?'Editar Banca':'Nueva Banca'; document.getElementById('modal-form').name.value=b?.name||''; document.getElementById('modal-form').code.value=b?.code||''; document.getElementById('modal').style.display='flex'; }
+    async function openModal(b=null) { editId = b?.id||null; document.getElementById('modal-title').textContent=b?'Editar Banca':'Nueva Banca'; const f=document.getElementById('modal-form'); f.name.value=b?.name||''; f.code.value=b?.code||''; f.vigencia_premios.value=b?.vigencia_premios||''; f.moneda_bs.checked=(b?.monedas_permitidas?.bs??true); f.moneda_usd.checked=(b?.monedas_permitidas?.usd??true); document.getElementById('modal').style.display='flex'; }
     document.getElementById('btn-create').addEventListener('click',()=>openModal());
     document.getElementById('btn-cancel').addEventListener('click',()=>document.getElementById('modal').style.display='none');
-    document.getElementById('modal-form').addEventListener('submit',async(e)=>{e.preventDefault();const f=e.target;const body={name:f.name.value,code:f.code.value};try{if(editId)await apiFetch('PUT','/bancas/'+editId,body);else await apiFetch('POST','/bancas',body);document.getElementById('modal').style.display='none';load();}catch(err){await showModal({message:err.message,type:'error'});}});
+    document.getElementById('modal-form').addEventListener('submit',async(e)=>{e.preventDefault();const f=e.target;const body={name:f.name.value,code:f.code.value,monedas_permitidas:{bs:f.moneda_bs.checked,usd:f.moneda_usd.checked},vigencia_premios:f.vigencia_premios.value?parseInt(f.vigencia_premios.value):null};try{if(editId)await apiFetch('PUT','/bancas/'+editId,body);else await apiFetch('POST','/bancas',body);document.getElementById('modal').style.display='none';load();}catch(err){await showModal({message:err.message,type:'error'});}});
     document.getElementById('content').addEventListener('click',(e)=>{const eb=e.target.closest('.edit-btn');const db=e.target.closest('.del-btn');if(eb){const id=parseInt(eb.dataset.id);apiFetch('GET','/bancas/'+id).then(d=>openModal(d.data||d)).catch(e=>showModal({message:e.message,type:'error'}));}if(db){const id=parseInt(db.dataset.id);showModal({message:'¿Eliminar banca?',type:'confirm'}).then(ok=>{if(!ok)return;apiFetch('DELETE','/bancas/'+id).then(()=>load()).catch(e=>showModal({message:e.message,type:'error'}));});}});
     load();
   </script>

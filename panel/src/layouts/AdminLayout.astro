@@ -211,6 +211,9 @@ const name = user?.name || '';
     // Juegos
     if (['super_master','master'].includes(role)) sidebarNav.appendChild(addLink('Juegos', '/juegos', '🎲'));
 
+    // Límites
+    if (['super_master','master','banca','grupo'].includes(role)) sidebarNav.appendChild(addLink('Límites', '/limites', '🎯'));
+
     // Tasas
     if (['super_master','master'].includes(role)) sidebarNav.appendChild(addLink('Tasas', '/tasas', '💱'));
 
