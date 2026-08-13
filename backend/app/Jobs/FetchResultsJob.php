@@ -4,7 +4,7 @@ namespace App\Jobs;
 
 use App\Models\Log;
 use App\Models\Resultado;
-use App\Plugins\Scrapers\AnimalitosScraper;
+use App\Plugins\Scrapers\LottoActivoAnimalitosScraper;
 use App\Services\ApuestaService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -31,7 +31,7 @@ class FetchResultsJob implements ShouldQueue
         FacadeLog::info("=== INICIO FetchResultsJob para fecha: {$fecha} ===");
 
         try {
-            $scraper = new AnimalitosScraper();
+            $scraper = new LottoActivoAnimalitosScraper();
             $resultados = $scraper->execute($fecha);
             
             if (empty($resultados)) {

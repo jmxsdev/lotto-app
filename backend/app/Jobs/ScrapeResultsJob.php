@@ -115,10 +115,17 @@ class ScrapeResultsJob implements ShouldQueue
         $type = $juego->type;
 
         if (str_contains($url, 'lottoactivo.com')) {
-            return \App\Plugins\Scrapers\AnimalitosScraper::class;
+            if (str_contains($url, 'trio_activo')) {
+                return \App\Plugins\Scrapers\LottoActivoTrioActivoScraper::class;
+            }
+            if (str_contains($url, 'terminal_activo')) {
+                return \App\Plugins\Scrapers\LottoActivoTerminalActivoScraper::class;
+            }
+
+            return \App\Plugins\Scrapers\LottoActivoAnimalitosScraper::class;
         }
         if (str_contains($url, 'triplezulia')) {
-            return \App\Plugins\Scrapers\TripletasScraper::class;
+            return \App\Plugins\Scrapers\TripleZuliaScraper::class;
         }
 
         // Fallback: convention-based by type
@@ -130,11 +137,17 @@ class ScrapeResultsJob implements ShouldQueue
     {
         $url = $juego->scraper_url ?? '';
 
-        if ($class === \App\Plugins\Scrapers\AnimalitosScraper::class) {
+        if ($class === \App\Plugins\Scrapers\LottoActivoTrioActivoScraper::class) {
+            return new \App\Plugins\Scrapers\LottoActivoTrioActivoScraper();
+        }
+        if ($class === \App\Plugins\Scrapers\LottoActivoTerminalActivoScraper::class) {
+            return new \App\Plugins\Scrapers\LottoActivoTerminalActivoScraper();
+        }
+        if ($class === \App\Plugins\Scrapers\LottoActivoAnimalitosScraper::class) {
             $slug = 'animalitos';
             if (str_contains($url, 'trio_activo')) $slug = 'trio_activo';
             if (str_contains($url, 'terminal_activo')) $slug = 'terminal_activo';
-            return new \App\Plugins\Scrapers\AnimalitosScraper($slug);
+            return new \App\Plugins\Scrapers\LottoActivoAnimalitosScraper($slug);
         }
 
         return new $class();

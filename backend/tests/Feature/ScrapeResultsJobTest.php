@@ -25,7 +25,7 @@ class ScrapeResultsJobTest extends TestCase
 
     public function test_resolves_animalitos_scraper_by_convention()
     {
-        $juego = Juego::where('slug', 'animalitos')->first();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
         $this->assertNotNull($juego);
 
         $job = new ScrapeResultsJob($juego->id, '2026-07-23');
@@ -34,8 +34,8 @@ class ScrapeResultsJobTest extends TestCase
         $method = $reflection->getMethod('resolveScraper');
         $method->setAccessible(true);
 
-        $scraperClass = $method->invoke($job, $juego->type);
-        $this->assertEquals(\App\Plugins\Scrapers\AnimalitosScraper::class, $scraperClass);
+        $scraperClass = $method->invoke($job, $juego);
+        $this->assertEquals(\App\Plugins\Scrapers\LottoActivoAnimalitosScraper::class, $scraperClass);
     }
 
     public function test_resolves_triple_zulia_scraper_by_convention()
@@ -49,7 +49,7 @@ class ScrapeResultsJobTest extends TestCase
         $method = $reflection->getMethod('resolveScraper');
         $method->setAccessible(true);
 
-        $scraperClass = $method->invoke($job, $juego->type);
+        $scraperClass = $method->invoke($job, $juego);
         $this->assertEquals(\App\Plugins\Scrapers\TripleZuliaScraper::class, $scraperClass);
     }
 

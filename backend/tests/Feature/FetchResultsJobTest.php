@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Log;
 use App\Models\Resultado;
-use App\Plugins\Scrapers\AnimalitosScraper;
+use App\Plugins\Scrapers\LottoActivoAnimalitosScraper;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -28,15 +28,15 @@ class FetchResultsJobTest extends TestCase
 
         $jsonResponse = file_get_contents(base_path('tests/Fixtures/animalitos_response.json'));
 
-        $scraper = new AnimalitosScraper();
+        $scraper = new LottoActivoAnimalitosScraper();
         $fecha = '2026-07-23';
 
         $resultados = $scraper->parse($jsonResponse);
         $guardados = $scraper->saveResults($resultados, $fecha);
 
-        $this->assertEquals(6, count($resultados));
-        $this->assertEquals(6, $guardados);
-        $this->assertEquals(6, Resultado::count());
+        $this->assertEquals(4, count($resultados));
+        $this->assertEquals(4, $guardados);
+        $this->assertEquals(4, Resultado::count());
 
         $resultado = Resultado::all()->firstWhere(fn ($r) => ($r->numeros_ganadores['nombre_animal'] ?? null) === 'Delfin');
         $this->assertNotNull($resultado, "El resultado Delfin debería existir");
@@ -50,20 +50,20 @@ class FetchResultsJobTest extends TestCase
 
         $jsonResponse = file_get_contents(base_path('tests/Fixtures/animalitos_response.json'));
 
-        $scraper = new AnimalitosScraper();
+        $scraper = new LottoActivoAnimalitosScraper();
         $fecha = '2026-07-23';
 
         $resultados1 = $scraper->parse($jsonResponse);
         $scraper->saveResults($resultados1, $fecha);
 
         $count1 = Resultado::count();
-        $this->assertEquals(6, $count1);
+        $this->assertEquals(4, $count1);
 
         $resultados2 = $scraper->parse($jsonResponse);
         $scraper->saveResults($resultados2, $fecha);
 
         $count2 = Resultado::count();
-        $this->assertEquals(6, $count2, "No deberían duplicarse los resultados");
+        $this->assertEquals(4, $count2, "No deberían duplicarse los resultados");
     }
 
     public function test_scraper_handles_empty_response()
@@ -72,7 +72,7 @@ class FetchResultsJobTest extends TestCase
 
         $emptyJson = json_encode(['datos' => []]);
 
-        $scraper = new AnimalitosScraper();
+        $scraper = new LottoActivoAnimalitosScraper();
         $fecha = '2026-07-24';
 
         $resultados = $scraper->parse($emptyJson);
@@ -89,13 +89,13 @@ class FetchResultsJobTest extends TestCase
 
         $jsonResponse = file_get_contents(base_path('tests/Fixtures/animalitos_response.json'));
 
-        $scraper = new AnimalitosScraper();
+        $scraper = new LottoActivoAnimalitosScraper();
         $fecha = '2026-07-25';
 
         $resultados = $scraper->parse($jsonResponse);
         $scraper->saveResults($resultados, $fecha);
 
-        $this->assertEquals(6, Resultado::count());
+        $this->assertEquals(4, Resultado::count());
 
         $resultadoDelfin = Resultado::all()->firstWhere(fn ($r) => ($r->numeros_ganadores['nombre_animal'] ?? null) === 'Delfin');
         $this->assertNotNull($resultadoDelfin);

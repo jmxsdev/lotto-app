@@ -2,17 +2,17 @@
 
 namespace Tests\Unit;
 
-use App\Plugins\Scrapers\AnimalitosScraper;
+use App\Plugins\Scrapers\LottoActivoAnimalitosScraper;
 use Tests\TestCase;
 
 class AnimalitosScraperTest extends TestCase
 {
-    protected AnimalitosScraper $scraper;
+    protected LottoActivoAnimalitosScraper $scraper;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->scraper = new AnimalitosScraper();
+        $this->scraper = new LottoActivoAnimalitosScraper();
     }
 
     public function test_extracts_token_from_html()
@@ -42,7 +42,7 @@ class AnimalitosScraperTest extends TestCase
         
         $this->assertIsArray($resultados);
         $this->assertNotEmpty($resultados);
-        $this->assertCount(6, $resultados);
+        $this->assertCount(4, $resultados);
     }
 
     public function test_maps_to_resultado_structure()

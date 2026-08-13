@@ -2,6 +2,8 @@
 
 namespace App\Plugins\Scrapers;
 
+use App\Models\Juego;
+use App\Models\Resultado;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Support\Facades\Log;
@@ -118,6 +120,48 @@ abstract class BaseScraper
     protected function createCrawler(string $html): Crawler
     {
         return new Crawler($html);
+    }
+
+    /**
+     * Shared result persistence: upsert by game, date, and draw time.
+     */
+    public function saveResults(array $resultados, string $fecha): int
+    {
+        $guardados = 0;
+
+        foreach ($resultados as $resultadoData) {
+            $resultadoData['fecha_sorteo'] = $fecha;
+
+            $existing = Resultado::where('juego_id', $resultadoData['juego_id'])
+                ->whereDate('fecha_sorteo', $fecha)
+                ->where('hora_sorteo', $resultadoData['hora_sorteo'])
+                ->first();
+
+            if ($existing) {
+                $existing->update($resultadoData);
+                $this->logInfo("Resultado actualizado: {$resultadoData['hora_sorteo']}");
+            } else {
+                Resultado::create($resultadoData);
+                $this->logInfo("Resultado creado: {$resultadoData['hora_sorteo']}");
+            }
+
+            $guardados++;
+        }
+
+        return $guardados;
+    }
+
+    /**
+     * Business payout multiplier: game config wins, otherwise the scraper
+     * registry default. Never hardcoded in scraper classes.
+     */
+    protected function defaultMultiplier(?Juego $juego = null): int
+    {
+        if ($juego && isset($juego->config['premio_multiplo'])) {
+            return (int) $juego->config['premio_multiplo'];
+        }
+
+        return (int) config('scrapers.default_multiplier', 30);
     }
 
     protected function logInfo(string $message, array $context = []): void

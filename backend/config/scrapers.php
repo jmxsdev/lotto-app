@@ -22,7 +22,7 @@ return [
             'retries' => 3,
             'backoff' => 300,
             'games' => [
-                'animalitos' => [
+                'lotto-activo' => [
                     'class' => \App\Plugins\Scrapers\LottoActivoAnimalitosScraper::class,
                     'page_slug' => 'animalitos',
                 ],
@@ -70,6 +70,7 @@ return [
     |
     */
 
+    'default_multiplier' => 30,
     'retries' => 3,
     'backoff' => 300,
 

@@ -82,11 +82,11 @@ final class ScraperRegistry
         $type = $juego->type;
 
         if (str_contains($url, 'lottoactivo.com')) {
-            return new ScraperEntry('legacy', AnimalitosScraper::class, 'animalitos', $juego->slug, 30, 3, 300);
+            return new ScraperEntry('legacy', LottoActivoAnimalitosScraper::class, 'animalitos', $juego->slug, 30, 3, 300);
         }
 
         if (str_contains($url, 'triplezulia')) {
-            return new ScraperEntry('legacy', TripletasScraper::class, 'triplezulia', $juego->slug, 30, 3, 300);
+            return new ScraperEntry('legacy', TripleZuliaScraper::class, 'triplezulia', $juego->slug, 30, 3, 300);
         }
 
         $class = 'App\\Plugins\\Scrapers\\'.Str::studly($type).'Scraper';
