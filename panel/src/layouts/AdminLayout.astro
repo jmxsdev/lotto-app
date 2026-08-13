@@ -214,8 +214,8 @@ const name = user?.name || '';
     // Rendimiento — todos los roles
     sidebarNav.appendChild(addLink('Rendimiento', '/rendimiento', '📈'));
 
-    // Límites
-    if (['super_master','master','banca','grupo'].includes(role)) sidebarNav.appendChild(addLink('Límites', '/limites', '🎯'));
+    // Límites — vista de auditoría de solo lectura, únicamente super_master
+    if (role === 'super_master') sidebarNav.appendChild(addLink('Límites', '/limites', '🎯'));
 
     // Cuadre de caja
     if (['super_master','master','banca','grupo'].includes(role)) sidebarNav.appendChild(addLink('Cuadre de Caja', '/cuadre', '💰'));

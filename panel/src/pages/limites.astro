@@ -4,7 +4,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
 
 <AdminLayout>
   <div class="page">
-    <div class="page-header"><h2 class="page-title">Límites por Juego</h2><button class="btn btn-primary" id="btn-create">+ Nuevo límite</button></div>
+    <div class="page-header"><h2 class="page-title">Límites por Juego</h2></div>
 
     <div class="filters">
       <div class="field">
@@ -18,82 +18,37 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     </div>
 
     <div id="content"><div class="loading">Seleccione un juego para ver sus límites.</div></div>
-
-    <div class="section-header" style="margin-top:24px">
-      <h3>Configuración Rápida por Lote</h3>
-      <button class="btn btn-secondary btn-sm" id="btn-batch-toggle">Mostrar</button>
-    </div>
-    <div id="batch-section" style="display:none;margin-top:12px;">
-      <div class="field"><label>Juego</label><select id="batch-juego"><option value="">Seleccione...</option></select></div>
-      <div class="field"><label>Banca</label><select id="batch-banca"><option value="">Seleccione...</option></select></div>
-      <div id="batch-fields"></div>
-      <button class="btn btn-primary" id="btn-batch-save" style="margin-top:12px">Guardar Lote</button>
-    </div>
-  </div>
-
-  <div class="modal-overlay" id="modal" style="display:none">
-    <div class="modal-card">
-      <h3 id="modal-title">Configurar Límite</h3>
-      <form id="modal-form">
-        <div class="field"><label>Moneda</label><select name="moneda" required><option value="bs">BS</option><option value="usd">USD</option></select></div>
-        <div class="field"><label>Nivel</label><select name="nivel" id="modal-nivel"><option value="banca">Banca</option><option value="grupo">Grupo</option><option value="taquilla">Agencia</option></select></div>
-        <div class="field" id="modal-banca-field"><label>Banca</label><select name="banca_id"></select></div>
-        <div class="field" id="modal-grupo-field" style="display:none"><label>Grupo</label><select name="grupo_id"></select></div>
-        <div class="field" id="modal-taquilla-field" style="display:none"><label>Agencia</label><select name="taquilla_id"></select></div>
-        <div class="field"><label>Límite Mínimo</label><input name="limite_minimo" type="number" step="0.01" min="0" /></div>
-        <div class="field"><label>Límite Máximo</label><input name="limite_maximo" type="number" step="0.01" min="0" /></div>
-        <div class="field"><label>% Pago</label><input name="porcentaje_pago" type="number" step="0.01" min="0" max="100" /></div>
-        <div class="field"><label>% Participación</label><input name="participacion" type="number" step="0.01" min="0" max="100" /></div>
-        <div class="field"><label>Fracción</label><select name="fraccion"><option value="0">No</option><option value="1">Sí</option></select></div>
-        <div class="field"><label>Límite Tiempo (min)</label><input name="limite_tiempo" type="number" min="1" /></div>
-        <div class="modal-actions">
-          <button type="button" class="btn btn-secondary" id="btn-cancel">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Guardar</button>
-        </div>
-      </form>
-    </div>
   </div>
 
   <style is:global>
     .page { max-width: 1000px; }
     .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
     .page-title { font-size: 24px; font-weight: 700; color: #1e293b; }
-    .btn { padding: 8px 16px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .15s; }
-    .btn-primary { background: #3b82f6; color: #fff; } .btn-primary:hover { background: #2563eb; }
-    .btn-secondary { background: #e2e8f0; color: #333; } .btn-secondary:hover { background: #cbd5e1; }
-    .btn-danger { background: #ef4444; color: #fff; } .btn-danger:hover { background: #dc2626; }
-    .btn-sm { padding: 4px 10px; font-size: 12px; }
-    .btn-xs { padding: 2px 8px; font-size: 11px; }
     .loading { text-align: center; padding: 40px; color: #666; }
     .filters { display: flex; gap: 16px; margin-bottom: 16px; }
     .field { margin-bottom: 14px; } .field label { display: block; font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px; }
-    .field input, .field select { width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px; } .field input:focus, .field select:focus { border-color: #3b82f6; outline: none; }
+    .field select { width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px; } .field select:focus { border-color: #3b82f6; outline: none; }
     .table-wrap { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
     table { width: 100%; border-collapse: collapse; } th { background: #f1f5f9; padding: 10px 12px; text-align: left; font-size: 12px; font-weight: 600; color: #666; text-transform: uppercase; } td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; } tr:hover td { background: #f8fafc; }
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 9999; }
-    .modal-card { background: #fff; border-radius: 12px; padding: 28px; width: 480px; max-width: 95%; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 30px rgba(0,0,0,0.2); }
-    .modal-card h3 { margin-bottom: 20px; font-size: 18px; }
-    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
-    .actions-cell { display: flex; gap: 4px; }
-    .section-header { display: flex; justify-content: space-between; align-items: center; }
-    .section-header h3 { font-size: 16px; color: #1e293b; }
-    .batch-row { display: flex; gap: 8px; align-items: flex-end; padding: 8px; background: #f8fafc; border-radius: 8px; margin-bottom: 8px; }
-    .batch-row .field { margin-bottom: 0; min-width: 130px; }
     .moneda-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
     .moneda-bs { background: #dbeafe; color: #1e40af; } .moneda-usd { background: #dcfce7; color: #166534; }
   </style>
 
   <script>
-    import { apiFetch } from '../utils/api.ts'; import { showModal } from '../utils/modal.ts';
+    import { apiFetch, getStoredUser } from '../utils/api.ts';
 
     let currentJuegoId = null;
     let currentBancaId = null;
     let juegos = [];
     let bancas = [];
-    let grupos = [];
-    let taquillas = [];
-    let limitesCache = {};
-    let editId = null;
+
+    const user = getStoredUser();
+    if (user?.role !== 'super_master') {
+      document.getElementById('content').innerHTML = '<div class="loading">Sin acceso: la vista de límites es solo para super_master.</div>';
+    } else {
+      loadJuegos();
+      loadBancas();
+    }
 
     async function loadJuegos() {
       try {
@@ -102,7 +57,6 @@ import AdminLayout from '../layouts/AdminLayout.astro';
         const s = document.getElementById('filter-juego');
         s.innerHTML = '<option value="">Seleccione un juego...</option>';
         juegos.forEach(j => s.innerHTML += `<option value="${j.id}">${j.name}</option>`);
-        document.getElementById('batch-juego').innerHTML = s.innerHTML;
       } catch (_) {}
     }
 
@@ -111,34 +65,9 @@ import AdminLayout from '../layouts/AdminLayout.astro';
         const data = await apiFetch('GET', '/bancas?per_page=100');
         bancas = Array.isArray(data) ? data : (data?.data || []);
       } catch (_) { bancas = []; }
-      // Roles banca/grupo no pueden listar bancas: derivar de la sesión
-      if (!bancas.length) {
-        const currentUser = JSON.parse(localStorage.getItem('panel_user') || '{}');
-        if (currentUser.banca_id) bancas = [{ id: currentUser.banca_id, name: 'Mi Banca' }];
-      }
       const s = document.getElementById('filter-banca');
       s.innerHTML = '<option value="">Todas</option>';
       bancas.forEach(b => s.innerHTML += `<option value="${b.id}">${b.name}</option>`);
-      document.getElementById('batch-banca').innerHTML = '<option value="">Seleccione...</option>' + bancas.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
-      const mb = document.querySelector('#modal-form [name="banca_id"]');
-      mb.innerHTML = '<option value="">Seleccione...</option>';
-      bancas.forEach(b => mb.innerHTML += `<option value="${b.id}">${b.name}</option>`);
-    }
-
-    async function loadGrupos(bancaId) {
-      if (!bancaId) { grupos = []; return; }
-      try {
-        const data = await apiFetch('GET', '/grupos?per_page=100');
-        grupos = (Array.isArray(data) ? data : (data?.data || [])).filter(g => g.banca_id == bancaId);
-      } catch (_) { grupos = []; }
-    }
-
-    async function loadTaquillas(grupoId) {
-      if (!grupoId) { taquillas = []; return; }
-      try {
-        const data = await apiFetch('GET', '/taquillas?per_page=100');
-        taquillas = (Array.isArray(data) ? data : (data?.data || [])).filter(t => t.grupo_id == grupoId);
-      } catch (_) { taquillas = []; }
     }
 
     async function loadLimites() {
@@ -150,12 +79,11 @@ import AdminLayout from '../layouts/AdminLayout.astro';
         const data = await apiFetch('GET', '/limites/' + currentJuegoId);
         const items = Array.isArray(data) ? data : (data?.data || []);
         const filtered = currentBancaId ? items.filter(l => l.banca_id == currentBancaId) : items;
-        limitesCache = Object.fromEntries(filtered.map(l => [l.id, l]));
         if (filtered.length === 0) {
           document.getElementById('content').innerHTML = '<div class="loading">No hay límites configurados para este juego.</div>';
           return;
         }
-        let html = '<div class="table-wrap"><table><thead><tr><th>Banca</th><th>Grupo</th><th>Agencia</th><th>Moneda</th><th>Mín</th><th>Máx</th><th>%Pago</th><th>%Part</th><th>Fracc</th><th>Tiempo</th><th>Acciones</th></tr></thead><tbody>';
+        let html = '<div class="table-wrap"><table><thead><tr><th>Banca</th><th>Grupo</th><th>Agencia</th><th>Moneda</th><th>Mín</th><th>Máx</th><th>%Pago</th><th>%Part</th><th>Fracc</th><th>Tiempo</th></tr></thead><tbody>';
         filtered.forEach(l => {
           html += `<tr>
             <td>${l.banca?.name||'-'}</td>
@@ -164,7 +92,6 @@ import AdminLayout from '../layouts/AdminLayout.astro';
             <td><span class="moneda-badge moneda-${l.moneda}">${l.moneda.toUpperCase()}</span></td>
             <td>${l.limite_minimo??'-'}</td><td>${l.limite_maximo??'-'}</td><td>${l.porcentaje_pago??'-'}</td><td>${l.participacion??'-'}</td>
             <td>${l.fraccion?'Sí':'No'}</td><td>${l.limite_tiempo??'-'}</td>
-            <td class="actions-cell"><button class="btn btn-sm btn-secondary edit-btn" data-id="${l.id}">✏️</button><button class="btn btn-sm btn-danger del-btn" data-id="${l.id}">🗑</button></td>
           </tr>`;
         });
         html += '</tbody></table></div>';
@@ -173,77 +100,6 @@ import AdminLayout from '../layouts/AdminLayout.astro';
         document.getElementById('content').innerHTML = '<div class="loading">Error: ' + e.message + '</div>';
       }
     }
-
-    async function openModal(limite = null) {
-      editId = limite?.id || null;
-      document.getElementById('modal-title').textContent = limite ? 'Editar Límite' : 'Nuevo Límite';
-      const f = document.getElementById('modal-form');
-      f.moneda.value = limite?.moneda || 'bs';
-      f.limite_minimo.value = limite?.limite_minimo ?? '';
-      f.limite_maximo.value = limite?.limite_maximo ?? '';
-      f.porcentaje_pago.value = limite?.porcentaje_pago ?? '';
-      f.participacion.value = limite?.participacion ?? '';
-      f.fraccion.value = limite?.fraccion ? '1' : '0';
-      f.limite_tiempo.value = limite?.limite_tiempo ?? '';
-
-      const nivel = limite?.taquilla_id ? 'taquilla' : (limite?.grupo_id ? 'grupo' : 'banca');
-      document.getElementById('modal-nivel').value = nivel;
-      updateNivelUI();
-
-      const selBanca = limite?.banca_id ? String(limite.banca_id) : (currentBancaId || '');
-      const selGrupo = limite?.grupo_id ? String(limite.grupo_id) : '';
-      const selTaq = limite?.taquilla_id ? String(limite.taquilla_id) : '';
-
-      f.banca_id.value = selBanca;
-      await loadGruposForModal(selBanca);
-      f.grupo_id.value = selGrupo;
-      await loadTaquillasForModal(selGrupo);
-      f.taquilla_id.value = selTaq;
-
-      document.getElementById('modal').style.display = 'flex';
-    }
-
-    function updateNivelUI() {
-      const nivel = document.getElementById('modal-nivel').value;
-      document.getElementById('modal-banca-field').style.display = '';
-      document.getElementById('modal-grupo-field').style.display = (nivel === 'grupo' || nivel === 'taquilla') ? '' : 'none';
-      document.getElementById('modal-taquilla-field').style.display = nivel === 'taquilla' ? '' : 'none';
-    }
-
-    async function loadGruposForModal(bancaId) {
-      await loadGrupos(bancaId);
-      const sg = document.querySelector('#modal-form [name="grupo_id"]');
-      sg.innerHTML = '<option value="">Seleccione...</option>';
-      grupos.forEach(g => sg.innerHTML += `<option value="${g.id}">${g.name}</option>`);
-    }
-
-    async function loadTaquillasForModal(grupoId) {
-      await loadTaquillas(grupoId);
-      const st = document.querySelector('#modal-form [name="taquilla_id"]');
-      st.innerHTML = '<option value="">Seleccione...</option>';
-      taquillas.forEach(t => st.innerHTML += `<option value="${t.id}">${t.name}</option>`);
-    }
-
-    document.getElementById('modal-nivel').addEventListener('change', function() {
-      const f = document.getElementById('modal-form');
-      updateNivelUI();
-      if (this.value === 'grupo' || this.value === 'taquilla') loadGruposForModal(f.banca_id.value);
-      if (this.value === 'taquilla') loadTaquillasForModal(f.grupo_id.value);
-    });
-
-    document.querySelector('#modal-form [name="banca_id"]').addEventListener('change', function() {
-      const f = document.getElementById('modal-form');
-      f.grupo_id.value = '';
-      f.taquilla_id.value = '';
-      loadGruposForModal(this.value);
-      loadTaquillasForModal('');
-    });
-
-    document.querySelector('#modal-form [name="grupo_id"]').addEventListener('change', function() {
-      const f = document.getElementById('modal-form');
-      f.taquilla_id.value = '';
-      loadTaquillasForModal(this.value);
-    });
 
     document.getElementById('filter-juego').addEventListener('change', function() {
       currentJuegoId = this.value;
@@ -254,116 +110,5 @@ import AdminLayout from '../layouts/AdminLayout.astro';
       currentBancaId = this.value;
       loadLimites();
     });
-
-    document.getElementById('btn-cancel').addEventListener('click', () => document.getElementById('modal').style.display = 'none');
-
-    document.getElementById('modal-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const f = e.target;
-      const nivel = f.nivel.value;
-      const body = {
-        banca_id: f.banca_id.value,
-        moneda: f.moneda.value,
-        limite_minimo: f.limite_minimo.value || null,
-        limite_maximo: f.limite_maximo.value || null,
-        porcentaje_pago: f.porcentaje_pago.value || null,
-        participacion: f.participacion.value || null,
-        fraccion: f.fraccion.value === '1',
-        limite_tiempo: f.limite_tiempo.value || null,
-      };
-      if (nivel === 'grupo' && f.grupo_id.value) body.grupo_id = f.grupo_id.value;
-      if (nivel === 'taquilla') { if (f.grupo_id.value) body.grupo_id = f.grupo_id.value; if (f.taquilla_id.value) body.taquilla_id = f.taquilla_id.value; }
-
-      try {
-        await apiFetch('PUT', '/limites/' + currentJuegoId, body);
-        document.getElementById('modal').style.display = 'none';
-        loadLimites();
-      } catch(err) {
-        await showModal({ message: err.message, type: 'error' });
-      }
-    });
-
-    document.getElementById('btn-create').addEventListener('click', async () => {
-      if (!currentJuegoId) {
-        await showModal({ message: 'Seleccione un juego para crear un límite.', type: 'error' });
-        return;
-      }
-      openModal(null);
-    });
-
-    document.getElementById('content').addEventListener('click', (e) => {
-      const eb = e.target.closest('.edit-btn');
-      const db = e.target.closest('.del-btn');
-      if (eb) {
-        const id = parseInt(eb.dataset.id);
-        const limite = limitesCache[id];
-        if (limite) openModal(limite);
-      }
-      if (db) {
-        const id = parseInt(db.dataset.id);
-        showModal({ message: '¿Eliminar este límite?', type: 'confirm' }).then(ok => {
-          if (!ok) return;
-          apiFetch('DELETE', '/limites/' + id)
-            .then(() => loadLimites())
-            .catch(err => showModal({ message: err.message, type: 'error' }));
-        });
-      }
-    });
-
-    // Batch section toggle
-    document.getElementById('btn-batch-toggle').addEventListener('click', function() {
-      const s = document.getElementById('batch-section');
-      const visible = s.style.display !== 'none';
-      s.style.display = visible ? 'none' : '';
-      this.textContent = visible ? 'Mostrar' : 'Ocultar';
-    });
-
-    document.getElementById('btn-batch-save').addEventListener('click', async () => {
-      const juegoId = document.getElementById('batch-juego').value;
-      const bancaId = document.getElementById('batch-banca').value;
-      if (!juegoId || !bancaId) {
-        await showModal({ message: 'Seleccione juego y banca.', type: 'error' });
-        return;
-      }
-      // Collect batch data: BS and USD limits
-      const limites = [];
-      ['bs', 'usd'].forEach(moneda => {
-        limites.push({
-          juego_id: parseInt(juegoId),
-          banca_id: parseInt(bancaId),
-          moneda: moneda,
-          limite_minimo: parseFloat(document.getElementById(`batch-min-${moneda}`)?.value) || null,
-          limite_maximo: parseFloat(document.getElementById(`batch-max-${moneda}`)?.value) || null,
-          porcentaje_pago: parseFloat(document.getElementById(`batch-pago-${moneda}`)?.value) || null,
-          participacion: parseFloat(document.getElementById(`batch-part-${moneda}`)?.value) || null,
-          fraccion: document.getElementById(`batch-fracc-${moneda}`)?.value === '1',
-          limite_tiempo: parseInt(document.getElementById(`batch-tiempo-${moneda}`)?.value) || null,
-        });
-      });
-      try {
-        await apiFetch('POST', '/limites/batch', { limites });
-        await showModal({ message: 'Límites guardados correctamente.', type: 'info' });
-      } catch(err) {
-        await showModal({ message: err.message, type: 'error' });
-      }
-    });
-
-    document.getElementById('batch-banca').addEventListener('change', function() {
-      const m = ['bs', 'usd'];
-      document.getElementById('batch-fields').innerHTML = m.map(mon => `
-        <div class="batch-row" style="border-left: 3px solid ${mon==='bs'?'#3b82f6':'#16a34a'};padding-left:12px">
-          <strong style="min-width:40px">${mon.toUpperCase()}</strong>
-          <div class="field"><label>Mín</label><input id="batch-min-${mon}" type="number" step="0.01" /></div>
-          <div class="field"><label>Máx</label><input id="batch-max-${mon}" type="number" step="0.01" /></div>
-          <div class="field"><label>%Pago</label><input id="batch-pago-${mon}" type="number" step="0.01" /></div>
-          <div class="field"><label>%Part</label><input id="batch-part-${mon}" type="number" step="0.01" /></div>
-          <div class="field"><label>Frac</label><select id="batch-fracc-${mon}"><option value="0">No</option><option value="1">Sí</option></select></div>
-          <div class="field"><label>Tiempo</label><input id="batch-tiempo-${mon}" type="number" /></div>
-        </div>
-      `).join('');
-    });
-
-    loadJuegos();
-    loadBancas();
   </script>
 </AdminLayout>
