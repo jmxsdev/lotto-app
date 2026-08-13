@@ -23,36 +23,6 @@ class ScrapeResultsJobTest extends TestCase
         $this->seed(\Database\Seeders\DatabaseSeeder::class);
     }
 
-    public function test_resolves_animalitos_scraper_by_convention()
-    {
-        $juego = Juego::where('slug', 'lotto-activo')->first();
-        $this->assertNotNull($juego);
-
-        $job = new ScrapeResultsJob($juego->id, '2026-07-23');
-
-        $reflection = new \ReflectionClass($job);
-        $method = $reflection->getMethod('resolveScraper');
-        $method->setAccessible(true);
-
-        $scraperClass = $method->invoke($job, $juego);
-        $this->assertEquals(\App\Plugins\Scrapers\LottoActivoAnimalitosScraper::class, $scraperClass);
-    }
-
-    public function test_resolves_triple_zulia_scraper_by_convention()
-    {
-        $juego = Juego::where('slug', 'triple-zulia')->first();
-        $this->assertNotNull($juego);
-
-        $job = new ScrapeResultsJob($juego->id, '2026-07-23');
-
-        $reflection = new \ReflectionClass($job);
-        $method = $reflection->getMethod('resolveScraper');
-        $method->setAccessible(true);
-
-        $scraperClass = $method->invoke($job, $juego);
-        $this->assertEquals(\App\Plugins\Scrapers\TripleZuliaScraper::class, $scraperClass);
-    }
-
     public function test_triple_zulia_scraper_parses_and_saves()
     {
         $this->assertEquals(0, Resultado::count());

@@ -3,20 +3,22 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Jobs\ScrapeResultsJob;
 use App\Models\Juego;
 use App\Models\Resultado;
 use App\Services\ApuestaService;
+use App\Services\ScrapeRunner;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class ResultadoController extends Controller
 {
     protected ApuestaService $apuestaService;
+    protected ScrapeRunner $scrapeRunner;
 
-    public function __construct(ApuestaService $apuestaService)
+    public function __construct(ApuestaService $apuestaService, ScrapeRunner $scrapeRunner)
     {
         $this->apuestaService = $apuestaService;
+        $this->scrapeRunner = $scrapeRunner;
     }
 
     public function index(Request $request)
@@ -69,7 +71,7 @@ class ResultadoController extends Controller
         $resultados = [];
 
         foreach ($juegos as $juego) {
-            $resultados[$juego->name] = $this->runScraperForJuego($juego->id, $fecha);
+            $resultados[$juego->name] = $this->runScraperForJuego($juego, $fecha);
         }
 
         return response()->json([
@@ -96,7 +98,7 @@ class ResultadoController extends Controller
         $resultados = [];
 
         foreach ($juegos as $juego) {
-            $resultados[$juego->name] = $this->runScraperForJuego($juego->id, $fecha);
+            $resultados[$juego->name] = $this->runScraperForJuego($juego, $fecha);
         }
 
         return response()->json([
@@ -107,27 +109,43 @@ class ResultadoController extends Controller
         ]);
     }
 
-    protected function runScraperForJuego(int $juegoId, string $fecha): array
+    /**
+     * Manual reprocess of a terminally failed (dead-letter) scrape.
+     */
+    public function reprocess(Request $request)
+    {
+        $request->validate([
+            'juego_id' => 'required|integer|exists:juegos,id',
+            'fecha' => 'nullable|date',
+        ]);
+
+        $juego = Juego::findOrFail($request->input('juego_id'));
+        $fecha = $request->input('fecha', now()->format('Y-m-d'));
+
+        $resultado = $this->runScraperForJuego($juego, $fecha, reprocess: true);
+
+        return response()->json([
+            'message' => 'Scraper reprocesado',
+            'fecha' => $fecha,
+            'resultado' => $resultado,
+        ]);
+    }
+
+    protected function runScraperForJuego(Juego $juego, string $fecha, bool $reprocess = false): array
     {
         try {
-            $job = new ScrapeResultsJob($juegoId, $fecha);
-            $job->handle();
-
-            $ultimosResultados = Resultado::where('juego_id', $juegoId)
-                ->whereDate('fecha_sorteo', $fecha)
-                ->get();
-
-            $ganadorasTotales = 0;
-            foreach ($ultimosResultados as $resultado) {
-                $ganadorasTotales += $this->apuestaService->verificarGanadores($resultado);
-            }
+            $salida = $reprocess
+                ? $this->scrapeRunner->reprocess($juego, $fecha)
+                : $this->scrapeRunner->run($juego, $fecha);
 
             return [
-                'status' => 'ok',
-                'ganadoras_detectadas' => $ganadorasTotales,
+                'status' => $salida['status'],
+                'guardados' => $salida['guardados'] ?? 0,
+                'ganadoras_detectadas' => $salida['ganadoras_detectadas'] ?? 0,
             ];
-        } catch (\Exception $e) {
-            Log::error("Error scraping juego_id {$juegoId}: " . $e->getMessage());
+        } catch (\Throwable $e) {
+            Log::error("Error scraping juego_id {$juego->id}: ".$e->getMessage());
+
             return [
                 'status' => 'error',
                 'error' => $e->getMessage(),
