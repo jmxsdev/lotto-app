@@ -14,11 +14,19 @@ use Illuminate\Validation\ValidationException;
 class UserController extends Controller
 {
     /**
-     * Listar usuarios (filtrados según jerarquía)
+     * Listar usuarios (filtrados según jerarquía y opcionalmente por entidad).
+     * GET /api/users?banca_id=&grupo_id=&taquilla_id=
      */
     public function index(Request $request)
     {
         $user = $request->user();
+
+        $filtros = $request->validate([
+            'banca_id' => 'nullable|integer|exists:bancas,id',
+            'grupo_id' => 'nullable|integer|exists:grupos,id',
+            'taquilla_id' => 'nullable|integer|exists:taquillas,id',
+        ]);
+
         $query = User::query();
 
         // Super Master ve todos
@@ -56,6 +64,21 @@ class UserController extends Controller
         // Otros roles no pueden listar usuarios
         else {
             return response()->json(['message' => 'No tienes permisos para ver usuarios.'], 403);
+        }
+
+        // Filtros explícitos por entidad (validados previamente).
+        // Se aplican DESPUÉS del alcance jerárquico: intersectan, nunca amplían.
+        // Un filtro fuera del alcance del rol devuelve lista vacía (no hay fuga de datos).
+        if (isset($filtros['banca_id'])) {
+            $query->where('banca_id', $filtros['banca_id']);
+        }
+
+        if (isset($filtros['grupo_id'])) {
+            $query->where('grupo_id', $filtros['grupo_id']);
+        }
+
+        if (isset($filtros['taquilla_id'])) {
+            $query->where('taquilla_id', $filtros['taquilla_id']);
         }
 
         $users = $query->with('banca', 'grupo', 'taquilla', 'roles')->get();
