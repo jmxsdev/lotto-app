@@ -146,8 +146,8 @@ class JuegoController extends Controller
 
     /**
      * Listar límites de un juego, filtrados por jerarquía del usuario
-     * y opcionalmente por grupo o taquilla.
-     * GET /api/limites/{juego}?grupo_id=&taquilla_id=
+     * y opcionalmente por banca, grupo o taquilla.
+     * GET /api/limites/{juego}?banca_id=&grupo_id=&taquilla_id=
      */
     public function limites(Request $request, Juego $juego)
     {
@@ -158,6 +158,7 @@ class JuegoController extends Controller
         }
 
         $filtros = $request->validate([
+            'banca_id' => 'nullable|integer|exists:bancas,id',
             'grupo_id' => 'nullable|integer|exists:grupos,id',
             'taquilla_id' => 'nullable|integer|exists:taquillas,id',
         ]);
@@ -180,7 +181,12 @@ class JuegoController extends Controller
             });
         }
 
-        // Filtros explícitos por grupo o taquilla (validados previamente)
+        // Filtros explícitos por banca, grupo o taquilla (validados previamente).
+        // Se aplican DESPUÉS del alcance jerárquico: intersectan, nunca amplían.
+        if (isset($filtros['banca_id'])) {
+            $query->where('banca_id', $filtros['banca_id']);
+        }
+
         if (isset($filtros['grupo_id'])) {
             $query->where('grupo_id', $filtros['grupo_id']);
         }

@@ -14,7 +14,7 @@ use Tests\TestCase;
 /**
  * PR 5 — juego-limites.
  *
- * GET /api/limites/{juego} acepta filtros grupo_id/taquilla_id manteniendo
+ * GET /api/limites/{juego} acepta filtros banca_id/grupo_id/taquilla_id manteniendo
  * el alcance jerárquico. DELETE /api/limites/{limite} elimina con 404 para
  * inexistentes y autorización jerárquica (banca solo su banca).
  */
@@ -164,6 +164,55 @@ class LimitesApiTest extends TestCase
         $ids = collect($response->json())->pluck('taquilla_id')->all();
 
         $this->assertEquals([$taquilla->id], $ids);
+    }
+
+    public function test_limites_filtro_banca_id_retorna_solo_esa_banca()
+    {
+        $juego = $this->juegoNuevo();
+        $banca = $this->bancaSeeded();
+
+        // Límite de la banca sembrada (debe aparecer)
+        $this->crearLimite($juego, ['limite_maximo' => 100]);
+
+        // Límite de otra banca (no debe aparecer)
+        $otraBanca = Banca::create(['name' => 'Banca Ajena F', 'code' => 'BAF01', 'created_by' => $this->superUser()->id]);
+        $this->crearLimite($juego, ['banca_id' => $otraBanca->id, 'limite_maximo' => 25]);
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->getJson('/api/limites/' . $juego->id . '?banca_id=' . $banca->id);
+
+        $response->assertStatus(200);
+
+        $ids = collect($response->json())->pluck('banca_id')->all();
+
+        $this->assertEquals([$banca->id], $ids);
+    }
+
+    public function test_limites_filtro_banca_id_banca_no_ve_otra()
+    {
+        $juego = $this->juegoNuevo();
+
+        // Límite de una banca ajena (la del usuario banca@lotto.com es BT001)
+        $otraBanca = Banca::create(['name' => 'Banca Ajena G', 'code' => 'BAG01', 'created_by' => $this->superUser()->id]);
+        $this->crearLimite($juego, ['banca_id' => $otraBanca->id, 'limite_maximo' => 25]);
+
+        // El filtro no puede ampliar el alcance: un usuario banca no ve límites de otra banca
+        $response = $this->actingAs($this->bancaUser(), 'sanctum')
+            ->getJson('/api/limites/' . $juego->id . '?banca_id=' . $otraBanca->id);
+
+        $response->assertStatus(200);
+        $this->assertEmpty($response->json());
+    }
+
+    public function test_limites_filtro_invalido_422()
+    {
+        $juego = $this->juegoNuevo();
+
+        $response = $this->actingAs($this->masterUser(), 'sanctum')
+            ->getJson('/api/limites/' . $juego->id . '?banca_id=999999');
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors('banca_id');
     }
 
     public function test_get_limites_con_filtro_respeta_el_alcance_jerarquico()
