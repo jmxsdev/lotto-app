@@ -34,10 +34,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
 Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
 
     // ==================================================
-    // USUARIOS (jerárquico: banca/grupo solo dentro de su alcance;
-    // destroy restringido a super_master|master en el controlador)
+    // USUARIOS (jerárquico: banca/grupo solo dentro de su alcance,
+    // taquilla solo se ve a sí misma; destroy restringido a
+    // super_master|master en el controlador)
     // ==================================================
-    Route::middleware(['role:super_master|master|banca|grupo'])->group(function () {
+    Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
         Route::apiResource('users', UserController::class);
     });
 

@@ -61,6 +61,10 @@ class UserController extends Controller
                     ->orWhereHas('taquilla', fn ($t) => $t->where('grupo_id', $user->grupo_id));
             });
         }
+        // Taquilla solo se ve a sí misma
+        elseif ($user->hasRole('taquilla')) {
+            $query->where('id', $user->id);
+        }
         // Otros roles no pueden listar usuarios
         else {
             return response()->json(['message' => 'No tienes permisos para ver usuarios.'], 403);
