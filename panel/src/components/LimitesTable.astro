@@ -1,0 +1,87 @@
+---
+// Componente compartido: tabla configurable de límites (juego × moneda).
+// El contenedor expone la instancia creada para que la página la use:
+// window.__limitesTabla = { montar, pintar, buscar, guardar, hayCambios }
+interface Props {
+  modo: 'entidad' | 'scope';
+  tipoEntidad?: 'banca' | 'grupo' | 'taquilla';
+  entidadId?: number;
+  alcanceTipo?: 'banca' | 'grupo' | 'taquilla';
+  alcanceId?: number;
+  mostrarOrigen?: boolean;
+  filasPorPagina?: number;
+}
+
+const {
+  modo,
+  tipoEntidad,
+  entidadId,
+  alcanceTipo,
+  alcanceId,
+  mostrarOrigen = false,
+  filasPorPagina = 15,
+} = Astro.props;
+---
+
+<div
+  id="limites-table"
+  data-modo={modo}
+  data-tipo-entidad={tipoEntidad || ''}
+  data-entidad-id={entidadId || ''}
+  data-alcance-tipo={alcanceTipo || ''}
+  data-alcance-id={alcanceId || ''}
+  data-mostrar-origen={mostrarOrigen ? '1' : '0'}
+  data-filas-pagina={filasPorPagina}
+>
+  <div class="loading">Cargando límites...</div>
+</div>
+
+<style is:global>
+  .pag-wrap { display: flex; gap: 6px; align-items: center; justify-content: center; padding: 10px 0; flex-wrap: wrap; }
+  .pag-btn { padding: 5px 10px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; font-size: 13px; cursor: pointer; }
+  .pag-btn:hover:not(:disabled) { background: #f1f5f9; }
+  .pag-btn:disabled { opacity: 0.4; cursor: default; }
+  .pag-activa { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+  .origen-tag { font-size: 11px; color: #64748b; font-style: italic; }
+</style>
+
+<script>
+  import { crearTablaLimites } from '../utils/limites.ts';
+  import { apiFetch } from '../utils/api.ts';
+
+  const contenedor = document.getElementById('limites-table');
+  if (contenedor) {
+    const modo = contenedor.dataset.modo as 'entidad' | 'scope';
+    const tipoEntidad = contenedor.dataset.tipoEntidad || undefined;
+    const entidadId = contenedor.dataset.entidadId ? parseInt(contenedor.dataset.entidadId, 10) : undefined;
+    const alcanceTipo = contenedor.dataset.alcanceTipo || undefined;
+    const alcanceId = contenedor.dataset.alcanceId ? parseInt(contenedor.dataset.alcanceId, 10) : undefined;
+    const mostrarOrigen = contenedor.dataset.mostrarOrigen === '1';
+    const filasPorPagina = parseInt(contenedor.dataset.filasPagina || '15', 10);
+
+    const tabla = crearTablaLimites({
+      modo,
+      tipoEntidad,
+      entidadId,
+      alcance: alcanceTipo && alcanceId ? { tipo: alcanceTipo as any, id: alcanceId } : null,
+      mostrarOrigen,
+      filasPorPagina,
+      cargarDatos: async () => {
+        if (modo === 'scope') {
+          const scope = alcanceTipo ? alcanceTipo + 's' : 'bancas';
+          const data = await apiFetch('GET', '/limites?scope=' + scope);
+          return data?.data || { juegos: [], limites: {} };
+        }
+        const nivel = tipoEntidad + '_id';
+        const data = await apiFetch('GET', '/limites?' + nivel + '=' + entidadId);
+        return data?.data || { juegos: [], limites: {} };
+      },
+      guardar: async (payload) => {
+        return apiFetch('POST', '/limites/batch', payload);
+      },
+    });
+
+    tabla.montar(contenedor);
+    (window as any).__limitesTabla = tabla;
+  }
+</script>
