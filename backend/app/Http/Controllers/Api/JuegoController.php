@@ -246,11 +246,22 @@ class JuegoController extends Controller
         ], fn ($valor) => $valor !== null);
 
         if ($scope !== null) {
-            if (count($entidad) > 0) {
-                abort(422, 'No puede combinar el parámetro scope con banca_id, grupo_id o taquilla_id.');
+            // Modo scope con raíz opcional (mini-alcance de pestañas):
+            // scope=grupos&banca_id=X | scope=taquillas&banca_id=X | scope=taquillas&grupo_id=Y
+            $raiz = null;
+            if (count($entidad) === 1) {
+                if ($scope === 'bancas') {
+                    abort(422, 'El alcance de bancas no admite filtro de entidad raíz.');
+                }
+                $raiz = [
+                    'tipo' => str_replace('_id', '', (string) array_key_first($entidad)),
+                    'id' => (int) reset($entidad),
+                ];
+            } elseif (count($entidad) > 1) {
+                abort(422, 'Solo puede combinar scope con un único filtro de entidad raíz.');
             }
 
-            return $this->listarLimitesPorScope($user, $scope);
+            return $this->listarLimitesPorScope($user, $scope, $raiz);
         }
 
         if (count($entidad) !== 1) {
@@ -423,11 +434,15 @@ class JuegoController extends Controller
         $objetivos = null;
 
         if ($scope) {
-            // Modo scope por tipo (plural, sin id): todas las entidades visibles
-            // del tipo para el rol. Modo scope con raíz (singular + id): fan-out
-            // de esa entidad hacia sus descendientes.
+            // Modo scope por tipo (plural): sin id = todas las entidades del tipo
+            // visibles para el rol; con id = intersección por raíz (mini-alcance):
+            //   grupos+id(banca) → grupos de esa banca
+            //   taquillas+id(banca) → agencias de esa banca
+            //   taquillas+id(grupo) → agencias de ese grupo
+            // Modo scope con raíz singular (banca/grupo/taquilla + id): fan-out
+            // de esa entidad hacia sus descendientes (banca → grupos+agencias).
             if (in_array($scope['tipo'], ['bancas', 'grupos', 'taquillas'])) {
-                $objetivos = $this->expandirTipoAlcance($user, $scope['tipo']);
+                $objetivos = $this->expandirTipoAlcance($user, $scope['tipo'], !empty($scope['id']) ? (int) $scope['id'] : null);
             } else {
                 if (empty($scope['id'])) {
                     return response()->json([
@@ -484,15 +499,25 @@ class JuegoController extends Controller
     }
 
     /**
-     * Expandir un alcance por tipo (plural, sin id): TODAS las entidades del
-     * tipo visibles para el rol (mismo alcance que GET /limites?scope=X).
-     * super_master/master → todas; banca → su banca/grupos/agencias; grupo → su grupo/agencias.
+     * Expandir un alcance por tipo (plural). Sin id: TODAS las entidades del
+     * tipo visibles para el rol. Con id (raíz): intersección por raíz para el
+     * mini-alcance de las pestañas de entidad:
+     *   grupos + id(banca) → grupos de esa banca
+     *   taquillas + id(banca) → agencias de esa banca
+     *   taquillas + id(grupo) → agencias de ese grupo
      *
      * @return array<int, array{nivel: string, id: int}>
      */
-    private function expandirTipoAlcance($user, string $tipo): array
+    private function expandirTipoAlcance($user, string $tipo, ?int $raizId = null): array
     {
         $singular = rtrim($tipo, 's'); // bancas→banca, grupos→grupo, taquillas→taquilla
+
+        if ($raizId !== null) {
+            // Intersección por raíz: primero el alcance de rol, luego la raíz.
+            $entidades = $this->entidadesVisiblesPorTipo($user, $singular, $this->resolverRaiz($singular, $tipo, $raizId));
+
+            return $this->objetivosDesdeEntidades($entidades, $singular);
+        }
 
         if ($singular === 'banca') {
             $ids = $user->role === 'banca' ? [$user->banca_id] : Banca::pluck('id');
@@ -520,6 +545,46 @@ class JuegoController extends Controller
         $objetivos = collect($ids)
             ->filter()
             ->map(fn ($id) => ['nivel' => $singular, 'id' => (int) $id])
+            ->values()
+            ->all();
+
+        if (count($objetivos) > 500) {
+            abort(422, 'El alcance supera las 500 entidades. Reduzca el nivel de configuración.');
+        }
+
+        return $objetivos;
+    }
+
+    /**
+     * Resolver la raíz de un alcance plural con id: para grupos la raíz es una
+     * banca; para taquillas puede ser una banca o un grupo (se infiere).
+     */
+    private function resolverRaiz(string $singular, string $tipo, int $raizId): ?array
+    {
+        if ($singular === 'grupo') {
+            return ['tipo' => 'banca', 'id' => $raizId];
+        }
+
+        if ($singular === 'taquilla') {
+            if (Banca::whereKey($raizId)->exists()) {
+                return ['tipo' => 'banca', 'id' => $raizId];
+            }
+            if (Grupo::whereKey($raizId)->exists()) {
+                return ['tipo' => 'grupo', 'id' => $raizId];
+            }
+            abort(422, 'La raíz del alcance de agencias debe ser una banca o un grupo.');
+        }
+
+        return null;
+    }
+
+    /**
+     * Convertir entidades visibles en objetivos {nivel, id} con guard de escala.
+     */
+    private function objetivosDesdeEntidades($entidades, string $singular): array
+    {
+        $objetivos = $entidades
+            ->map(fn ($entidad) => ['nivel' => $singular, 'id' => (int) $entidad->id])
             ->values()
             ->all();
 
@@ -820,10 +885,10 @@ class JuegoController extends Controller
      * entidad); las celdas sin fila propia quedan null. `mixto` marca cada
      * juego×moneda donde unas entidades tienen fila propia y otras no.
      */
-    private function listarLimitesPorScope($user, string $scope): JsonResponse
+    private function listarLimitesPorScope($user, string $scope, ?array $raiz = null): JsonResponse
     {
         $tipo = substr($scope, 0, -1); // bancas → banca, grupos → grupo, taquillas → taquilla
-        $entidades = $this->entidadesVisiblesPorTipo($user, $tipo);
+        $entidades = $this->entidadesVisiblesPorTipo($user, $tipo, $raiz);
         $ids = $entidades->pluck('id');
 
         $juegos = Juego::where('active', true)->orderBy('id')->get(['id', 'name', 'slug']);
@@ -884,7 +949,7 @@ class JuegoController extends Controller
      * master ven todas; banca solo las de su propia cadena (su banca, sus
      * grupos y sus agencias); grupo solo su grupo, su banca y sus agencias.
      */
-    private function entidadesVisiblesPorTipo($user, string $tipo): Collection
+    private function entidadesVisiblesPorTipo($user, string $tipo, ?array $raiz = null): Collection
     {
         $query = match ($tipo) {
             'banca' => Banca::query(),
@@ -908,6 +973,19 @@ class JuegoController extends Controller
             } else {
                 $query->where('grupo_id', $user->grupo_id);
             }
+        }
+
+        // Intersección con raíz (mini-alcance de las pestañas de entidad):
+        // scope=grupos&banca_id=X → grupos de la banca X; scope=taquillas&banca_id=X
+        // → agencias de la banca X; scope=taquillas&grupo_id=Y → agencias del grupo Y.
+        if ($raiz !== null && $raiz['tipo'] === 'banca') {
+            if ($tipo === 'grupo') {
+                $query->where('banca_id', $raiz['id']);
+            } elseif ($tipo === 'taquilla') {
+                $query->whereHas('grupo', fn ($q) => $q->where('banca_id', $raiz['id']));
+            }
+        } elseif ($raiz !== null && $raiz['tipo'] === 'grupo' && $tipo === 'taquilla') {
+            $query->where('grupo_id', $raiz['id']);
         }
 
         return $query->orderBy('id')->get(['id', 'name']);

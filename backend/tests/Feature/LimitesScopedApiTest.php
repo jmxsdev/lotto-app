@@ -775,4 +775,90 @@ class LimitesScopedApiTest extends TestCase
 
         $response->assertStatus(422);
     }
+
+    public function test_scope_grupos_con_raiz_banca_solo_esos_grupos()
+    {
+        $banca = $this->bancaSeeded();
+        $grupo = $this->grupoSeeded();
+
+        // Otro grupo de la MISMA banca
+        $otroGrupo = Grupo::create([
+            'name' => 'Grupo 2',
+            'code' => 'GT002',
+            'banca_id' => $banca->id,
+            'created_by' => $this->superUser()->id,
+        ]);
+
+        // Grupo de OTRA banca (no debe aparecer)
+        $otraBanca = Banca::create(['name' => 'Banca Sur', 'code' => 'BSZ01', 'created_by' => $this->superUser()->id]);
+        Grupo::create(['name' => 'Grupo Sur', 'code' => 'GSZ01', 'banca_id' => $otraBanca->id, 'created_by' => $this->superUser()->id]);
+
+        $response = $this->actingAs($this->masterUser(), 'sanctum')
+            ->getJson('/api/limites?scope=grupos&banca_id=' . $banca->id);
+
+        $response->assertStatus(200);
+
+        $data = $response->json('data');
+        $ids = collect($data['entidades'])->pluck('id')->all();
+        $this->assertContains($grupo->id, $ids);
+        $this->assertContains($otroGrupo->id, $ids);
+        $this->assertNotContains($otraBanca->id, $ids); // la otra banca no es grupo
+        $this->assertCount(2, $data['entidades']);
+    }
+
+    public function test_scope_taquillas_con_raiz_grupo_solo_esas_agencias()
+    {
+        $grupo = $this->grupoSeeded();
+        $taquilla = $this->taquillaSeeded();
+
+        $response = $this->actingAs($this->masterUser(), 'sanctum')
+            ->getJson('/api/limites?scope=taquillas&grupo_id=' . $grupo->id);
+
+        $response->assertStatus(200);
+
+        $data = $response->json('data');
+        $ids = collect($data['entidades'])->pluck('id')->all();
+        $this->assertContains($taquilla->id, $ids);
+    }
+
+    public function test_batch_scope_grupos_con_raiz_banca()
+    {
+        $banca = $this->bancaSeeded();
+        $grupo = $this->grupoSeeded();
+        $lotto = $this->juegoLotto();
+
+        // scope plural con id: grupos de la banca (sin la banca misma, sin agencias)
+        $response = $this->actingAs($this->masterUser(), 'sanctum')
+            ->postJson('/api/limites/batch', [
+                'scope' => ['tipo' => 'grupos', 'id' => $banca->id],
+                'limites' => [
+                    ['juego_id' => $lotto->id, 'moneda' => 'bs', 'limite_maximo' => 950],
+                ],
+            ]);
+
+        $response->assertStatus(201);
+
+        $this->assertDatabaseHas('juego_limites', ['juego_id' => $lotto->id, 'moneda' => 'bs', 'grupo_id' => $grupo->id, 'taquilla_id' => null, 'limite_maximo' => 950]);
+        // La banca NO recibe fila en este alcance
+        $this->assertDatabaseMissing('juego_limites', ['juego_id' => $lotto->id, 'moneda' => 'bs', 'banca_id' => $banca->id, 'grupo_id' => null, 'limite_maximo' => 950]);
+    }
+
+    public function test_batch_scope_taquillas_con_raiz_banca()
+    {
+        $banca = $this->bancaSeeded();
+        $taquilla = $this->taquillaSeeded();
+        $lotto = $this->juegoLotto();
+
+        $response = $this->actingAs($this->masterUser(), 'sanctum')
+            ->postJson('/api/limites/batch', [
+                'scope' => ['tipo' => 'taquillas', 'id' => $banca->id],
+                'limites' => [
+                    ['juego_id' => $lotto->id, 'moneda' => 'bs', 'limite_maximo' => 850],
+                ],
+            ]);
+
+        $response->assertStatus(201);
+
+        $this->assertDatabaseHas('juego_limites', ['juego_id' => $lotto->id, 'moneda' => 'bs', 'taquilla_id' => $taquilla->id, 'limite_maximo' => 850]);
+    }
 }
