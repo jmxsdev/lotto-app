@@ -146,6 +146,9 @@ Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
     // ==================================================
     // GET: super_master, master, banca, grupo
     Route::middleware(['role:super_master|master|banca|grupo'])->group(function () {
+        // GET /api/limites (modo entidad): matriz completa de una entidad
+        // (el conteo de segmentos lo desambigua de /limites/{juego})
+        Route::get('/limites', [JuegoController::class, 'listarLimites']);
         Route::get('/limites/{juego}', [JuegoController::class, 'limites']);
     });
 
