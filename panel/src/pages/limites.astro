@@ -4,111 +4,170 @@ import AdminLayout from '../layouts/AdminLayout.astro';
 
 <AdminLayout>
   <div class="page">
-    <div class="page-header"><h2 class="page-title">Límites por Juego</h2></div>
+    <div class="page-header">
+      <h2 class="page-title">Límites — Configuración General</h2>
+    </div>
 
     <div class="filters">
       <div class="field">
-        <label>Juego</label>
-        <select id="filter-juego"><option value="">Seleccione un juego...</option></select>
+        <label>Aplicar a</label>
+        <select id="filtro-alcance">
+          <option value="bancas">Todas las bancas</option>
+          <option value="grupos">Todos los grupos</option>
+          <option value="taquillas">Todas las agencias</option>
+        </select>
       </div>
-      <div class="field">
-        <label>Banca</label>
-        <select id="filter-banca"><option value="">Todas</option></select>
+      <div class="field search">
+        <label>Buscar juego</label>
+        <input type="text" id="filtro-busqueda" placeholder="Nombre del juego..." />
       </div>
+      <div id="impacto" class="impacto"></div>
     </div>
 
-    <div id="content"><div class="loading">Seleccione un juego para ver sus límites.</div></div>
+    <div id="tabla-container"><div class="loading">Cargando límites...</div></div>
+
+    <div class="acciones">
+      <button class="btn btn-primary" id="btn-guardar">💾 Guardar cambios</button>
+      <span id="estado-guardado" class="estado"></span>
+    </div>
   </div>
 
   <style is:global>
-    .page { max-width: 1000px; }
+    .page { max-width: 1200px; }
     .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
     .page-title { font-size: 24px; font-weight: 700; color: #1e293b; }
+    .filters { display: flex; gap: 16px; margin-bottom: 16px; align-items: flex-end; flex-wrap: wrap; }
+    .field { margin-bottom: 0; } .field label { display: block; font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px; }
+    .field select, .field input { padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px; }
+    .field select:focus, .field input:focus { border-color: #3b82f6; outline: none; }
+    .field.search input { width: 240px; }
+    .impacto { font-size: 13px; color: #64748b; padding-bottom: 10px; }
+    .acciones { display: flex; gap: 12px; align-items: center; margin-top: 16px; }
+    .btn { padding: 8px 16px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .btn-primary { background: #3b82f6; color: #fff; } .btn-primary:hover { background: #2563eb; }
+    .btn:disabled { opacity: 0.5; cursor: default; }
+    .estado { font-size: 13px; color: #16a34a; }
     .loading { text-align: center; padding: 40px; color: #666; }
-    .filters { display: flex; gap: 16px; margin-bottom: 16px; }
-    .field { margin-bottom: 14px; } .field label { display: block; font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px; }
-    .field select { width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px; } .field select:focus { border-color: #3b82f6; outline: none; }
     .table-wrap { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-    table { width: 100%; border-collapse: collapse; } th { background: #f1f5f9; padding: 10px 12px; text-align: left; font-size: 12px; font-weight: 600; color: #666; text-transform: uppercase; } td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; } tr:hover td { background: #f8fafc; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #f1f5f9; padding: 10px 12px; text-align: left; font-size: 12px; font-weight: 600; color: #666; text-transform: uppercase; }
+    td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+    tr:hover td { background: #f8fafc; }
+    td input[type="number"] { width: 90px; padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 13px; }
+    td input[type="number"]:focus { border-color: #3b82f6; outline: none; }
     .moneda-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
     .moneda-bs { background: #dbeafe; color: #1e40af; } .moneda-usd { background: #dcfce7; color: #166534; }
+    .pag-wrap { display: flex; gap: 6px; align-items: center; justify-content: center; padding: 10px 0; flex-wrap: wrap; }
+    .pag-btn { padding: 5px 10px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; font-size: 13px; cursor: pointer; }
+    .pag-btn:hover:not(:disabled) { background: #f1f5f9; }
+    .pag-btn:disabled { opacity: 0.4; cursor: default; }
+    .pag-activa { background: #3b82f6; color: #fff; border-color: #3b82f6; }
   </style>
 
   <script>
     import { apiFetch, getStoredUser } from '../utils/api.ts';
-
-    let currentJuegoId = null;
-    let currentBancaId = null;
-    let juegos = [];
-    let bancas = [];
+    import { crearTablaLimites } from '../utils/limites.ts';
 
     const user = getStoredUser();
-    if (user?.role !== 'super_master') {
-      document.getElementById('content').innerHTML = '<div class="loading">Sin acceso: la vista de límites es solo para super_master.</div>';
+    const rol = user?.role;
+    const alcanceSelect = document.getElementById('filtro-alcance');
+    const busquedaInput = document.getElementById('filtro-busqueda');
+    const impacto = document.getElementById('impacto');
+    const btnGuardar = document.getElementById('btn-guardar');
+    const estado = document.getElementById('estado-guardado');
+    const contenedor = document.getElementById('tabla-container');
+
+    let alcanceActual = 'bancas';
+    let tabla = null;
+
+    // Filtrado por rol: super_master/master ven las 3 opciones; banca sus grupos/agencias; grupo solo agencias
+    if (rol === 'banca') {
+      alcanceSelect.innerHTML = '<option value="grupos">Todos mis grupos</option><option value="taquillas">Todas mis agencias</option>';
+      alcanceActual = 'grupos';
+    } else if (rol === 'grupo') {
+      alcanceSelect.innerHTML = '<option value="taquillas">Todas mis agencias</option>';
+      alcanceActual = 'taquillas';
+    }
+
+    const puedeConfigurar = ['super_master', 'master', 'banca', 'grupo'].includes(rol);
+    if (!puedeConfigurar) {
+      contenedor.innerHTML = '<div class="loading">Sin acceso a la configuración de límites.</div>';
+      btnGuardar.disabled = true;
     } else {
-      loadJuegos();
-      loadBancas();
-    }
-
-    async function loadJuegos() {
-      try {
-        const data = await apiFetch('GET', '/juegos');
-        juegos = Array.isArray(data) ? data : (data?.data || []);
-        const s = document.getElementById('filter-juego');
-        s.innerHTML = '<option value="">Seleccione un juego...</option>';
-        juegos.forEach(j => s.innerHTML += `<option value="${j.id}">${j.name}</option>`);
-      } catch (_) {}
-    }
-
-    async function loadBancas() {
-      try {
-        const data = await apiFetch('GET', '/bancas?per_page=100');
-        bancas = Array.isArray(data) ? data : (data?.data || []);
-      } catch (_) { bancas = []; }
-      const s = document.getElementById('filter-banca');
-      s.innerHTML = '<option value="">Todas</option>';
-      bancas.forEach(b => s.innerHTML += `<option value="${b.id}">${b.name}</option>`);
-    }
-
-    async function loadLimites() {
-      if (!currentJuegoId) {
-        document.getElementById('content').innerHTML = '<div class="loading">Seleccione un juego para ver sus límites.</div>';
-        return;
-      }
-      try {
-        const data = await apiFetch('GET', '/limites/' + currentJuegoId);
-        const items = Array.isArray(data) ? data : (data?.data || []);
-        const filtered = currentBancaId ? items.filter(l => l.banca_id == currentBancaId) : items;
-        if (filtered.length === 0) {
-          document.getElementById('content').innerHTML = '<div class="loading">No hay límites configurados para este juego.</div>';
-          return;
+      // Leer alcance inicial de la URL (?scope=)
+      const params = new URLSearchParams(window.location.search);
+      const scopeInicial = params.get('scope');
+      if (scopeInicial && ['bancas', 'grupos', 'taquillas'].includes(scopeInicial)) {
+        const opciones = Array.from(alcanceSelect.options).map(o => o.value);
+        if (opciones.includes(scopeInicial)) {
+          alcanceSelect.value = scopeInicial;
+          alcanceActual = scopeInicial;
         }
-        let html = '<div class="table-wrap"><table><thead><tr><th>Banca</th><th>Grupo</th><th>Agencia</th><th>Moneda</th><th>Mín</th><th>Máx</th><th>%Pago</th><th>%Part</th><th>Fracc</th><th>Tiempo</th></tr></thead><tbody>';
-        filtered.forEach(l => {
-          html += `<tr>
-            <td>${l.banca?.name||'-'}</td>
-            <td>${l.grupo?.name||'-'}</td>
-            <td>${l.taquilla?.name||'-'}</td>
-            <td><span class="moneda-badge moneda-${l.moneda}">${l.moneda.toUpperCase()}</span></td>
-            <td>${l.limite_minimo??'-'}</td><td>${l.limite_maximo??'-'}</td><td>${l.porcentaje_pago??'-'}</td><td>${l.participacion??'-'}</td>
-            <td>${l.fraccion?'Sí':'No'}</td><td>${l.limite_tiempo??'-'}</td>
-          </tr>`;
-        });
-        html += '</tbody></table></div>';
-        document.getElementById('content').innerHTML = html;
-      } catch(e) {
-        document.getElementById('content').innerHTML = '<div class="loading">Error: ' + e.message + '</div>';
       }
+      montarTabla();
     }
 
-    document.getElementById('filter-juego').addEventListener('change', function() {
-      currentJuegoId = this.value;
-      loadLimites();
+    function montarTabla() {
+      contenedor.innerHTML = '<div class="loading">Cargando límites...</div>';
+      impacto.textContent = '';
+      estado.textContent = '';
+      btnGuardar.disabled = false;
+
+      tabla = crearTablaLimites({
+        modo: 'scope',
+        alcance: null, // el alcance por tipo se maneja en cargarDatos/guardar
+        filasPorPagina: 15,
+        cargarDatos: async () => {
+          const data = await apiFetch('GET', '/limites?scope=' + alcanceActual);
+          const resultado = data?.data || { juegos: [], limites: {} };
+          // Indicador de impacto: cuántas entidades del tipo se afectarán
+          const n = (resultado.entidades || []).length;
+          const etiqueta = alcanceActual === 'bancas' ? 'bancas' : alcanceActual === 'grupos' ? 'grupos' : 'agencias';
+          impacto.textContent = n > 0 ? `Se aplicará a ${n} ${etiqueta}.` : 'No hay entidades en este alcance.';
+          return resultado;
+        },
+        guardar: async (payload) => {
+          const body = {
+            scope: { tipo: alcanceActual },
+            limites: payload.limites,
+          };
+          return apiFetch('POST', '/limites/batch', body);
+        },
+      });
+
+      tabla.montar(contenedor);
+    }
+
+    alcanceSelect.addEventListener('change', () => {
+      alcanceActual = alcanceSelect.value;
+      // Actualizar URL sin recargar
+      const params = new URLSearchParams(window.location.search);
+      params.set('scope', alcanceActual);
+      history.replaceState(null, '', '?' + params.toString());
+      montarTabla();
     });
 
-    document.getElementById('filter-banca').addEventListener('change', function() {
-      currentBancaId = this.value;
-      loadLimites();
+    busquedaInput.addEventListener('input', () => {
+      if (tabla) tabla.buscar(busquedaInput.value);
+    });
+
+    btnGuardar.addEventListener('click', async () => {
+      if (!tabla || !tabla.hayCambios()) {
+        estado.textContent = 'No hay cambios para guardar.';
+        return;
+      }
+      btnGuardar.disabled = true;
+      estado.textContent = 'Guardando...';
+      try {
+        await tabla.guardar();
+        estado.textContent = '✅ Límites guardados.';
+        montarTabla(); // recargar para reflejar valores actuales
+      } catch (e) {
+        estado.textContent = '';
+        alert('Error: ' + e.message);
+      } finally {
+        btnGuardar.disabled = false;
+      }
     });
   </script>
 </AdminLayout>

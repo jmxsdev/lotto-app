@@ -403,8 +403,8 @@ class JuegoController extends Controller
 
         $request->validate([
             'scope' => 'nullable|array',
-            'scope.tipo' => 'required_with:scope|in:banca,grupo,taquilla',
-            'scope.id' => 'required_with:scope|integer|min:1',
+            'scope.tipo' => 'required_with:scope|in:banca,grupo,taquilla,bancas,grupos,taquillas',
+            'scope.id' => 'nullable|integer|min:1',
             'limites' => 'required|array|min:1',
             'limites.*.juego_id' => 'required|exists:juegos,id',
             'limites.*.banca_id' => 'nullable|exists:bancas,id',
@@ -423,6 +423,20 @@ class JuegoController extends Controller
         $objetivos = null;
 
         if ($scope) {
+            // Modo scope por tipo (plural, sin id): todas las entidades visibles
+            // del tipo para el rol. Modo scope con raíz (singular + id): fan-out
+            // de esa entidad hacia sus descendientes.
+            if (in_array($scope['tipo'], ['bancas', 'grupos', 'taquillas'])) {
+                $objetivos = $this->expandirTipoAlcance($user, $scope['tipo']);
+            } else {
+                if (empty($scope['id'])) {
+                    return response()->json([
+                        'message' => 'El scope con tipo singular requiere un id de entidad.',
+                    ], 422);
+                }
+                $objetivos = $this->expandirAlcance($user, $scope['tipo'], (int) $scope['id']);
+            }
+
             // Modo scope: los ítems NO llevan entidades explícitas
             foreach ($request->limites as $item) {
                 if (isset($item['banca_id']) || isset($item['grupo_id']) || isset($item['taquilla_id'])) {
@@ -431,8 +445,6 @@ class JuegoController extends Controller
                     ], 422);
                 }
             }
-
-            $objetivos = $this->expandirAlcance($user, $scope['tipo'], (int) $scope['id']);
         }
 
         $resultados = [];
@@ -469,6 +481,53 @@ class JuegoController extends Controller
         });
 
         return response()->json($resultados, 201);
+    }
+
+    /**
+     * Expandir un alcance por tipo (plural, sin id): TODAS las entidades del
+     * tipo visibles para el rol (mismo alcance que GET /limites?scope=X).
+     * super_master/master → todas; banca → su banca/grupos/agencias; grupo → su grupo/agencias.
+     *
+     * @return array<int, array{nivel: string, id: int}>
+     */
+    private function expandirTipoAlcance($user, string $tipo): array
+    {
+        $singular = rtrim($tipo, 's'); // bancas→banca, grupos→grupo, taquillas→taquilla
+
+        if ($singular === 'banca') {
+            $ids = $user->role === 'banca' ? [$user->banca_id] : Banca::pluck('id');
+            if ($user->role === 'grupo') {
+                $ids = [$user->banca_id];
+            }
+        } elseif ($singular === 'grupo') {
+            if (in_array($user->role, ['super_master', 'master'])) {
+                $ids = Grupo::pluck('id');
+            } elseif ($user->role === 'banca') {
+                $ids = Grupo::where('banca_id', $user->banca_id)->pluck('id');
+            } else {
+                $ids = [$user->grupo_id];
+            }
+        } else { // taquilla
+            if (in_array($user->role, ['super_master', 'master'])) {
+                $ids = Taquilla::pluck('id');
+            } elseif ($user->role === 'banca') {
+                $ids = Taquilla::whereHas('grupo', fn ($q) => $q->where('banca_id', $user->banca_id))->pluck('id');
+            } else {
+                $ids = Taquilla::where('grupo_id', $user->grupo_id)->pluck('id');
+            }
+        }
+
+        $objetivos = collect($ids)
+            ->filter()
+            ->map(fn ($id) => ['nivel' => $singular, 'id' => (int) $id])
+            ->values()
+            ->all();
+
+        if (count($objetivos) > 500) {
+            abort(422, 'El alcance supera las 500 entidades. Reduzca el nivel de configuración.');
+        }
+
+        return $objetivos;
     }
 
     /**

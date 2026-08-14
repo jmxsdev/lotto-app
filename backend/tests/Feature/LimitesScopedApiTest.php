@@ -738,4 +738,41 @@ class LimitesScopedApiTest extends TestCase
         // Rollback: no debe quedar la fila del grupo
         $this->assertDatabaseMissing('juego_limites', ['juego_id' => $lotto->id, 'moneda' => 'bs', 'grupo_id' => $grupo->id]);
     }
+
+    public function test_batch_scope_tipo_plural_todas_las_agencias()
+    {
+        $taquilla = $this->taquillaSeeded();
+        $lotto = $this->juegoLotto();
+
+        // scope tipo plural sin id: todas las agencias visibles para master
+        $response = $this->actingAs($this->masterUser(), 'sanctum')
+            ->postJson('/api/limites/batch', [
+                'scope' => ['tipo' => 'taquillas'],
+                'limites' => [
+                    ['juego_id' => $lotto->id, 'moneda' => 'bs', 'limite_maximo' => 800],
+                ],
+            ]);
+
+        $response->assertStatus(201);
+
+        // La agencia sembrada TT001 recibe la fila
+        $this->assertDatabaseHas('juego_limites', [
+            'juego_id' => $lotto->id, 'moneda' => 'bs', 'taquilla_id' => $taquilla->id, 'limite_maximo' => 800,
+        ]);
+    }
+
+    public function test_batch_scope_tipo_singular_sin_id_422()
+    {
+        $lotto = $this->juegoLotto();
+
+        $response = $this->actingAs($this->masterUser(), 'sanctum')
+            ->postJson('/api/limites/batch', [
+                'scope' => ['tipo' => 'taquilla'],
+                'limites' => [
+                    ['juego_id' => $lotto->id, 'moneda' => 'bs', 'limite_maximo' => 800],
+                ],
+            ]);
+
+        $response->assertStatus(422);
+    }
 }
