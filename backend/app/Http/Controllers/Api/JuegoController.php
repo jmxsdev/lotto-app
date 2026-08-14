@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Banca;
 use App\Models\Grupo;
 use App\Models\Juego;
 use App\Models\JuegoAuditoria;
@@ -10,7 +11,9 @@ use App\Models\JuegoLimite;
 use App\Models\PluginJuego;
 use App\Models\Taquilla;
 use App\Services\JuegoPluginManager;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
@@ -211,6 +214,12 @@ class JuegoController extends Controller
      * celdas sin fila propia se resuelve el origen heredado del nivel
      * superior (taquilla → grupo → banca). El alcance del rol se aplica
      * primero: los filtros intersectan, nunca amplían.
+     *
+     * Modo scope: GET /api/limites?scope=bancas|grupos|taquillas (XOR con
+     * los filtros de entidad) devuelve la matriz de TODAS las entidades del
+     * tipo visibles para el rol, indexada por "entidad_id:juego_id:moneda",
+     * con `mixto` para marcar juego×moneda donde las entidades difieren en
+     * si tienen fila propia. Sin origen en este modo.
      */
     public function listarLimites(Request $request)
     {
@@ -224,14 +233,25 @@ class JuegoController extends Controller
             'banca_id' => 'nullable|integer|exists:bancas,id',
             'grupo_id' => 'nullable|integer|exists:grupos,id',
             'taquilla_id' => 'nullable|integer|exists:taquillas,id',
+            'scope' => 'nullable|in:bancas,grupos,taquillas',
         ]);
 
-        // XOR: exactamente un filtro de entidad
+        $scope = $filtros['scope'] ?? null;
+
+        // XOR: modo scope (un tipo) vs modo entidad (un filtro)
         $entidad = array_filter([
             'banca_id' => $filtros['banca_id'] ?? null,
             'grupo_id' => $filtros['grupo_id'] ?? null,
             'taquilla_id' => $filtros['taquilla_id'] ?? null,
         ], fn ($valor) => $valor !== null);
+
+        if ($scope !== null) {
+            if (count($entidad) > 0) {
+                abort(422, 'No puede combinar el parámetro scope con banca_id, grupo_id o taquilla_id.');
+            }
+
+            return $this->listarLimitesPorScope($user, $scope);
+        }
 
         if (count($entidad) !== 1) {
             abort(422, 'Debe indicar exactamente uno de banca_id, grupo_id o taquilla_id.');
@@ -573,6 +593,106 @@ class JuegoController extends Controller
             JuegoLimite::where('taquilla_id', $entidadId)->get(),
             $filasPadre,
         ];
+    }
+
+    /**
+     * Modo scope: matriz de límites de TODAS las entidades del tipo visibles
+     * para el rol, indexada por "entidad_id:juego_id:moneda". Las filas se
+     * traen en UNA consulta whereIn sobre la columna del nivel (sin N+1 por
+     * entidad); las celdas sin fila propia quedan null. `mixto` marca cada
+     * juego×moneda donde unas entidades tienen fila propia y otras no.
+     */
+    private function listarLimitesPorScope($user, string $scope): JsonResponse
+    {
+        $tipo = substr($scope, 0, -1); // bancas → banca, grupos → grupo, taquillas → taquilla
+        $entidades = $this->entidadesVisiblesPorTipo($user, $tipo);
+        $ids = $entidades->pluck('id');
+
+        $juegos = Juego::where('active', true)->orderBy('id')->get(['id', 'name', 'slug']);
+        $clavesJuego = collect($juegos)
+            ->flatMap(fn ($juego) => [$juego->id . ':bs', $juego->id . ':usd'])
+            ->all();
+
+        $limites = [];
+        $filasPorClave = [];
+
+        foreach ($entidades as $entidad) {
+            $prefijo = $entidad->id . ':';
+            foreach ($clavesJuego as $clave) {
+                $limites[$prefijo . $clave] = null;
+            }
+        }
+
+        if ($entidades->isNotEmpty()) {
+            $query = JuegoLimite::whereIn($tipo . '_id', $ids);
+            if ($tipo === 'banca') {
+                $query->whereNull('grupo_id')->whereNull('taquilla_id');
+            } elseif ($tipo === 'grupo') {
+                $query->whereNull('taquilla_id');
+            }
+
+            foreach ($query->get() as $fila) {
+                $clave = $fila->juego_id . ':' . $fila->moneda;
+                $limites[$fila->{$tipo . '_id'} . ':' . $clave] = $this->serializarLimite($fila);
+                $filasPorClave[$clave] = ($filasPorClave[$clave] ?? 0) + 1;
+            }
+        }
+
+        // mixto: true solo cuando las entidades del alcance NO coinciden en
+        // si tienen fila propia para ese juego×moneda (unas sí, otras no).
+        $total = $entidades->count();
+        $mixto = [];
+        foreach ($clavesJuego as $clave) {
+            $conFila = $filasPorClave[$clave] ?? 0;
+            $mixto[$clave] = $conFila > 0 && $conFila < $total;
+        }
+
+        return response()->json([
+            'data' => [
+                'juegos' => $juegos,
+                'entidades' => $entidades->map(fn ($entidad) => [
+                    'id' => (int) $entidad->id,
+                    'name' => $entidad->name,
+                    'tipo' => $tipo,
+                ])->values(),
+                'limites' => $limites,
+                'mixto' => $mixto,
+            ],
+        ]);
+    }
+
+    /**
+     * Entidades del tipo consultado visibles para el rol: super_master y
+     * master ven todas; banca solo las de su propia cadena (su banca, sus
+     * grupos y sus agencias); grupo solo su grupo, su banca y sus agencias.
+     */
+    private function entidadesVisiblesPorTipo($user, string $tipo): Collection
+    {
+        $query = match ($tipo) {
+            'banca' => Banca::query(),
+            'grupo' => Grupo::query(),
+            'taquilla' => Taquilla::query(),
+        };
+
+        if ($user->role === 'banca') {
+            if ($tipo === 'banca') {
+                $query->whereKey($user->banca_id);
+            } elseif ($tipo === 'grupo') {
+                $query->where('banca_id', $user->banca_id);
+            } else {
+                $query->whereHas('grupo', fn ($q) => $q->where('banca_id', $user->banca_id));
+            }
+        } elseif ($user->role === 'grupo') {
+            if ($tipo === 'grupo') {
+                $query->whereKey($user->grupo_id);
+            } elseif ($tipo === 'banca') {
+                $query->whereKey($user->banca_id);
+            } else {
+                $query->where('grupo_id', $user->grupo_id);
+            }
+        }
+
+        return $query->orderBy('id')->get(['id', 'name']);
     }
 
     /**

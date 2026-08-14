@@ -17,6 +17,12 @@ use Tests\TestCase;
  * Matriz completa juego×moneda de una entidad en UNA sola respuesta,
  * indexada por "juego_id:moneda", con origen heredado del nivel superior
  * y alcance de rol aplicado primero (intersección, nunca ampliación).
+ *
+ * PR 2 — GET /api/limites en modo scope.
+ *
+ * Matriz de TODAS las entidades del tipo visibles para el rol, indexada
+ * por "entidad_id:juego_id:moneda", con `mixto` por juego×moneda y sin
+ * origen. XOR con los filtros de entidad (scope + filtro → 422).
  */
 class LimitesScopedApiTest extends TestCase
 {
@@ -301,5 +307,240 @@ class LimitesScopedApiTest extends TestCase
 
         $slugs = collect($data['juegos'])->pluck('slug')->all();
         $this->assertNotContains($inactivo->slug, $slugs);
+    }
+
+    // ==================================================
+    // MODO SCOPE — TODAS LAS ENTIDADES DEL TIPO
+    // ==================================================
+
+    public function test_scope_bancas_master_ve_todas()
+    {
+        $banca = $this->bancaSeeded();
+        $lotto = $this->juegoLotto();
+
+        // Segunda banca sin filas de límites sembradas
+        $otraBanca = Banca::create([
+            'name' => 'Banca Norte',
+            'code' => 'BNZ01',
+            'created_by' => $this->superUser()->id,
+        ]);
+
+        $response = $this->actingAs($this->masterUser(), 'sanctum')
+            ->getJson('/api/limites?scope=bancas');
+
+        $response->assertStatus(200);
+
+        $data = $response->json('data');
+
+        // Todas las bancas visibles para master, con tipo y nombre
+        $this->assertCount(2, $data['entidades']);
+        $ids = collect($data['entidades'])->pluck('id')->all();
+        $this->assertContains($banca->id, $ids);
+        $this->assertContains($otraBanca->id, $ids);
+        $this->assertEquals('banca', $data['entidades'][0]['tipo']);
+        $this->assertEquals('Banca Test', $data['entidades'][0]['name']);
+
+        // Sin origen en modo scope; juegos completos
+        $this->assertArrayNotHasKey('origen', $data);
+        $this->assertCount(7, $data['juegos']);
+        $this->assertCount(28, $data['limites']); // 2 entidades × 7 juegos × 2 monedas
+
+        // Fila sembrada a nivel banca: solo en la banca con límite
+        $claveConFila = $banca->id . ':' . $lotto->id . ':bs';
+        $claveSinFila = $otraBanca->id . ':' . $lotto->id . ':bs';
+        $this->assertNotNull($data['limites'][$claveConFila]);
+        $this->assertEquals(3600.0, $data['limites'][$claveConFila]['limite_minimo']);
+        $this->assertNull($data['limites'][$claveSinFila]);
+
+        // mixto: una banca con fila y otra sin fila para lotto:bs
+        $this->assertTrue($data['mixto'][$lotto->id . ':bs']);
+        // Nadie tiene fila en usd: todas coinciden → false
+        $this->assertFalse($data['mixto'][$lotto->id . ':usd']);
+    }
+
+    public function test_scope_grupos_banca_solo_sus_grupos()
+    {
+        $grupo = $this->grupoSeeded();
+
+        // Segundo grupo de SU banca: debe aparecer
+        $grupoPropio = Grupo::create([
+            'name' => 'Grupo Propio 2',
+            'code' => 'GP201',
+            'banca_id' => $grupo->banca_id,
+            'created_by' => $this->superUser()->id,
+        ]);
+
+        // Grupo de OTRA banca: fuera del alcance del rol banca
+        $otraBanca = Banca::create([
+            'name' => 'Banca Ajena',
+            'code' => 'BAZ01',
+            'created_by' => $this->superUser()->id,
+        ]);
+        $grupoAjeno = Grupo::create([
+            'name' => 'Grupo Ajeno',
+            'code' => 'OGZ01',
+            'banca_id' => $otraBanca->id,
+            'created_by' => $this->superUser()->id,
+        ]);
+
+        $response = $this->actingAs($this->bancaUser(), 'sanctum')
+            ->getJson('/api/limites?scope=grupos');
+
+        $response->assertStatus(200);
+
+        $data = $response->json('data');
+
+        // Solo sus grupos (GT001 + GP201), nunca el de la otra banca
+        $ids = collect($data['entidades'])->pluck('id')->all();
+        $this->assertCount(2, $data['entidades']);
+        $this->assertContains($grupo->id, $ids);
+        $this->assertContains($grupoPropio->id, $ids);
+        $this->assertNotContains($grupoAjeno->id, $ids);
+        $this->assertEquals('grupo', $data['entidades'][0]['tipo']);
+
+        // Sin filas propias a nivel grupo: mapa todo null
+        $clave = $grupo->id . ':' . $this->juegoLotto()->id . ':bs';
+        $this->assertNull($data['limites'][$clave]);
+
+        // Todas las entidades sin fila propia: mixto false
+        $this->assertCount(14, $data['mixto']);
+        foreach ($data['mixto'] as $valor) {
+            $this->assertFalse($valor);
+        }
+    }
+
+    public function test_scope_taquillas_grupo_solo_sus_agencias()
+    {
+        $taquilla = $this->taquillaSeeded();
+
+        // Agencia de otro grupo (de otra banca): fuera del alcance del rol grupo
+        $otraBanca = Banca::create([
+            'name' => 'Banca Ajena',
+            'code' => 'BAZ01',
+            'created_by' => $this->superUser()->id,
+        ]);
+        $otroGrupo = Grupo::create([
+            'name' => 'Grupo Ajeno',
+            'code' => 'OGZ01',
+            'banca_id' => $otraBanca->id,
+            'created_by' => $this->superUser()->id,
+        ]);
+        $taquillaAjena = Taquilla::create([
+            'name' => 'Agencia Ajena',
+            'code' => 'TAZ01',
+            'grupo_id' => $otroGrupo->id,
+            'active' => true,
+            'created_by' => $this->superUser()->id,
+        ]);
+
+        $response = $this->actingAs($this->grupoUser(), 'sanctum')
+            ->getJson('/api/limites?scope=taquillas');
+
+        $response->assertStatus(200);
+
+        $data = $response->json('data');
+
+        // Solo las agencias de SU grupo (TT001 + DEMO01), nunca la ajena
+        $ids = collect($data['entidades'])->pluck('id')->all();
+        $this->assertCount(2, $data['entidades']);
+        $this->assertContains($taquilla->id, $ids);
+        $this->assertNotContains($taquillaAjena->id, $ids);
+        $this->assertEquals('taquilla', $data['entidades'][0]['tipo']);
+        $this->assertArrayNotHasKey('origen', $data);
+    }
+
+    public function test_scope_mixto_true_cuando_estados_difieren()
+    {
+        $grupo = $this->grupoSeeded();
+        $taquilla = $this->taquillaSeeded();
+        $lotto = $this->juegoLotto();
+
+        // Segunda agencia del mismo grupo, sin fila de límites
+        $otraTaquilla = Taquilla::create([
+            'name' => 'Agencia B',
+            'code' => 'TT002',
+            'grupo_id' => $grupo->id,
+            'active' => true,
+            'created_by' => $this->superUser()->id,
+        ]);
+
+        // Fila propia SOLO para la primera agencia
+        JuegoLimite::create([
+            'juego_id' => $lotto->id,
+            'banca_id' => $grupo->banca_id,
+            'grupo_id' => $grupo->id,
+            'taquilla_id' => $taquilla->id,
+            'moneda' => 'bs',
+            'limite_maximo' => 400,
+        ]);
+
+        $response = $this->actingAs($this->grupoUser(), 'sanctum')
+            ->getJson('/api/limites?scope=taquillas');
+
+        $response->assertStatus(200);
+
+        $data = $response->json('data');
+
+        // TT001 con fila propia; TT002 (y DEMO01) sin fila
+        $this->assertNotNull($data['limites'][$taquilla->id . ':' . $lotto->id . ':bs']);
+        $this->assertEquals(400.0, $data['limites'][$taquilla->id . ':' . $lotto->id . ':bs']['limite_maximo']);
+        $this->assertNull($data['limites'][$otraTaquilla->id . ':' . $lotto->id . ':bs']);
+
+        // Estados diferentes entre entidades del alcance → mixto true
+        $this->assertTrue($data['mixto'][$lotto->id . ':bs']);
+        // Nadie tiene fila en usd → todas coinciden → false
+        $this->assertFalse($data['mixto'][$lotto->id . ':usd']);
+    }
+
+    public function test_scope_mixto_false_cuando_todos_iguales()
+    {
+        $banca = $this->bancaSeeded();
+        $grupo = $this->grupoSeeded();
+        $taquilla = $this->taquillaSeeded();
+        $lotto = $this->juegoLotto();
+
+        $consultar = fn () => $this->actingAs($this->grupoUser(), 'sanctum')
+            ->getJson('/api/limites?scope=taquillas')
+            ->assertStatus(200)
+            ->json('data');
+
+        // Sin filas propias: todas coinciden → mixto false en todo
+        $data = $consultar();
+        $this->assertCount(14, $data['mixto']);
+        foreach ($data['mixto'] as $valor) {
+            $this->assertFalse($valor);
+        }
+
+        // Con fila propia en TODAS las agencias: vuelven a coincidir → false
+        foreach (Taquilla::where('grupo_id', $grupo->id)->get() as $tq) {
+            JuegoLimite::create([
+                'juego_id' => $lotto->id,
+                'banca_id' => $banca->id,
+                'grupo_id' => $grupo->id,
+                'taquilla_id' => $tq->id,
+                'moneda' => 'bs',
+                'limite_minimo' => 100,
+            ]);
+        }
+
+        $data = $consultar();
+        $this->assertFalse($data['mixto'][$lotto->id . ':bs']);
+        $this->assertNotNull($data['limites'][$taquilla->id . ':' . $lotto->id . ':bs']);
+    }
+
+    public function test_scope_xor_422()
+    {
+        $banca = $this->bancaSeeded();
+
+        // scope + filtro de entidad → 422
+        $this->actingAs($this->masterUser(), 'sanctum')
+            ->getJson('/api/limites?scope=bancas&banca_id=' . $banca->id)
+            ->assertStatus(422);
+
+        // scope inválido → 422 por validación
+        $this->actingAs($this->masterUser(), 'sanctum')
+            ->getJson('/api/limites?scope=invalido')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('scope');
     }
 }
