@@ -71,11 +71,22 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
     <section class="tab-panel" data-panel="limites" style="display:none">
       <p class="notice" id="limites-notice" style="display:none">Primero guarde el grupo en la pestaña Información para configurar sus límites.</p>
       <div class="filters">
-        <div class="field"><label>Juego</label><select id="limite-juego"><option value="">Seleccione un juego...</option></select></div>
-        <div class="field"><label>Moneda</label><select id="limite-moneda"><option value="">Todas</option><option value="bs">BS</option><option value="usd">USD</option></select></div>
-        <div class="filter-action"><button type="button" class="btn btn-primary" id="btn-limite-create">+ Nuevo límite</button></div>
+        <div class="field"><label>Aplicar a</label>
+          <select id="limite-alcance">
+            <option value="self">Este grupo</option>
+            <option value="agencias">Todas sus agencias</option>
+          </select>
+        </div>
+        <div class="field search"><label>Buscar juego</label>
+          <input type="text" id="limite-busqueda" placeholder="Nombre del juego..." />
+        </div>
+        <div id="limite-impacto" class="impacto"></div>
       </div>
-      <div id="limites-content"><div class="loading">Seleccione un juego para ver sus límites.</div></div>
+      <div id="limites-content"><div class="loading">Cargando límites...</div></div>
+      <div class="panel-actions">
+        <button type="button" class="btn btn-primary" id="btn-limite-guardar">💾 Guardar cambios</button>
+        <span id="limite-estado" class="estado"></span>
+      </div>
     </section>
 
     <!-- Pestaña 4: Usuarios -->
@@ -84,26 +95,6 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
       <div class="panel-actions"><button type="button" class="btn btn-primary" id="btn-user-create">+ Nuevo usuario</button></div>
       <div id="users-content"><div class="loading">Cargando...</div></div>
     </section>
-  </div>
-
-  <!-- Modal de límite -->
-  <div class="modal-overlay" id="limite-modal" style="display:none">
-    <div class="modal-card">
-      <h3 id="limite-modal-title">Nuevo Límite</h3>
-      <form id="limite-form">
-        <div class="field"><label>Moneda</label><select name="moneda" required><option value="bs">BS</option><option value="usd">USD</option></select></div>
-        <div class="field"><label>Límite Mínimo</label><input name="limite_minimo" type="number" step="0.01" min="0" /></div>
-        <div class="field"><label>Límite Máximo</label><input name="limite_maximo" type="number" step="0.01" min="0" /></div>
-        <div class="field"><label>% Pago</label><input name="porcentaje_pago" type="number" step="0.01" min="0" max="100" /></div>
-        <div class="field"><label>% Participación</label><input name="participacion" type="number" step="0.01" min="0" max="100" /></div>
-        <div class="field"><label>Fracción</label><select name="fraccion"><option value="0">No</option><option value="1">Sí</option></select></div>
-        <div class="field"><label>Límite Tiempo (min)</label><input name="limite_tiempo" type="number" min="1" /></div>
-        <div class="modal-actions">
-          <button type="button" class="btn btn-secondary" id="btn-limite-cancel">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Guardar</button>
-        </div>
-      </form>
-    </div>
   </div>
 
   <!-- Modal de usuario -->
@@ -180,6 +171,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
     import { apiFetch, getStoredUser } from '../../utils/api.ts';
     import { showModal } from '../../utils/modal.ts';
     import { getParam, initTabs } from '../../utils/tabs.ts';
+    import { crearTablaLimites } from '../../utils/limites.ts';
 
     const TABS = ['informacion', 'monedas', 'limites', 'usuarios'];
     const currentUser = getStoredUser() || {};
@@ -222,9 +214,8 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
       document.getElementById('limites-notice').style.display = 'block';
       document.getElementById('usuarios-notice').style.display = 'block';
       disableForm(document.getElementById('monedas-form'), true);
-      document.getElementById('limite-juego').disabled = true;
-      document.getElementById('limite-moneda').disabled = true;
-      document.getElementById('btn-limite-create').disabled = true;
+      const btnL = document.getElementById('btn-limite-guardar');
+      if (btnL) btnL.disabled = true;
       document.getElementById('btn-user-create').disabled = true;
     }
 
@@ -373,128 +364,87 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
 
     // ---------- Pestaña Límites ----------
 
+    let limitesAlcance = 'self';
+    let limitesTabla = null;
+
     async function initLimites() {
       limitesInited = true;
       if (!grupoId) return;
-      try {
-        const data = await apiFetch('GET', '/juegos');
-        juegos = Array.isArray(data) ? data : (data?.data || []);
-        const s = document.getElementById('limite-juego');
-        s.innerHTML = '<option value="">Seleccione un juego...</option>';
-        juegos.forEach(j => s.innerHTML += `<option value="${j.id}">${j.name}</option>`);
-        if (juegos.length) { s.value = String(juegos[0].id); currentJuegoId = juegos[0].id; }
-      } catch (_) {}
-      loadLimites();
+      montarLimites();
     }
 
-    async function loadLimites() {
-      if (!grupoId || !currentJuegoId) {
-        document.getElementById('limites-content').innerHTML = '<div class="loading">Seleccione un juego para ver sus límites.</div>';
-        return;
-      }
-      try {
-        const data = await apiFetch('GET', '/limites/' + currentJuegoId + '?grupo_id=' + grupoId);
-        const items = Array.isArray(data) ? data : (data?.data || []);
-        limitesCache = Object.fromEntries(items.map(l => [l.id, l]));
-        renderLimites();
-      } catch (err) {
-        document.getElementById('limites-content').innerHTML = '<div class="loading">Error: ' + err.message + '</div>';
-      }
-    }
+    function montarLimites() {
+      const contenedor = document.getElementById('limites-content');
+      const impacto = document.getElementById('limite-impacto');
+      const estado = document.getElementById('limite-estado');
+      const btn = document.getElementById('btn-limite-guardar');
+      contenedor.innerHTML = '<div class="loading">Cargando límites...</div>';
+      impacto.textContent = '';
+      estado.textContent = '';
+      if (btn) btn.disabled = false;
 
-    function renderLimites() {
-      const filter = document.getElementById('limite-moneda').value;
-      const items = Object.values(limitesCache).filter(l => !filter || l.moneda === filter);
-      if (!items.length) {
-        document.getElementById('limites-content').innerHTML = '<div class="loading">No hay límites configurados para este juego.</div>';
-        return;
-      }
-      const actionsHeader = canEditLimites ? '<th>Acciones</th>' : '';
-      let html = `<div class="table-wrap"><table><thead><tr><th>Moneda</th><th>Mín</th><th>Máx</th><th>%Pago</th><th>%Part</th><th>Fracc</th><th>Tiempo</th>${actionsHeader}</tr></thead><tbody>`;
-      items.forEach(l => {
-        const actions = canEditLimites
-          ? `<td class="actions-cell"><button class="btn btn-sm btn-secondary edit-limite-btn" data-id="${l.id}">✏️</button><button class="btn btn-sm btn-danger del-limite-btn" data-id="${l.id}">🗑</button></td>`
-          : '';
-        html += `<tr>
-          <td><span class="moneda-badge moneda-${l.moneda}">${l.moneda.toUpperCase()}</span></td>
-          <td>${l.limite_minimo ?? '-'}</td><td>${l.limite_maximo ?? '-'}</td><td>${l.porcentaje_pago ?? '-'}</td><td>${l.participacion ?? '-'}</td>
-          <td>${l.fraccion ? 'Sí' : 'No'}</td><td>${l.limite_tiempo ?? '-'}</td>
-          ${actions}
-        </tr>`;
+      limitesTabla = crearTablaLimites({
+        modo: 'entidad',
+        tipoEntidad: 'grupo',
+        entidadId: grupoId,
+        mostrarOrigen: true,
+        filasPorPagina: 15,
+        cargarDatos: async () => {
+          let data;
+          if (limitesAlcance === 'self') {
+            data = await apiFetch('GET', '/limites?grupo_id=' + grupoId);
+          } else {
+            data = await apiFetch('GET', '/limites?scope=taquillas&grupo_id=' + grupoId);
+          }
+          const resultado = data?.data || { juegos: [], limites: {} };
+          const n = (resultado.entidades || []).length;
+          impacto.textContent = limitesAlcance === 'self'
+            ? 'Configurando este grupo (celdas vacías = heredan de la banca).'
+            : n > 0 ? `Se aplicará a ${n} agencias.` : 'No hay agencias en este alcance.';
+          return resultado;
+        },
+        guardar: async (payload) => {
+          if (limitesAlcance === 'self') {
+            // ítems legacy con grupo_id + banca_id (solo este grupo)
+            const items = payload.limites.map(i => ({ ...i, banca_id: grupo?.banca_id, grupo_id: grupoId }));
+            return apiFetch('POST', '/limites/batch', { limites: items });
+          }
+          return apiFetch('POST', '/limites/batch', {
+            scope: { tipo: 'taquillas', id: grupoId },
+            limites: payload.limites,
+          });
+        },
       });
-      html += '</tbody></table></div>';
-      document.getElementById('limites-content').innerHTML = html;
+
+      limitesTabla.montar(contenedor);
     }
 
-    function openLimiteModal(limite = null) {
-      document.getElementById('limite-modal-title').textContent = limite ? 'Editar Límite' : 'Nuevo Límite';
-      const f = document.getElementById('limite-form');
-      f.moneda.value = limite?.moneda || (document.getElementById('limite-moneda').value || 'bs');
-      f.limite_minimo.value = limite?.limite_minimo ?? '';
-      f.limite_maximo.value = limite?.limite_maximo ?? '';
-      f.porcentaje_pago.value = limite?.porcentaje_pago ?? '';
-      f.participacion.value = limite?.participacion ?? '';
-      f.fraccion.value = limite?.fraccion ? '1' : '0';
-      f.limite_tiempo.value = limite?.limite_tiempo ?? '';
-      document.getElementById('limite-modal').style.display = 'flex';
-    }
-
-    document.getElementById('limite-juego').addEventListener('change', function () {
-      currentJuegoId = this.value;
-      loadLimites();
+    document.getElementById('limite-alcance').addEventListener('change', function () {
+      limitesAlcance = this.value;
+      montarLimites();
     });
 
-    document.getElementById('limite-moneda').addEventListener('change', renderLimites);
+    document.getElementById('limite-busqueda').addEventListener('input', function () {
+      if (limitesTabla) limitesTabla.buscar(this.value);
+    });
 
-    document.getElementById('btn-limite-create').addEventListener('click', () => {
-      if (!currentJuegoId) {
-        showModal({ message: 'Seleccione un juego para crear un límite.', type: 'error' });
+    document.getElementById('btn-limite-guardar').addEventListener('click', async () => {
+      const estado = document.getElementById('limite-estado');
+      if (!limitesTabla || !limitesTabla.hayCambios()) {
+        estado.textContent = 'No hay cambios para guardar.';
         return;
       }
-      openLimiteModal();
-    });
-
-    document.getElementById('btn-limite-cancel').addEventListener('click', () => document.getElementById('limite-modal').style.display = 'none');
-
-    document.getElementById('limite-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const f = e.target;
-      const body = {
-        banca_id: grupo?.banca_id || currentUser.banca_id,
-        grupo_id: grupoId,
-        moneda: f.moneda.value,
-        limite_minimo: f.limite_minimo.value || null,
-        limite_maximo: f.limite_maximo.value || null,
-        porcentaje_pago: f.porcentaje_pago.value || null,
-        participacion: f.participacion.value || null,
-        fraccion: f.fraccion.value === '1',
-        limite_tiempo: f.limite_tiempo.value || null,
-      };
+      document.getElementById('btn-limite-guardar').disabled = true;
+      estado.textContent = 'Guardando...';
       try {
-        await apiFetch('PUT', '/limites/' + currentJuegoId, body);
-        document.getElementById('limite-modal').style.display = 'none';
-        await loadLimites();
+        await limitesTabla.guardar();
+        estado.textContent = '✅ Límites guardados.';
+        montarLimites();
       } catch (err) {
+        estado.textContent = '';
         await showModal({ message: err.message, type: 'error' });
-      }
-    });
-
-    document.getElementById('limites-content').addEventListener('click', (e) => {
-      const eb = e.target.closest('.edit-limite-btn');
-      const db = e.target.closest('.del-limite-btn');
-      if (eb) {
-        const id = parseInt(eb.dataset.id);
-        const limite = limitesCache[id];
-        if (limite) openLimiteModal(limite);
-      }
-      if (db) {
-        const id = parseInt(db.dataset.id);
-        showModal({ message: '¿Eliminar este límite?', type: 'confirm' }).then(ok => {
-          if (!ok) return;
-          apiFetch('DELETE', '/limites/' + id)
-            .then(() => loadLimites())
-            .catch(err => showModal({ message: err.message, type: 'error' }));
-        });
+      } finally {
+        document.getElementById('btn-limite-guardar').disabled = false;
       }
     });
 
