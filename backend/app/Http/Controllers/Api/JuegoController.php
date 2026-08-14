@@ -397,14 +397,17 @@ class JuegoController extends Controller
     {
         $user = $request->user();
 
-        if (!in_array($user->role, ['super_master', 'master'])) {
+        if (!in_array($user->role, ['super_master', 'master', 'banca'])) {
             return response()->json(['message' => 'No tienes permiso para configuración masiva de límites.'], 403);
         }
 
         $request->validate([
+            'scope' => 'nullable|array',
+            'scope.tipo' => 'required_with:scope|in:banca,grupo,taquilla',
+            'scope.id' => 'required_with:scope|integer|min:1',
             'limites' => 'required|array|min:1',
             'limites.*.juego_id' => 'required|exists:juegos,id',
-            'limites.*.banca_id' => 'required|exists:bancas,id',
+            'limites.*.banca_id' => 'nullable|exists:bancas,id',
             'limites.*.grupo_id' => 'nullable|exists:grupos,id',
             'limites.*.taquilla_id' => 'nullable|exists:taquillas,id',
             'limites.*.moneda' => ['required', Rule::in(['bs', 'usd'])],
@@ -416,36 +419,192 @@ class JuegoController extends Controller
             'limites.*.limite_tiempo' => 'nullable|integer|min:1',
         ]);
 
+        $scope = $request->scope;
+        $objetivos = null;
+
+        if ($scope) {
+            // Modo scope: los ítems NO llevan entidades explícitas
+            foreach ($request->limites as $item) {
+                if (isset($item['banca_id']) || isset($item['grupo_id']) || isset($item['taquilla_id'])) {
+                    return response()->json([
+                        'message' => 'Cuando se usa scope, los ítems no deben incluir banca_id, grupo_id ni taquilla_id.',
+                    ], 422);
+                }
+            }
+
+            $objetivos = $this->expandirAlcance($user, $scope['tipo'], (int) $scope['id']);
+        }
+
         $resultados = [];
 
-        DB::transaction(function () use ($request, $user, &$resultados) {
+        DB::transaction(function () use ($request, $user, $objetivos, &$resultados) {
             foreach ($request->limites as $item) {
-                // Verificar acceso
-                $this->authorizeBancaLimitAccess($user, $item['banca_id']);
+                $item['juego_id'] = (int) $item['juego_id'];
 
-                $limite = JuegoLimite::updateOrCreate(
-                    [
-                        'juego_id' => $item['juego_id'],
-                        'banca_id' => $item['banca_id'],
-                        'grupo_id' => $item['grupo_id'] ?? null,
-                        'taquilla_id' => $item['taquilla_id'] ?? null,
-                        'moneda' => $item['moneda'],
-                    ],
-                    [
-                        'limite_minimo' => $item['limite_minimo'] ?? null,
-                        'limite_maximo' => $item['limite_maximo'] ?? null,
-                        'porcentaje_pago' => $item['porcentaje_pago'] ?? null,
-                        'participacion' => $item['participacion'] ?? null,
-                        'fraccion' => $item['fraccion'] ?? false,
-                        'limite_tiempo' => $item['limite_tiempo'] ?? null,
-                    ]
-                );
+                if ($objetivos === null) {
+                    // Modo legacy: cada ítem con su banca_id (y opcional grupo/taquilla)
+                    $this->authorizeBancaLimitAccess($user, $item['banca_id']);
 
-                $resultados[] = $limite;
+                    if (!empty($item['grupo_id']) || !empty($item['taquilla_id'])) {
+                        $this->validarRestrictividadLimite(
+                            (int) $item['banca_id'],
+                            $item['juego_id'],
+                            $item['moneda'],
+                            !empty($item['grupo_id']) ? (int) $item['grupo_id'] : null,
+                            !empty($item['taquilla_id']) ? (int) $item['taquilla_id'] : null,
+                            $item['limite_minimo'] ?? null,
+                            $item['limite_maximo'] ?? null,
+                        );
+                    }
+
+                    $this->aplicarItemLimite($item, null, $resultados);
+                    continue;
+                }
+
+                // Modo scope: aplicar a cada entidad expandida (padre-primero)
+                foreach ($objetivos as $objetivo) {
+                    $this->aplicarItemLimite($item, $objetivo, $resultados);
+                }
             }
         });
 
         return response()->json($resultados, 201);
+    }
+
+    /**
+     * Expandir un alcance a la lista de entidades objetivo (padre-primero).
+     * banca → banca + grupos + agencias; grupo → grupo + agencias; taquilla → taquilla.
+     *
+     * @return array<int, array{nivel: string, id: int}>
+     */
+    private function expandirAlcance($user, string $tipo, int $id): array
+    {
+        if (!$this->entidadDentroDelAlcance($user, $tipo, $id)) {
+            abort(403, 'No tienes acceso a la entidad raíz del alcance.');
+        }
+
+        $objetivos = [['nivel' => $tipo, 'id' => $id]];
+
+        if ($tipo === 'banca') {
+            $grupos = Grupo::where('banca_id', $id)->pluck('id');
+            foreach ($grupos as $gid) {
+                $objetivos[] = ['nivel' => 'grupo', 'id' => (int) $gid];
+            }
+            $taquillas = Taquilla::whereHas('grupo', fn ($q) => $q->where('banca_id', $id))->pluck('id');
+            foreach ($taquillas as $tid) {
+                $objetivos[] = ['nivel' => 'taquilla', 'id' => (int) $tid];
+            }
+        } elseif ($tipo === 'grupo') {
+            $taquillas = Taquilla::where('grupo_id', $id)->pluck('id');
+            foreach ($taquillas as $tid) {
+                $objetivos[] = ['nivel' => 'taquilla', 'id' => (int) $tid];
+            }
+        }
+
+        if (count($objetivos) > 500) {
+            abort(422, 'El alcance supera las 500 entidades. Reduzca el nivel de configuración.');
+        }
+
+        return $objetivos;
+    }
+
+    /**
+     * Aplicar un ítem de límite a una entidad objetivo (o a la entidad
+     * explícita del ítem en modo legacy).
+     *
+     * Semántica present-fields-only: solo se escriben los campos presentes
+     * en el payload. Si algún campo de límite llega explícitamente null,
+     * se ELIMINA la fila (volver a heredar del padre).
+     */
+    private function aplicarItemLimite(array $item, ?array $objetivo, array &$resultados): void
+    {
+        // Resolver la cadena de la entidad objetivo
+        [$bancaId, $grupoId, $taquillaId] = $this->resolverCadenaObjetivo($objetivo, $item);
+
+        $campos = ['limite_minimo', 'limite_maximo', 'porcentaje_pago', 'participacion', 'fraccion', 'limite_tiempo'];
+        $presentes = [];
+
+        foreach ($campos as $campo) {
+            if (array_key_exists($campo, $item)) {
+                $presentes[$campo] = $item[$campo];
+            }
+        }
+
+        $clave = [
+            'juego_id' => $item['juego_id'],
+            'banca_id' => $bancaId,
+            'grupo_id' => $grupoId,
+            'taquilla_id' => $taquillaId,
+            'moneda' => $item['moneda'],
+        ];
+
+        // Null explícito en cualquier campo de límite → eliminar fila (heredar)
+        $tieneNull = false;
+        foreach ($presentes as $valor) {
+            if ($valor === null) {
+                $tieneNull = true;
+                break;
+            }
+        }
+
+        if ($tieneNull) {
+            JuegoLimite::where($clave)->delete();
+            return;
+        }
+
+        if (empty($presentes)) {
+            abort(422, 'Cada ítem de límite debe incluir al menos un campo configurable.');
+        }
+
+        // Validar jerarquía (hijo ≤ padre) antes de escribir
+        if ($grupoId !== null || $taquillaId !== null) {
+            $this->validarRestrictividadLimite(
+                $bancaId,
+                $item['juego_id'],
+                $item['moneda'],
+                $grupoId,
+                $taquillaId,
+                $presentes['limite_minimo'] ?? null,
+                $presentes['limite_maximo'] ?? null,
+            );
+        }
+
+        $resultados[] = JuegoLimite::updateOrCreate($clave, $presentes);
+    }
+
+    /**
+     * Resolver la cadena banca→grupo→taquilla de un objetivo de alcance.
+     * En modo legacy el ítem ya trae su banca_id (y opcional grupo/taquilla).
+     *
+     * @return array{0: int, 1: int|null, 2: int|null}
+     */
+    private function resolverCadenaObjetivo(?array $objetivo, array $item): array
+    {
+        if ($objetivo === null) {
+            return [
+                (int) $item['banca_id'],
+                !empty($item['grupo_id']) ? (int) $item['grupo_id'] : null,
+                !empty($item['taquilla_id']) ? (int) $item['taquilla_id'] : null,
+            ];
+        }
+
+        if ($objetivo['nivel'] === 'banca') {
+            return [$objetivo['id'], null, null];
+        }
+
+        if ($objetivo['nivel'] === 'grupo') {
+            $grupo = Grupo::find($objetivo['id']);
+
+            return [$grupo ? (int) $grupo->banca_id : 0, $objetivo['id'], null];
+        }
+
+        $taquilla = Taquilla::with('grupo')->find($objetivo['id']);
+
+        return [
+            $taquilla?->grupo?->banca_id ?? 0,
+            $taquilla?->grupo_id,
+            $objetivo['id'],
+        ];
     }
 
     /**

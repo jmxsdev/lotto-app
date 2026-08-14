@@ -159,8 +159,8 @@ Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
         Route::delete('/limites/{limite}', [JuegoController::class, 'destroyLimite']);
     });
 
-    // POST batch: solo super_master y master
-    Route::middleware(['role:super_master|master'])->group(function () {
+    // POST batch: super_master, master, banca (el alcance se valida por jerarquía en el controlador)
+    Route::middleware(['role:super_master|master|banca'])->group(function () {
         Route::post('/limites/batch', [JuegoController::class, 'batchLimites']);
     });
 

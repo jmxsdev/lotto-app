@@ -543,4 +543,199 @@ class LimitesScopedApiTest extends TestCase
             ->assertStatus(422)
             ->assertJsonValidationErrors('scope');
     }
+
+    // ==================================================
+    // BATCH — MODO SCOPE (fan-out) + SEMÁNTICA PARCIAL
+    // ==================================================
+
+    public function test_batch_scope_grupo_expande_a_sus_agencias()
+    {
+        $grupo = $this->grupoSeeded();
+        $taquilla = $this->taquillaSeeded();
+        $lotto = $this->juegoLotto();
+
+        $response = $this->actingAs($this->masterUser(), 'sanctum')
+            ->postJson('/api/limites/batch', [
+                'scope' => ['tipo' => 'grupo', 'id' => $grupo->id],
+                'limites' => [
+                    ['juego_id' => $lotto->id, 'moneda' => 'bs', 'limite_minimo' => 4000],
+                ],
+            ]);
+
+        $response->assertStatus(201);
+
+        // Grupo + su agencia (TT001) reciben la fila
+        $this->assertDatabaseHas('juego_limites', [
+            'juego_id' => $lotto->id, 'moneda' => 'bs', 'grupo_id' => $grupo->id, 'taquilla_id' => null, 'limite_minimo' => 4000,
+        ]);
+        $this->assertDatabaseHas('juego_limites', [
+            'juego_id' => $lotto->id, 'moneda' => 'bs', 'taquilla_id' => $taquilla->id, 'limite_minimo' => 4000,
+        ]);
+    }
+
+    public function test_batch_scope_banca_expande_grupos_y_agencias()
+    {
+        $banca = $this->bancaSeeded();
+        $grupo = $this->grupoSeeded();
+        $taquilla = $this->taquillaSeeded();
+        $lotto = $this->juegoLotto();
+
+        $response = $this->actingAs($this->masterUser(), 'sanctum')
+            ->postJson('/api/limites/batch', [
+                'scope' => ['tipo' => 'banca', 'id' => $banca->id],
+                'limites' => [
+                    ['juego_id' => $lotto->id, 'moneda' => 'bs', 'limite_maximo' => 900],
+                ],
+            ]);
+
+        $response->assertStatus(201);
+
+        $this->assertDatabaseHas('juego_limites', ['juego_id' => $lotto->id, 'moneda' => 'bs', 'banca_id' => $banca->id, 'grupo_id' => null, 'limite_maximo' => 900]);
+        $this->assertDatabaseHas('juego_limites', ['juego_id' => $lotto->id, 'moneda' => 'bs', 'grupo_id' => $grupo->id, 'limite_maximo' => 900]);
+        $this->assertDatabaseHas('juego_limites', ['juego_id' => $lotto->id, 'moneda' => 'bs', 'taquilla_id' => $taquilla->id, 'limite_maximo' => 900]);
+    }
+
+    public function test_batch_scope_taquilla_solo_esa()
+    {
+        $taquilla = $this->taquillaSeeded();
+        $grupo = $this->grupoSeeded();
+        $lotto = $this->juegoLotto();
+
+        $response = $this->actingAs($this->masterUser(), 'sanctum')
+            ->postJson('/api/limites/batch', [
+                'scope' => ['tipo' => 'taquilla', 'id' => $taquilla->id],
+                'limites' => [
+                    ['juego_id' => $lotto->id, 'moneda' => 'bs', 'limite_minimo' => 4000],
+                ],
+            ]);
+
+        $response->assertStatus(201);
+
+        $this->assertDatabaseHas('juego_limites', ['juego_id' => $lotto->id, 'moneda' => 'bs', 'taquilla_id' => $taquilla->id, 'limite_minimo' => 4000]);
+        // El grupo NO recibe la fila (a nivel grupo: taquilla_id null)
+        $this->assertDatabaseMissing('juego_limites', ['juego_id' => $lotto->id, 'moneda' => 'bs', 'grupo_id' => $grupo->id, 'taquilla_id' => null, 'limite_minimo' => 4000]);
+    }
+
+    public function test_batch_scope_con_entidad_en_items_422()
+    {
+        $banca = $this->bancaSeeded();
+        $lotto = $this->juegoLotto();
+
+        $response = $this->actingAs($this->masterUser(), 'sanctum')
+            ->postJson('/api/limites/batch', [
+                'scope' => ['tipo' => 'banca', 'id' => $banca->id],
+                'limites' => [
+                    ['juego_id' => $lotto->id, 'moneda' => 'bs', 'banca_id' => $banca->id, 'limite_minimo' => 100],
+                ],
+            ]);
+
+        $response->assertStatus(422);
+    }
+
+    public function test_batch_scope_root_fuera_de_jerarquia_banca_403()
+    {
+        $banca = $this->bancaSeeded();
+        $lotto = $this->juegoLotto();
+
+        // Banca ajena a la del usuario banca
+        $otraBanca = Banca::create([
+            'name' => 'Banca Ajena',
+            'code' => 'BAJ01',
+            'created_by' => $this->superUser()->id,
+        ]);
+
+        $response = $this->actingAs($this->bancaUser(), 'sanctum')
+            ->postJson('/api/limites/batch', [
+                'scope' => ['tipo' => 'banca', 'id' => $otraBanca->id],
+                'limites' => [
+                    [ "juego_id" => $lotto->id, "moneda" => "bs", "limite_minimo" => 4000],
+                ],
+            ]);
+
+        $response->assertStatus(403);
+    }
+
+    public function test_batch_null_elimina_fila()
+    {
+        $banca = $this->bancaSeeded();
+        $lotto = $this->juegoLotto();
+
+        // Crear fila previa
+        $response = $this->actingAs($this->masterUser(), 'sanctum')
+            ->postJson('/api/limites/batch', [
+                'limites' => [
+                    ['juego_id' => $lotto->id, 'banca_id' => $banca->id, 'moneda' => 'bs', 'limite_minimo' => 100],
+                ],
+            ]);
+        $response->assertStatus(201);
+
+        $this->assertDatabaseHas('juego_limites', ['juego_id' => $lotto->id, 'banca_id' => $banca->id, 'moneda' => 'bs']);
+
+        // Null explícito → elimina la fila (volver a heredar)
+        $response = $this->actingAs($this->masterUser(), 'sanctum')
+            ->postJson('/api/limites/batch', [
+                'limites' => [
+                    ['juego_id' => $lotto->id, 'banca_id' => $banca->id, 'moneda' => 'bs', 'limite_minimo' => null],
+                ],
+            ]);
+        $response->assertStatus(201);
+
+        $this->assertDatabaseMissing('juego_limites', ['juego_id' => $lotto->id, 'banca_id' => $banca->id, 'moneda' => 'bs']);
+    }
+
+    public function test_batch_campos_ausentes_no_sobreescriben()
+    {
+        $banca = $this->bancaSeeded();
+        $lotto = $this->juegoLotto();
+
+        // Primera escritura: min + max
+        $this->actingAs($this->masterUser(), 'sanctum')
+            ->postJson('/api/limites/batch', [
+                'limites' => [
+                    ['juego_id' => $lotto->id, 'banca_id' => $banca->id, 'moneda' => 'bs', 'limite_minimo' => 100, 'limite_maximo' => 900],
+                ],
+            ])->assertStatus(201);
+
+        // Segunda escritura: solo min — max debe conservarse
+        $this->actingAs($this->masterUser(), 'sanctum')
+            ->postJson('/api/limites/batch', [
+                'limites' => [
+                    ['juego_id' => $lotto->id, 'banca_id' => $banca->id, 'moneda' => 'bs', 'limite_minimo' => 200],
+                ],
+            ])->assertStatus(201);
+
+        $this->assertDatabaseHas('juego_limites', [
+            'juego_id' => $lotto->id, 'banca_id' => $banca->id, 'moneda' => 'bs',
+            'limite_minimo' => 200, 'limite_maximo' => 900,
+        ]);
+    }
+
+    public function test_batch_hierarquia_violacion_422_rollback()
+    {
+        $banca = $this->bancaSeeded();
+        $grupo = $this->grupoSeeded();
+        $lotto = $this->juegoLotto();
+
+        // Padre (banca): max 500
+        $this->actingAs($this->masterUser(), 'sanctum')
+            ->postJson('/api/limites/batch', [
+                'limites' => [
+                    ['juego_id' => $lotto->id, 'banca_id' => $banca->id, 'moneda' => 'bs', 'limite_maximo' => 500],
+                ],
+            ])->assertStatus(201);
+
+        // Hijo (grupo) intenta max 900 > 500 → 422 y rollback total
+        $response = $this->actingAs($this->masterUser(), 'sanctum')
+            ->postJson('/api/limites/batch', [
+                'scope' => ['tipo' => 'grupo', 'id' => $grupo->id],
+                'limites' => [
+                    ['juego_id' => $lotto->id, 'moneda' => 'bs', 'limite_maximo' => 900],
+                ],
+            ]);
+
+        $response->assertStatus(422);
+
+        // Rollback: no debe quedar la fila del grupo
+        $this->assertDatabaseMissing('juego_limites', ['juego_id' => $lotto->id, 'moneda' => 'bs', 'grupo_id' => $grupo->id]);
+    }
 }
