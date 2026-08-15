@@ -29,6 +29,7 @@ class ActivacionTest extends TestCase
         $response = $this->postJson('/api/activar', [
             'activation_code' => 'ABC123',
             'mac_address' => 'AA:BB:CC:DD:EE:FF',
+            'device_fingerprint' => 'test-fp-001',
         ]);
 
         $response->assertStatus(200)
@@ -39,6 +40,7 @@ class ActivacionTest extends TestCase
             'id' => $taquilla->id,
             'active' => true,
             'mac_address' => 'AA:BB:CC:DD:EE:FF',
+            'device_fingerprint' => 'test-fp-001',
         ]);
 
         // Verificar que se creó log de activación
@@ -52,6 +54,7 @@ class ActivacionTest extends TestCase
         $response = $this->postJson('/api/activar', [
             'activation_code' => 'INVALID',
             'mac_address' => 'AA:BB:CC:DD:EE:FF',
+            'device_fingerprint' => 'test-fp-001',
         ]);
 
         $response->assertStatus(404)
@@ -77,6 +80,7 @@ class ActivacionTest extends TestCase
             'activation_code' => 'CODE1',
             'active' => true,
             'mac_address' => 'AA:BB:CC:DD:EE:FF',
+            'device_fingerprint' => 'test-fp-001',
         ]);
 
         $taquilla2 = Taquilla::factory()->create([
@@ -89,6 +93,7 @@ class ActivacionTest extends TestCase
         $response = $this->postJson('/api/activar', [
             'activation_code' => 'CODE2',
             'mac_address' => 'AA:BB:CC:DD:EE:FF',
+            'device_fingerprint' => 'test-fp-001',
         ]);
 
         $response->assertStatus(200);
@@ -105,6 +110,7 @@ class ActivacionTest extends TestCase
             'id' => $taquilla2->id,
             'active' => true,
             'mac_address' => 'AA:BB:CC:DD:EE:FF',
+            'device_fingerprint' => 'test-fp-001',
         ]);
     }
 
@@ -127,6 +133,7 @@ class ActivacionTest extends TestCase
     {
         $taquilla = Taquilla::factory()->create([
             'mac_address' => 'AA:BB:CC:DD:EE:FF',
+            'device_fingerprint' => 'test-fp-001',
         ]);
         $user = User::factory()->create([
             'taquilla_id' => $taquilla->id,
@@ -145,6 +152,7 @@ class ActivacionTest extends TestCase
     {
         $taquilla = Taquilla::factory()->create([
             'mac_address' => 'AA:BB:CC:DD:EE:FF',
+            'device_fingerprint' => 'test-fp-001',
         ]);
         $user = User::factory()->create([
             'taquilla_id' => $taquilla->id,
@@ -152,7 +160,7 @@ class ActivacionTest extends TestCase
         ]);
         $user->assignRole('taquilla');
 
-        $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
+        $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF', 'X-Device-Fingerprint' => 'test-fp-001'])
             ->actingAs($user, 'sanctum')
             ->getJson('/api/apuestas');
 
@@ -170,6 +178,7 @@ class ActivacionTest extends TestCase
         $response = $this->postJson('/api/activar', [
             'activation_code' => 'PUBLIC',
             'mac_address' => 'AA:BB:CC:DD:EE:FF',
+            'device_fingerprint' => 'test-fp-001',
         ]);
 
         $response->assertStatus(200);

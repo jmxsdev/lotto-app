@@ -1,0 +1,146 @@
+---
+import AdminLayout from '../layouts/AdminLayout.astro';
+---
+
+<AdminLayout>
+  <div class="page">
+    <div class="page-header"><h2 class="page-title">Cuadre de Caja</h2></div>
+
+    <div class="filters">
+      <div class="field">
+        <label>Desde</label>
+        <input type="date" id="filter-desde" />
+      </div>
+      <div class="field">
+        <label>Hasta</label>
+        <input type="date" id="filter-hasta" />
+      </div>
+      <div class="field">
+        <label>Nivel</label>
+        <select id="filter-nivel">
+          <option value="banca">Banca</option>
+          <option value="grupo">Grupo</option>
+          <option value="agencia">Agencia</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Tipo de Juego</label>
+        <select id="filter-juego"><option value="">Todos</option></select>
+      </div>
+      <div class="field">
+        <label>Moneda</label>
+        <select id="filter-moneda">
+          <option value="">Todas</option>
+          <option value="bs">BS</option>
+          <option value="usd">USD</option>
+          <option value="mixto">Mixto</option>
+        </select>
+      </div>
+      <div class="field" style="align-self:flex-end">
+        <button class="btn btn-primary" id="btn-buscar">🔍 Buscar</button>
+      </div>
+    </div>
+
+    <div id="content"><div class="loading">Cargando...</div></div>
+  </div>
+
+  <style is:global>
+    .page { max-width: 1200px; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .page-title { font-size: 24px; font-weight: 700; color: #1e293b; }
+    .btn { padding: 8px 16px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .15s; }
+    .btn-primary { background: #3b82f6; color: #fff; } .btn-primary:hover { background: #2563eb; }
+    .loading { text-align: center; padding: 40px; color: #666; }
+    .filters { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 16px; align-items: flex-end; }
+    .field { margin-bottom: 14px; } .field label { display: block; font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px; }
+    .field input, .field select { width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px; min-width: 140px; } .field input:focus, .field select:focus { border-color: #3b82f6; outline: none; }
+    .table-wrap { background: #fff; border-radius: 10px; overflow: auto; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    table { width: 100%; border-collapse: collapse; } th { background: #f1f5f9; padding: 10px 12px; text-align: left; font-size: 12px; font-weight: 600; color: #666; text-transform: uppercase; white-space: nowrap; } td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; white-space: nowrap; } tr:hover td { background: #f8fafc; }
+    .number { text-align: right; font-variant-numeric: tabular-nums; }
+    tfoot th, tfoot td { background: #eff6ff; border-top: 2px solid #bfdbfe; border-bottom: none; font-weight: 700; color: #0f172a; white-space: nowrap; }
+    .error { color: #ef4444; text-align: center; padding: 20px; }
+    .empty { text-align: center; padding: 40px; color: #999; }
+  </style>
+
+  <script>
+    import { apiFetch } from '../utils/api.ts';
+
+    const fmt = (v) => Number(v || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmtPct = (v) => Number(v || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+
+    async function loadJuegos() {
+      try {
+        const data = await apiFetch('GET', '/juegos?per_page=100');
+        const juegos = Array.isArray(data) ? data : (data?.data || []);
+        const s = document.getElementById('filter-juego');
+        s.innerHTML = '<option value="">Todos</option>';
+        juegos.forEach(j => s.innerHTML += `<option value="${j.slug || j.id}">${j.name || j.nombre}</option>`);
+      } catch (_) {}
+    }
+
+    async function load() {
+      const desde = document.getElementById('filter-desde').value;
+      const hasta = document.getElementById('filter-hasta').value;
+      const nivel = document.getElementById('filter-nivel').value;
+      const juego = document.getElementById('filter-juego').value;
+      const moneda = document.getElementById('filter-moneda').value;
+
+      const content = document.getElementById('content');
+      content.innerHTML = '<div class="loading">Cargando...</div>';
+
+      const params = new URLSearchParams();
+      if (desde) params.set('fecha_desde', desde);
+      if (hasta) params.set('fecha_hasta', hasta);
+      if (nivel) params.set('nivel', nivel);
+      if (juego) params.set('tipo_juego', juego);
+      if (moneda) params.set('moneda', moneda);
+
+      try {
+        const response = await apiFetch('GET', '/reportes/cuadre-caja?' + params.toString());
+        const items = Array.isArray(response) ? response : (response?.data || []);
+        const totales = response?.totales || {};
+
+        if (items.length === 0) {
+          content.innerHTML = '<div class="empty">No hay datos para el período</div>';
+          return;
+        }
+
+        let html = '<div class="table-wrap"><table><thead><tr><th>Entidad</th><th class="number">Venta</th><th class="number">Pagados</th><th class="number">Devoluciones</th><th class="number">Vencidos</th><th class="number">Efectivo</th><th class="number">Peso Venta (%)</th><th class="number">Participación (%)</th></tr></thead><tbody>';
+        items.forEach(row => {
+          html += `<tr>
+            <td><strong>${row.Entidad || '-'}</strong></td>
+            <td class="number">${fmt(row.Venta)}</td>
+            <td class="number">${fmt(row.Pagados)}</td>
+            <td class="number">${fmt(row.Devoluciones)}</td>
+            <td class="number">${fmt(row.Vencidos)}</td>
+            <td class="number">${fmt(row.Efectivo)}</td>
+            <td class="number">${fmtPct(row.PesoVenta)}</td>
+            <td class="number">${fmtPct(row.Participacion)}</td>
+          </tr>`;
+        });
+        html += '</tbody><tfoot><tr><th>Total</th>' +
+          `<td class="number">${fmt(totales.Venta)}</td>` +
+          `<td class="number">${fmt(totales.Pagados)}</td>` +
+          `<td class="number">${fmt(totales.Devoluciones)}</td>` +
+          `<td class="number">${fmt(totales.Vencidos)}</td>` +
+          `<td class="number">${fmt(totales.Efectivo)}</td>` +
+          `<td class="number">${fmtPct(totales.PesoVenta)}</td>` +
+          `<td class="number">${fmtPct(totales.Participacion)}</td>` +
+          '</tr></tfoot></table></div>';
+        content.innerHTML = html;
+      } catch (e) {
+        content.innerHTML = '<div class="error">Error: ' + (e.message || 'No se pudo cargar el reporte.') + '</div>';
+      }
+    }
+
+    // Set default date range (last 30 days)
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today.getTime() - 30 * 86400000);
+    document.getElementById('filter-hasta').value = today.toISOString().split('T')[0];
+    document.getElementById('filter-desde').value = thirtyDaysAgo.toISOString().split('T')[0];
+
+    document.getElementById('btn-buscar').addEventListener('click', load);
+    loadJuegos();
+    load();
+  </script>
+</AdminLayout>

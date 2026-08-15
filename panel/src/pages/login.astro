@@ -109,7 +109,7 @@ const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
         }
 
         if (!ROLES_PERMITIDOS.includes(data.user.role)) {
-          showAlert('Las taquillas deben usar la app de escritorio.', 'warning');
+          showAlert('Las agencias deben usar la app de escritorio.', 'warning');
           btn.disabled = false;
           btn.textContent = 'Iniciar Sesión';
           return;

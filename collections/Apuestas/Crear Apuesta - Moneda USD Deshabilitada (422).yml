@@ -1,0 +1,48 @@
+info:
+  name: Crear Apuesta - Moneda USD Deshabilitada (422)
+  type: http
+  seq: 7
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/apuestas"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+    - name: Content-Type
+      value: application/json
+    - name: X-Device-MAC
+      value: "{{macAddress}}"
+  body:
+    type: json
+    data: |-
+      {
+        "juego_id": 1,
+        "combinacion": {"animal": "perro", "numero": 27},
+        "amount_bs": 0,
+        "amount_usd": 50,
+        "sorteo_hora": "2026-08-26 19:05:00"
+      }
+  auth: inherit
+
+docs:
+  - |
+    # Respuesta esperada: 422 Unprocessable Entity
+    Si la taquilla tiene USD deshabilitado (por banca o grupo), retorna:
+    ```json
+    {
+      "message": "Moneda USD no permitida para esta taquilla."
+    }
+    ```
+    La herencia de monedas funciona como intersección banca ∩ grupo.
+
+runtime:
+  variables:
+    - name: macAddress
+      value: 00:1A:2B:3C:4D:5E
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

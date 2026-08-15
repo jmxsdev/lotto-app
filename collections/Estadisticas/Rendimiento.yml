@@ -1,0 +1,32 @@
+info:
+  name: Rendimiento
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/estadisticas/rendimiento?fecha_desde=2026-08-01&fecha_hasta=2026-08-12"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+    - name: X-Device-MAC
+      value: "{{macAddress}}"
+  params:
+    - name: fecha_desde
+      value: "2026-08-01"
+      type: query
+    - name: fecha_hasta
+      value: "2026-08-12"
+      type: query
+  auth: inherit
+
+runtime:
+  variables:
+    - name: macAddress
+      value: d8:f3:bc:65:d1:c5
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

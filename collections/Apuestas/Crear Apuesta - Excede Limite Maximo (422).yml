@@ -1,0 +1,49 @@
+info:
+  name: Crear Apuesta - Excede Limite Maximo (422)
+  type: http
+  seq: 8
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/apuestas"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+    - name: Content-Type
+      value: application/json
+    - name: X-Device-MAC
+      value: "{{macAddress}}"
+  body:
+    type: json
+    data: |-
+      {
+        "juego_id": 1,
+        "combinacion": {"animal": "perro", "numero": 27},
+        "amount_bs": 500,
+        "amount_usd": 0,
+        "sorteo_hora": "2026-08-26 19:05:00"
+      }
+  auth: inherit
+
+docs:
+  - |
+    # Respuesta esperada: 422 Unprocessable Entity
+    Si el monto excede el limite_maximo configurado para el (juego, banca/grupo/taquilla, moneda):
+    ```json
+    {
+      "message": "El monto excede el límite máximo de X BS."
+    }
+    ```
+    La herencia de límites funciona como cascada: taquilla > grupo > banca.
+    Si no hay límite configurado en ningún nivel, no se impone restricción.
+
+runtime:
+  variables:
+    - name: macAddress
+      value: 00:1A:2B:3C:4D:5E
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

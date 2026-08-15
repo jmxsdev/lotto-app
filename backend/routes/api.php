@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\BancaController;
+use App\Http\Controllers\Api\CierreController;
 use App\Http\Controllers\Api\GrupoController;
 use App\Http\Controllers\Api\TaquillaController;
 use App\Http\Controllers\Api\ExchangeRateController;
@@ -14,6 +15,8 @@ use App\Http\Controllers\Api\DispositivoController;
 use App\Http\Controllers\Api\ActivacionController;
 use App\Http\Controllers\Api\TicketController;
 use App\Http\Controllers\Api\PagoController;
+use App\Http\Controllers\Api\ReporteController;
+use App\Http\Controllers\Api\EstadisticaController;
 
 // Rutas públicas (sin autenticación)
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,2');
@@ -31,9 +34,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
 Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
 
     // ==================================================
-    // USUARIOS (solo Super Master y Master)
+    // USUARIOS (jerárquico: banca/grupo solo dentro de su alcance,
+    // taquilla solo se ve a sí misma; destroy restringido a
+    // super_master|master en el controlador)
     // ==================================================
-    Route::middleware(['role:super_master|master'])->group(function () {
+    Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
         Route::apiResource('users', UserController::class);
     });
 
@@ -42,6 +47,7 @@ Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
     // ==================================================
     Route::middleware(['role:super_master|master'])->group(function () {
         Route::apiResource('bancas', BancaController::class);
+        Route::patch('/bancas/{banca}/toggle', [BancaController::class, 'toggle'])->name('bancas.toggle');
     });
 
     // ==================================================
@@ -49,6 +55,7 @@ Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
     // ==================================================
     Route::middleware(['role:super_master|master|banca'])->group(function () {
         Route::apiResource('grupos', GrupoController::class);
+        Route::patch('/grupos/{grupo}/toggle', [GrupoController::class, 'toggle'])->name('grupos.toggle');
     });
 
     // ==================================================
@@ -56,6 +63,7 @@ Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
     // ==================================================
     Route::middleware(['role:super_master|master|banca|grupo'])->group(function () {
         Route::apiResource('taquillas', TaquillaController::class);
+        Route::patch('/taquillas/{taquilla}/toggle', [TaquillaController::class, 'toggle'])->name('taquillas.toggle');
     });
 
     // ==================================================
@@ -124,8 +132,55 @@ Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
     Route::get('/pagos/{apuesta}', [PagoController::class, 'showByApuesta'])->middleware('role:super_master|master|banca|grupo|taquilla');
 
     // ==================================================
-    // CIERRE DE CAJA (todos los roles) - PENDIENTE SPRINT 12
-    // Route::post('/cierre', [CierreController::class, 'store'])->middleware('role:super_master|master|banca|grupo|taquilla');
+    // CIERRE DE CAJA (jerárquico: la agencia cierra su propia caja;
+    // los roles administrativos cierran agencias dentro de su alcance)
+    // ==================================================
+    Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
+        Route::post('/cierre', [CierreController::class, 'store']);
+        Route::get('/cierre', [CierreController::class, 'index']);
+        Route::get('/cierre/{cierre}', [CierreController::class, 'show']);
+    });
+
+    // ==================================================
+    // LÍMITES POR JUEGO
+    // ==================================================
+    // GET: super_master, master, banca, grupo
+    Route::middleware(['role:super_master|master|banca|grupo'])->group(function () {
+        // GET /api/limites (modo entidad): matriz completa de una entidad
+        // (el conteo de segmentos lo desambigua de /limites/{juego})
+        Route::get('/limites', [JuegoController::class, 'listarLimites']);
+        Route::get('/limites/{juego}', [JuegoController::class, 'limites']);
+    });
+
+    // PUT: super_master, master, banca (upsert individual)
+    // DELETE: super_master, master, banca (autorización jerárquica en el controlador)
+    Route::middleware(['role:super_master|master|banca'])->group(function () {
+        Route::put('/limites/{juego}', [JuegoController::class, 'updateLimites']);
+        Route::delete('/limites/{limite}', [JuegoController::class, 'destroyLimite']);
+    });
+
+    // POST batch: super_master, master, banca (el alcance se valida por jerarquía en el controlador)
+    Route::middleware(['role:super_master|master|banca'])->group(function () {
+        Route::post('/limites/batch', [JuegoController::class, 'batchLimites']);
+    });
+
+    // ==================================================
+    // REPORTES (todos los roles autenticados)
+    // ==================================================
+    Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
+        Route::get('/reportes/ventas-totales', [ReporteController::class, 'ventasTotales']);
+        Route::get('/reportes/cuadre-caja', [ReporteController::class, 'cuadreCaja']);
+        Route::get('/reportes/relacion-tickets', [ReporteController::class, 'relacionTickets']);
+        Route::get('/reportes/rendimiento-taquillas', [ReporteController::class, 'rendimientoTaquillas']);
+        Route::get('/reportes/vencidos', [ReporteController::class, 'vencidos']);
+    });
+
+    // ==================================================
+    // ESTADÍSTICAS (todos los roles autenticados)
+    // ==================================================
+    Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
+        Route::get('/estadisticas/rendimiento', [EstadisticaController::class, 'rendimiento']);
+    });
 
     // ==================================================
     // TASAS DE CAMBIO (pública y protegida)

@@ -18,8 +18,7 @@ http:
     type: json
     data: |-
       {
-        "total_efectivo_bs": 10000,
-        "total_efectivo_usd": 50
+        "taquilla_id": 1
       }
   auth: inherit
 

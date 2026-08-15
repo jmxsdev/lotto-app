@@ -98,7 +98,7 @@ class TicketController extends Controller
 
         if (!$user->taquilla_id) {
             return response()->json([
-                'message' => 'Solo las taquillas pueden crear tickets.',
+                'message' => 'Solo las agencias pueden crear tickets.',
             ], 403);
         }
 
@@ -109,6 +109,40 @@ class TicketController extends Controller
             'lines.*.amount_usd' => 'numeric|min:0',
             'lines.*.combinacion' => 'nullable|array',
         ]);
+
+        // Validar monedas del ticket completo antes de entrar a la transacción
+        $hasBs = false;
+        $hasUsd = false;
+        foreach ($request->lines as $line) {
+            $lineBs = (float) ($line['amount_bs'] ?? 0);
+            $lineUsd = (float) ($line['amount_usd'] ?? 0);
+            if ($lineBs > 0) $hasBs = true;
+            if ($lineUsd > 0) $hasUsd = true;
+            if ($lineBs > 0 && $lineUsd > 0) {
+                $hasBs = true;
+                $hasUsd = true;
+                break;
+            }
+        }
+
+        if ($hasBs || $hasUsd) {
+            $monedas = $this->apuestaService->getEffectiveMonedas($user->taquilla_id);
+            if ($hasUsd && !$monedas['usd']) {
+                return response()->json([
+                    'message' => 'Moneda USD no permitida para esta agencia.',
+                ], 422);
+            }
+            if ($hasBs && !$monedas['bs']) {
+                return response()->json([
+                    'message' => 'Moneda BS no permitida para esta agencia.',
+                ], 422);
+            }
+            if ($hasBs && $hasUsd && (!$monedas['bs'] || !$monedas['usd'])) {
+                return response()->json([
+                    'message' => 'Ambas monedas deben estar habilitadas para tickets mixtos.',
+                ], 422);
+            }
+        }
 
         try {
             $ticket = DB::transaction(function () use ($request, $user) {
@@ -166,11 +200,14 @@ class TicketController extends Controller
             return response()->json(['message' => 'Solo se pueden anular tickets pendientes.'], 422);
         }
 
+        $tiempoEliminacion = $this->apuestaService
+            ->getEffectiveTiempoEliminacion($ticket->taquilla_id);
+
         $rechazada = null;
         foreach ($ticket->apuestas as $apuesta) {
             if (Gate::denies('delete', $apuesta)) {
-                if ($apuesta->created_at->diffInMinutes(now()) >= 5) {
-                    $rechazada = 'El ticket excedio los 5 minutos para ser anulado.';
+                if ($apuesta->created_at->diffInMinutes(now()) >= $tiempoEliminacion) {
+                    $rechazada = "El ticket excedió los {$tiempoEliminacion} minutos para ser anulado.";
                 } elseif ($apuesta->sorteo_hora && $apuesta->sorteo_hora->isPast()) {
                     $rechazada = 'El sorteo de una o mas jugadas ya ocurrio, no se puede anular.';
                 } else {

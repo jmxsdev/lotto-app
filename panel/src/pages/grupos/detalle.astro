@@ -1,0 +1,606 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+---
+
+<AdminLayout>
+  <div class="page">
+    <div class="page-header">
+      <div>
+        <h2 class="page-title" id="page-title">Grupo</h2>
+        <p class="page-subtitle" id="page-subtitle"></p>
+      </div>
+      <a class="btn btn-secondary" href="/grupos">← Volver a Grupos</a>
+    </div>
+
+    <div class="tab-bar" id="tabs">
+      <button type="button" class="tab-btn" data-tab="informacion">📋 Información</button>
+      <button type="button" class="tab-btn" data-tab="monedas">💱 Monedas y Vigencia</button>
+      <button type="button" class="tab-btn" data-tab="limites">🎯 Límites</button>
+      <button type="button" class="tab-btn" data-tab="usuarios">👤 Usuarios</button>
+    </div>
+
+    <!-- Pestaña 1: Información -->
+    <section class="tab-panel" data-panel="informacion" style="display:none">
+      <form id="info-form">
+        <div class="form-grid">
+          <div class="field"><label>Nombre</label><input name="name" required /></div>
+          <div class="field"><label>Código</label><input name="code" required /></div>
+          <div class="field"><label>Banca (entidad padre)</label><select name="banca_id" required></select></div>
+          <div class="field"><label>RIF</label><input name="rif" /></div>
+          <div class="field"><label>Email</label><input name="email" type="email" /></div>
+          <div class="field"><label>Teléfono</label><input name="telefono" /></div>
+          <div class="field"><label>Dirección</label><input name="direccion" /></div>
+          <div class="field"><label>Estado</label><input name="estado" /></div>
+          <div class="field"><label>Municipio</label><input name="municipio" /></div>
+        </div>
+        <div class="field checkbox-line"><label><input type="checkbox" name="active" checked /> Grupo activo</label></div>
+        <div class="field-section" id="user-section">
+          <h4>👤 Usuario Jefe</h4>
+          <div class="form-grid">
+            <div class="field"><label>Nombre de Usuario</label><input name="user_name" /></div>
+            <div class="field"><label>Email de Usuario</label><input name="user_email" type="email" /></div>
+            <div class="field"><label>Contraseña</label><input name="user_password" type="password" minlength="8" /></div>
+          </div>
+        </div>
+        <p class="user-hint" id="user-hint" style="display:none">El usuario jefe se gestiona desde la pestaña Usuarios.</p>
+        <div class="panel-actions"><button type="submit" class="btn btn-primary">Guardar Información</button></div>
+      </form>
+    </section>
+
+    <!-- Pestaña 2: Monedas y Vigencia -->
+    <section class="tab-panel" data-panel="monedas" style="display:none">
+      <p class="notice" id="monedas-notice" style="display:none">Primero guarde el grupo en la pestaña Información para configurar monedas y vigencia.</p>
+      <div class="notice" id="parent-hint" style="display:none"></div>
+      <form id="monedas-form">
+        <div class="field">
+          <label>Monedas Permitidas</label>
+          <div class="checkbox-group">
+            <label><input type="checkbox" name="moneda_bs" checked /> BS</label>
+            <label><input type="checkbox" name="moneda_usd" checked /> USD</label>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="field"><label>Vigencia Premios (días)</label><input name="vigencia_premios" type="number" min="1" /></div>
+          <div class="field"><label>Tiempo máximo de eliminación (min)</label><input name="tiempo_eliminacion" type="number" min="1" max="120" /></div>
+        </div>
+        <div class="panel-actions"><button type="submit" class="btn btn-primary">Guardar Monedas y Vigencia</button></div>
+      </form>
+    </section>
+
+    <!-- Pestaña 3: Límites -->
+    <section class="tab-panel" data-panel="limites" style="display:none">
+      <p class="notice" id="limites-notice" style="display:none">Primero guarde el grupo en la pestaña Información para configurar sus límites.</p>
+      <div class="filters">
+        <div class="field"><label>Aplicar a</label>
+          <select id="limite-alcance">
+            <option value="self">Este grupo</option>
+            <option value="agencias">Todas sus agencias</option>
+          </select>
+        </div>
+        <div class="field search"><label>Buscar juego</label>
+          <input type="text" id="limite-busqueda" placeholder="Nombre del juego..." />
+        </div>
+        <div id="limite-impacto" class="impacto"></div>
+      </div>
+      <div id="limites-content"><div class="loading">Cargando límites...</div></div>
+      <div class="panel-actions">
+        <button type="button" class="btn btn-primary" id="btn-limite-guardar">💾 Guardar cambios</button>
+        <span id="limite-estado" class="estado"></span>
+      </div>
+    </section>
+
+    <!-- Pestaña 4: Usuarios -->
+    <section class="tab-panel" data-panel="usuarios" style="display:none">
+      <p class="notice" id="usuarios-notice" style="display:none">Primero guarde el grupo en la pestaña Información para gestionar sus usuarios.</p>
+      <div class="panel-actions"><button type="button" class="btn btn-primary" id="btn-user-create">+ Nuevo usuario</button></div>
+      <div id="users-content"><div class="loading">Cargando...</div></div>
+    </section>
+  </div>
+
+  <!-- Modal de usuario -->
+  <div class="modal-overlay" id="user-modal" style="display:none">
+    <div class="modal-card">
+      <h3 id="user-modal-title">Nuevo Usuario</h3>
+      <form id="user-form">
+        <div class="field"><label>Nombre</label><input name="name" required /></div>
+        <div class="field" id="user-email-field"><label>Email</label><input name="email" type="email" /></div>
+        <div class="field" id="user-password-field"><label>Contraseña</label><input name="password" type="password" minlength="8" /></div>
+        <div class="field">
+          <label>Rol</label>
+          <select name="role" id="user-role" required>
+            <option value="grupo">Grupo</option>
+            <option value="taquilla">Agencia</option>
+          </select>
+        </div>
+        <div class="field" id="user-grupo-field" style="display:none"><label>Grupo</label><p class="user-hint" id="user-grupo-name"></p></div>
+        <div class="field" id="user-taquilla-field" style="display:none"><label>Agencia</label><select name="taquilla_id"></select></div>
+        <div class="field checkbox-line"><label><input type="checkbox" name="active" checked /> Usuario activo</label></div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="btn-user-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <style is:global>
+    .page { max-width: 1000px; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .page-title { font-size: 24px; font-weight: 700; color: #1e293b; }
+    .page-subtitle { font-size: 13px; color: #64748b; margin-top: 4px; }
+    .btn { padding: 8px 16px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .15s; text-decoration: none; display: inline-block; }
+    .btn-primary { background: #3b82f6; color: #fff; } .btn-primary:hover { background: #2563eb; }
+    .btn-secondary { background: #e2e8f0; color: #333; } .btn-secondary:hover { background: #cbd5e1; }
+    .btn-danger { background: #ef4444; color: #fff; } .btn-danger:hover { background: #dc2626; }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .loading { text-align: center; padding: 40px; color: #666; }
+    .tab-bar { display: flex; gap: 4px; background: #e2e8f0; padding: 4px; border-radius: 10px; margin-bottom: 20px; }
+    .tab-btn { flex: 1; padding: 10px 12px; border: none; border-radius: 8px; background: transparent; font-size: 14px; font-weight: 600; color: #64748b; cursor: pointer; transition: all .15s; }
+    .tab-btn:hover { color: #1e293b; }
+    .tab-btn-active { background: #fff; color: #1e293b; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .tab-panel { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .notice { font-size: 13px; color: #64748b; background: #f1f5f9; border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+    @media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } }
+    .panel-actions { display: flex; justify-content: flex-end; margin-top: 16px; }
+    .filters { display: flex; gap: 16px; align-items: flex-end; margin-bottom: 16px; }
+    .filters .field { flex: 1; }
+    .filter-action { padding-bottom: 14px; }
+    .field { margin-bottom: 14px; } .field label { display: block; font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px; }
+    .field input, .field select { width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px; } .field input:focus, .field select:focus { border-color: #3b82f6; outline: none; }
+    .field input:disabled, .field select:disabled { background: #f1f5f9; color: #94a3b8; }
+    .checkbox-group { display: flex; gap: 20px; padding-top: 4px; } .checkbox-group label { display: flex; align-items: center; gap: 6px; font-weight: 400; cursor: pointer; } .checkbox-group input[type="checkbox"] { width: auto; margin: 0; }
+    .checkbox-line { margin-top: 4px; } .checkbox-line label { display: flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer; } .checkbox-line input[type="checkbox"] { width: auto; margin: 0; }
+    .field-section { border-top: 1px solid #e2e8f0; margin-top: 16px; padding-top: 12px; } .field-section h4 { font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 10px; }
+    .user-hint { font-size: 12px; color: #64748b; background: #f1f5f9; border-radius: 6px; padding: 8px 10px; margin-bottom: 12px; }
+    .table-wrap { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    table { width: 100%; border-collapse: collapse; } th { background: #f1f5f9; padding: 10px 12px; text-align: left; font-size: 12px; font-weight: 600; color: #666; text-transform: uppercase; } td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; } tr:hover td { background: #f8fafc; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+    .modal-card { background: #fff; border-radius: 12px; padding: 28px; width: 480px; max-width: 95%; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 30px rgba(0,0,0,0.2); }
+    .modal-card h3 { margin-bottom: 20px; font-size: 18px; }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+    .actions-cell { display: flex; gap: 4px; }
+    .moneda-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+    .moneda-bs { background: #dbeafe; color: #1e40af; } .moneda-usd { background: #dcfce7; color: #166534; }
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+    .badge-active { background: #dcfce7; color: #166534; } .badge-inactive { background: #fef2f2; color: #991b1b; }
+    .pag-wrap { display: flex; gap: 6px; align-items: center; justify-content: center; padding: 10px 0; flex-wrap: wrap; }
+    .pag-btn { padding: 5px 10px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; font-size: 13px; cursor: pointer; }
+    .pag-btn:hover:not(:disabled) { background: #f1f5f9; }
+    .pag-btn:disabled { opacity: 0.4; cursor: default; }
+    .pag-activa { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+    .origen-tag { display: inline-block; font-size: 11px; color: #64748b; background: #f1f5f9; border-radius: 6px; padding: 2px 8px; }
+    td input[type="number"] { width: 90px; padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 13px; }
+    td input[type="number"]:focus { border-color: #3b82f6; outline: none; }
+  </style>
+
+  <script>
+    import { apiFetch, getStoredUser } from '../../utils/api.ts';
+    import { showModal } from '../../utils/modal.ts';
+    import { getParam, initTabs } from '../../utils/tabs.ts';
+    import { crearTablaLimites } from '../../utils/limites.ts';
+
+    const TABS = ['informacion', 'monedas', 'limites', 'usuarios'];
+    const currentUser = getStoredUser() || {};
+    const role = currentUser.role || '';
+    const canEditGrupo = role === 'super_master' || role === 'master' || role === 'banca';
+    const canEditLimites = canEditGrupo;
+    const canDeleteUser = role === 'super_master' || role === 'master';
+    const grupoId = getParam('id') ? parseInt(getParam('id'), 10) : null;
+    const isCreate = !grupoId;
+
+    const ROLE_LABELS = { super_master: 'Super Master', master: 'Master', banca: 'Banca', grupo: 'Grupo', taquilla: 'Agencia' };
+
+    let grupo = null;
+    let bancas = [];
+    let juegos = [];
+    let limitesCache = {};
+    let currentJuegoId = null;
+    let usuarios = [];
+    let taquillas = [];
+    let limitesInited = false;
+    let usuariosInited = false;
+    let userEditId = null;
+
+    // ---------- Cabecera y modo creación ----------
+
+    function setHeader() {
+      document.getElementById('page-title').textContent = isCreate ? 'Nuevo Grupo' : 'Grupo';
+      document.getElementById('page-subtitle').textContent = isCreate
+        ? 'Complete los datos para crear el grupo y su usuario jefe.'
+        : `ID #${grupoId}${grupo?.code ? ' · Código ' + grupo.code : ''}`;
+    }
+
+    function disableForm(form, disabled) {
+      form.querySelectorAll('input, select, button').forEach(el => { el.disabled = disabled; });
+    }
+
+    function applyCreateNotices() {
+      if (!isCreate) return;
+      document.getElementById('monedas-notice').style.display = 'block';
+      document.getElementById('limites-notice').style.display = 'block';
+      document.getElementById('usuarios-notice').style.display = 'block';
+      disableForm(document.getElementById('monedas-form'), true);
+      const btnL = document.getElementById('btn-limite-guardar');
+      if (btnL) btnL.disabled = true;
+      document.getElementById('btn-user-create').disabled = true;
+    }
+
+    // ---------- Carga de bancas (selector de entidad padre) ----------
+
+    async function loadBancas() {
+      try {
+        const data = await apiFetch('GET', '/bancas?per_page=100');
+        const items = Array.isArray(data) ? data : (data?.data || []);
+        bancas = items;
+      } catch (_) { bancas = []; }
+      // Roles banca/grupo no pueden listar bancas: derivar de la sesión
+      if (!bancas.length && currentUser.banca_id) {
+        bancas = [{ id: currentUser.banca_id, name: 'Mi Banca' }];
+      }
+      const s = document.getElementById('info-form').banca_id;
+      s.innerHTML = '<option value="">Seleccione la banca...</option>';
+      bancas.forEach(b => s.innerHTML += `<option value="${b.id}">${b.name}</option>`);
+    }
+
+    // ---------- Carga del grupo ----------
+
+    async function loadGrupo() {
+      await loadBancas();
+      if (isCreate) { setHeader(); populateInfo(); applyCreateNotices(); return; }
+      try {
+        const data = await apiFetch('GET', '/grupos/' + grupoId);
+        grupo = data.data || data;
+      } catch (_) {
+        // Roles banca/grupo pueden no ver el detalle completo: derivar de la sesión
+        if (currentUser.grupo_id == grupoId) {
+          grupo = { id: grupoId, name: currentUser.name || 'Mi Grupo', code: '', banca_id: currentUser.banca_id || null, monedas_permitidas: null, active: true };
+        } else {
+          await showModal({ message: 'No tienes permiso para ver este grupo o no existe.', type: 'error' });
+          window.location.href = '/grupos';
+          return;
+        }
+      }
+      setHeader();
+      populateInfo();
+      populateMonedas();
+      renderParentHints();
+      applyCreateNotices();
+    }
+
+    function populateInfo() {
+      const f = document.getElementById('info-form');
+      f.name.value = grupo?.name || '';
+      f.code.value = grupo?.code || '';
+      f.banca_id.value = grupo?.banca_id ? String(grupo.banca_id) : '';
+      f.rif.value = grupo?.rif || '';
+      f.email.value = grupo?.email || '';
+      f.telefono.value = grupo?.telefono || '';
+      f.direccion.value = grupo?.direccion || '';
+      f.estado.value = grupo?.estado || '';
+      f.municipio.value = grupo?.municipio || '';
+      f.active.checked = grupo ? !!grupo.active : true;
+      document.getElementById('user-section').style.display = isCreate ? 'block' : 'none';
+      document.getElementById('user-hint').style.display = isCreate ? 'none' : 'block';
+      f.user_name.required = isCreate;
+      f.user_email.required = isCreate;
+      f.user_password.required = isCreate;
+      if (!canEditGrupo) disableForm(f, true);
+    }
+
+    function populateMonedas() {
+      const f = document.getElementById('monedas-form');
+      f.moneda_bs.checked = grupo?.monedas_permitidas?.bs ?? true;
+      f.moneda_usd.checked = grupo?.monedas_permitidas?.usd ?? true;
+      f.vigencia_premios.value = grupo?.vigencia_premios ?? '';
+      f.tiempo_eliminacion.value = grupo?.tiempo_eliminacion ?? '';
+      if (!canEditGrupo) disableForm(f, true);
+    }
+
+    // Hint jerárquico: valores efectivos de la banca padre (el grupo solo puede restringir)
+    function renderParentHints() {
+      const p = document.getElementById('parent-hint');
+      const banca = grupo?.banca;
+      if (!banca) { p.style.display = 'none'; return; }
+      const monedas = [];
+      if (banca.monedas_permitidas?.bs ?? true) monedas.push('BS');
+      if (banca.monedas_permitidas?.usd ?? true) monedas.push('USD');
+      const vigencia = banca.vigencia_premios ? `${banca.vigencia_premios} días` : 'sin definir';
+      const tiempo = banca.tiempo_eliminacion ? `${banca.tiempo_eliminacion} min` : '5 min (por defecto)';
+      p.innerHTML = `<strong>Banca padre: ${banca.name}</strong> — Monedas permitidas: ${monedas.join(', ') || 'ninguna'}. ` +
+        `Vigencia de premios: ${vigencia}. Tiempo de eliminación: ${tiempo}. ` +
+        `El grupo solo puede restringir, no exceder, los valores de su banca.`;
+      p.style.display = 'block';
+    }
+
+    // ---------- Pestaña Información ----------
+
+    document.getElementById('info-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = e.target;
+      const body = {
+        name: f.name.value,
+        code: f.code.value,
+        banca_id: f.banca_id.value,
+        rif: f.rif.value || null,
+        email: f.email.value || null,
+        telefono: f.telefono.value || null,
+        direccion: f.direccion.value || null,
+        estado: f.estado.value || null,
+        municipio: f.municipio.value || null,
+        active: f.active.checked,
+      };
+      if (isCreate) {
+        body.user_name = f.user_name.value;
+        body.user_email = f.user_email.value;
+        body.user_password = f.user_password.value;
+      }
+      try {
+        if (isCreate) {
+          const res = await apiFetch('POST', '/grupos', body);
+          const created = res?.grupo || res?.data?.grupo || res;
+          window.location.href = '/grupos/detalle?id=' + created.id + '&tab=informacion';
+        } else {
+          await apiFetch('PUT', '/grupos/' + grupoId, body);
+          await showModal({ message: 'Grupo actualizado correctamente.', type: 'success' });
+          await loadGrupo();
+        }
+      } catch (err) {
+        await showModal({ message: err.message, type: 'error' });
+      }
+    });
+
+    // ---------- Pestaña Monedas y Vigencia ----------
+
+    document.getElementById('monedas-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = e.target;
+      const body = {
+        monedas_permitidas: { bs: f.moneda_bs.checked, usd: f.moneda_usd.checked },
+        vigencia_premios: f.vigencia_premios.value ? parseInt(f.vigencia_premios.value) : null,
+        tiempo_eliminacion: f.tiempo_eliminacion.value ? parseInt(f.tiempo_eliminacion.value) : null,
+      };
+      try {
+        await apiFetch('PUT', '/grupos/' + grupoId, body);
+        await showModal({ message: 'Monedas y vigencia actualizadas correctamente.', type: 'success' });
+        await loadGrupo();
+      } catch (err) {
+        await showModal({ message: err.message, type: 'error' });
+      }
+    });
+
+    // ---------- Pestaña Límites ----------
+
+    let limitesAlcance = 'self';
+    let limitesTabla = null;
+
+    async function initLimites() {
+      limitesInited = true;
+      if (!grupoId) return;
+      montarLimites();
+    }
+
+    function montarLimites() {
+      const contenedor = document.getElementById('limites-content');
+      const impacto = document.getElementById('limite-impacto');
+      const estado = document.getElementById('limite-estado');
+      const btn = document.getElementById('btn-limite-guardar');
+      contenedor.innerHTML = '<div class="loading">Cargando límites...</div>';
+      impacto.textContent = '';
+      estado.textContent = '';
+      if (btn) btn.disabled = false;
+
+      limitesTabla = crearTablaLimites({
+        modo: 'entidad',
+        tipoEntidad: 'grupo',
+        entidadId: grupoId,
+        mostrarOrigen: true,
+        filasPorPagina: 15,
+        cargarDatos: async () => {
+          let data;
+          if (limitesAlcance === 'self') {
+            data = await apiFetch('GET', '/limites?grupo_id=' + grupoId);
+          } else {
+            data = await apiFetch('GET', '/limites?scope=taquillas&grupo_id=' + grupoId);
+          }
+          const resultado = data?.data || { juegos: [], limites: {} };
+          const n = (resultado.entidades || []).length;
+          impacto.textContent = limitesAlcance === 'self'
+            ? 'Configurando este grupo (celdas vacías = heredan de la banca).'
+            : n > 0 ? `Se aplicará a ${n} agencias.` : 'No hay agencias en este alcance.';
+          return resultado;
+        },
+        guardar: async (payload) => {
+          if (limitesAlcance === 'self') {
+            // ítems legacy con grupo_id + banca_id (solo este grupo)
+            const items = payload.limites.map(i => ({ ...i, banca_id: grupo?.banca_id, grupo_id: grupoId }));
+            return apiFetch('POST', '/limites/batch', { limites: items });
+          }
+          return apiFetch('POST', '/limites/batch', {
+            scope: { tipo: 'taquillas', id: grupoId },
+            limites: payload.limites,
+          });
+        },
+      });
+
+      limitesTabla.montar(contenedor);
+    }
+
+    document.getElementById('limite-alcance').addEventListener('change', function () {
+      limitesAlcance = this.value;
+      montarLimites();
+    });
+
+    document.getElementById('limite-busqueda').addEventListener('input', function () {
+      if (limitesTabla) limitesTabla.buscar(this.value);
+    });
+
+    document.getElementById('btn-limite-guardar').addEventListener('click', async () => {
+      const estado = document.getElementById('limite-estado');
+      if (!limitesTabla || !limitesTabla.hayCambios()) {
+        estado.textContent = 'No hay cambios para guardar.';
+        return;
+      }
+      document.getElementById('btn-limite-guardar').disabled = true;
+      estado.textContent = 'Guardando...';
+      try {
+        await limitesTabla.guardar();
+        estado.textContent = '✅ Límites guardados.';
+        montarLimites();
+      } catch (err) {
+        estado.textContent = '';
+        await showModal({ message: err.message, type: 'error' });
+      } finally {
+        document.getElementById('btn-limite-guardar').disabled = false;
+      }
+    });
+
+    // ---------- Pestaña Usuarios ----------
+
+    async function initUsuarios() {
+      usuariosInited = true;
+      if (!grupoId) return;
+      await loadTaquillas();
+      await loadUsers();
+    }
+
+    async function loadTaquillas() {
+      try {
+        const d = await apiFetch('GET', '/taquillas?per_page=100');
+        taquillas = (Array.isArray(d) ? d : (d?.data || [])).filter(t => t.grupo_id == grupoId);
+      } catch (_) { taquillas = []; }
+    }
+
+    async function loadUsers() {
+      if (!grupoId) return;
+      try {
+        const data = await apiFetch('GET', '/users?grupo_id=' + grupoId);
+        usuarios = Array.isArray(data) ? data : (data?.data || []);
+        renderUsers();
+      } catch (err) {
+        document.getElementById('users-content').innerHTML = '<div class="loading">Error: ' + err.message + '</div>';
+      }
+    }
+
+    function renderUsers() {
+      if (!usuarios.length) {
+        document.getElementById('users-content').innerHTML = '<div class="loading">No hay usuarios vinculados a este grupo.</div>';
+        return;
+      }
+      let html = '<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Entidad</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>';
+      usuarios.forEach(u => {
+        const entidad = u.taquilla?.name || u.grupo?.name || u.banca?.name || '—';
+        const del = canDeleteUser ? `<button class="btn btn-sm btn-danger del-user-btn" data-id="${u.id}">🗑</button>` : '';
+        html += `<tr><td><strong>${u.name}</strong></td><td>${u.email}</td><td>${ROLE_LABELS[u.role] || u.role}</td><td>${entidad}</td><td><span class="badge ${u.active ? 'badge-active' : 'badge-inactive'}">${u.active ? 'Activo' : 'Inactivo'}</span></td><td class="actions-cell"><button class="btn btn-sm btn-secondary edit-user-btn" data-id="${u.id}">✏️</button>${del}</td></tr>`;
+      });
+      html += '</tbody></table></div>';
+      document.getElementById('users-content').innerHTML = html;
+    }
+
+    function renderUserTaquillas() {
+      const st = document.querySelector('#user-form [name="taquilla_id"]');
+      st.innerHTML = '<option value="">Seleccione...</option>';
+      taquillas.forEach(t => st.innerHTML += `<option value="${t.id}">${t.name}</option>`);
+    }
+
+    function applyUserRoleUI() {
+      const roleSel = document.getElementById('user-role').value;
+      const needTaquilla = roleSel === 'taquilla';
+      document.getElementById('user-grupo-field').style.display = roleSel === 'grupo' ? 'block' : 'none';
+      document.getElementById('user-taquilla-field').style.display = needTaquilla ? 'block' : 'none';
+      document.querySelector('#user-form [name="taquilla_id"]').required = needTaquilla;
+    }
+
+    function openUserModal(u = null) {
+      userEditId = u?.id || null;
+      const creating = !u;
+      document.getElementById('user-modal-title').textContent = u ? 'Editar Usuario' : 'Nuevo Usuario';
+      const f = document.getElementById('user-form');
+      f.name.value = u?.name || '';
+      f.email.value = u?.email || '';
+      f.password.value = '';
+      document.getElementById('user-email-field').style.display = creating ? 'block' : 'none';
+      document.getElementById('user-password-field').style.display = creating ? 'block' : 'none';
+      f.email.required = creating;
+      f.password.required = creating;
+      f.active.checked = u ? !!u.active : true;
+      const roleSel = document.getElementById('user-role');
+      roleSel.innerHTML = '<option value="grupo">Grupo</option><option value="taquilla">Agencia</option>';
+      const userRole = u?.role || 'grupo';
+      if (!['grupo', 'taquilla'].includes(userRole)) {
+        roleSel.innerHTML += `<option value="${userRole}">${ROLE_LABELS[userRole] || userRole}</option>`;
+      }
+      roleSel.value = userRole;
+      applyUserRoleUI();
+      document.getElementById('user-grupo-name').textContent = `Vinculado a: ${grupo?.name || 'este grupo'} (ID #${grupoId})`;
+      renderUserTaquillas();
+      f.taquilla_id.value = u?.taquilla_id ? String(u.taquilla_id) : '';
+      document.getElementById('user-modal').style.display = 'flex';
+    }
+
+    document.getElementById('user-role').addEventListener('change', applyUserRoleUI);
+
+    document.getElementById('btn-user-create').addEventListener('click', () => {
+      if (isCreate) return;
+      openUserModal();
+    });
+
+    document.getElementById('btn-user-cancel').addEventListener('click', () => document.getElementById('user-modal').style.display = 'none');
+
+    document.getElementById('user-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = e.target;
+      const roleSel = f.role.value;
+      const body = { role: roleSel, active: f.active.checked };
+      if (userEditId) {
+        body.name = f.name.value;
+        body.email = f.email.value;
+      } else {
+        body.user_name = f.name.value;
+        body.user_email = f.email.value;
+        body.user_password = f.password.value;
+      }
+      if (roleSel === 'grupo') body.grupo_id = grupoId;
+      else if (roleSel === 'taquilla') { body.grupo_id = grupoId; body.taquilla_id = f.taquilla_id.value || null; }
+      try {
+        if (userEditId) await apiFetch('PUT', '/users/' + userEditId, body);
+        else await apiFetch('POST', '/users', body);
+        document.getElementById('user-modal').style.display = 'none';
+        await loadUsers();
+      } catch (err) {
+        await showModal({ message: err.message, type: 'error' });
+      }
+    });
+
+    document.getElementById('users-content').addEventListener('click', (e) => {
+      const eb = e.target.closest('.edit-user-btn');
+      const db = e.target.closest('.del-user-btn');
+      if (eb) {
+        const id = parseInt(eb.dataset.id);
+        const u = usuarios.find(x => x.id === id);
+        if (u) openUserModal(u);
+      }
+      if (db) {
+        const id = parseInt(db.dataset.id);
+        showModal({ message: '¿Eliminar usuario?', type: 'confirm' }).then(ok => {
+          if (!ok) return;
+          apiFetch('DELETE', '/users/' + id)
+            .then(() => loadUsers())
+            .catch(err => showModal({ message: err.message, type: 'error' }));
+        });
+      }
+    });
+
+    // ---------- Arranque ----------
+
+    if (!canEditLimites) document.getElementById('btn-limite-create').style.display = 'none';
+
+    initTabs('tabs', TABS, (tab) => {
+      if (tab === 'limites' && !limitesInited) initLimites();
+      if (tab === 'usuarios' && !usuariosInited) initUsuarios();
+    });
+
+    loadGrupo();
+  </script>
+</AdminLayout>

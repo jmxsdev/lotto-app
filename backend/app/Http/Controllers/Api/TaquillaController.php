@@ -44,7 +44,7 @@ class TaquillaController extends Controller
             }
             $query->where('grupo_id', $user->grupo_id);
         } else {
-            return response()->json(['message' => 'No tienes permiso para ver taquillas.'], 403);
+            return response()->json(['message' => 'No tienes permiso para ver agencias.'], 403);
         }
 
         $taquillas = $query->with('grupo.banca')->get();
@@ -64,6 +64,14 @@ class TaquillaController extends Controller
             'code' => 'required|string|unique:taquillas,code',
             'grupo_id' => 'required|exists:grupos,id',
             'active' => 'boolean',
+            'vigencia_premios' => 'nullable|integer|min:1',
+            'tiempo_eliminacion' => 'nullable|integer|min:1|max:120',
+            'rif' => 'nullable|string|max:20',
+            'email' => 'nullable|email',
+            'telefono' => 'nullable|string|max:30',
+            'direccion' => 'nullable|string|max:255',
+            'estado' => 'nullable|string|max:100',
+            'municipio' => 'nullable|string|max:100',
             'user_name' => 'required|string|max:255',
             'user_email' => 'required|email|unique:users,email',
             'user_password' => 'required|string|min:8',
@@ -72,18 +80,32 @@ class TaquillaController extends Controller
         // Verificar acceso al grupo
         $this->authorizeGrupoAccess($user, $request->grupo_id);
 
+        $grupo = Grupo::find($request->grupo_id);
+
+        // Validar vigencia_premios contra el grupo (más restrictivo)
+        $this->validarVigenciaContraParent($grupo, $request);
+
+        // Validar tiempo_eliminacion contra el grupo/banca (más restrictivo: no puede alargar la ventana)
+        $this->validarTiempoEliminacionContraParent($grupo, $request);
+
         // Generar activation_code automáticamente si no se proporciona
         $activationCode = $request->activation_code ?? Str::random(16);
-
-        $grupo = Grupo::find($request->grupo_id);
 
         $taquilla = Taquilla::create([
             'name' => $request->name,
             'code' => $request->code,
             'grupo_id' => $request->grupo_id,
             'activation_code' => $activationCode,
+            'vigencia_premios' => $request->vigencia_premios ?? null,
+            'tiempo_eliminacion' => $request->tiempo_eliminacion ?? null,
             'active' => $request->active ?? false,
             'created_by' => $user->id,
+            'rif' => $request->rif,
+            'email' => $request->email,
+            'telefono' => $request->telefono,
+            'direccion' => $request->direccion,
+            'estado' => $request->estado,
+            'municipio' => $request->municipio,
         ]);
 
         $user = User::create([
@@ -133,13 +155,53 @@ class TaquillaController extends Controller
             'mac_address' => 'nullable|string',
             'activation_code' => 'nullable|string|unique:taquillas,activation_code,' . $taquilla->id,
             'active' => 'boolean',
+            'vigencia_premios' => 'nullable|integer|min:1',
+            'tiempo_eliminacion' => 'nullable|integer|min:1|max:120',
+            'rif' => 'nullable|string|max:20',
+            'email' => 'nullable|email',
+            'telefono' => 'nullable|string|max:30',
+            'direccion' => 'nullable|string|max:255',
+            'estado' => 'nullable|string|max:100',
+            'municipio' => 'nullable|string|max:100',
         ]);
 
         if ($request->has('grupo_id')) {
             $this->authorizeGrupoAccess($user, $request->grupo_id);
         }
 
-        $taquilla->update($request->only(['name', 'code', 'grupo_id', 'mac_address', 'activation_code', 'active']));
+        // Validar vigencia_premios contra el grupo padre
+        if ($request->has('vigencia_premios')) {
+            $grupo = $taquilla->grupo;
+            $this->validarVigenciaContraParent($grupo, $request);
+        }
+
+        // Validar tiempo_eliminacion contra el grupo padre
+        if ($request->has('tiempo_eliminacion')) {
+            $grupo = $taquilla->grupo;
+            $this->validarTiempoEliminacionContraParent($grupo, $request);
+        }
+
+        $data = $request->only(['name', 'code', 'grupo_id', 'mac_address', 'activation_code', 'active', 'vigencia_premios', 'tiempo_eliminacion', 'rif', 'email', 'telefono', 'direccion', 'estado', 'municipio']);
+
+        // NULL = hereda del padre (columna nullable)
+        $taquilla->update($data);
+
+        return response()->json($taquilla->load('grupo.banca'));
+    }
+
+    /**
+     * Alternar el estado activo de una agencia.
+     * PATCH /api/taquillas/{taquilla}/toggle
+     * No desregistra el dispositivo: MAC y huella permanecen intactos,
+     * por lo que al reactivar no se requiere re-activación.
+     */
+    public function toggle(Request $request, Taquilla $taquilla)
+    {
+        $user = auth()->user();
+
+        $this->authorizeTaquillaAccess($user, $taquilla);
+
+        $taquilla->update(['active' => !$taquilla->active]);
 
         return response()->json($taquilla->load('grupo.banca'));
     }
@@ -155,15 +217,67 @@ class TaquillaController extends Controller
 
         // Verificar que no tenga apuestas (opcional)
         if ($taquilla->apuestas()->count() > 0) {
-            return response()->json(['message' => 'No se puede eliminar la taquilla porque tiene apuestas asociadas.'], 422);
+            return response()->json(['message' => 'No se puede eliminar la agencia porque tiene apuestas asociadas.'], 422);
         }
 
         $taquilla->delete();
 
-        return response()->json(['message' => 'Taquilla eliminada correctamente.']);
+        return response()->json(['message' => 'Agencia eliminada correctamente.']);
     }
 
     // --- Métodos de autorización ---
+
+    /**
+     * Validar que la vigencia_premios de la taquilla no exceda la del grupo.
+     * El nivel hijo solo puede ser más restrictivo (menor o igual).
+     */
+    private function validarVigenciaContraParent(Grupo $grupo, Request $request): void
+    {
+        if ($request->vigencia_premios === null) {
+            return;
+        }
+
+        $grupoVigencia = $grupo->vigencia_premios;
+        if ($grupoVigencia !== null && $request->vigencia_premios > $grupoVigencia) {
+            abort(422, json_encode([
+                'message' => "La vigencia de premios de la agencia ({$request->vigencia_premios} días) no puede ser mayor que la del grupo ({$grupoVigencia} días). La jerarquía inferior solo puede acortar el plazo."
+            ]));
+        }
+
+        // También validar contra banca (si el grupo no tiene vigencia configurada)
+        if ($grupoVigencia === null) {
+            $bancaVigencia = $grupo->banca?->vigencia_premios;
+            if ($bancaVigencia !== null && $request->vigencia_premios > $bancaVigencia) {
+                abort(422, json_encode([
+                    'message' => "La vigencia de premios de la agencia ({$request->vigencia_premios} días) no puede ser mayor que la de la banca ({$bancaVigencia} días). La jerarquía inferior solo puede acortar el plazo."
+                ]));
+            }
+        }
+    }
+
+    /**
+     * Validar que el tiempo_eliminacion de la taquilla no exceda el efectivo del grupo/banca.
+     * El nivel hijo solo puede acortar la ventana (más restrictivo).
+     */
+    private function validarTiempoEliminacionContraParent(Grupo $grupo, Request $request): void
+    {
+        if ($request->tiempo_eliminacion === null) {
+            return;
+        }
+
+        $grupoTiempo = $grupo->tiempo_eliminacion;
+        if ($grupoTiempo !== null && $request->tiempo_eliminacion > $grupoTiempo) {
+            abort(422, "El tiempo máximo de la agencia ({$request->tiempo_eliminacion} minutos) no puede ser mayor que el del grupo ({$grupoTiempo} minutos). La jerarquía inferior solo puede acortar el plazo.");
+        }
+
+        // También validar contra banca (si el grupo no tiene tiempo configurado)
+        if ($grupoTiempo === null) {
+            $bancaTiempo = $grupo->banca?->tiempo_eliminacion ?? 5;
+            if ($request->tiempo_eliminacion > $bancaTiempo) {
+                abort(422, "El tiempo máximo de la agencia ({$request->tiempo_eliminacion} minutos) no puede ser mayor que el de la banca ({$bancaTiempo} minutos). La jerarquía inferior solo puede acortar el plazo.");
+            }
+        }
+    }
 
     private function authorizeGrupoAccess($user, $grupoId)
     {
@@ -207,7 +321,7 @@ class TaquillaController extends Controller
         if ($user->hasRole('banca')) {
             $grupo = $taquilla->grupo;
             if (!$user->banca_id || $user->banca_id != $grupo->banca_id) {
-                abort(403, 'No tienes acceso a esta taquilla.');
+                abort(403, 'No tienes acceso a esta agencia.');
             }
             return;
         }
@@ -215,11 +329,11 @@ class TaquillaController extends Controller
         // Grupo puede acceder solo a sus taquillas
         if ($user->hasRole('grupo')) {
             if (!$user->grupo_id || $user->grupo_id != $taquilla->grupo_id) {
-                abort(403, 'No tienes acceso a esta taquilla.');
+                abort(403, 'No tienes acceso a esta agencia.');
             }
             return;
         }
 
-        abort(403, 'No tienes permiso para acceder a esta taquilla.');
+        abort(403, 'No tienes permiso para acceder a esta agencia.');
     }
 }

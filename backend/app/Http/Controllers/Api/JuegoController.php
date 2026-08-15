@@ -3,11 +3,18 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Banca;
+use App\Models\Grupo;
 use App\Models\Juego;
 use App\Models\JuegoAuditoria;
+use App\Models\JuegoLimite;
 use App\Models\PluginJuego;
+use App\Models\Taquilla;
 use App\Services\JuegoPluginManager;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class JuegoController extends Controller
@@ -65,18 +72,17 @@ class JuegoController extends Controller
         $request->validate([
             'name' => 'sometimes|string|max:255',
             'config' => 'nullable|array',
-            'costo_minimo' => 'sometimes|numeric|min:0',
         ]);
 
-        $changes = $request->only(['name', 'config', 'costo_minimo']);
+        $changes = $request->only(['name', 'config']);
 
         if (empty($changes)) {
             return response()->json($juego->load('pluginJuego'));
         }
 
-        $before = $juego->only(['name', 'config', 'costo_minimo']);
+        $before = $juego->only(['name', 'config']);
         $juego->update(array_merge($changes, ['updated_by' => $user->id]));
-        $after = $juego->only(['name', 'config', 'costo_minimo']);
+        $after = $juego->only(['name', 'config']);
 
         JuegoAuditoria::create([
             'juego_id' => $juego->id,
@@ -137,5 +143,948 @@ class JuegoController extends Controller
         $reglas['modalidades'] = array_values($modalidades);
 
         return response()->json($reglas);
+    }
+
+    // ==================================================
+    // LÍMITES POR JUEGO
+    // ==================================================
+
+    /**
+     * Listar límites de un juego, filtrados por jerarquía del usuario
+     * y opcionalmente por banca, grupo o taquilla.
+     * GET /api/limites/{juego}?banca_id=&grupo_id=&taquilla_id=
+     */
+    public function limites(Request $request, Juego $juego)
+    {
+        $user = $request->user();
+
+        if (!in_array($user->role, ['super_master', 'master', 'banca', 'grupo'])) {
+            return response()->json(['message' => 'No tienes permiso para ver límites.'], 403);
+        }
+
+        $filtros = $request->validate([
+            'banca_id' => 'nullable|integer|exists:bancas,id',
+            'grupo_id' => 'nullable|integer|exists:grupos,id',
+            'taquilla_id' => 'nullable|integer|exists:taquillas,id',
+        ]);
+
+        $query = JuegoLimite::where('juego_id', $juego->id)
+            ->with(['banca', 'grupo', 'taquilla']);
+
+        // Filtrar por jerarquía del usuario
+        if ($user->role === 'super_master' || $user->role === 'master') {
+            // Sin filtro: ven todos los límites
+        } elseif ($user->role === 'banca') {
+            $query->where('banca_id', $user->banca_id);
+        } elseif ($user->role === 'grupo') {
+            $query->where(function ($q) use ($user) {
+                $q->where('grupo_id', $user->grupo_id)
+                  ->orWhere(function ($q2) use ($user) {
+                      $q2->whereNull('grupo_id')->whereNull('taquilla_id')
+                         ->whereHas('grupo', fn ($g) => $g->where('banca_id', $user->banca_id));
+                  });
+            });
+        }
+
+        // Filtros explícitos por banca, grupo o taquilla (validados previamente).
+        // Se aplican DESPUÉS del alcance jerárquico: intersectan, nunca amplían.
+        if (isset($filtros['banca_id'])) {
+            $query->where('banca_id', $filtros['banca_id']);
+        }
+
+        if (isset($filtros['grupo_id'])) {
+            $query->where('grupo_id', $filtros['grupo_id']);
+        }
+
+        if (isset($filtros['taquilla_id'])) {
+            $query->where('taquilla_id', $filtros['taquilla_id']);
+        }
+
+        $limites = $query->get();
+
+        return response()->json($limites);
+    }
+
+    /**
+     * Matriz completa de límites de una entidad (banca, grupo o taquilla).
+     * GET /api/limites?banca_id=|grupo_id=|taquilla_id=
+     *
+     * Devuelve todos los juegos activos y sus límites en UNA sola respuesta,
+     * indexados por "juego_id:moneda", sin consultas por juego. Para las
+     * celdas sin fila propia se resuelve el origen heredado del nivel
+     * superior (taquilla → grupo → banca). El alcance del rol se aplica
+     * primero: los filtros intersectan, nunca amplían.
+     *
+     * Modo scope: GET /api/limites?scope=bancas|grupos|taquillas (XOR con
+     * los filtros de entidad) devuelve la matriz de TODAS las entidades del
+     * tipo visibles para el rol, indexada por "entidad_id:juego_id:moneda",
+     * con `mixto` para marcar juego×moneda donde las entidades difieren en
+     * si tienen fila propia. Sin origen en este modo.
+     */
+    public function listarLimites(Request $request)
+    {
+        $user = $request->user();
+
+        if (!in_array($user->role, ['super_master', 'master', 'banca', 'grupo'])) {
+            return response()->json(['message' => 'No tienes permiso para ver límites.'], 403);
+        }
+
+        $filtros = $request->validate([
+            'banca_id' => 'nullable|integer|exists:bancas,id',
+            'grupo_id' => 'nullable|integer|exists:grupos,id',
+            'taquilla_id' => 'nullable|integer|exists:taquillas,id',
+            'scope' => 'nullable|in:bancas,grupos,taquillas',
+        ]);
+
+        $scope = $filtros['scope'] ?? null;
+
+        // XOR: modo scope (un tipo) vs modo entidad (un filtro)
+        $entidad = array_filter([
+            'banca_id' => $filtros['banca_id'] ?? null,
+            'grupo_id' => $filtros['grupo_id'] ?? null,
+            'taquilla_id' => $filtros['taquilla_id'] ?? null,
+        ], fn ($valor) => $valor !== null);
+
+        if ($scope !== null) {
+            // Modo scope con raíz opcional (mini-alcance de pestañas):
+            // scope=grupos&banca_id=X | scope=taquillas&banca_id=X | scope=taquillas&grupo_id=Y
+            $raiz = null;
+            if (count($entidad) === 1) {
+                if ($scope === 'bancas') {
+                    abort(422, 'El alcance de bancas no admite filtro de entidad raíz.');
+                }
+                $raiz = [
+                    'tipo' => str_replace('_id', '', (string) array_key_first($entidad)),
+                    'id' => (int) reset($entidad),
+                ];
+            } elseif (count($entidad) > 1) {
+                abort(422, 'Solo puede combinar scope con un único filtro de entidad raíz.');
+            }
+
+            return $this->listarLimitesPorScope($user, $scope, $raiz);
+        }
+
+        if (count($entidad) !== 1) {
+            abort(422, 'Debe indicar exactamente uno de banca_id, grupo_id o taquilla_id.');
+        }
+
+        $tipo = str_replace('_id', '', (string) array_key_first($entidad));
+        $entidadId = (int) $entidad[array_key_first($entidad)];
+
+        $juegos = Juego::where('active', true)->orderBy('id')->get(['id', 'name', 'slug']);
+        $claves = collect($juegos)
+            ->flatMap(fn ($juego) => [$juego->id . ':bs', $juego->id . ':usd'])
+            ->all();
+
+        $limites = array_fill_keys($claves, null);
+        $origenes = array_fill_keys($claves, null);
+
+        // Alcance del rol primero: fuera de la jerarquía del usuario la
+        // intersección es vacía (se responde la matriz sin valores, nunca
+        // se amplía el alcance).
+        if (!$this->entidadDentroDelAlcance($user, $tipo, $entidadId)) {
+            return response()->json([
+                'data' => [
+                    'juegos' => $juegos,
+                    'limites' => $limites,
+                    'origen' => $origenes,
+                ],
+            ]);
+        }
+
+        [$filas, $filasPadre] = $this->filasDeEntidad($tipo, $entidadId);
+
+        foreach ($filas as $fila) {
+            $clave = $fila->juego_id . ':' . $fila->moneda;
+            $limites[$clave] = $this->serializarLimite($fila);
+        }
+
+        // Origen: solo para celdas SIN fila propia en esta entidad; se
+        // resuelve el ancestro más cercano. La banca no tiene padre.
+        if ($tipo !== 'banca') {
+            $porGrupo = [];
+            $porBanca = [];
+            foreach ($filasPadre as $fila) {
+                $clave = $fila->juego_id . ':' . $fila->moneda;
+                if ($fila->grupo_id !== null) {
+                    $porGrupo[$clave] = $fila;
+                } else {
+                    $porBanca[$clave] = $fila;
+                }
+            }
+
+            foreach ($claves as $clave) {
+                if ($limites[$clave] !== null) {
+                    continue; // fila propia: sin origen que heredar
+                }
+
+                $padre = $porGrupo[$clave] ?? $porBanca[$clave] ?? null;
+                if (!$padre) {
+                    continue;
+                }
+
+                $origenes[$clave] = [
+                    'nivel' => $padre->grupo_id !== null ? 'grupo' : 'banca',
+                    'entidad_id' => (int) ($padre->grupo_id ?? $padre->banca_id),
+                    'valor' => $this->valoresPresentes($padre),
+                ];
+            }
+        }
+
+        return response()->json([
+            'data' => [
+                'juegos' => $juegos,
+                'limites' => $limites,
+                'origen' => $origenes,
+            ],
+        ]);
+    }
+
+    /**
+     * Upsert de límites para un juego.
+     * PUT /api/limites/{juego}
+     */
+    public function updateLimites(Request $request, Juego $juego)
+    {
+        $user = $request->user();
+
+        if (!in_array($user->role, ['super_master', 'master', 'banca'])) {
+            return response()->json(['message' => 'No tienes permiso para configurar límites.'], 403);
+        }
+
+        $request->validate([
+            'banca_id' => 'required|exists:bancas,id',
+            'grupo_id' => 'nullable|exists:grupos,id',
+            'taquilla_id' => 'nullable|exists:taquillas,id',
+            'moneda' => ['required', Rule::in(['bs', 'usd'])],
+            'limite_minimo' => 'nullable|numeric|min:0',
+            'limite_maximo' => 'nullable|numeric|min:0',
+            'porcentaje_pago' => 'nullable|numeric|min:0|max:100',
+            'participacion' => 'nullable|numeric|min:0|max:100',
+            'fraccion' => 'boolean',
+            'limite_tiempo' => 'nullable|integer|min:1',
+        ]);
+
+        // Validar jerarquía de restricción: hijo ≤ padre
+        if ($request->grupo_id || $request->taquilla_id) {
+            $this->validarRestrictividadLimite(
+                $request->banca_id,
+                $request->juego_id ?? $juego->id,
+                $request->moneda,
+                $request->grupo_id,
+                $request->taquilla_id,
+                $request->limite_minimo,
+                $request->limite_maximo,
+            );
+        }
+
+        // Verificar acceso a la banca
+        $this->authorizeBancaLimitAccess($user, $request->banca_id);
+
+        $limite = JuegoLimite::updateOrCreate(
+            [
+                'juego_id' => $juego->id,
+                'banca_id' => $request->banca_id,
+                'grupo_id' => $request->grupo_id,
+                'taquilla_id' => $request->taquilla_id,
+                'moneda' => $request->moneda,
+            ],
+            $request->only([
+                'limite_minimo', 'limite_maximo', 'porcentaje_pago',
+                'participacion', 'fraccion', 'limite_tiempo',
+            ])
+        );
+
+        $isNew = $limite->wasRecentlyCreated;
+
+        return response()->json($limite, $isNew ? 201 : 200);
+    }
+
+    /**
+     * Upsert masivo atómico de límites.
+     * POST /api/limites/batch
+     */
+    public function batchLimites(Request $request)
+    {
+        $user = $request->user();
+
+        if (!in_array($user->role, ['super_master', 'master', 'banca'])) {
+            return response()->json(['message' => 'No tienes permiso para configuración masiva de límites.'], 403);
+        }
+
+        $request->validate([
+            'scope' => 'nullable|array',
+            'scope.tipo' => 'required_with:scope|in:banca,grupo,taquilla,bancas,grupos,taquillas',
+            'scope.id' => 'nullable|integer|min:1',
+            'limites' => 'required|array|min:1',
+            'limites.*.juego_id' => 'required|exists:juegos,id',
+            'limites.*.banca_id' => 'nullable|exists:bancas,id',
+            'limites.*.grupo_id' => 'nullable|exists:grupos,id',
+            'limites.*.taquilla_id' => 'nullable|exists:taquillas,id',
+            'limites.*.moneda' => ['required', Rule::in(['bs', 'usd'])],
+            'limites.*.limite_minimo' => 'nullable|numeric|min:0',
+            'limites.*.limite_maximo' => 'nullable|numeric|min:0',
+            'limites.*.porcentaje_pago' => 'nullable|numeric|min:0|max:100',
+            'limites.*.participacion' => 'nullable|numeric|min:0|max:100',
+            'limites.*.fraccion' => 'boolean',
+            'limites.*.limite_tiempo' => 'nullable|integer|min:1',
+        ]);
+
+        $scope = $request->scope;
+        $objetivos = null;
+
+        if ($scope) {
+            // Modo scope por tipo (plural): sin id = todas las entidades del tipo
+            // visibles para el rol; con id = intersección por raíz (mini-alcance):
+            //   grupos+id(banca) → grupos de esa banca
+            //   taquillas+id(banca) → agencias de esa banca
+            //   taquillas+id(grupo) → agencias de ese grupo
+            // Modo scope con raíz singular (banca/grupo/taquilla + id): fan-out
+            // de esa entidad hacia sus descendientes (banca → grupos+agencias).
+            if (in_array($scope['tipo'], ['bancas', 'grupos', 'taquillas'])) {
+                $objetivos = $this->expandirTipoAlcance($user, $scope['tipo'], !empty($scope['id']) ? (int) $scope['id'] : null);
+            } else {
+                if (empty($scope['id'])) {
+                    return response()->json([
+                        'message' => 'El scope con tipo singular requiere un id de entidad.',
+                    ], 422);
+                }
+                $objetivos = $this->expandirAlcance($user, $scope['tipo'], (int) $scope['id']);
+            }
+
+            // Modo scope: los ítems NO llevan entidades explícitas
+            foreach ($request->limites as $item) {
+                if (isset($item['banca_id']) || isset($item['grupo_id']) || isset($item['taquilla_id'])) {
+                    return response()->json([
+                        'message' => 'Cuando se usa scope, los ítems no deben incluir banca_id, grupo_id ni taquilla_id.',
+                    ], 422);
+                }
+            }
+        }
+
+        $resultados = [];
+
+        DB::transaction(function () use ($request, $user, $objetivos, &$resultados) {
+            foreach ($request->limites as $item) {
+                $item['juego_id'] = (int) $item['juego_id'];
+
+                if ($objetivos === null) {
+                    // Modo legacy: cada ítem con su banca_id (y opcional grupo/taquilla)
+                    $this->authorizeBancaLimitAccess($user, $item['banca_id']);
+
+                    if (!empty($item['grupo_id']) || !empty($item['taquilla_id'])) {
+                        $this->validarRestrictividadLimite(
+                            (int) $item['banca_id'],
+                            $item['juego_id'],
+                            $item['moneda'],
+                            !empty($item['grupo_id']) ? (int) $item['grupo_id'] : null,
+                            !empty($item['taquilla_id']) ? (int) $item['taquilla_id'] : null,
+                            $item['limite_minimo'] ?? null,
+                            $item['limite_maximo'] ?? null,
+                        );
+                    }
+
+                    $this->aplicarItemLimite($item, null, $resultados);
+                    continue;
+                }
+
+                // Modo scope: aplicar a cada entidad expandida (padre-primero)
+                foreach ($objetivos as $objetivo) {
+                    $this->aplicarItemLimite($item, $objetivo, $resultados);
+                }
+            }
+        });
+
+        return response()->json($resultados, 201);
+    }
+
+    /**
+     * Expandir un alcance por tipo (plural). Sin id: TODAS las entidades del
+     * tipo visibles para el rol. Con id (raíz): intersección por raíz para el
+     * mini-alcance de las pestañas de entidad:
+     *   grupos + id(banca) → grupos de esa banca
+     *   taquillas + id(banca) → agencias de esa banca
+     *   taquillas + id(grupo) → agencias de ese grupo
+     *
+     * @return array<int, array{nivel: string, id: int}>
+     */
+    private function expandirTipoAlcance($user, string $tipo, ?int $raizId = null): array
+    {
+        $singular = rtrim($tipo, 's'); // bancas→banca, grupos→grupo, taquillas→taquilla
+
+        if ($raizId !== null) {
+            // Intersección por raíz: primero el alcance de rol, luego la raíz.
+            $entidades = $this->entidadesVisiblesPorTipo($user, $singular, $this->resolverRaiz($singular, $tipo, $raizId));
+
+            return $this->objetivosDesdeEntidades($entidades, $singular);
+        }
+
+        if ($singular === 'banca') {
+            $ids = $user->role === 'banca' ? [$user->banca_id] : Banca::pluck('id');
+            if ($user->role === 'grupo') {
+                $ids = [$user->banca_id];
+            }
+        } elseif ($singular === 'grupo') {
+            if (in_array($user->role, ['super_master', 'master'])) {
+                $ids = Grupo::pluck('id');
+            } elseif ($user->role === 'banca') {
+                $ids = Grupo::where('banca_id', $user->banca_id)->pluck('id');
+            } else {
+                $ids = [$user->grupo_id];
+            }
+        } else { // taquilla
+            if (in_array($user->role, ['super_master', 'master'])) {
+                $ids = Taquilla::pluck('id');
+            } elseif ($user->role === 'banca') {
+                $ids = Taquilla::whereHas('grupo', fn ($q) => $q->where('banca_id', $user->banca_id))->pluck('id');
+            } else {
+                $ids = Taquilla::where('grupo_id', $user->grupo_id)->pluck('id');
+            }
+        }
+
+        $objetivos = collect($ids)
+            ->filter()
+            ->map(fn ($id) => ['nivel' => $singular, 'id' => (int) $id])
+            ->values()
+            ->all();
+
+        if (count($objetivos) > 500) {
+            abort(422, 'El alcance supera las 500 entidades. Reduzca el nivel de configuración.');
+        }
+
+        return $objetivos;
+    }
+
+    /**
+     * Resolver la raíz de un alcance plural con id: para grupos la raíz es una
+     * banca; para taquillas puede ser una banca o un grupo (se infiere).
+     */
+    private function resolverRaiz(string $singular, string $tipo, int $raizId): ?array
+    {
+        if ($singular === 'grupo') {
+            return ['tipo' => 'banca', 'id' => $raizId];
+        }
+
+        if ($singular === 'taquilla') {
+            if (Banca::whereKey($raizId)->exists()) {
+                return ['tipo' => 'banca', 'id' => $raizId];
+            }
+            if (Grupo::whereKey($raizId)->exists()) {
+                return ['tipo' => 'grupo', 'id' => $raizId];
+            }
+            abort(422, 'La raíz del alcance de agencias debe ser una banca o un grupo.');
+        }
+
+        return null;
+    }
+
+    /**
+     * Convertir entidades visibles en objetivos {nivel, id} con guard de escala.
+     */
+    private function objetivosDesdeEntidades($entidades, string $singular): array
+    {
+        $objetivos = $entidades
+            ->map(fn ($entidad) => ['nivel' => $singular, 'id' => (int) $entidad->id])
+            ->values()
+            ->all();
+
+        if (count($objetivos) > 500) {
+            abort(422, 'El alcance supera las 500 entidades. Reduzca el nivel de configuración.');
+        }
+
+        return $objetivos;
+    }
+
+    /**
+     * Expandir un alcance a la lista de entidades objetivo (padre-primero).
+     * banca → banca + grupos + agencias; grupo → grupo + agencias; taquilla → taquilla.
+     *
+     * @return array<int, array{nivel: string, id: int}>
+     */
+    private function expandirAlcance($user, string $tipo, int $id): array
+    {
+        if (!$this->entidadDentroDelAlcance($user, $tipo, $id)) {
+            abort(403, 'No tienes acceso a la entidad raíz del alcance.');
+        }
+
+        $objetivos = [['nivel' => $tipo, 'id' => $id]];
+
+        if ($tipo === 'banca') {
+            $grupos = Grupo::where('banca_id', $id)->pluck('id');
+            foreach ($grupos as $gid) {
+                $objetivos[] = ['nivel' => 'grupo', 'id' => (int) $gid];
+            }
+            $taquillas = Taquilla::whereHas('grupo', fn ($q) => $q->where('banca_id', $id))->pluck('id');
+            foreach ($taquillas as $tid) {
+                $objetivos[] = ['nivel' => 'taquilla', 'id' => (int) $tid];
+            }
+        } elseif ($tipo === 'grupo') {
+            $taquillas = Taquilla::where('grupo_id', $id)->pluck('id');
+            foreach ($taquillas as $tid) {
+                $objetivos[] = ['nivel' => 'taquilla', 'id' => (int) $tid];
+            }
+        }
+
+        if (count($objetivos) > 500) {
+            abort(422, 'El alcance supera las 500 entidades. Reduzca el nivel de configuración.');
+        }
+
+        return $objetivos;
+    }
+
+    /**
+     * Aplicar un ítem de límite a una entidad objetivo (o a la entidad
+     * explícita del ítem en modo legacy).
+     *
+     * Semántica present-fields-only: solo se escriben los campos presentes
+     * en el payload. Si algún campo de límite llega explícitamente null,
+     * se ELIMINA la fila (volver a heredar del padre).
+     */
+    private function aplicarItemLimite(array $item, ?array $objetivo, array &$resultados): void
+    {
+        // Resolver la cadena de la entidad objetivo
+        [$bancaId, $grupoId, $taquillaId] = $this->resolverCadenaObjetivo($objetivo, $item);
+
+        $campos = ['limite_minimo', 'limite_maximo', 'porcentaje_pago', 'participacion', 'fraccion', 'limite_tiempo'];
+        $presentes = [];
+
+        foreach ($campos as $campo) {
+            if (array_key_exists($campo, $item)) {
+                $presentes[$campo] = $item[$campo];
+            }
+        }
+
+        $clave = [
+            'juego_id' => $item['juego_id'],
+            'banca_id' => $bancaId,
+            'grupo_id' => $grupoId,
+            'taquilla_id' => $taquillaId,
+            'moneda' => $item['moneda'],
+        ];
+
+        // Null explícito en cualquier campo de límite → eliminar fila (heredar)
+        $tieneNull = false;
+        foreach ($presentes as $valor) {
+            if ($valor === null) {
+                $tieneNull = true;
+                break;
+            }
+        }
+
+        if ($tieneNull) {
+            JuegoLimite::where($clave)->delete();
+            return;
+        }
+
+        if (empty($presentes)) {
+            abort(422, 'Cada ítem de límite debe incluir al menos un campo configurable.');
+        }
+
+        // Validar jerarquía (hijo ≤ padre) antes de escribir
+        if ($grupoId !== null || $taquillaId !== null) {
+            $this->validarRestrictividadLimite(
+                $bancaId,
+                $item['juego_id'],
+                $item['moneda'],
+                $grupoId,
+                $taquillaId,
+                $presentes['limite_minimo'] ?? null,
+                $presentes['limite_maximo'] ?? null,
+            );
+        }
+
+        $resultados[] = JuegoLimite::updateOrCreate($clave, $presentes);
+    }
+
+    /**
+     * Resolver la cadena banca→grupo→taquilla de un objetivo de alcance.
+     * En modo legacy el ítem ya trae su banca_id (y opcional grupo/taquilla).
+     *
+     * @return array{0: int, 1: int|null, 2: int|null}
+     */
+    private function resolverCadenaObjetivo(?array $objetivo, array $item): array
+    {
+        if ($objetivo === null) {
+            return [
+                (int) $item['banca_id'],
+                !empty($item['grupo_id']) ? (int) $item['grupo_id'] : null,
+                !empty($item['taquilla_id']) ? (int) $item['taquilla_id'] : null,
+            ];
+        }
+
+        if ($objetivo['nivel'] === 'banca') {
+            return [$objetivo['id'], null, null];
+        }
+
+        if ($objetivo['nivel'] === 'grupo') {
+            $grupo = Grupo::find($objetivo['id']);
+
+            return [$grupo ? (int) $grupo->banca_id : 0, $objetivo['id'], null];
+        }
+
+        $taquilla = Taquilla::with('grupo')->find($objetivo['id']);
+
+        return [
+            $taquilla?->grupo?->banca_id ?? 0,
+            $taquilla?->grupo_id,
+            $objetivo['id'],
+        ];
+    }
+
+    /**
+     * Eliminar un límite configurado.
+     * DELETE /api/limites/{limite}
+     *
+     * super_master/master eliminan cualquier límite; banca solo los de su banca.
+     * El modelo se resuelve por binding implícito (404 si no existe).
+     */
+    public function destroyLimite(Request $request, JuegoLimite $limite)
+    {
+        $user = $request->user();
+
+        if (!in_array($user->role, ['super_master', 'master', 'banca'])) {
+            return response()->json(['message' => 'No tienes permiso para eliminar límites.'], 403);
+        }
+
+        if ($user->role === 'banca' && (!$user->banca_id || $user->banca_id != $limite->banca_id)) {
+            return response()->json(['message' => 'No tienes acceso a los límites de esta banca.'], 403);
+        }
+
+        $limite->delete();
+
+        return response()->json(['message' => 'Límite eliminado correctamente.']);
+    }
+
+    // ==================================================
+    // MÉTODOS PRIVADOS DE AUTORIZACIÓN Y VALIDACIÓN
+    // ==================================================
+
+    /**
+     * Solo super_master y master pueden escribir límites.
+     */
+    private function authorizeLimitesWrite($user): void
+    {
+        if (!in_array($user->role, ['super_master', 'master'])) {
+            abort(403, 'No tienes permiso para configurar límites.');
+        }
+    }
+
+    /**
+     * Verificar que el usuario tenga acceso a la banca.
+     */
+    private function authorizeBancaLimitAccess($user, int $bancaId): void
+    {
+        if (in_array($user->role, ['super_master', 'master'])) {
+            return;
+        }
+
+        if ($user->role === 'banca' && $user->banca_id == $bancaId) {
+            return;
+        }
+
+        abort(403, 'No tienes acceso a esta banca.');
+    }
+
+    /**
+     * ¿La entidad consultada está dentro de la jerarquía visible del rol?
+     * super_master/master ven todo; banca solo su propia cadena; grupo solo
+     * su propio grupo (y la banca de la que cuelga).
+     */
+    private function entidadDentroDelAlcance($user, string $tipo, int $entidadId): bool
+    {
+        if (in_array($user->role, ['super_master', 'master'])) {
+            return true;
+        }
+
+        if ($user->role === 'banca') {
+            if ($tipo === 'banca') {
+                return $user->banca_id == $entidadId;
+            }
+
+            if ($tipo === 'grupo') {
+                return Grupo::whereKey($entidadId)->where('banca_id', $user->banca_id)->exists();
+            }
+
+            return Taquilla::whereKey($entidadId)
+                ->whereHas('grupo', fn ($q) => $q->where('banca_id', $user->banca_id))
+                ->exists();
+        }
+
+        if ($user->role === 'grupo') {
+            if ($tipo === 'grupo') {
+                return $user->grupo_id == $entidadId;
+            }
+
+            if ($tipo === 'banca') {
+                return $user->banca_id == $entidadId;
+            }
+
+            return Taquilla::whereKey($entidadId)
+                ->where('grupo_id', $user->grupo_id)
+                ->exists();
+        }
+
+        return false;
+    }
+
+    /**
+     * Filas propias de la entidad y filas de sus ancestros en consultas
+     * constantes (sin N+1 por juego). Devuelve [filasPropias, filasPadre].
+     */
+    private function filasDeEntidad(string $tipo, int $entidadId): array
+    {
+        if ($tipo === 'banca') {
+            return [
+                JuegoLimite::where('banca_id', $entidadId)
+                    ->whereNull('grupo_id')
+                    ->whereNull('taquilla_id')
+                    ->get(),
+                collect(),
+            ];
+        }
+
+        if ($tipo === 'grupo') {
+            $grupo = Grupo::with('banca')->find($entidadId);
+
+            return [
+                JuegoLimite::where('grupo_id', $entidadId)->whereNull('taquilla_id')->get(),
+                $grupo?->banca_id
+                    ? JuegoLimite::where('banca_id', $grupo->banca_id)
+                        ->whereNull('grupo_id')
+                        ->whereNull('taquilla_id')
+                        ->get()
+                    : collect(),
+            ];
+        }
+
+        // taquilla: ancestros = filas de su grupo y de su banca (una consulta)
+        $taquilla = Taquilla::with('grupo.banca')->find($entidadId);
+        $grupoId = $taquilla?->grupo_id;
+        $bancaId = $taquilla?->grupo?->banca_id;
+
+        $filasPadre = collect();
+        if ($bancaId) {
+            $filasPadre = JuegoLimite::where('banca_id', $bancaId)
+                ->whereNull('taquilla_id')
+                ->where(function ($q) use ($grupoId) {
+                    $q->where('grupo_id', $grupoId)->orWhereNull('grupo_id');
+                })
+                ->get();
+        }
+
+        return [
+            JuegoLimite::where('taquilla_id', $entidadId)->get(),
+            $filasPadre,
+        ];
+    }
+
+    /**
+     * Modo scope: matriz de límites de TODAS las entidades del tipo visibles
+     * para el rol, indexada por "entidad_id:juego_id:moneda". Las filas se
+     * traen en UNA consulta whereIn sobre la columna del nivel (sin N+1 por
+     * entidad); las celdas sin fila propia quedan null. `mixto` marca cada
+     * juego×moneda donde unas entidades tienen fila propia y otras no.
+     */
+    private function listarLimitesPorScope($user, string $scope, ?array $raiz = null): JsonResponse
+    {
+        $tipo = substr($scope, 0, -1); // bancas → banca, grupos → grupo, taquillas → taquilla
+        $entidades = $this->entidadesVisiblesPorTipo($user, $tipo, $raiz);
+        $ids = $entidades->pluck('id');
+
+        $juegos = Juego::where('active', true)->orderBy('id')->get(['id', 'name', 'slug']);
+        $clavesJuego = collect($juegos)
+            ->flatMap(fn ($juego) => [$juego->id . ':bs', $juego->id . ':usd'])
+            ->all();
+
+        $limites = [];
+        $filasPorClave = [];
+
+        foreach ($entidades as $entidad) {
+            $prefijo = $entidad->id . ':';
+            foreach ($clavesJuego as $clave) {
+                $limites[$prefijo . $clave] = null;
+            }
+        }
+
+        if ($entidades->isNotEmpty()) {
+            $query = JuegoLimite::whereIn($tipo . '_id', $ids);
+            if ($tipo === 'banca') {
+                $query->whereNull('grupo_id')->whereNull('taquilla_id');
+            } elseif ($tipo === 'grupo') {
+                $query->whereNull('taquilla_id');
+            }
+
+            foreach ($query->get() as $fila) {
+                $clave = $fila->juego_id . ':' . $fila->moneda;
+                $limites[$fila->{$tipo . '_id'} . ':' . $clave] = $this->serializarLimite($fila);
+                $filasPorClave[$clave] = ($filasPorClave[$clave] ?? 0) + 1;
+            }
+        }
+
+        // mixto: true solo cuando las entidades del alcance NO coinciden en
+        // si tienen fila propia para ese juego×moneda (unas sí, otras no).
+        $total = $entidades->count();
+        $mixto = [];
+        foreach ($clavesJuego as $clave) {
+            $conFila = $filasPorClave[$clave] ?? 0;
+            $mixto[$clave] = $conFila > 0 && $conFila < $total;
+        }
+
+        return response()->json([
+            'data' => [
+                'juegos' => $juegos,
+                'entidades' => $entidades->map(fn ($entidad) => [
+                    'id' => (int) $entidad->id,
+                    'name' => $entidad->name,
+                    'tipo' => $tipo,
+                ])->values(),
+                'limites' => $limites,
+                'mixto' => $mixto,
+            ],
+        ]);
+    }
+
+    /**
+     * Entidades del tipo consultado visibles para el rol: super_master y
+     * master ven todas; banca solo las de su propia cadena (su banca, sus
+     * grupos y sus agencias); grupo solo su grupo, su banca y sus agencias.
+     */
+    private function entidadesVisiblesPorTipo($user, string $tipo, ?array $raiz = null): Collection
+    {
+        $query = match ($tipo) {
+            'banca' => Banca::query(),
+            'grupo' => Grupo::query(),
+            'taquilla' => Taquilla::query(),
+        };
+
+        if ($user->role === 'banca') {
+            if ($tipo === 'banca') {
+                $query->whereKey($user->banca_id);
+            } elseif ($tipo === 'grupo') {
+                $query->where('banca_id', $user->banca_id);
+            } else {
+                $query->whereHas('grupo', fn ($q) => $q->where('banca_id', $user->banca_id));
+            }
+        } elseif ($user->role === 'grupo') {
+            if ($tipo === 'grupo') {
+                $query->whereKey($user->grupo_id);
+            } elseif ($tipo === 'banca') {
+                $query->whereKey($user->banca_id);
+            } else {
+                $query->where('grupo_id', $user->grupo_id);
+            }
+        }
+
+        // Intersección con raíz (mini-alcance de las pestañas de entidad):
+        // scope=grupos&banca_id=X → grupos de la banca X; scope=taquillas&banca_id=X
+        // → agencias de la banca X; scope=taquillas&grupo_id=Y → agencias del grupo Y.
+        if ($raiz !== null && $raiz['tipo'] === 'banca') {
+            if ($tipo === 'grupo') {
+                $query->where('banca_id', $raiz['id']);
+            } elseif ($tipo === 'taquilla') {
+                $query->whereHas('grupo', fn ($q) => $q->where('banca_id', $raiz['id']));
+            }
+        } elseif ($raiz !== null && $raiz['tipo'] === 'grupo' && $tipo === 'taquilla') {
+            $query->where('grupo_id', $raiz['id']);
+        }
+
+        return $query->orderBy('id')->get(['id', 'name']);
+    }
+
+    /**
+     * Serializar una fila de límite con valores numéricos (la bd guarda
+     * decimales; el cast decimal:2 los expone como string).
+     */
+    private function serializarLimite(JuegoLimite $limite): array
+    {
+        return [
+            'id' => (int) $limite->id,
+            'limite_minimo' => $limite->limite_minimo !== null ? (float) $limite->limite_minimo : null,
+            'limite_maximo' => $limite->limite_maximo !== null ? (float) $limite->limite_maximo : null,
+            'porcentaje_pago' => $limite->porcentaje_pago !== null ? (float) $limite->porcentaje_pago : null,
+            'participacion' => $limite->participacion !== null ? (float) $limite->participacion : null,
+            'fraccion' => (bool) $limite->fraccion,
+            'limite_tiempo' => $limite->limite_tiempo !== null ? (int) $limite->limite_tiempo : null,
+        ];
+    }
+
+    /**
+     * Solo los campos no nulos de una fila padre, para el origen heredado.
+     */
+    private function valoresPresentes(JuegoLimite $limite): array
+    {
+        $valores = [];
+
+        foreach (['limite_minimo', 'limite_maximo', 'porcentaje_pago', 'participacion', 'limite_tiempo'] as $campo) {
+            if ($limite->{$campo} !== null) {
+                $valores[$campo] = (float) $limite->{$campo};
+            }
+        }
+
+        if ($limite->fraccion !== null) {
+            $valores['fraccion'] = (bool) $limite->fraccion;
+        }
+
+        return $valores;
+    }
+
+    /**
+     * Validar que un límite hijo no sea más permisivo que el padre.
+     * Aplica cuando se configura un límite a nivel grupo o taquilla.
+     */
+    private function validarRestrictividadLimite(
+        int $bancaId,
+        int $juegoId,
+        string $moneda,
+        ?int $grupoId,
+        ?int $taquillaId,
+        $limiteMinimo,
+        $limiteMaximo,
+    ): void {
+        // Determinar el nivel padre
+        $parentQuery = JuegoLimite::where('juego_id', $juegoId)
+            ->where('banca_id', $bancaId)
+            ->where('moneda', $moneda);
+
+        if ($taquillaId) {
+            // Padre es el límite del grupo (o banca si no hay grupo)
+            $parentQuery->where(function ($q) use ($grupoId) {
+                $q->where('grupo_id', $grupoId)->whereNull('taquilla_id');
+            });
+            if (!$parentQuery->exists()) {
+                // Fallback a banca
+                $parentQuery = JuegoLimite::where('juego_id', $juegoId)
+                    ->where('banca_id', $bancaId)
+                    ->where('moneda', $moneda)
+                    ->whereNull('grupo_id')
+                    ->whereNull('taquilla_id');
+            }
+        } elseif ($grupoId) {
+            // Padre es el límite de la banca
+            $parentQuery->whereNull('grupo_id')->whereNull('taquilla_id');
+        } else {
+            // Es nivel banca, no hay padre que validar
+            return;
+        }
+
+        $parent = $parentQuery->first();
+
+        if (!$parent) {
+            return; // Sin límite padre, no hay restricción que validar
+        }
+
+        // validar limite_maximo: hijo ≤ padre
+        if ($limiteMaximo !== null && $parent->limite_maximo !== null) {
+            if ($limiteMaximo > $parent->limite_maximo) {
+                abort(422, "El límite máximo ({$limiteMaximo}) no puede ser mayor que el límite del nivel superior ({$parent->limite_maximo}).");
+            }
+        }
+
+        // validar limite_minimo: hijo ≥ padre
+        if ($limiteMinimo !== null && $parent->limite_minimo !== null) {
+            if ($limiteMinimo < $parent->limite_minimo) {
+                abort(422, "El límite mínimo ({$limiteMinimo}) no puede ser menor que el límite del nivel superior ({$parent->limite_minimo}).");
+            }
+        }
     }
 }

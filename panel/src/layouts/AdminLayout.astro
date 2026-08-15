@@ -168,7 +168,7 @@ const name = user?.name || '';
     const entidades = [];
     if (role === 'super_master' || role === 'master') entidades.push({ label: 'Bancas', href: '/bancas', icon: '🏦', count: entityCounts.bancas, key: 'bancas' });
     if (role === 'super_master' || role === 'master' || role === 'banca') entidades.push({ label: 'Grupos', href: '/grupos', icon: '📂', count: entityCounts.grupos, key: 'grupos' });
-    if (['super_master','master','banca','grupo'].includes(role)) entidades.push({ label: 'Taquillas', href: '/taquillas', icon: '🎫', count: entityCounts.taquillas, key: 'taquillas' });
+    if (['super_master','master','banca','grupo'].includes(role)) entidades.push({ label: 'Agencias', href: '/taquillas', icon: '🎫', count: entityCounts.taquillas, key: 'taquillas' });
 
     if (entidades.length > 0) {
       const dropdown = document.createElement('div');
@@ -211,8 +211,69 @@ const name = user?.name || '';
     // Juegos
     if (['super_master','master'].includes(role)) sidebarNav.appendChild(addLink('Juegos', '/juegos', '🎲'));
 
+    // Rendimiento — todos los roles
+    sidebarNav.appendChild(addLink('Rendimiento', '/rendimiento', '📈'));
+
+    // Límites — vista de auditoría de solo lectura, únicamente super_master
+    if (role === 'super_master') sidebarNav.appendChild(addLink('Límites', '/limites', '🎯'));
+
+    // Cuadre de caja
+    if (['super_master','master','banca','grupo'].includes(role)) sidebarNav.appendChild(addLink('Cuadre de Caja', '/cuadre', '💰'));
+
+    // Reportes dropdown — todos los roles
+    const reportes = [
+      { label: 'Ventas Totales', href: '/reportes/ventas', icon: '💰' },
+      { label: 'Relación Tickets', href: '/reportes/tickets', icon: '🎫' },
+      { label: 'Rendimiento Agencias', href: '/reportes/taquillas', icon: '📊' },
+      { label: 'Premios Vencidos', href: '/reportes/vencidos', icon: '⏰' },
+    ];
+
+    const rDropdown = document.createElement('div');
+    rDropdown.className = 'sidebar-dropdown';
+    rDropdown.id = 'reportes-dropdown';
+
+    const rHeader = document.createElement('div');
+    rHeader.className = 'dropdown-header';
+    rHeader.innerHTML = `<span class="header-left"><span class="sidebar-link-icon">📊</span> Reportes</span><span class="dropdown-arrow">▼</span>`;
+
+    const rMenu = document.createElement('div');
+    rMenu.className = 'dropdown-menu';
+    rMenu.id = 'reportes-dropdown-menu';
+
+    reportes.forEach(e => rMenu.appendChild(addDropdownItem(e.label, e.href, e.icon, undefined, '')));
+    rDropdown.appendChild(rHeader);
+    rDropdown.appendChild(rMenu);
+    sidebarNav.appendChild(rDropdown);
+
+    // Reportes dropdown hover + click toggle
+    (function() {
+      let locked = false;
+      let isOpen = false;
+
+      function open() { isOpen = true; rDropdown.classList.add('open'); }
+      function close() { if (!locked) { isOpen = false; rDropdown.classList.remove('open'); } }
+
+      rDropdown.addEventListener('mouseenter', () => { if (!locked) open(); });
+      rDropdown.addEventListener('mouseleave', () => { if (!locked) close(); });
+      rHeader.addEventListener('click', (e) => {
+        e.preventDefault();
+        locked = !locked;
+        if (locked) open(); else close();
+      });
+      document.addEventListener('click', (e) => {
+        if (!rDropdown.contains(e.target)) { locked = false; close(); }
+      });
+      rMenu.addEventListener('click', (e) => e.stopPropagation());
+
+      // Auto-open if current path starts with /reportes
+      if (currentPath.startsWith('/reportes')) open();
+    })();
+
     // Tasas
     if (['super_master','master'].includes(role)) sidebarNav.appendChild(addLink('Tasas', '/tasas', '💱'));
+
+    // Usuarios — todos los roles (el backend limita los datos según jerarquía)
+    sidebarNav.appendChild(addLink('Usuarios', '/usuarios', '👤'));
 
     // Logs
     if (['super_master','master'].includes(role)) sidebarNav.appendChild(addLink('Logs', '/logs', '📋'));

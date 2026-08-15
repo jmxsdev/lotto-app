@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Taquilla;
+use App\Services\ActivacionEfectivaService;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -45,30 +46,36 @@ class VerifyMac
         // Verificar que usuario tenga taquilla asociada
         if (!$user->taquilla_id) {
             return response()->json([
-                'message' => 'Usuario sin taquilla asociada.',
+                'message' => 'Usuario sin agencia asociada.',
             ], 403);
         }
 
-        // Obtener la taquilla del usuario
-        $taquilla = Taquilla::where('id', $user->taquilla_id)->first();
+        // Obtener la taquilla del usuario (con su cadena para activación efectiva)
+        $taquilla = Taquilla::with('grupo.banca')->where('id', $user->taquilla_id)->first();
 
         if (!$taquilla) {
             return response()->json([
-                'message' => 'Taquilla no encontrada.',
+                'message' => 'Agencia no encontrada.',
             ], 403);
         }
 
-        // Verificar que la taquilla esté activa
-        if (!$taquilla->active) {
+        // Verificar la activación efectiva: propia + grupo + banca (sin escrituras en cascada)
+        $estado = app(ActivacionEfectivaService::class)->estadoTaquilla($taquilla);
+
+        if (!$estado['active']) {
             return response()->json([
-                'message' => 'La taquilla está desactivada.',
+                'message' => match ($estado['causa']) {
+                    'grupo' => 'La agencia está pausada porque su grupo está desactivado.',
+                    'banca' => 'La agencia está pausada porque su banca está desactivada.',
+                    default => 'La agencia está desactivada.',
+                },
             ], 403);
         }
 
         // Comparar MAC del header con MAC registrada
         if ($taquilla->mac_address !== $mac) {
             return response()->json([
-                'message' => 'MAC address no coincide con la taquilla registrada.',
+                'message' => 'MAC address no coincide con la agencia registrada.',
             ], 403);
         }
 

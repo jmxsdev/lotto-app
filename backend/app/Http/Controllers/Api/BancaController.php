@@ -33,6 +33,17 @@ class BancaController extends Controller
             'code' => 'required|string|unique:bancas,code',
             'config' => 'nullable|array',
             'active' => 'boolean',
+            'monedas_permitidas' => 'sometimes|array',
+            'monedas_permitidas.bs' => 'boolean',
+            'monedas_permitidas.usd' => 'boolean',
+            'vigencia_premios' => 'nullable|integer|min:1',
+            'tiempo_eliminacion' => 'nullable|integer|min:1|max:120',
+            'rif' => 'nullable|string|max:20',
+            'email' => 'nullable|email',
+            'telefono' => 'nullable|string|max:30',
+            'direccion' => 'nullable|string|max:255',
+            'estado' => 'nullable|string|max:100',
+            'municipio' => 'nullable|string|max:100',
             'user_name' => 'required|string|max:255',
             'user_email' => 'required|email|unique:users,email',
             'user_password' => 'required|string|min:8',
@@ -42,8 +53,17 @@ class BancaController extends Controller
             'name' => $request->name,
             'code' => $request->code,
             'config' => $request->config,
+            'monedas_permitidas' => $request->monedas_permitidas ?? null,
+            'vigencia_premios' => $request->vigencia_premios ?? null,
+            'tiempo_eliminacion' => $request->tiempo_eliminacion ?? null,
             'active' => $request->active ?? true,
             'created_by' => $authUser->id,
+            'rif' => $request->rif,
+            'email' => $request->email,
+            'telefono' => $request->telefono,
+            'direccion' => $request->direccion,
+            'estado' => $request->estado,
+            'municipio' => $request->municipio,
         ]);
 
         $user = User::create([
@@ -87,9 +107,38 @@ class BancaController extends Controller
             'code' => ['sometimes', 'string', Rule::unique('bancas')->ignore($banca->id)],
             'config' => 'nullable|array',
             'active' => 'boolean',
+            'monedas_permitidas' => 'sometimes|array',
+            'monedas_permitidas.bs' => 'boolean',
+            'monedas_permitidas.usd' => 'boolean',
+            'vigencia_premios' => 'nullable|integer|min:1',
+            'tiempo_eliminacion' => 'nullable|integer|min:1|max:120',
+            'rif' => 'nullable|string|max:20',
+            'email' => 'nullable|email',
+            'telefono' => 'nullable|string|max:30',
+            'direccion' => 'nullable|string|max:255',
+            'estado' => 'nullable|string|max:100',
+            'municipio' => 'nullable|string|max:100',
         ]);
 
-        $banca->update($request->only(['name', 'code', 'config', 'active']));
+        $banca->update($request->only(['name', 'code', 'config', 'active', 'monedas_permitidas', 'vigencia_premios', 'tiempo_eliminacion', 'rif', 'email', 'telefono', 'direccion', 'estado', 'municipio']));
+
+        return response()->json($banca);
+    }
+
+    /**
+     * Alternar el estado activo de una banca.
+     * PATCH /api/bancas/{banca}/toggle
+     * No propaga cambios a entidades hijas: el activo efectivo se resuelve en runtime.
+     */
+    public function toggle(Request $request, Banca $banca)
+    {
+        $user = auth()->user();
+
+        if (!$user->hasRole(['super_master', 'master'])) {
+            return response()->json(['message' => 'No tienes permiso para modificar esta banca.'], 403);
+        }
+
+        $banca->update(['active' => !$banca->active]);
 
         return response()->json($banca);
     }

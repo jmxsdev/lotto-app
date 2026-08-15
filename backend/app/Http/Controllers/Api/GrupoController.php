@@ -70,17 +70,70 @@ class GrupoController extends Controller
             'user_name' => 'required|string|max:255',
             'user_email' => 'required|email|unique:users,email',
             'user_password' => 'required|string|min:8',
+            'monedas_permitidas' => 'sometimes|array',
+            'monedas_permitidas.bs' => 'boolean',
+            'monedas_permitidas.usd' => 'boolean',
+            'vigencia_premios' => 'nullable|integer|min:1',
+            'tiempo_eliminacion' => 'nullable|integer|min:1|max:120',
+            'rif' => 'nullable|string|max:20',
+            'email' => 'nullable|email',
+            'telefono' => 'nullable|string|max:30',
+            'direccion' => 'nullable|string|max:255',
+            'estado' => 'nullable|string|max:100',
+            'municipio' => 'nullable|string|max:100',
         ]);
 
         // Verificar que el usuario tenga acceso a la banca
         $this->authorizeBancaAccess($user, $request->banca_id);
+
+        // Validar monedas_permitidas contra la banca
+        if ($request->has('monedas_permitidas')) {
+            $banca = \App\Models\Banca::find($request->banca_id);
+            $bancaMonedas = $banca?->monedas_permitidas;
+            if (!$this->validarMonedasContraParent($bancaMonedas, $request->monedas_permitidas)) {
+                return response()->json([
+                    'message' => 'El grupo no puede habilitar una moneda que la banca ha deshabilitado. La jerarquía inferior solo puede restringir, no expandir.',
+                ], 422);
+            }
+        }
+
+        // Validar vigencia_premios contra la banca (más restrictivo)
+        if ($request->has('vigencia_premios') && $request->vigencia_premios !== null) {
+            $banca = \App\Models\Banca::find($request->banca_id);
+            $bancaVigencia = $banca?->vigencia_premios;
+            if ($bancaVigencia !== null && $request->vigencia_premios > $bancaVigencia) {
+                return response()->json([
+                    'message' => 'La vigencia de premios del grupo no puede ser mayor que la de la banca (' . $bancaVigencia . ' días).',
+                ], 422);
+            }
+        }
+
+        // Validar tiempo_eliminacion contra la banca (más restrictivo: no puede alargar la ventana)
+        if ($request->has('tiempo_eliminacion') && $request->tiempo_eliminacion !== null) {
+            $banca = \App\Models\Banca::find($request->banca_id);
+            $bancaTiempo = $banca?->tiempo_eliminacion ?? 5;
+            if ($request->tiempo_eliminacion > $bancaTiempo) {
+                return response()->json([
+                    'message' => "El tiempo máximo del grupo no puede ser mayor que el de la banca ({$bancaTiempo} minutos). La jerarquía inferior solo puede acortar el plazo.",
+                ], 422);
+            }
+        }
 
         $grupo = Grupo::create([
             'name' => $request->name,
             'code' => $request->code,
             'banca_id' => $request->banca_id,
             'active' => $request->active ?? true,
+            'monedas_permitidas' => $request->monedas_permitidas ?? null,
+            'vigencia_premios' => $request->vigencia_premios ?? null,
+            'tiempo_eliminacion' => $request->tiempo_eliminacion ?? null,
             'created_by' => $user->id,
+            'rif' => $request->rif,
+            'email' => $request->email,
+            'telefono' => $request->telefono,
+            'direccion' => $request->direccion,
+            'estado' => $request->estado,
+            'municipio' => $request->municipio,
         ]);
 
         $user = User::create([
@@ -129,13 +182,72 @@ class GrupoController extends Controller
             'code' => ['sometimes', 'string', Rule::unique('grupos')->ignore($grupo->id)],
             'banca_id' => 'sometimes|exists:bancas,id',
             'active' => 'boolean',
+            'monedas_permitidas' => 'sometimes|array',
+            'monedas_permitidas.bs' => 'boolean',
+            'monedas_permitidas.usd' => 'boolean',
+            'vigencia_premios' => 'nullable|integer|min:1',
+            'tiempo_eliminacion' => 'nullable|integer|min:1|max:120',
+            'rif' => 'nullable|string|max:20',
+            'email' => 'nullable|email',
+            'telefono' => 'nullable|string|max:30',
+            'direccion' => 'nullable|string|max:255',
+            'estado' => 'nullable|string|max:100',
+            'municipio' => 'nullable|string|max:100',
         ]);
 
         if ($request->has('banca_id')) {
             $this->authorizeBancaAccess($user, $request->banca_id);
         }
 
-        $grupo->update($request->only(['name', 'code', 'banca_id', 'active']));
+        // Validar monedas_permitidas contra la banca
+        if ($request->has('monedas_permitidas')) {
+            $bancaMonedas = $grupo->banca?->monedas_permitidas;
+            if (!$this->validarMonedasContraParent($bancaMonedas, $request->monedas_permitidas)) {
+                return response()->json([
+                    'message' => 'El grupo no puede habilitar una moneda que la banca ha deshabilitado. La jerarquía inferior solo puede restringir, no expandir.',
+                ], 422);
+            }
+        }
+
+        // Validar vigencia_premios contra la banca (más restrictivo)
+        if ($request->has('vigencia_premios')) {
+            $bancaVigencia = $grupo->banca?->vigencia_premios;
+            if ($bancaVigencia !== null && $request->vigencia_premios !== null) {
+                if ($request->vigencia_premios > $bancaVigencia) {
+                    return response()->json([
+                        'message' => 'La vigencia de premios del grupo no puede ser mayor que la de la banca (' . $bancaVigencia . ' días).',
+                    ], 422);
+                }
+            }
+        }
+
+        // Validar tiempo_eliminacion contra la banca (más restrictivo: no puede alargar la ventana)
+        if ($request->has('tiempo_eliminacion') && $request->tiempo_eliminacion !== null) {
+            $bancaTiempo = $grupo->banca?->tiempo_eliminacion ?? 5;
+            if ($request->tiempo_eliminacion > $bancaTiempo) {
+                return response()->json([
+                    'message' => "El tiempo máximo del grupo no puede ser mayor que el de la banca ({$bancaTiempo} minutos). La jerarquía inferior solo puede acortar el plazo.",
+                ], 422);
+            }
+        }
+
+        $grupo->update($request->only(['name', 'code', 'banca_id', 'active', 'monedas_permitidas', 'vigencia_premios', 'tiempo_eliminacion', 'rif', 'email', 'telefono', 'direccion', 'estado', 'municipio']));
+
+        return response()->json($grupo->load('banca'));
+    }
+
+    /**
+     * Alternar el estado activo de un grupo.
+     * PATCH /api/grupos/{grupo}/toggle
+     * No propaga cambios a las agencias hijas: el activo efectivo se resuelve en runtime.
+     */
+    public function toggle(Request $request, Grupo $grupo)
+    {
+        $user = auth()->user();
+
+        $this->authorizeGrupoAccess($user, $grupo);
+
+        $grupo->update(['active' => !$grupo->active]);
 
         return response()->json($grupo->load('banca'));
     }
@@ -151,12 +263,38 @@ class GrupoController extends Controller
 
         // Verificar que no tenga taquillas asociadas (opcional)
         if ($grupo->taquillas()->count() > 0) {
-            return response()->json(['message' => 'No se puede eliminar el grupo porque tiene taquillas asociadas.'], 422);
+            return response()->json(['message' => 'No se puede eliminar el grupo porque tiene agencias asociadas.'], 422);
         }
 
         $grupo->delete();
 
         return response()->json(['message' => 'Grupo eliminado correctamente.']);
+    }
+
+    // --- Métodos de validación ---
+
+    /**
+     * Validar que las monedas del grupo no habiliten una moneda
+     * que la banca tiene deshabilitada.
+     */
+    private function validarMonedasContraParent(?array $bancaMonedas, array $grupoMonedas): bool
+    {
+        $bancaBs = $bancaMonedas['bs'] ?? true;
+        $bancaUsd = $bancaMonedas['usd'] ?? true;
+        $grupoBs = $grupoMonedas['bs'] ?? true;
+        $grupoUsd = $grupoMonedas['usd'] ?? true;
+
+        // Si la banca tiene BS explícitamente deshabilitado, el grupo no puede habilitarlo
+        if (!$bancaBs && $grupoBs) {
+            return false;
+        }
+
+        // Si la banca tiene USD explícitamente deshabilitado, el grupo no puede habilitarlo
+        if (!$bancaUsd && $grupoUsd) {
+            return false;
+        }
+
+        return true;
     }
 
     // --- Métodos de autorización ---

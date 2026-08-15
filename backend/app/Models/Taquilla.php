@@ -12,10 +12,13 @@ class Taquilla extends Model
 
     protected $fillable = [
         'name', 'code', 'grupo_id', 'mac_address', 'device_fingerprint', 'activation_code',
-        'active', 'last_connection_at', 'created_by'
+        'vigencia_premios', 'tiempo_eliminacion', 'active', 'last_connection_at', 'created_by',
+        'rif', 'email', 'telefono', 'direccion', 'estado', 'municipio'
     ];
 
     protected $casts = [
+        'vigencia_premios' => 'integer',
+        'tiempo_eliminacion' => 'integer',
         'active' => 'boolean',
         'last_connection_at' => 'datetime',
     ];
@@ -53,5 +56,10 @@ class Taquilla extends Model
     public function comisiones()
     {
         return $this->hasMany(Comision::class);
+    }
+
+    public function juegoLimites()
+    {
+        return $this->hasMany(JuegoLimite::class);
     }
 }

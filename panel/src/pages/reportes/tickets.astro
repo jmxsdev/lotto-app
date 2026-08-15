@@ -1,0 +1,133 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+---
+
+<AdminLayout>
+  <div class="page">
+    <div class="page-header"><h2 class="page-title">Relación de Tickets</h2></div>
+
+    <div class="filters">
+      <div class="field">
+        <label>Fecha</label>
+        <input type="date" id="filter-fecha" />
+      </div>
+      <div class="field">
+        <label>Moneda</label>
+        <select id="filter-moneda">
+          <option value="">Todas</option>
+          <option value="bs">BS</option>
+          <option value="usd">USD</option>
+          <option value="mixto">Mixto</option>
+        </select>
+      </div>
+      <div class="field" style="align-self:flex-end">
+        <button class="btn btn-primary" id="btn-buscar">🔍 Buscar</button>
+      </div>
+    </div>
+
+    <div id="content"><div class="loading">Cargando...</div></div>
+
+    <div class="pagination" id="pagination" style="display:none"></div>
+  </div>
+
+  <style is:global>
+    .page { max-width: 1100px; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .page-title { font-size: 24px; font-weight: 700; color: #1e293b; }
+    .btn { padding: 8px 16px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .15s; }
+    .btn-primary { background: #3b82f6; color: #fff; } .btn-primary:hover { background: #2563eb; }
+    .btn-secondary { background: #e2e8f0; color: #333; } .btn-secondary:hover { background: #cbd5e1; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .loading { text-align: center; padding: 40px; color: #666; }
+    .filters { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 16px; align-items: flex-end; }
+    .field { margin-bottom: 14px; } .field label { display: block; font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px; }
+    .field input, .field select { width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px; min-width: 150px; } .field input:focus, .field select:focus { border-color: #3b82f6; outline: none; }
+    .table-wrap { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    table { width: 100%; border-collapse: collapse; } th { background: #f1f5f9; padding: 10px 12px; text-align: left; font-size: 12px; font-weight: 600; color: #666; text-transform: uppercase; } td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; } tr:hover td { background: #f8fafc; }
+    .number { text-align: right; font-variant-numeric: tabular-nums; }
+    .error { color: #ef4444; text-align: center; padding: 20px; }
+    .empty { text-align: center; padding: 40px; color: #999; }
+    .pagination { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 16px; }
+    .pagination .page-info { font-size: 13px; color: #666; margin: 0 8px; }
+    .tipo-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+    .tipo-bs { background: #dbeafe; color: #1e40af; } .tipo-usd { background: #dcfce7; color: #166534; } .tipo-mixto { background: #fef3c7; color: #92400e; }
+  </style>
+
+  <script>
+    import { apiFetch } from '../../utils/api.ts';
+
+    let currentPage = 1;
+    let lastPage = 1;
+
+    async function load(page) {
+      const fecha = document.getElementById('filter-fecha').value;
+      const moneda = document.getElementById('filter-moneda').value;
+
+      const content = document.getElementById('content');
+      content.innerHTML = '<div class="loading">Cargando...</div>';
+
+      const params = new URLSearchParams();
+      if (fecha) params.set('fecha', fecha);
+      if (moneda) params.set('moneda', moneda);
+      params.set('page', page || 1);
+      params.set('per_page', '20');
+
+      try {
+        const response = await apiFetch('GET', '/reportes/relacion-tickets?' + params.toString());
+        const items = response?.data || [];
+        const meta = response?.meta || {};
+        currentPage = meta.current_page || 1;
+        lastPage = meta.last_page || 1;
+
+        if (items.length === 0) {
+          content.innerHTML = '<div class="empty">No hay datos disponibles para los filtros seleccionados.</div>';
+          document.getElementById('pagination').style.display = 'none';
+          return;
+        }
+
+        let html = '<div class="table-wrap"><table><thead><tr><th>Ticket N°</th><th>Agencia</th><th>Usuario</th><th>Fecha</th><th class="number">Monto</th><th class="number">Premio</th><th class="number">Sorteos</th><th class="number">Jugadas</th><th>Tipo</th></tr></thead><tbody>';
+        items.forEach(row => {
+          const tipoClass = row.Tipo === 'USD' ? 'tipo-usd' : (row.Tipo === 'Mixto' ? 'tipo-mixto' : 'tipo-bs');
+          html += `<tr>
+            <td><strong>${row.Ticket_N || row.ticket_code || '-'}</strong></td>
+            <td>${row.Agencia || '-'}</td>
+            <td>${row.Usuario || '-'}</td>
+            <td>${row.Fecha || '-'}</td>
+            <td class="number">${(row.Monto || 0).toLocaleString('es-VE', {minimumFractionDigits:2})}</td>
+            <td class="number">${(row.Premio || 0).toLocaleString('es-VE', {minimumFractionDigits:2})}</td>
+            <td class="number">${row.Sorteos ?? '-'}</td>
+            <td class="number">${row.Jugadas ?? '-'}</td>
+            <td><span class="tipo-badge ${tipoClass}">${row.Tipo || 'BS'}</span></td>
+          </tr>`;
+        });
+        html += '</tbody></table></div>';
+        content.innerHTML = html;
+
+        // Render pagination
+        renderPagination();
+      } catch (e) {
+        content.innerHTML = '<div class="error">Error: ' + (e.message || 'No se pudo cargar el reporte.') + '</div>';
+        document.getElementById('pagination').style.display = 'none';
+      }
+    }
+
+    function renderPagination() {
+      const pag = document.getElementById('pagination');
+      if (lastPage <= 1) { pag.style.display = 'none'; return; }
+      pag.style.display = 'flex';
+      pag.innerHTML = `
+        <button class="btn btn-secondary btn-sm" id="btn-prev" ${currentPage <= 1 ? 'disabled' : ''}>← Anterior</button>
+        <span class="page-info">Página ${currentPage} de ${lastPage}</span>
+        <button class="btn btn-secondary btn-sm" id="btn-next" ${currentPage >= lastPage ? 'disabled' : ''}>Siguiente →</button>
+      `;
+      document.getElementById('btn-prev')?.addEventListener('click', () => { if (currentPage > 1) load(currentPage - 1); });
+      document.getElementById('btn-next')?.addEventListener('click', () => { if (currentPage < lastPage) load(currentPage + 1); });
+    }
+
+    // Set default date to today
+    document.getElementById('filter-fecha').value = new Date().toISOString().split('T')[0];
+
+    document.getElementById('btn-buscar').addEventListener('click', () => load(1));
+    load(1);
+  </script>
+</AdminLayout>
