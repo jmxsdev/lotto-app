@@ -38,7 +38,7 @@ EOF
 # Migraciones — solo si es primera vez
 if php -r "require 'vendor/autoload.php'; \$app = require 'bootstrap/app.php'; \$app->make('db'); echo Schema::hasTable('migrations') ? 'EXISTS' : 'EMPTY';" 2>/dev/null | grep -q "EXISTS"; then
     echo "📦 Migraciones ya ejecutadas, verificando pendientes..."
-    php artisan migrate --force 2>/dev/null || echo "   (sin migraciones pendientes)"
+    php artisan migrate --force
 else
     echo "📦 Ejecutando migraciones iniciales..."
     php artisan migrate --force

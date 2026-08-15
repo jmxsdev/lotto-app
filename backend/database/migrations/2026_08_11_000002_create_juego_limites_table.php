@@ -10,9 +10,17 @@ return new class extends Migration
     /**
      * Crea la tabla juego_limites con herencia jerárquica
      * (banca → grupo → taquilla) y restricción única por entidad.
+     *
+     * Idempotente: si la tabla ya existe (deploy interrumpido en un DDL no
+     * transaccional, o BD pre-provisionada sin registro de migración), se
+     * omite la creación para que `migrate --force` no falle con 42S01.
      */
     public function up(): void
     {
+        if (Schema::hasTable('juego_limites')) {
+            return;
+        }
+
         Schema::create('juego_limites', function (Blueprint $table) {
             $table->id();
             $table->foreignId('juego_id')->constrained('juegos')->onDelete('cascade');
