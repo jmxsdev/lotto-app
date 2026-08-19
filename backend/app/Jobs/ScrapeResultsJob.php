@@ -5,6 +5,8 @@ namespace App\Jobs;
 use App\Models\Juego;
 use App\Models\Log;
 use App\Models\Resultado;
+use App\Plugins\Scrapers\AnimalitosScraper;
+use App\Plugins\Scrapers\TripletasScraper;
 use App\Services\ApuestaService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -19,6 +21,7 @@ class ScrapeResultsJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $tries = 3;
+
     public $backoff = 300;
 
     public function __construct(
@@ -31,13 +34,15 @@ class ScrapeResultsJob implements ShouldQueue
         $fecha = $this->fecha ?? now()->format('Y-m-d');
         $juego = Juego::find($this->juegoId);
 
-        if (!$juego) {
+        if (! $juego) {
             FacadeLog::warning("ScrapeResultsJob: Juego ID {$this->juegoId} no encontrado");
+
             return;
         }
 
-        if (!$juego->requires_scraper) {
+        if (! $juego->requires_scraper) {
             FacadeLog::info("ScrapeResultsJob: {$juego->name} no requiere scraper");
+
             return;
         }
 
@@ -45,12 +50,13 @@ class ScrapeResultsJob implements ShouldQueue
 
         $scraperClass = $this->resolveScraper($juego);
 
-        if (!$scraperClass || !class_exists($scraperClass)) {
+        if (! $scraperClass || ! class_exists($scraperClass)) {
             FacadeLog::warning("No existe scraper para: {$juego->name} (type: {$juego->type}, url: {$juego->scraper_url})");
-            $this->logToDatabase('warning', "No existe scraper", [
+            $this->logToDatabase('warning', 'No existe scraper', [
                 'juego' => $juego->name,
                 'type' => $juego->type,
             ]);
+
             return;
         }
 
@@ -63,14 +69,16 @@ class ScrapeResultsJob implements ShouldQueue
 
                 if ($this->attempts() < $this->tries) {
                     $this->release($this->backoff);
+
                     return;
                 }
 
                 FacadeLog::warning("{$juego->name}: sin resultados tras {$this->tries} intentos");
-                $this->logToDatabase('warning', "Sin resultados tras reintentos", [
+                $this->logToDatabase('warning', 'Sin resultados tras reintentos', [
                     'juego' => $juego->name,
                     'fecha' => $fecha,
                 ]);
+
                 return;
             }
 
@@ -89,15 +97,15 @@ class ScrapeResultsJob implements ShouldQueue
                 $totalGanadoras += $apuestaService->verificarGanadores($resultado);
             }
             FacadeLog::info("{$juego->name}: jugadas ganadoras detectadas: {$totalGanadoras}");
-            $this->logToDatabase('info', "Scrape completado", [
+            $this->logToDatabase('info', 'Scrape completado', [
                 'juego' => $juego->name,
                 'fecha' => $fecha,
                 'guardados' => $guardados,
             ]);
 
         } catch (\Exception $e) {
-            FacadeLog::error("ERROR ScrapeResultsJob {$juego->name}: " . $e->getMessage());
-            $this->logToDatabase('error', "Error en scrape", [
+            FacadeLog::error("ERROR ScrapeResultsJob {$juego->name}: ".$e->getMessage());
+            $this->logToDatabase('error', 'Error en scrape', [
                 'juego' => $juego->name,
                 'fecha' => $fecha,
                 'error' => $e->getMessage(),
@@ -115,14 +123,15 @@ class ScrapeResultsJob implements ShouldQueue
         $type = $juego->type;
 
         if (str_contains($url, 'lottoactivo.com')) {
-            return \App\Plugins\Scrapers\AnimalitosScraper::class;
+            return AnimalitosScraper::class;
         }
         if (str_contains($url, 'triplezulia')) {
-            return \App\Plugins\Scrapers\TripletasScraper::class;
+            return TripletasScraper::class;
         }
 
         // Fallback: convention-based by type
-        $class = 'App\\Plugins\\Scrapers\\' . Str::studly($type) . 'Scraper';
+        $class = 'App\\Plugins\\Scrapers\\'.Str::studly($type).'Scraper';
+
         return class_exists($class) ? $class : null;
     }
 
@@ -130,14 +139,19 @@ class ScrapeResultsJob implements ShouldQueue
     {
         $url = $juego->scraper_url ?? '';
 
-        if ($class === \App\Plugins\Scrapers\AnimalitosScraper::class) {
+        if ($class === AnimalitosScraper::class) {
             $slug = 'animalitos';
-            if (str_contains($url, 'trio_activo')) $slug = 'trio_activo';
-            if (str_contains($url, 'terminal_activo')) $slug = 'terminal_activo';
-            return new \App\Plugins\Scrapers\AnimalitosScraper($slug);
+            if (str_contains($url, 'trio_activo')) {
+                $slug = 'trio_activo';
+            }
+            if (str_contains($url, 'terminal_activo')) {
+                $slug = 'terminal_activo';
+            }
+
+            return new AnimalitosScraper($slug);
         }
 
-        return new $class();
+        return new $class;
     }
 
     protected function logToDatabase(string $level, string $message, array $context = []): void
@@ -154,12 +168,12 @@ class ScrapeResultsJob implements ShouldQueue
                 'user_agent' => 'ScrapeResultsJob',
             ]);
         } catch (\Exception $e) {
-            FacadeLog::error("Error al guardar log en DB: " . $e->getMessage());
+            FacadeLog::error('Error al guardar log en DB: '.$e->getMessage());
         }
     }
 
     public function failed(\Throwable $exception): void
     {
-        FacadeLog::error("ScrapeResultsJob (juego_id={$this->juegoId}) falló tras {$this->tries} intentos: " . $exception->getMessage());
+        FacadeLog::error("ScrapeResultsJob (juego_id={$this->juegoId}) falló tras {$this->tries} intentos: ".$exception->getMessage());
     }
 }

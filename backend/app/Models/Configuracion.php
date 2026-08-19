@@ -10,7 +10,7 @@ class Configuracion extends Model
     use HasFactory;
 
     protected $fillable = [
-        'key', 'value', 'description', 'banca_id'
+        'key', 'value', 'description', 'banca_id',
     ];
 
     protected $casts = [

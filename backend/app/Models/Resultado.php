@@ -15,7 +15,7 @@ class Resultado extends Model
         'hora_sorteo',
         'numeros_ganadores',
         'sorteo_id_externo',
-        'premios_detalle'
+        'premios_detalle',
     ];
 
     protected $casts = [

@@ -12,6 +12,7 @@ use App\Models\Pago;
 use App\Models\Taquilla;
 use App\Models\User;
 use Carbon\Carbon;
+use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -29,7 +30,7 @@ class CierreCajaTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\DatabaseSeeder::class);
+        $this->seed(DatabaseSeeder::class);
         Carbon::setTestNow(Carbon::create(2026, 8, 12, 12, 0, 0));
     }
 
@@ -92,10 +93,10 @@ class CierreCajaTest extends TestCase
     private function crearTaquilla(string $code, int $grupoId): Taquilla
     {
         return Taquilla::create([
-            'name' => 'Agencia ' . $code,
+            'name' => 'Agencia '.$code,
             'code' => $code,
             'grupo_id' => $grupoId,
-            'activation_code' => $code . '-CODE',
+            'activation_code' => $code.'-CODE',
             'active' => true,
             'created_by' => $this->superUser()->id,
         ]);
@@ -421,7 +422,7 @@ class CierreCajaTest extends TestCase
         $cierre = $this->crearCierre($taquilla);
 
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
-            ->getJson('/api/v1/cierre/' . $cierre->id);
+            ->getJson('/api/v1/cierre/'.$cierre->id);
 
         $response->assertStatus(200)
             ->assertJsonPath('id', $cierre->id)
@@ -436,7 +437,7 @@ class CierreCajaTest extends TestCase
         $cierre = $this->crearCierre($taquilla);
 
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
-            ->getJson('/api/v1/cierre/' . $cierre->id);
+            ->getJson('/api/v1/cierre/'.$cierre->id);
 
         $response->assertStatus(403);
     }

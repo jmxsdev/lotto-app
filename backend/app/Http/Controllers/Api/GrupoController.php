@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Banca;
 use App\Models\Grupo;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -11,13 +12,13 @@ use Illuminate\Validation\Rule;
 
 class GrupoController extends Controller
 {
-   /* public function __construct()
-    {
-        // Aplicar middleware de autenticación y permisos
-        $this->middleware('auth:sanctum');
-        $this->middleware('permission:view_grupos|manage_grupos')->only(['index', 'show']);
-        $this->middleware('permission:manage_grupos')->only(['store', 'update', 'destroy']);
-    }*/
+    /* public function __construct()
+     {
+         // Aplicar middleware de autenticación y permisos
+         $this->middleware('auth:sanctum');
+         $this->middleware('permission:view_grupos|manage_grupos')->only(['index', 'show']);
+         $this->middleware('permission:manage_grupos')->only(['store', 'update', 'destroy']);
+     }*/
 
     /**
      * Listar grupos (filtrados según jerarquía)
@@ -33,14 +34,14 @@ class GrupoController extends Controller
         }
         // Banca: ve solo sus grupos
         elseif ($user->hasRole('banca')) {
-            if (!$user->banca_id) {
+            if (! $user->banca_id) {
                 return response()->json(['message' => 'No tienes una banca asociada.'], 403);
             }
             $query->where('banca_id', $user->banca_id);
         }
         // Grupo: ve solo su grupo (aunque no debería ver grupos, pero por si acaso)
         elseif ($user->hasRole('grupo')) {
-            if (!$user->grupo_id) {
+            if (! $user->grupo_id) {
                 return response()->json(['message' => 'No tienes un grupo asociado.'], 403);
             }
             $query->where('id', $user->grupo_id);
@@ -88,9 +89,9 @@ class GrupoController extends Controller
 
         // Validar monedas_permitidas contra la banca
         if ($request->has('monedas_permitidas')) {
-            $banca = \App\Models\Banca::find($request->banca_id);
+            $banca = Banca::find($request->banca_id);
             $bancaMonedas = $banca?->monedas_permitidas;
-            if (!$this->validarMonedasContraParent($bancaMonedas, $request->monedas_permitidas)) {
+            if (! $this->validarMonedasContraParent($bancaMonedas, $request->monedas_permitidas)) {
                 return response()->json([
                     'message' => 'El grupo no puede habilitar una moneda que la banca ha deshabilitado. La jerarquía inferior solo puede restringir, no expandir.',
                 ], 422);
@@ -99,18 +100,18 @@ class GrupoController extends Controller
 
         // Validar vigencia_premios contra la banca (más restrictivo)
         if ($request->has('vigencia_premios') && $request->vigencia_premios !== null) {
-            $banca = \App\Models\Banca::find($request->banca_id);
+            $banca = Banca::find($request->banca_id);
             $bancaVigencia = $banca?->vigencia_premios;
             if ($bancaVigencia !== null && $request->vigencia_premios > $bancaVigencia) {
                 return response()->json([
-                    'message' => 'La vigencia de premios del grupo no puede ser mayor que la de la banca (' . $bancaVigencia . ' días).',
+                    'message' => 'La vigencia de premios del grupo no puede ser mayor que la de la banca ('.$bancaVigencia.' días).',
                 ], 422);
             }
         }
 
         // Validar tiempo_eliminacion contra la banca (más restrictivo: no puede alargar la ventana)
         if ($request->has('tiempo_eliminacion') && $request->tiempo_eliminacion !== null) {
-            $banca = \App\Models\Banca::find($request->banca_id);
+            $banca = Banca::find($request->banca_id);
             $bancaTiempo = $banca?->tiempo_eliminacion ?? 5;
             if ($request->tiempo_eliminacion > $bancaTiempo) {
                 return response()->json([
@@ -202,7 +203,7 @@ class GrupoController extends Controller
         // Validar monedas_permitidas contra la banca
         if ($request->has('monedas_permitidas')) {
             $bancaMonedas = $grupo->banca?->monedas_permitidas;
-            if (!$this->validarMonedasContraParent($bancaMonedas, $request->monedas_permitidas)) {
+            if (! $this->validarMonedasContraParent($bancaMonedas, $request->monedas_permitidas)) {
                 return response()->json([
                     'message' => 'El grupo no puede habilitar una moneda que la banca ha deshabilitado. La jerarquía inferior solo puede restringir, no expandir.',
                 ], 422);
@@ -215,7 +216,7 @@ class GrupoController extends Controller
             if ($bancaVigencia !== null && $request->vigencia_premios !== null) {
                 if ($request->vigencia_premios > $bancaVigencia) {
                     return response()->json([
-                        'message' => 'La vigencia de premios del grupo no puede ser mayor que la de la banca (' . $bancaVigencia . ' días).',
+                        'message' => 'La vigencia de premios del grupo no puede ser mayor que la de la banca ('.$bancaVigencia.' días).',
                     ], 422);
                 }
             }
@@ -247,7 +248,7 @@ class GrupoController extends Controller
 
         $this->authorizeGrupoAccess($user, $grupo);
 
-        $grupo->update(['active' => !$grupo->active]);
+        $grupo->update(['active' => ! $grupo->active]);
 
         return response()->json($grupo->load('banca'));
     }
@@ -285,12 +286,12 @@ class GrupoController extends Controller
         $grupoUsd = $grupoMonedas['usd'] ?? true;
 
         // Si la banca tiene BS explícitamente deshabilitado, el grupo no puede habilitarlo
-        if (!$bancaBs && $grupoBs) {
+        if (! $bancaBs && $grupoBs) {
             return false;
         }
 
         // Si la banca tiene USD explícitamente deshabilitado, el grupo no puede habilitarlo
-        if (!$bancaUsd && $grupoUsd) {
+        if (! $bancaUsd && $grupoUsd) {
             return false;
         }
 
@@ -308,9 +309,10 @@ class GrupoController extends Controller
 
         // Banca solo puede gestionar su propia banca
         if ($user->hasRole('banca')) {
-            if (!$user->banca_id || $user->banca_id != $bancaId) {
+            if (! $user->banca_id || $user->banca_id != $bancaId) {
                 abort(403, 'No tienes acceso a esta banca.');
             }
+
             return;
         }
 
@@ -327,17 +329,19 @@ class GrupoController extends Controller
 
         // Banca solo puede acceder a grupos de su banca
         if ($user->hasRole('banca')) {
-            if (!$user->banca_id || $user->banca_id != $grupo->banca_id) {
+            if (! $user->banca_id || $user->banca_id != $grupo->banca_id) {
                 abort(403, 'No tienes acceso a este grupo.');
             }
+
             return;
         }
 
         // Grupo solo puede acceder a su propio grupo
         if ($user->hasRole('grupo')) {
-            if (!$user->grupo_id || $user->grupo_id != $grupo->id) {
+            if (! $user->grupo_id || $user->grupo_id != $grupo->id) {
                 abort(403, 'No tienes acceso a este grupo.');
             }
+
             return;
         }
 

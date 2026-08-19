@@ -14,7 +14,7 @@ class ScheduleServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
-        if (!Schema::hasTable('juegos')) {
+        if (! Schema::hasTable('juegos')) {
             return;
         }
 

@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Apuesta;
+use App\Models\Log;
 use App\Models\Pago;
 use App\Models\Resultado;
-use App\Models\Log;
-use App\Models\ExchangeRate;
+use App\Models\Ticket;
 use App\Services\JuegoPluginManager;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -47,11 +47,11 @@ class PagoController extends Controller
 
         $user = $request->user();
         $apuestaId = $request->input('apuesta_id');
-        
+
         // Buscar apuesta
         $apuesta = Apuesta::with(['juego', 'resultado'])->find($apuestaId);
-        
-        if (!$apuesta) {
+
+        if (! $apuesta) {
             return response()->json([
                 'success' => false,
                 'message' => 'Apuesta no encontrada.',
@@ -73,7 +73,7 @@ class PagoController extends Controller
 
         // Si es egreso, validar que la apuesta tenga resultado
         if ($request->tipo === 'egreso') {
-            if (!$apuesta->resultado_id) {
+            if (! $apuesta->resultado_id) {
                 return response()->json([
                     'success' => false,
                     'message' => 'No se puede pagar un premio sin un resultado asignado a la apuesta.',
@@ -136,7 +136,7 @@ class PagoController extends Controller
 
         // Cascada al ticket: si todas las jugadas estan resueltas, marcar pagada
         if ($apuesta->ticket_id) {
-            $ticket = \App\Models\Ticket::with('apuestas')->find($apuesta->ticket_id);
+            $ticket = Ticket::with('apuestas')->find($apuesta->ticket_id);
             if ($ticket && $ticket->estado !== 'pagada') {
                 $todasResueltas = $ticket->apuestas->every(function ($a) {
                     return $a->estado === 'pagada' || $a->estado === 'anulada' || $a->estado === 'perdida' || $a->trashed();
@@ -192,7 +192,7 @@ class PagoController extends Controller
     {
         $plugin = app(JuegoPluginManager::class)->getPlugin($apuesta->juego);
 
-        if (!$plugin) {
+        if (! $plugin) {
             return ['premio_bs' => 0, 'premio_usd' => 0];
         }
 

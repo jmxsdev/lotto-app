@@ -9,6 +9,8 @@ use App\Models\Juego;
 use App\Models\Taquilla;
 use App\Models\Ticket;
 use App\Models\User;
+use Database\Seeders\DatabaseSeeder;
+use Database\Seeders\JuegoAnimalitosSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -26,8 +28,8 @@ class TerminologiaTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\DatabaseSeeder::class);
-        $this->seed(\Database\Seeders\JuegoAnimalitosSeeder::class);
+        $this->seed(DatabaseSeeder::class);
+        $this->seed(JuegoAnimalitosSeeder::class);
     }
 
     private function superUser(): User
@@ -184,7 +186,7 @@ class TerminologiaTest extends TestCase
         $taquilla = Taquilla::factory()->create();
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->deleteJson('/api/v1/taquillas/' . $taquilla->id);
+            ->deleteJson('/api/v1/taquillas/'.$taquilla->id);
 
         $response->assertStatus(200)
             ->assertJsonPath('message', 'Agencia eliminada correctamente.');
@@ -243,6 +245,6 @@ class TerminologiaTest extends TestCase
 
         // La tabla y el modelo siguen usando taquillas/Taquilla
         $this->assertDatabaseHas('taquillas', ['id' => $taquilla->id]);
-        $this->assertInstanceOf(\App\Models\Taquilla::class, $taquilla);
+        $this->assertInstanceOf(Taquilla::class, $taquilla);
     }
 }

@@ -6,6 +6,7 @@ use App\Models\Banca;
 use App\Models\Grupo;
 use App\Models\Taquilla;
 use App\Models\User;
+use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use Tests\TestCase;
@@ -24,7 +25,7 @@ class GestionEntidadesApiTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\DatabaseSeeder::class);
+        $this->seed(DatabaseSeeder::class);
     }
 
     private function superUser(): User
@@ -114,7 +115,7 @@ class GestionEntidadesApiTest extends TestCase
         $usuarioAjeno = $this->crearUsuario('banca', ['banca_id' => $bancaAjena->id]);
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->getJson('/api/v1/users?banca_id=' . $this->bancaSeeded()->id);
+            ->getJson('/api/v1/users?banca_id='.$this->bancaSeeded()->id);
 
         $response->assertStatus(200);
 
@@ -139,7 +140,7 @@ class GestionEntidadesApiTest extends TestCase
         $usuarioOtroGrupo = $this->crearUsuario('grupo', ['banca_id' => $otroGrupo->banca_id, 'grupo_id' => $otroGrupo->id]);
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->getJson('/api/v1/users?grupo_id=' . $grupo->id);
+            ->getJson('/api/v1/users?grupo_id='.$grupo->id);
 
         $response->assertStatus(200);
 
@@ -160,7 +161,7 @@ class GestionEntidadesApiTest extends TestCase
         $taquilla = $this->taquillaSeeded();
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->getJson('/api/v1/users?taquilla_id=' . $taquilla->id);
+            ->getJson('/api/v1/users?taquilla_id='.$taquilla->id);
 
         $response->assertStatus(200);
 
@@ -200,7 +201,7 @@ class GestionEntidadesApiTest extends TestCase
         $grupo = $this->grupoSeeded();
 
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
-            ->getJson('/api/v1/users?grupo_id=' . $grupo->id);
+            ->getJson('/api/v1/users?grupo_id='.$grupo->id);
 
         $response->assertStatus(200);
 
@@ -223,7 +224,7 @@ class GestionEntidadesApiTest extends TestCase
 
         // El filtro no amplía el alcance: grupo de otra banca → lista vacía
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
-            ->getJson('/api/v1/users?grupo_id=' . $grupoAjeno->id);
+            ->getJson('/api/v1/users?grupo_id='.$grupoAjeno->id);
 
         $response->assertStatus(200);
         $this->assertEmpty($response->json());
@@ -238,7 +239,7 @@ class GestionEntidadesApiTest extends TestCase
         $taquilla = $this->taquillaSeeded();
 
         $response = $this->actingAs($this->grupoUser(), 'sanctum')
-            ->getJson('/api/v1/users?taquilla_id=' . $taquilla->id);
+            ->getJson('/api/v1/users?taquilla_id='.$taquilla->id);
 
         $response->assertStatus(200);
 
@@ -271,7 +272,7 @@ class GestionEntidadesApiTest extends TestCase
 
         // Taquilla de otro grupo (aunque sea de su misma banca) → lista vacía
         $response = $this->actingAs($this->grupoUser(), 'sanctum')
-            ->getJson('/api/v1/users?taquilla_id=' . $otraTaquilla->id);
+            ->getJson('/api/v1/users?taquilla_id='.$otraTaquilla->id);
 
         $response->assertStatus(200);
         $this->assertEmpty($response->json());

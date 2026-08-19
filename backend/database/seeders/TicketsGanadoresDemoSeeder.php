@@ -5,34 +5,39 @@ namespace Database\Seeders;
 use App\Models\Apuesta;
 use App\Models\DetalleApuesta;
 use App\Models\ExchangeRate;
-use App\Models\Juego;
-use App\Models\Pago;
 use App\Models\Resultado;
 use App\Models\Taquilla;
 use App\Models\Ticket;
-use App\Services\ApuestaService;
 use App\Services\JuegoPluginManager;
+use Carbon\Carbon;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
 
 class TicketsGanadoresDemoSeeder extends Seeder
 {
     public function run(): void
     {
         $taquilla = Taquilla::where('id', 2)->first();
-        if (!$taquilla) return;
+        if (! $taquilla) {
+            return;
+        }
 
         $tasaActiva = ExchangeRate::where('is_active', true)->first();
-        if (!$tasaActiva) return;
+        if (! $tasaActiva) {
+            return;
+        }
 
         $pluginManager = app(JuegoPluginManager::class);
 
         $resultados = Resultado::with('juego')->whereNotNull('hora_sorteo')->limit(10)->get();
-        if ($resultados->isEmpty()) return;
+        if ($resultados->isEmpty()) {
+            return;
+        }
 
         foreach ($resultados as $resultado) {
             $plugin = $pluginManager->getPlugin($resultado->juego);
-            if (!$plugin) continue;
+            if (! $plugin) {
+                continue;
+            }
 
             $ganador = $resultado->numeros_ganadores ?? [];
             $nombreAnimal = $ganador['nombre_animal'] ?? null;
@@ -45,9 +50,9 @@ class TicketsGanadoresDemoSeeder extends Seeder
             $fecha = $resultado->fecha_sorteo->toDateString();
             $hora = $resultado->hora_sorteo;
             if (preg_match('/AM|PM/i', $hora)) {
-                $hora = \Carbon\Carbon::createFromFormat('h:i A', trim($hora))->format('H:i');
+                $hora = Carbon::createFromFormat('h:i A', trim($hora))->format('H:i');
             }
-            $sorteoHora = $fecha . ' ' . $hora . ':00';
+            $sorteoHora = $fecha.' '.$hora.':00';
 
             $ticket = Ticket::create([
                 'taquilla_id' => $taquilla->id,

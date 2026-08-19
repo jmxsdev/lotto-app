@@ -22,6 +22,7 @@ class Terminales implements JuegoInterface
             return false;
         }
         $num = (int) $numero;
+
         return $num >= 0 && $num <= 99;
     }
 
@@ -44,6 +45,7 @@ class Terminales implements JuegoInterface
 
         $amountBs = $apuesta['amount_bs'] ?? 0;
         $amountUsd = $apuesta['amount_usd'] ?? 0;
+
         return [
             'premio_bs' => $amountBs * (float) $this->multiplicador,
             'premio_usd' => $amountUsd * (float) $this->multiplicador,
@@ -53,7 +55,7 @@ class Terminales implements JuegoInterface
     public function obtenerReglas(): array
     {
         return [
-            'descripcion' => 'Acierta el número de 2 cifras y gana ' . $this->multiplicador . ' veces tu apuesta.',
+            'descripcion' => 'Acierta el número de 2 cifras y gana '.$this->multiplicador.' veces tu apuesta.',
             'tipo' => 'numero',
             'modalidades' => $this->obtenerModalidades(),
             'multiplicador' => (float) $this->multiplicador,
@@ -71,6 +73,7 @@ class Terminales implements JuegoInterface
                 'numero' => $num,
             ];
         }
+
         return $opciones;
     }
 

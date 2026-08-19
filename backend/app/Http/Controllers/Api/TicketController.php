@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Ticket;
 use App\Models\Apuesta;
+use App\Models\Resultado;
+use App\Models\Ticket;
 use App\Services\ApuestaService;
+use App\Services\JuegoPluginManager;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -27,7 +29,7 @@ class TicketController extends Controller
             ->withCount(['apuestas as ganadoras_count' => function ($q) {
                 $q->whereHas('detalles', function ($q2) {
                     $q2->whereNotNull('premio_ganado')
-                       ->orWhereNotNull('premio_ganado_usd');
+                        ->orWhereNotNull('premio_ganado_usd');
                 });
             }])
             ->latest();
@@ -48,7 +50,7 @@ class TicketController extends Controller
             $query->where('estado', $request->estado);
         }
         if ($request->has('ticket_code')) {
-            $query->where('ticket_code', 'like', '%' . $request->ticket_code . '%');
+            $query->where('ticket_code', 'like', '%'.$request->ticket_code.'%');
         }
         if ($request->has('fecha_desde')) {
             $query->whereDate('created_at', '>=', $request->fecha_desde);
@@ -61,6 +63,7 @@ class TicketController extends Controller
 
         $tickets->getCollection()->transform(function ($ticket) {
             $ticket->tiene_ganadores = $ticket->ganadoras_count > 0;
+
             return $ticket;
         });
 
@@ -84,7 +87,7 @@ class TicketController extends Controller
         $ticket->loadCount(['apuestas as ganadoras_count' => function ($q) {
             $q->whereHas('detalles', function ($q2) {
                 $q2->whereNotNull('premio_ganado')
-                   ->orWhereNotNull('premio_ganado_usd');
+                    ->orWhereNotNull('premio_ganado_usd');
             });
         }]);
         $ticket->tiene_ganadores = $ticket->ganadoras_count > 0;
@@ -96,7 +99,7 @@ class TicketController extends Controller
     {
         $user = $request->user();
 
-        if (!$user->taquilla_id) {
+        if (! $user->taquilla_id) {
             return response()->json([
                 'message' => 'Solo las agencias pueden crear tickets.',
             ], 403);
@@ -116,8 +119,12 @@ class TicketController extends Controller
         foreach ($request->lines as $line) {
             $lineBs = (float) ($line['amount_bs'] ?? 0);
             $lineUsd = (float) ($line['amount_usd'] ?? 0);
-            if ($lineBs > 0) $hasBs = true;
-            if ($lineUsd > 0) $hasUsd = true;
+            if ($lineBs > 0) {
+                $hasBs = true;
+            }
+            if ($lineUsd > 0) {
+                $hasUsd = true;
+            }
             if ($lineBs > 0 && $lineUsd > 0) {
                 $hasBs = true;
                 $hasUsd = true;
@@ -127,17 +134,17 @@ class TicketController extends Controller
 
         if ($hasBs || $hasUsd) {
             $monedas = $this->apuestaService->getEffectiveMonedas($user->taquilla_id);
-            if ($hasUsd && !$monedas['usd']) {
+            if ($hasUsd && ! $monedas['usd']) {
                 return response()->json([
                     'message' => 'Moneda USD no permitida para esta agencia.',
                 ], 422);
             }
-            if ($hasBs && !$monedas['bs']) {
+            if ($hasBs && ! $monedas['bs']) {
                 return response()->json([
                     'message' => 'Moneda BS no permitida para esta agencia.',
                 ], 422);
             }
-            if ($hasBs && $hasUsd && (!$monedas['bs'] || !$monedas['usd'])) {
+            if ($hasBs && $hasUsd && (! $monedas['bs'] || ! $monedas['usd'])) {
                 return response()->json([
                     'message' => 'Ambas monedas deben estar habilitadas para tickets mixtos.',
                 ], 422);
@@ -221,7 +228,7 @@ class TicketController extends Controller
             return response()->json(['message' => $rechazada], 422);
         }
 
-        DB::transaction(function () use ($ticket, $user) {
+        DB::transaction(function () use ($ticket) {
             foreach ($ticket->apuestas as $apuesta) {
                 $apuesta->delete();
             }
@@ -239,7 +246,7 @@ class TicketController extends Controller
         $user = $request->user();
         $fecha = $request->fecha;
 
-        $resultados = \App\Models\Resultado::with('juego')
+        $resultados = Resultado::with('juego')
             ->whereDate('fecha_sorteo', $fecha)
             ->get();
 
@@ -248,7 +255,7 @@ class TicketController extends Controller
         }
 
         $ganadores = [];
-        $pluginManager = app(\App\Services\JuegoPluginManager::class);
+        $pluginManager = app(JuegoPluginManager::class);
 
         foreach ($resultados as $resultado) {
             $apuestasQuery = Apuesta::with(['ticket', 'juego'])
@@ -259,9 +266,9 @@ class TicketController extends Controller
             if ($user->role === 'taquilla') {
                 $apuestasQuery->where('taquilla_id', $user->taquilla_id);
             } elseif ($user->role === 'grupo') {
-                $apuestasQuery->whereHas('taquilla.grupo', fn($q) => $q->where('grupo_id', $user->grupo_id));
+                $apuestasQuery->whereHas('taquilla.grupo', fn ($q) => $q->where('grupo_id', $user->grupo_id));
             } elseif ($user->role === 'banca') {
-                $apuestasQuery->whereHas('taquilla.grupo.banca', fn($q) => $q->where('banca_id', $user->banca_id));
+                $apuestasQuery->whereHas('taquilla.grupo.banca', fn ($q) => $q->where('banca_id', $user->banca_id));
             }
 
             $apuestas = $apuestasQuery->get();
@@ -285,7 +292,7 @@ class TicketController extends Controller
                     $ticketCode = $apuesta->ticket?->ticket_code ?? $apuesta->ticket_code;
                     $ticketId = $apuesta->ticket_id;
 
-                    if (!isset($ganadores[$ticketCode])) {
+                    if (! isset($ganadores[$ticketCode])) {
                         $ganadores[$ticketCode] = [
                             'ticket_code' => $ticketCode,
                             'ticket_id' => $ticketId,

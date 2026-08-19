@@ -50,21 +50,21 @@ class CierreController extends Controller
         if ($user->hasRole(['super_master', 'master'])) {
             // Ven todos
         } elseif ($user->hasRole('banca')) {
-            if (!$user->banca_id) {
+            if (! $user->banca_id) {
                 return response()->json(['message' => 'No tienes una banca asociada.'], 403);
             }
             $query->whereHas('taquilla.grupo', function ($q) use ($user) {
                 $q->where('banca_id', $user->banca_id);
             });
         } elseif ($user->hasRole('grupo')) {
-            if (!$user->grupo_id) {
+            if (! $user->grupo_id) {
                 return response()->json(['message' => 'No tienes un grupo asociado.'], 403);
             }
             $query->whereHas('taquilla', function ($q) use ($user) {
                 $q->where('grupo_id', $user->grupo_id);
             });
         } elseif ($user->hasRole('taquilla')) {
-            if (!$user->taquilla_id) {
+            if (! $user->taquilla_id) {
                 return response()->json(['message' => 'No tienes una agencia asociada.'], 403);
             }
             $query->where('taquilla_id', $user->taquilla_id);
@@ -98,7 +98,7 @@ class CierreController extends Controller
     {
         // La agencia (rol taquilla) cierra su propia caja
         if ($user->hasRole('taquilla')) {
-            if (!$user->taquilla_id) {
+            if (! $user->taquilla_id) {
                 abort(403, 'No tienes una agencia asociada.');
             }
 
@@ -121,16 +121,18 @@ class CierreController extends Controller
         }
 
         if ($user->hasRole('banca')) {
-            if (!$user->banca_id || $user->banca_id != $taquilla->grupo?->banca_id) {
+            if (! $user->banca_id || $user->banca_id != $taquilla->grupo?->banca_id) {
                 abort(403, 'No tienes acceso a la caja de esta agencia.');
             }
+
             return $taquilla->id;
         }
 
         if ($user->hasRole('grupo')) {
-            if (!$user->grupo_id || $user->grupo_id != $taquilla->grupo_id) {
+            if (! $user->grupo_id || $user->grupo_id != $taquilla->grupo_id) {
                 abort(403, 'No tienes acceso a la caja de esta agencia.');
             }
+
             return $taquilla->id;
         }
 
@@ -147,23 +149,26 @@ class CierreController extends Controller
         }
 
         if ($user->hasRole('banca')) {
-            if (!$user->banca_id || $user->banca_id != $cierre->taquilla?->grupo?->banca_id) {
+            if (! $user->banca_id || $user->banca_id != $cierre->taquilla?->grupo?->banca_id) {
                 abort(403, 'No tienes acceso a este cierre.');
             }
+
             return;
         }
 
         if ($user->hasRole('grupo')) {
-            if (!$user->grupo_id || $user->grupo_id != $cierre->taquilla?->grupo_id) {
+            if (! $user->grupo_id || $user->grupo_id != $cierre->taquilla?->grupo_id) {
                 abort(403, 'No tienes acceso a este cierre.');
             }
+
             return;
         }
 
         if ($user->hasRole('taquilla')) {
-            if (!$user->taquilla_id || $user->taquilla_id != $cierre->taquilla_id) {
+            if (! $user->taquilla_id || $user->taquilla_id != $cierre->taquilla_id) {
                 abort(403, 'No tienes acceso a este cierre.');
             }
+
             return;
         }
 

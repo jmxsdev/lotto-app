@@ -61,7 +61,7 @@ class ExpireUnclaimedPrizesJob implements ShouldQueue
             $createdAt = Carbon::parse($candidato->created_at);
 
             // Solo expira si la fecha de creación es anterior al límite
-            if (!$createdAt->lt($fechaLimite)) {
+            if (! $createdAt->lt($fechaLimite)) {
                 continue;
             }
 

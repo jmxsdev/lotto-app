@@ -2,9 +2,10 @@
 
 namespace Tests\Feature;
 
-use App\Models\Taquilla;
 use App\Models\Log;
+use App\Models\Taquilla;
 use App\Models\User;
+use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -15,7 +16,7 @@ class ActivacionTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\DatabaseSeeder::class);
+        $this->seed(DatabaseSeeder::class);
     }
 
     public function test_activacion_exitosa_con_datos_validos()

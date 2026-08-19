@@ -6,6 +6,7 @@ use App\Models\Banca;
 use App\Models\Grupo;
 use App\Models\Taquilla;
 use App\Models\User;
+use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -23,7 +24,7 @@ class GestionUsuariosTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\DatabaseSeeder::class);
+        $this->seed(DatabaseSeeder::class);
     }
 
     private function superUser(): User
@@ -77,7 +78,7 @@ class GestionUsuariosTest extends TestCase
     {
         return array_merge([
             'user_name' => 'Usuario Nuevo',
-            'user_email' => 'nuevo-' . uniqid() . '@lotto.com',
+            'user_email' => 'nuevo-'.uniqid().'@lotto.com',
             'user_password' => 'password123',
         ], $overrides);
     }
@@ -311,7 +312,7 @@ class GestionUsuariosTest extends TestCase
         $taquillaUser = User::where('email', 'taquilla@lotto.com')->first();
 
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
-            ->deleteJson('/api/v1/users/' . $taquillaUser->id);
+            ->deleteJson('/api/v1/users/'.$taquillaUser->id);
 
         $response->assertStatus(403);
 
@@ -326,7 +327,7 @@ class GestionUsuariosTest extends TestCase
         $taquillaUser = User::where('email', 'taquilla@lotto.com')->first();
 
         $response = $this->actingAs($master, 'sanctum')
-            ->deleteJson('/api/v1/users/' . $taquillaUser->id);
+            ->deleteJson('/api/v1/users/'.$taquillaUser->id);
 
         $response->assertStatus(200);
 
@@ -338,7 +339,7 @@ class GestionUsuariosTest extends TestCase
         $taquillaUser = User::where('email', 'taquilla@lotto.com')->first();
 
         $response = $this->actingAs($this->grupoUser(), 'sanctum')
-            ->putJson('/api/v1/users/' . $taquillaUser->id, [
+            ->putJson('/api/v1/users/'.$taquillaUser->id, [
                 'name' => 'Agencia Renombrada',
             ]);
 
@@ -356,7 +357,7 @@ class GestionUsuariosTest extends TestCase
         $usuarioAjeno->assignRole('taquilla');
 
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
-            ->putJson('/api/v1/users/' . $usuarioAjeno->id, [
+            ->putJson('/api/v1/users/'.$usuarioAjeno->id, [
                 'name' => 'Intento de Cambio',
             ]);
 
@@ -378,7 +379,7 @@ class GestionUsuariosTest extends TestCase
         $taquillaUser = User::where('email', 'taquilla@lotto.com')->first();
 
         $response = $this->actingAs($this->grupoUser(), 'sanctum')
-            ->putJson('/api/v1/users/' . $taquillaUser->id, [
+            ->putJson('/api/v1/users/'.$taquillaUser->id, [
                 'taquilla_id' => $nuevaTaquilla->id,
             ]);
 

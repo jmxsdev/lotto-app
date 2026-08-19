@@ -2,9 +2,10 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
-use App\Models\ExchangeRate;
 use App\Models\Banca;
+use App\Models\ExchangeRate;
+use App\Models\User;
+use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -15,7 +16,7 @@ class ExchangeRateTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\DatabaseSeeder::class);
+        $this->seed(DatabaseSeeder::class);
     }
 
     public function test_public_can_get_active_rate()
@@ -35,10 +36,10 @@ class ExchangeRateTest extends TestCase
         $response = $this->getJson('/api/v1/exchange-rate/active');
 
         $response->assertStatus(200)
-                 ->assertJson([
-                     'rate' => 36.50,
-                     'base_currency' => 'USD',
-                 ]);
+            ->assertJson([
+                'rate' => 36.50,
+                'base_currency' => 'USD',
+            ]);
     }
 
     public function test_only_super_master_or_master_can_create_rate()
@@ -51,10 +52,10 @@ class ExchangeRateTest extends TestCase
         $userBanca->assignRole('banca');
 
         $response = $this->actingAs($userBanca, 'sanctum')
-                         ->postJson('/api/v1/exchange-rates', [
-                             'rate' => 37.00,
-                             'notes' => 'Tasa de prueba',
-                         ]);
+            ->postJson('/api/v1/exchange-rates', [
+                'rate' => 37.00,
+                'notes' => 'Tasa de prueba',
+            ]);
 
         $response->assertStatus(403);
 
@@ -65,11 +66,11 @@ class ExchangeRateTest extends TestCase
         $userMaster->assignRole('master');
 
         $response = $this->actingAs($userMaster, 'sanctum')
-                         ->postJson('/api/v1/exchange-rates', [
-                             'rate' => 38.00,
-                             'notes' => 'Tasa por Master',
-                             'set_active' => true,
-                         ]);
+            ->postJson('/api/v1/exchange-rates', [
+                'rate' => 38.00,
+                'notes' => 'Tasa por Master',
+                'set_active' => true,
+            ]);
 
         $response->assertStatus(201);
         $this->assertDatabaseHas('exchange_rates', [
@@ -93,11 +94,11 @@ class ExchangeRateTest extends TestCase
         ]);
 
         $response = $this->actingAs($user, 'sanctum')
-                         ->postJson('/api/v1/exchange-rates', [
-                             'rate' => 37.00,
-                             'notes' => 'Tasa 2',
-                             'set_active' => true,
-                         ]);
+            ->postJson('/api/v1/exchange-rates', [
+                'rate' => 37.00,
+                'notes' => 'Tasa 2',
+                'set_active' => true,
+            ]);
 
         $response->assertStatus(201);
 
@@ -136,7 +137,7 @@ class ExchangeRateTest extends TestCase
         ]);
 
         $response = $this->actingAs($user, 'sanctum')
-                         ->getJson('/api/v1/exchange-rates');
+            ->getJson('/api/v1/exchange-rates');
 
         $response->assertStatus(200);
         $response->assertJsonCount(3);

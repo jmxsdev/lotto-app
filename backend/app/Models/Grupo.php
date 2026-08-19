@@ -12,7 +12,7 @@ class Grupo extends Model
 
     protected $fillable = [
         'name', 'code', 'banca_id', 'monedas_permitidas', 'vigencia_premios', 'tiempo_eliminacion', 'active', 'created_by',
-        'rif', 'email', 'telefono', 'direccion', 'estado', 'municipio'
+        'rif', 'email', 'telefono', 'direccion', 'estado', 'municipio',
     ];
 
     protected $casts = [
@@ -52,4 +52,3 @@ class Grupo extends Model
         return $this->hasMany(JuegoLimite::class);
     }
 }
-

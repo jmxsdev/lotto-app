@@ -2,8 +2,8 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
 use App\Plugins\Juegos\Animalitos;
+use Tests\TestCase;
 
 class AnimalitosPluginTest extends TestCase
 {
@@ -12,7 +12,7 @@ class AnimalitosPluginTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->plugin = new Animalitos();
+        $this->plugin = new Animalitos;
     }
 
     public function test_validar_apuesta_correcta()

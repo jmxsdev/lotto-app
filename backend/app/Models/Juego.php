@@ -11,7 +11,7 @@ class Juego extends Model
 
     protected $fillable = [
         'name', 'slug', 'type', 'config', 'requires_scraper',
-        'scraper_url', 'active', 'updated_by'
+        'scraper_url', 'active', 'updated_by',
     ];
 
     protected $casts = [

@@ -12,7 +12,7 @@ class TripletasScraperTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->scraper = new TripletasScraper();
+        $this->scraper = new TripletasScraper;
     }
 
     public function test_parses_json_response()

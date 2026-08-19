@@ -3,14 +3,15 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 class RolesAndPermissionsSeeder extends Seeder
 {
     public function run(): void
     {
-        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
         $permissions = [
             // Usuarios
@@ -69,7 +70,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'view_apuestas', 'create_apuesta', 'delete_apuesta',
             'create_pago', 'view_pagos',
             'view_reports', 'manage_comisiones',
-            'manage_exchange_rates','view_exchange_rates',
+            'manage_exchange_rates', 'view_exchange_rates',
             'create_cierre', 'view_cierre',
         ]);
 

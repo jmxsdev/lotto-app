@@ -6,9 +6,10 @@ use App\Models\Apuesta;
 use App\Models\DetalleApuesta;
 use App\Models\ExchangeRate;
 use App\Models\Juego;
+use App\Models\Pago;
 use App\Models\Resultado;
 use App\Models\Taquilla;
-use App\Models\Pago;
+use App\Models\User;
 use App\Services\JuegoPluginManager;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
@@ -45,27 +46,31 @@ class ApuestaGanadoraSeeder extends Seeder
     public function run(): void
     {
         $tasa = ExchangeRate::where('is_active', true)->first();
-        if (!$tasa) {
+        if (! $tasa) {
             $this->command->error('No hay tasa activa. Ejecuta ExchangeRateSeeder primero.');
+
             return;
         }
 
         $taquilla = Taquilla::first();
-        if (!$taquilla) {
+        if (! $taquilla) {
             $this->command->error('No hay taquillas. Crea una taquilla primero.');
+
             return;
         }
 
-        $user = \App\Models\User::where('email', 'super@lotto.com')->first();
-        if (!$user) {
+        $user = User::where('email', 'super@lotto.com')->first();
+        if (! $user) {
             $this->command->error('No hay usuario super_master. Ejecuta UsersSeeder primero.');
+
             return;
         }
 
         foreach ($this->apuestasData as $data) {
             $juego = Juego::where('slug', $data['juego_slug'])->first();
-            if (!$juego) {
+            if (! $juego) {
                 $this->command->warn("Juego {$data['juego_slug']} no encontrado. Omitiendo.");
+
                 continue;
             }
 

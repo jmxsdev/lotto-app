@@ -1,8 +1,8 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\Auth\AuthController;
 use App\Http\Controllers\Admin\ResultadoController;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('welcome');
@@ -17,7 +17,7 @@ Route::post('/admin/logout', [AuthController::class, 'logout'])->name('admin.log
 Route::middleware(['web', 'auth'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/resultados', [ResultadoController::class, 'index'])->name('resultados.index');
     Route::post('/resultados/scrape', [ResultadoController::class, 'scrape'])->name('resultados.scrape');
-    
+
     // Middleware adicional de rol
     Route::middleware(['role:super_master|master'])->group(function () {
         // Las rutas ya están definidas arriba, este bloque es para futuras expansiones

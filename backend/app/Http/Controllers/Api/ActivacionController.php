@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Taquilla;
 use App\Models\Log;
+use App\Models\Taquilla;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -43,9 +43,9 @@ class ActivacionController extends Controller
         // Buscar taquilla por activation_code
         $taquilla = Taquilla::where('activation_code', $codigo)->first();
 
-        if (!$taquilla) {
+        if (! $taquilla) {
             $this->logActivacion(null, $codigo, $mac, false, 'Código de activación no encontrado');
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Código de activación inválido.',
@@ -55,9 +55,9 @@ class ActivacionController extends Controller
         // Verificar si ya está activa con esta misma MAC
         if ($taquilla->active && $taquilla->mac_address === $mac) {
             $taquilla->update(['last_connection_at' => now()]);
-            
+
             $this->logActivacion($taquilla->id, $codigo, $mac, true, 'Reactivación - misma MAC');
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Agencia reactivada exitosamente.',
@@ -67,7 +67,7 @@ class ActivacionController extends Controller
                     'code' => $taquilla->code,
                     'mac_address' => $taquilla->mac_address,
                     'active' => true,
-                ]
+                ],
             ]);
         }
 
@@ -89,7 +89,7 @@ class ActivacionController extends Controller
 
         if ($otraTaquilla) {
             $otraTaquilla->update(['active' => false, 'mac_address' => null, 'device_fingerprint' => null]);
-            
+
             $this->logActivacion(
                 $otraTaquilla->id,
                 $otraTaquilla->activation_code,
@@ -118,7 +118,7 @@ class ActivacionController extends Controller
                 'code' => $taquilla->code,
                 'mac_address' => $taquilla->mac_address,
                 'active' => true,
-            ]
+            ],
         ]);
     }
 

@@ -3,9 +3,15 @@
 namespace Tests\Feature;
 
 use App\Models\Apuesta;
+use App\Models\Banca;
 use App\Models\ExchangeRate;
+use App\Models\Grupo;
 use App\Models\Juego;
+use App\Models\JuegoLimite;
+use App\Models\Taquilla;
 use App\Models\User;
+use Database\Seeders\DatabaseSeeder;
+use Database\Seeders\JuegoAnimalitosSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -16,14 +22,14 @@ class ApuestaTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\DatabaseSeeder::class);
-        $this->seed(\Database\Seeders\JuegoAnimalitosSeeder::class);
+        $this->seed(DatabaseSeeder::class);
+        $this->seed(JuegoAnimalitosSeeder::class);
     }
 
     public function test_taquilla_puede_crear_apuesta()
     {
         $user = User::where('email', 'super@lotto.com')->first();
-        
+
         ExchangeRate::create([
             'rate' => 36.50,
             'base_currency' => 'USD',
@@ -34,7 +40,7 @@ class ApuestaTest extends TestCase
 
         $juego = Juego::where('slug', 'lotto-activo')->first();
 
-        $taquilla = \App\Models\Taquilla::factory()->create();
+        $taquilla = Taquilla::factory()->create();
         $taquillaUser = User::factory()->create([
             'taquilla_id' => $taquilla->id,
             'role' => 'taquilla',
@@ -69,7 +75,7 @@ class ApuestaTest extends TestCase
     public function test_rechaza_monto_inferior_al_costo_minimo()
     {
         $user = User::where('email', 'super@lotto.com')->first();
-        
+
         ExchangeRate::create([
             'rate' => 36.50,
             'base_currency' => 'USD',
@@ -80,8 +86,8 @@ class ApuestaTest extends TestCase
 
         $juego = Juego::where('slug', 'lotto-activo')->first();
 
-        $taquilla = \App\Models\Taquilla::factory()->create();
-        \App\Models\JuegoLimite::create([
+        $taquilla = Taquilla::factory()->create();
+        JuegoLimite::create([
             'juego_id' => $juego->id,
             'banca_id' => $taquilla->grupo->banca_id,
             'moneda' => 'bs',
@@ -112,7 +118,7 @@ class ApuestaTest extends TestCase
     public function test_guarda_tasa_historica_inmutable()
     {
         $user = User::where('email', 'super@lotto.com')->first();
-        
+
         ExchangeRate::create([
             'rate' => 36.50,
             'base_currency' => 'USD',
@@ -123,7 +129,7 @@ class ApuestaTest extends TestCase
 
         $juego = Juego::where('slug', 'lotto-activo')->first();
 
-        $taquilla = \App\Models\Taquilla::factory()->create();
+        $taquilla = Taquilla::factory()->create();
         $taquillaUser = User::factory()->create([
             'taquilla_id' => $taquilla->id,
             'role' => 'taquilla',
@@ -164,7 +170,7 @@ class ApuestaTest extends TestCase
     public function test_usuario_vio_solamente_taquilla_propia()
     {
         $user = User::where('email', 'super@lotto.com')->first();
-        
+
         ExchangeRate::create([
             'rate' => 36.50,
             'base_currency' => 'USD',
@@ -175,8 +181,8 @@ class ApuestaTest extends TestCase
 
         $juego = Juego::where('slug', 'lotto-activo')->first();
 
-        $taquilla1 = \App\Models\Taquilla::factory()->create();
-        $taquilla2 = \App\Models\Taquilla::factory()->create();
+        $taquilla1 = Taquilla::factory()->create();
+        $taquilla2 = Taquilla::factory()->create();
 
         $taquillaUser1 = User::factory()->create([
             'taquilla_id' => $taquilla1->id,
@@ -231,8 +237,8 @@ class ApuestaTest extends TestCase
 
         $juego = Juego::where('slug', 'lotto-activo')->first();
 
-        $taquilla1 = \App\Models\Taquilla::factory()->create();
-        $taquilla2 = \App\Models\Taquilla::factory()->create();
+        $taquilla1 = Taquilla::factory()->create();
+        $taquilla2 = Taquilla::factory()->create();
 
         Apuesta::create([
             'taquilla_id' => $taquilla1->id,
@@ -264,7 +270,7 @@ class ApuestaTest extends TestCase
     public function test_monto_cero_en_ambas_moneda_es_invalido()
     {
         $user = User::where('email', 'super@lotto.com')->first();
-        
+
         ExchangeRate::create([
             'rate' => 36.50,
             'base_currency' => 'USD',
@@ -275,7 +281,7 @@ class ApuestaTest extends TestCase
 
         $juego = Juego::where('slug', 'lotto-activo')->first();
 
-        $taquilla = \App\Models\Taquilla::factory()->create();
+        $taquilla = Taquilla::factory()->create();
         $taquillaUser = User::factory()->create([
             'taquilla_id' => $taquilla->id,
             'role' => 'taquilla',
@@ -300,7 +306,7 @@ class ApuestaTest extends TestCase
     public function test_animal_no_valido_es_rechazado()
     {
         $user = User::where('email', 'super@lotto.com')->first();
-        
+
         ExchangeRate::create([
             'rate' => 36.50,
             'base_currency' => 'USD',
@@ -311,7 +317,7 @@ class ApuestaTest extends TestCase
 
         $juego = Juego::where('slug', 'lotto-activo')->first();
 
-        $taquilla = \App\Models\Taquilla::factory()->create();
+        $taquilla = Taquilla::factory()->create();
         $taquillaUser = User::factory()->create([
             'taquilla_id' => $taquilla->id,
             'role' => 'taquilla',
@@ -336,7 +342,7 @@ class ApuestaTest extends TestCase
     public function test_show_detalle_de_apuesta()
     {
         $user = User::where('email', 'super@lotto.com')->first();
-        
+
         ExchangeRate::create([
             'rate' => 36.50,
             'base_currency' => 'USD',
@@ -347,7 +353,7 @@ class ApuestaTest extends TestCase
 
         $juego = Juego::where('slug', 'lotto-activo')->first();
 
-        $taquilla = \App\Models\Taquilla::factory()->create();
+        $taquilla = Taquilla::factory()->create();
         $taquillaUser = User::factory()->create([
             'taquilla_id' => $taquilla->id,
             'role' => 'taquilla',
@@ -378,7 +384,7 @@ class ApuestaTest extends TestCase
     {
         $user = User::where('email', 'super@lotto.com')->first();
         $user->assignRole('super_master');
-        
+
         ExchangeRate::create([
             'rate' => 36.50,
             'base_currency' => 'USD',
@@ -389,7 +395,7 @@ class ApuestaTest extends TestCase
 
         $juego = Juego::where('slug', 'lotto-activo')->first();
 
-        $taquilla = \App\Models\Taquilla::factory()->create();
+        $taquilla = Taquilla::factory()->create();
 
         Apuesta::create([
             'taquilla_id' => $taquilla->id,
@@ -419,10 +425,10 @@ class ApuestaTest extends TestCase
         // Luego probar resumen
         $response = $this->actingAs($user, 'sanctum')
             ->getJson('/api/v1/apuestas/resumen');
-        
+
         $response->assertStatus(200);
         $resumen = $response->json('data');
-        
+
         $this->assertEquals(1800, $resumen['total_bs']);
         $this->assertEquals(150, $resumen['total_usd']);
         $this->assertEquals(7275, $resumen['total_bet_amount_bs']);
@@ -435,7 +441,7 @@ class ApuestaTest extends TestCase
 
         $juego = Juego::where('slug', 'lotto-activo')->first();
 
-        $taquilla = \App\Models\Taquilla::factory()->create();
+        $taquilla = Taquilla::factory()->create();
         $taquillaUser = User::factory()->create([
             'taquilla_id' => $taquilla->id,
             'role' => 'taquilla',
@@ -463,26 +469,26 @@ class ApuestaTest extends TestCase
     // Phase 2: Inheritance Resolvers + Validation Tests
     // ============================================
 
-    protected function crearJerarquiaConMonedas(?array $bancaMonedas = null, ?array $grupoMonedas = null): \App\Models\Taquilla
+    protected function crearJerarquiaConMonedas(?array $bancaMonedas = null, ?array $grupoMonedas = null): Taquilla
     {
-        $banca = \App\Models\Banca::create([
+        $banca = Banca::create([
             'name' => 'Banca Test Fase 2',
-            'code' => 'BTF2' . uniqid(),
+            'code' => 'BTF2'.uniqid(),
             'monedas_permitidas' => $bancaMonedas,
             'active' => true,
         ]);
 
-        $grupo = \App\Models\Grupo::create([
+        $grupo = Grupo::create([
             'name' => 'Grupo Test Fase 2',
-            'code' => 'GTF2' . uniqid(),
+            'code' => 'GTF2'.uniqid(),
             'banca_id' => $banca->id,
             'monedas_permitidas' => $grupoMonedas,
             'active' => true,
         ]);
 
-        return \App\Models\Taquilla::create([
+        return Taquilla::create([
             'name' => 'Taquilla Test Fase 2',
-            'code' => 'TTF2' . uniqid(),
+            'code' => 'TTF2'.uniqid(),
             'grupo_id' => $grupo->id,
             'active' => true,
         ]);
@@ -544,11 +550,11 @@ class ApuestaTest extends TestCase
 
         $juego = Juego::where('slug', 'lotto-activo')->first();
 
-        $taquilla = \App\Models\Taquilla::factory()->create();
+        $taquilla = Taquilla::factory()->create();
         $bancaId = $taquilla->grupo->banca_id;
 
         // Configurar límite máximo: 100 BS a nivel banca
-        \App\Models\JuegoLimite::create([
+        JuegoLimite::create([
             'juego_id' => $juego->id,
             'banca_id' => $bancaId,
             'moneda' => 'bs',
@@ -559,7 +565,7 @@ class ApuestaTest extends TestCase
         ]);
 
         // También necesitamos un límite mínimo para BS que el juego pide
-        \App\Models\JuegoLimite::updateOrCreate(
+        JuegoLimite::updateOrCreate(
             [
                 'juego_id' => $juego->id,
                 'banca_id' => $bancaId,
@@ -607,11 +613,11 @@ class ApuestaTest extends TestCase
 
         $juego = Juego::where('slug', 'lotto-activo')->first();
 
-        $taquilla = \App\Models\Taquilla::factory()->create();
+        $taquilla = Taquilla::factory()->create();
         $bancaId = $taquilla->grupo->banca_id;
 
         // Configurar límite mínimo: 5000 BS a nivel banca
-        \App\Models\JuegoLimite::updateOrCreate(
+        JuegoLimite::updateOrCreate(
             [
                 'juego_id' => $juego->id,
                 'banca_id' => $bancaId,
@@ -659,12 +665,12 @@ class ApuestaTest extends TestCase
 
         $juego = Juego::where('slug', 'lotto-activo')->first();
 
-        $taquilla = \App\Models\Taquilla::factory()->create();
+        $taquilla = Taquilla::factory()->create();
         $bancaId = $taquilla->grupo->banca_id;
         $grupoId = $taquilla->grupo_id;
 
         // Limite a nivel banca: max 200
-        \App\Models\JuegoLimite::create([
+        JuegoLimite::create([
             'juego_id' => $juego->id,
             'banca_id' => $bancaId,
             'moneda' => 'bs',
@@ -675,7 +681,7 @@ class ApuestaTest extends TestCase
         ]);
 
         // Limite a nivel grupo: max 100 (más restrictivo que banca)
-        \App\Models\JuegoLimite::create([
+        JuegoLimite::create([
             'juego_id' => $juego->id,
             'banca_id' => $bancaId,
             'moneda' => 'bs',
@@ -686,7 +692,7 @@ class ApuestaTest extends TestCase
         ]);
 
         // Limite a nivel taquilla: max 50 (aún más restrictivo)
-        \App\Models\JuegoLimite::create([
+        JuegoLimite::create([
             'juego_id' => $juego->id,
             'banca_id' => $bancaId,
             'moneda' => 'bs',
@@ -762,7 +768,7 @@ class ApuestaTest extends TestCase
         $this->assertStringContainsString('USD', $content);
 
         // Pero apuesta en BS sí debe pasar
-        \App\Models\JuegoLimite::updateOrCreate(
+        JuegoLimite::updateOrCreate(
             [
                 'juego_id' => $juego->id,
                 'banca_id' => $taquilla->grupo->banca_id,

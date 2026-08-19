@@ -10,7 +10,7 @@ class TaquillaFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => $this->faker->word . ' Taquilla',
+            'name' => $this->faker->word.' Taquilla',
             'code' => $this->faker->unique()->bothify('T###'),
             'grupo_id' => Grupo::factory(), // crea un grupo automáticamente si no se pasa
             'mac_address' => $this->faker->macAddress,

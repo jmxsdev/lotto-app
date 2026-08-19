@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('ticket_code', 20)->nullable()->unique()->after('taquilla_id');
             $table->timestamp('sorteo_hora')->nullable()->after('total_bs_equivalent');
             $table->foreignId('resultado_id')->nullable()->after('juego_id')->constrained()->onDelete('set null');
-            
+
             // Índices para queries frecuentes
             $table->index(['taquilla_id', 'estado']);
             $table->index(['fecha_hora']);

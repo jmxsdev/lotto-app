@@ -2,10 +2,10 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
+use App\Plugins\Contracts\JuegoInterface;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
-use App\Plugins\Contracts\JuegoInterface;
+use Illuminate\Support\ServiceProvider;
 
 class PluginServiceProvider extends ServiceProvider
 {
@@ -27,17 +27,17 @@ class PluginServiceProvider extends ServiceProvider
         $plugins = [];
         $path = app_path('Plugins/Juegos');
 
-        if (!File::exists($path)) {
+        if (! File::exists($path)) {
             return $plugins;
         }
 
         foreach (File::files($path) as $file) {
-            $class = 'App\\Plugins\\Juegos\\' . $file->getBasename('.php');
+            $class = 'App\\Plugins\\Juegos\\'.$file->getBasename('.php');
 
             if (class_exists($class) && in_array(JuegoInterface::class, class_implements($class))) {
-                $plugin = new $class();
+                $plugin = new $class;
                 $plugins[$class] = $plugin;
-                Log::info("Plugin cargado: " . $class);
+                Log::info('Plugin cargado: '.$class);
             }
         }
 

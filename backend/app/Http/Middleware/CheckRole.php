@@ -10,14 +10,14 @@ class CheckRole
 {
     public function handle(Request $request, Closure $next, ...$roles): Response
     {
-        if (!$request->user()) {
+        if (! $request->user()) {
             return response()->json(['message' => 'No autenticado.'], 401);
         }
 
         $userRoles = $request->user()->getRoleNames()->toArray();
         $hasRole = collect($roles)->intersect($userRoles)->isNotEmpty();
 
-        if (!$hasRole) {
+        if (! $hasRole) {
             return response()->json(['message' => 'No tienes permiso para acceder a este recurso.'], 403);
         }
 

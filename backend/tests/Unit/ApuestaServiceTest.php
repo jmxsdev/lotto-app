@@ -3,10 +3,16 @@
 namespace Tests\Unit;
 
 use App\Models\Apuesta;
+use App\Models\Banca;
 use App\Models\ExchangeRate;
+use App\Models\Grupo;
 use App\Models\Juego;
+use App\Models\JuegoLimite;
+use App\Models\Taquilla;
 use App\Models\User;
 use App\Services\ApuestaService;
+use Database\Seeders\DatabaseSeeder;
+use Database\Seeders\JuegoAnimalitosSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -17,14 +23,14 @@ class ApuestaServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\DatabaseSeeder::class);
-        $this->seed(\Database\Seeders\JuegoAnimalitosSeeder::class);
+        $this->seed(DatabaseSeeder::class);
+        $this->seed(JuegoAnimalitosSeeder::class);
     }
 
     public function test_calcula_total_bs_equivalent_correctamente()
     {
         $user = User::where('email', 'super@lotto.com')->first();
-        
+
         ExchangeRate::create([
             'rate' => 36.50,
             'base_currency' => 'USD',
@@ -33,16 +39,16 @@ class ApuestaServiceTest extends TestCase
             'is_active' => true,
         ]);
 
-        $service = new ApuestaService();
+        $service = new ApuestaService;
         $total = $service->calcularTotal(1800, 50);
-        
+
         $this->assertEquals(3625.00, $total);
     }
 
     public function test_calcula_total_solo_bs()
     {
         $user = User::where('email', 'super@lotto.com')->first();
-        
+
         ExchangeRate::create([
             'rate' => 36.50,
             'base_currency' => 'USD',
@@ -51,16 +57,16 @@ class ApuestaServiceTest extends TestCase
             'is_active' => true,
         ]);
 
-        $service = new ApuestaService();
+        $service = new ApuestaService;
         $total = $service->calcularTotal(3600, 0);
-        
+
         $this->assertEquals(3600.00, $total);
     }
 
     public function test_calcula_total_solo_usd()
     {
         $user = User::where('email', 'super@lotto.com')->first();
-        
+
         ExchangeRate::create([
             'rate' => 36.50,
             'base_currency' => 'USD',
@@ -69,23 +75,23 @@ class ApuestaServiceTest extends TestCase
             'is_active' => true,
         ]);
 
-        $service = new ApuestaService();
+        $service = new ApuestaService;
         $total = $service->calcularTotal(0, 100);
-        
+
         $this->assertEquals(3650.00, $total);
     }
 
     public function test_valida_costo_minimo_pasa()
     {
         $juego = Juego::where('slug', 'lotto-activo')->first();
-        
-        if (!$juego) {
+
+        if (! $juego) {
             $this->markTestSkipped('Juego Animalitos no existe');
         }
 
         $taquilla = $this->crearTaquillaConLimite($juego, 3600);
-        $service = new ApuestaService();
-        
+        $service = new ApuestaService;
+
         // Debe pasar (3625 >= 3600, límite del seeder)
         $resultado = $service->validarCostoMinimo(3625, $juego->id, $taquilla->id);
         $this->assertTrue($resultado['valid']);
@@ -95,14 +101,14 @@ class ApuestaServiceTest extends TestCase
     public function test_valida_costo_minimo_falla()
     {
         $juego = Juego::where('slug', 'lotto-activo')->first();
-        
-        if (!$juego) {
+
+        if (! $juego) {
             $this->markTestSkipped('Juego Animalitos no existe');
         }
 
         $taquilla = $this->crearTaquillaConLimite($juego, 3600);
-        $service = new ApuestaService();
-        
+        $service = new ApuestaService;
+
         // Debe fallar (3500 < 3600, límite del seeder)
         $resultado = $service->validarCostoMinimo(3500, $juego->id, $taquilla->id);
         $this->assertFalse($resultado['valid']);
@@ -112,24 +118,24 @@ class ApuestaServiceTest extends TestCase
 
     private function crearTaquillaConLimite($juego, $limiteMinimo)
     {
-        $banca = \App\Models\Banca::create(['name' => 'Test', 'code' => 'TST']);
-        $grupo = \App\Models\Grupo::create(['name' => 'Test', 'code' => 'TST', 'banca_id' => $banca->id]);
-        $taquilla = \App\Models\Taquilla::create(['name' => 'Test', 'code' => 'TST', 'grupo_id' => $grupo->id, 'active' => true]);
-        
-        \App\Models\JuegoLimite::create([
+        $banca = Banca::create(['name' => 'Test', 'code' => 'TST']);
+        $grupo = Grupo::create(['name' => 'Test', 'code' => 'TST', 'banca_id' => $banca->id]);
+        $taquilla = Taquilla::create(['name' => 'Test', 'code' => 'TST', 'grupo_id' => $grupo->id, 'active' => true]);
+
+        JuegoLimite::create([
             'juego_id' => $juego->id,
             'banca_id' => $banca->id,
             'moneda' => 'bs',
             'limite_minimo' => $limiteMinimo,
         ]);
-        
+
         return $taquilla;
     }
 
     public function test_convierte_bs_a_usd()
     {
         $user = User::where('email', 'super@lotto.com')->first();
-        
+
         ExchangeRate::create([
             'rate' => 36.50,
             'base_currency' => 'USD',
@@ -138,16 +144,16 @@ class ApuestaServiceTest extends TestCase
             'is_active' => true,
         ]);
 
-        $service = new ApuestaService();
+        $service = new ApuestaService;
         $usd = $service->bsToUsd(3650);
-        
+
         $this->assertEquals(100.00, round($usd, 2));
     }
 
     public function test_convierte_usd_a_bs()
     {
         $user = User::where('email', 'super@lotto.com')->first();
-        
+
         ExchangeRate::create([
             'rate' => 36.50,
             'base_currency' => 'USD',
@@ -156,9 +162,9 @@ class ApuestaServiceTest extends TestCase
             'is_active' => true,
         ]);
 
-        $service = new ApuestaService();
+        $service = new ApuestaService;
         $bs = $service->usdToBs(100);
-        
+
         $this->assertEquals(3650.00, $bs);
     }
 
@@ -166,11 +172,11 @@ class ApuestaServiceTest extends TestCase
     {
         ExchangeRate::query()->delete();
 
-        $service = new ApuestaService();
-        
+        $service = new ApuestaService;
+
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('No hay tasa activa configurada');
-        
+
         $service->calcularTotal(1000, 0);
     }
 
@@ -178,16 +184,16 @@ class ApuestaServiceTest extends TestCase
     {
         ExchangeRate::query()->delete();
 
-        $service = new ApuestaService();
+        $service = new ApuestaService;
         $tasa = $service->getTasaActiva();
-        
+
         $this->assertNull($tasa);
     }
 
     public function test_obtiene_resumen_estadistico()
     {
         $user = User::where('email', 'super@lotto.com')->first();
-        
+
         ExchangeRate::create([
             'rate' => 36.50,
             'base_currency' => 'USD',
@@ -198,13 +204,13 @@ class ApuestaServiceTest extends TestCase
 
         // Usar juego del seeder
         $juego = Juego::where('slug', 'lotto-activo')->first();
-        
-        if (!$juego) {
+
+        if (! $juego) {
             $this->markTestSkipped('Juego Animalitos no existe');
         }
 
-        $taquilla = \App\Models\Taquilla::factory()->create();
-        
+        $taquilla = Taquilla::factory()->create();
+
         Apuesta::create([
             'taquilla_id' => $taquilla->id,
             'juego_id' => $juego->id,
@@ -226,7 +232,7 @@ class ApuestaServiceTest extends TestCase
         ]);
 
         $query = Apuesta::where('taquilla_id', $taquilla->id);
-        $service = new ApuestaService();
+        $service = new ApuestaService;
         $resumen = $service->obtenerResumen($query);
 
         $this->assertEquals(1800, $resumen['total_bs']);
@@ -242,9 +248,9 @@ class ApuestaServiceTest extends TestCase
 
     public function test_get_effective_monedas_ambas_habilitadas_por_defecto()
     {
-        $taquilla = \App\Models\Taquilla::factory()->create();
+        $taquilla = Taquilla::factory()->create();
 
-        $service = new ApuestaService();
+        $service = new ApuestaService;
         $monedas = $service->getEffectiveMonedas($taquilla->id);
 
         $this->assertTrue($monedas['bs']);
@@ -253,28 +259,28 @@ class ApuestaServiceTest extends TestCase
 
     public function test_get_effective_monedas_banca_restringe_usd()
     {
-        $banca = \App\Models\Banca::create([
+        $banca = Banca::create([
             'name' => 'Test Banca',
             'code' => 'TBM1',
             'monedas_permitidas' => ['bs' => true, 'usd' => false],
             'active' => true,
         ]);
 
-        $grupo = \App\Models\Grupo::create([
+        $grupo = Grupo::create([
             'name' => 'Test Grupo',
             'code' => 'TGM1',
             'banca_id' => $banca->id,
             'active' => true,
         ]);
 
-        $taquilla = \App\Models\Taquilla::create([
+        $taquilla = Taquilla::create([
             'name' => 'Test Taquilla',
             'code' => 'TTM1',
             'grupo_id' => $grupo->id,
             'active' => true,
         ]);
 
-        $service = new ApuestaService();
+        $service = new ApuestaService;
         $monedas = $service->getEffectiveMonedas($taquilla->id);
 
         $this->assertTrue($monedas['bs']);
@@ -283,14 +289,14 @@ class ApuestaServiceTest extends TestCase
 
     public function test_get_effective_monedas_grupo_puede_ser_mas_restrictivo()
     {
-        $banca = \App\Models\Banca::create([
+        $banca = Banca::create([
             'name' => 'Test Banca 2',
             'code' => 'TBM2',
             'monedas_permitidas' => ['bs' => true, 'usd' => true],
             'active' => true,
         ]);
 
-        $grupo = \App\Models\Grupo::create([
+        $grupo = Grupo::create([
             'name' => 'Test Grupo 2',
             'code' => 'TGM2',
             'banca_id' => $banca->id,
@@ -298,14 +304,14 @@ class ApuestaServiceTest extends TestCase
             'active' => true,
         ]);
 
-        $taquilla = \App\Models\Taquilla::create([
+        $taquilla = Taquilla::create([
             'name' => 'Test Taquilla 2',
             'code' => 'TTM2',
             'grupo_id' => $grupo->id,
             'active' => true,
         ]);
 
-        $service = new ApuestaService();
+        $service = new ApuestaService;
         $monedas = $service->getEffectiveMonedas($taquilla->id);
 
         $this->assertTrue($monedas['bs']);
@@ -314,18 +320,18 @@ class ApuestaServiceTest extends TestCase
 
     public function test_get_effective_limit_cascade_taquilla_sobre_grupo()
     {
-        $banca = \App\Models\Banca::create([
+        $banca = Banca::create([
             'name' => 'Test Banca Limits',
             'code' => 'TBL1',
             'active' => true,
         ]);
-        $grupo = \App\Models\Grupo::create([
+        $grupo = Grupo::create([
             'name' => 'Test Grupo Limits',
             'code' => 'TGL1',
             'banca_id' => $banca->id,
             'active' => true,
         ]);
-        $taquilla = \App\Models\Taquilla::create([
+        $taquilla = Taquilla::create([
             'name' => 'Test Taquilla Limits',
             'code' => 'TTL1',
             'grupo_id' => $grupo->id,
@@ -335,7 +341,7 @@ class ApuestaServiceTest extends TestCase
         $juego = Juego::where('slug', 'lotto-activo')->first();
 
         // Límite banca: max 200
-        \App\Models\JuegoLimite::create([
+        JuegoLimite::create([
             'juego_id' => $juego->id,
             'banca_id' => $banca->id,
             'moneda' => 'bs',
@@ -346,7 +352,7 @@ class ApuestaServiceTest extends TestCase
         ]);
 
         // Límite grupo: max 100
-        \App\Models\JuegoLimite::create([
+        JuegoLimite::create([
             'juego_id' => $juego->id,
             'banca_id' => $banca->id,
             'moneda' => 'bs',
@@ -357,7 +363,7 @@ class ApuestaServiceTest extends TestCase
         ]);
 
         // Límite taquilla: max 50
-        \App\Models\JuegoLimite::create([
+        JuegoLimite::create([
             'juego_id' => $juego->id,
             'banca_id' => $banca->id,
             'moneda' => 'bs',
@@ -367,7 +373,7 @@ class ApuestaServiceTest extends TestCase
             'limite_maximo' => 50,
         ]);
 
-        $service = new ApuestaService();
+        $service = new ApuestaService;
         $limite = $service->getEffectiveLimit($taquilla->id, $juego->id, 'bs');
 
         $this->assertNotNull($limite);
@@ -377,18 +383,18 @@ class ApuestaServiceTest extends TestCase
 
     public function test_get_effective_limit_fallback_to_banca()
     {
-        $banca = \App\Models\Banca::create([
+        $banca = Banca::create([
             'name' => 'Test Banca Fallback',
             'code' => 'TBF1',
             'active' => true,
         ]);
-        $grupo = \App\Models\Grupo::create([
+        $grupo = Grupo::create([
             'name' => 'Test Grupo Fallback',
             'code' => 'TGF1',
             'banca_id' => $banca->id,
             'active' => true,
         ]);
-        $taquilla = \App\Models\Taquilla::create([
+        $taquilla = Taquilla::create([
             'name' => 'Test Taquilla Fallback',
             'code' => 'TTF1',
             'grupo_id' => $grupo->id,
@@ -398,7 +404,7 @@ class ApuestaServiceTest extends TestCase
         $juego = Juego::where('slug', 'lotto-activo')->first();
 
         // Solo límite a nivel banca (sin grupo ni taquilla)
-        \App\Models\JuegoLimite::create([
+        JuegoLimite::create([
             'juego_id' => $juego->id,
             'banca_id' => $banca->id,
             'moneda' => 'bs',
@@ -408,7 +414,7 @@ class ApuestaServiceTest extends TestCase
             'limite_maximo' => 5000,
         ]);
 
-        $service = new ApuestaService();
+        $service = new ApuestaService;
         $limite = $service->getEffectiveLimit($taquilla->id, $juego->id, 'bs');
 
         $this->assertNotNull($limite);
@@ -419,20 +425,20 @@ class ApuestaServiceTest extends TestCase
 
     public function test_vigencia_taquilla_prevalece_sobre_grupo_y_banca()
     {
-        $banca = \App\Models\Banca::create([
+        $banca = Banca::create([
             'name' => 'Test Banca Vigencia',
             'code' => 'TBV1',
             'vigencia_premios' => 60,
             'active' => true,
         ]);
-        $grupo = \App\Models\Grupo::create([
+        $grupo = Grupo::create([
             'name' => 'Test Grupo Vigencia',
             'code' => 'TGV1',
             'banca_id' => $banca->id,
             'vigencia_premios' => 45,
             'active' => true,
         ]);
-        $taquilla = \App\Models\Taquilla::create([
+        $taquilla = Taquilla::create([
             'name' => 'Test Taquilla Vigencia',
             'code' => 'TTV1',
             'grupo_id' => $grupo->id,
@@ -440,7 +446,7 @@ class ApuestaServiceTest extends TestCase
             'active' => true,
         ]);
 
-        $service = new ApuestaService();
+        $service = new ApuestaService;
         $vigencia = $service->getEffectiveVigencia($taquilla->id);
 
         $this->assertEquals(15, $vigencia);
@@ -448,20 +454,20 @@ class ApuestaServiceTest extends TestCase
 
     public function test_vigencia_hereda_de_grupo_cuando_taquilla_no_configurada()
     {
-        $banca = \App\Models\Banca::create([
+        $banca = Banca::create([
             'name' => 'Test Banca Vigencia 2',
             'code' => 'TBV2',
             'vigencia_premios' => 90,
             'active' => true,
         ]);
-        $grupo = \App\Models\Grupo::create([
+        $grupo = Grupo::create([
             'name' => 'Test Grupo Vigencia 2',
             'code' => 'TGV2',
             'banca_id' => $banca->id,
             'vigencia_premios' => 60,
             'active' => true,
         ]);
-        $taquilla = \App\Models\Taquilla::create([
+        $taquilla = Taquilla::create([
             'name' => 'Test Taquilla Vigencia 2',
             'code' => 'TTV2',
             'grupo_id' => $grupo->id,
@@ -469,7 +475,7 @@ class ApuestaServiceTest extends TestCase
             'active' => true,
         ]);
 
-        $service = new ApuestaService();
+        $service = new ApuestaService;
         $vigencia = $service->getEffectiveVigencia($taquilla->id);
 
         $this->assertEquals(60, $vigencia);
@@ -477,19 +483,19 @@ class ApuestaServiceTest extends TestCase
 
     public function test_validar_apuesta_mixta_rechazada_si_usd_deshabilitado()
     {
-        $banca = \App\Models\Banca::create([
+        $banca = Banca::create([
             'name' => 'Test Banca Mixta',
             'code' => 'TBMX1',
             'monedas_permitidas' => ['bs' => true, 'usd' => false],
             'active' => true,
         ]);
-        $grupo = \App\Models\Grupo::create([
+        $grupo = Grupo::create([
             'name' => 'Test Grupo Mixta',
             'code' => 'TGMX1',
             'banca_id' => $banca->id,
             'active' => true,
         ]);
-        $taquilla = \App\Models\Taquilla::create([
+        $taquilla = Taquilla::create([
             'name' => 'Test Taquilla Mixta',
             'code' => 'TTMX1',
             'grupo_id' => $grupo->id,
@@ -498,7 +504,7 @@ class ApuestaServiceTest extends TestCase
 
         $juego = Juego::where('slug', 'lotto-activo')->first();
 
-        $service = new ApuestaService();
+        $service = new ApuestaService;
         $result = $service->validarMonedaYLimites($taquilla->id, $juego->id, 100, 50);
 
         $this->assertFalse($result['valid']);

@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('color_animal')->nullable()->after('imagen_animal');
             $table->string('sorteo_id_externo')->nullable()->after('color_animal');
             $table->string('pais')->nullable()->after('sorteo_id_externo');
-            
+
             $table->unique(['juego_id', 'fecha_sorteo', 'hora_sorteo'], 'resultados_juego_fecha_hora_unique');
         });
     }
@@ -36,7 +36,7 @@ return new class extends Migration
                 'imagen_animal',
                 'color_animal',
                 'sorteo_id_externo',
-                'pais'
+                'pais',
             ]);
         });
     }

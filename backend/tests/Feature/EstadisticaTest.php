@@ -9,6 +9,8 @@ use App\Models\Grupo;
 use App\Models\Juego;
 use App\Models\Taquilla;
 use App\Models\User;
+use Database\Seeders\DatabaseSeeder;
+use Database\Seeders\JuegoAnimalitosSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -19,8 +21,8 @@ class EstadisticaTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\DatabaseSeeder::class);
-        $this->seed(\Database\Seeders\JuegoAnimalitosSeeder::class);
+        $this->seed(DatabaseSeeder::class);
+        $this->seed(JuegoAnimalitosSeeder::class);
     }
 
     /**
@@ -58,7 +60,7 @@ class EstadisticaTest extends TestCase
                 'exchange_rate_applied' => 36.50,
                 'total_bs_equivalent' => 1000,
                 'estado' => 'pendiente',
-                'fecha_hora' => $fecha . ' 10:00:00',
+                'fecha_hora' => $fecha.' 10:00:00',
             ]);
         }
 

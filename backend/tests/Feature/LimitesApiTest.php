@@ -8,6 +8,7 @@ use App\Models\Juego;
 use App\Models\JuegoLimite;
 use App\Models\Taquilla;
 use App\Models\User;
+use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -25,7 +26,7 @@ class LimitesApiTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\DatabaseSeeder::class);
+        $this->seed(DatabaseSeeder::class);
     }
 
     private function superUser(): User
@@ -82,7 +83,7 @@ class LimitesApiTest extends TestCase
     {
         return Juego::create([
             'name' => 'Juego Filtros',
-            'slug' => 'juego-filtros-' . uniqid(),
+            'slug' => 'juego-filtros-'.uniqid(),
             'type' => 'animalitos',
             'active' => true,
         ]);
@@ -120,7 +121,7 @@ class LimitesApiTest extends TestCase
         $this->crearLimite($juego, ['grupo_id' => $otroGrupo->id, 'limite_maximo' => 25]);
 
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->getJson('/api/v1/limites/' . $juego->id . '?grupo_id=' . $grupo->id);
+            ->getJson('/api/v1/limites/'.$juego->id.'?grupo_id='.$grupo->id);
 
         $response->assertStatus(200);
 
@@ -157,7 +158,7 @@ class LimitesApiTest extends TestCase
         $this->crearLimite($juego, ['grupo_id' => $grupo->id, 'taquilla_id' => $otraTaquilla->id, 'limite_maximo' => 5]);
 
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->getJson('/api/v1/limites/' . $juego->id . '?taquilla_id=' . $taquilla->id);
+            ->getJson('/api/v1/limites/'.$juego->id.'?taquilla_id='.$taquilla->id);
 
         $response->assertStatus(200);
 
@@ -179,7 +180,7 @@ class LimitesApiTest extends TestCase
         $this->crearLimite($juego, ['banca_id' => $otraBanca->id, 'limite_maximo' => 25]);
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->getJson('/api/v1/limites/' . $juego->id . '?banca_id=' . $banca->id);
+            ->getJson('/api/v1/limites/'.$juego->id.'?banca_id='.$banca->id);
 
         $response->assertStatus(200);
 
@@ -198,7 +199,7 @@ class LimitesApiTest extends TestCase
 
         // El filtro no puede ampliar el alcance: un usuario banca no ve límites de otra banca
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
-            ->getJson('/api/v1/limites/' . $juego->id . '?banca_id=' . $otraBanca->id);
+            ->getJson('/api/v1/limites/'.$juego->id.'?banca_id='.$otraBanca->id);
 
         $response->assertStatus(200);
         $this->assertEmpty($response->json());
@@ -209,7 +210,7 @@ class LimitesApiTest extends TestCase
         $juego = $this->juegoNuevo();
 
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->getJson('/api/v1/limites/' . $juego->id . '?banca_id=999999');
+            ->getJson('/api/v1/limites/'.$juego->id.'?banca_id=999999');
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors('banca_id');
@@ -229,7 +230,7 @@ class LimitesApiTest extends TestCase
 
         // El filtro no puede ampliar el alcance: un grupo no ve límites de otro grupo
         $response = $this->actingAs($this->grupoUser(), 'sanctum')
-            ->getJson('/api/v1/limites/' . $juego->id . '?grupo_id=' . $otroGrupo->id);
+            ->getJson('/api/v1/limites/'.$juego->id.'?grupo_id='.$otroGrupo->id);
 
         $response->assertStatus(200);
         $this->assertEmpty($response->json());
@@ -240,7 +241,7 @@ class LimitesApiTest extends TestCase
         $juego = $this->juegoNuevo();
 
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->getJson('/api/v1/limites/' . $juego->id . '?grupo_id=999999');
+            ->getJson('/api/v1/limites/'.$juego->id.'?grupo_id=999999');
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors('grupo_id');
@@ -256,7 +257,7 @@ class LimitesApiTest extends TestCase
         $limite = $this->crearLimite($juego, ['grupo_id' => $this->grupoSeeded()->id]);
 
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->deleteJson('/api/v1/limites/' . $limite->id);
+            ->deleteJson('/api/v1/limites/'.$limite->id);
 
         $response->assertStatus(200)
             ->assertJson(['message' => 'Límite eliminado correctamente.']);
@@ -278,7 +279,7 @@ class LimitesApiTest extends TestCase
         $limite = $this->crearLimite($juego);
 
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
-            ->deleteJson('/api/v1/limites/' . $limite->id);
+            ->deleteJson('/api/v1/limites/'.$limite->id);
 
         $response->assertStatus(200);
 
@@ -292,7 +293,7 @@ class LimitesApiTest extends TestCase
         $limite = $this->crearLimite($juego, ['banca_id' => $otraBanca->id]);
 
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
-            ->deleteJson('/api/v1/limites/' . $limite->id);
+            ->deleteJson('/api/v1/limites/'.$limite->id);
 
         $response->assertStatus(403);
 
@@ -307,7 +308,7 @@ class LimitesApiTest extends TestCase
         $limite = $this->crearLimite($juego, ['grupo_id' => $otroGrupo->id]);
 
         $response = $this->actingAs($this->grupoUser(), 'sanctum')
-            ->deleteJson('/api/v1/limites/' . $limite->id);
+            ->deleteJson('/api/v1/limites/'.$limite->id);
 
         $response->assertStatus(403);
 

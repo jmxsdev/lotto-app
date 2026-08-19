@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\Banca;
 use App\Models\Grupo;
 use App\Models\User;
+use Database\Seeders\DatabaseSeeder;
+use Database\Seeders\JuegoAnimalitosSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -21,8 +23,8 @@ class InformacionFiscalTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\DatabaseSeeder::class);
-        $this->seed(\Database\Seeders\JuegoAnimalitosSeeder::class);
+        $this->seed(DatabaseSeeder::class);
+        $this->seed(JuegoAnimalitosSeeder::class);
     }
 
     private function superUser(): User
@@ -71,7 +73,7 @@ class InformacionFiscalTest extends TestCase
 
         // R5: los GET devuelven los campos fiscales
         $get = $this->actingAs($this->superUser(), 'sanctum')
-            ->getJson('/api/v1/bancas/' . $bancaId);
+            ->getJson('/api/v1/bancas/'.$bancaId);
 
         $get->assertStatus(200)
             ->assertJsonPath('rif', 'J-banca1234567-8')

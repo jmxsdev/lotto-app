@@ -30,7 +30,7 @@ class ResultadoTestSeeder extends Seeder
                     ],
                 ]
             );
-            $this->command->info("Resultado Animalitos (perro) para ayer listo.");
+            $this->command->info('Resultado Animalitos (perro) para ayer listo.');
         }
 
         if ($tripleZulia) {
@@ -50,7 +50,7 @@ class ResultadoTestSeeder extends Seeder
                     ],
                 ]
             );
-            $this->command->info("Resultado Triple Zulia (123, 456, 789, LEO) para ayer listo.");
+            $this->command->info('Resultado Triple Zulia (123, 456, 789, LEO) para ayer listo.');
         }
     }
 }

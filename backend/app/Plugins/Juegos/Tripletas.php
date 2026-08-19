@@ -35,12 +35,14 @@ class Tripletas implements JuegoInterface
 
         if ($tipo === 'triple_a' || $tipo === 'triple_b') {
             $numero = $data['combinacion']['numero'] ?? null;
+
             return $numero !== null && preg_match('/^\d{3}$/', $numero);
         }
 
         if ($tipo === 'triple_c') {
             $numero = $data['combinacion']['numero'] ?? null;
             $signo = $data['combinacion']['signo'] ?? null;
+
             return $numero !== null && preg_match('/^\d{3}$/', $numero)
                 && $signo !== null && in_array(strtoupper($signo), $this->signos);
         }
@@ -68,7 +70,7 @@ class Tripletas implements JuegoInterface
             }
         }
 
-        if (!$coincideNumero) {
+        if (! $coincideNumero) {
             return ['premio_bs' => 0, 'premio_usd' => 0];
         }
 
@@ -81,6 +83,7 @@ class Tripletas implements JuegoInterface
 
         $amountBs = $apuesta['amount_bs'] ?? 0;
         $amountUsd = $apuesta['amount_usd'] ?? 0;
+
         return [
             'premio_bs' => $amountBs * (float) $this->multiplicador,
             'premio_usd' => $amountUsd * (float) $this->multiplicador,
@@ -90,7 +93,7 @@ class Tripletas implements JuegoInterface
     public function obtenerReglas(): array
     {
         return [
-            'descripcion' => 'Acierta el número de 3 cifras y gana ' . $this->multiplicador . ' veces tu apuesta.',
+            'descripcion' => 'Acierta el número de 3 cifras y gana '.$this->multiplicador.' veces tu apuesta.',
             'tipo' => 'numero',
             'multiplicador' => (float) $this->multiplicador,
             'rango_numeros' => '000-999',
@@ -108,6 +111,7 @@ class Tripletas implements JuegoInterface
                 'metadata' => ['tipo' => 'signo'],
             ];
         }
+
         return $opciones;
     }
 

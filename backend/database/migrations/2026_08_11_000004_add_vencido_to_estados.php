@@ -11,30 +11,30 @@ return new class extends Migration
     public function up(): void
     {
         DB::statement(
-            "ALTER TABLE apuestas MODIFY COLUMN estado "
-            . "ENUM('pendiente','pagada','anulada','perdida','vencido') "
-            . "DEFAULT 'pendiente'"
+            'ALTER TABLE apuestas MODIFY COLUMN estado '
+            ."ENUM('pendiente','pagada','anulada','perdida','vencido') "
+            ."DEFAULT 'pendiente'"
         );
 
         DB::statement(
-            "ALTER TABLE tickets MODIFY COLUMN estado "
-            . "ENUM('pendiente','pagada','anulada','ganador','vencido') "
-            . "DEFAULT 'pendiente'"
+            'ALTER TABLE tickets MODIFY COLUMN estado '
+            ."ENUM('pendiente','pagada','anulada','ganador','vencido') "
+            ."DEFAULT 'pendiente'"
         );
     }
 
     public function down(): void
     {
         DB::statement(
-            "ALTER TABLE apuestas MODIFY COLUMN estado "
-            . "ENUM('pendiente','pagada','anulada','perdida') "
-            . "DEFAULT 'pendiente'"
+            'ALTER TABLE apuestas MODIFY COLUMN estado '
+            ."ENUM('pendiente','pagada','anulada','perdida') "
+            ."DEFAULT 'pendiente'"
         );
 
         DB::statement(
-            "ALTER TABLE tickets MODIFY COLUMN estado "
-            . "ENUM('pendiente','pagada','anulada','ganador') "
-            . "DEFAULT 'pendiente'"
+            'ALTER TABLE tickets MODIFY COLUMN estado '
+            ."ENUM('pendiente','pagada','anulada','ganador') "
+            ."DEFAULT 'pendiente'"
         );
     }
 };

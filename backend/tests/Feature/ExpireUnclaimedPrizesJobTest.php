@@ -9,6 +9,8 @@ use App\Models\Grupo;
 use App\Models\Juego;
 use App\Models\Taquilla;
 use App\Models\Ticket;
+use Database\Seeders\DatabaseSeeder;
+use Database\Seeders\JuegoAnimalitosSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -21,8 +23,8 @@ class ExpireUnclaimedPrizesJobTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\DatabaseSeeder::class);
-        $this->seed(\Database\Seeders\JuegoAnimalitosSeeder::class);
+        $this->seed(DatabaseSeeder::class);
+        $this->seed(JuegoAnimalitosSeeder::class);
         $this->juego = Juego::where('slug', 'lotto-activo')->first();
     }
 
@@ -75,7 +77,7 @@ class ExpireUnclaimedPrizesJobTest extends TestCase
         ]);
 
         // Ejecutar el job
-        $job = new ExpireUnclaimedPrizesJob();
+        $job = new ExpireUnclaimedPrizesJob;
         $job->handle();
 
         // Verificar ticket cambiado a vencido
@@ -136,7 +138,7 @@ class ExpireUnclaimedPrizesJobTest extends TestCase
             'fecha_hora' => now()->subDays(10),
         ]);
 
-        $job = new ExpireUnclaimedPrizesJob();
+        $job = new ExpireUnclaimedPrizesJob;
         $job->handle();
 
         $ticket->refresh();
@@ -190,7 +192,7 @@ class ExpireUnclaimedPrizesJobTest extends TestCase
         ]);
 
         // Primera ejecución — debe expirarlo
-        $job1 = new ExpireUnclaimedPrizesJob();
+        $job1 = new ExpireUnclaimedPrizesJob;
         $job1->handle();
 
         $ticket->refresh();
@@ -198,7 +200,7 @@ class ExpireUnclaimedPrizesJobTest extends TestCase
             'El ticket expirado debe estar en estado vencido tras la primera ejecución.');
 
         // Segunda ejecución — no debe modificar nada (WHERE estado='ganador')
-        $job2 = new ExpireUnclaimedPrizesJob();
+        $job2 = new ExpireUnclaimedPrizesJob;
         $job2->handle();
 
         $ticket->refresh();
@@ -251,7 +253,7 @@ class ExpireUnclaimedPrizesJobTest extends TestCase
             'fecha_hora' => now()->subDays(500),
         ]);
 
-        $job = new ExpireUnclaimedPrizesJob();
+        $job = new ExpireUnclaimedPrizesJob;
         $job->handle();
 
         $ticket->refresh();

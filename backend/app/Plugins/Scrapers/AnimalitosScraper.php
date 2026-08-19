@@ -4,64 +4,66 @@ namespace App\Plugins\Scrapers;
 
 use App\Models\Juego;
 use App\Models\Resultado;
-use Illuminate\Support\Carbon;
 
 class AnimalitosScraper extends BaseScraper
 {
     protected string $baseUrl = 'https://www.lottoactivo.com';
+
     protected string $scraperName = 'AnimalitosScraper';
+
     protected string $slug;
 
     public function __construct(string $slug = 'animalitos')
     {
         parent::__construct();
         $this->slug = $slug;
-        $this->scraperName = \Str::studly($slug) . 'Scraper';
+        $this->scraperName = \Str::studly($slug).'Scraper';
     }
 
     public function fetch(string $fecha): string
     {
-        $url = $this->baseUrl . '/resultados/' . $this->slug . '/' . $fecha . '/';
+        $url = $this->baseUrl.'/resultados/'.$this->slug.'/'.$fecha.'/';
         $html = $this->getHtml($url);
-        
+
         $token = $this->extractToken($html);
-        
-        if (!$token) {
+
+        if (! $token) {
             throw new \RuntimeException('No se pudo extraer el token de la página');
         }
-        
+
         $postData = [
             'option' => $token,
             'loteria' => $this->slug,
             'fecha' => $fecha,
         ];
-        
-        return $this->client->post($this->baseUrl . '/core/process.php', [
+
+        return $this->client->post($this->baseUrl.'/core/process.php', [
             'form_params' => $postData,
             'headers' => [
                 'X-Requested-With' => 'XMLHttpRequest',
                 'Accept' => 'application/json',
                 'Referer' => $url,
-            ]
+            ],
         ])->getBody()->getContents();
     }
 
     public function parse(string $rawData): array
     {
         $data = json_decode($rawData, true);
-        
+
         if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new \RuntimeException('Error al decodificar JSON: ' . json_last_error_msg());
+            throw new \RuntimeException('Error al decodificar JSON: '.json_last_error_msg());
         }
-        
-        if (!isset($data['datos']) || !is_array($data['datos'])) {
+
+        if (! isset($data['datos']) || ! is_array($data['datos'])) {
             $this->logWarning('Respuesta sin campo "datos" o vacío');
+
             return [];
         }
-        
+
         $resultados = [];
         $primerItem = $data['datos'][0] ?? null;
-        $esFormatoPlano = $primerItem && !isset($primerItem['name']) && !isset($primerItem['resultados']);
+        $esFormatoPlano = $primerItem && ! isset($primerItem['name']) && ! isset($primerItem['resultados']);
 
         // Formato plano: Trio Activo / Terminal Activo
         // [{"resultado1":"486","time_s":"08:00 AM","fecha":"...","id":"..."}, ...]
@@ -69,14 +71,16 @@ class AnimalitosScraper extends BaseScraper
             $gameName = $this->slug === 'trio_activo' ? 'Trío Activo' : 'Terminal Activo';
             $juego = $this->findOrCreateJuego(['name' => $gameName]);
 
-            if (!$juego) {
+            if (! $juego) {
                 $this->logWarning("No se pudo encontrar/crear juego: {$gameName}");
+
                 return [];
             }
 
             foreach ($data['datos'] as $item) {
                 $resultados[] = $this->mapToResultado($item, $juego, $item);
             }
+
             return $resultados;
         }
 
@@ -84,24 +88,25 @@ class AnimalitosScraper extends BaseScraper
         // [{"name":"Lotto Activo","resultados":[{...}]}, ...]
         foreach ($data['datos'] as $juegoData) {
             $juego = $this->findOrCreateJuego($juegoData);
-            
-            if (!$juego) {
-                $this->logWarning("No se pudo encontrar/crear juego: " . ($juegoData['name'] ?? 'desconocido'));
+
+            if (! $juego) {
+                $this->logWarning('No se pudo encontrar/crear juego: '.($juegoData['name'] ?? 'desconocido'));
+
                 continue;
             }
-            
+
             foreach ($juegoData['resultados'] ?? [] as $resultadoData) {
                 $resultados[] = $this->mapToResultado($resultadoData, $juego, $juegoData);
             }
         }
-        
+
         return $resultados;
     }
 
     protected function extractToken(string $html): ?string
     {
         $crawler = $this->createCrawler($html);
-        
+
         $scriptContent = $crawler->filter('script')->each(function ($node) {
             return $node->text();
         });
@@ -121,15 +126,15 @@ class AnimalitosScraper extends BaseScraper
                 }
             }
         }
-        
+
         return null;
     }
 
     protected function findOrCreateJuego(array $juegoData): ?Juego
     {
         $name = $juegoData['name'] ?? null;
-        
-        if (!$name) {
+
+        if (! $name) {
             return null;
         }
 
@@ -161,14 +166,14 @@ class AnimalitosScraper extends BaseScraper
             'type' => $type,
             'config' => ['premio_multiplo' => 30],
             'requires_scraper' => true,
-            'scraper_url' => $this->baseUrl . '/resultados/' . $this->slug . '/',
+            'scraper_url' => $this->baseUrl.'/resultados/'.$this->slug.'/',
             'active' => true,
         ]);
     }
 
     protected function mapToResultado(array $data, Juego $juego, array $juegoData): array
     {
-        $esFormatoPlano = isset($data['resultado1']) && !isset($data['number_animal']);
+        $esFormatoPlano = isset($data['resultado1']) && ! isset($data['number_animal']);
 
         if ($esFormatoPlano) {
             return $this->mapFlatResult($data, $juego);
@@ -176,13 +181,13 @@ class AnimalitosScraper extends BaseScraper
 
         // Formato anidado: Animalitos
         $pais = ($juegoData['pais'] ?? '1') === '1' ? 'Venezuela' : 'República Dominicana';
-        
+
         return [
             'juego_id' => $juego->id,
             'fecha_sorteo' => now()->format('Y-m-d'),
             'hora_sorteo' => $data['time_s'] ?? null,
             'numeros_ganadores' => [
-                'numero' => (int)($data['number_animal'] ?? 0),
+                'numero' => (int) ($data['number_animal'] ?? 0),
                 'nombre_animal' => $data['name_animal'] ?? null,
                 'imagen_animal' => $data['image_animal'] ?? null,
                 'color_animal' => $data['color_animal'] ?? null,
@@ -202,7 +207,7 @@ class AnimalitosScraper extends BaseScraper
             $numeros['triple_b'] = $data['resultado2'] ?? null;
             $numeros['triple_c'] = $data['resultado3'] ?? null;
         } else {
-            $numeros['numero'] = (int)($data['resultado1'] ?? 0);
+            $numeros['numero'] = (int) ($data['resultado1'] ?? 0);
         }
 
         return [
@@ -218,15 +223,15 @@ class AnimalitosScraper extends BaseScraper
     public function saveResults(array $resultados, string $fecha): int
     {
         $guardados = 0;
-        
+
         foreach ($resultados as $resultadoData) {
             $resultadoData['fecha_sorteo'] = $fecha;
-            
+
             $existing = Resultado::where('juego_id', $resultadoData['juego_id'])
                 ->whereDate('fecha_sorteo', $fecha)
                 ->where('hora_sorteo', $resultadoData['hora_sorteo'])
                 ->first();
-            
+
             if ($existing) {
                 $existing->update($resultadoData);
                 $this->logInfo("Resultado actualizado: hora {$resultadoData['hora_sorteo']}");
@@ -234,10 +239,10 @@ class AnimalitosScraper extends BaseScraper
                 Resultado::create($resultadoData);
                 $this->logInfo("Resultado creado: hora {$resultadoData['hora_sorteo']}");
             }
-            
+
             $guardados++;
         }
-        
+
         return $guardados;
     }
 }

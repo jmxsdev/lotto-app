@@ -31,11 +31,11 @@ class ActivacionEfectivaService
     {
         $grupo = Grupo::with('banca')->find($grupoId);
 
-        if ($grupo === null || !$grupo->active) {
+        if ($grupo === null || ! $grupo->active) {
             return false;
         }
 
-        return !$grupo->banca || $grupo->banca->active;
+        return ! $grupo->banca || $grupo->banca->active;
     }
 
     /**
@@ -63,15 +63,15 @@ class ActivacionEfectivaService
     {
         $taquilla->loadMissing('grupo.banca');
 
-        if (!$taquilla->active) {
+        if (! $taquilla->active) {
             return ['active' => false, 'causa' => 'taquilla'];
         }
 
-        if ($taquilla->grupo && !$taquilla->grupo->active) {
+        if ($taquilla->grupo && ! $taquilla->grupo->active) {
             return ['active' => false, 'causa' => 'grupo'];
         }
 
-        if ($taquilla->grupo?->banca && !$taquilla->grupo->banca->active) {
+        if ($taquilla->grupo?->banca && ! $taquilla->grupo->banca->active) {
             return ['active' => false, 'causa' => 'banca'];
         }
 

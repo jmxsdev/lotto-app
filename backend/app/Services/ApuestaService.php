@@ -8,10 +8,15 @@ use App\Models\ExchangeRate;
 use App\Models\Juego;
 use App\Models\JuegoHorario;
 use App\Models\JuegoLimite;
+use App\Models\JuegoOpcion;
 use App\Models\Pago;
 use App\Models\Resultado;
+use App\Models\Taquilla;
 use App\Models\Ticket;
+use App\Models\User;
 use Carbon\Carbon;
+use Carbon\CarbonPeriod;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 
 class ApuestaService
@@ -22,11 +27,11 @@ class ApuestaService
     public function calcularTotal(float $amountBs, float $amountUsd): float
     {
         $tasaActiva = ExchangeRate::where('is_active', true)->first();
-        
-        if (!$tasaActiva) {
+
+        if (! $tasaActiva) {
             throw new \RuntimeException('No hay tasa activa configurada');
         }
-        
+
         return $amountBs + ($amountUsd * $tasaActiva->rate);
     }
 
@@ -36,6 +41,7 @@ class ApuestaService
     public function getTasaActiva(): ?float
     {
         $tasa = ExchangeRate::where('is_active', true)->first();
+
         return $tasa ? $tasa->rate : null;
     }
 
@@ -47,7 +53,7 @@ class ApuestaService
     {
         $juego = Juego::find($juegoId);
 
-        if (!$juego) {
+        if (! $juego) {
             return [
                 'valid' => false,
                 'message' => 'Juego no encontrado.',
@@ -69,7 +75,7 @@ class ApuestaService
         if ($totalBsEquivalent < $costoMinimo) {
             return [
                 'valid' => false,
-                'message' => "El monto no cubre el costo mínimo del juego.",
+                'message' => 'El monto no cubre el costo mínimo del juego.',
                 'required_min' => (float) $costoMinimo,
                 'current_total' => $totalBsEquivalent,
             ];
@@ -87,6 +93,7 @@ class ApuestaService
     public function bsToUsd(float $amountBs): float
     {
         $tasaActiva = ExchangeRate::where('is_active', true)->first();
+
         return $tasaActiva ? $amountBs / $tasaActiva->rate : 0;
     }
 
@@ -96,6 +103,7 @@ class ApuestaService
     public function usdToBs(float $amountUsd): float
     {
         $tasaActiva = ExchangeRate::where('is_active', true)->first();
+
         return $tasaActiva ? $amountUsd * $tasaActiva->rate : 0;
     }
 
@@ -108,9 +116,9 @@ class ApuestaService
      */
     public function getEffectiveMonedas(int $taquillaId): array
     {
-        $taquilla = \App\Models\Taquilla::with('grupo.banca')->find($taquillaId);
+        $taquilla = Taquilla::with('grupo.banca')->find($taquillaId);
 
-        if (!$taquilla) {
+        if (! $taquilla) {
             return ['bs' => true, 'usd' => true];
         }
 
@@ -142,32 +150,32 @@ class ApuestaService
      * Cascada: taquilla → grupo → banca → null.
      * Single query usando COALESCE en orden de precedencia.
      */
-    public function getEffectiveLimit(int $taquillaId, int $juegoId, string $moneda): ?\App\Models\JuegoLimite
+    public function getEffectiveLimit(int $taquillaId, int $juegoId, string $moneda): ?JuegoLimite
     {
-        $taquilla = \App\Models\Taquilla::find($taquillaId);
+        $taquilla = Taquilla::find($taquillaId);
 
-        if (!$taquilla) {
+        if (! $taquilla) {
             return null;
         }
 
         $grupoId = $taquilla->grupo_id;
         $bancaId = $taquilla->grupo?->banca_id;
 
-        if (!$bancaId) {
+        if (! $bancaId) {
             return null;
         }
 
         // Single query: prefiere taquilla > grupo > banca, mismo juego + moneda
-        return \App\Models\JuegoLimite::where('juego_id', $juegoId)
+        return JuegoLimite::where('juego_id', $juegoId)
             ->where('moneda', $moneda)
             ->where(function ($q) use ($taquillaId, $grupoId, $bancaId) {
                 $q->where('taquilla_id', $taquillaId)
-                  ->orWhere(function ($q2) use ($grupoId) {
-                      $q2->whereNull('taquilla_id')->where('grupo_id', $grupoId);
-                  })
-                  ->orWhere(function ($q2) use ($bancaId) {
-                      $q2->whereNull('taquilla_id')->whereNull('grupo_id')->where('banca_id', $bancaId);
-                  });
+                    ->orWhere(function ($q2) use ($grupoId) {
+                        $q2->whereNull('taquilla_id')->where('grupo_id', $grupoId);
+                    })
+                    ->orWhere(function ($q2) use ($bancaId) {
+                        $q2->whereNull('taquilla_id')->whereNull('grupo_id')->where('banca_id', $bancaId);
+                    });
             })
             ->orderByRaw('taquilla_id IS NOT NULL DESC, grupo_id IS NOT NULL DESC')
             ->first();
@@ -181,10 +189,10 @@ class ApuestaService
      */
     public function getEffectiveVigencia(int $taquillaId): ?int
     {
-        $taquilla = \App\Models\Taquilla::with('grupo.banca')
+        $taquilla = Taquilla::with('grupo.banca')
             ->find($taquillaId);
 
-        if (!$taquilla) {
+        if (! $taquilla) {
             return null;
         }
 
@@ -203,10 +211,10 @@ class ApuestaService
      */
     public function getEffectiveTiempoEliminacion(int $taquillaId): int
     {
-        $taquilla = \App\Models\Taquilla::with('grupo.banca')
+        $taquilla = Taquilla::with('grupo.banca')
             ->find($taquillaId);
 
-        if (!$taquilla) {
+        if (! $taquilla) {
             return 5;
         }
 
@@ -231,21 +239,21 @@ class ApuestaService
         $usaUsd = $amountUsd > 0;
         $esMixto = $usaBs && $usaUsd;
 
-        if ($esMixto && (!$monedas['bs'] || !$monedas['usd'])) {
+        if ($esMixto && (! $monedas['bs'] || ! $monedas['usd'])) {
             return [
                 'valid' => false,
                 'message' => 'Ambas monedas deben estar habilitadas para apuestas mixtas.',
             ];
         }
 
-        if ($usaUsd && !$monedas['usd']) {
+        if ($usaUsd && ! $monedas['usd']) {
             return [
                 'valid' => false,
                 'message' => 'Moneda USD no permitida para esta agencia.',
             ];
         }
 
-        if ($usaBs && !$monedas['bs']) {
+        if ($usaBs && ! $monedas['bs']) {
             return [
                 'valid' => false,
                 'message' => 'Moneda BS no permitida para esta agencia.',
@@ -256,7 +264,7 @@ class ApuestaService
         if ($usaBs) {
             $limiteBs = $this->getEffectiveLimit($taquillaId, $juegoId, 'bs');
             $result = $this->validarContraLimite($limiteBs, $amountBs, 'BS');
-            if (!$result['valid']) {
+            if (! $result['valid']) {
                 return $result;
             }
         }
@@ -264,7 +272,7 @@ class ApuestaService
         if ($usaUsd) {
             $limiteUsd = $this->getEffectiveLimit($taquillaId, $juegoId, 'usd');
             $result = $this->validarContraLimite($limiteUsd, $amountUsd, 'USD');
-            if (!$result['valid']) {
+            if (! $result['valid']) {
                 return $result;
             }
         }
@@ -275,9 +283,9 @@ class ApuestaService
     /**
      * Validar un monto contra los límites mínimo y máximo de un JuegoLimite.
      */
-    private function validarContraLimite(?\App\Models\JuegoLimite $limite, float $monto, string $monedaLabel): array
+    private function validarContraLimite(?JuegoLimite $limite, float $monto, string $monedaLabel): array
     {
-        if (!$limite) {
+        if (! $limite) {
             return ['valid' => true, 'message' => ''];
         }
 
@@ -331,11 +339,11 @@ class ApuestaService
         $totalBs = $query->sum('amount_bs') ?: 0;
         $totalUsd = $query->sum('amount_usd') ?: 0;
         $totalBetAmount = $query->sum('total_bs_equivalent') ?: 0;
-        
+
         $pendingCount = (clone $query)->where('estado', 'pendiente')->count();
         $pagadaCount = (clone $query)->where('estado', 'pagada')->count();
         $anuladaCount = (clone $query)->where('estado', 'anulada')->count();
-        
+
         return [
             'total_bs' => round($totalBs, 2),
             'total_usd' => round($totalUsd, 2),
@@ -349,11 +357,11 @@ class ApuestaService
     /**
      * Crear una apuesta individual (reutilizable desde ApuestaController y TicketController)
      */
-    public function createApuesta(array $data, int $taquillaId, int $userId, ?int $ticketId = null): \App\Models\Apuesta
+    public function createApuesta(array $data, int $taquillaId, int $userId, ?int $ticketId = null): Apuesta
     {
         $tasaActiva = ExchangeRate::where('is_active', true)->first();
 
-        if (!$tasaActiva) {
+        if (! $tasaActiva) {
             throw new \RuntimeException('No hay tasa de cambio activa configurada. Contacte al administrador.');
         }
 
@@ -364,24 +372,24 @@ class ApuestaService
         // Validar moneda permitida y límites efectivos antes de costo mínimo
         $validacionMoneda = $this->validarMonedaYLimites($taquillaId, $data['juego_id'], $amountBs, $amountUsd);
 
-        if (!$validacionMoneda['valid']) {
+        if (! $validacionMoneda['valid']) {
             throw new \RuntimeException($validacionMoneda['message']);
         }
 
         $validacion = $this->validarCostoMinimo($totalBsEquivalent, $data['juego_id'], $taquillaId);
 
-        if (!$validacion['valid']) {
-            throw new \RuntimeException($validacion['message'] . ' (Monto actual: ' . round($totalBsEquivalent, 2) . ' Bs)');
+        if (! $validacion['valid']) {
+            throw new \RuntimeException($validacion['message'].' (Monto actual: '.round($totalBsEquivalent, 2).' Bs)');
         }
 
         $combinacion = $data['combinacion'] ?? [];
 
         // Validar la combinación contra las opciones específicas del juego
-        $juego = \App\Models\Juego::find($data['juego_id']);
+        $juego = Juego::find($data['juego_id']);
         if ($juego) {
-            $plugin = app(\App\Services\JuegoPluginManager::class)->getPlugin($juego);
+            $plugin = app(JuegoPluginManager::class)->getPlugin($juego);
             if ($plugin) {
-                $opciones = \App\Models\JuegoOpcion::where('juego_id', $juego->id)
+                $opciones = JuegoOpcion::where('juego_id', $juego->id)
                     ->orderBy('numero')
                     ->get()
                     ->toArray();
@@ -390,10 +398,10 @@ class ApuestaService
                     $opciones = $plugin->obtenerOpciones();
                 }
 
-                if (!$plugin->validarApuesta($data, $opciones)) {
+                if (! $plugin->validarApuesta($data, $opciones)) {
                     $labels = array_column($opciones, 'label');
                     throw new \RuntimeException(
-                        'Animal no válido para este juego. Animales permitidos: ' . implode(', ', $labels)
+                        'Animal no válido para este juego. Animales permitidos: '.implode(', ', $labels)
                     );
                 }
             }
@@ -426,12 +434,12 @@ class ApuestaService
             $apuestaData['ticket_id'] = $ticketId;
         }
 
-        $apuesta = \App\Models\Apuesta::create($apuestaData);
+        $apuesta = Apuesta::create($apuestaData);
 
         // Generar detalles con plugin
-        $juego = \App\Models\Juego::find($data['juego_id']);
+        $juego = Juego::find($data['juego_id']);
         if ($juego) {
-            $plugin = app(\App\Services\JuegoPluginManager::class)->getPlugin($juego);
+            $plugin = app(JuegoPluginManager::class)->getPlugin($juego);
             $premio = $plugin
                 ? $plugin->calcularPremio(
                     ['combinacion' => $combinacion, 'total_bs_equivalent' => $totalBsEquivalent, 'amount_bs' => $amountBs, 'amount_usd' => $amountUsd],
@@ -439,7 +447,7 @@ class ApuestaService
                 )
                 : ['premio_bs' => $totalBsEquivalent, 'premio_usd' => 0];
 
-            \App\Models\DetalleApuesta::create([
+            DetalleApuesta::create([
                 'apuesta_id' => $apuesta->id,
                 'combinacion' => json_encode($combinacion),
                 'monto' => $totalBsEquivalent,
@@ -453,7 +461,7 @@ class ApuestaService
         // Crear pago
         $moneda = $amountBs > 0 && $amountUsd > 0 ? 'mixto' : ($amountUsd > 0 ? 'usd' : 'bs');
 
-        \App\Models\Pago::create([
+        Pago::create([
             'taquilla_id' => $taquillaId,
             'apuesta_id' => $apuesta->id,
             'amount_bs' => $amountBs,
@@ -492,13 +500,13 @@ class ApuestaService
             ->where('apuestas.estado', '!=', 'anulada');
 
         // Filtro por tipo de juego (slug)
-        if (!empty($filters['tipo_juego'])) {
+        if (! empty($filters['tipo_juego'])) {
             $base->join('juegos', 'apuestas.juego_id', '=', 'juegos.id')
-                 ->where('juegos.slug', $filters['tipo_juego']);
+                ->where('juegos.slug', $filters['tipo_juego']);
         }
 
         // Filtro por moneda
-        if (!empty($filters['moneda'])) {
+        if (! empty($filters['moneda'])) {
             $base->where(function ($q) use ($filters) {
                 match ($filters['moneda']) {
                     'bs' => $q->where('apuestas.amount_bs', '>', 0)->where('apuestas.amount_usd', 0),
@@ -557,7 +565,7 @@ class ApuestaService
      * Relación de tickets con columnas computadas.
      * Recibe query de tickets pre-escalado desde el controlador.
      *
-     * @return \Illuminate\Pagination\LengthAwarePaginator
+     * @return LengthAwarePaginator
      */
     public function relacionTickets($query, array $filters, int $perPage = 50)
     {
@@ -573,7 +581,7 @@ class ApuestaService
 
             // Sorteos: conteo DISTINCT de sorteo_hora entre las apuestas del ticket
             $sorteosDistintos = $apuestas->pluck('sorteo_hora')
-                ->map(fn($h) => $h instanceof \Carbon\Carbon ? $h->toDateString() : (string) $h)
+                ->map(fn ($h) => $h instanceof Carbon ? $h->toDateString() : (string) $h)
                 ->unique()
                 ->count();
 
@@ -586,9 +594,9 @@ class ApuestaService
             $usuario = null;
             $primeraApuesta = $apuestas->first();
             if ($primeraApuesta) {
-                $pago = \App\Models\Pago::where('apuesta_id', $primeraApuesta->id)->first();
+                $pago = Pago::where('apuesta_id', $primeraApuesta->id)->first();
                 if ($pago && $pago->created_by) {
-                    $usuario = \App\Models\User::find($pago->created_by)?->name ?? null;
+                    $usuario = User::find($pago->created_by)?->name ?? null;
                 }
             }
 
@@ -619,7 +627,7 @@ class ApuestaService
         // Obtener la taquilla_id de las apuestas en el query para contexto de jerarquía
         $taquillaIds = (clone $query)->distinct()->pluck('taquilla_id');
 
-        $taquillas = \App\Models\Taquilla::whereIn('id', $taquillaIds)
+        $taquillas = Taquilla::whereIn('id', $taquillaIds)
             ->with('grupo')
             ->get()
             ->keyBy('id');
@@ -637,7 +645,7 @@ class ApuestaService
             ->keyBy('taquilla_id');
 
         $totalVenta = $ventasPorTaquilla->sum('Venta');
-        
+
         // Ganancia total = Venta total - Premio total
         $totalPremio = $ventasPorTaquilla->sum('Premio');
         $totalGanancia = $totalVenta - $totalPremio;
@@ -714,13 +722,13 @@ class ApuestaService
             ->where('apuestas.estado', '!=', 'anulada');
 
         // Filtro por tipo de juego (slug)
-        if (!empty($filters['tipo_juego'])) {
+        if (! empty($filters['tipo_juego'])) {
             $base->join('juegos', 'apuestas.juego_id', '=', 'juegos.id')
-                 ->where('juegos.slug', $filters['tipo_juego']);
+                ->where('juegos.slug', $filters['tipo_juego']);
         }
 
         // Filtro por moneda (precedente ventasTotales)
-        if (!empty($filters['moneda'])) {
+        if (! empty($filters['moneda'])) {
             $base->where(function ($q) use ($filters) {
                 match ($filters['moneda']) {
                     'bs' => $q->where('apuestas.amount_bs', '>', 0)->where('apuestas.amount_usd', 0),
@@ -851,15 +859,15 @@ class ApuestaService
         $hasta = $filters['fecha_hasta'] ?? null;
 
         // Default: últimos 30 días si no se especifica rango
-        if (!$desde) {
+        if (! $desde) {
             $desde = now()->subDays(30)->toDateString();
         }
-        if (!$hasta) {
+        if (! $hasta) {
             $hasta = now()->toDateString();
         }
 
         // Generar todos los días del rango
-        $period = \Carbon\CarbonPeriod::create($desde, $hasta);
+        $period = CarbonPeriod::create($desde, $hasta);
         $labels = [];
         foreach ($period as $date) {
             $labels[] = $date->toDateString();
@@ -883,7 +891,7 @@ class ApuestaService
             ->whereDate('apuestas.fecha_hora', '>=', $desde)
             ->whereDate('apuestas.fecha_hora', '<=', $hasta)
             ->groupBy(\DB::raw('DATE(apuestas.fecha_hora)'))
-            ->selectRaw("DATE(apuestas.fecha_hora) as fecha, SUM(apuestas.total_bs_equivalent) as total")
+            ->selectRaw('DATE(apuestas.fecha_hora) as fecha, SUM(apuestas.total_bs_equivalent) as total')
             ->pluck('total', 'fecha');
 
         foreach ($ventas as $fecha => $total) {
@@ -899,7 +907,7 @@ class ApuestaService
             ->whereDate('apuestas.fecha_hora', '>=', $desde)
             ->whereDate('apuestas.fecha_hora', '<=', $hasta)
             ->groupBy(\DB::raw('DATE(apuestas.fecha_hora)'))
-            ->selectRaw("DATE(apuestas.fecha_hora) as fecha, COALESCE(SUM(detalle_apuestas.premio_ganado), 0) as total")
+            ->selectRaw('DATE(apuestas.fecha_hora) as fecha, COALESCE(SUM(detalle_apuestas.premio_ganado), 0) as total')
             ->pluck('total', 'fecha');
 
         foreach ($premios as $fecha => $total) {
@@ -912,12 +920,12 @@ class ApuestaService
         // Obtener las taquilla_ids del query para filtrar pagos del mismo alcance jerárquico
         $taquillaIds = (clone $query)->distinct()->pluck('apuestas.taquilla_id');
 
-        $pagos = \App\Models\Pago::whereIn('taquilla_id', $taquillaIds)
+        $pagos = Pago::whereIn('taquilla_id', $taquillaIds)
             ->where('tipo', 'egreso')
             ->whereDate('created_at', '>=', $desde)
             ->whereDate('created_at', '<=', $hasta)
             ->groupBy(\DB::raw('DATE(created_at)'))
-            ->selectRaw("DATE(created_at) as fecha, SUM(amount_bs + (amount_usd * COALESCE(exchange_rate_applied, 0))) as total")
+            ->selectRaw('DATE(created_at) as fecha, SUM(amount_bs + (amount_usd * COALESCE(exchange_rate_applied, 0))) as total')
             ->pluck('total', 'fecha');
 
         foreach ($pagos as $fecha => $total) {
@@ -932,7 +940,7 @@ class ApuestaService
             ->whereDate('apuestas.fecha_hora', '>=', $desde)
             ->whereDate('apuestas.fecha_hora', '<=', $hasta)
             ->groupBy(\DB::raw('DATE(apuestas.fecha_hora)'))
-            ->selectRaw("DATE(apuestas.fecha_hora) as fecha, SUM(apuestas.total_bs_equivalent) as total")
+            ->selectRaw('DATE(apuestas.fecha_hora) as fecha, SUM(apuestas.total_bs_equivalent) as total')
             ->pluck('total', 'fecha');
 
         foreach ($vencidos as $fecha => $total) {
@@ -942,12 +950,12 @@ class ApuestaService
         }
 
         // 5. Devolución: SUM de pagos tipo='devolucion' agrupados por DATE(created_at)
-        $devoluciones = \App\Models\Pago::whereIn('taquilla_id', $taquillaIds)
+        $devoluciones = Pago::whereIn('taquilla_id', $taquillaIds)
             ->where('tipo', 'devolucion')
             ->whereDate('created_at', '>=', $desde)
             ->whereDate('created_at', '<=', $hasta)
             ->groupBy(\DB::raw('DATE(created_at)'))
-            ->selectRaw("DATE(created_at) as fecha, SUM(amount_bs + (amount_usd * COALESCE(exchange_rate_applied, 0))) as total")
+            ->selectRaw('DATE(created_at) as fecha, SUM(amount_bs + (amount_usd * COALESCE(exchange_rate_applied, 0))) as total')
             ->pluck('total', 'fecha');
 
         foreach ($devoluciones as $fecha => $total) {
@@ -988,10 +996,10 @@ class ApuestaService
      */
     public function verificarGanadores(Resultado $resultado): int
     {
-        $pluginManager = app(\App\Services\JuegoPluginManager::class);
+        $pluginManager = app(JuegoPluginManager::class);
         $plugin = $pluginManager->getPlugin($resultado->juego);
 
-        if (!$plugin) {
+        if (! $plugin) {
             return 0;
         }
 
@@ -1042,7 +1050,7 @@ class ApuestaService
 
                 $ticketId = $apuesta->ticket_id;
                 if ($ticketId) {
-                    if (!isset($ticketPremios[$ticketId])) {
+                    if (! isset($ticketPremios[$ticketId])) {
                         $ticketPremios[$ticketId] = ['bs' => 0, 'usd' => 0];
                     }
                     $ticketPremios[$ticketId]['bs'] += $premioBs;
@@ -1062,7 +1070,7 @@ class ApuestaService
             ]);
         }
 
-        if (!empty($ticketsGanadores)) {
+        if (! empty($ticketsGanadores)) {
             Ticket::whereIn('id', array_keys($ticketsGanadores))
                 ->where('estado', 'pendiente')
                 ->update(['estado' => 'ganador']);

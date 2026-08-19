@@ -4,7 +4,7 @@ namespace App\Policies;
 
 use App\Models\Apuesta;
 use App\Models\User;
-use Illuminate\Auth\Access\Response;
+use App\Services\ApuestaService;
 
 class ApuestaPolicy
 {
@@ -15,7 +15,9 @@ class ApuestaPolicy
 
     public function view(User $user, Apuesta $apuesta): bool
     {
-        if (in_array($user->role, ['super_master', 'master'])) return true;
+        if (in_array($user->role, ['super_master', 'master'])) {
+            return true;
+        }
         if ($user->role === 'banca') {
             return $apuesta->taquilla->grupo->banca_id === $user->banca_id;
         }
@@ -25,6 +27,7 @@ class ApuestaPolicy
         if ($user->role === 'taquilla') {
             return $apuesta->taquilla_id === $user->taquilla_id;
         }
+
         return false;
     }
 
@@ -47,7 +50,7 @@ class ApuestaPolicy
             return false;
         }
 
-        $tiempo = app(\App\Services\ApuestaService::class)
+        $tiempo = app(ApuestaService::class)
             ->getEffectiveTiempoEliminacion($apuesta->taquilla_id);
         if ($apuesta->created_at->diffInMinutes(now()) >= $tiempo) {
             return false;

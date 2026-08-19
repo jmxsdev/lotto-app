@@ -12,7 +12,7 @@ class Banca extends Model
 
     protected $fillable = [
         'name', 'code', 'config', 'monedas_permitidas', 'vigencia_premios', 'tiempo_eliminacion', 'active', 'created_by',
-        'rif', 'email', 'telefono', 'direccion', 'estado', 'municipio'
+        'rif', 'email', 'telefono', 'direccion', 'estado', 'municipio',
     ];
 
     protected $casts = [

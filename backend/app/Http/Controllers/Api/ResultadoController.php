@@ -127,7 +127,8 @@ class ResultadoController extends Controller
                 'ganadoras_detectadas' => $ganadorasTotales,
             ];
         } catch (\Exception $e) {
-            Log::error("Error scraping juego_id {$juegoId}: " . $e->getMessage());
+            Log::error("Error scraping juego_id {$juegoId}: ".$e->getMessage());
+
             return [
                 'status' => 'error',
                 'error' => $e->getMessage(),

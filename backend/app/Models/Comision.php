@@ -11,7 +11,7 @@ class Comision extends Model
 
     protected $fillable = [
         'banca_id', 'grupo_id', 'taquilla_id', 'periodo',
-        'monto_comision', 'estado'
+        'monto_comision', 'estado',
     ];
 
     protected $casts = [

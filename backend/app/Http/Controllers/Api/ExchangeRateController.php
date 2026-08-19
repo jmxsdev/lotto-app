@@ -3,10 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\ExchangeRate;
 use App\Jobs\ScrapeExchangeRateJob;
+use App\Models\ExchangeRate;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Validator;
 
 class ExchangeRateController extends Controller
@@ -17,6 +16,7 @@ class ExchangeRateController extends Controller
     public function index(Request $request)
     {
         $rates = ExchangeRate::with('setBy')->orderBy('reference_date', 'desc')->get();
+
         return response()->json($rates);
     }
 
@@ -27,7 +27,7 @@ class ExchangeRateController extends Controller
     {
         $rate = ExchangeRate::where('is_active', true)->latest('reference_date')->first();
 
-        if (!$rate) {
+        if (! $rate) {
             return response()->json(['message' => 'No hay tasa activa configurada.'], 404);
         }
 
@@ -81,7 +81,8 @@ class ExchangeRateController extends Controller
             return response()->json($rate->load('setBy'), 201);
         } catch (\Exception $e) {
             \DB::rollBack();
-            return response()->json(['message' => 'Error al guardar la tasa: ' . $e->getMessage()], 500);
+
+            return response()->json(['message' => 'Error al guardar la tasa: '.$e->getMessage()], 500);
         }
     }
 
@@ -117,7 +118,8 @@ class ExchangeRateController extends Controller
                 \DB::commit();
             } catch (\Exception $e) {
                 \DB::rollBack();
-                return response()->json(['message' => 'Error al actualizar la tasa: ' . $e->getMessage()], 500);
+
+                return response()->json(['message' => 'Error al actualizar la tasa: '.$e->getMessage()], 500);
             }
         } else {
             $exchangeRate->update($request->only(['rate', 'notes', 'is_active']));
@@ -140,7 +142,8 @@ class ExchangeRateController extends Controller
             return response()->json($exchangeRate->load('setBy'));
         } catch (\Exception $e) {
             \DB::rollBack();
-            return response()->json(['message' => 'Error al activar la tasa: ' . $e->getMessage()], 500);
+
+            return response()->json(['message' => 'Error al activar la tasa: '.$e->getMessage()], 500);
         }
     }
 
@@ -149,12 +152,12 @@ class ExchangeRateController extends Controller
      */
     public function scrape()
     {
-        $job = new ScrapeExchangeRateJob();
+        $job = new ScrapeExchangeRateJob;
         $job->handle();
 
         $tasa = ExchangeRate::where('is_active', true)->latest()->first();
 
-        if (!$tasa) {
+        if (! $tasa) {
             return response()->json(['message' => 'No se pudo obtener la tasa del BCV.'], 502);
         }
 
@@ -168,5 +171,4 @@ class ExchangeRateController extends Controller
             ],
         ]);
     }
-
 }

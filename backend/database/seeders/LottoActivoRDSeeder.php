@@ -2,12 +2,13 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
+use App\Models\Banca;
 use App\Models\Juego;
 use App\Models\JuegoHorario;
 use App\Models\JuegoLimite;
 use App\Models\PluginJuego;
 use App\Plugins\Juegos\Animalitos;
+use Illuminate\Database\Seeder;
 
 class LottoActivoRDSeeder extends Seeder
 {
@@ -25,7 +26,7 @@ class LottoActivoRDSeeder extends Seeder
             ]
         );
 
-        $bancaId = \App\Models\Banca::value('id');
+        $bancaId = Banca::value('id');
         if ($bancaId) {
             JuegoLimite::firstOrCreate(
                 [
@@ -49,7 +50,7 @@ class LottoActivoRDSeeder extends Seeder
         );
 
         foreach (range(8, 19) as $h) {
-            $hora = str_pad($h, 2, '0', STR_PAD_LEFT) . ':30';
+            $hora = str_pad($h, 2, '0', STR_PAD_LEFT).':30';
             JuegoHorario::firstOrCreate(
                 ['juego_id' => $juego->id, 'hora' => $hora],
                 ['active' => true]

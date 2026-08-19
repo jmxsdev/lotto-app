@@ -41,7 +41,7 @@ return new class extends Migration
         // de la jerarquía sin violar la restricción de unicidad.
         DB::statement(
             'CREATE UNIQUE INDEX idx_jl_entity_level ON juego_limites'
-            . ' (juego_id, moneda, banca_id, (COALESCE(grupo_id, 4294967295)), (COALESCE(taquilla_id, 4294967295)))'
+            .' (juego_id, moneda, banca_id, (COALESCE(grupo_id, 4294967295)), (COALESCE(taquilla_id, 4294967295)))'
         );
     }
 

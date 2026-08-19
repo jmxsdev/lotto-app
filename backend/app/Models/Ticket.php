@@ -31,7 +31,7 @@ class Ticket extends Model
         parent::boot();
 
         static::creating(function ($ticket) {
-            if (!$ticket->ticket_code) {
+            if (! $ticket->ticket_code) {
                 $ticket->ticket_code = strtoupper(Str::random(8));
             }
         });

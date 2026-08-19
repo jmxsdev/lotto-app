@@ -10,7 +10,7 @@ class JuegoHorario extends Model
     use HasFactory;
 
     protected $fillable = [
-        'juego_id', 'hora', 'active'
+        'juego_id', 'hora', 'active',
     ];
 
     protected $casts = [

@@ -12,7 +12,7 @@ class Pago extends Model
     protected $fillable = [
         'taquilla_id', 'apuesta_id', 'amount_bs', 'amount_usd',
         'exchange_rate_applied', 'tipo', 'moneda', 'concepto', 'referencia',
-        'created_by'
+        'created_by',
     ];
 
     protected $casts = [

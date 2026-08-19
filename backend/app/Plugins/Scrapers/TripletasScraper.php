@@ -9,12 +9,14 @@ use Illuminate\Support\Carbon;
 class TripletasScraper extends BaseScraper
 {
     protected string $baseUrl = 'https://resultadostriplezulia.com';
+
     protected string $scraperName = 'TripletasScraper';
+
     protected string $productId = '2';
 
-    public function execute(string $fecha = null): array
+    public function execute(?string $fecha = null): array
     {
-        if (!$fecha) {
+        if (! $fecha) {
             $fecha = now()->format('Y-m-d');
         }
 
@@ -28,11 +30,11 @@ class TripletasScraper extends BaseScraper
                 return $r['fecha_sorteo'] === $fecha;
             }));
 
-            $this->logInfo("Scrape completado. " . count($resultados) . " resultados para {$fecha} (descartados " . (count($todosResultados) - count($resultados)) . " históricos)");
+            $this->logInfo('Scrape completado. '.count($resultados)." resultados para {$fecha} (descartados ".(count($todosResultados) - count($resultados)).' históricos)');
 
             return $resultados;
         } catch (\Exception $e) {
-            $this->logError("Error en scrape: " . $e->getMessage(), [
+            $this->logError('Error en scrape: '.$e->getMessage(), [
                 'exception' => get_class($e),
                 'line' => $e->getLine(),
                 'file' => $e->getFile(),
@@ -44,7 +46,7 @@ class TripletasScraper extends BaseScraper
     public function fetch(string $fecha): string
     {
         return $this->postJsonPayload(
-            $this->baseUrl . '/api/gaming/results/product',
+            $this->baseUrl.'/api/gaming/results/product',
             ['game_product_id' => $this->productId]
         );
     }
@@ -54,7 +56,7 @@ class TripletasScraper extends BaseScraper
         $data = json_decode($rawData, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new \RuntimeException('Error al decodificar JSON: ' . json_last_error_msg());
+            throw new \RuntimeException('Error al decodificar JSON: '.json_last_error_msg());
         }
 
         $juego = $this->findOrCreateJuego();
@@ -78,7 +80,7 @@ class TripletasScraper extends BaseScraper
                     $numeros['triple_c'] = $parts[0];
                     $numeros['signo'] = $parts[1] ?? null;
                 } else {
-                    $numeros['triple_' . strtolower($key)] = $value;
+                    $numeros['triple_'.strtolower($key)] = $value;
                 }
             }
 
@@ -132,7 +134,7 @@ class TripletasScraper extends BaseScraper
                 'type' => 'tripletas',
                 'config' => ['premio_multiplo' => 30],
                 'requires_scraper' => true,
-                'scraper_url' => $this->baseUrl . '/',
+                'scraper_url' => $this->baseUrl.'/',
                 'active' => true,
             ]
         );

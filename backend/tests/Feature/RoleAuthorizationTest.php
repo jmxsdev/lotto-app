@@ -2,11 +2,12 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
 use App\Models\Banca;
 use App\Models\Grupo;
 use App\Models\Juego;
 use App\Models\JuegoLimite;
+use App\Models\User;
+use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -17,7 +18,7 @@ class RoleAuthorizationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\DatabaseSeeder::class);
+        $this->seed(DatabaseSeeder::class);
     }
 
     public function test_taquilla_cannot_list_users_but_master_can()
@@ -26,7 +27,7 @@ class RoleAuthorizationTest extends TestCase
         $taquillaUser->assignRole('taquilla');
 
         $response = $this->actingAs($taquillaUser, 'sanctum')
-                         ->getJson('/api/v1/users');
+            ->getJson('/api/v1/users');
 
         $response->assertStatus(403);
 
@@ -34,7 +35,7 @@ class RoleAuthorizationTest extends TestCase
         $master->assignRole('master');
 
         $response = $this->actingAs($master, 'sanctum')
-                         ->getJson('/api/v1/users');
+            ->getJson('/api/v1/users');
 
         $response->assertStatus(200);
     }
@@ -52,27 +53,27 @@ class RoleAuthorizationTest extends TestCase
 
         // Intentar crear grupo en banca 2 (debe fallar)
         $response = $this->actingAs($userBanca1, 'sanctum')
-                         ->postJson('/api/v1/grupos', [
-                             'name' => 'Grupo Test',
-                             'code' => 'GT999',
-                             'banca_id' => $banca2->id,
-                             'user_name' => 'Usuario Grupo',
-                             'user_email' => 'grupo_test@test.com',
-                             'user_password' => 'password123',
-                         ]);
+            ->postJson('/api/v1/grupos', [
+                'name' => 'Grupo Test',
+                'code' => 'GT999',
+                'banca_id' => $banca2->id,
+                'user_name' => 'Usuario Grupo',
+                'user_email' => 'grupo_test@test.com',
+                'user_password' => 'password123',
+            ]);
 
         $response->assertStatus(403);
 
         // Intentar crear grupo en banca 1 (debe funcionar)
         $response = $this->actingAs($userBanca1, 'sanctum')
-                         ->postJson('/api/v1/grupos', [
-                             'name' => 'Grupo Test',
-                             'code' => 'GT998',
-                             'banca_id' => $banca1->id,
-                             'user_name' => 'Usuario Grupo',
-                             'user_email' => 'grupo_test2@test.com',
-                             'user_password' => 'password123',
-                         ]);
+            ->postJson('/api/v1/grupos', [
+                'name' => 'Grupo Test',
+                'code' => 'GT998',
+                'banca_id' => $banca1->id,
+                'user_name' => 'Usuario Grupo',
+                'user_email' => 'grupo_test2@test.com',
+                'user_password' => 'password123',
+            ]);
 
         $response->assertStatus(201);
     }
@@ -91,27 +92,27 @@ class RoleAuthorizationTest extends TestCase
 
         // Intentar crear taquilla en grupo 2 (debe fallar)
         $response = $this->actingAs($userGrupo1, 'sanctum')
-                         ->postJson('/api/v1/taquillas', [
-                             'name' => 'Taquilla Test',
-                             'code' => 'TT999',
-                             'grupo_id' => $grupo2->id,
-                             'user_name' => 'Usuario Taquilla',
-                             'user_email' => 'taquilla_test@test.com',
-                             'user_password' => 'password123',
-                         ]);
+            ->postJson('/api/v1/taquillas', [
+                'name' => 'Taquilla Test',
+                'code' => 'TT999',
+                'grupo_id' => $grupo2->id,
+                'user_name' => 'Usuario Taquilla',
+                'user_email' => 'taquilla_test@test.com',
+                'user_password' => 'password123',
+            ]);
 
         $response->assertStatus(403);
 
         // Intentar crear taquilla en grupo 1 (debe funcionar)
         $response = $this->actingAs($userGrupo1, 'sanctum')
-                         ->postJson('/api/v1/taquillas', [
-                             'name' => 'Taquilla Test',
-                             'code' => 'TT998',
-                             'grupo_id' => $grupo1->id,
-                             'user_name' => 'Usuario Taquilla',
-                             'user_email' => 'taquilla_test2@test.com',
-                             'user_password' => 'password123',
-                         ]);
+            ->postJson('/api/v1/taquillas', [
+                'name' => 'Taquilla Test',
+                'code' => 'TT998',
+                'grupo_id' => $grupo1->id,
+                'user_name' => 'Usuario Taquilla',
+                'user_email' => 'taquilla_test2@test.com',
+                'user_password' => 'password123',
+            ]);
 
         $response->assertStatus(201);
     }
@@ -124,9 +125,9 @@ class RoleAuthorizationTest extends TestCase
         $banca = Banca::factory()->create(['name' => 'Banca Test', 'active' => true]);
         $grupo = Grupo::factory()->create(['name' => 'Grupo Test', 'banca_id' => $banca->id, 'active' => true]);
 
-        $juego = \App\Models\Juego::first();
-        if (!$juego) {
-            $juego = \App\Models\Juego::create(['name' => 'Test', 'slug' => 'test-juego', 'active' => true]);
+        $juego = Juego::first();
+        if (! $juego) {
+            $juego = Juego::create(['name' => 'Test', 'slug' => 'test-juego', 'active' => true]);
         }
 
         // Configurar límite a nivel banca: max 100 BS
@@ -141,7 +142,7 @@ class RoleAuthorizationTest extends TestCase
 
         // Intentar configurar límite a nivel grupo con max 200 BS (más permisivo que banca)
         $response = $this->actingAs($master, 'sanctum')
-            ->putJson('/api/v1/limites/' . $juego->id, [
+            ->putJson('/api/v1/limites/'.$juego->id, [
                 'banca_id' => $banca->id,
                 'grupo_id' => $grupo->id,
                 'moneda' => 'bs',

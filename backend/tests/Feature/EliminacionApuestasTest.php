@@ -9,6 +9,9 @@ use App\Models\Juego;
 use App\Models\Taquilla;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\ApuestaService;
+use Database\Seeders\DatabaseSeeder;
+use Database\Seeders\JuegoAnimalitosSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -26,8 +29,8 @@ class EliminacionApuestasTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\DatabaseSeeder::class);
-        $this->seed(\Database\Seeders\JuegoAnimalitosSeeder::class);
+        $this->seed(DatabaseSeeder::class);
+        $this->seed(JuegoAnimalitosSeeder::class);
     }
 
     private function superUser(): User
@@ -105,7 +108,7 @@ class EliminacionApuestasTest extends TestCase
         ]);
 
         $taquilla = Taquilla::where('code', 'TDFLT')->first();
-        $efectivo = app(\App\Services\ApuestaService::class)
+        $efectivo = app(ApuestaService::class)
             ->getEffectiveTiempoEliminacion($taquilla->id);
         $this->assertEquals(5, $efectivo);
     }
@@ -116,7 +119,7 @@ class EliminacionApuestasTest extends TestCase
         $grupo = Grupo::create(['name' => 'Grupo T', 'code' => 'GCT', 'banca_id' => $banca->id, 'active' => true, 'tiempo_eliminacion' => 10]);
         $taquilla = Taquilla::create(['name' => 'Agencia T', 'code' => 'TCT', 'grupo_id' => $grupo->id, 'active' => true]);
 
-        $service = new \App\Services\ApuestaService();
+        $service = new ApuestaService;
         $this->assertEquals(10, $service->getEffectiveTiempoEliminacion($taquilla->id));
     }
 
@@ -126,7 +129,7 @@ class EliminacionApuestasTest extends TestCase
         $grupo = Grupo::create(['name' => 'Grupo B', 'code' => 'GCB', 'banca_id' => $banca->id, 'active' => true]);
         $taquilla = Taquilla::create(['name' => 'Agencia B', 'code' => 'TCB', 'grupo_id' => $grupo->id, 'active' => true]);
 
-        $service = new \App\Services\ApuestaService();
+        $service = new ApuestaService;
         $this->assertEquals(15, $service->getEffectiveTiempoEliminacion($taquilla->id));
     }
 
@@ -174,7 +177,7 @@ class EliminacionApuestasTest extends TestCase
         $ticket = $this->crearTicketConApuesta(null, 3);
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->deleteJson('/api/v1/tickets/' . $ticket->id);
+            ->deleteJson('/api/v1/tickets/'.$ticket->id);
 
         $response->assertStatus(200)
             ->assertJsonPath('message', 'Ticket anulado correctamente.');
@@ -187,7 +190,7 @@ class EliminacionApuestasTest extends TestCase
         $ticket = $this->crearTicketConApuesta(null, 8);
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->deleteJson('/api/v1/tickets/' . $ticket->id);
+            ->deleteJson('/api/v1/tickets/'.$ticket->id);
 
         $response->assertStatus(422)
             ->assertJsonPath('message', 'El ticket excedió los 5 minutos para ser anulado.');
@@ -201,7 +204,7 @@ class EliminacionApuestasTest extends TestCase
         $ticket = $this->crearTicketConApuesta(10, 7);
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->deleteJson('/api/v1/tickets/' . $ticket->id);
+            ->deleteJson('/api/v1/tickets/'.$ticket->id);
 
         $response->assertStatus(200);
         $this->assertSoftDeleted('apuestas', ['ticket_id' => $ticket->id]);
@@ -213,7 +216,7 @@ class EliminacionApuestasTest extends TestCase
         $ticket = $this->crearTicketConApuesta(10, 12);
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->deleteJson('/api/v1/tickets/' . $ticket->id);
+            ->deleteJson('/api/v1/tickets/'.$ticket->id);
 
         $response->assertStatus(422);
         $this->assertStringContainsString('10 minutos', $response->json('message'));

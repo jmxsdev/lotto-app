@@ -7,44 +7,44 @@ use App\Plugins\Contracts\JuegoInterface;
 class Animalitos implements JuegoInterface
 {
     protected array $map = [
-        'ballena'  => 0,
-        'delfin'   => 0,
-        'carnero'  => 1,
-        'toro'     => 2,
+        'ballena' => 0,
+        'delfin' => 0,
+        'carnero' => 1,
+        'toro' => 2,
         'ciempies' => 3,
-        'alacran'  => 4,
-        'leon'     => 5,
-        'rana'     => 6,
-        'perico'   => 7,
-        'raton'    => 8,
-        'aguila'   => 9,
-        'tigre'    => 10,
-        'gato'     => 11,
-        'caballo'  => 12,
-        'mono'     => 13,
-        'paloma'   => 14,
-        'zorro'    => 15,
-        'oso'      => 16,
-        'pavo'     => 17,
-        'burro'    => 18,
-        'chivo'    => 19,
-        'cochino'  => 20,
-        'gallo'    => 21,
-        'camello'  => 22,
-        'cobra'    => 23,
-        'iguana'   => 24,
-        'gallina'  => 25,
-        'vaca'     => 26,
-        'perro'    => 27,
-        'zamuro'   => 28,
+        'alacran' => 4,
+        'leon' => 5,
+        'rana' => 6,
+        'perico' => 7,
+        'raton' => 8,
+        'aguila' => 9,
+        'tigre' => 10,
+        'gato' => 11,
+        'caballo' => 12,
+        'mono' => 13,
+        'paloma' => 14,
+        'zorro' => 15,
+        'oso' => 16,
+        'pavo' => 17,
+        'burro' => 18,
+        'chivo' => 19,
+        'cochino' => 20,
+        'gallo' => 21,
+        'camello' => 22,
+        'cobra' => 23,
+        'iguana' => 24,
+        'gallina' => 25,
+        'vaca' => 26,
+        'perro' => 27,
+        'zamuro' => 28,
         'elefante' => 29,
-        'caiman'   => 30,
-        'lapa'     => 31,
-        'ardilla'  => 32,
-        'pescado'  => 33,
-        'venado'   => 34,
-        'jirafa'   => 35,
-        'culebra'  => 36,
+        'caiman' => 30,
+        'lapa' => 31,
+        'ardilla' => 32,
+        'pescado' => 33,
+        'venado' => 34,
+        'jirafa' => 35,
+        'culebra' => 36,
     ];
 
     protected array $animales;
@@ -58,13 +58,14 @@ class Animalitos implements JuegoInterface
 
     public function validarApuesta(array $data, ?array $opciones = null): bool
     {
-        if (!isset($data['combinacion']['animal'])) {
+        if (! isset($data['combinacion']['animal'])) {
             return false;
         }
         $animal = strtolower(trim($data['combinacion']['animal']));
 
-        if ($opciones !== null && !empty($opciones)) {
+        if ($opciones !== null && ! empty($opciones)) {
             $nombres = array_map('strtolower', array_column($opciones, 'label'));
+
             return in_array($animal, $nombres);
         }
 
@@ -77,13 +78,14 @@ class Animalitos implements JuegoInterface
         $animalGanador = is_array($numerosGanadores) ? ($numerosGanadores['nombre_animal'] ?? null) : null;
         $animalApostado = $apuesta['combinacion']['animal'] ?? null;
 
-        if (!$animalGanador || !$animalApostado) {
+        if (! $animalGanador || ! $animalApostado) {
             return ['premio_bs' => 0, 'premio_usd' => 0];
         }
 
         if (strtolower($animalApostado) === strtolower($animalGanador)) {
             $amountBs = $apuesta['amount_bs'] ?? 0;
             $amountUsd = $apuesta['amount_usd'] ?? 0;
+
             return [
                 'premio_bs' => $amountBs * (float) $this->multiplicador,
                 'premio_usd' => $amountUsd * (float) $this->multiplicador,
@@ -96,7 +98,7 @@ class Animalitos implements JuegoInterface
     public function obtenerReglas(): array
     {
         return [
-            'descripcion' => 'Acierta el animal ganador y gana ' . $this->multiplicador . ' veces tu apuesta.',
+            'descripcion' => 'Acierta el animal ganador y gana '.$this->multiplicador.' veces tu apuesta.',
             'tipo' => 'animal',
             'animales_disponibles' => count($this->animales),
             'multiplicador' => (float) $this->multiplicador,
@@ -113,13 +115,14 @@ class Animalitos implements JuegoInterface
                 'numero' => $numero,
             ];
         }
+
         return $opciones;
     }
 
     public function obtenerHorarios(): array
     {
         return ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00',
-                '15:00', '16:00', '17:00', '18:00', '19:00'];
+            '15:00', '16:00', '17:00', '18:00', '19:00'];
     }
 
     public function obtenerModalidades(): array
@@ -164,12 +167,14 @@ class Animalitos implements JuegoInterface
                 return $animal;
             }
         }
+
         return null;
     }
 
     public function obtenerNumeroPorAnimal(string $animal): ?int
     {
         $animal = strtolower(trim($animal));
+
         return $this->map[$animal] ?? null;
     }
 }

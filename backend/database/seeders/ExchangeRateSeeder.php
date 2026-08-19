@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\ExchangeRate;
 use App\Models\User;
+use Illuminate\Database\Seeder;
 
 class ExchangeRateSeeder extends Seeder
 {

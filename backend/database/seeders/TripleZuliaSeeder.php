@@ -2,13 +2,14 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
+use App\Models\Banca;
 use App\Models\Juego;
+use App\Models\JuegoHorario;
 use App\Models\JuegoLimite;
 use App\Models\JuegoOpcion;
-use App\Models\JuegoHorario;
 use App\Models\PluginJuego;
 use App\Plugins\Juegos\Tripletas;
+use Illuminate\Database\Seeder;
 
 class TripleZuliaSeeder extends Seeder
 {
@@ -32,7 +33,7 @@ class TripleZuliaSeeder extends Seeder
             ]
         );
 
-        $bancaId = \App\Models\Banca::value('id');
+        $bancaId = Banca::value('id');
         if ($bancaId) {
             JuegoLimite::firstOrCreate(
                 [

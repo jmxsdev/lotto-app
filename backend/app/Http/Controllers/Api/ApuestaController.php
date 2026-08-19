@@ -5,13 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ApuestaStoreRequest;
 use App\Models\Apuesta;
-use App\Models\DetalleApuesta;
-use App\Models\ExchangeRate;
-use App\Models\Juego;
 use App\Models\JuegoHorario;
 use App\Models\Log;
 use App\Services\ApuestaService;
-use App\Services\JuegoPluginManager;
 use Illuminate\Http\Request;
 
 class ApuestaController extends Controller
@@ -29,7 +25,7 @@ class ApuestaController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        
+
         $query = Apuesta::with(['juego', 'taquilla', 'resultado'])
             ->latest();
 
@@ -68,7 +64,7 @@ class ApuestaController extends Controller
 
         // Resumen estadístico
         $resumen = $this->apuestaService->obtenerResumen(
-            $request->has('fecha_desde') || $request->has('fecha_hasta') || 
+            $request->has('fecha_desde') || $request->has('fecha_hasta') ||
             $request->has('estado') || $request->has('juego_id') ? clone $query : Apuesta::query()
         );
 
@@ -107,7 +103,7 @@ class ApuestaController extends Controller
     {
         $user = $request->user();
 
-        if (!$user->taquilla_id) {
+        if (! $user->taquilla_id) {
             return response()->json([
                 'message' => 'Solo las agencias pueden crear apuestas.',
             ], 403);
@@ -127,7 +123,7 @@ class ApuestaController extends Controller
 
         } catch (\RuntimeException $e) {
             return response()->json([
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 422);
         } catch (\Exception $e) {
             return response()->json([
@@ -154,7 +150,7 @@ class ApuestaController extends Controller
     public function historial(Request $request)
     {
         $user = $request->user();
-        
+
         $query = Apuesta::with(['juego', 'taquilla', 'resultado'])
             ->latest();
 
@@ -188,7 +184,7 @@ class ApuestaController extends Controller
             $query->whereDate('sorteo_hora', $request->sorteo_hora);
         }
         if ($request->has('ticket_code')) {
-            $query->where('ticket_code', 'like', '%' . $request->ticket_code . '%');
+            $query->where('ticket_code', 'like', '%'.$request->ticket_code.'%');
         }
 
         $apuestas = $query->paginate($request->input('per_page', 100));
@@ -207,7 +203,7 @@ class ApuestaController extends Controller
     public function resumen(Request $request)
     {
         $user = $request->user();
-        
+
         $query = Apuesta::query();
 
         // Aplicar filtrado jerárquico
@@ -229,7 +225,7 @@ class ApuestaController extends Controller
         }
 
         $resumen = $this->apuestaService->obtenerResumen($query);
-        
+
         // Agregar datos de tasa actual
         $resumen['tasa_actual'] = $this->apuestaService->getTasaActiva();
 

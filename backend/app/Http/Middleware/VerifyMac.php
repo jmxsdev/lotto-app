@@ -13,21 +13,21 @@ class VerifyMac
     /**
      * Handle an incoming request.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next): Response
     {
         // Solo verificar MAC para usuarios con rol de taquilla
         $user = $request->user();
 
-        if (!$user || !$user->hasRole('taquilla')) {
+        if (! $user || ! $user->hasRole('taquilla')) {
             return $next($request);
         }
 
         // Obtener MAC del header X-Device-MAC
         $mac = $request->header('X-Device-MAC');
 
-        if (!$mac) {
+        if (! $mac) {
             return response()->json([
                 'message' => 'MAC address no proporcionada.',
             ], 403);
@@ -37,14 +37,14 @@ class VerifyMac
         $mac = strtoupper(trim($mac));
 
         // Validar formato MAC básico
-        if (!preg_match('/^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/', $mac)) {
+        if (! preg_match('/^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/', $mac)) {
             return response()->json([
                 'message' => 'Formato de MAC address inválido.',
             ], 403);
         }
 
         // Verificar que usuario tenga taquilla asociada
-        if (!$user->taquilla_id) {
+        if (! $user->taquilla_id) {
             return response()->json([
                 'message' => 'Usuario sin agencia asociada.',
             ], 403);
@@ -53,7 +53,7 @@ class VerifyMac
         // Obtener la taquilla del usuario (con su cadena para activación efectiva)
         $taquilla = Taquilla::with('grupo.banca')->where('id', $user->taquilla_id)->first();
 
-        if (!$taquilla) {
+        if (! $taquilla) {
             return response()->json([
                 'message' => 'Agencia no encontrada.',
             ], 403);
@@ -62,7 +62,7 @@ class VerifyMac
         // Verificar la activación efectiva: propia + grupo + banca (sin escrituras en cascada)
         $estado = app(ActivacionEfectivaService::class)->estadoTaquilla($taquilla);
 
-        if (!$estado['active']) {
+        if (! $estado['active']) {
             return response()->json([
                 'message' => match ($estado['causa']) {
                     'grupo' => 'La agencia está pausada porque su grupo está desactivado.',
@@ -80,7 +80,7 @@ class VerifyMac
         }
 
         $fingerprint = $request->header('X-Device-Fingerprint');
-        if ($taquilla->device_fingerprint && (!$fingerprint || $fingerprint !== $taquilla->device_fingerprint)) {
+        if ($taquilla->device_fingerprint && (! $fingerprint || $fingerprint !== $taquilla->device_fingerprint)) {
             return response()->json([
                 'message' => 'Huella digital del dispositivo no coincide.',
             ], 403);

@@ -1,203 +1,205 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\ActivacionController;
+use App\Http\Controllers\Api\ApuestaController;
 use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\BancaController;
 use App\Http\Controllers\Api\CierreController;
-use App\Http\Controllers\Api\GrupoController;
-use App\Http\Controllers\Api\TaquillaController;
-use App\Http\Controllers\Api\ExchangeRateController;
-use App\Http\Controllers\Api\JuegoController;
-use App\Http\Controllers\Api\ResultadoController;
-use App\Http\Controllers\Api\ApuestaController;
 use App\Http\Controllers\Api\DispositivoController;
-use App\Http\Controllers\Api\ActivacionController;
-use App\Http\Controllers\Api\TicketController;
+use App\Http\Controllers\Api\EstadisticaController;
+use App\Http\Controllers\Api\ExchangeRateController;
+use App\Http\Controllers\Api\GrupoController;
+use App\Http\Controllers\Api\JuegoController;
 use App\Http\Controllers\Api\PagoController;
 use App\Http\Controllers\Api\ReporteController;
-use App\Http\Controllers\Api\EstadisticaController;
+use App\Http\Controllers\Api\ResultadoController;
+use App\Http\Controllers\Api\TaquillaController;
+use App\Http\Controllers\Api\TicketController;
+use App\Http\Controllers\Api\UserController;
+use App\Models\Log;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 
 // Todas las rutas de la API quedan versionadas bajo el prefijo /api/v1
 Route::prefix('v1')->group(function () {
 
-// Rutas públicas (sin autenticación)
-Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,2');
-Route::get('/exchange-rate/active', [ExchangeRateController::class, 'active']);
-Route::post('/activar', [ActivacionController::class, 'activar'])->middleware('throttle:10,60');
-Route::post('/dispositivo/verificar', [DispositivoController::class, 'verificar']);
+    // Rutas públicas (sin autenticación)
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,2');
+    Route::get('/exchange-rate/active', [ExchangeRateController::class, 'active']);
+    Route::post('/activar', [ActivacionController::class, 'activar'])->middleware('throttle:10,60');
+    Route::post('/dispositivo/verificar', [DispositivoController::class, 'verificar']);
 
-// Rutas protegidas solo con Sanctum (sin verificación MAC)
-Route::middleware(['auth:sanctum'])->group(function () {
-    Route::get('/user', [AuthController::class, 'user']);
-    Route::post('/logout', [AuthController::class, 'logout']);
-});
-
-// Rutas protegidas con Sanctum + verificación MAC
-Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
-
-    // ==================================================
-    // USUARIOS (jerárquico: banca/grupo solo dentro de su alcance,
-    // taquilla solo se ve a sí misma; destroy restringido a
-    // super_master|master en el controlador)
-    // ==================================================
-    Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
-        Route::apiResource('users', UserController::class);
+    // Rutas protegidas solo con Sanctum (sin verificación MAC)
+    Route::middleware(['auth:sanctum'])->group(function () {
+        Route::get('/user', [AuthController::class, 'user']);
+        Route::post('/logout', [AuthController::class, 'logout']);
     });
 
-    // ==================================================
-    // BANCAS (solo Super Master y Master)
-    // ==================================================
-    Route::middleware(['role:super_master|master'])->group(function () {
-        Route::apiResource('bancas', BancaController::class);
-        Route::patch('/bancas/{banca}/toggle', [BancaController::class, 'toggle'])->name('bancas.toggle');
-    });
+    // Rutas protegidas con Sanctum + verificación MAC
+    Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
 
-    // ==================================================
-    // GRUPOS (Super Master, Master, Banca)
-    // ==================================================
-    Route::middleware(['role:super_master|master|banca'])->group(function () {
-        Route::apiResource('grupos', GrupoController::class);
-        Route::patch('/grupos/{grupo}/toggle', [GrupoController::class, 'toggle'])->name('grupos.toggle');
-    });
-
-    // ==================================================
-    // TAQUILLAS (Super Master, Master, Banca, Grupo)
-    // ==================================================
-    Route::middleware(['role:super_master|master|banca|grupo'])->group(function () {
-        Route::apiResource('taquillas', TaquillaController::class);
-        Route::patch('/taquillas/{taquilla}/toggle', [TaquillaController::class, 'toggle'])->name('taquillas.toggle');
-    });
-
-    // ==================================================
-    // JUEGOS — lectura: cualquier autenticado; modificación: solo master
-    // ==================================================
-    Route::get('/juegos', [JuegoController::class, 'index']);
-    Route::get('/juegos/{juego}', [JuegoController::class, 'show']);
-
-    Route::middleware(['role:super_master|master'])->group(function () {
-        Route::put('/juegos/{juego}', [JuegoController::class, 'update']);
-        Route::patch('/juegos/{juego}/toggle', [JuegoController::class, 'toggle'])->name('juegos.toggle');
-    });
-
-    Route::get('/juegos/{juego}/opciones', [JuegoController::class, 'opciones']);
-    Route::get('/juegos/{juego}/horarios', [JuegoController::class, 'horarios']);
-    Route::get('/juegos/{juego}/reglas', [JuegoController::class, 'reglas']);
-
-    // ==================================================
-    // RESULTADOS (todos los roles autenticados)
-    // ==================================================
-    Route::get('/resultados', [ResultadoController::class, 'index']);
-    Route::get('/resultados/{resultado}', [ResultadoController::class, 'show']);
-
-    // Scraper manual (solo Super Master y Master)
-    Route::middleware(['role:super_master|master'])->group(function () {
-        Route::post('/resultados/scrape', [ResultadoController::class, 'scrape']);
-    Route::post('/resultados/scrape-all', [ResultadoController::class, 'scrapeAll']);
-    });
-    // ==================================================
-    // ==================================================
-    // APUESTAS (todos los roles)
-    // ==================================================
-    Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
-        Route::get('/apuestas', [ApuestaController::class, 'index']);
-        Route::post('/apuestas', [ApuestaController::class, 'store']);
-        Route::get('/apuestas/historial', [ApuestaController::class, 'historial']);
-        Route::get('/apuestas/resumen', [ApuestaController::class, 'resumen']);
-        Route::get('/apuestas/{apuesta}', [ApuestaController::class, 'show']);
-        Route::delete('/apuestas/{apuesta}', [ApuestaController::class, 'destroy']);
-    });
-
-    // ==================================================
-    // LOGS (Super Master, Master)
-    // ==================================================
-    Route::middleware(['role:super_master|master'])->group(function () {
-        Route::get('/logs', function (\Illuminate\Http\Request $request) {
-            return \App\Models\Log::with('user')->latest()->paginate($request->input('per_page', 50));
+        // ==================================================
+        // USUARIOS (jerárquico: banca/grupo solo dentro de su alcance,
+        // taquilla solo se ve a sí misma; destroy restringido a
+        // super_master|master en el controlador)
+        // ==================================================
+        Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
+            Route::apiResource('users', UserController::class);
         });
-    });
 
-    // ==================================================
-    // TICKETS (todos los roles que pueden crear apuestas)
-    // ==================================================
-    Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
-        Route::get('/tickets', [TicketController::class, 'index']);
-        Route::post('/tickets', [TicketController::class, 'store']);
-        Route::get('/tickets/ganadores', [TicketController::class, 'ganadores']);
-        Route::get('/tickets/{ticket}', [TicketController::class, 'show']);
-        Route::delete('/tickets/{ticket}', [TicketController::class, 'destroy']);
-    });
+        // ==================================================
+        // BANCAS (solo Super Master y Master)
+        // ==================================================
+        Route::middleware(['role:super_master|master'])->group(function () {
+            Route::apiResource('bancas', BancaController::class);
+            Route::patch('/bancas/{banca}/toggle', [BancaController::class, 'toggle'])->name('bancas.toggle');
+        });
 
-    // ==================================================
-    // PAGOS (todos los roles)
-    // ==================================================
-    Route::post('/pagos', [PagoController::class, 'store'])->middleware('role:super_master|master|banca|grupo|taquilla');
-    Route::get('/pagos/{apuesta}', [PagoController::class, 'showByApuesta'])->middleware('role:super_master|master|banca|grupo|taquilla');
+        // ==================================================
+        // GRUPOS (Super Master, Master, Banca)
+        // ==================================================
+        Route::middleware(['role:super_master|master|banca'])->group(function () {
+            Route::apiResource('grupos', GrupoController::class);
+            Route::patch('/grupos/{grupo}/toggle', [GrupoController::class, 'toggle'])->name('grupos.toggle');
+        });
 
-    // ==================================================
-    // CIERRE DE CAJA (jerárquico: la agencia cierra su propia caja;
-    // los roles administrativos cierran agencias dentro de su alcance)
-    // ==================================================
-    Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
-        Route::post('/cierre', [CierreController::class, 'store']);
-        Route::get('/cierre', [CierreController::class, 'index']);
-        Route::get('/cierre/{cierre}', [CierreController::class, 'show']);
-    });
+        // ==================================================
+        // TAQUILLAS (Super Master, Master, Banca, Grupo)
+        // ==================================================
+        Route::middleware(['role:super_master|master|banca|grupo'])->group(function () {
+            Route::apiResource('taquillas', TaquillaController::class);
+            Route::patch('/taquillas/{taquilla}/toggle', [TaquillaController::class, 'toggle'])->name('taquillas.toggle');
+        });
 
-    // ==================================================
-    // LÍMITES POR JUEGO
-    // ==================================================
-    // GET: super_master, master, banca, grupo
-    Route::middleware(['role:super_master|master|banca|grupo'])->group(function () {
-        // GET /api/v1/limites (modo entidad): matriz completa de una entidad
-        // (el conteo de segmentos lo desambigua de /limites/{juego})
-        Route::get('/limites', [JuegoController::class, 'listarLimites']);
-        Route::get('/limites/{juego}', [JuegoController::class, 'limites']);
-    });
+        // ==================================================
+        // JUEGOS — lectura: cualquier autenticado; modificación: solo master
+        // ==================================================
+        Route::get('/juegos', [JuegoController::class, 'index']);
+        Route::get('/juegos/{juego}', [JuegoController::class, 'show']);
 
-    // PUT: super_master, master, banca (upsert individual)
-    // DELETE: super_master, master, banca (autorización jerárquica en el controlador)
-    Route::middleware(['role:super_master|master|banca'])->group(function () {
-        Route::put('/limites/{juego}', [JuegoController::class, 'updateLimites']);
-        Route::delete('/limites/{limite}', [JuegoController::class, 'destroyLimite']);
-    });
+        Route::middleware(['role:super_master|master'])->group(function () {
+            Route::put('/juegos/{juego}', [JuegoController::class, 'update']);
+            Route::patch('/juegos/{juego}/toggle', [JuegoController::class, 'toggle'])->name('juegos.toggle');
+        });
 
-    // POST batch: super_master, master, banca (el alcance se valida por jerarquía en el controlador)
-    Route::middleware(['role:super_master|master|banca'])->group(function () {
-        Route::post('/limites/batch', [JuegoController::class, 'batchLimites']);
-    });
+        Route::get('/juegos/{juego}/opciones', [JuegoController::class, 'opciones']);
+        Route::get('/juegos/{juego}/horarios', [JuegoController::class, 'horarios']);
+        Route::get('/juegos/{juego}/reglas', [JuegoController::class, 'reglas']);
 
-    // ==================================================
-    // REPORTES (todos los roles autenticados)
-    // ==================================================
-    Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
-        Route::get('/reportes/ventas-totales', [ReporteController::class, 'ventasTotales']);
-        Route::get('/reportes/cuadre-caja', [ReporteController::class, 'cuadreCaja']);
-        Route::get('/reportes/relacion-tickets', [ReporteController::class, 'relacionTickets']);
-        Route::get('/reportes/rendimiento-taquillas', [ReporteController::class, 'rendimientoTaquillas']);
-        Route::get('/reportes/vencidos', [ReporteController::class, 'vencidos']);
-    });
+        // ==================================================
+        // RESULTADOS (todos los roles autenticados)
+        // ==================================================
+        Route::get('/resultados', [ResultadoController::class, 'index']);
+        Route::get('/resultados/{resultado}', [ResultadoController::class, 'show']);
 
-    // ==================================================
-    // ESTADÍSTICAS (todos los roles autenticados)
-    // ==================================================
-    Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
-        Route::get('/estadisticas/rendimiento', [EstadisticaController::class, 'rendimiento']);
-    });
+        // Scraper manual (solo Super Master y Master)
+        Route::middleware(['role:super_master|master'])->group(function () {
+            Route::post('/resultados/scrape', [ResultadoController::class, 'scrape']);
+            Route::post('/resultados/scrape-all', [ResultadoController::class, 'scrapeAll']);
+        });
+        // ==================================================
+        // ==================================================
+        // APUESTAS (todos los roles)
+        // ==================================================
+        Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
+            Route::get('/apuestas', [ApuestaController::class, 'index']);
+            Route::post('/apuestas', [ApuestaController::class, 'store']);
+            Route::get('/apuestas/historial', [ApuestaController::class, 'historial']);
+            Route::get('/apuestas/resumen', [ApuestaController::class, 'resumen']);
+            Route::get('/apuestas/{apuesta}', [ApuestaController::class, 'show']);
+            Route::delete('/apuestas/{apuesta}', [ApuestaController::class, 'destroy']);
+        });
 
-    // ==================================================
-    // TASAS DE CAMBIO (pública y protegida)
-    // ==================================================
-    Route::middleware(['permission:view_exchange_rates'])->group(function () {
-        Route::get('/exchange-rates', [ExchangeRateController::class, 'index']);
-        Route::get('/exchange-rates/{exchange_rate}', [ExchangeRateController::class, 'show']);
-    });
+        // ==================================================
+        // LOGS (Super Master, Master)
+        // ==================================================
+        Route::middleware(['role:super_master|master'])->group(function () {
+            Route::get('/logs', function (Request $request) {
+                return Log::with('user')->latest()->paginate($request->input('per_page', 50));
+            });
+        });
 
-    Route::middleware(['permission:manage_exchange_rates'])->group(function () {
-        Route::post('/exchange-rates', [ExchangeRateController::class, 'store']);
-        Route::post('/exchange-rates/scrape', [ExchangeRateController::class, 'scrape']);
-        Route::put('/exchange-rates/{exchange_rate}', [ExchangeRateController::class, 'update']);
-        Route::post('/exchange-rates/{exchange_rate}/set-active', [ExchangeRateController::class, 'setActive']);
-    });
-}); // fin Route::prefix('v1')
+        // ==================================================
+        // TICKETS (todos los roles que pueden crear apuestas)
+        // ==================================================
+        Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
+            Route::get('/tickets', [TicketController::class, 'index']);
+            Route::post('/tickets', [TicketController::class, 'store']);
+            Route::get('/tickets/ganadores', [TicketController::class, 'ganadores']);
+            Route::get('/tickets/{ticket}', [TicketController::class, 'show']);
+            Route::delete('/tickets/{ticket}', [TicketController::class, 'destroy']);
+        });
+
+        // ==================================================
+        // PAGOS (todos los roles)
+        // ==================================================
+        Route::post('/pagos', [PagoController::class, 'store'])->middleware('role:super_master|master|banca|grupo|taquilla');
+        Route::get('/pagos/{apuesta}', [PagoController::class, 'showByApuesta'])->middleware('role:super_master|master|banca|grupo|taquilla');
+
+        // ==================================================
+        // CIERRE DE CAJA (jerárquico: la agencia cierra su propia caja;
+        // los roles administrativos cierran agencias dentro de su alcance)
+        // ==================================================
+        Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
+            Route::post('/cierre', [CierreController::class, 'store']);
+            Route::get('/cierre', [CierreController::class, 'index']);
+            Route::get('/cierre/{cierre}', [CierreController::class, 'show']);
+        });
+
+        // ==================================================
+        // LÍMITES POR JUEGO
+        // ==================================================
+        // GET: super_master, master, banca, grupo
+        Route::middleware(['role:super_master|master|banca|grupo'])->group(function () {
+            // GET /api/v1/limites (modo entidad): matriz completa de una entidad
+            // (el conteo de segmentos lo desambigua de /limites/{juego})
+            Route::get('/limites', [JuegoController::class, 'listarLimites']);
+            Route::get('/limites/{juego}', [JuegoController::class, 'limites']);
+        });
+
+        // PUT: super_master, master, banca (upsert individual)
+        // DELETE: super_master, master, banca (autorización jerárquica en el controlador)
+        Route::middleware(['role:super_master|master|banca'])->group(function () {
+            Route::put('/limites/{juego}', [JuegoController::class, 'updateLimites']);
+            Route::delete('/limites/{limite}', [JuegoController::class, 'destroyLimite']);
+        });
+
+        // POST batch: super_master, master, banca (el alcance se valida por jerarquía en el controlador)
+        Route::middleware(['role:super_master|master|banca'])->group(function () {
+            Route::post('/limites/batch', [JuegoController::class, 'batchLimites']);
+        });
+
+        // ==================================================
+        // REPORTES (todos los roles autenticados)
+        // ==================================================
+        Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
+            Route::get('/reportes/ventas-totales', [ReporteController::class, 'ventasTotales']);
+            Route::get('/reportes/cuadre-caja', [ReporteController::class, 'cuadreCaja']);
+            Route::get('/reportes/relacion-tickets', [ReporteController::class, 'relacionTickets']);
+            Route::get('/reportes/rendimiento-taquillas', [ReporteController::class, 'rendimientoTaquillas']);
+            Route::get('/reportes/vencidos', [ReporteController::class, 'vencidos']);
+        });
+
+        // ==================================================
+        // ESTADÍSTICAS (todos los roles autenticados)
+        // ==================================================
+        Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
+            Route::get('/estadisticas/rendimiento', [EstadisticaController::class, 'rendimiento']);
+        });
+
+        // ==================================================
+        // TASAS DE CAMBIO (pública y protegida)
+        // ==================================================
+        Route::middleware(['permission:view_exchange_rates'])->group(function () {
+            Route::get('/exchange-rates', [ExchangeRateController::class, 'index']);
+            Route::get('/exchange-rates/{exchange_rate}', [ExchangeRateController::class, 'show']);
+        });
+
+        Route::middleware(['permission:manage_exchange_rates'])->group(function () {
+            Route::post('/exchange-rates', [ExchangeRateController::class, 'store']);
+            Route::post('/exchange-rates/scrape', [ExchangeRateController::class, 'scrape']);
+            Route::put('/exchange-rates/{exchange_rate}', [ExchangeRateController::class, 'update']);
+            Route::post('/exchange-rates/{exchange_rate}/set-active', [ExchangeRateController::class, 'setActive']);
+        });
+    }); // fin Route::prefix('v1')
 });

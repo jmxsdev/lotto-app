@@ -2,12 +2,13 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
+use App\Models\Banca;
 use App\Models\Juego;
 use App\Models\JuegoHorario;
 use App\Models\JuegoLimite;
 use App\Models\PluginJuego;
 use App\Plugins\Juegos\Terminales;
+use Illuminate\Database\Seeder;
 
 class TerminalesSeeder extends Seeder
 {
@@ -25,7 +26,7 @@ class TerminalesSeeder extends Seeder
             ]
         );
 
-        $bancaId = \App\Models\Banca::value('id');
+        $bancaId = Banca::value('id');
         if ($bancaId) {
             JuegoLimite::firstOrCreate(
                 [
@@ -49,7 +50,7 @@ class TerminalesSeeder extends Seeder
         );
 
         foreach (range(8, 19) as $h) {
-            $hora = str_pad($h, 2, '0', STR_PAD_LEFT) . ':00';
+            $hora = str_pad($h, 2, '0', STR_PAD_LEFT).':00';
             JuegoHorario::firstOrCreate(
                 ['juego_id' => $juego->id, 'hora' => $hora],
                 ['active' => true]

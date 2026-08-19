@@ -18,9 +18,9 @@ return new class extends Migration
         }
 
         DB::statement(
-            "ALTER TABLE pagos MODIFY COLUMN tipo "
-            . "ENUM('ingreso','egreso','devolucion') "
-            . "NOT NULL"
+            'ALTER TABLE pagos MODIFY COLUMN tipo '
+            ."ENUM('ingreso','egreso','devolucion') "
+            .'NOT NULL'
         );
     }
 
@@ -33,15 +33,15 @@ return new class extends Migration
         // Revertir solo si no existen pagos de tipo devolucion
         $devoluciones = DB::table('pagos')->where('tipo', 'devolucion')->count();
         if ($devoluciones > 0) {
-            throw new \RuntimeException(
+            throw new RuntimeException(
                 'No se puede revertir: existen pagos con tipo devolucion.'
             );
         }
 
         DB::statement(
-            "ALTER TABLE pagos MODIFY COLUMN tipo "
-            . "ENUM('ingreso','egreso') "
-            . "NOT NULL"
+            'ALTER TABLE pagos MODIFY COLUMN tipo '
+            ."ENUM('ingreso','egreso') "
+            .'NOT NULL'
         );
     }
 };

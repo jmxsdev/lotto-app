@@ -87,7 +87,7 @@ class BancaController extends Controller
     {
         $user = auth()->user();
 
-        if (!$user->hasRole(['super_master', 'master'])) {
+        if (! $user->hasRole(['super_master', 'master'])) {
             return response()->json(['message' => 'No tienes permiso para ver esta banca.'], 403);
         }
 
@@ -98,7 +98,7 @@ class BancaController extends Controller
     {
         $user = auth()->user();
 
-        if (!$user->hasRole(['super_master', 'master'])) {
+        if (! $user->hasRole(['super_master', 'master'])) {
             return response()->json(['message' => 'No tienes permiso para modificar esta banca.'], 403);
         }
 
@@ -134,11 +134,11 @@ class BancaController extends Controller
     {
         $user = auth()->user();
 
-        if (!$user->hasRole(['super_master', 'master'])) {
+        if (! $user->hasRole(['super_master', 'master'])) {
             return response()->json(['message' => 'No tienes permiso para modificar esta banca.'], 403);
         }
 
-        $banca->update(['active' => !$banca->active]);
+        $banca->update(['active' => ! $banca->active]);
 
         return response()->json($banca);
     }
@@ -147,7 +147,7 @@ class BancaController extends Controller
     {
         $user = auth()->user();
 
-        if (!$user->hasRole(['super_master', 'master'])) {
+        if (! $user->hasRole(['super_master', 'master'])) {
             return response()->json(['message' => 'No tienes permiso para eliminar esta banca.'], 403);
         }
 

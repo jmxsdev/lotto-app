@@ -13,7 +13,7 @@ class JuegoOpcion extends Model
 
     protected $fillable = [
         'juego_id', 'label', 'value', 'numero', 'imagen_url',
-        'color', 'metadata', 'active', 'sort_order'
+        'color', 'metadata', 'active', 'sort_order',
     ];
 
     protected $casts = [

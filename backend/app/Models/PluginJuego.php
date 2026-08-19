@@ -10,7 +10,7 @@ class PluginJuego extends Model
     use HasFactory;
 
     protected $fillable = [
-        'juego_id', 'class_namespace', 'version', 'active', 'updated_by'
+        'juego_id', 'class_namespace', 'version', 'active', 'updated_by',
     ];
 
     protected $casts = [

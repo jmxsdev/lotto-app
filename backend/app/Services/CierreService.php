@@ -29,7 +29,7 @@ class CierreService
         return DB::transaction(function () use ($taquillaId, $userId) {
             $tasaActiva = ExchangeRate::where('is_active', true)->first();
 
-            if (!$tasaActiva) {
+            if (! $tasaActiva) {
                 throw new \RuntimeException('No hay tasa de cambio activa para realizar el cierre.');
             }
 

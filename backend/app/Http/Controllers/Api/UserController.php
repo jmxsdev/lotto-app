@@ -43,7 +43,7 @@ class UserController extends Controller
         }
         // Banca ve los usuarios de su banca (por vínculo directo o por cadena)
         elseif ($user->hasRole('banca')) {
-            if (!$user->banca_id) {
+            if (! $user->banca_id) {
                 return response()->json(['message' => 'No tienes una banca asociada.'], 403);
             }
             $query->where(function ($q) use ($user) {
@@ -53,7 +53,7 @@ class UserController extends Controller
         }
         // Grupo ve los usuarios de su grupo y de sus agencias
         elseif ($user->hasRole('grupo')) {
-            if (!$user->grupo_id) {
+            if (! $user->grupo_id) {
                 return response()->json(['message' => 'No tienes un grupo asociado.'], 403);
             }
             $query->where(function ($q) use ($user) {
@@ -155,7 +155,7 @@ class UserController extends Controller
 
         $request->validate([
             'name' => 'sometimes|string|max:255',
-            'email' => 'sometimes|email|unique:users,email,' . $user->id,
+            'email' => 'sometimes|email|unique:users,email,'.$user->id,
             'password' => 'sometimes|string|min:8',
             'role' => ['sometimes', Rule::in(['super_master', 'master', 'banca', 'grupo', 'taquilla'])],
             'active' => 'boolean',
@@ -198,7 +198,7 @@ class UserController extends Controller
      */
     public function destroy(User $user)
     {
-        if (!auth()->user()->hasRole(['super_master', 'master'])) {
+        if (! auth()->user()->hasRole(['super_master', 'master'])) {
             abort(403, 'No tienes permisos para eliminar usuarios.');
         }
 
@@ -232,11 +232,12 @@ class UserController extends Controller
             if ($role === 'super_master') {
                 abort(403, 'No puedes asignar el rol super_master.');
             }
+
             return;
         }
 
         if ($currentUser->hasRole('banca')) {
-            if (!$currentUser->banca_id) {
+            if (! $currentUser->banca_id) {
                 abort(403, 'No tienes una banca asociada.');
             }
             if (in_array($role, ['super_master', 'master'], true)) {
@@ -246,11 +247,12 @@ class UserController extends Controller
             if ($effectiveBanca != $currentUser->banca_id) {
                 abort(403, 'No puedes vincular usuarios a entidades de otra banca.');
             }
+
             return;
         }
 
         if ($currentUser->hasRole('grupo')) {
-            if (!$currentUser->grupo_id) {
+            if (! $currentUser->grupo_id) {
                 abort(403, 'No tienes un grupo asociado.');
             }
             if (in_array($role, ['super_master', 'master', 'banca'], true)) {
@@ -260,6 +262,7 @@ class UserController extends Controller
             if ($effectiveGrupo != $currentUser->grupo_id) {
                 abort(403, 'No puedes vincular usuarios a entidades de otro grupo.');
             }
+
             return;
         }
 
@@ -273,34 +276,37 @@ class UserController extends Controller
         }
 
         if ($currentUser->hasRole('master')) {
-            if (!$currentUser->banca_id) {
+            if (! $currentUser->banca_id) {
                 abort(403, 'No tienes una banca asociada.');
             }
             if ($targetUser->banca_id && $targetUser->banca_id != $currentUser->banca_id) {
                 abort(403, 'No tienes acceso a este usuario.');
             }
+
             return;
         }
 
         // Banca solo puede gestionar usuarios dentro de su banca (vía cadena)
         if ($currentUser->hasRole('banca')) {
-            if (!$currentUser->banca_id) {
+            if (! $currentUser->banca_id) {
                 abort(403, 'No tienes una banca asociada.');
             }
             if ($this->resolveBancaId($targetUser) != $currentUser->banca_id) {
                 abort(403, 'No tienes acceso a este usuario.');
             }
+
             return;
         }
 
         // Grupo solo puede gestionar usuarios dentro de su grupo (vía cadena)
         if ($currentUser->hasRole('grupo')) {
-            if (!$currentUser->grupo_id) {
+            if (! $currentUser->grupo_id) {
                 abort(403, 'No tienes un grupo asociado.');
             }
             if ($this->resolveGrupoId($targetUser) != $currentUser->grupo_id) {
                 abort(403, 'No tienes acceso a este usuario.');
             }
+
             return;
         }
 
@@ -366,7 +372,7 @@ class UserController extends Controller
 
         $hasBinding = $data[$required] ?? $existing?->{$required} ?? null;
 
-        if (!$hasBinding) {
+        if (! $hasBinding) {
             throw ValidationException::withMessages([
                 $required => ["Un usuario con rol '{$role}' debe estar vinculado a una entidad."],
             ]);
@@ -378,7 +384,7 @@ class UserController extends Controller
      */
     private function resolveBancaId(?User $user): ?int
     {
-        if (!$user) {
+        if (! $user) {
             return null;
         }
 
@@ -402,7 +408,7 @@ class UserController extends Controller
      */
     private function resolveGrupoId(?User $user): ?int
     {
-        if (!$user) {
+        if (! $user) {
             return null;
         }
 

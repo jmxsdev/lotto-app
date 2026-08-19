@@ -16,7 +16,7 @@ class CierreCaja extends Model
         'total_ventas_bs', 'total_ventas_usd', 'total_ventas_bs_equivalent',
         'total_egresos_bs', 'total_egresos_usd',
         'total_efectivo_bs', 'total_efectivo_usd',
-        'exchange_rate_cierre', 'created_by'
+        'exchange_rate_cierre', 'created_by',
     ];
 
     protected $casts = [

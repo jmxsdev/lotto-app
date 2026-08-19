@@ -8,7 +8,6 @@ use App\Models\Grupo;
 use App\Models\Juego;
 use App\Models\JuegoAuditoria;
 use App\Models\JuegoLimite;
-use App\Models\PluginJuego;
 use App\Models\Taquilla;
 use App\Services\JuegoPluginManager;
 use Illuminate\Http\JsonResponse;
@@ -22,6 +21,7 @@ class JuegoController extends Controller
     public function index()
     {
         $juegos = Juego::with('pluginJuego')->get();
+
         return response()->json($juegos);
     }
 
@@ -119,6 +119,7 @@ class JuegoController extends Controller
             $plugin = app(JuegoPluginManager::class)->getPlugin($juego);
             if ($plugin) {
                 $pluginHorarios = $plugin->obtenerHorarios();
+
                 return response()->json(array_map(fn ($h) => ['hora' => $h], $pluginHorarios));
             }
         }
@@ -130,14 +131,14 @@ class JuegoController extends Controller
     {
         $plugin = app(JuegoPluginManager::class)->getPlugin($juego);
 
-        if (!$plugin) {
+        if (! $plugin) {
             return response()->json(['message' => 'No hay plugin registrado para este juego.'], 404);
         }
 
         $reglas = $plugin->obtenerReglas();
         $modalidades = $plugin->obtenerModalidades();
         $config = $juego->config;
-        if (is_array($config) && !empty($config['modalidades_permitidas'])) {
+        if (is_array($config) && ! empty($config['modalidades_permitidas'])) {
             $modalidades = array_filter($modalidades, fn ($m) => in_array($m['code'], $config['modalidades_permitidas']));
         }
         $reglas['modalidades'] = array_values($modalidades);
@@ -158,7 +159,7 @@ class JuegoController extends Controller
     {
         $user = $request->user();
 
-        if (!in_array($user->role, ['super_master', 'master', 'banca', 'grupo'])) {
+        if (! in_array($user->role, ['super_master', 'master', 'banca', 'grupo'])) {
             return response()->json(['message' => 'No tienes permiso para ver límites.'], 403);
         }
 
@@ -179,10 +180,10 @@ class JuegoController extends Controller
         } elseif ($user->role === 'grupo') {
             $query->where(function ($q) use ($user) {
                 $q->where('grupo_id', $user->grupo_id)
-                  ->orWhere(function ($q2) use ($user) {
-                      $q2->whereNull('grupo_id')->whereNull('taquilla_id')
-                         ->whereHas('grupo', fn ($g) => $g->where('banca_id', $user->banca_id));
-                  });
+                    ->orWhere(function ($q2) use ($user) {
+                        $q2->whereNull('grupo_id')->whereNull('taquilla_id')
+                            ->whereHas('grupo', fn ($g) => $g->where('banca_id', $user->banca_id));
+                    });
             });
         }
 
@@ -225,7 +226,7 @@ class JuegoController extends Controller
     {
         $user = $request->user();
 
-        if (!in_array($user->role, ['super_master', 'master', 'banca', 'grupo'])) {
+        if (! in_array($user->role, ['super_master', 'master', 'banca', 'grupo'])) {
             return response()->json(['message' => 'No tienes permiso para ver límites.'], 403);
         }
 
@@ -273,7 +274,7 @@ class JuegoController extends Controller
 
         $juegos = Juego::where('active', true)->orderBy('id')->get(['id', 'name', 'slug']);
         $claves = collect($juegos)
-            ->flatMap(fn ($juego) => [$juego->id . ':bs', $juego->id . ':usd'])
+            ->flatMap(fn ($juego) => [$juego->id.':bs', $juego->id.':usd'])
             ->all();
 
         $limites = array_fill_keys($claves, null);
@@ -282,7 +283,7 @@ class JuegoController extends Controller
         // Alcance del rol primero: fuera de la jerarquía del usuario la
         // intersección es vacía (se responde la matriz sin valores, nunca
         // se amplía el alcance).
-        if (!$this->entidadDentroDelAlcance($user, $tipo, $entidadId)) {
+        if (! $this->entidadDentroDelAlcance($user, $tipo, $entidadId)) {
             return response()->json([
                 'data' => [
                     'juegos' => $juegos,
@@ -295,7 +296,7 @@ class JuegoController extends Controller
         [$filas, $filasPadre] = $this->filasDeEntidad($tipo, $entidadId);
 
         foreach ($filas as $fila) {
-            $clave = $fila->juego_id . ':' . $fila->moneda;
+            $clave = $fila->juego_id.':'.$fila->moneda;
             $limites[$clave] = $this->serializarLimite($fila);
         }
 
@@ -305,7 +306,7 @@ class JuegoController extends Controller
             $porGrupo = [];
             $porBanca = [];
             foreach ($filasPadre as $fila) {
-                $clave = $fila->juego_id . ':' . $fila->moneda;
+                $clave = $fila->juego_id.':'.$fila->moneda;
                 if ($fila->grupo_id !== null) {
                     $porGrupo[$clave] = $fila;
                 } else {
@@ -319,7 +320,7 @@ class JuegoController extends Controller
                 }
 
                 $padre = $porGrupo[$clave] ?? $porBanca[$clave] ?? null;
-                if (!$padre) {
+                if (! $padre) {
                     continue;
                 }
 
@@ -348,7 +349,7 @@ class JuegoController extends Controller
     {
         $user = $request->user();
 
-        if (!in_array($user->role, ['super_master', 'master', 'banca'])) {
+        if (! in_array($user->role, ['super_master', 'master', 'banca'])) {
             return response()->json(['message' => 'No tienes permiso para configurar límites.'], 403);
         }
 
@@ -408,7 +409,7 @@ class JuegoController extends Controller
     {
         $user = $request->user();
 
-        if (!in_array($user->role, ['super_master', 'master', 'banca'])) {
+        if (! in_array($user->role, ['super_master', 'master', 'banca'])) {
             return response()->json(['message' => 'No tienes permiso para configuración masiva de límites.'], 403);
         }
 
@@ -442,7 +443,7 @@ class JuegoController extends Controller
             // Modo scope con raíz singular (banca/grupo/taquilla + id): fan-out
             // de esa entidad hacia sus descendientes (banca → grupos+agencias).
             if (in_array($scope['tipo'], ['bancas', 'grupos', 'taquillas'])) {
-                $objetivos = $this->expandirTipoAlcance($user, $scope['tipo'], !empty($scope['id']) ? (int) $scope['id'] : null);
+                $objetivos = $this->expandirTipoAlcance($user, $scope['tipo'], ! empty($scope['id']) ? (int) $scope['id'] : null);
             } else {
                 if (empty($scope['id'])) {
                     return response()->json([
@@ -472,19 +473,20 @@ class JuegoController extends Controller
                     // Modo legacy: cada ítem con su banca_id (y opcional grupo/taquilla)
                     $this->authorizeBancaLimitAccess($user, $item['banca_id']);
 
-                    if (!empty($item['grupo_id']) || !empty($item['taquilla_id'])) {
+                    if (! empty($item['grupo_id']) || ! empty($item['taquilla_id'])) {
                         $this->validarRestrictividadLimite(
                             (int) $item['banca_id'],
                             $item['juego_id'],
                             $item['moneda'],
-                            !empty($item['grupo_id']) ? (int) $item['grupo_id'] : null,
-                            !empty($item['taquilla_id']) ? (int) $item['taquilla_id'] : null,
+                            ! empty($item['grupo_id']) ? (int) $item['grupo_id'] : null,
+                            ! empty($item['taquilla_id']) ? (int) $item['taquilla_id'] : null,
                             $item['limite_minimo'] ?? null,
                             $item['limite_maximo'] ?? null,
                         );
                     }
 
                     $this->aplicarItemLimite($item, null, $resultados);
+
                     continue;
                 }
 
@@ -603,7 +605,7 @@ class JuegoController extends Controller
      */
     private function expandirAlcance($user, string $tipo, int $id): array
     {
-        if (!$this->entidadDentroDelAlcance($user, $tipo, $id)) {
+        if (! $this->entidadDentroDelAlcance($user, $tipo, $id)) {
             abort(403, 'No tienes acceso a la entidad raíz del alcance.');
         }
 
@@ -673,6 +675,7 @@ class JuegoController extends Controller
 
         if ($tieneNull) {
             JuegoLimite::where($clave)->delete();
+
             return;
         }
 
@@ -707,8 +710,8 @@ class JuegoController extends Controller
         if ($objetivo === null) {
             return [
                 (int) $item['banca_id'],
-                !empty($item['grupo_id']) ? (int) $item['grupo_id'] : null,
-                !empty($item['taquilla_id']) ? (int) $item['taquilla_id'] : null,
+                ! empty($item['grupo_id']) ? (int) $item['grupo_id'] : null,
+                ! empty($item['taquilla_id']) ? (int) $item['taquilla_id'] : null,
             ];
         }
 
@@ -742,11 +745,11 @@ class JuegoController extends Controller
     {
         $user = $request->user();
 
-        if (!in_array($user->role, ['super_master', 'master', 'banca'])) {
+        if (! in_array($user->role, ['super_master', 'master', 'banca'])) {
             return response()->json(['message' => 'No tienes permiso para eliminar límites.'], 403);
         }
 
-        if ($user->role === 'banca' && (!$user->banca_id || $user->banca_id != $limite->banca_id)) {
+        if ($user->role === 'banca' && (! $user->banca_id || $user->banca_id != $limite->banca_id)) {
             return response()->json(['message' => 'No tienes acceso a los límites de esta banca.'], 403);
         }
 
@@ -764,7 +767,7 @@ class JuegoController extends Controller
      */
     private function authorizeLimitesWrite($user): void
     {
-        if (!in_array($user->role, ['super_master', 'master'])) {
+        if (! in_array($user->role, ['super_master', 'master'])) {
             abort(403, 'No tienes permiso para configurar límites.');
         }
     }
@@ -893,21 +896,21 @@ class JuegoController extends Controller
 
         $juegos = Juego::where('active', true)->orderBy('id')->get(['id', 'name', 'slug']);
         $clavesJuego = collect($juegos)
-            ->flatMap(fn ($juego) => [$juego->id . ':bs', $juego->id . ':usd'])
+            ->flatMap(fn ($juego) => [$juego->id.':bs', $juego->id.':usd'])
             ->all();
 
         $limites = [];
         $filasPorClave = [];
 
         foreach ($entidades as $entidad) {
-            $prefijo = $entidad->id . ':';
+            $prefijo = $entidad->id.':';
             foreach ($clavesJuego as $clave) {
-                $limites[$prefijo . $clave] = null;
+                $limites[$prefijo.$clave] = null;
             }
         }
 
         if ($entidades->isNotEmpty()) {
-            $query = JuegoLimite::whereIn($tipo . '_id', $ids);
+            $query = JuegoLimite::whereIn($tipo.'_id', $ids);
             if ($tipo === 'banca') {
                 $query->whereNull('grupo_id')->whereNull('taquilla_id');
             } elseif ($tipo === 'grupo') {
@@ -915,8 +918,8 @@ class JuegoController extends Controller
             }
 
             foreach ($query->get() as $fila) {
-                $clave = $fila->juego_id . ':' . $fila->moneda;
-                $limites[$fila->{$tipo . '_id'} . ':' . $clave] = $this->serializarLimite($fila);
+                $clave = $fila->juego_id.':'.$fila->moneda;
+                $limites[$fila->{$tipo.'_id'}.':'.$clave] = $this->serializarLimite($fila);
                 $filasPorClave[$clave] = ($filasPorClave[$clave] ?? 0) + 1;
             }
         }
@@ -1051,7 +1054,7 @@ class JuegoController extends Controller
             $parentQuery->where(function ($q) use ($grupoId) {
                 $q->where('grupo_id', $grupoId)->whereNull('taquilla_id');
             });
-            if (!$parentQuery->exists()) {
+            if (! $parentQuery->exists()) {
                 // Fallback a banca
                 $parentQuery = JuegoLimite::where('juego_id', $juegoId)
                     ->where('banca_id', $bancaId)
@@ -1069,7 +1072,7 @@ class JuegoController extends Controller
 
         $parent = $parentQuery->first();
 
-        if (!$parent) {
+        if (! $parent) {
             return; // Sin límite padre, no hay restricción que validar
         }
 

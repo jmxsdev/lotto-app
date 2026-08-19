@@ -2,8 +2,11 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
+use App\Models\Banca;
+use App\Models\Grupo;
+use App\Models\Taquilla;
 use App\Models\User;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
 class UsersSeeder extends Seeder
@@ -31,7 +34,7 @@ class UsersSeeder extends Seeder
         $master->assignRole('master');
 
         // Banca (necesitamos una banca existente, la creamos antes)
-        $banca = \App\Models\Banca::create([
+        $banca = Banca::create([
             'name' => 'Banca Test',
             'code' => 'BT001',
             'created_by' => $super->id,
@@ -47,7 +50,7 @@ class UsersSeeder extends Seeder
         $bancaUser->assignRole('banca');
 
         // Grupo (necesitamos un grupo)
-        $grupo = \App\Models\Grupo::create([
+        $grupo = Grupo::create([
             'name' => 'Grupo Test',
             'code' => 'GT001',
             'banca_id' => $banca->id,
@@ -65,7 +68,7 @@ class UsersSeeder extends Seeder
         $grupoUser->assignRole('grupo');
 
         // Taquilla normal (requiere activación manual)
-        $taquilla = \App\Models\Taquilla::create([
+        $taquilla = Taquilla::create([
             'name' => 'Taquilla Test',
             'code' => 'TT001',
             'grupo_id' => $grupo->id,
@@ -86,7 +89,7 @@ class UsersSeeder extends Seeder
         $taquillaUser->assignRole('taquilla');
 
         // Taquilla DEMO (pre-activada para web/Vercel)
-        $demoTaquilla = \App\Models\Taquilla::create([
+        $demoTaquilla = Taquilla::create([
             'name' => 'Taquilla Demo',
             'code' => 'DEMO01',
             'grupo_id' => $grupo->id,

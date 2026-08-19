@@ -2,12 +2,11 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\File;
-use App\Plugins\Juegos\Animalitos;
 use App\Models\Juego;
 use App\Models\PluginJuego;
+use App\Plugins\Juegos\Animalitos;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 class PluginIntegrationTest extends TestCase
 {

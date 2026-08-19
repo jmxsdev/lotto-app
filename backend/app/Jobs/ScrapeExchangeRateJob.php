@@ -2,16 +2,16 @@
 
 namespace App\Jobs;
 
+use App\Models\ExchangeRate;
+use GuzzleHttp\Client;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use App\Models\ExchangeRate;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\DomCrawler\Crawler;
-use GuzzleHttp\Client;
 
 class ScrapeExchangeRateJob implements ShouldQueue
 {
@@ -30,14 +30,14 @@ class ScrapeExchangeRateJob implements ShouldQueue
                 'timeout' => 30,
                 'verify' => false,
                 'headers' => [
-                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
-                ]
+                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
+                ],
             ]);
 
             // 2. Obtener HTML del BCV
             $response = $client->get('https://www.bcv.org.ve/');
             $html = (string) $response->getBody();
-            Log::info('HTML obtenido, longitud: ' . strlen($html));
+            Log::info('HTML obtenido, longitud: '.strlen($html));
 
             // 3. Parsear HTML
             $crawler = new Crawler($html);
@@ -47,15 +47,16 @@ class ScrapeExchangeRateJob implements ShouldQueue
             $rateElement = $crawler->filter('#dolar');
             if ($rateElement->count()) {
                 $rateText = $rateElement->text();
-                Log::info('Texto encontrado en #dolar: ' . $rateText);
+                Log::info('Texto encontrado en #dolar: '.$rateText);
             } else {
                 // Fallback: buscar por clase .centrado
                 $rateElement = $crawler->filter('.centrado strong');
                 if ($rateElement->count()) {
                     $rateText = $rateElement->text();
-                    Log::info('Texto encontrado en .centrado strong: ' . $rateText);
+                    Log::info('Texto encontrado en .centrado strong: '.$rateText);
                 } else {
                     Log::error('No se encontró la tasa en la página.');
+
                     return;
                 }
             }
@@ -63,7 +64,7 @@ class ScrapeExchangeRateJob implements ShouldQueue
             // 4. Limpiar y convertir a número
             $rateText = preg_replace('/[^0-9.,]/', '', $rateText);
             $rate = floatval(str_replace(',', '.', str_replace('.', '', $rateText)));
-            Log::info('Tasa parseada: ' . $rate);
+            Log::info('Tasa parseada: '.$rate);
 
             // 5. Guardar la tasa como activa (desactiva la anterior)
             if ($rate > 0) {
@@ -81,18 +82,18 @@ class ScrapeExchangeRateJob implements ShouldQueue
                     ]);
 
                     DB::commit();
-                    Log::info('Tasa guardada y activada correctamente: ' . $rate);
+                    Log::info('Tasa guardada y activada correctamente: '.$rate);
                 } catch (\Exception $e) {
                     DB::rollBack();
-                    Log::error('Error al guardar la tasa: ' . $e->getMessage());
+                    Log::error('Error al guardar la tasa: '.$e->getMessage());
                 }
             } else {
-                Log::warning('La tasa obtenida no es válida: ' . $rateText);
+                Log::warning('La tasa obtenida no es válida: '.$rateText);
             }
 
         } catch (\Exception $e) {
-            Log::error('ERROR en ScrapeExchangeRateJob: ' . $e->getMessage() . ' en línea ' . $e->getLine());
-            Log::error('Trace: ' . $e->getTraceAsString());
+            Log::error('ERROR en ScrapeExchangeRateJob: '.$e->getMessage().' en línea '.$e->getLine());
+            Log::error('Trace: '.$e->getTraceAsString());
         }
 
         Log::info('=== FIN ScrapeExchangeRateJob ===');

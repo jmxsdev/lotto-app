@@ -3,23 +3,23 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Taquilla;
 use App\Models\Grupo;
+use App\Models\Taquilla;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rule;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class TaquillaController extends Controller
 {
-   /* public function __construct()
-    {
-        $this->middleware('auth:sanctum');
-        $this->middleware('permission:view_taquillas|manage_taquillas')->only(['index', 'show']);
-        $this->middleware('permission:manage_taquillas')->only(['store', 'update', 'destroy']);
-    }
-    */
+    /* public function __construct()
+     {
+         $this->middleware('auth:sanctum');
+         $this->middleware('permission:view_taquillas|manage_taquillas')->only(['index', 'show']);
+         $this->middleware('permission:manage_taquillas')->only(['store', 'update', 'destroy']);
+     }
+     */
     /**
      * Listar taquillas (filtradas según jerarquía)
      */
@@ -31,7 +31,7 @@ class TaquillaController extends Controller
         if ($user->hasRole(['super_master', 'master'])) {
             // Sin filtro
         } elseif ($user->hasRole('banca')) {
-            if (!$user->banca_id) {
+            if (! $user->banca_id) {
                 return response()->json(['message' => 'No tienes una banca asociada.'], 403);
             }
             // Filtrar por grupos que pertenecen a su banca
@@ -39,7 +39,7 @@ class TaquillaController extends Controller
                 $q->where('banca_id', $user->banca_id);
             });
         } elseif ($user->hasRole('grupo')) {
-            if (!$user->grupo_id) {
+            if (! $user->grupo_id) {
                 return response()->json(['message' => 'No tienes un grupo asociado.'], 403);
             }
             $query->where('grupo_id', $user->grupo_id);
@@ -153,7 +153,7 @@ class TaquillaController extends Controller
             'code' => ['sometimes', 'string', Rule::unique('taquillas')->ignore($taquilla->id)],
             'grupo_id' => 'sometimes|exists:grupos,id',
             'mac_address' => 'nullable|string',
-            'activation_code' => 'nullable|string|unique:taquillas,activation_code,' . $taquilla->id,
+            'activation_code' => 'nullable|string|unique:taquillas,activation_code,'.$taquilla->id,
             'active' => 'boolean',
             'vigencia_premios' => 'nullable|integer|min:1',
             'tiempo_eliminacion' => 'nullable|integer|min:1|max:120',
@@ -201,7 +201,7 @@ class TaquillaController extends Controller
 
         $this->authorizeTaquillaAccess($user, $taquilla);
 
-        $taquilla->update(['active' => !$taquilla->active]);
+        $taquilla->update(['active' => ! $taquilla->active]);
 
         return response()->json($taquilla->load('grupo.banca'));
     }
@@ -240,7 +240,7 @@ class TaquillaController extends Controller
         $grupoVigencia = $grupo->vigencia_premios;
         if ($grupoVigencia !== null && $request->vigencia_premios > $grupoVigencia) {
             abort(422, json_encode([
-                'message' => "La vigencia de premios de la agencia ({$request->vigencia_premios} días) no puede ser mayor que la del grupo ({$grupoVigencia} días). La jerarquía inferior solo puede acortar el plazo."
+                'message' => "La vigencia de premios de la agencia ({$request->vigencia_premios} días) no puede ser mayor que la del grupo ({$grupoVigencia} días). La jerarquía inferior solo puede acortar el plazo.",
             ]));
         }
 
@@ -249,7 +249,7 @@ class TaquillaController extends Controller
             $bancaVigencia = $grupo->banca?->vigencia_premios;
             if ($bancaVigencia !== null && $request->vigencia_premios > $bancaVigencia) {
                 abort(422, json_encode([
-                    'message' => "La vigencia de premios de la agencia ({$request->vigencia_premios} días) no puede ser mayor que la de la banca ({$bancaVigencia} días). La jerarquía inferior solo puede acortar el plazo."
+                    'message' => "La vigencia de premios de la agencia ({$request->vigencia_premios} días) no puede ser mayor que la de la banca ({$bancaVigencia} días). La jerarquía inferior solo puede acortar el plazo.",
                 ]));
             }
         }
@@ -282,7 +282,7 @@ class TaquillaController extends Controller
     private function authorizeGrupoAccess($user, $grupoId)
     {
         $grupo = Grupo::find($grupoId);
-        if (!$grupo) {
+        if (! $grupo) {
             abort(404, 'Grupo no encontrado.');
         }
 
@@ -293,17 +293,19 @@ class TaquillaController extends Controller
 
         // Banca solo puede acceder a grupos de su banca
         if ($user->hasRole('banca')) {
-            if (!$user->banca_id || $user->banca_id != $grupo->banca_id) {
+            if (! $user->banca_id || $user->banca_id != $grupo->banca_id) {
                 abort(403, 'No tienes acceso a este grupo.');
             }
+
             return;
         }
 
         // Grupo solo puede acceder a su propio grupo
         if ($user->hasRole('grupo')) {
-            if (!$user->grupo_id || $user->grupo_id != $grupo->id) {
+            if (! $user->grupo_id || $user->grupo_id != $grupo->id) {
                 abort(403, 'No tienes acceso a este grupo.');
             }
+
             return;
         }
 
@@ -320,17 +322,19 @@ class TaquillaController extends Controller
         // Banca puede acceder a taquillas de grupos de su banca
         if ($user->hasRole('banca')) {
             $grupo = $taquilla->grupo;
-            if (!$user->banca_id || $user->banca_id != $grupo->banca_id) {
+            if (! $user->banca_id || $user->banca_id != $grupo->banca_id) {
                 abort(403, 'No tienes acceso a esta agencia.');
             }
+
             return;
         }
 
         // Grupo puede acceder solo a sus taquillas
         if ($user->hasRole('grupo')) {
-            if (!$user->grupo_id || $user->grupo_id != $taquilla->grupo_id) {
+            if (! $user->grupo_id || $user->grupo_id != $taquilla->grupo_id) {
                 abort(403, 'No tienes acceso a esta agencia.');
             }
+
             return;
         }
 
