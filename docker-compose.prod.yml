@@ -38,6 +38,7 @@ services:
     networks: [lotto_net]
 
   api:
+    image: ghcr.io/jmxsdev/lotto-app-api:${IMAGE_TAG:-latest}
     build:
       context: ./backend
     container_name: lotto_api_prod
@@ -53,6 +54,7 @@ services:
     networks: [lotto_net]
 
   horizon:
+    image: ghcr.io/jmxsdev/lotto-app-api:${IMAGE_TAG:-latest}
     build:
       context: ./backend
     container_name: lotto_horizon_prod

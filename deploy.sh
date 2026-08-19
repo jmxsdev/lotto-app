@@ -6,8 +6,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 COMPOSE=(docker compose --env-file .env.production -f docker-compose.prod.yml)
 
-"${COMPOSE[@]}" pull --quiet 2>/dev/null || true
-"${COMPOSE[@]}" build --pull
+"${COMPOSE[@]}" pull --quiet || "${COMPOSE[@]}" build --pull
 "${COMPOSE[@]}" up -d
 
 echo "⏳ Esperando healthcheck..."
