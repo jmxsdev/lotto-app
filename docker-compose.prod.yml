@@ -44,6 +44,12 @@ services:
     container_name: lotto_api_prod
     restart: unless-stopped
     env_file: .env.production
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -o /dev/null -w '%{http_code}' -H 'Accept: application/json' http://127.0.0.1:10000/api/v1/juegos | grep -qE '^(200|401)$' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
     ports:
       - "127.0.0.1:10000:10000"
     depends_on:
@@ -63,6 +69,12 @@ services:
     environment:
       RUN_HORIZON: "true"
     env_file: .env.production
+    healthcheck:
+      test: ["CMD-SHELL", "php artisan horizon:status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
     depends_on:
       mysql:
         condition: service_healthy
