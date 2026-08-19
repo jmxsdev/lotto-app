@@ -48,7 +48,7 @@ class InformacionFiscalTest extends TestCase
     public function test_fiscal_info_se_guarda_en_banca()
     {
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->postJson('/api/bancas', array_merge([
+            ->postJson('/api/v1/bancas', array_merge([
                 'name' => 'Banca Fiscal',
                 'code' => 'BFISC',
                 'user_name' => 'Usuario Banca Fiscal',
@@ -71,7 +71,7 @@ class InformacionFiscalTest extends TestCase
 
         // R5: los GET devuelven los campos fiscales
         $get = $this->actingAs($this->superUser(), 'sanctum')
-            ->getJson('/api/bancas/' . $bancaId);
+            ->getJson('/api/v1/bancas/' . $bancaId);
 
         $get->assertStatus(200)
             ->assertJsonPath('rif', 'J-banca1234567-8')
@@ -84,7 +84,7 @@ class InformacionFiscalTest extends TestCase
         $banca = Banca::create(['name' => 'Banca Fiscal G', 'code' => 'BFISCG', 'active' => true]);
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->postJson('/api/grupos', array_merge([
+            ->postJson('/api/v1/grupos', array_merge([
                 'name' => 'Grupo Fiscal',
                 'code' => 'GFISC',
                 'banca_id' => $banca->id,
@@ -112,7 +112,7 @@ class InformacionFiscalTest extends TestCase
         $grupo = Grupo::create(['name' => 'Grupo Fiscal T', 'code' => 'GFISCT', 'banca_id' => $banca->id, 'active' => true]);
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->postJson('/api/taquillas', array_merge([
+            ->postJson('/api/v1/taquillas', array_merge([
                 'name' => 'Agencia Fiscal',
                 'code' => 'TFISC',
                 'grupo_id' => $grupo->id,

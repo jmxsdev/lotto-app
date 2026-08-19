@@ -51,7 +51,7 @@ class PagoTipoTest extends TestCase
 
         $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
             ->actingAs($taquillaUser, 'sanctum')
-            ->postJson('/api/pagos', [
+            ->postJson('/api/v1/pagos', [
                 'apuesta_id' => $apuesta->id,
                 'tipo' => 'devolucion',
                 'moneda' => 'bs',

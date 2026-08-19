@@ -16,12 +16,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * PR 1–2 — GET /api/reportes/cuadre-caja.
+ * PR 1–2 — GET /api/v1/reportes/cuadre-caja.
  *
  * Agregación del cuadre de caja por entidad: ventas, pagados, devoluciones,
  * vencidos, efectivo, peso de venta y participación, con alcance jerárquico
  * por rol y rango de fechas. PR 2: niveles grupo/agencia, barra de totales,
- * filtro de moneda (bs/usd/mixto), alcance del rol grupo y POST /api/cierre
+ * filtro de moneda (bs/usd/mixto), alcance del rol grupo y POST /api/v1/cierre
  * intacto.
  */
 class CuadreCajaReportTest extends TestCase
@@ -108,7 +108,7 @@ class CuadreCajaReportTest extends TestCase
         $this->crearPago($taquilla, $super, 'devolucion', 100);
 
         $response = $this->actingAs($super, 'sanctum')
-            ->getJson('/api/reportes/cuadre-caja');
+            ->getJson('/api/v1/reportes/cuadre-caja');
 
         $response->assertStatus(200);
 
@@ -155,7 +155,7 @@ class CuadreCajaReportTest extends TestCase
         $this->crearPago($taquilla, $super, 'devolucion', 100);
 
         $response = $this->actingAs($super, 'sanctum')
-            ->getJson('/api/reportes/cuadre-caja');
+            ->getJson('/api/v1/reportes/cuadre-caja');
 
         $response->assertStatus(200);
 
@@ -197,7 +197,7 @@ class CuadreCajaReportTest extends TestCase
         $bancaUser->assignRole('banca');
 
         $response = $this->actingAs($bancaUser, 'sanctum')
-            ->getJson('/api/reportes/cuadre-caja');
+            ->getJson('/api/v1/reportes/cuadre-caja');
 
         $response->assertStatus(200);
         $data = $response->json('data');
@@ -233,7 +233,7 @@ class CuadreCajaReportTest extends TestCase
         ]);
 
         $response = $this->actingAs($super, 'sanctum')
-            ->getJson('/api/reportes/cuadre-caja?fecha_desde=2026-01-01&fecha_hasta=2026-01-31');
+            ->getJson('/api/v1/reportes/cuadre-caja?fecha_desde=2026-01-01&fecha_hasta=2026-01-31');
 
         $response->assertStatus(200);
 
@@ -273,7 +273,7 @@ class CuadreCajaReportTest extends TestCase
         $this->crearPago($taquillaUno, $super, 'egreso', 100);
 
         $response = $this->actingAs($super, 'sanctum')
-            ->getJson('/api/reportes/cuadre-caja?nivel=grupo');
+            ->getJson('/api/v1/reportes/cuadre-caja?nivel=grupo');
 
         $response->assertStatus(200);
         $porEntidad = collect($response->json('data'))->keyBy('Entidad');
@@ -324,7 +324,7 @@ class CuadreCajaReportTest extends TestCase
         $this->crearApuesta($taquillaB, $juego, 500, 'pendiente');
 
         $response = $this->actingAs($super, 'sanctum')
-            ->getJson('/api/reportes/cuadre-caja');
+            ->getJson('/api/v1/reportes/cuadre-caja');
 
         $response->assertStatus(200);
         $data = $response->json('data');
@@ -374,7 +374,7 @@ class CuadreCajaReportTest extends TestCase
         $this->crearPago($taquilla, $super, 'egreso', 0, 50, 'usd');     // USD: no suma en BS
 
         $response = $this->actingAs($super, 'sanctum')
-            ->getJson('/api/reportes/cuadre-caja?moneda=bs');
+            ->getJson('/api/v1/reportes/cuadre-caja?moneda=bs');
 
         $response->assertStatus(200);
         $fila = $response->json('data.0');
@@ -404,7 +404,7 @@ class CuadreCajaReportTest extends TestCase
         $this->crearPago($taquilla, $super, 'egreso', 0, 50, 'usd');     // USD
 
         $response = $this->actingAs($super, 'sanctum')
-            ->getJson('/api/reportes/cuadre-caja?moneda=usd');
+            ->getJson('/api/v1/reportes/cuadre-caja?moneda=usd');
 
         $response->assertStatus(200);
         $fila = $response->json('data.0');
@@ -433,7 +433,7 @@ class CuadreCajaReportTest extends TestCase
         $this->crearPago($taquilla, $super, 'egreso', 200, 10, 'mixto'); // 200 + 10×36.50 = 565
 
         $response = $this->actingAs($super, 'sanctum')
-            ->getJson('/api/reportes/cuadre-caja?moneda=mixto');
+            ->getJson('/api/v1/reportes/cuadre-caja?moneda=mixto');
 
         $response->assertStatus(200);
         $fila = $response->json('data.0');
@@ -464,7 +464,7 @@ class CuadreCajaReportTest extends TestCase
         $this->crearPago($taquillaUno, $super, 'devolucion', 50);
 
         $response = $this->actingAs($super, 'sanctum')
-            ->getJson('/api/reportes/cuadre-caja?nivel=agencia');
+            ->getJson('/api/v1/reportes/cuadre-caja?nivel=agencia');
 
         $response->assertStatus(200);
         $porEntidad = collect($response->json('data'))->keyBy('Entidad');
@@ -485,7 +485,7 @@ class CuadreCajaReportTest extends TestCase
 
     /**
      * 1.5.7 — test_post_cierre_sigue_intacto:
-     * El endpoint durmiente POST /api/cierre debe seguir disponible y
+     * El endpoint durmiente POST /api/v1/cierre debe seguir disponible y
      * funcional: validación 422 sin taquilla_id y creación 201 con una
      * taquilla válida (nunca 404).
      */
@@ -499,13 +499,13 @@ class CuadreCajaReportTest extends TestCase
 
         // Sin taquilla_id: validación del controlador, no 404
         $this->actingAs($super, 'sanctum')
-            ->postJson('/api/cierre')
+            ->postJson('/api/v1/cierre')
             ->assertStatus(422)
             ->assertJsonValidationErrors('taquilla_id');
 
         // Con taquilla válida: el cierre se crea con sus totales (comportamiento previo)
         $response = $this->actingAs($super, 'sanctum')
-            ->postJson('/api/cierre', ['taquilla_id' => $taquilla->id]);
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id]);
 
         $response->assertStatus(201)
             ->assertJsonPath('taquilla_id', $taquilla->id);
@@ -541,7 +541,7 @@ class CuadreCajaReportTest extends TestCase
         $grupoUser->assignRole('grupo');
 
         $response = $this->actingAs($grupoUser, 'sanctum')
-            ->getJson('/api/reportes/cuadre-caja?nivel=agencia');
+            ->getJson('/api/v1/reportes/cuadre-caja?nivel=agencia');
 
         $response->assertStatus(200);
         $data = $response->json('data');

@@ -72,7 +72,7 @@ class TerminologiaTest extends TestCase
         $taquilla = $this->crearJerarquiaConVenta();
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->getJson('/api/reportes/rendimiento-taquillas');
+            ->getJson('/api/v1/reportes/rendimiento-taquillas');
 
         $response->assertStatus(200);
         $data = $response->json('data');
@@ -95,7 +95,7 @@ class TerminologiaTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->getJson('/api/reportes/relacion-tickets');
+            ->getJson('/api/v1/reportes/relacion-tickets');
 
         $response->assertStatus(200);
         $data = $response->json('data');
@@ -118,7 +118,7 @@ class TerminologiaTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->getJson('/api/reportes/vencidos');
+            ->getJson('/api/v1/reportes/vencidos');
 
         $response->assertStatus(200);
         $data = $response->json('data');
@@ -144,7 +144,7 @@ class TerminologiaTest extends TestCase
 
         $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
             ->actingAs($user, 'sanctum')
-            ->getJson('/api/apuestas');
+            ->getJson('/api/v1/apuestas');
 
         $response->assertStatus(403)
             ->assertJsonPath('message', 'La agencia está desactivada.');
@@ -156,7 +156,7 @@ class TerminologiaTest extends TestCase
         $response = $this->withHeaders([
             'X-Panel' => 'true',
             'X-Device-Fingerprint' => 'demo-device-001',
-        ])->postJson('/api/login', [
+        ])->postJson('/api/v1/login', [
             'email' => 'demo@lotto.com',
             'password' => 'password',
         ]);
@@ -168,7 +168,7 @@ class TerminologiaTest extends TestCase
     public function test_activacion_mensaje_agencia_activada()
     {
         // Taquilla del seeder con activation_code 'ABCDE' y active=false
-        $response = $this->postJson('/api/activar', [
+        $response = $this->postJson('/api/v1/activar', [
             'activation_code' => 'ABCDE',
             'mac_address' => 'AA:BB:CC:DD:EE:FF',
             'device_fingerprint' => 'fp-term-001',
@@ -184,7 +184,7 @@ class TerminologiaTest extends TestCase
         $taquilla = Taquilla::factory()->create();
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->deleteJson('/api/taquillas/' . $taquilla->id);
+            ->deleteJson('/api/v1/taquillas/' . $taquilla->id);
 
         $response->assertStatus(200)
             ->assertJsonPath('message', 'Agencia eliminada correctamente.');
@@ -197,7 +197,7 @@ class TerminologiaTest extends TestCase
         $juego = Juego::where('slug', 'lotto-activo')->first();
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->postJson('/api/apuestas', [
+            ->postJson('/api/v1/apuestas', [
                 'juego_id' => $juego->id,
                 'amount_bs' => 100,
                 'amount_usd' => 0,
@@ -213,7 +213,7 @@ class TerminologiaTest extends TestCase
         $juego = Juego::where('slug', 'lotto-activo')->first();
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->postJson('/api/tickets', [
+            ->postJson('/api/v1/tickets', [
                 'lines' => [
                     ['juego_id' => $juego->id, 'amount_bs' => 100, 'amount_usd' => 0],
                 ],
@@ -231,9 +231,9 @@ class TerminologiaTest extends TestCase
     {
         $taquilla = $this->crearJerarquiaConVenta();
 
-        // La ruta /api/taquillas sigue existiendo
+        // La ruta /api/v1/taquillas sigue existiendo
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->getJson('/api/taquillas');
+            ->getJson('/api/v1/taquillas');
 
         $response->assertStatus(200);
 

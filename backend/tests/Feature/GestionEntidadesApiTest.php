@@ -11,7 +11,7 @@ use Illuminate\Support\Collection;
 use Tests\TestCase;
 
 /**
- * PR 5 — filtros de entidad en GET /api/users (tarea 3.4).
+ * PR 5 — filtros de entidad en GET /api/v1/users (tarea 3.4).
  *
  * Los filtros explícitos banca_id/grupo_id/taquilla_id intersectan el alcance
  * jerárquico del rol: un filtro ajeno devuelve lista vacía (nunca datos de
@@ -114,7 +114,7 @@ class GestionEntidadesApiTest extends TestCase
         $usuarioAjeno = $this->crearUsuario('banca', ['banca_id' => $bancaAjena->id]);
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->getJson('/api/users?banca_id=' . $this->bancaSeeded()->id);
+            ->getJson('/api/v1/users?banca_id=' . $this->bancaSeeded()->id);
 
         $response->assertStatus(200);
 
@@ -139,7 +139,7 @@ class GestionEntidadesApiTest extends TestCase
         $usuarioOtroGrupo = $this->crearUsuario('grupo', ['banca_id' => $otroGrupo->banca_id, 'grupo_id' => $otroGrupo->id]);
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->getJson('/api/users?grupo_id=' . $grupo->id);
+            ->getJson('/api/v1/users?grupo_id=' . $grupo->id);
 
         $response->assertStatus(200);
 
@@ -160,7 +160,7 @@ class GestionEntidadesApiTest extends TestCase
         $taquilla = $this->taquillaSeeded();
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->getJson('/api/users?taquilla_id=' . $taquilla->id);
+            ->getJson('/api/v1/users?taquilla_id=' . $taquilla->id);
 
         $response->assertStatus(200);
 
@@ -178,7 +178,7 @@ class GestionEntidadesApiTest extends TestCase
         $usuarioAjeno = $this->crearUsuario('banca', ['banca_id' => $bancaAjena->id]);
 
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
-            ->getJson('/api/users');
+            ->getJson('/api/v1/users');
 
         $response->assertStatus(200);
 
@@ -200,7 +200,7 @@ class GestionEntidadesApiTest extends TestCase
         $grupo = $this->grupoSeeded();
 
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
-            ->getJson('/api/users?grupo_id=' . $grupo->id);
+            ->getJson('/api/v1/users?grupo_id=' . $grupo->id);
 
         $response->assertStatus(200);
 
@@ -223,7 +223,7 @@ class GestionEntidadesApiTest extends TestCase
 
         // El filtro no amplía el alcance: grupo de otra banca → lista vacía
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
-            ->getJson('/api/users?grupo_id=' . $grupoAjeno->id);
+            ->getJson('/api/v1/users?grupo_id=' . $grupoAjeno->id);
 
         $response->assertStatus(200);
         $this->assertEmpty($response->json());
@@ -238,7 +238,7 @@ class GestionEntidadesApiTest extends TestCase
         $taquilla = $this->taquillaSeeded();
 
         $response = $this->actingAs($this->grupoUser(), 'sanctum')
-            ->getJson('/api/users?taquilla_id=' . $taquilla->id);
+            ->getJson('/api/v1/users?taquilla_id=' . $taquilla->id);
 
         $response->assertStatus(200);
 
@@ -271,7 +271,7 @@ class GestionEntidadesApiTest extends TestCase
 
         // Taquilla de otro grupo (aunque sea de su misma banca) → lista vacía
         $response = $this->actingAs($this->grupoUser(), 'sanctum')
-            ->getJson('/api/users?taquilla_id=' . $otraTaquilla->id);
+            ->getJson('/api/v1/users?taquilla_id=' . $otraTaquilla->id);
 
         $response->assertStatus(200);
         $this->assertEmpty($response->json());
@@ -285,14 +285,14 @@ class GestionEntidadesApiTest extends TestCase
     {
         // banca_id inexistente
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->getJson('/api/users?banca_id=999999');
+            ->getJson('/api/v1/users?banca_id=999999');
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors('banca_id');
 
         // taquilla_id no numérico
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->getJson('/api/users?taquilla_id=abc');
+            ->getJson('/api/v1/users?taquilla_id=abc');
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors('taquilla_id');
@@ -308,7 +308,7 @@ class GestionEntidadesApiTest extends TestCase
         $response = $this->actingAs($demo, 'sanctum')
             ->withHeader('X-Device-MAC', '00:1A:2B:3C:4D:5E')
             ->withHeader('X-Device-Fingerprint', 'demo-device-001')
-            ->getJson('/api/users');
+            ->getJson('/api/v1/users');
 
         $response->assertStatus(200);
 

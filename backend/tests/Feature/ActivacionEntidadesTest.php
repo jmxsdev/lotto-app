@@ -56,14 +56,14 @@ class ActivacionEntidadesTest extends TestCase
         $banca = Banca::factory()->create(['active' => true]);
 
         $this->actingAs($this->master(), 'sanctum')
-            ->patchJson("/api/bancas/{$banca->id}/toggle")
+            ->patchJson("/api/v1/bancas/{$banca->id}/toggle")
             ->assertStatus(200)
             ->assertJsonPath('active', false);
 
         $this->assertDatabaseHas('bancas', ['id' => $banca->id, 'active' => false]);
 
         $this->actingAs($this->master(), 'sanctum')
-            ->patchJson("/api/bancas/{$banca->id}/toggle")
+            ->patchJson("/api/v1/bancas/{$banca->id}/toggle")
             ->assertStatus(200)
             ->assertJsonPath('active', true);
 
@@ -75,7 +75,7 @@ class ActivacionEntidadesTest extends TestCase
         $grupo = Grupo::factory()->create(['active' => true]);
 
         $this->actingAs($this->master(), 'sanctum')
-            ->patchJson("/api/grupos/{$grupo->id}/toggle")
+            ->patchJson("/api/v1/grupos/{$grupo->id}/toggle")
             ->assertStatus(200)
             ->assertJsonPath('active', false);
 
@@ -87,7 +87,7 @@ class ActivacionEntidadesTest extends TestCase
         [, , $taquilla] = $this->crearJerarquia(['taquilla' => ['active' => true]]);
 
         $this->actingAs($this->master(), 'sanctum')
-            ->patchJson("/api/taquillas/{$taquilla->id}/toggle")
+            ->patchJson("/api/v1/taquillas/{$taquilla->id}/toggle")
             ->assertStatus(200)
             ->assertJsonPath('active', false);
 
@@ -102,7 +102,7 @@ class ActivacionEntidadesTest extends TestCase
         $grupo = Grupo::factory()->create(['banca_id' => $bancaUser->banca_id, 'active' => true]);
 
         $this->actingAs($bancaUser, 'sanctum')
-            ->patchJson("/api/grupos/{$grupo->id}/toggle")
+            ->patchJson("/api/v1/grupos/{$grupo->id}/toggle")
             ->assertStatus(200)
             ->assertJsonPath('active', false);
     }
@@ -119,7 +119,7 @@ class ActivacionEntidadesTest extends TestCase
         ]);
 
         $this->actingAs($this->master(), 'sanctum')
-            ->patchJson("/api/grupos/{$grupo->id}/toggle")
+            ->patchJson("/api/v1/grupos/{$grupo->id}/toggle")
             ->assertStatus(200);
 
         // Sin cascada: el flag propio de la agencia sigue en true
@@ -135,7 +135,7 @@ class ActivacionEntidadesTest extends TestCase
         ]);
 
         $this->actingAs($this->master(), 'sanctum')
-            ->patchJson("/api/bancas/{$banca->id}/toggle")
+            ->patchJson("/api/v1/bancas/{$banca->id}/toggle")
             ->assertStatus(200);
 
         $this->assertDatabaseHas('bancas', ['id' => $banca->id, 'active' => false]);
@@ -162,7 +162,7 @@ class ActivacionEntidadesTest extends TestCase
         $response = $this->withHeaders([
             'X-Device-MAC' => 'AA:BB:CC:DD:EE:FF',
             'X-Device-Fingerprint' => 'fp-001',
-        ])->actingAs($user, 'sanctum')->getJson('/api/apuestas');
+        ])->actingAs($user, 'sanctum')->getJson('/api/v1/apuestas');
 
         $response->assertStatus(403)
             ->assertJsonPath('message', 'La agencia está pausada porque su grupo está desactivado.');
@@ -186,7 +186,7 @@ class ActivacionEntidadesTest extends TestCase
         $response = $this->withHeaders([
             'X-Device-MAC' => 'AA:BB:CC:DD:EE:FF',
             'X-Device-Fingerprint' => 'fp-001',
-        ])->actingAs($user, 'sanctum')->getJson('/api/apuestas');
+        ])->actingAs($user, 'sanctum')->getJson('/api/v1/apuestas');
 
         $response->assertStatus(403)
             ->assertJsonPath('message', 'La agencia está pausada porque su banca está desactivada.');
@@ -198,7 +198,7 @@ class ActivacionEntidadesTest extends TestCase
         $user = $this->crearUsuarioTaquilla($taquilla);
 
         $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
-            ->actingAs($user, 'sanctum')->getJson('/api/apuestas');
+            ->actingAs($user, 'sanctum')->getJson('/api/v1/apuestas');
 
         $response->assertStatus(403)
             ->assertJsonPath('message', 'La agencia está desactivada.');
@@ -223,17 +223,17 @@ class ActivacionEntidadesTest extends TestCase
 
         // Desactivar grupo → la agencia queda bloqueada
         $this->actingAs($this->master(), 'sanctum')
-            ->patchJson("/api/grupos/{$grupo->id}/toggle")->assertStatus(200);
+            ->patchJson("/api/v1/grupos/{$grupo->id}/toggle")->assertStatus(200);
 
         $this->withHeaders($headers)->actingAs($user, 'sanctum')
-            ->getJson('/api/apuestas')->assertStatus(403);
+            ->getJson('/api/v1/apuestas')->assertStatus(403);
 
         // Reactivar grupo → opera de inmediato sin re-activación
         $this->actingAs($this->master(), 'sanctum')
-            ->patchJson("/api/grupos/{$grupo->id}/toggle")->assertStatus(200);
+            ->patchJson("/api/v1/grupos/{$grupo->id}/toggle")->assertStatus(200);
 
         $this->withHeaders($headers)->actingAs($user, 'sanctum')
-            ->getJson('/api/apuestas')->assertStatus(200);
+            ->getJson('/api/v1/apuestas')->assertStatus(200);
 
         // MAC y huella permanecieron intactos
         $this->assertDatabaseHas('taquillas', [
@@ -267,7 +267,7 @@ class ActivacionEntidadesTest extends TestCase
         $user->assignRole('taquilla');
 
         $response = $this->withHeaders(['X-Device-Fingerprint' => 'fp-001'])
-            ->postJson('/api/login', [
+            ->postJson('/api/v1/login', [
                 'email' => 'taq-cadena@test.com',
                 'password' => 'password',
             ]);
@@ -287,7 +287,7 @@ class ActivacionEntidadesTest extends TestCase
         ]);
         $user->assignRole('banca');
 
-        $response = $this->postJson('/api/login', [
+        $response = $this->postJson('/api/v1/login', [
             'email' => 'banca-cadena@test.com',
             'password' => 'password',
         ]);
@@ -299,7 +299,7 @@ class ActivacionEntidadesTest extends TestCase
     public function test_login_master_no_se_ve_afectado_por_cadena()
     {
         $response = $this->withHeaders(['X-Panel' => 'true'])
-            ->postJson('/api/login', [
+            ->postJson('/api/v1/login', [
                 'email' => 'master@lotto.com',
                 'password' => 'password',
             ]);
@@ -322,7 +322,7 @@ class ActivacionEntidadesTest extends TestCase
             ],
         ]);
 
-        $response = $this->postJson('/api/activar', [
+        $response = $this->postJson('/api/v1/activar', [
             'activation_code' => 'CADENA01',
             'mac_address' => 'AA:BB:CC:DD:EE:FF',
             'device_fingerprint' => 'fp-act-001',
@@ -346,7 +346,7 @@ class ActivacionEntidadesTest extends TestCase
 
         $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF', 'X-Device-Fingerprint' => 'fp-001'])
             ->actingAs($user, 'sanctum')
-            ->patchJson("/api/bancas/{$banca->id}/toggle")
+            ->patchJson("/api/v1/bancas/{$banca->id}/toggle")
             ->assertStatus(403);
     }
 
@@ -358,7 +358,7 @@ class ActivacionEntidadesTest extends TestCase
         $otroGrupo = Grupo::factory()->create(['active' => true]);
 
         $this->actingAs($grupoUser, 'sanctum')
-            ->patchJson("/api/grupos/{$otroGrupo->id}/toggle")
+            ->patchJson("/api/v1/grupos/{$otroGrupo->id}/toggle")
             ->assertStatus(403);
     }
 
@@ -373,7 +373,7 @@ class ActivacionEntidadesTest extends TestCase
         ]);
 
         $this->actingAs($grupoUser, 'sanctum')
-            ->patchJson("/api/taquillas/{$taquilla->id}/toggle")
+            ->patchJson("/api/v1/taquillas/{$taquilla->id}/toggle")
             ->assertStatus(200)
             ->assertJsonPath('active', false);
     }

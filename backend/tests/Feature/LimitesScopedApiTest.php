@@ -12,13 +12,13 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * PR 1 — GET /api/limites en modo entidad.
+ * PR 1 — GET /api/v1/limites en modo entidad.
  *
  * Matriz completa juego×moneda de una entidad en UNA sola respuesta,
  * indexada por "juego_id:moneda", con origen heredado del nivel superior
  * y alcance de rol aplicado primero (intersección, nunca ampliación).
  *
- * PR 2 — GET /api/limites en modo scope.
+ * PR 2 — GET /api/v1/limites en modo scope.
  *
  * Matriz de TODAS las entidades del tipo visibles para el rol, indexada
  * por "entidad_id:juego_id:moneda", con `mixto` por juego×moneda y sin
@@ -97,7 +97,7 @@ class LimitesScopedApiTest extends TestCase
         $clave = $lotto->id . ':bs';
 
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->getJson('/api/limites?banca_id=' . $banca->id);
+            ->getJson('/api/v1/limites?banca_id=' . $banca->id);
 
         $response->assertStatus(200);
 
@@ -129,7 +129,7 @@ class LimitesScopedApiTest extends TestCase
 
         // Sin fila propia del grupo: el origen hereda de la banca
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->getJson('/api/limites?grupo_id=' . $grupo->id);
+            ->getJson('/api/v1/limites?grupo_id=' . $grupo->id);
 
         $response->assertStatus(200);
 
@@ -151,7 +151,7 @@ class LimitesScopedApiTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->getJson('/api/limites?grupo_id=' . $grupo->id);
+            ->getJson('/api/v1/limites?grupo_id=' . $grupo->id);
 
         $data = $response->json('data');
 
@@ -178,7 +178,7 @@ class LimitesScopedApiTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->getJson('/api/limites?taquilla_id=' . $taquilla->id);
+            ->getJson('/api/v1/limites?taquilla_id=' . $taquilla->id);
 
         $response->assertStatus(200);
 
@@ -201,7 +201,7 @@ class LimitesScopedApiTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->getJson('/api/limites?taquilla_id=' . $taquilla->id);
+            ->getJson('/api/v1/limites?taquilla_id=' . $taquilla->id);
 
         $data = $response->json('data');
 
@@ -221,19 +221,19 @@ class LimitesScopedApiTest extends TestCase
 
         // Sin filtro de entidad → 422
         $this->actingAs($this->masterUser(), 'sanctum')
-            ->getJson('/api/limites')
+            ->getJson('/api/v1/limites')
             ->assertStatus(422);
 
         // Más de un filtro → 422
         $this->actingAs($this->masterUser(), 'sanctum')
-            ->getJson('/api/limites?banca_id=' . $banca->id . '&grupo_id=' . $grupo->id)
+            ->getJson('/api/v1/limites?banca_id=' . $banca->id . '&grupo_id=' . $grupo->id)
             ->assertStatus(422);
     }
 
     public function test_limites_entidad_inexistente_422()
     {
         $this->actingAs($this->masterUser(), 'sanctum')
-            ->getJson('/api/limites?banca_id=999999')
+            ->getJson('/api/v1/limites?banca_id=999999')
             ->assertStatus(422)
             ->assertJsonValidationErrors('banca_id');
     }
@@ -247,7 +247,7 @@ class LimitesScopedApiTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
-            ->getJson('/api/limites?banca_id=' . $otraBanca->id);
+            ->getJson('/api/v1/limites?banca_id=' . $otraBanca->id);
 
         // Intersección vacía: 200 con la matriz sin valores (nunca amplía el alcance)
         $response->assertStatus(200);
@@ -274,7 +274,7 @@ class LimitesScopedApiTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->grupoUser(), 'sanctum')
-            ->getJson('/api/limites?grupo_id=' . $otroGrupo->id);
+            ->getJson('/api/v1/limites?grupo_id=' . $otroGrupo->id);
 
         $response->assertStatus(200);
 
@@ -295,7 +295,7 @@ class LimitesScopedApiTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->getJson('/api/limites?banca_id=' . $this->bancaSeeded()->id);
+            ->getJson('/api/v1/limites?banca_id=' . $this->bancaSeeded()->id);
 
         $response->assertStatus(200);
 
@@ -326,7 +326,7 @@ class LimitesScopedApiTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->getJson('/api/limites?scope=bancas');
+            ->getJson('/api/v1/limites?scope=bancas');
 
         $response->assertStatus(200);
 
@@ -384,7 +384,7 @@ class LimitesScopedApiTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
-            ->getJson('/api/limites?scope=grupos');
+            ->getJson('/api/v1/limites?scope=grupos');
 
         $response->assertStatus(200);
 
@@ -434,7 +434,7 @@ class LimitesScopedApiTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->grupoUser(), 'sanctum')
-            ->getJson('/api/limites?scope=taquillas');
+            ->getJson('/api/v1/limites?scope=taquillas');
 
         $response->assertStatus(200);
 
@@ -475,7 +475,7 @@ class LimitesScopedApiTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->grupoUser(), 'sanctum')
-            ->getJson('/api/limites?scope=taquillas');
+            ->getJson('/api/v1/limites?scope=taquillas');
 
         $response->assertStatus(200);
 
@@ -500,7 +500,7 @@ class LimitesScopedApiTest extends TestCase
         $lotto = $this->juegoLotto();
 
         $consultar = fn () => $this->actingAs($this->grupoUser(), 'sanctum')
-            ->getJson('/api/limites?scope=taquillas')
+            ->getJson('/api/v1/limites?scope=taquillas')
             ->assertStatus(200)
             ->json('data');
 
@@ -534,12 +534,12 @@ class LimitesScopedApiTest extends TestCase
 
         // scope + filtro de entidad → 422
         $this->actingAs($this->masterUser(), 'sanctum')
-            ->getJson('/api/limites?scope=bancas&banca_id=' . $banca->id)
+            ->getJson('/api/v1/limites?scope=bancas&banca_id=' . $banca->id)
             ->assertStatus(422);
 
         // scope inválido → 422 por validación
         $this->actingAs($this->masterUser(), 'sanctum')
-            ->getJson('/api/limites?scope=invalido')
+            ->getJson('/api/v1/limites?scope=invalido')
             ->assertStatus(422)
             ->assertJsonValidationErrors('scope');
     }
@@ -555,7 +555,7 @@ class LimitesScopedApiTest extends TestCase
         $lotto = $this->juegoLotto();
 
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->postJson('/api/limites/batch', [
+            ->postJson('/api/v1/limites/batch', [
                 'scope' => ['tipo' => 'grupo', 'id' => $grupo->id],
                 'limites' => [
                     ['juego_id' => $lotto->id, 'moneda' => 'bs', 'limite_minimo' => 4000],
@@ -581,7 +581,7 @@ class LimitesScopedApiTest extends TestCase
         $lotto = $this->juegoLotto();
 
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->postJson('/api/limites/batch', [
+            ->postJson('/api/v1/limites/batch', [
                 'scope' => ['tipo' => 'banca', 'id' => $banca->id],
                 'limites' => [
                     ['juego_id' => $lotto->id, 'moneda' => 'bs', 'limite_maximo' => 900],
@@ -602,7 +602,7 @@ class LimitesScopedApiTest extends TestCase
         $lotto = $this->juegoLotto();
 
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->postJson('/api/limites/batch', [
+            ->postJson('/api/v1/limites/batch', [
                 'scope' => ['tipo' => 'taquilla', 'id' => $taquilla->id],
                 'limites' => [
                     ['juego_id' => $lotto->id, 'moneda' => 'bs', 'limite_minimo' => 4000],
@@ -622,7 +622,7 @@ class LimitesScopedApiTest extends TestCase
         $lotto = $this->juegoLotto();
 
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->postJson('/api/limites/batch', [
+            ->postJson('/api/v1/limites/batch', [
                 'scope' => ['tipo' => 'banca', 'id' => $banca->id],
                 'limites' => [
                     ['juego_id' => $lotto->id, 'moneda' => 'bs', 'banca_id' => $banca->id, 'limite_minimo' => 100],
@@ -645,7 +645,7 @@ class LimitesScopedApiTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
-            ->postJson('/api/limites/batch', [
+            ->postJson('/api/v1/limites/batch', [
                 'scope' => ['tipo' => 'banca', 'id' => $otraBanca->id],
                 'limites' => [
                     [ "juego_id" => $lotto->id, "moneda" => "bs", "limite_minimo" => 4000],
@@ -662,7 +662,7 @@ class LimitesScopedApiTest extends TestCase
 
         // Crear fila previa
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->postJson('/api/limites/batch', [
+            ->postJson('/api/v1/limites/batch', [
                 'limites' => [
                     ['juego_id' => $lotto->id, 'banca_id' => $banca->id, 'moneda' => 'bs', 'limite_minimo' => 100],
                 ],
@@ -673,7 +673,7 @@ class LimitesScopedApiTest extends TestCase
 
         // Null explícito → elimina la fila (volver a heredar)
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->postJson('/api/limites/batch', [
+            ->postJson('/api/v1/limites/batch', [
                 'limites' => [
                     ['juego_id' => $lotto->id, 'banca_id' => $banca->id, 'moneda' => 'bs', 'limite_minimo' => null],
                 ],
@@ -690,7 +690,7 @@ class LimitesScopedApiTest extends TestCase
 
         // Primera escritura: min + max
         $this->actingAs($this->masterUser(), 'sanctum')
-            ->postJson('/api/limites/batch', [
+            ->postJson('/api/v1/limites/batch', [
                 'limites' => [
                     ['juego_id' => $lotto->id, 'banca_id' => $banca->id, 'moneda' => 'bs', 'limite_minimo' => 100, 'limite_maximo' => 900],
                 ],
@@ -698,7 +698,7 @@ class LimitesScopedApiTest extends TestCase
 
         // Segunda escritura: solo min — max debe conservarse
         $this->actingAs($this->masterUser(), 'sanctum')
-            ->postJson('/api/limites/batch', [
+            ->postJson('/api/v1/limites/batch', [
                 'limites' => [
                     ['juego_id' => $lotto->id, 'banca_id' => $banca->id, 'moneda' => 'bs', 'limite_minimo' => 200],
                 ],
@@ -718,7 +718,7 @@ class LimitesScopedApiTest extends TestCase
 
         // Padre (banca): max 500
         $this->actingAs($this->masterUser(), 'sanctum')
-            ->postJson('/api/limites/batch', [
+            ->postJson('/api/v1/limites/batch', [
                 'limites' => [
                     ['juego_id' => $lotto->id, 'banca_id' => $banca->id, 'moneda' => 'bs', 'limite_maximo' => 500],
                 ],
@@ -726,7 +726,7 @@ class LimitesScopedApiTest extends TestCase
 
         // Hijo (grupo) intenta max 900 > 500 → 422 y rollback total
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->postJson('/api/limites/batch', [
+            ->postJson('/api/v1/limites/batch', [
                 'scope' => ['tipo' => 'grupo', 'id' => $grupo->id],
                 'limites' => [
                     ['juego_id' => $lotto->id, 'moneda' => 'bs', 'limite_maximo' => 900],
@@ -746,7 +746,7 @@ class LimitesScopedApiTest extends TestCase
 
         // scope tipo plural sin id: todas las agencias visibles para master
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->postJson('/api/limites/batch', [
+            ->postJson('/api/v1/limites/batch', [
                 'scope' => ['tipo' => 'taquillas'],
                 'limites' => [
                     ['juego_id' => $lotto->id, 'moneda' => 'bs', 'limite_maximo' => 800],
@@ -766,7 +766,7 @@ class LimitesScopedApiTest extends TestCase
         $lotto = $this->juegoLotto();
 
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->postJson('/api/limites/batch', [
+            ->postJson('/api/v1/limites/batch', [
                 'scope' => ['tipo' => 'taquilla'],
                 'limites' => [
                     ['juego_id' => $lotto->id, 'moneda' => 'bs', 'limite_maximo' => 800],
@@ -794,7 +794,7 @@ class LimitesScopedApiTest extends TestCase
         Grupo::create(['name' => 'Grupo Sur', 'code' => 'GSZ01', 'banca_id' => $otraBanca->id, 'created_by' => $this->superUser()->id]);
 
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->getJson('/api/limites?scope=grupos&banca_id=' . $banca->id);
+            ->getJson('/api/v1/limites?scope=grupos&banca_id=' . $banca->id);
 
         $response->assertStatus(200);
 
@@ -812,7 +812,7 @@ class LimitesScopedApiTest extends TestCase
         $taquilla = $this->taquillaSeeded();
 
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->getJson('/api/limites?scope=taquillas&grupo_id=' . $grupo->id);
+            ->getJson('/api/v1/limites?scope=taquillas&grupo_id=' . $grupo->id);
 
         $response->assertStatus(200);
 
@@ -829,7 +829,7 @@ class LimitesScopedApiTest extends TestCase
 
         // scope plural con id: grupos de la banca (sin la banca misma, sin agencias)
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->postJson('/api/limites/batch', [
+            ->postJson('/api/v1/limites/batch', [
                 'scope' => ['tipo' => 'grupos', 'id' => $banca->id],
                 'limites' => [
                     ['juego_id' => $lotto->id, 'moneda' => 'bs', 'limite_maximo' => 950],
@@ -850,7 +850,7 @@ class LimitesScopedApiTest extends TestCase
         $lotto = $this->juegoLotto();
 
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->postJson('/api/limites/batch', [
+            ->postJson('/api/v1/limites/batch', [
                 'scope' => ['tipo' => 'taquillas', 'id' => $banca->id],
                 'limites' => [
                     ['juego_id' => $lotto->id, 'moneda' => 'bs', 'limite_maximo' => 850],

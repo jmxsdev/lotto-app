@@ -81,7 +81,7 @@ class ReporteTest extends TestCase
         }
 
         $response = $this->actingAs($super, 'sanctum')
-            ->getJson('/api/reportes/ventas-totales');
+            ->getJson('/api/v1/reportes/ventas-totales');
 
         $response->assertStatus(200);
         $data = $response->json('data');
@@ -142,7 +142,7 @@ class ReporteTest extends TestCase
 
         // Consultar un rango donde no hay apuestas
         $response = $this->actingAs($super, 'sanctum')
-            ->getJson('/api/reportes/ventas-totales?fecha_desde=2026-01-01&fecha_hasta=2026-01-31');
+            ->getJson('/api/v1/reportes/ventas-totales?fecha_desde=2026-01-01&fecha_hasta=2026-01-31');
 
         $response->assertStatus(200);
         $data = $response->json('data');
@@ -208,7 +208,7 @@ class ReporteTest extends TestCase
         // Verificar en ventas-totales (el acceso jerárquico de taquilla solo ve sus apuestas)
         $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
             ->actingAs($taquillaUser, 'sanctum')
-            ->getJson('/api/reportes/ventas-totales');
+            ->getJson('/api/v1/reportes/ventas-totales');
 
         $response->assertStatus(200);
         $data = $response->json('data');
@@ -222,7 +222,7 @@ class ReporteTest extends TestCase
         // Verificar en rendimiento-taquillas
         $responseRend = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
             ->actingAs($taquillaUser, 'sanctum')
-            ->getJson('/api/reportes/rendimiento-taquillas');
+            ->getJson('/api/v1/reportes/rendimiento-taquillas');
 
         $responseRend->assertStatus(200);
         $rendData = $responseRend->json('data');

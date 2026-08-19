@@ -18,9 +18,9 @@ use Tests\TestCase;
 /**
  * PR 6 — cierre-caja backend.
  *
- * POST /api/cierre crea el cierre con totales agregados del período
+ * POST /api/v1/cierre crea el cierre con totales agregados del período
  * [último cierre | primera apuesta, ahora) y exige tasa de cambio activa.
- * GET /api/cierre y GET /api/cierre/{id} respetan el alcance jerárquico.
+ * GET /api/v1/cierre y GET /api/v1/cierre/{id} respetan el alcance jerárquico.
  */
 class CierreCajaTest extends TestCase
 {
@@ -171,7 +171,7 @@ class CierreCajaTest extends TestCase
     }
 
     // ==================================================
-    // POST /api/cierre — creación y agregados
+    // POST /api/v1/cierre — creación y agregados
     // ==================================================
 
     public function test_taquilla_puede_crear_cierre_de_su_propia_agencia()
@@ -185,7 +185,7 @@ class CierreCajaTest extends TestCase
 
         $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
             ->actingAs($taquillaUser, 'sanctum')
-            ->postJson('/api/cierre');
+            ->postJson('/api/v1/cierre');
 
         $response->assertStatus(201)
             ->assertJsonPath('taquilla_id', $taquilla->id)
@@ -223,7 +223,7 @@ class CierreCajaTest extends TestCase
         $this->crearPago($taquilla, ['tipo' => 'egreso', 'amount_bs' => 700, 'created_at' => now()->subHours(10)]);
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->postJson('/api/cierre', ['taquilla_id' => $taquilla->id]);
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id]);
 
         $response->assertStatus(201);
 
@@ -263,7 +263,7 @@ class CierreCajaTest extends TestCase
         $this->crearApuesta($taquilla, ['amount_bs' => 300, 'total_bs_equivalent' => 300, 'fecha_hora' => now()->subHour()]);
 
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->postJson('/api/cierre', ['taquilla_id' => $taquilla->id]);
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id]);
 
         $response->assertStatus(201);
 
@@ -285,7 +285,7 @@ class CierreCajaTest extends TestCase
         $taquilla = $this->taquillaSeeded();
 
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->postJson('/api/cierre', ['taquilla_id' => $taquilla->id]);
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id]);
 
         $response->assertStatus(422)
             ->assertJsonPath('message', 'No hay tasa de cambio activa para realizar el cierre.');
@@ -294,7 +294,7 @@ class CierreCajaTest extends TestCase
     }
 
     // ==================================================
-    // POST /api/cierre — jerarquía
+    // POST /api/v1/cierre — jerarquía
     // ==================================================
 
     public function test_super_master_puede_crear_cierre_para_cualquier_taquilla()
@@ -303,7 +303,7 @@ class CierreCajaTest extends TestCase
         $this->crearApuesta($taquilla, ['amount_bs' => 100, 'total_bs_equivalent' => 100]);
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->postJson('/api/cierre', ['taquilla_id' => $taquilla->id]);
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id]);
 
         $response->assertStatus(201)
             ->assertJsonPath('taquilla_id', $taquilla->id);
@@ -312,7 +312,7 @@ class CierreCajaTest extends TestCase
     public function test_cierre_requiere_taquilla_id_para_roles_administrativos()
     {
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->postJson('/api/cierre');
+            ->postJson('/api/v1/cierre');
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors('taquilla_id');
@@ -324,7 +324,7 @@ class CierreCajaTest extends TestCase
         $this->crearApuesta($taquilla, ['amount_bs' => 50, 'total_bs_equivalent' => 50]);
 
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
-            ->postJson('/api/cierre', ['taquilla_id' => $taquilla->id]);
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id]);
 
         $response->assertStatus(201)
             ->assertJsonPath('taquilla_id', $taquilla->id);
@@ -337,7 +337,7 @@ class CierreCajaTest extends TestCase
         $taquilla = $this->crearTaquilla('TTC03', $otroGrupo->id);
 
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
-            ->postJson('/api/cierre', ['taquilla_id' => $taquilla->id]);
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id]);
 
         $response->assertStatus(403);
 
@@ -345,7 +345,7 @@ class CierreCajaTest extends TestCase
     }
 
     // ==================================================
-    // GET /api/cierre — alcance jerárquico
+    // GET /api/v1/cierre — alcance jerárquico
     // ==================================================
 
     public function test_taquilla_solo_ve_sus_propios_cierres_en_index()
@@ -361,7 +361,7 @@ class CierreCajaTest extends TestCase
 
         $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
             ->actingAs($taquillaUser, 'sanctum')
-            ->getJson('/api/cierre');
+            ->getJson('/api/v1/cierre');
 
         $response->assertStatus(200);
 
@@ -383,7 +383,7 @@ class CierreCajaTest extends TestCase
         $this->crearCierre($otraTaquilla);
 
         $response = $this->actingAs($this->grupoUser(), 'sanctum')
-            ->getJson('/api/cierre');
+            ->getJson('/api/v1/cierre');
 
         $response->assertStatus(200);
 
@@ -402,7 +402,7 @@ class CierreCajaTest extends TestCase
         $this->crearCierre($otraTaquilla);
 
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->getJson('/api/cierre');
+            ->getJson('/api/v1/cierre');
 
         $response->assertStatus(200);
 
@@ -412,7 +412,7 @@ class CierreCajaTest extends TestCase
     }
 
     // ==================================================
-    // GET /api/cierre/{id} — detalle
+    // GET /api/v1/cierre/{id} — detalle
     // ==================================================
 
     public function test_show_cierre_dentro_del_alcance_del_rol()
@@ -421,7 +421,7 @@ class CierreCajaTest extends TestCase
         $cierre = $this->crearCierre($taquilla);
 
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
-            ->getJson('/api/cierre/' . $cierre->id);
+            ->getJson('/api/v1/cierre/' . $cierre->id);
 
         $response->assertStatus(200)
             ->assertJsonPath('id', $cierre->id)
@@ -436,7 +436,7 @@ class CierreCajaTest extends TestCase
         $cierre = $this->crearCierre($taquilla);
 
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
-            ->getJson('/api/cierre/' . $cierre->id);
+            ->getJson('/api/v1/cierre/' . $cierre->id);
 
         $response->assertStatus(403);
     }
@@ -444,7 +444,7 @@ class CierreCajaTest extends TestCase
     public function test_show_cierre_inexistente_responde_404()
     {
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->getJson('/api/cierre/999999');
+            ->getJson('/api/v1/cierre/999999');
 
         $response->assertStatus(404);
     }

@@ -44,7 +44,7 @@ class ApuestaTest extends TestCase
 
         $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
             ->actingAs($taquillaUser, 'sanctum')
-            ->postJson('/api/apuestas', [
+            ->postJson('/api/v1/apuestas', [
                 'juego_id' => $juego->id,
                 'combinacion' => ['animal' => 'perro', 'numero' => 5],
                 'amount_bs' => 1800,
@@ -96,7 +96,7 @@ class ApuestaTest extends TestCase
 
         $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
             ->actingAs($taquillaUser, 'sanctum')
-            ->postJson('/api/apuestas', [
+            ->postJson('/api/v1/apuestas', [
                 'juego_id' => $juego->id,
                 'combinacion' => ['animal' => 'perro'],
                 'amount_bs' => 1000,
@@ -134,7 +134,7 @@ class ApuestaTest extends TestCase
         // Crear apuesta con tasa 36.50
         $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
             ->actingAs($taquillaUser, 'sanctum')
-            ->postJson('/api/apuestas', [
+            ->postJson('/api/v1/apuestas', [
                 'juego_id' => $juego->id,
                 'combinacion' => ['animal' => 'perro'],
                 'amount_bs' => 1800,
@@ -216,7 +216,7 @@ class ApuestaTest extends TestCase
         // Usuario 1 solo ve apuestas de taquilla 1
         $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
             ->actingAs($taquillaUser1, 'sanctum')
-            ->getJson('/api/apuestas');
+            ->getJson('/api/v1/apuestas');
 
         $apuestas = $response->json('data.data');
         foreach ($apuestas as $apuesta) {
@@ -255,7 +255,7 @@ class ApuestaTest extends TestCase
         ]);
 
         $response = $this->actingAs($master, 'sanctum')
-            ->getJson('/api/apuestas');
+            ->getJson('/api/v1/apuestas');
 
         $response->assertStatus(200);
         $this->assertCount(2, $response->json('data.data'));
@@ -285,7 +285,7 @@ class ApuestaTest extends TestCase
 
         $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
             ->actingAs($taquillaUser, 'sanctum')
-            ->postJson('/api/apuestas', [
+            ->postJson('/api/v1/apuestas', [
                 'juego_id' => $juego->id,
                 'combinacion' => ['animal' => 'perro'],
                 'amount_bs' => 0,
@@ -321,7 +321,7 @@ class ApuestaTest extends TestCase
 
         $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
             ->actingAs($taquillaUser, 'sanctum')
-            ->postJson('/api/apuestas', [
+            ->postJson('/api/v1/apuestas', [
                 'juego_id' => $juego->id,
                 'combinacion' => ['animal' => 'dragon_inexistente'],
                 'amount_bs' => 5000,
@@ -368,7 +368,7 @@ class ApuestaTest extends TestCase
 
         $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
             ->actingAs($taquillaUser, 'sanctum')
-            ->getJson("/api/apuestas/{$apuesta->id}");
+            ->getJson("/api/v1/apuestas/{$apuesta->id}");
 
         $response->assertStatus(200)
             ->assertJsonPath('data.id', $apuesta->id);
@@ -413,12 +413,12 @@ class ApuestaTest extends TestCase
 
         // Primero probar que index funciona
         $responseIndex = $this->actingAs($user, 'sanctum')
-            ->getJson('/api/apuestas');
+            ->getJson('/api/v1/apuestas');
         $responseIndex->assertStatus(200);
 
         // Luego probar resumen
         $response = $this->actingAs($user, 'sanctum')
-            ->getJson('/api/apuestas/resumen');
+            ->getJson('/api/v1/apuestas/resumen');
         
         $response->assertStatus(200);
         $resumen = $response->json('data');
@@ -446,7 +446,7 @@ class ApuestaTest extends TestCase
         // Sin tasa activa configurada
         $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
             ->actingAs($taquillaUser, 'sanctum')
-            ->postJson('/api/apuestas', [
+            ->postJson('/api/v1/apuestas', [
                 'juego_id' => $juego->id,
                 'combinacion' => ['animal' => 'perro'],
                 'amount_bs' => 1000,
@@ -517,7 +517,7 @@ class ApuestaTest extends TestCase
 
         $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
             ->actingAs($taquillaUser, 'sanctum')
-            ->postJson('/api/apuestas', [
+            ->postJson('/api/v1/apuestas', [
                 'juego_id' => $juego->id,
                 'combinacion' => ['animal' => 'perro', 'numero' => 5],
                 'amount_bs' => 0,
@@ -580,7 +580,7 @@ class ApuestaTest extends TestCase
         // Apuesta 150 BS (excede máximo 100)
         $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
             ->actingAs($taquillaUser, 'sanctum')
-            ->postJson('/api/apuestas', [
+            ->postJson('/api/v1/apuestas', [
                 'juego_id' => $juego->id,
                 'combinacion' => ['animal' => 'perro', 'numero' => 5],
                 'amount_bs' => 150,
@@ -632,7 +632,7 @@ class ApuestaTest extends TestCase
         // Apuesta 3000 BS (por debajo del mínimo 5000)
         $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
             ->actingAs($taquillaUser, 'sanctum')
-            ->postJson('/api/apuestas', [
+            ->postJson('/api/v1/apuestas', [
                 'juego_id' => $juego->id,
                 'combinacion' => ['animal' => 'perro', 'numero' => 5],
                 'amount_bs' => 3000,
@@ -706,7 +706,7 @@ class ApuestaTest extends TestCase
         // Apuesta 60 BS: debería ser rechazada porque taquilla tiene max 50
         $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
             ->actingAs($taquillaUser, 'sanctum')
-            ->postJson('/api/apuestas', [
+            ->postJson('/api/v1/apuestas', [
                 'juego_id' => $juego->id,
                 'combinacion' => ['animal' => 'perro', 'numero' => 5],
                 'amount_bs' => 60,
@@ -749,7 +749,7 @@ class ApuestaTest extends TestCase
         // Apuesta en USD debería ser rechazada (grupo deshabilitó USD)
         $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
             ->actingAs($taquillaUser, 'sanctum')
-            ->postJson('/api/apuestas', [
+            ->postJson('/api/v1/apuestas', [
                 'juego_id' => $juego->id,
                 'combinacion' => ['animal' => 'perro', 'numero' => 5],
                 'amount_bs' => 0,
@@ -775,7 +775,7 @@ class ApuestaTest extends TestCase
 
         $responseBs = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
             ->actingAs($taquillaUser, 'sanctum')
-            ->postJson('/api/apuestas', [
+            ->postJson('/api/v1/apuestas', [
                 'juego_id' => $juego->id,
                 'combinacion' => ['animal' => 'perro', 'numero' => 5],
                 'amount_bs' => 2000,

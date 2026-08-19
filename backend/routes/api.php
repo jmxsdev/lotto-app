@@ -18,6 +18,9 @@ use App\Http\Controllers\Api\PagoController;
 use App\Http\Controllers\Api\ReporteController;
 use App\Http\Controllers\Api\EstadisticaController;
 
+// Todas las rutas de la API quedan versionadas bajo el prefijo /api/v1
+Route::prefix('v1')->group(function () {
+
 // Rutas públicas (sin autenticación)
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,2');
 Route::get('/exchange-rate/active', [ExchangeRateController::class, 'active']);
@@ -146,7 +149,7 @@ Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
     // ==================================================
     // GET: super_master, master, banca, grupo
     Route::middleware(['role:super_master|master|banca|grupo'])->group(function () {
-        // GET /api/limites (modo entidad): matriz completa de una entidad
+        // GET /api/v1/limites (modo entidad): matriz completa de una entidad
         // (el conteo de segmentos lo desambigua de /limites/{juego})
         Route::get('/limites', [JuegoController::class, 'listarLimites']);
         Route::get('/limites/{juego}', [JuegoController::class, 'limites']);
@@ -196,4 +199,5 @@ Route::middleware(['auth:sanctum', 'verify.mac'])->group(function () {
         Route::put('/exchange-rates/{exchange_rate}', [ExchangeRateController::class, 'update']);
         Route::post('/exchange-rates/{exchange_rate}/set-active', [ExchangeRateController::class, 'setActive']);
     });
+}); // fin Route::prefix('v1')
 });

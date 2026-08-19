@@ -63,7 +63,7 @@ class EstadisticaTest extends TestCase
         }
 
         $response = $this->actingAs($super, 'sanctum')
-            ->getJson('/api/estadisticas/rendimiento?fecha_desde=2026-08-01&fecha_hasta=2026-08-05');
+            ->getJson('/api/v1/estadisticas/rendimiento?fecha_desde=2026-08-01&fecha_hasta=2026-08-05');
 
         $response->assertStatus(200);
         $json = $response->json();
@@ -143,7 +143,7 @@ class EstadisticaTest extends TestCase
 
         // Consultar un rango donde no hay apuestas
         $response = $this->actingAs($super, 'sanctum')
-            ->getJson('/api/estadisticas/rendimiento?fecha_desde=2026-01-01&fecha_hasta=2026-01-31');
+            ->getJson('/api/v1/estadisticas/rendimiento?fecha_desde=2026-01-01&fecha_hasta=2026-01-31');
 
         $response->assertStatus(200);
         $json = $response->json();

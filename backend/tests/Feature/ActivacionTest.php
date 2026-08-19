@@ -26,7 +26,7 @@ class ActivacionTest extends TestCase
             'mac_address' => null,
         ]);
 
-        $response = $this->postJson('/api/activar', [
+        $response = $this->postJson('/api/v1/activar', [
             'activation_code' => 'ABC123',
             'mac_address' => 'AA:BB:CC:DD:EE:FF',
             'device_fingerprint' => 'test-fp-001',
@@ -51,7 +51,7 @@ class ActivacionTest extends TestCase
 
     public function test_rechazo_con_codigo_inexistente()
     {
-        $response = $this->postJson('/api/activar', [
+        $response = $this->postJson('/api/v1/activar', [
             'activation_code' => 'INVALID',
             'mac_address' => 'AA:BB:CC:DD:EE:FF',
             'device_fingerprint' => 'test-fp-001',
@@ -65,7 +65,7 @@ class ActivacionTest extends TestCase
     {
         $taquilla = Taquilla::factory()->create(['activation_code' => 'ABC123']);
 
-        $response = $this->postJson('/api/activar', [
+        $response = $this->postJson('/api/v1/activar', [
             'activation_code' => 'ABC123',
             'mac_address' => 'invalid-mac-format',
         ]);
@@ -90,7 +90,7 @@ class ActivacionTest extends TestCase
         ]);
 
         // Activar taquilla 2 con MAC de taquilla 1 (debería desactivar taquilla 1)
-        $response = $this->postJson('/api/activar', [
+        $response = $this->postJson('/api/v1/activar', [
             'activation_code' => 'CODE2',
             'mac_address' => 'AA:BB:CC:DD:EE:FF',
             'device_fingerprint' => 'test-fp-001',
@@ -124,7 +124,7 @@ class ActivacionTest extends TestCase
         $user->assignRole('taquilla');
 
         $response = $this->actingAs($user, 'sanctum')
-            ->getJson('/api/apuestas');
+            ->getJson('/api/v1/apuestas');
 
         $response->assertStatus(403);
     }
@@ -143,7 +143,7 @@ class ActivacionTest extends TestCase
 
         $response = $this->withHeaders(['X-Device-MAC' => '11:22:33:44:55:66'])
             ->actingAs($user, 'sanctum')
-            ->getJson('/api/apuestas');
+            ->getJson('/api/v1/apuestas');
 
         $response->assertStatus(403);
     }
@@ -162,7 +162,7 @@ class ActivacionTest extends TestCase
 
         $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF', 'X-Device-Fingerprint' => 'test-fp-001'])
             ->actingAs($user, 'sanctum')
-            ->getJson('/api/apuestas');
+            ->getJson('/api/v1/apuestas');
 
         $response->assertStatus(200);
     }
@@ -175,7 +175,7 @@ class ActivacionTest extends TestCase
             'mac_address' => null,
         ]);
 
-        $response = $this->postJson('/api/activar', [
+        $response = $this->postJson('/api/v1/activar', [
             'activation_code' => 'PUBLIC',
             'mac_address' => 'AA:BB:CC:DD:EE:FF',
             'device_fingerprint' => 'test-fp-001',
@@ -190,7 +190,7 @@ class ActivacionTest extends TestCase
         $master->assignRole('master');
 
         $response = $this->actingAs($master, 'sanctum')
-            ->getJson('/api/exchange-rates');
+            ->getJson('/api/v1/exchange-rates');
 
         $response->assertStatus(200);
     }

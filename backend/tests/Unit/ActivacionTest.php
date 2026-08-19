@@ -24,7 +24,7 @@ class ActivacionTest extends TestCase
             'mac_address' => null,
         ]);
 
-        $response = $this->postJson('/api/activar', [
+        $response = $this->postJson('/api/v1/activar', [
             'activation_code' => 'ABC123',
             'mac_address' => 'AA:BB:CC:DD:EE:FF',
             'device_fingerprint' => 'test-fp-001',
@@ -45,7 +45,7 @@ class ActivacionTest extends TestCase
 
     public function test_rechazo_con_codigo_inexistente()
     {
-        $response = $this->postJson('/api/activar', [
+        $response = $this->postJson('/api/v1/activar', [
             'activation_code' => 'INVALID',
             'mac_address' => 'AA:BB:CC:DD:EE:FF',
             'device_fingerprint' => 'test-fp-001',
@@ -59,7 +59,7 @@ class ActivacionTest extends TestCase
     {
         $taquilla = Taquilla::factory()->create(['activation_code' => 'ABC123']);
 
-        $response = $this->postJson('/api/activar', [
+        $response = $this->postJson('/api/v1/activar', [
             'activation_code' => 'ABC123',
             'mac_address' => 'invalid-mac',
             'device_fingerprint' => 'test-fp-001',
@@ -83,7 +83,7 @@ class ActivacionTest extends TestCase
 
         sleep(1); // Esperar 1 segundo para que cambie el timestamp
 
-        $response = $this->postJson('/api/activar', [
+        $response = $this->postJson('/api/v1/activar', [
             'activation_code' => 'DEF456',
             'mac_address' => 'AA:BB:CC:DD:EE:FF',
             'device_fingerprint' => 'test-fp-001',

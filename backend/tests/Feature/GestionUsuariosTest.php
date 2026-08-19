@@ -87,7 +87,7 @@ class GestionUsuariosTest extends TestCase
         $banca = $this->bancaSeeded();
 
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->postJson('/api/users', $this->payloadUsuario([
+            ->postJson('/api/v1/users', $this->payloadUsuario([
                 'role' => 'banca',
                 'banca_id' => $banca->id,
             ]));
@@ -108,7 +108,7 @@ class GestionUsuariosTest extends TestCase
         $grupo = $this->grupoSeeded();
 
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
-            ->postJson('/api/users', $this->payloadUsuario([
+            ->postJson('/api/v1/users', $this->payloadUsuario([
                 'role' => 'grupo',
                 'grupo_id' => $grupo->id,
             ]));
@@ -130,7 +130,7 @@ class GestionUsuariosTest extends TestCase
         $taquilla = $this->taquillaSeeded();
 
         $response = $this->actingAs($this->grupoUser(), 'sanctum')
-            ->postJson('/api/users', $this->payloadUsuario([
+            ->postJson('/api/v1/users', $this->payloadUsuario([
                 'role' => 'taquilla',
                 'taquilla_id' => $taquilla->id,
             ]));
@@ -155,7 +155,7 @@ class GestionUsuariosTest extends TestCase
 
         // Vínculo directo a otra banca
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
-            ->postJson('/api/users', $this->payloadUsuario([
+            ->postJson('/api/v1/users', $this->payloadUsuario([
                 'role' => 'banca',
                 'banca_id' => $otraBanca->id,
             ]));
@@ -164,7 +164,7 @@ class GestionUsuariosTest extends TestCase
 
         // Vínculo a un grupo de otra banca
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
-            ->postJson('/api/users', $this->payloadUsuario([
+            ->postJson('/api/v1/users', $this->payloadUsuario([
                 'role' => 'grupo',
                 'grupo_id' => $otroGrupo->id,
             ]));
@@ -186,7 +186,7 @@ class GestionUsuariosTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->grupoUser(), 'sanctum')
-            ->postJson('/api/users', $this->payloadUsuario([
+            ->postJson('/api/v1/users', $this->payloadUsuario([
                 'role' => 'taquilla',
                 'taquilla_id' => $otraTaquilla->id,
             ]));
@@ -198,21 +198,21 @@ class GestionUsuariosTest extends TestCase
     {
         // Rol banca sin banca_id
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->postJson('/api/users', $this->payloadUsuario(['role' => 'banca']));
+            ->postJson('/api/v1/users', $this->payloadUsuario(['role' => 'banca']));
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors('banca_id');
 
         // Rol grupo sin grupo_id
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->postJson('/api/users', $this->payloadUsuario(['role' => 'grupo']));
+            ->postJson('/api/v1/users', $this->payloadUsuario(['role' => 'grupo']));
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors('grupo_id');
 
         // Rol taquilla sin taquilla_id
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->postJson('/api/users', $this->payloadUsuario(['role' => 'taquilla']));
+            ->postJson('/api/v1/users', $this->payloadUsuario(['role' => 'taquilla']));
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors('taquilla_id');
@@ -223,7 +223,7 @@ class GestionUsuariosTest extends TestCase
         $taquilla = $this->taquillaSeeded();
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->postJson('/api/users', $this->payloadUsuario([
+            ->postJson('/api/v1/users', $this->payloadUsuario([
                 'role' => 'taquilla',
                 'taquilla_id' => $taquilla->id,
             ]));
@@ -239,7 +239,7 @@ class GestionUsuariosTest extends TestCase
         $taquilla = $this->taquillaSeeded();
 
         $primero = $this->actingAs($this->superUser(), 'sanctum')
-            ->postJson('/api/users', $this->payloadUsuario([
+            ->postJson('/api/v1/users', $this->payloadUsuario([
                 'role' => 'taquilla',
                 'taquilla_id' => $taquilla->id,
             ]));
@@ -247,7 +247,7 @@ class GestionUsuariosTest extends TestCase
         $primero->assertStatus(201);
 
         $segundo = $this->actingAs($this->superUser(), 'sanctum')
-            ->postJson('/api/users', $this->payloadUsuario([
+            ->postJson('/api/v1/users', $this->payloadUsuario([
                 'role' => 'taquilla',
                 'taquilla_id' => $taquilla->id,
             ]));
@@ -268,7 +268,7 @@ class GestionUsuariosTest extends TestCase
         $usuarioAjeno->assignRole('banca');
 
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
-            ->getJson('/api/users');
+            ->getJson('/api/v1/users');
 
         $response->assertStatus(200);
 
@@ -289,7 +289,7 @@ class GestionUsuariosTest extends TestCase
     public function test_index_grupo_solo_ve_usuarios_de_su_grupo()
     {
         $response = $this->actingAs($this->grupoUser(), 'sanctum')
-            ->getJson('/api/users');
+            ->getJson('/api/v1/users');
 
         $response->assertStatus(200);
 
@@ -311,7 +311,7 @@ class GestionUsuariosTest extends TestCase
         $taquillaUser = User::where('email', 'taquilla@lotto.com')->first();
 
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
-            ->deleteJson('/api/users/' . $taquillaUser->id);
+            ->deleteJson('/api/v1/users/' . $taquillaUser->id);
 
         $response->assertStatus(403);
 
@@ -326,7 +326,7 @@ class GestionUsuariosTest extends TestCase
         $taquillaUser = User::where('email', 'taquilla@lotto.com')->first();
 
         $response = $this->actingAs($master, 'sanctum')
-            ->deleteJson('/api/users/' . $taquillaUser->id);
+            ->deleteJson('/api/v1/users/' . $taquillaUser->id);
 
         $response->assertStatus(200);
 
@@ -338,7 +338,7 @@ class GestionUsuariosTest extends TestCase
         $taquillaUser = User::where('email', 'taquilla@lotto.com')->first();
 
         $response = $this->actingAs($this->grupoUser(), 'sanctum')
-            ->putJson('/api/users/' . $taquillaUser->id, [
+            ->putJson('/api/v1/users/' . $taquillaUser->id, [
                 'name' => 'Agencia Renombrada',
             ]);
 
@@ -356,7 +356,7 @@ class GestionUsuariosTest extends TestCase
         $usuarioAjeno->assignRole('taquilla');
 
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
-            ->putJson('/api/users/' . $usuarioAjeno->id, [
+            ->putJson('/api/v1/users/' . $usuarioAjeno->id, [
                 'name' => 'Intento de Cambio',
             ]);
 
@@ -378,7 +378,7 @@ class GestionUsuariosTest extends TestCase
         $taquillaUser = User::where('email', 'taquilla@lotto.com')->first();
 
         $response = $this->actingAs($this->grupoUser(), 'sanctum')
-            ->putJson('/api/users/' . $taquillaUser->id, [
+            ->putJson('/api/v1/users/' . $taquillaUser->id, [
                 'taquilla_id' => $nuevaTaquilla->id,
             ]);
 
@@ -396,7 +396,7 @@ class GestionUsuariosTest extends TestCase
     public function test_banca_no_puede_asignar_rol_master()
     {
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
-            ->postJson('/api/users', $this->payloadUsuario([
+            ->postJson('/api/v1/users', $this->payloadUsuario([
                 'role' => 'master',
             ]));
 

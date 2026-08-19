@@ -26,7 +26,7 @@ class RoleAuthorizationTest extends TestCase
         $taquillaUser->assignRole('taquilla');
 
         $response = $this->actingAs($taquillaUser, 'sanctum')
-                         ->getJson('/api/users');
+                         ->getJson('/api/v1/users');
 
         $response->assertStatus(403);
 
@@ -34,7 +34,7 @@ class RoleAuthorizationTest extends TestCase
         $master->assignRole('master');
 
         $response = $this->actingAs($master, 'sanctum')
-                         ->getJson('/api/users');
+                         ->getJson('/api/v1/users');
 
         $response->assertStatus(200);
     }
@@ -52,7 +52,7 @@ class RoleAuthorizationTest extends TestCase
 
         // Intentar crear grupo en banca 2 (debe fallar)
         $response = $this->actingAs($userBanca1, 'sanctum')
-                         ->postJson('/api/grupos', [
+                         ->postJson('/api/v1/grupos', [
                              'name' => 'Grupo Test',
                              'code' => 'GT999',
                              'banca_id' => $banca2->id,
@@ -65,7 +65,7 @@ class RoleAuthorizationTest extends TestCase
 
         // Intentar crear grupo en banca 1 (debe funcionar)
         $response = $this->actingAs($userBanca1, 'sanctum')
-                         ->postJson('/api/grupos', [
+                         ->postJson('/api/v1/grupos', [
                              'name' => 'Grupo Test',
                              'code' => 'GT998',
                              'banca_id' => $banca1->id,
@@ -91,7 +91,7 @@ class RoleAuthorizationTest extends TestCase
 
         // Intentar crear taquilla en grupo 2 (debe fallar)
         $response = $this->actingAs($userGrupo1, 'sanctum')
-                         ->postJson('/api/taquillas', [
+                         ->postJson('/api/v1/taquillas', [
                              'name' => 'Taquilla Test',
                              'code' => 'TT999',
                              'grupo_id' => $grupo2->id,
@@ -104,7 +104,7 @@ class RoleAuthorizationTest extends TestCase
 
         // Intentar crear taquilla en grupo 1 (debe funcionar)
         $response = $this->actingAs($userGrupo1, 'sanctum')
-                         ->postJson('/api/taquillas', [
+                         ->postJson('/api/v1/taquillas', [
                              'name' => 'Taquilla Test',
                              'code' => 'TT998',
                              'grupo_id' => $grupo1->id,
@@ -141,7 +141,7 @@ class RoleAuthorizationTest extends TestCase
 
         // Intentar configurar límite a nivel grupo con max 200 BS (más permisivo que banca)
         $response = $this->actingAs($master, 'sanctum')
-            ->putJson('/api/limites/' . $juego->id, [
+            ->putJson('/api/v1/limites/' . $juego->id, [
                 'banca_id' => $banca->id,
                 'grupo_id' => $grupo->id,
                 'moneda' => 'bs',
