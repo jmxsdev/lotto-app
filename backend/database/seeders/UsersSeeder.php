@@ -17,7 +17,7 @@ class UsersSeeder extends Seeder
         $super = User::create([
             'name' => 'Super Master',
             'email' => 'super@lotto.com',
-            'password' => Hash::make('password'),
+            'password' => Hash::make(env('SEEDER_PASSWORD', 'password')),
             'role' => 'super_master',
             'active' => true,
         ]);
@@ -27,7 +27,7 @@ class UsersSeeder extends Seeder
         $master = User::create([
             'name' => 'Master Test',
             'email' => 'master@lotto.com',
-            'password' => Hash::make('password'),
+            'password' => Hash::make(env('SEEDER_PASSWORD', 'password')),
             'role' => 'master',
             'active' => true,
         ]);
@@ -42,7 +42,7 @@ class UsersSeeder extends Seeder
         $bancaUser = User::create([
             'name' => 'Banca User',
             'email' => 'banca@lotto.com',
-            'password' => Hash::make('password'),
+            'password' => Hash::make(env('SEEDER_PASSWORD', 'password')),
             'role' => 'banca',
             'banca_id' => $banca->id,
             'active' => true,
@@ -59,7 +59,7 @@ class UsersSeeder extends Seeder
         $grupoUser = User::create([
             'name' => 'Grupo User',
             'email' => 'grupo@lotto.com',
-            'password' => Hash::make('password'),
+            'password' => Hash::make(env('SEEDER_PASSWORD', 'password')),
             'role' => 'grupo',
             'banca_id' => $grupo->banca_id,
             'grupo_id' => $grupo->id,
@@ -79,7 +79,7 @@ class UsersSeeder extends Seeder
         $taquillaUser = User::create([
             'name' => 'Taquilla User',
             'email' => 'taquilla@lotto.com',
-            'password' => Hash::make('password'),
+            'password' => Hash::make(env('SEEDER_PASSWORD', 'password')),
             'role' => 'taquilla',
             'banca_id' => $grupo->banca_id,
             'grupo_id' => $grupo->id,
@@ -102,7 +102,7 @@ class UsersSeeder extends Seeder
         $demoUser = User::create([
             'name' => 'Demo User',
             'email' => 'demo@lotto.com',
-            'password' => Hash::make('password'),
+            'password' => Hash::make(env('SEEDER_PASSWORD', 'password')),
             'role' => 'taquilla',
             'banca_id' => $grupo->banca_id,
             'grupo_id' => $grupo->id,
