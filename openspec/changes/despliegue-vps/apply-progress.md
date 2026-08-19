@@ -1,0 +1,43 @@
+# Apply Progress: despliegue-vps — Slice 1 (PR 1)
+
+## Estado de tareas (Fase 1)
+
+| Tarea | Estado | Evidencia |
+|---|---|---|
+| 1.1 quitar `backend/.env` + `.env.example` | ✅ | commit `36e55d2` |
+| 1.2 RED (commit state): filter-repo rechaza worktree sucio | ✅ | "Aborting: ... (you have unstaged changes)" en clon de prueba `/tmp/opencode/fr-red` |
+| 1.3 Purga de historial | ✅ local | Clon limpio `/tmp/opencode/fr-purge`; `backend/.env` fuera de los 168 commits; APP_KEY viejo: 0; 167 commits con `MYSQL_ROOT_PASSWORD: REDACTED`; ramas preservadas. **Pendiente: force-push (requiere confirmación del usuario)** |
+| 1.4 Rotación APP_KEY + credenciales DB | ✅ | commit `0fb36a8`; APP_KEY nuevo en `.env` local; MySQL local alineado vía `ALTER USER` |
+| 1.5 Prefix `v1` en `routes/api.php` | ✅ | commit `25e284a` |
+| 1.6 CORS/Sanctum por env documentado | ✅ | `backend/.env.example` con valores prod comentados |
+| 1.7 Clientes taquilla/panel `/api/v1` | ✅ | commit `102000b` (13 archivos) |
+| 1.8 Verificación rutas + tests | ✅ | 74 rutas `/api/v1/*`, 0 desnudas; suite: **214 passed, 0 failed, 2 skipped** (566 s) |
+
+## Commits del slice (rama `deploy/seguridad-versionado-v1`)
+
+- `36e55d2` fix(security): quitar backend/.env del seguimiento y crear .env.example
+- `0fb36a8` fix(security): rotar credenciales de desarrollo y añadir plantilla .env.production
+- `25e284a` feat(api): versionar rutas bajo /api/v1 y actualizar tests
+- `102000b` feat(clients): apuntar taquilla y panel a /api/v1
+- `89bae55` docs(sdd): artefactos de planificación del cambio despliegue-vps
+
+## Evidencia de verificación
+
+- `php artisan route:list --path=api`: 74 rutas con prefijo `api/v1/`, 0 rutas desnudas `api/`.
+- PHPUnit completo (MySQL local con credenciales rotadas): `{"tool":"phpunit","result":"passed","tests":216,"passed":214,"assertions":860,"skipped":2,"duration_ms":566568}`.
+
+## Pendiente de confirmación del usuario
+
+1. **Force-push del historial purgado**: el repo local actual aún tiene el historial viejo. El historial reescrito está en `/tmp/opencode/fr-purge`. Secuencia al confirmar: reemplazar el historial de `main` y `deploy/seguridad-versionado-v1` con el clon purgado y `git push --force` (único, coordinado). La rama `deploy/seguridad-versionado-v1` debe rebasearse sobre el historial reescrito.
+2. **Push de la rama + apertura del PR 1** (base `main`, stacked-to-main).
+
+## Rollback boundary
+
+Revertir los commits `25e284a` y `102000b` devuelve `/api` sin v1 sin efectos colaterales (los cambios de seguridad 36e55d2/0fb36a8 son independientes y no se revierten). No hay migraciones de BD en este slice.
+
+## Gotchas encontrados
+
+- El shell de sesión exporta variables viejas (`DB_PASSWORD=secret`, APP_KEY viejo) que tienen precedencia sobre `.env` → ejecutar artisan/phpunit con `env -u DB_* APP_KEY` o limpiar el entorno.
+- `git filter-repo` aplica los regex de `--replace-text` al archivo completo SIN flag MULTILINE → los anclajes `^...$` no matchean archivos multi-línea; usar lookahead (`root(?![\w])`) o literales.
+- La suite completa tarda ~9.5 min; `composer test` (que llama `artisan test`) parece colgarse pero solo es lento. El CI (slice 3) debe presupuestar timeout amplio.
+- `*.md` está en `.gitignore` raíz: los artefactos OpenSpec nuevos requieren `git add -f`.
