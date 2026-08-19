@@ -13,7 +13,7 @@ COMPOSE=(docker compose --env-file .env.production -f docker-compose.prod.yml)
 echo "⏳ Esperando healthcheck..."
 ok=1
 for _ in $(seq 1 36); do
-  code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:10000/api/v1/juegos || true)
+  code=$(curl -s -o /dev/null -w '%{http_code}' -H 'Accept: application/json' http://127.0.0.1:10000/api/v1/juegos || true)
   if [ "$code" = "200" ] || [ "$code" = "401" ]; then
     echo "✅ Healthcheck OK (HTTP $code)"
     ok=0

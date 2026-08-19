@@ -37,6 +37,9 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
+        // API pura: siempre renderizar JSON (healthchecks y clientes sin cabecera Accept incluidos)
+        $exceptions->shouldRenderJsonWhen(fn () => true);
+
         $exceptions->render(function (NotFoundHttpException $e, Request $request) {
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'Recurso no encontrado.'], 404);
