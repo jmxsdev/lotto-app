@@ -91,3 +91,21 @@ Revertir los commits `25e284a` y `102000b` devuelve `/api` sin v1 sin efectos co
 - El deploy del workflow se omite automáticamente si los secrets VPS_* no existen.
 - GHCR: la imagen pública `ghcr.io/jmxsdev/lotto-app-api` (tags sha+latest) se empuja con GITHUB_TOKEN (repo público, packages:write).
 - Ledger: intento slice3 adquirido (token conservado); settle pendiente de verificar la corrida verde en GitHub Actions (requiere confirmación del usuario).
+
+## Actualización slice 3 (cierre, 2026-08-19)
+
+| Tarea | Estado | Evidencia |
+|---|---|---|
+| 3.1 Tests con MySQL service | ✅ (cerrado) | CI verde: `32218875595` y `32219757146` success (Pint + PHPUnit) |
+| 3.2 Workflow ci-cd.yml | ✅ (cerrado) | deploy SSH real ejecutado: api/horizon corren `ghcr.io/jmxsdev/lotto-app-api:latest`, 5 contenedores healthy, smoke 401 |
+| 3.4 GitHub Secrets | ✅ (cerrado) | VPS_HOST, VPS_USER, VPS_PATH, VPS_SSH_KEY creados con `gh secret set`; deploy usa secrets |
+
+## Fixes de CI encontrados
+
+- **Warning masivo de PHPUnit (216 warnings / exit 1)**: causa raíz = `backend/tests/Unit/TripleZuliaScraperTest.php` declaraba `class TripletasScraperTest` (clase desincronizada del nombre de archivo → "Class TripleZuliaScraperTest cannot be found"). Renombrado a `backend/tests/Unit/TripletasScraperTest.php` con clase coherente (`0074906`). Suite verde sin warnings.
+- **Contenedores `(unhealthy)` tras deploy**: la imagen FrankenPHP trae HEALTHCHECK propio apuntando a `:2019/metrics` (admin de Caddy, inactivo en php-server). Override en compose: api = curl 401/200 a `/api/v1/juegos`; horizon = `php artisan horizon:status` (`a4d91fc`).
+- Diagnóstico agregado al CI: `COLUMNS=300` + `--display-warnings --log-junit junit.xml` + step de lectura de warnings.
+
+## Ledger
+
+- Slice 3 settle: `passed` (2710 líneas, sobre presupuesto 800) → reset aprobado por mantenedor (mismo criterio que slice 1); ledger limpio, sin intentos activos.
