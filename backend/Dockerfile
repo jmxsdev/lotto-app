@@ -1,6 +1,6 @@
 FROM dunglas/frankenphp:1-php8.3
 
-RUN install-php-extensions pdo_mysql bcmath zip redis @composer
+RUN install-php-extensions pdo_mysql bcmath zip redis pcntl posix @composer
 
 WORKDIR /app
 

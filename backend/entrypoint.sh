@@ -63,6 +63,8 @@ if [ "${RUN_HORIZON:-false}" = "true" ]; then
     exec php artisan horizon
 fi
 
-# API con FrankenPHP en modo worker
-echo "🌐 Iniciando FrankenPHP (workers) en 0.0.0.0:$PORT..."
-exec /usr/local/bin/frankenphp php-server --root /app/public --listen 0.0.0.0:${PORT} --worker /app/public/index.php
+# API con FrankenPHP (servidor real con opcache).
+# Nota: el modo worker requiere integración frankenphp_handle_request()/Octane
+# (seguimiento pendiente); por ahora php-server por request.
+echo "🌐 Iniciando FrankenPHP en 0.0.0.0:$PORT..."
+exec /usr/local/bin/frankenphp php-server --root /app/public --listen 0.0.0.0:${PORT}
