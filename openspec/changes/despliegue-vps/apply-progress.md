@@ -29,7 +29,7 @@
 ## Pendiente de confirmación del usuario
 
 1. ~~Force-push del historial purgado~~ **✅ COMPLETADO 2026-08-19**: mirror push de `/tmp/opencode/fr-purge` a `origin`. Verificado en clon fresco del remoto: 0 apariciones del APP_KEY viejo, 0 de `backend/.env`, 0 de `MYSQL_PASSWORD: secret`; 45 heads y 172 commits reescritos. El repo local adoptó el historial reescrito (`git reset --hard origin/deploy/seguridad-versionado-v1`).
-2. **Push de la rama + apertura del PR 1** (base `main`, stacked-to-main) — la rama ya está en origin; falta crear el PR.
+2. ~~Push de la rama + apertura del PR 1~~ **✅ ENTREGADO directo a main (decisión del mantenedor, 2026-08-19)**: el usuario prefirió merge directo en lugar de PR. Fast-forward `feat/seguridad-versionado-v1` → `main` (d0147fc) y push a origin. La rama queda como `feat/seguridad-versionado-v1`.
 
 ## Rollback boundary
 
