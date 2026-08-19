@@ -3,7 +3,7 @@ import axios from 'axios';
 const isBrowser = typeof window !== 'undefined';
 
 const api = axios.create({
-  baseURL: import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api',
+  baseURL: (import.meta.env.PUBLIC_API_URL || 'http://localhost:8000') + '/api/v1',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',

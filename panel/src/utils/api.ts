@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api';
+const API_BASE = (import.meta.env.PUBLIC_API_URL || 'http://localhost:8000') + '/api/v1';
 
 export async function apiFetch(method, url, body) {
   const token = localStorage.getItem('panel_token');

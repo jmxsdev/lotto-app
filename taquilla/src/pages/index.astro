@@ -69,7 +69,7 @@ const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
       </div>
     </div>
 
-    <script define:vars={{ apiUrl: import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api', demoMac: import.meta.env.PUBLIC_DEMO_MAC || '', demoFp: import.meta.env.PUBLIC_DEMO_FP || 'demo-device-001' }}>
+    <script define:vars={{ apiUrl: (import.meta.env.PUBLIC_API_URL || 'http://localhost:8000') + '/api/v1', demoMac: import.meta.env.PUBLIC_DEMO_MAC || '', demoFp: import.meta.env.PUBLIC_DEMO_FP || 'demo-device-001' }}>
       async function init() {
         let fp = localStorage.getItem('device_fingerprint');
         if (!fp || (fp === demoFp && window.electron?.getVersion)) {

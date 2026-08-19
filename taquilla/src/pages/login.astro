@@ -168,7 +168,7 @@ import api from '../utils/api';
       </div>
     </div>
 
-    <script define:vars={{ apiUrl: import.meta.env.PUBLIC_API_URL || 'http://localhost:8000/api', demoMac: import.meta.env.PUBLIC_DEMO_MAC || '', demoFp: import.meta.env.PUBLIC_DEMO_FP || 'demo-device-001' }}>
+    <script define:vars={{ apiUrl: (import.meta.env.PUBLIC_API_URL || 'http://localhost:8000') + '/api/v1', demoMac: import.meta.env.PUBLIC_DEMO_MAC || '', demoFp: import.meta.env.PUBLIC_DEMO_FP || 'demo-device-001' }}>
       const API_BASE = apiUrl;
 
       function showAlert(message, type) {
