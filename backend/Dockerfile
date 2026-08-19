@@ -1,12 +1,6 @@
-FROM php:8.3-cli
+FROM dunglas/frankenphp:1-php8.3
 
-RUN apt-get update && apt-get install -y \
-    libzip-dev \
-    zip \
-    unzip \
-    && docker-php-ext-install pdo_mysql bcmath
-
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+RUN install-php-extensions pdo_mysql bcmath zip @composer
 
 WORKDIR /app
 

@@ -4,7 +4,7 @@ set -e
 echo "🚀 Iniciando Lotto API..."
 echo "   Entorno: ${APP_ENV:-production}"
 
-# Generar .env desde variables de entorno de Render
+# Generar .env desde variables de entorno
 echo "📝 Generando .env..."
 cat > /app/.env << EOF
 APP_NAME=${APP_NAME:-lotto-app}
@@ -31,11 +31,16 @@ LOG_CHANNEL=${LOG_CHANNEL:-stderr}
 BROADCAST_CONNECTION=log
 FILESYSTEM_DISK=local
 
+REDIS_HOST=${REDIS_HOST:-127.0.0.1}
+REDIS_PORT=${REDIS_PORT:-6379}
+REDIS_PASSWORD=${REDIS_PASSWORD:-null}
+
 CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-*}
 SANCTUM_STATEFUL_DOMAINS=${SANCTUM_STATEFUL_DOMAINS:-localhost}
 EOF
 
-# Migraciones — solo si es primera vez
+# Migraciones — solo el contenedor API las ejecuta (Horizon las omite)
+if [ "${RUN_HORIZON:-false}" != "true" ]; then
 if php -r "require 'vendor/autoload.php'; \$app = require 'bootstrap/app.php'; \$app->make('db'); echo Schema::hasTable('migrations') ? 'EXISTS' : 'EMPTY';" 2>/dev/null | grep -q "EXISTS"; then
     echo "📦 Migraciones ya ejecutadas, verificando pendientes..."
     php artisan migrate --force
@@ -48,8 +53,16 @@ fi
 
 echo "🧹 Limpiando cache..."
 php artisan optimize:clear
+fi
 
-# Iniciar servidor
 PORT=${PORT:-10000}
-echo "🌐 Iniciando servidor en 0.0.0.0:$PORT..."
-php artisan serve --host 0.0.0.0 --port $PORT
+
+# Worker Horizon (colas)
+if [ "${RUN_HORIZON:-false}" = "true" ]; then
+    echo "🌐 Iniciando Horizon (worker de colas)..."
+    exec php artisan horizon
+fi
+
+# API con FrankenPHP en modo worker
+echo "🌐 Iniciando FrankenPHP (workers) en 0.0.0.0:$PORT..."
+exec /usr/local/bin/frankenphp php-server --root /app/public --listen 0.0.0.0:${PORT} --worker /app/public/index.php

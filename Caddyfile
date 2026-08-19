@@ -1,0 +1,28 @@
+# Caddyfile — producción lotto-app
+# Dominios: lotto.gzuz.dev (API), status.gzuz.dev (Uptime Kuma, slice 4)
+
+{
+	# email de contacto ACME (opcional; Caddy acepta sin email)
+	# email ops@gzuz.dev
+}
+
+lotto.gzuz.dev {
+	encode zstd gzip
+	reverse_proxy api:10000
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}
+
+# Slice 4 (monitoreo): descomentar cuando exista Uptime Kuma
+# status.gzuz.dev {
+# 	encode zstd gzip
+# 	reverse_proxy uptime-kuma:3001
+# 	header {
+# 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+# 	}
+# }

@@ -1,0 +1,94 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: lotto_mysql_prod
+    restart: unless-stopped
+    command:
+      - --innodb-buffer-pool-size=4G
+      - --max-connections=300
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - mysql_prod_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$${MYSQL_USER} -p$${MYSQL_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks: [lotto_net]
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: lotto_redis_prod
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
+    volumes:
+      - redis_prod_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [lotto_net]
+
+  api:
+    build:
+      context: ./backend
+    container_name: lotto_api_prod
+    restart: unless-stopped
+    env_file: .env.production
+    ports:
+      - "127.0.0.1:10000:10000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [lotto_net]
+
+  horizon:
+    build:
+      context: ./backend
+    container_name: lotto_horizon_prod
+    restart: unless-stopped
+    command: /usr/local/bin/entrypoint.sh
+    environment:
+      RUN_HORIZON: "true"
+    env_file: .env.production
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [lotto_net]
+
+  caddy:
+    image: caddy:2.9-alpine
+    container_name: lotto_caddy_prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+    networks: [lotto_net]
+
+networks:
+  lotto_net:
+    driver: bridge
+
+volumes:
+  mysql_prod_data:
+  redis_prod_data:
+  caddy_data:
+  caddy_config:
