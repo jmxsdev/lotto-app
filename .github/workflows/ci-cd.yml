@@ -56,8 +56,15 @@ jobs:
 
       - name: PHPUnit
         working-directory: backend
-        run: php artisan test
+        env:
+          COLUMNS: 300
+        run: php artisan test --display-warnings --log-junit junit.xml
         timeout-minutes: 30
+
+      - name: Warnings de PHPUnit (junit)
+        if: always()
+        working-directory: backend
+        run: grep -m4 -A1 "<warning" junit.xml || echo "sin warnings en junit"
 
   build:
     name: Build y push a GHCR
