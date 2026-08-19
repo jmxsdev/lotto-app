@@ -29,6 +29,8 @@ jobs:
           --health-timeout=5s
           --health-retries=20
     env:
+      APP_ENV: testing
+      APP_KEY: base64:testkeyfortestingenvironment
       DB_CONNECTION: mysql
       DB_HOST: 127.0.0.1
       DB_PORT: 3306
@@ -43,10 +45,6 @@ jobs:
           php-version: "8.3"
           extensions: pdo_mysql, bcmath, zip, redis, pcntl, posix
           coverage: none
-
-      - name: Preparar .env
-        working-directory: backend
-        run: cp .env.testing .env
 
       - name: Instalar dependencias
         working-directory: backend
