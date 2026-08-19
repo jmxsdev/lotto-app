@@ -41,3 +41,33 @@ Revertir los commits `25e284a` y `102000b` devuelve `/api` sin v1 sin efectos co
 - `git filter-repo` aplica los regex de `--replace-text` al archivo completo SIN flag MULTILINE → los anclajes `^...$` no matchean archivos multi-línea; usar lookahead (`root(?![\w])`) o literales.
 - La suite completa tarda ~9.5 min; `composer test` (que llama `artisan test`) parece colgarse pero solo es lento. El CI (slice 3) debe presupuestar timeout amplio.
 - `*.md` está en `.gitignore` raíz: los artefactos OpenSpec nuevos requieren `git add -f`.
+
+---
+
+# Apply Progress — Slice 2 (Infraestructura VPS)
+
+## Estado de tareas (Fase 2)
+
+| Tarea | Estado | Evidencia |
+|---|---|---|
+| 2.1 Hardening + provisioning VPS | ✅ | usuario deploy (solo llaves), root SSH deshabilitado, fail2ban, UFW 22/80/443, unattended-upgrades, swap 4G, logrotate Docker, contraseña root rotada |
+| 2.2 Dockerfile FrankenPHP + entrypoint | ✅ | `dunglas/frankenphp:1-php8.3` + pdo_mysql/bcmath/zip/redis/pcntl/posix; php-server (worker mode = follow-up Octane); Horizon gated |
+| 2.3 docker-compose.prod.yml | ✅ | api, mysql 8 (4G/300), redis AOF, horizon, caddy; sin phpMyAdmin; puertos internos |
+| 2.4 Caddyfile | ✅ | lotto.gzuz.dev + headers de seguridad; status comentado (slice 4) |
+| 2.5 RED (git selection) + deploy.sh | ✅ | deploy.sh con healthcheck (200/401) y rollback manual |
+| 2.6 Despliegue en VPS | ✅ | stack UP: 5 contenedores healthy; smoke 401/422/404 JSON correctos |
+| 2.7 DNS Cloudflare | ⏳ manual (usuario) | guía en `docs/runbook-ops.md`; requiere navegador + nameservers |
+
+## Correcciones de diseño aplicadas
+
+- **Disco real: 237 GB** (no 126 GB) — umbrales de alerta se calcularán sobre el valor real en slice 4.
+- **Ubicación del deploy**: `/home/deploy/lotto-app` (no `/srv/lotto-app`; deploy no tiene sudo por diseño).
+- **FrankenPHP sin modo worker** en v1: el worker exige `frankenphp_handle_request()`/Octane — follow-up documentado.
+- **`shouldRenderJsonWhen(fn() => true)`** en bootstrap/app.php: API pura, evita `Route [login] not defined` en requests sin cabecera Accept.
+- Se agregaron extensiones `redis` y `pcntl`/`posix` (fallos de boot documentados y corregidos).
+
+## Gotchas del slice 2
+
+- El entrypoint corre migraciones+seed solo en el contenedor API (RUN_HORIZON gate); el seeder duplica `super@lotto.com` si la BD no está limpia (tolerado con `|| echo (ok)`, revisar idempotencia).
+- Caddy no emite certificados hasta que el DNS resuelva al VPS (esperado; CF pendiente).
+- UFW activo: solo 22/80/443.
