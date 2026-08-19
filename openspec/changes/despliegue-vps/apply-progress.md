@@ -28,8 +28,8 @@
 
 ## Pendiente de confirmación del usuario
 
-1. **Force-push del historial purgado**: el repo local actual aún tiene el historial viejo. El historial reescrito está en `/tmp/opencode/fr-purge`. Secuencia al confirmar: reemplazar el historial de `main` y `deploy/seguridad-versionado-v1` con el clon purgado y `git push --force` (único, coordinado). La rama `deploy/seguridad-versionado-v1` debe rebasearse sobre el historial reescrito.
-2. **Push de la rama + apertura del PR 1** (base `main`, stacked-to-main).
+1. ~~Force-push del historial purgado~~ **✅ COMPLETADO 2026-08-19**: mirror push de `/tmp/opencode/fr-purge` a `origin`. Verificado en clon fresco del remoto: 0 apariciones del APP_KEY viejo, 0 de `backend/.env`, 0 de `MYSQL_PASSWORD: secret`; 45 heads y 172 commits reescritos. El repo local adoptó el historial reescrito (`git reset --hard origin/deploy/seguridad-versionado-v1`).
+2. **Push de la rama + apertura del PR 1** (base `main`, stacked-to-main) — la rama ya está en origin; falta crear el PR.
 
 ## Rollback boundary
 
