@@ -4,10 +4,10 @@ services:
     container_name: lotto_mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: REDACTED
+      MYSQL_ROOT_PASSWORD: root_dev_ed139e2c6c5942770a48a16a
       MYSQL_DATABASE: lotto_db
       MYSQL_USER: lotto_user
-      MYSQL_PASSWORD: REDACTED
+      MYSQL_PASSWORD: lotto_dev_a99d67c045151737823c1927
     ports:
       - "3306:3306"
     volumes:
