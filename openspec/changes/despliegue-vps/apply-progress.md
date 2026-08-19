@@ -71,3 +71,23 @@ Revertir los commits `25e284a` y `102000b` devuelve `/api` sin v1 sin efectos co
 - El entrypoint corre migraciones+seed solo en el contenedor API (RUN_HORIZON gate); el seeder duplica `super@lotto.com` si la BD no está limpia (tolerado con `|| echo (ok)`, revisar idempotencia).
 - Caddy no emite certificados hasta que el DNS resuelva al VPS (esperado; CF pendiente).
 - UFW activo: solo 22/80/443.
+
+---
+
+# Apply Progress — Slice 3 (CI/CD)
+
+## Estado de tareas (Fase 3)
+
+| Tarea | Estado | Evidencia |
+|---|---|---|
+| 3.1 Tests con MySQL service | ✅ | phpunit.xml DB_* con `force="false"`; job env inyecta MySQL service; suite local con config idéntica al CI: 214 passed / 2 skipped (189 s) |
+| 3.2 Workflow ci-cd.yml | ✅ | `.github/workflows/ci-cd.yml`: tests (MySQL service) → Pint → build GHCR (sha+latest) → deploy SSH + healthcheck + rollback |
+| 3.3 RED (push state) | ✅ | llave CI rechazada en `git push` al repo y aceptada en SSH al VPS (SCENARIO-8) |
+| 3.4 GitHub Secrets | ⏳ usuario | pendientes: VPS_SSH_KEY, VPS_HOST, VPS_USER, VPS_PATH (ver runbook) |
+
+## Notas
+
+- **Deuda de estilo saldada**: `vendor/bin/pint` normalizó ~100 archivos (commit `92daab8`); el gate Pint de CI quedó verde.
+- El deploy del workflow se omite automáticamente si los secrets VPS_* no existen.
+- GHCR: la imagen pública `ghcr.io/jmxsdev/lotto-app-api` (tags sha+latest) se empuja con GITHUB_TOKEN (repo público, packages:write).
+- Ledger: intento slice3 adquirido (token conservado); settle pendiente de verificar la corrida verde en GitHub Actions (requiere confirmación del usuario).
