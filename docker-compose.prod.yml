@@ -15,6 +15,9 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
       - mysql_prod_data:/var/lib/mysql
+    # Solo loopback del VPS: para túneles SSH/GUI (DBeaver, etc.). Nunca exponer en 0.0.0.0.
+    ports:
+      - "127.0.0.1:3306:3306"
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$${MYSQL_USER} -p$${MYSQL_PASSWORD} --silent"]
       interval: 10s
