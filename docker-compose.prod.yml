@@ -102,6 +102,7 @@ services:
 
 networks:
   lotto_net:
+    name: lotto_net
     driver: bridge
 
 volumes:

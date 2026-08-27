@@ -5,7 +5,7 @@ info:
 
 http:
   method: GET
-  url: "{{baseUrl}}/api/juegos/1"
+  url: https://lotto.gzuz.dev/api/v1/juegos
   headers:
     - name: Authorization
       value: Bearer {{token}}

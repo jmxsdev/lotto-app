@@ -24,6 +24,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // API pura: nunca redirigir invitados a una ruta web (route('login') no existe);
+        // siempre lanzar AuthenticationException → 401 JSON, con o sin cabecera Accept
+        $middleware->redirectGuestsTo(fn () => throw new AuthenticationException('No autenticado.'));
+
         // Middlewares globales (si necesitas)
         $middleware->api(prepend: [
             EnsureFrontendRequestsAreStateful::class,
