@@ -28,9 +28,13 @@ class GrupoController extends Controller
         $user = $request->user();
         $query = Grupo::query();
 
-        // Super Master y Master: ven todos
-        if ($user->hasRole(['super_master', 'master'])) {
+        // Super Master: ve todos
+        if ($user->hasRole('super_master')) {
             // Sin filtro adicional
+        }
+        // Master: ve solo los grupos de sus bancas
+        elseif ($user->hasRole('master')) {
+            $user->masterBancaScope()($query);
         }
         // Banca: ve solo sus grupos
         elseif ($user->hasRole('banca')) {
@@ -302,8 +306,17 @@ class GrupoController extends Controller
 
     private function authorizeBancaAccess($user, $bancaId)
     {
-        // Super Master y Master pueden cualquier banca
-        if ($user->hasRole(['super_master', 'master'])) {
+        // Super Master puede cualquier banca
+        if ($user->hasRole('super_master')) {
+            return;
+        }
+
+        // Master solo puede gestionar sus bancas
+        if ($user->hasRole('master')) {
+            if (! $user->masterCanAccessBanca((int) $bancaId)) {
+                abort(403, 'No tienes acceso a esta banca.');
+            }
+
             return;
         }
 
@@ -322,8 +335,17 @@ class GrupoController extends Controller
 
     private function authorizeGrupoAccess($user, Grupo $grupo)
     {
-        // Super Master y Master pueden todo
-        if ($user->hasRole(['super_master', 'master'])) {
+        // Super Master puede todo
+        if ($user->hasRole('super_master')) {
+            return;
+        }
+
+        // Master solo puede acceder a grupos de sus bancas
+        if ($user->hasRole('master')) {
+            if ($grupo->banca_id === null || ! $user->masterCanAccessBanca((int) $grupo->banca_id)) {
+                abort(403, 'No tienes acceso a este grupo.');
+            }
+
             return;
         }
 

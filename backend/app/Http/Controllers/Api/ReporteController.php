@@ -42,7 +42,9 @@ class ReporteController extends Controller
                 $q->where('banca_id', $user->banca_id);
             });
         } elseif ($user->role === 'master') {
-            // master ve todas las bancas que administra (mismo alcance que super_master en reportes)
+            // master ve solo las bancas que administra (y su descendencia);
+            // sin bancas asignadas ve NADA (whereRaw 1=0, nunca global)
+            $user->masterBancaChainScope()($query);
         }
         // super_master ve todo (sin filtro adicional)
 
@@ -82,7 +84,8 @@ class ReporteController extends Controller
                 $q->where('banca_id', $user->banca_id);
             });
         } elseif ($user->role === 'master') {
-            // master ve todas las bancas que administra
+            // master ve solo las bancas que administra (y su descendencia)
+            $user->masterBancaChainScope()($query);
         }
 
         // Filtros de fecha

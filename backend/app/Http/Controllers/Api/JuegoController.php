@@ -174,8 +174,12 @@ class JuegoController extends Controller
             ->with(['banca', 'grupo', 'taquilla']);
 
         // Filtrar por jerarquía del usuario
-        if ($user->role === 'super_master' || $user->role === 'master') {
-            // Sin filtro: ven todos los límites
+        if ($user->role === 'super_master') {
+            // Sin filtro: ve todos los límites
+        } elseif ($user->role === 'master') {
+            // master ve solo los límites de las bancas que administra;
+            // sin bancas asignadas ve NADA (whereRaw 1=0, nunca global)
+            $user->masterBancaScope()($query);
         } elseif ($user->role === 'banca') {
             $query->where('banca_id', $user->banca_id);
         } elseif ($user->role === 'agencia') {
@@ -537,21 +541,36 @@ class JuegoController extends Controller
         }
 
         if ($singular === 'banca') {
-            $ids = in_array($user->role, ['banca', 'agencia']) ? [$user->banca_id] : Banca::pluck('id');
+            $ids = match (true) {
+                $user->role === 'banca', $user->role === 'agencia' => [$user->banca_id],
+                $user->role === 'master' => $user->masterBancaIds()->all(),
+                default => Banca::pluck('id')->all(),
+            };
             if ($user->role === 'grupo') {
                 $ids = [$user->banca_id];
             }
         } elseif ($singular === 'grupo') {
-            if (in_array($user->role, ['super_master', 'master'])) {
+            if ($user->role === 'super_master') {
                 $ids = Grupo::pluck('id');
+            } elseif ($user->role === 'master') {
+                // master ve solo los grupos de las bancas que administra
+                $ids = $user->masterBancaIds()->isEmpty()
+                    ? collect()
+                    : Grupo::whereIn('banca_id', $user->masterBancaIds())->pluck('id');
             } elseif ($user->role === 'banca') {
                 $ids = Grupo::where('banca_id', $user->banca_id)->pluck('id');
             } else {
                 $ids = [$user->grupo_id];
             }
         } else { // taquilla
-            if (in_array($user->role, ['super_master', 'master'])) {
+            if ($user->role === 'super_master') {
                 $ids = Taquilla::pluck('id');
+            } elseif ($user->role === 'master') {
+                // master ve solo las taquillas de las bancas que administra
+                $masterIds = $user->masterBancaIds();
+                $ids = $masterIds->isEmpty()
+                    ? collect()
+                    : Taquilla::whereHas('grupo', fn ($q) => $q->whereIn('banca_id', $masterIds))->pluck('id');
             } elseif ($user->role === 'banca') {
                 $ids = Taquilla::whereHas('grupo', fn ($q) => $q->where('banca_id', $user->banca_id))->pluck('id');
             } elseif ($user->role === 'agencia') {
@@ -766,6 +785,10 @@ class JuegoController extends Controller
             return response()->json(['message' => 'No tienes permiso para eliminar límites.'], 403);
         }
 
+        if ($user->role === 'master' && ! $user->masterCanAccessBanca((int) $limite->banca_id)) {
+            return response()->json(['message' => 'No tienes acceso a los límites de esta banca.'], 403);
+        }
+
         if ($user->role === 'banca' && (! $user->banca_id || $user->banca_id != $limite->banca_id)) {
             return response()->json(['message' => 'No tienes acceso a los límites de esta banca.'], 403);
         }
@@ -794,7 +817,15 @@ class JuegoController extends Controller
      */
     private function authorizeBancaLimitAccess($user, int $bancaId): void
     {
-        if (in_array($user->role, ['super_master', 'master'])) {
+        if ($user->role === 'super_master') {
+            return;
+        }
+
+        if ($user->role === 'master') {
+            if (! $user->masterCanAccessBanca($bancaId)) {
+                abort(403, 'No tienes acceso a esta banca.');
+            }
+
             return;
         }
 
@@ -812,8 +843,24 @@ class JuegoController extends Controller
      */
     private function entidadDentroDelAlcance($user, string $tipo, int $entidadId): bool
     {
-        if (in_array($user->role, ['super_master', 'master'])) {
+        if ($user->role === 'super_master') {
             return true;
+        }
+
+        if ($user->role === 'master') {
+            if ($tipo === 'banca') {
+                return $user->masterCanAccessBanca($entidadId);
+            }
+
+            if ($tipo === 'grupo') {
+                return Grupo::whereKey($entidadId)
+                    ->whereIn('banca_id', $user->masterBancaIds())
+                    ->exists();
+            }
+
+            return Taquilla::whereKey($entidadId)
+                ->whereHas('grupo', fn ($q) => $q->whereIn('banca_id', $user->masterBancaIds()))
+                ->exists();
         }
 
         if ($user->role === 'banca') {
@@ -998,6 +1045,19 @@ class JuegoController extends Controller
                 $query->where('banca_id', $user->banca_id);
             } else {
                 $query->whereHas('grupo', fn ($q) => $q->where('banca_id', $user->banca_id));
+            }
+        } elseif ($user->role === 'master') {
+            // master ve solo las bancas que administra y su descendencia;
+            // sin bancas asignadas ve NADA (whereRaw 1=0, nunca global)
+            $ids = $user->masterBancaIds();
+            if ($ids->isEmpty()) {
+                $query->whereRaw('1=0');
+            } elseif ($tipo === 'banca') {
+                $query->whereIn('id', $ids);
+            } elseif ($tipo === 'grupo') {
+                $query->whereIn('banca_id', $ids);
+            } else {
+                $query->whereHas('grupo', fn ($q) => $q->whereIn('banca_id', $ids));
             }
         } elseif ($user->role === 'grupo') {
             if ($tipo === 'grupo') {

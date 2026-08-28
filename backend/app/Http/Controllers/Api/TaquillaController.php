@@ -29,8 +29,11 @@ class TaquillaController extends Controller
         $user = $request->user();
         $query = Taquilla::query();
 
-        if ($user->hasRole(['super_master', 'master'])) {
+        if ($user->hasRole('super_master')) {
             // Sin filtro
+        } elseif ($user->hasRole('master')) {
+            // master ve solo las taquillas de sus bancas; sin bancas ve NADA
+            $user->masterBancaGroupScope()($query);
         } elseif ($user->hasRole('banca')) {
             if (! $user->banca_id) {
                 return response()->json(['message' => 'No tienes una banca asociada.'], 403);
@@ -323,8 +326,17 @@ class TaquillaController extends Controller
             abort(404, 'Grupo no encontrado.');
         }
 
-        // Super Master y Master pueden todo
-        if ($user->hasRole(['super_master', 'master'])) {
+        // Super Master puede todo
+        if ($user->hasRole('super_master')) {
+            return;
+        }
+
+        // Master solo accede a grupos de sus bancas
+        if ($user->hasRole('master')) {
+            if ($grupo->banca_id === null || ! $user->masterCanAccessBanca((int) $grupo->banca_id)) {
+                abort(403, 'No tienes acceso a este grupo.');
+            }
+
             return;
         }
 
@@ -372,8 +384,18 @@ class TaquillaController extends Controller
             abort(404, 'Agencia no encontrada.');
         }
 
-        // Super Master y Master pueden todo
-        if ($user->hasRole(['super_master', 'master'])) {
+        // Super Master puede todo
+        if ($user->hasRole('super_master')) {
+            return;
+        }
+
+        // Master solo accede a locales de sus bancas
+        if ($user->hasRole('master')) {
+            $bancaId = $agencia->grupo?->banca_id;
+            if ($bancaId === null || ! $user->masterCanAccessBanca((int) $bancaId)) {
+                abort(403, 'No tienes acceso a esta agencia.');
+            }
+
             return;
         }
 
@@ -409,8 +431,18 @@ class TaquillaController extends Controller
 
     private function authorizeTaquillaAccess($user, Taquilla $taquilla)
     {
-        // Super Master y Master pueden todo
-        if ($user->hasRole(['super_master', 'master'])) {
+        // Super Master puede todo
+        if ($user->hasRole('super_master')) {
+            return;
+        }
+
+        // Master puede acceder a taquillas de sus bancas
+        if ($user->hasRole('master')) {
+            $bancaId = $taquilla->grupo?->banca_id;
+            if ($bancaId === null || ! $user->masterCanAccessBanca((int) $bancaId)) {
+                abort(403, 'No tienes acceso a esta taquilla.');
+            }
+
             return;
         }
 

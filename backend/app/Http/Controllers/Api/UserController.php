@@ -35,12 +35,17 @@ class UserController extends Controller
         if ($user->hasRole('super_master')) {
             // Sin filtro
         }
-        // Master ve solo los de su banca (si tiene)
+        // Master ve solo los usuarios de las bancas que administra (y su
+        // descendencia por cadena); sin bancas asignadas ve NADA
         elseif ($user->hasRole('master')) {
-            if ($user->banca_id) {
-                $query->where('banca_id', $user->banca_id);
+            $masterIds = $user->masterBancaIds();
+            if ($masterIds->isEmpty()) {
+                $query->whereRaw('1=0');
             } else {
-                $query->where('id', $user->id);
+                $query->where(function ($q) use ($masterIds) {
+                    $q->whereIn('banca_id', $masterIds)
+                        ->orWhereHas('taquilla', fn ($t) => $t->whereHas('grupo', fn ($g) => $g->whereIn('banca_id', $masterIds)));
+                });
             }
         }
         // Banca ve los usuarios de su banca (por vínculo directo o por cadena)
@@ -248,6 +253,13 @@ class UserController extends Controller
                 abort(403, 'No puedes asignar el rol super_master.');
             }
 
+            // El master solo puede vincular usuarios a sus propias bancas
+            // (o a entidades de su descendencia).
+            $effectiveBanca = $data['banca_id'] ?? $this->resolveBancaId($existing);
+            if ($effectiveBanca !== null && ! $currentUser->masterCanAccessBanca((int) $effectiveBanca)) {
+                abort(403, 'No puedes vincular usuarios a entidades de otra banca.');
+            }
+
             return;
         }
 
@@ -306,10 +318,8 @@ class UserController extends Controller
         }
 
         if ($currentUser->hasRole('master')) {
-            if (! $currentUser->banca_id) {
-                abort(403, 'No tienes una banca asociada.');
-            }
-            if ($targetUser->banca_id && $targetUser->banca_id != $currentUser->banca_id) {
+            $targetBanca = $this->resolveBancaId($targetUser);
+            if ($targetBanca !== null && ! $currentUser->masterCanAccessBanca((int) $targetBanca)) {
                 abort(403, 'No tienes acceso a este usuario.');
             }
 

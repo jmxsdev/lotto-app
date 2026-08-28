@@ -15,8 +15,13 @@ class BancaController extends Controller
     {
         $user = $request->user();
 
-        if ($user->hasRole(['super_master', 'master'])) {
-            $bancas = Banca::withCount('grupos', 'users')->get();
+        if ($user->hasRole('super_master')) {
+            $bancas = Banca::withCount('grupos', 'users')->with('master')->get();
+        } elseif ($user->hasRole('master')) {
+            // master ve solo las bancas que administra; sin bancas ve NADA
+            $query = Banca::query()->withCount('grupos', 'users')->with('master');
+            $user->masterBancaScope('id')($query);
+            $bancas = $query->get();
         } else {
             return response()->json(['message' => 'No tienes permiso para ver bancas.'], 403);
         }
@@ -38,6 +43,7 @@ class BancaController extends Controller
             'monedas_permitidas.usd' => 'boolean',
             'vigencia_premios' => 'nullable|integer|min:1',
             'tiempo_eliminacion' => 'nullable|integer|min:1|max:120',
+            'master_id' => 'nullable|exists:users,id',
             'rif' => 'nullable|string|max:20',
             'email' => 'nullable|email',
             'telefono' => 'nullable|string|max:30',
@@ -58,6 +64,9 @@ class BancaController extends Controller
             'tiempo_eliminacion' => $request->tiempo_eliminacion ?? null,
             'active' => $request->active ?? true,
             'created_by' => $authUser->id,
+            // Si el creador es un master, la banca queda administrada por él
+            // (coherente con el backfill F0: master_id = created_by).
+            'master_id' => $authUser->hasRole('master') ? $authUser->id : ($request->master_id ?? null),
             'rif' => $request->rif,
             'email' => $request->email,
             'telefono' => $request->telefono,
@@ -87,18 +96,26 @@ class BancaController extends Controller
     {
         $user = auth()->user();
 
-        if (! $user->hasRole(['super_master', 'master'])) {
+        if ($user->hasRole('super_master')) {
+            // puede ver cualquier banca
+        } elseif ($user->hasRole('master') && ! $user->masterCanAccessBanca($banca->id)) {
+            return response()->json(['message' => 'No tienes permiso para ver esta banca.'], 403);
+        } elseif (! $user->hasRole(['super_master', 'master'])) {
             return response()->json(['message' => 'No tienes permiso para ver esta banca.'], 403);
         }
 
-        return response()->json($banca->load('grupos', 'users'));
+        return response()->json($banca->load('grupos', 'users', 'master'));
     }
 
     public function update(Request $request, Banca $banca)
     {
         $user = auth()->user();
 
-        if (! $user->hasRole(['super_master', 'master'])) {
+        if ($user->hasRole('super_master')) {
+            // puede modificar cualquier banca
+        } elseif ($user->hasRole('master') && ! $user->masterCanAccessBanca($banca->id)) {
+            return response()->json(['message' => 'No tienes permiso para modificar esta banca.'], 403);
+        } elseif (! $user->hasRole(['super_master', 'master'])) {
             return response()->json(['message' => 'No tienes permiso para modificar esta banca.'], 403);
         }
 
@@ -112,6 +129,7 @@ class BancaController extends Controller
             'monedas_permitidas.usd' => 'boolean',
             'vigencia_premios' => 'nullable|integer|min:1',
             'tiempo_eliminacion' => 'nullable|integer|min:1|max:120',
+            'master_id' => 'nullable|exists:users,id',
             'rif' => 'nullable|string|max:20',
             'email' => 'nullable|email',
             'telefono' => 'nullable|string|max:30',
@@ -120,7 +138,7 @@ class BancaController extends Controller
             'municipio' => 'nullable|string|max:100',
         ]);
 
-        $banca->update($request->only(['name', 'code', 'config', 'active', 'monedas_permitidas', 'vigencia_premios', 'tiempo_eliminacion', 'rif', 'email', 'telefono', 'direccion', 'estado', 'municipio']));
+        $banca->update($request->only(['name', 'code', 'config', 'active', 'monedas_permitidas', 'vigencia_premios', 'tiempo_eliminacion', 'master_id', 'rif', 'email', 'telefono', 'direccion', 'estado', 'municipio']));
 
         return response()->json($banca);
     }
@@ -134,7 +152,11 @@ class BancaController extends Controller
     {
         $user = auth()->user();
 
-        if (! $user->hasRole(['super_master', 'master'])) {
+        if ($user->hasRole('super_master')) {
+            // puede alternar cualquier banca
+        } elseif ($user->hasRole('master') && ! $user->masterCanAccessBanca($banca->id)) {
+            return response()->json(['message' => 'No tienes permiso para modificar esta banca.'], 403);
+        } elseif (! $user->hasRole(['super_master', 'master'])) {
             return response()->json(['message' => 'No tienes permiso para modificar esta banca.'], 403);
         }
 
@@ -147,7 +169,11 @@ class BancaController extends Controller
     {
         $user = auth()->user();
 
-        if (! $user->hasRole(['super_master', 'master'])) {
+        if ($user->hasRole('super_master')) {
+            // puede eliminar cualquier banca
+        } elseif ($user->hasRole('master') && ! $user->masterCanAccessBanca($banca->id)) {
+            return response()->json(['message' => 'No tienes permiso para eliminar esta banca.'], 403);
+        } elseif (! $user->hasRole(['super_master', 'master'])) {
             return response()->json(['message' => 'No tienes permiso para eliminar esta banca.'], 403);
         }
 

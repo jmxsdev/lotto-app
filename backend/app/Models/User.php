@@ -107,4 +107,63 @@ class User extends Authenticatable
             ->where('master_id', $this->id)
             ->pluck('id');
     }
+
+    /**
+     * Closure de alcance master para queries con columna directa de banca
+     * (Grupo, Taquilla, User, JuegoLimite → 'banca_id'; Banca → 'id').
+     *
+     * Lista vacía ⇒ whereRaw('1=0'): el master sin bancas ve NADA, nunca global.
+     */
+    public function masterBancaScope(string $column = 'banca_id'): \Closure
+    {
+        $ids = $this->masterBancaIds();
+
+        if ($ids->isEmpty()) {
+            return fn ($query) => $query->whereRaw('1=0');
+        }
+
+        return fn ($query) => $query->whereIn($column, $ids);
+    }
+
+    /**
+     * Closure de alcance master para queries que cuelgan de taquillas
+     * (Apuesta, Ticket, CierreCaja): acota por la cadena taquilla→grupo→banca.
+     *
+     * Lista vacía ⇒ whereRaw('1=0'): el master sin bancas ve NADA, nunca global.
+     */
+    public function masterBancaChainScope(): \Closure
+    {
+        $ids = $this->masterBancaIds();
+
+        if ($ids->isEmpty()) {
+            return fn ($query) => $query->whereRaw('1=0');
+        }
+
+        return fn ($query) => $query->whereHas('taquilla.grupo.banca', fn ($b) => $b->whereIn('banca_id', $ids));
+    }
+
+    /**
+     * Closure de alcance master para queries cuyo primer eslabón es el grupo
+     * (Taquilla): acota por la cadena grupo→banca.
+     *
+     * Lista vacía ⇒ whereRaw('1=0'): el master sin bancas ve NADA, nunca global.
+     */
+    public function masterBancaGroupScope(string $relation = 'grupo'): \Closure
+    {
+        $ids = $this->masterBancaIds();
+
+        if ($ids->isEmpty()) {
+            return fn ($query) => $query->whereRaw('1=0');
+        }
+
+        return fn ($query) => $query->whereHas($relation, fn ($g) => $g->whereIn('banca_id', $ids));
+    }
+
+    /**
+     * ¿Este usuario (rol master) administra la banca indicada?
+     */
+    public function masterCanAccessBanca(int $bancaId): bool
+    {
+        return $this->masterBancaIds()->contains($bancaId);
+    }
 }

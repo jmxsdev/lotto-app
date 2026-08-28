@@ -44,8 +44,12 @@ class ApuestaController extends Controller
             $query->whereHas('taquilla.grupo.banca', function ($q) use ($user) {
                 $q->where('banca_id', $user->banca_id);
             });
+        } elseif ($user->role === 'master') {
+            // master ve solo las bancas que administra (y su descendencia);
+            // sin bancas asignadas ve NADA (whereRaw 1=0, nunca global)
+            $user->masterBancaChainScope()($query);
         }
-        // master y super_master ven todo
+        // super_master ve todo
 
         // Filtros opcionales
         if ($request->has('fecha_desde')) {
@@ -67,10 +71,7 @@ class ApuestaController extends Controller
         $apuestas = $query->paginate($request->input('per_page', 50));
 
         // Resumen estadístico
-        $resumen = $this->apuestaService->obtenerResumen(
-            $request->has('fecha_desde') || $request->has('fecha_hasta') ||
-            $request->has('estado') || $request->has('juego_id') ? clone $query : Apuesta::query()
-        );
+        $resumen = $this->apuestaService->obtenerResumen(clone $query);
 
         return response()->json([
             'data' => $apuestas,
@@ -173,6 +174,9 @@ class ApuestaController extends Controller
             $query->whereHas('taquilla.grupo.banca', function ($q) use ($user) {
                 $q->where('banca_id', $user->banca_id);
             });
+        } elseif ($user->role === 'master') {
+            // master ve solo las bancas que administra (y su descendencia)
+            $user->masterBancaChainScope()($query);
         }
 
         // Filtros avanzados
@@ -229,6 +233,9 @@ class ApuestaController extends Controller
             $query->whereHas('taquilla.grupo.banca', function ($q) use ($user) {
                 $q->where('banca_id', $user->banca_id);
             });
+        } elseif ($user->role === 'master') {
+            // master ve solo las bancas que administra (y su descendencia)
+            $user->masterBancaChainScope()($query);
         }
 
         // Filtros temporales

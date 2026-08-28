@@ -47,8 +47,12 @@ class CierreController extends Controller
         $user = $request->user();
         $query = CierreCaja::query();
 
-        if ($user->hasRole(['super_master', 'master'])) {
-            // Ven todos
+        if ($user->hasRole('super_master')) {
+            // Ve todos
+        } elseif ($user->hasRole('master')) {
+            // master ve solo las bancas que administra (y su descendencia);
+            // sin bancas asignadas ve NADA (whereRaw 1=0, nunca global)
+            $user->masterBancaChainScope()($query);
         } elseif ($user->hasRole('banca')) {
             if (! $user->banca_id) {
                 return response()->json(['message' => 'No tienes una banca asociada.'], 403);
@@ -123,7 +127,17 @@ class CierreController extends Controller
 
         $taquilla = Taquilla::find($validated['taquilla_id']);
 
-        if ($user->hasRole(['super_master', 'master'])) {
+        if ($user->hasRole('super_master')) {
+            return $taquilla->id;
+        }
+
+        // El master solo cierra cajas de taquillas de sus bancas
+        if ($user->hasRole('master')) {
+            $bancaId = $taquilla->grupo?->banca_id;
+            if ($bancaId === null || ! $user->masterCanAccessBanca((int) $bancaId)) {
+                abort(403, 'No tienes acceso a la caja de esta taquilla.');
+            }
+
             return $taquilla->id;
         }
 
@@ -160,7 +174,16 @@ class CierreController extends Controller
      */
     private function authorizeCierreAccess($user, CierreCaja $cierre): void
     {
-        if ($user->hasRole(['super_master', 'master'])) {
+        if ($user->hasRole('super_master')) {
+            return;
+        }
+
+        if ($user->hasRole('master')) {
+            $bancaId = $cierre->taquilla?->grupo?->banca_id;
+            if ($bancaId === null || ! $user->masterCanAccessBanca((int) $bancaId)) {
+                abort(403, 'No tienes acceso a este cierre.');
+            }
+
             return;
         }
 
