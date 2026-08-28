@@ -28,6 +28,10 @@ class EstadisticaController extends Controller
         // Filtrado jerárquico según rol
         if ($user->role === 'taquilla') {
             $query->where('taquilla_id', $user->taquilla_id);
+        } elseif ($user->role === 'agencia') {
+            $query->whereHas('taquilla', function ($q) use ($user) {
+                $q->where('agencia_id', $user->agencia_id);
+            });
         } elseif ($user->role === 'grupo') {
             $query->whereHas('taquilla.grupo', function ($q) use ($user) {
                 $q->where('grupo_id', $user->grupo_id);

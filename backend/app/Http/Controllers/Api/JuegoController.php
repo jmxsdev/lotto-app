@@ -159,13 +159,14 @@ class JuegoController extends Controller
     {
         $user = $request->user();
 
-        if (! in_array($user->role, ['super_master', 'master', 'banca', 'grupo'])) {
+        if (! in_array($user->role, ['super_master', 'master', 'banca', 'grupo', 'agencia'])) {
             return response()->json(['message' => 'No tienes permiso para ver límites.'], 403);
         }
 
         $filtros = $request->validate([
             'banca_id' => 'nullable|integer|exists:bancas,id',
             'grupo_id' => 'nullable|integer|exists:grupos,id',
+            'agencia_id' => 'nullable|integer|exists:agencias,id',
             'taquilla_id' => 'nullable|integer|exists:taquillas,id',
         ]);
 
@@ -177,6 +178,16 @@ class JuegoController extends Controller
             // Sin filtro: ven todos los límites
         } elseif ($user->role === 'banca') {
             $query->where('banca_id', $user->banca_id);
+        } elseif ($user->role === 'agencia') {
+            // La agencia ve las filas de su banca (nivel banca), de su grupo
+            // (nivel grupo) y de sus propias taquillas (nivel taquilla).
+            $query->where(function ($q) use ($user) {
+                $q->where('banca_id', $user->banca_id)
+                    ->whereNull('grupo_id')
+                    ->whereNull('taquilla_id')
+                    ->orWhere('grupo_id', $user->grupo_id)
+                    ->orWhereIn('taquilla_id', Taquilla::where('agencia_id', $user->agencia_id)->pluck('id'));
+            });
         } elseif ($user->role === 'grupo') {
             $query->where(function ($q) use ($user) {
                 $q->where('grupo_id', $user->grupo_id)
@@ -187,7 +198,7 @@ class JuegoController extends Controller
             });
         }
 
-        // Filtros explícitos por banca, grupo o taquilla (validados previamente).
+        // Filtros explícitos por banca, grupo, agencia o taquilla (validados previamente).
         // Se aplican DESPUÉS del alcance jerárquico: intersectan, nunca amplían.
         if (isset($filtros['banca_id'])) {
             $query->where('banca_id', $filtros['banca_id']);
@@ -195,6 +206,10 @@ class JuegoController extends Controller
 
         if (isset($filtros['grupo_id'])) {
             $query->where('grupo_id', $filtros['grupo_id']);
+        }
+
+        if (isset($filtros['agencia_id'])) {
+            $query->where('agencia_id', $filtros['agencia_id']);
         }
 
         if (isset($filtros['taquilla_id'])) {
@@ -226,7 +241,7 @@ class JuegoController extends Controller
     {
         $user = $request->user();
 
-        if (! in_array($user->role, ['super_master', 'master', 'banca', 'grupo'])) {
+        if (! in_array($user->role, ['super_master', 'master', 'banca', 'grupo', 'agencia'])) {
             return response()->json(['message' => 'No tienes permiso para ver límites.'], 403);
         }
 
@@ -522,7 +537,7 @@ class JuegoController extends Controller
         }
 
         if ($singular === 'banca') {
-            $ids = $user->role === 'banca' ? [$user->banca_id] : Banca::pluck('id');
+            $ids = in_array($user->role, ['banca', 'agencia']) ? [$user->banca_id] : Banca::pluck('id');
             if ($user->role === 'grupo') {
                 $ids = [$user->banca_id];
             }
@@ -539,6 +554,8 @@ class JuegoController extends Controller
                 $ids = Taquilla::pluck('id');
             } elseif ($user->role === 'banca') {
                 $ids = Taquilla::whereHas('grupo', fn ($q) => $q->where('banca_id', $user->banca_id))->pluck('id');
+            } elseif ($user->role === 'agencia') {
+                $ids = Taquilla::where('agencia_id', $user->agencia_id)->pluck('id');
             } else {
                 $ids = Taquilla::where('grupo_id', $user->grupo_id)->pluck('id');
             }
@@ -827,6 +844,20 @@ class JuegoController extends Controller
                 ->exists();
         }
 
+        if ($user->role === 'agencia') {
+            if ($tipo === 'banca') {
+                return $user->banca_id == $entidadId;
+            }
+
+            if ($tipo === 'grupo') {
+                return $user->grupo_id == $entidadId;
+            }
+
+            return Taquilla::whereKey($entidadId)
+                ->where('agencia_id', $user->agencia_id)
+                ->exists();
+        }
+
         return false;
     }
 
@@ -975,6 +1006,14 @@ class JuegoController extends Controller
                 $query->whereKey($user->banca_id);
             } else {
                 $query->where('grupo_id', $user->grupo_id);
+            }
+        } elseif ($user->role === 'agencia') {
+            if ($tipo === 'grupo') {
+                $query->whereKey($user->grupo_id);
+            } elseif ($tipo === 'banca') {
+                $query->whereKey($user->banca_id);
+            } else {
+                $query->where('agencia_id', $user->agencia_id);
             }
         }
 

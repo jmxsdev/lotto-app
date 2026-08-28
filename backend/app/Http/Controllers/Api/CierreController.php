@@ -63,9 +63,16 @@ class CierreController extends Controller
             $query->whereHas('taquilla', function ($q) use ($user) {
                 $q->where('grupo_id', $user->grupo_id);
             });
+        } elseif ($user->hasRole('agencia')) {
+            if (! $user->agencia_id) {
+                return response()->json(['message' => 'No tienes una agencia asociada.'], 403);
+            }
+            $query->whereHas('taquilla', function ($q) use ($user) {
+                $q->where('agencia_id', $user->agencia_id);
+            });
         } elseif ($user->hasRole('taquilla')) {
             if (! $user->taquilla_id) {
-                return response()->json(['message' => 'No tienes una agencia asociada.'], 403);
+                return response()->json(['message' => 'No tienes una taquilla asociada.'], 403);
             }
             $query->where('taquilla_id', $user->taquilla_id);
         } else {
@@ -90,26 +97,26 @@ class CierreController extends Controller
     // --- Métodos de autorización ---
 
     /**
-     * Resolver la agencia a cerrar según el rol del usuario.
+     * Resolver la taquilla a cerrar según el rol del usuario.
      *
      * @return int taquilla_id autorizada
      */
     private function resolveTaquillaParaCierre($user, Request $request): int
     {
-        // La agencia (rol taquilla) cierra su propia caja
+        // La taquilla (rol taquilla) cierra su propia caja
         if ($user->hasRole('taquilla')) {
             if (! $user->taquilla_id) {
-                abort(403, 'No tienes una agencia asociada.');
+                abort(403, 'No tienes una taquilla asociada.');
             }
 
             if ($request->filled('taquilla_id') && (int) $request->taquilla_id !== (int) $user->taquilla_id) {
-                abort(403, 'Solo puedes cerrar la caja de tu propia agencia.');
+                abort(403, 'Solo puedes cerrar la caja de tu propia taquilla.');
             }
 
             return (int) $user->taquilla_id;
         }
 
-        // Roles administrativos: deben indicar la agencia a cerrar
+        // Roles administrativos: deben indicar la taquilla a cerrar
         $validated = $request->validate([
             'taquilla_id' => 'required|integer|exists:taquillas,id',
         ]);
@@ -120,9 +127,18 @@ class CierreController extends Controller
             return $taquilla->id;
         }
 
+        // La agencia (local) puede cerrar la caja de cualquiera de sus taquillas
+        if ($user->hasRole('agencia')) {
+            if (! $user->agencia_id || $user->agencia_id != $taquilla->agencia_id) {
+                abort(403, 'No tienes acceso a la caja de esta taquilla.');
+            }
+
+            return $taquilla->id;
+        }
+
         if ($user->hasRole('banca')) {
             if (! $user->banca_id || $user->banca_id != $taquilla->grupo?->banca_id) {
-                abort(403, 'No tienes acceso a la caja de esta agencia.');
+                abort(403, 'No tienes acceso a la caja de esta taquilla.');
             }
 
             return $taquilla->id;
@@ -130,7 +146,7 @@ class CierreController extends Controller
 
         if ($user->hasRole('grupo')) {
             if (! $user->grupo_id || $user->grupo_id != $taquilla->grupo_id) {
-                abort(403, 'No tienes acceso a la caja de esta agencia.');
+                abort(403, 'No tienes acceso a la caja de esta taquilla.');
             }
 
             return $taquilla->id;
@@ -158,6 +174,14 @@ class CierreController extends Controller
 
         if ($user->hasRole('grupo')) {
             if (! $user->grupo_id || $user->grupo_id != $cierre->taquilla?->grupo_id) {
+                abort(403, 'No tienes acceso a este cierre.');
+            }
+
+            return;
+        }
+
+        if ($user->hasRole('agencia')) {
+            if (! $user->agencia_id || $user->agencia_id != $cierre->taquilla?->agencia_id) {
                 abort(403, 'No tienes acceso a este cierre.');
             }
 

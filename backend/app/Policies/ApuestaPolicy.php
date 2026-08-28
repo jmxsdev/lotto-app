@@ -10,7 +10,7 @@ class ApuestaPolicy
 {
     public function viewAny(User $user): bool
     {
-        return in_array($user->role, ['super_master', 'master', 'banca', 'grupo', 'taquilla']);
+        return in_array($user->role, ['super_master', 'master', 'banca', 'grupo', 'agencia', 'taquilla']);
     }
 
     public function view(User $user, Apuesta $apuesta): bool
@@ -23,6 +23,10 @@ class ApuestaPolicy
         }
         if ($user->role === 'grupo') {
             return $apuesta->taquilla->grupo_id === $user->grupo_id;
+        }
+        if ($user->role === 'agencia') {
+            return $user->agencia_id !== null
+                && $apuesta->taquilla->agencia_id === $user->agencia_id;
         }
         if ($user->role === 'taquilla') {
             return $apuesta->taquilla_id === $user->taquilla_id;
@@ -58,6 +62,11 @@ class ApuestaPolicy
 
         if ($user->role === 'taquilla') {
             return $apuesta->taquilla_id === $user->taquilla_id;
+        }
+
+        if ($user->role === 'agencia') {
+            return $user->agencia_id !== null
+                && $apuesta->taquilla->agencia_id === $user->agencia_id;
         }
 
         if ($user->role === 'grupo') {

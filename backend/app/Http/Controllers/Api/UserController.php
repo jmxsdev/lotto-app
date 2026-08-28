@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Agencia;
 use App\Models\Grupo;
 use App\Models\Taquilla;
 use App\Models\User;
@@ -25,6 +26,7 @@ class UserController extends Controller
             'banca_id' => 'nullable|integer|exists:bancas,id',
             'grupo_id' => 'nullable|integer|exists:grupos,id',
             'taquilla_id' => 'nullable|integer|exists:taquillas,id',
+            'agencia_id' => 'nullable|integer|exists:agencias,id',
         ]);
 
         $query = User::query();
@@ -61,6 +63,13 @@ class UserController extends Controller
                     ->orWhereHas('taquilla', fn ($t) => $t->where('grupo_id', $user->grupo_id));
             });
         }
+        // Agencia ve los usuarios de su local (agencia_id directo o vía taquilla)
+        elseif ($user->hasRole('agencia')) {
+            if (! $user->agencia_id) {
+                return response()->json(['message' => 'No tienes una agencia asociada.'], 403);
+            }
+            $query->where('agencia_id', $user->agencia_id);
+        }
         // Taquilla solo se ve a sí misma
         elseif ($user->hasRole('taquilla')) {
             $query->where('id', $user->id);
@@ -79,6 +88,10 @@ class UserController extends Controller
 
         if (isset($filtros['grupo_id'])) {
             $query->where('grupo_id', $filtros['grupo_id']);
+        }
+
+        if (isset($filtros['agencia_id'])) {
+            $query->where('agencia_id', $filtros['agencia_id']);
         }
 
         if (isset($filtros['taquilla_id'])) {
@@ -103,10 +116,11 @@ class UserController extends Controller
             'user_name' => 'required|string|max:255',
             'user_email' => 'required|email|unique:users,email',
             'user_password' => 'required|string|min:8',
-            'role' => ['required', Rule::in(['super_master', 'master', 'banca', 'grupo', 'taquilla'])],
+            'role' => ['required', Rule::in(['super_master', 'master', 'banca', 'grupo', 'agencia', 'taquilla'])],
             'active' => 'boolean',
             'banca_id' => 'nullable|exists:bancas,id',
             'grupo_id' => 'nullable|exists:grupos,id',
+            'agencia_id' => 'nullable|exists:agencias,id',
             'taquilla_id' => 'nullable|exists:taquillas,id',
         ]);
 
@@ -157,10 +171,11 @@ class UserController extends Controller
             'name' => 'sometimes|string|max:255',
             'email' => 'sometimes|email|unique:users,email,'.$user->id,
             'password' => 'sometimes|string|min:8',
-            'role' => ['sometimes', Rule::in(['super_master', 'master', 'banca', 'grupo', 'taquilla'])],
+            'role' => ['sometimes', Rule::in(['super_master', 'master', 'banca', 'grupo', 'agencia', 'taquilla'])],
             'active' => 'boolean',
             'banca_id' => 'nullable|exists:bancas,id',
             'grupo_id' => 'nullable|exists:grupos,id',
+            'agencia_id' => 'nullable|exists:agencias,id',
             'taquilla_id' => 'nullable|exists:taquillas,id',
         ]);
 
@@ -266,6 +281,21 @@ class UserController extends Controller
             return;
         }
 
+        if ($currentUser->hasRole('agencia')) {
+            if (! $currentUser->agencia_id) {
+                abort(403, 'No tienes una agencia asociada.');
+            }
+            if (in_array($role, ['super_master', 'master', 'banca', 'grupo'], true)) {
+                abort(403, 'No tienes permisos para asignar este rol.');
+            }
+            $effectiveAgencia = $data['agencia_id'] ?? $this->resolveAgenciaId($existing);
+            if ($effectiveAgencia != $currentUser->agencia_id) {
+                abort(403, 'No puedes vincular usuarios a entidades de otro local.');
+            }
+
+            return;
+        }
+
         abort(403, 'No tienes permisos para gestionar usuarios.');
     }
 
@@ -310,6 +340,18 @@ class UserController extends Controller
             return;
         }
 
+        // Agencia solo puede gestionar usuarios de su local
+        if ($currentUser->hasRole('agencia')) {
+            if (! $currentUser->agencia_id) {
+                abort(403, 'No tienes una agencia asociada.');
+            }
+            if ($this->resolveAgenciaId($targetUser) != $currentUser->agencia_id) {
+                abort(403, 'No tienes acceso a este usuario.');
+            }
+
+            return;
+        }
+
         abort(403, 'No tienes permiso para acceder a este usuario.');
     }
 
@@ -317,7 +359,8 @@ class UserController extends Controller
 
     /**
      * Deriva la cadena de vínculos a partir de lo enviado:
-     * taquilla_id → banca_id + grupo_id; grupo_id → banca_id.
+     * taquilla_id → agencia_id + banca_id + grupo_id;
+     * agencia_id → banca_id + grupo_id; grupo_id → banca_id.
      * Limpia los vínculos inferiores cuando se vincula a un nivel superior.
      */
     private function deriveEntityBindings(Request $request): array
@@ -327,8 +370,20 @@ class UserController extends Controller
 
             return [
                 'taquilla_id' => $taquilla->id,
+                'agencia_id' => $taquilla->agencia_id,
                 'grupo_id' => $taquilla->grupo_id,
                 'banca_id' => $taquilla->grupo->banca_id,
+            ];
+        }
+
+        if ($request->filled('agencia_id')) {
+            $agencia = Agencia::with('grupo')->find($request->agencia_id);
+
+            return [
+                'taquilla_id' => null,
+                'agencia_id' => $agencia->id,
+                'grupo_id' => $agencia->grupo_id,
+                'banca_id' => $agencia->grupo?->banca_id,
             ];
         }
 
@@ -337,6 +392,7 @@ class UserController extends Controller
 
             return [
                 'taquilla_id' => null,
+                'agencia_id' => null,
                 'grupo_id' => $grupo->id,
                 'banca_id' => $grupo->banca_id,
             ];
@@ -345,6 +401,7 @@ class UserController extends Controller
         if ($request->filled('banca_id')) {
             return [
                 'taquilla_id' => null,
+                'agencia_id' => null,
                 'grupo_id' => null,
                 'banca_id' => $request->banca_id,
             ];
@@ -355,13 +412,14 @@ class UserController extends Controller
 
     /**
      * Valida que el rol requiera (y tenga) el vínculo de entidad correspondiente:
-     * banca → banca_id, grupo → grupo_id, taquilla → taquilla_id.
+     * banca → banca_id, grupo → grupo_id, agencia → agencia_id, taquilla → taquilla_id.
      */
     private function validateRoleBindings(string $role, array $data, ?User $existing = null): void
     {
         $required = match ($role) {
             'banca' => 'banca_id',
             'grupo' => 'grupo_id',
+            'agencia' => 'agencia_id',
             'taquilla' => 'taquilla_id',
             default => null,
         };
@@ -396,6 +454,10 @@ class UserController extends Controller
             return Grupo::find($user->grupo_id)?->banca_id;
         }
 
+        if ($user->agencia_id) {
+            return Agencia::find($user->agencia_id)?->grupo?->banca_id;
+        }
+
         if ($user->taquilla_id) {
             return Taquilla::find($user->taquilla_id)?->grupo?->banca_id;
         }
@@ -416,8 +478,32 @@ class UserController extends Controller
             return $user->grupo_id;
         }
 
+        if ($user->agencia_id) {
+            return Agencia::find($user->agencia_id)?->grupo_id;
+        }
+
         if ($user->taquilla_id) {
             return Taquilla::find($user->taquilla_id)?->grupo_id;
+        }
+
+        return null;
+    }
+
+    /**
+     * Resuelve el local (agencia) efectivo de un usuario recorriendo su cadena.
+     */
+    private function resolveAgenciaId(?User $user): ?int
+    {
+        if (! $user) {
+            return null;
+        }
+
+        if ($user->agencia_id) {
+            return $user->agencia_id;
+        }
+
+        if ($user->taquilla_id) {
+            return Taquilla::find($user->taquilla_id)?->agencia_id;
         }
 
         return null;

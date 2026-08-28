@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\ActivacionController;
+use App\Http\Controllers\Api\AgenciaController;
 use App\Http\Controllers\Api\ApuestaController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BancaController;
@@ -43,7 +44,7 @@ Route::prefix('v1')->group(function () {
         // taquilla solo se ve a sí misma; destroy restringido a
         // super_master|master en el controlador)
         // ==================================================
-        Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
+        Route::middleware(['role:super_master|master|banca|grupo|taquilla|agencia'])->group(function () {
             Route::apiResource('users', UserController::class);
         });
 
@@ -64,9 +65,18 @@ Route::prefix('v1')->group(function () {
         });
 
         // ==================================================
-        // TAQUILLAS (Super Master, Master, Banca, Grupo)
+        // AGENCIAS (locales físicos): Super Master, Master, Banca, Grupo,
+        // y la agencia (solo lectura de su propio local)
         // ==================================================
-        Route::middleware(['role:super_master|master|banca|grupo'])->group(function () {
+        Route::middleware(['role:super_master|master|banca|grupo|agencia'])->group(function () {
+            Route::apiResource('agencias', AgenciaController::class);
+            Route::patch('/agencias/{agencia}/toggle', [AgenciaController::class, 'toggle'])->name('agencias.toggle');
+        });
+
+        // ==================================================
+        // TAQUILLAS (Super Master, Master, Banca, Grupo, Agencia)
+        // ==================================================
+        Route::middleware(['role:super_master|master|banca|grupo|agencia'])->group(function () {
             Route::apiResource('taquillas', TaquillaController::class);
             Route::patch('/taquillas/{taquilla}/toggle', [TaquillaController::class, 'toggle'])->name('taquillas.toggle');
         });
@@ -101,7 +111,7 @@ Route::prefix('v1')->group(function () {
         // ==================================================
         // APUESTAS (todos los roles)
         // ==================================================
-        Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
+        Route::middleware(['role:super_master|master|banca|grupo|taquilla|agencia'])->group(function () {
             Route::get('/apuestas', [ApuestaController::class, 'index']);
             Route::post('/apuestas', [ApuestaController::class, 'store']);
             Route::get('/apuestas/historial', [ApuestaController::class, 'historial']);
@@ -140,7 +150,7 @@ Route::prefix('v1')->group(function () {
         // CIERRE DE CAJA (jerárquico: la agencia cierra su propia caja;
         // los roles administrativos cierran agencias dentro de su alcance)
         // ==================================================
-        Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
+        Route::middleware(['role:super_master|master|banca|grupo|taquilla|agencia'])->group(function () {
             Route::post('/cierre', [CierreController::class, 'store']);
             Route::get('/cierre', [CierreController::class, 'index']);
             Route::get('/cierre/{cierre}', [CierreController::class, 'show']);
@@ -149,8 +159,8 @@ Route::prefix('v1')->group(function () {
         // ==================================================
         // LÍMITES POR JUEGO
         // ==================================================
-        // GET: super_master, master, banca, grupo
-        Route::middleware(['role:super_master|master|banca|grupo'])->group(function () {
+        // GET: super_master, master, banca, grupo, agencia
+        Route::middleware(['role:super_master|master|banca|grupo|agencia'])->group(function () {
             // GET /api/v1/limites (modo entidad): matriz completa de una entidad
             // (el conteo de segmentos lo desambigua de /limites/{juego})
             Route::get('/limites', [JuegoController::class, 'listarLimites']);
@@ -172,7 +182,7 @@ Route::prefix('v1')->group(function () {
         // ==================================================
         // REPORTES (todos los roles autenticados)
         // ==================================================
-        Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
+        Route::middleware(['role:super_master|master|banca|grupo|taquilla|agencia'])->group(function () {
             Route::get('/reportes/ventas-totales', [ReporteController::class, 'ventasTotales']);
             Route::get('/reportes/cuadre-caja', [ReporteController::class, 'cuadreCaja']);
             Route::get('/reportes/relacion-tickets', [ReporteController::class, 'relacionTickets']);
@@ -183,7 +193,7 @@ Route::prefix('v1')->group(function () {
         // ==================================================
         // ESTADÍSTICAS (todos los roles autenticados)
         // ==================================================
-        Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
+        Route::middleware(['role:super_master|master|banca|grupo|taquilla|agencia'])->group(function () {
             Route::get('/estadisticas/rendimiento', [EstadisticaController::class, 'rendimiento']);
         });
 
