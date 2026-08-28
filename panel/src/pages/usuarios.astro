@@ -17,7 +17,8 @@ import AdminLayout from '../layouts/AdminLayout.astro';
         <div class="field"><label>Rol</label><select name="role" required></select></div>
         <div class="field" id="banca-field"><label>Banca</label><select name="banca_id"></select></div>
         <div class="field" id="grupo-field"><label>Grupo</label><select name="grupo_id"></select></div>
-        <div class="field" id="taquilla-field"><label>Agencia</label><select name="taquilla_id"></select></div>
+        <div class="field" id="agencia-field"><label>Local (Agencia)</label><select name="agencia_id"></select></div>
+        <div class="field" id="taquilla-field"><label>Taquilla</label><select name="taquilla_id"></select></div>
         <div class="field"><div class="checkbox-group"><label><input type="checkbox" name="active" checked /> Activo</label></div></div>
         <div class="modal-actions">
           <button type="button" class="btn btn-secondary" id="btn-cancel">Cancelar</button>
@@ -40,14 +41,14 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     const currentUser = JSON.parse(localStorage.getItem('panel_user') || '{}');
     const currentRole = currentUser.role || '';
     let editId = null;
-    let bancas = []; let grupos = []; let taquillas = [];
+    let bancas = []; let grupos = []; let agencias = []; let taquillas = [];
 
-    const ROLE_LABELS = { super_master: 'Super Master', master: 'Master', banca: 'Banca', grupo: 'Grupo', taquilla: 'Agencia' };
-    const ROLE_ORDER = ['super_master', 'master', 'banca', 'grupo', 'taquilla'];
+    const ROLE_LABELS = { super_master: 'Super Master', master: 'Master', banca: 'Banca', grupo: 'Grupo', agencia: 'Agencia', taquilla: 'Taquilla' };
+    const ROLE_ORDER = ['super_master', 'master', 'banca', 'grupo', 'agencia', 'taquilla'];
 
     // Roles que el usuario actual puede asignar según su jerarquía (el backend valida igual)
     function assignableRoles() {
-      const start = { super_master: 0, master: 1, banca: 2, grupo: 3 }[currentRole];
+      const start = { super_master: 0, master: 1, banca: 2, grupo: 3, agencia: 4 }[currentRole];
       return start === undefined ? [] : ROLE_ORDER.slice(start);
     }
 
@@ -69,7 +70,8 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     function applyRoleUI() {
       const role = f.role.value;
       showField('banca-field', role === 'banca' || role === 'grupo');
-      showField('grupo-field', role === 'grupo' || role === 'taquilla');
+      showField('grupo-field', role === 'grupo' || role === 'agencia' || role === 'taquilla');
+      showField('agencia-field', role === 'agencia');
       showField('taquilla-field', role === 'taquilla');
     }
 
@@ -78,12 +80,18 @@ import AdminLayout from '../layouts/AdminLayout.astro';
       fillSelect('grupo_id', list, g => g.name);
     }
 
+    function renderAgencias(grupoId) {
+      const list = grupoId ? agencias.filter(a => a.grupo_id == grupoId) : agencias;
+      fillSelect('agencia_id', list, a => a.name);
+    }
+
     function renderTaquillas(grupoId) {
       const list = grupoId ? taquillas.filter(t => t.grupo_id == grupoId) : taquillas;
       fillSelect('taquilla_id', list, t => t.name);
     }
 
     async function loadGrupos() { try { const d = await apiFetch('GET', '/grupos?per_page=100'); grupos = Array.isArray(d) ? d : (d?.data || []); } catch (_) { grupos = []; } }
+    async function loadAgencias() { try { const d = await apiFetch('GET', '/agencias?per_page=100'); agencias = Array.isArray(d) ? d : (d?.data || []); } catch (_) { agencias = []; } }
     async function loadTaquillas() { try { const d = await apiFetch('GET', '/taquillas?per_page=100'); taquillas = Array.isArray(d) ? d : (d?.data || []); } catch (_) { taquillas = []; } }
     async function loadBancas() {
       try { const d = await apiFetch('GET', '/bancas?per_page=100'); bancas = Array.isArray(d) ? d : (d?.data || []); } catch (_) { bancas = []; }
@@ -101,9 +109,10 @@ import AdminLayout from '../layouts/AdminLayout.astro';
       try {
         const data = await apiFetch('GET', '/users?per_page=100');
         const items = Array.isArray(data) ? data : (data?.data || []);
+        const localPorId = new Map(agencias.map(a => [a.id, a.name]));
         let html = '<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Entidad</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>';
         items.forEach(u => {
-          const entidad = u.taquilla?.name || u.grupo?.name || u.banca?.name || '—';
+          const entidad = u.agencia_id ? (localPorId.get(u.agencia_id) || '—') : (u.taquilla?.name || u.grupo?.name || u.banca?.name || '—');
           const del = (currentRole === 'super_master' || currentRole === 'master') ? `<button class="btn btn-sm btn-danger del-btn" data-id="${u.id}">🗑</button>` : '';
           html += `<tr><td><strong>${u.name}</strong></td><td>${u.email}</td><td>${ROLE_LABELS[u.role] || u.role}</td><td>${entidad}</td><td><span class="badge ${u.active ? 'badge-active' : 'badge-inactive'}">${u.active ? 'Activo' : 'Inactivo'}</span></td><td class="actions-cell"><button class="btn btn-sm btn-secondary edit-btn" data-id="${u.id}">✏️</button>${del}</td></tr>`;
         });
@@ -132,19 +141,22 @@ import AdminLayout from '../layouts/AdminLayout.astro';
       f.banca_id.value = bancaId ? String(bancaId) : '';
       const grupoId = u ? (u.grupo_id || u.taquilla?.grupo_id) : (currentUser.grupo_id || '');
       f.grupo_id.value = grupoId ? String(grupoId) : '';
+      f.agencia_id.value = u?.agencia_id ? String(u.agencia_id) : (currentUser.agencia_id ? String(currentUser.agencia_id) : '');
       f.taquilla_id.value = u?.taquilla_id ? String(u.taquilla_id) : '';
       applyRoleUI();
-      const selBanca = f.banca_id.value, selGrupo = f.grupo_id.value, selTaq = f.taquilla_id.value;
+      const selBanca = f.banca_id.value, selGrupo = f.grupo_id.value, selAgencia = f.agencia_id.value, selTaq = f.taquilla_id.value;
       renderGrupos(selBanca);
       f.grupo_id.value = selGrupo;
+      renderAgencias(selGrupo);
+      f.agencia_id.value = selAgencia;
       renderTaquillas(selGrupo);
       f.taquilla_id.value = selTaq;
       document.getElementById('modal').style.display = 'flex';
     }
 
-    f.role.addEventListener('change', () => { applyRoleUI(); renderGrupos(f.banca_id.value); renderTaquillas(f.grupo_id.value); });
-    f.banca_id.addEventListener('change', () => { f.grupo_id.value = ''; renderGrupos(f.banca_id.value); renderTaquillas(f.grupo_id.value); f.taquilla_id.value = ''; });
-    f.grupo_id.addEventListener('change', () => { renderTaquillas(f.grupo_id.value); f.taquilla_id.value = ''; });
+    f.role.addEventListener('change', () => { applyRoleUI(); renderGrupos(f.banca_id.value); renderAgencias(f.grupo_id.value); renderTaquillas(f.grupo_id.value); });
+    f.banca_id.addEventListener('change', () => { f.grupo_id.value = ''; renderGrupos(f.banca_id.value); renderAgencias(f.grupo_id.value); renderTaquillas(f.grupo_id.value); f.agencia_id.value = ''; f.taquilla_id.value = ''; });
+    f.grupo_id.addEventListener('change', () => { renderAgencias(f.grupo_id.value); renderTaquillas(f.grupo_id.value); f.agencia_id.value = ''; f.taquilla_id.value = ''; });
 
     document.getElementById('btn-create').addEventListener('click', () => openModal());
     document.getElementById('btn-cancel').addEventListener('click', () => document.getElementById('modal').style.display = 'none');
@@ -163,6 +175,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
       }
       if (role === 'banca') body.banca_id = f.banca_id.value || null;
       else if (role === 'grupo') { body.banca_id = f.banca_id.value || null; body.grupo_id = f.grupo_id.value || null; }
+      else if (role === 'agencia') { body.agencia_id = f.agencia_id.value || null; }
       else if (role === 'taquilla') { body.grupo_id = f.grupo_id.value || null; body.taquilla_id = f.taquilla_id.value || null; }
       try {
         if (editId) await apiFetch('PUT', '/users/' + editId, body);
@@ -190,6 +203,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
 
     (async function init() {
       await loadGrupos();
+      await loadAgencias();
       await loadTaquillas();
       await loadBancas();
       load();

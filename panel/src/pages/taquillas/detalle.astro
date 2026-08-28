@@ -6,10 +6,10 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
   <div class="page">
     <div class="page-header">
       <div>
-        <h2 class="page-title" id="page-title">Agencia</h2>
+        <h2 class="page-title" id="page-title">Taquilla</h2>
         <p class="page-subtitle" id="page-subtitle"></p>
       </div>
-      <a class="btn btn-secondary" href="/taquillas">← Volver a Agencias</a>
+      <a class="btn btn-secondary" href="/taquillas">← Volver a Taquillas</a>
     </div>
 
     <div class="tab-bar" id="tabs">
@@ -26,6 +26,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
           <div class="field"><label>Nombre</label><input name="name" required /></div>
           <div class="field"><label>Código</label><input name="code" required /></div>
           <div class="field"><label>Grupo (entidad padre)</label><select name="grupo_id" required></select></div>
+          <div class="field"><label>Local (Agencia)</label><select name="agencia_id"><option value="">Sin local asignado</option></select></div>
           <div class="field"><label>Código de Activación</label><input name="activation_code" /></div>
           <div class="field"><label>MAC Address</label><input name="mac_address" disabled /></div>
           <div class="field"><label>RIF</label><input name="rif" /></div>
@@ -35,7 +36,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
           <div class="field"><label>Estado</label><input name="estado" /></div>
           <div class="field"><label>Municipio</label><input name="municipio" /></div>
         </div>
-        <div class="field checkbox-line"><label><input type="checkbox" name="active" checked /> Agencia activa</label></div>
+        <div class="field checkbox-line"><label><input type="checkbox" name="active" checked /> Taquilla activa</label></div>
         <div class="field-section" id="user-section">
           <h4>👤 Usuario Jefe</h4>
           <div class="form-grid">
@@ -51,7 +52,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
 
     <!-- Pestaña 2: Monedas y Vigencia -->
     <section class="tab-panel" data-panel="monedas" style="display:none">
-      <p class="notice" id="monedas-notice" style="display:none">Primero guarde la agencia en la pestaña Información para configurar vigencia.</p>
+      <p class="notice" id="monedas-notice" style="display:none">Primero guarde la taquilla en la pestaña Información para configurar vigencia.</p>
       <div class="notice" id="parent-hint" style="display:none"></div>
       <form id="monedas-form">
         <div class="field">
@@ -60,7 +61,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
             <span class="moneda-badge moneda-bs" id="moneda-bs">BS</span>
             <span class="moneda-badge moneda-usd" id="moneda-usd">USD</span>
           </div>
-          <p class="user-hint" id="monedas-origen">Heredado del grupo — la agencia no configura monedas propias.</p>
+          <p class="user-hint" id="monedas-origen">Heredado del grupo — la taquilla no configura monedas propias.</p>
         </div>
         <div class="form-grid">
           <div class="field"><label>Vigencia Premios (días)</label><input name="vigencia_premios" type="number" min="1" placeholder="Vacío = hereda del grupo" /></div>
@@ -72,11 +73,11 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
 
     <!-- Pestaña 3: Límites -->
     <section class="tab-panel" data-panel="limites" style="display:none">
-      <p class="notice" id="limites-notice" style="display:none">Primero guarde la agencia en la pestaña Información para configurar sus límites.</p>
+      <p class="notice" id="limites-notice" style="display:none">Primero guarde la taquilla en la pestaña Información para configurar sus límites.</p>
       <div class="filters">
         <div class="field"><label>Aplicar a</label>
           <select id="limite-alcance">
-            <option value="self">Esta agencia</option>
+            <option value="self">Esta taquilla</option>
           </select>
         </div>
         <div class="field search"><label>Buscar juego</label>
@@ -93,7 +94,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
 
     <!-- Pestaña 4: Usuarios -->
     <section class="tab-panel" data-panel="usuarios" style="display:none">
-      <p class="notice" id="usuarios-notice" style="display:none">Primero guarde la agencia en la pestaña Información para gestionar sus usuarios.</p>
+      <p class="notice" id="usuarios-notice" style="display:none">Primero guarde la taquilla en la pestaña Información para gestionar sus usuarios.</p>
       <div class="panel-actions"><button type="button" class="btn btn-primary" id="btn-user-create">+ Nuevo usuario</button></div>
       <div id="users-content"><div class="loading">Cargando...</div></div>
     </section>
@@ -178,16 +179,17 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
     const TABS = ['informacion', 'monedas', 'limites', 'usuarios'];
     const currentUser = getStoredUser() || {};
     const role = currentUser.role || '';
-    const canEditTaquilla = role === 'super_master' || role === 'master' || role === 'banca' || role === 'grupo';
+    const canEditTaquilla = role === 'super_master' || role === 'master' || role === 'banca' || role === 'grupo' || role === 'agencia';
     const canEditLimites = role === 'super_master' || role === 'master' || role === 'banca';
     const canDeleteUser = role === 'super_master' || role === 'master';
     const taquillaId = getParam('id') ? parseInt(getParam('id'), 10) : null;
     const isCreate = !taquillaId;
 
-    const ROLE_LABELS = { super_master: 'Super Master', master: 'Master', banca: 'Banca', grupo: 'Grupo', taquilla: 'Agencia' };
+    const ROLE_LABELS = { super_master: 'Super Master', master: 'Master', banca: 'Banca', grupo: 'Grupo', agencia: 'Agencia', taquilla: 'Taquilla' };
 
     let taquilla = null;
     let grupos = [];
+    let agencias = [];
     let juegos = [];
     let limitesCache = {};
     let currentJuegoId = null;
@@ -199,9 +201,9 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
     // ---------- Cabecera y modo creación ----------
 
     function setHeader() {
-      document.getElementById('page-title').textContent = isCreate ? 'Nueva Agencia' : 'Agencia';
+      document.getElementById('page-title').textContent = isCreate ? 'Nueva Taquilla' : 'Taquilla';
       document.getElementById('page-subtitle').textContent = isCreate
-        ? 'Complete los datos para crear la agencia y su usuario jefe.'
+        ? 'Complete los datos para crear la taquilla y su usuario.'
         : `ID #${taquillaId}${taquilla?.code ? ' · Código ' + taquilla.code : ''}`;
     }
 
@@ -237,10 +239,31 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
       grupos.forEach(g => s.innerHTML += `<option value="${g.id}">${g.name}</option>`);
     }
 
+    // ---------- Carga de locales (selector de local) ----------
+
+    async function loadAgencias() {
+      try {
+        const data = await apiFetch('GET', '/agencias?per_page=100');
+        agencias = Array.isArray(data) ? data : (data?.data || []);
+      } catch (_) { agencias = []; }
+      renderAgencias();
+    }
+
+    function renderAgencias() {
+      const grupoSel = document.getElementById('info-form').grupo_id.value;
+      const s = document.getElementById('info-form').agencia_id;
+      const prev = s.value;
+      const list = grupoSel ? agencias.filter(a => a.grupo_id == grupoSel) : agencias;
+      s.innerHTML = '<option value="">Sin local asignado</option>';
+      list.forEach(a => s.innerHTML += `<option value="${a.id}">${a.name}</option>`);
+      if (prev && list.some(a => String(a.id) === prev)) s.value = prev;
+    }
+
     // ---------- Carga de la agencia ----------
 
     async function loadTaquilla() {
       await loadGrupos();
+      await loadAgencias();
       if (isCreate) { setHeader(); populateInfo(); applyCreateNotices(); return; }
       try {
         const data = await apiFetch('GET', '/taquillas/' + taquillaId);
@@ -267,6 +290,16 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
       f.name.value = taquilla?.name || '';
       f.code.value = taquilla?.code || '';
       f.grupo_id.value = taquilla?.grupo_id ? String(taquilla.grupo_id) : '';
+      f.agencia_id.value = taquilla?.agencia_id ? String(taquilla.agencia_id) : '';
+      // Prefijar local/grupo al crear desde el detalle de un local
+      if (isCreate && !f.agencia_id.value) {
+        const prefijada = getParam('agencia_id');
+        if (prefijada) {
+          f.agencia_id.value = prefijada;
+          const local = agencias.find(a => String(a.id) === prefijada);
+          if (local && !f.grupo_id.value) f.grupo_id.value = String(local.grupo_id);
+        }
+      }
       f.activation_code.value = taquilla?.activation_code || '';
       f.mac_address.value = taquilla?.mac_address || '';
       f.rif.value = taquilla?.rif || '';
@@ -299,8 +332,8 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
       document.getElementById('moneda-bs').style.display = m.bs ? '' : 'none';
       document.getElementById('moneda-usd').style.display = m.usd ? '' : 'none';
       document.getElementById('monedas-origen').textContent = taquilla?.grupo
-        ? `Heredado del grupo ${taquilla.grupo.name} — la agencia no configura monedas propias.`
-        : 'Heredado del grupo — la agencia no configura monedas propias.';
+        ? `Heredado del grupo ${taquilla.grupo.name} — la taquilla no configura monedas propias.`
+        : 'Heredado del grupo — la taquilla no configura monedas propias.';
       if (!canEditTaquilla) disableForm(f, true);
     }
 
@@ -317,7 +350,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
       p.innerHTML = `<strong>Grupo padre: ${g.name}</strong> — Monedas permitidas: ${monedasTxt} (heredadas del grupo). ` +
         `Vigencia de premios: ${vigencia ? vigencia + ' días' : 'sin definir'}. ` +
         `Tiempo de eliminación: ${tiempo} min. ` +
-        `La agencia solo puede acortar los plazos; déjelos vacíos para heredar del grupo.`;
+        `La taquilla solo puede acortar los plazos; déjelos vacíos para heredar del grupo.`;
       p.style.display = 'block';
     }
 
@@ -330,6 +363,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
         name: f.name.value,
         code: f.code.value,
         grupo_id: f.grupo_id.value,
+        agencia_id: f.agencia_id.value || null,
         activation_code: f.activation_code.value || null,
         rif: f.rif.value || null,
         email: f.email.value || null,
@@ -351,13 +385,16 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
           window.location.href = '/taquillas/detalle?id=' + created.id + '&tab=informacion';
         } else {
           await apiFetch('PUT', '/taquillas/' + taquillaId, body);
-          await showModal({ message: 'Agencia actualizada correctamente.', type: 'success' });
+          await showModal({ message: 'Taquilla actualizada correctamente.', type: 'success' });
           await loadTaquilla();
         }
       } catch (err) {
         await showModal({ message: err.message, type: 'error' });
       }
     });
+
+    // Al cambiar el grupo, re-filtrar los locales disponibles
+    document.getElementById('info-form').grupo_id.addEventListener('change', () => renderAgencias());
 
     // ---------- Pestaña Monedas y Vigencia ----------
 
@@ -407,7 +444,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
         cargarDatos: async () => {
           const data = await apiFetch('GET', '/limites?taquilla_id=' + taquillaId);
           const resultado = data?.data || { juegos: [], limites: {} };
-          impacto.textContent = 'Configurando esta agencia (celdas vacías = heredan del grupo o la banca).';
+          impacto.textContent = 'Configurando esta taquilla (celdas vacías = heredan del grupo o la banca).';
           return resultado;
         },
         guardar: async (payload) => {
@@ -470,7 +507,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
 
     function renderUsers() {
       if (!usuarios.length) {
-        document.getElementById('users-content').innerHTML = '<div class="loading">No hay usuarios vinculados a esta agencia.</div>';
+        document.getElementById('users-content').innerHTML = '<div class="loading">No hay usuarios vinculados a esta taquilla.</div>';
         return;
       }
       let html = '<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Entidad</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>';
@@ -496,7 +533,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
       f.email.required = creating;
       f.password.required = creating;
       f.active.checked = u ? !!u.active : true;
-      document.getElementById('user-role-hint').textContent = `Agencia — vinculado a ${taquilla?.name || 'esta agencia'} (ID #${taquillaId})`;
+      document.getElementById('user-role-hint').textContent = `Taquilla — vinculado a ${taquilla?.name || 'esta taquilla'} (ID #${taquillaId})`;
       document.getElementById('user-modal').style.display = 'flex';
     }
 

@@ -14,6 +14,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
 
     <div class="tab-bar" id="tabs">
       <button type="button" class="tab-btn" data-tab="informacion">📋 Información</button>
+      <button type="button" class="tab-btn" data-tab="locales">🏪 Locales</button>
       <button type="button" class="tab-btn" data-tab="monedas">💱 Monedas y Vigencia</button>
       <button type="button" class="tab-btn" data-tab="limites">🎯 Límites</button>
       <button type="button" class="tab-btn" data-tab="usuarios">👤 Usuarios</button>
@@ -47,7 +48,14 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
       </form>
     </section>
 
-    <!-- Pestaña 2: Monedas y Vigencia -->
+    <!-- Pestaña 2: Locales del grupo -->
+    <section class="tab-panel" data-panel="locales" style="display:none">
+      <p class="notice" id="locales-notice" style="display:none">Primero guarde el grupo en la pestaña Información para gestionar sus locales.</p>
+      <div class="panel-actions"><a class="btn btn-primary" id="btn-local-create" href="/agencias/detalle">+ Nuevo local</a></div>
+      <div id="locales-content"><div class="loading">Cargando...</div></div>
+    </section>
+
+    <!-- Pestaña 3: Monedas y Vigencia -->
     <section class="tab-panel" data-panel="monedas" style="display:none">
       <p class="notice" id="monedas-notice" style="display:none">Primero guarde el grupo en la pestaña Información para configurar monedas y vigencia.</p>
       <div class="notice" id="parent-hint" style="display:none"></div>
@@ -74,7 +82,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
         <div class="field"><label>Aplicar a</label>
           <select id="limite-alcance">
             <option value="self">Este grupo</option>
-            <option value="agencias">Todas sus agencias</option>
+            <option value="agencias">Todas sus taquillas</option>
           </select>
         </div>
         <div class="field search"><label>Buscar juego</label>
@@ -109,11 +117,13 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
           <label>Rol</label>
           <select name="role" id="user-role" required>
             <option value="grupo">Grupo</option>
-            <option value="taquilla">Agencia</option>
+            <option value="agencia">Agencia</option>
+            <option value="taquilla">Taquilla</option>
           </select>
         </div>
         <div class="field" id="user-grupo-field" style="display:none"><label>Grupo</label><p class="user-hint" id="user-grupo-name"></p></div>
-        <div class="field" id="user-taquilla-field" style="display:none"><label>Agencia</label><select name="taquilla_id"></select></div>
+        <div class="field" id="user-agencia-field" style="display:none"><label>Local (Agencia)</label><select name="agencia_id"></select></div>
+        <div class="field" id="user-taquilla-field" style="display:none"><label>Taquilla</label><select name="taquilla_id"></select></div>
         <div class="field checkbox-line"><label><input type="checkbox" name="active" checked /> Usuario activo</label></div>
         <div class="modal-actions">
           <button type="button" class="btn btn-secondary" id="btn-user-cancel">Cancelar</button>
@@ -181,7 +191,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
     import { getParam, initTabs } from '../../utils/tabs.ts';
     import { crearTablaLimites } from '../../utils/limites.ts';
 
-    const TABS = ['informacion', 'monedas', 'limites', 'usuarios'];
+    const TABS = ['informacion', 'locales', 'monedas', 'limites', 'usuarios'];
     const currentUser = getStoredUser() || {};
     const role = currentUser.role || '';
     const canEditGrupo = role === 'super_master' || role === 'master' || role === 'banca';
@@ -190,7 +200,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
     const grupoId = getParam('id') ? parseInt(getParam('id'), 10) : null;
     const isCreate = !grupoId;
 
-    const ROLE_LABELS = { super_master: 'Super Master', master: 'Master', banca: 'Banca', grupo: 'Grupo', taquilla: 'Agencia' };
+    const ROLE_LABELS = { super_master: 'Super Master', master: 'Master', banca: 'Banca', grupo: 'Grupo', agencia: 'Agencia', taquilla: 'Taquilla' };
 
     let grupo = null;
     let bancas = [];
@@ -199,8 +209,10 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
     let currentJuegoId = null;
     let usuarios = [];
     let taquillas = [];
+    let agencias = [];
     let limitesInited = false;
     let usuariosInited = false;
+    let localesInited = false;
     let userEditId = null;
 
     // ---------- Cabecera y modo creación ----------
@@ -408,7 +420,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
           const n = (resultado.entidades || []).length;
           impacto.textContent = limitesAlcance === 'self'
             ? 'Configurando este grupo (celdas vacías = heredan de la banca).'
-            : n > 0 ? `Se aplicará a ${n} agencias.` : 'No hay agencias en este alcance.';
+            : n > 0 ? `Se aplicará a ${n} taquillas.` : 'No hay taquillas en este alcance.';
           return resultado;
         },
         guardar: async (payload) => {
@@ -456,13 +468,56 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
       }
     });
 
+    // ---------- Pestaña Locales ----------
+
+    async function initLocales() {
+      localesInited = true;
+      if (!grupoId) return;
+      document.getElementById('locales-notice').style.display = 'none';
+      const btnLocal = document.getElementById('btn-local-create');
+      btnLocal.href = '/agencias/detalle?grupo_id=' + grupoId;
+      if (!canEditGrupo) btnLocal.style.display = 'none';
+      await loadLocales();
+    }
+
+    async function loadLocales() {
+      try {
+        const d = await apiFetch('GET', '/agencias?per_page=100');
+        const locales = (Array.isArray(d) ? d : (d?.data || [])).filter(a => a.grupo_id == grupoId);
+        renderLocales(locales);
+      } catch (err) {
+        document.getElementById('locales-content').innerHTML = '<div class="loading">Error: ' + err.message + '</div>';
+      }
+    }
+
+    function renderLocales(locales) {
+      if (!locales.length) {
+        document.getElementById('locales-content').innerHTML = '<div class="loading">Este grupo no tiene locales asignados.</div>';
+        return;
+      }
+      let html = '<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Código</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>';
+      locales.forEach(a => {
+        html += `<tr><td><strong>${a.name}</strong></td><td>${a.code}</td><td><span class="badge ${a.active?'badge-active':'badge-inactive'}">${a.active?'Activo':'Inactivo'}</span></td><td class="actions-cell"><a class="btn btn-sm btn-secondary" href="/agencias/detalle?id=${a.id}">👁️ Ver/Editar</a></td></tr>`;
+      });
+      html += '</tbody></table></div>';
+      document.getElementById('locales-content').innerHTML = html;
+    }
+
     // ---------- Pestaña Usuarios ----------
 
     async function initUsuarios() {
       usuariosInited = true;
       if (!grupoId) return;
+      await loadAgencias();
       await loadTaquillas();
       await loadUsers();
+    }
+
+    async function loadAgencias() {
+      try {
+        const d = await apiFetch('GET', '/agencias?per_page=100');
+        agencias = (Array.isArray(d) ? d : (d?.data || [])).filter(a => a.grupo_id == grupoId);
+      } catch (_) { agencias = []; }
     }
 
     async function loadTaquillas() {
@@ -504,11 +559,20 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
       taquillas.forEach(t => st.innerHTML += `<option value="${t.id}">${t.name}</option>`);
     }
 
+    function renderUserAgencias() {
+      const sa = document.querySelector('#user-form [name="agencia_id"]');
+      sa.innerHTML = '<option value="">Seleccione...</option>';
+      agencias.forEach(a => sa.innerHTML += `<option value="${a.id}">${a.name}</option>`);
+    }
+
     function applyUserRoleUI() {
       const roleSel = document.getElementById('user-role').value;
+      const needAgencia = roleSel === 'agencia';
       const needTaquilla = roleSel === 'taquilla';
       document.getElementById('user-grupo-field').style.display = roleSel === 'grupo' ? 'block' : 'none';
+      document.getElementById('user-agencia-field').style.display = needAgencia ? 'block' : 'none';
       document.getElementById('user-taquilla-field').style.display = needTaquilla ? 'block' : 'none';
+      document.querySelector('#user-form [name="agencia_id"]').required = needAgencia;
       document.querySelector('#user-form [name="taquilla_id"]').required = needTaquilla;
     }
 
@@ -526,15 +590,17 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
       f.password.required = creating;
       f.active.checked = u ? !!u.active : true;
       const roleSel = document.getElementById('user-role');
-      roleSel.innerHTML = '<option value="grupo">Grupo</option><option value="taquilla">Agencia</option>';
+      roleSel.innerHTML = '<option value="grupo">Grupo</option><option value="agencia">Agencia</option><option value="taquilla">Taquilla</option>';
       const userRole = u?.role || 'grupo';
-      if (!['grupo', 'taquilla'].includes(userRole)) {
+      if (!['grupo', 'agencia', 'taquilla'].includes(userRole)) {
         roleSel.innerHTML += `<option value="${userRole}">${ROLE_LABELS[userRole] || userRole}</option>`;
       }
       roleSel.value = userRole;
       applyUserRoleUI();
       document.getElementById('user-grupo-name').textContent = `Vinculado a: ${grupo?.name || 'este grupo'} (ID #${grupoId})`;
+      renderUserAgencias();
       renderUserTaquillas();
+      f.agencia_id.value = u?.agencia_id ? String(u.agencia_id) : '';
       f.taquilla_id.value = u?.taquilla_id ? String(u.taquilla_id) : '';
       document.getElementById('user-modal').style.display = 'flex';
     }
@@ -562,6 +628,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
         body.user_password = f.password.value;
       }
       if (roleSel === 'grupo') body.grupo_id = grupoId;
+      else if (roleSel === 'agencia') body.agencia_id = f.agencia_id.value || null;
       else if (roleSel === 'taquilla') { body.grupo_id = grupoId; body.taquilla_id = f.taquilla_id.value || null; }
       try {
         if (userEditId) await apiFetch('PUT', '/users/' + userEditId, body);
@@ -597,6 +664,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
     if (!canEditLimites) document.getElementById('btn-limite-create').style.display = 'none';
 
     initTabs('tabs', TABS, (tab) => {
+      if (tab === 'locales' && !localesInited) initLocales();
       if (tab === 'limites' && !limitesInited) initLimites();
       if (tab === 'usuarios' && !usuariosInited) initUsuarios();
     });

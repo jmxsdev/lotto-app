@@ -8,7 +8,8 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     <div class="stats-grid" id="stats-grid">
       <div class="stat-card"><div class="stat-icon">🏦</div><div class="stat-value" id="stat-bancas">-</div><div class="stat-label">Bancas</div></div>
       <div class="stat-card"><div class="stat-icon">📂</div><div class="stat-value" id="stat-grupos">-</div><div class="stat-label">Grupos</div></div>
-      <div class="stat-card"><div class="stat-icon">🎫</div><div class="stat-value" id="stat-taquillas">-</div><div class="stat-label">Agencias</div></div>
+      <div class="stat-card"><div class="stat-icon">🏪</div><div class="stat-value" id="stat-agencias">-</div><div class="stat-label">Agencias (Locales)</div></div>
+      <div class="stat-card"><div class="stat-icon">🖥️</div><div class="stat-value" id="stat-taquillas">-</div><div class="stat-label">Taquillas</div></div>
       <div class="stat-card"><div class="stat-icon">🎲</div><div class="stat-value" id="stat-apuestas">-</div><div class="stat-label">Apuestas Hoy</div></div>
       <div class="stat-card"><div class="stat-icon">💎</div><div class="stat-value" id="stat-ganadores">-</div><div class="stat-label">Ganadores Hoy</div></div>
     </div>
@@ -27,30 +28,35 @@ import AdminLayout from '../layouts/AdminLayout.astro';
   <script>
     import { apiFetch } from '../utils/api.ts';
 
+    // Cada stat es tolerante a 403/errores: los roles inferiores no tienen
+    // acceso a todas las entidades (banca/grupo/agencia no ven bancas, etc.)
+    const contar = (data) => Array.isArray(data) ? data.length : (data?.data?.length || data?.meta?.total || '-');
+    const seguro = (p) => p.then(contar).catch(() => '-');
+
     async function loadStats() {
       try {
-        const [bancas, grupos, taquillas, resumen] = await Promise.all([
-          apiFetch('GET', '/bancas?per_page=1'),
-          apiFetch('GET', '/grupos?per_page=1'),
-          apiFetch('GET', '/taquillas?per_page=1'),
-          apiFetch('GET', '/apuestas/resumen'),
+        const [bancas, grupos, agencias, taquillas, resumen] = await Promise.all([
+          seguro(apiFetch('GET', '/bancas?per_page=1')),
+          seguro(apiFetch('GET', '/grupos?per_page=1')),
+          seguro(apiFetch('GET', '/agencias?per_page=1')),
+          seguro(apiFetch('GET', '/taquillas?per_page=1')),
+          apiFetch('GET', '/apuestas/resumen').catch(() => null),
         ]);
-        const countBancas = Array.isArray(bancas) ? bancas.length : (bancas?.data?.length || bancas?.meta?.total || '-');
-        const countGrupos = Array.isArray(grupos) ? grupos.length : (grupos?.data?.length || grupos?.meta?.total || '-');
-        const countTaquillas = Array.isArray(taquillas) ? taquillas.length : (taquillas?.data?.length || taquillas?.meta?.total || '-');
 
-        document.getElementById('stat-bancas').textContent = countBancas;
-        document.getElementById('stat-grupos').textContent = countGrupos;
-        document.getElementById('stat-taquillas').textContent = countTaquillas;
+        document.getElementById('stat-bancas').textContent = bancas;
+        document.getElementById('stat-grupos').textContent = grupos;
+        document.getElementById('stat-agencias').textContent = agencias;
+        document.getElementById('stat-taquillas').textContent = taquillas;
 
-        const r = resumen.data || resumen;
+        const r = resumen?.data || resumen || {};
         document.getElementById('stat-apuestas').textContent = (r.pending_count || 0) + (r.pagada_count || 0);
         document.getElementById('stat-ganadores').textContent = r.pagada_count || 0;
 
         window.entityCounts = {
-          bancas: countBancas !== '-' ? countBancas : 0,
-          grupos: countGrupos !== '-' ? countGrupos : 0,
-          taquillas: countTaquillas !== '-' ? countTaquillas : 0,
+          bancas: bancas !== '-' ? bancas : 0,
+          grupos: grupos !== '-' ? grupos : 0,
+          taquillas: taquillas !== '-' ? taquillas : 0,
+          agencias: agencias !== '-' ? agencias : 0,
         };
       } catch (e) {
         console.warn('Stats error:', e.message);
