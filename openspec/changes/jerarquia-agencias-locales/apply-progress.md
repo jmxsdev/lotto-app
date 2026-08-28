@@ -234,3 +234,73 @@
 ## Próximo paso (orquestador)
 
 - PR 4 (F3 — reportes por local): `ApuestaService` niveles/labels, base `feat/jerarquia-agencias-f2`. Tareas 4.1–4.3 de `tasks.md`.
+---
+
+# Apply Progress: jerarquia-agencias-locales — PR 4 (F3, reportes por local)
+
+## Estado de tareas (Fase 4 — F3)
+
+| Tarea | Estado | Evidencia |
+|---|---|---|
+| 4.1 TDD-RED `CuadreCajaReportTest` + `ReporteTest` | ✅ | RED inicial: 11 fallos + 1 error (nivel=agencia caía a banca/máquina; falta nivel=taquilla en cuadre; labels viejos) |
+| 4.2 `ApuestaService` + `ReporteController` | ✅ | `ventasTotales`/`cuadreCaja` nivel `agencia` = join `taquillas→agencias→grupos→bancas` + groupBy `agencias` (label `agencias.name`) + nivel `taquilla` (máquinas); `pagosCuadrePorNivel` join agencias condicional (`in_array('agencias.id', $groupCols)`); `rendimientoTaquillas` acepta `nivel` (D7: `taquilla` default → clave `Taquilla`, `agencia` → clave `Agencia`); `relacionTickets`/`vencidos`: `Agencia`=local (`taquilla.agencia.name`), nueva clave `Taquilla`=máquina; controller: filtro `nivel` en rendimiento + comentarios |
+| 4.3 TDD-GREEN `EstadisticaTest` | ✅ | `test_time_series_agencia_solo_su_local` (alcance por local vía `buildApuestaQuery` F1; ya verde al escribirlo — guard de consistencia). Suite completa 293/291/2skipped (baseline PR3: 285/283 → +8, 0 rotos) |
+
+## TDD Cycle Evidence
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|---|---|---|
+| 4.1/4.2 Cuadre por local | `tests/Feature/CuadreCajaReportTest.php` | Integration | ✅ 50/50 (5 archivos reportes) | ✅ 4 fallos (agencia→máquina, falta nivel=taquilla, suma por local) | ✅ 15/15 | ✅ 4 escenarios (2 locals, grupo solo sus locals, nivel=taquilla máquinas, suma máquinas del mismo local) | ✅ Pint limpio |
+| 4.1/4.2 VentasTotales por local | `tests/Feature/ReporteTest.php` | Integration | ✅ 50/50 | ✅ 2 fallos (agencia→banca 1 fila, clave rendimiento) | ✅ 10/10 | ✅ 5 escenarios (agencia 2 locals, taquilla 2 máquinas, rendimiento agencia, rendimiento taquilla clave, taquilla scope) | ✅ Pint limpio |
+| 4.1/4.2 Labels Agencia/Taquilla | `tests/Feature/TerminologiaTest.php` | Integration | ✅ 50/50 | ✅ 4 fallos (clave Taquilla ausente, Agencia=máquina) | ✅ 12/12 | ✅ 4 escenarios (rendimiento máquina, rendimiento local, relacion-tickets, vencidos) | ✅ Pint limpio |
+| 4.3 Serie temporal agencia | `tests/Feature/EstadisticaTest.php` | Integration | ✅ 50/50 | ➖ N/A (guard de consistencia: alcance por local ya impuesto por buildApuestaQuery F1; verde al escribirlo) | ✅ 3/3 | ✅ 1 escenario (agencia solo su local, local ajeno excluido) | ✅ Pint limpio |
+
+## Test Summary
+
+- **Total tests escritos**: 8 nuevos (4 ReporteTest + 2 CuadreCajaReportTest + 1 TerminologiaTest + 1 EstadisticaTest) + 6 actualizados con la nueva semántica (1.5.6, 1.5.8, 4.8, 3 claves R3)
+- **Total tests pasando**: suite completa `composer test` → 293 tests / 291 passed / 2 skipped / 1158 assertions (baseline PR3: 285/283 → +8 tests, 0 rotos)
+- **Layers**: Integration (Feature) con RefreshDatabase (MySQL dev lotto_db)
+- **Approval tests**: None — los tests que fijaban `agencia`≡taquilla se actualizaron a la nueva semántica (Agencia=local, Taquilla=máquina), no se preservó la antigua
+- **Pure functions creadas**: None — lógica de query/agrupación en el servicio
+
+## Commits del slice (rama `feat/jerarquia-agencias-f3`, base `feat/jerarquia-agencias-f2`)
+
+- `feat(reportes): nivel agencia agrupa por local en ventas, cuadre y rendimiento; labels Agencia=local, Taquilla=máquina`
+- `docs(sdd): progreso de apply PR 4 (F3) y tareas 4.1-4.3 completadas`
+
+## Evidencia de verificación
+
+- RED: `php artisan test --filter="CuadreCajaReportTest|ReporteTest|TerminologiaTest|EstadisticaTest"` → 11 fallos + 1 error (undefined key "Taquilla")
+- GREEN: mismo filtro → `{"tool":"phpunit","result":"passed","tests":58,"passed":58,"assertions":305}` (50 baseline + 8 nuevos)
+- `composer test` (suite completa): `{"tool":"phpunit","result":"passed","tests":293,"passed":291,"assertions":1158,"skipped":2}` — baseline PR3: 285/283 (8 tests nuevos, 0 rotos)
+- `./vendor/bin/pint --test`: `{"tool":"pint","result":"passed"}` (1 archivo auto-fixeado: ApuestaService — single_quote/unary_operator_spaces)
+- Runtime harness: los Feature tests ejercitan los endpoints HTTP reales (`/reportes/ventas-totales?nivel=agencia`, `/reportes/cuadre-caja?nivel=agencia|taquilla`, `/reportes/rendimiento-taquillas?nivel=agencia`, `/reportes/relacion-tickets`, `/reportes/vencidos`, `/estadisticas/rendimiento`) con middleware + rutas + BD MySQL; N/A harness manual separado (la capa Feature ES el camino HTTP completo)
+
+## Workload / PR Boundary
+
+- **Modo**: chained PR slice (feature-branch-chain, `auto-chain`) — PR 4 → PR 3 (`feat/jerarquia-agencias-f2`)
+- **Current work unit**: PR 4 / F3 — reportes por local (3 tareas, 2 commits)
+- **Boundary**: empieza en `feat/jerarquia-agencias-f2` y termina con la verificación F3 completa. NO se implementaron tareas F4–F5 (5.1–6.3).
+- **Review budget impact**: 2 commits, ~530 líneas (527 + docs). Excede 400 líneas de un PR simple; el ciclo ya previó chained PRs (PR 4 de 6); el diff de PR 4 vs PR 3 es solo el trabajo F3.
+- **Rollback boundary**: revertir los commits de la rama `feat/jerarquia-agencias-f3` elimina el reporte por local sin tocar F0–F2 (migraciones/backfill/scope agencia/master intactos). `nivel=agencia` vuelve a caer a banca/taquilla y los labels vuelven a la semántica vieja.
+
+## Deviations from Design
+
+- **Ninguna funcional.** Detalles: las máquinas SIN local (`taquillas.agencia_id` null) quedan fuera del reporte `nivel=agencia` (join interno `agencias`), coherente con el backfill F0 que asigna local a todas las taquillas; los tests del cuadre/grupo ahora crean locales explícitos con `Agencia::factory()`.
+- `rendimientoTaquillas` (D7): el nivel `taquilla` (default) etiqueta la fila con la clave `Taquilla` (antes `Agencia`); el nivel `agencia` usa la clave `Agencia` con el nombre del local — el panel "Rendimiento por Agencia" (`reportes/taquillas.astro`) seguirá leyendo `row.Agencia` cuando F4 lo apunte a `nivel=agencia`.
+
+## Issues Found
+
+- Ninguno bloqueante. El panel (F4) aún envía `nivel=taquilla` etiquetado "Agencia" en `reportes/ventas.astro` y lee `row.Agencia` en `reportes/taquillas.astro`: con el backend F3 el nivel `taquilla` ahora agrupa máquinas con clave `Taquilla`, por lo que el panel mostrará la columna vacía hasta que F4 adapte labels y nivel (ruptura esperada y acotada al ciclo chained; F4 y F5 cierran).
+- `backend/.env.example` y `panel/.astro/settings.json` seguían modificados en el working tree (pre-existentes) — NO se commitearon (fuera del alcance de la rama).
+
+## Gotchas
+
+- El bug latente: `ventasTotales`/`cuadreCaja` con `nivel=agencia` caían al `default` del `match` (banca) o agrupaban por `taquillas` — la rama `agencia` ahora agrupa por `agencias` con join.
+- `cuadreCaja` no soportaba `nivel=taquilla` (caía a banca): se añadió explícitamente (regresión cubierta por 1.5.9).
+- Los pagos del cuadre (`pagosCuadrePorNivel`) necesitan el join a `agencias` SOLO cuando el nivel es agencia; se infiere de `$groupCols` (`in_array('agencias.id', ...)`) para no multiplicar filas en otros niveles.
+- `rendimientoTaquillas` ahora une `taquillas` siempre (necesario para la cadena agencias) y resuelve entidades desde `$ventasPorEntidad->keys()`; la variable `$taquillaIds` quedó muerta y se eliminó.
+
+## Próximo paso (orquestador)
+
+- PR 5 (F4 — panel): login/ROLES +agencia, sidebar "Agencias", CRUD locals, select agencia, niveles local vs máquina en reportes/cuadre/rendimiento, base `feat/jerarquia-agencias-f3`. Tareas 5.1–5.5 de `tasks.md`.

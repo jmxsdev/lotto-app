@@ -62,9 +62,9 @@ Chain strategy: feature-branch-chain
 
 ## Phase 4 (F3): Reportes por local
 
-- [ ] 4.1 [TDD-RED] Actualizar `CuadreCajaReportTest` y `ReporteTest` (nivel=agencia agrupa locals; nivel=taquilla máquinas).
-- [ ] 4.2 Modificar `ApuestaService.php`: `ventasTotales`/`cuadreCaja` nivel `agencia` (joins `taquillas→agencias→grupos→bancas`, groupBy agencias) + nivel `taquilla`; `pagosCuadrePorNivel`; `rendimientoTaquillas` nivel agencia + label "Taquilla"; `relacionTickets`/`vencidos` labels.
-- [ ] 4.3 [TDD-GREEN] Actualizar `EstadisticaTest` (serie temporal labels). `php artisan test --filter=ReporteTest`.
+- [x] 4.1 [TDD-RED] Actualizar `CuadreCajaReportTest` y `ReporteTest` (nivel=agencia agrupa locals; nivel=taquilla máquinas).
+- [x] 4.2 Modificar `ApuestaService.php`: `ventasTotales`/`cuadreCaja` nivel `agencia` (joins `taquillas→agencias→grupos→bancas`, groupBy agencias) + nivel `taquilla`; `pagosCuadrePorNivel`; `rendimientoTaquillas` nivel agencia + label "Taquilla"; `relacionTickets`/`vencidos` labels.
+- [x] 4.3 [TDD-GREEN] Actualizar `EstadisticaTest` (serie temporal labels). `php artisan test --filter=ReporteTest`.
 
 ## Phase 5 (F4): Panel
 
