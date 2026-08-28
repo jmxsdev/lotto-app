@@ -192,6 +192,7 @@ class TaquillaController extends Controller
             'name' => 'sometimes|string|max:255',
             'code' => ['sometimes', 'string', Rule::unique('taquillas')->ignore($taquilla->id)],
             'grupo_id' => 'sometimes|exists:grupos,id',
+            'agencia_id' => 'nullable|exists:agencias,id',
             'mac_address' => 'nullable|string',
             'activation_code' => 'nullable|string|unique:taquillas,activation_code,'.$taquilla->id,
             'active' => 'boolean',
@@ -209,6 +210,12 @@ class TaquillaController extends Controller
             $this->authorizeGrupoAccess($user, $request->grupo_id);
         }
 
+        // Asignar/desasignar el local (agencia_id) con la misma autorización
+        // jerárquica que el store (F1): el rol agencia solo su local.
+        if ($request->has('agencia_id')) {
+            $this->authorizeAgenciaAccess($user, $request->input('agencia_id'));
+        }
+
         // Validar vigencia_premios contra el grupo padre
         if ($request->has('vigencia_premios')) {
             $grupo = $taquilla->grupo;
@@ -222,6 +229,11 @@ class TaquillaController extends Controller
         }
 
         $data = $request->only(['name', 'code', 'grupo_id', 'mac_address', 'activation_code', 'active', 'vigencia_premios', 'tiempo_eliminacion', 'rif', 'email', 'telefono', 'direccion', 'estado', 'municipio']);
+
+        // El local se asigna/desasigna explícitamente (null = sin local)
+        if ($request->has('agencia_id')) {
+            $data['agencia_id'] = $request->input('agencia_id');
+        }
 
         // NULL = hereda del padre (columna nullable)
         $taquilla->update($data);
