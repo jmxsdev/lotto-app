@@ -95,6 +95,16 @@ class RolesAndPermissionsSeeder extends Seeder
             'create_cierre', 'view_cierre',
         ]);
 
+        // Agencia (local físico): gestiona sus taquillas y reportes
+        $roleAgencia = Role::firstOrCreate(['name' => 'agencia', 'guard_name' => 'api']);
+        $roleAgencia->syncPermissions([
+            'view_taquillas', 'manage_taquillas',
+            'view_apuestas', 'create_apuesta', 'delete_apuesta',
+            'create_pago', 'view_pagos',
+            'view_reports',
+            'create_cierre', 'view_cierre',
+        ]);
+
         // Taquilla: solo operaciones básicas
         $roleTaquilla = Role::firstOrCreate(['name' => 'taquilla', 'guard_name' => 'api']);
         $roleTaquilla->syncPermissions([

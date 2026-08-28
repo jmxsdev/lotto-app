@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Agencia;
 use App\Models\Banca;
 use App\Models\Grupo;
 use App\Models\Taquilla;
@@ -110,5 +111,25 @@ class UsersSeeder extends Seeder
             'active' => true,
         ]);
         $demoUser->assignRole('taquilla');
+
+        // Agencia (local físico) del Grupo Test + usuario agencia demo
+        $agencia = Agencia::create([
+            'name' => 'Local Test',
+            'code' => 'LT001',
+            'grupo_id' => $grupo->id,
+            'active' => true,
+            'created_by' => $super->id,
+        ]);
+        $agenciaUser = User::create([
+            'name' => 'Agencia User',
+            'email' => 'agencia@lotto.com',
+            'password' => Hash::make(env('SEEDER_PASSWORD', 'password')),
+            'role' => 'agencia',
+            'banca_id' => $grupo->banca_id,
+            'grupo_id' => $grupo->id,
+            'agencia_id' => $agencia->id,
+            'active' => true,
+        ]);
+        $agenciaUser->assignRole('agencia');
     }
 }
