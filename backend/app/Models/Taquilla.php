@@ -11,7 +11,7 @@ class Taquilla extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'name', 'code', 'grupo_id', 'mac_address', 'device_fingerprint', 'activation_code',
+        'name', 'code', 'grupo_id', 'agencia_id', 'mac_address', 'device_fingerprint', 'activation_code',
         'vigencia_premios', 'tiempo_eliminacion', 'active', 'last_connection_at', 'created_by',
         'rif', 'email', 'telefono', 'direccion', 'estado', 'municipio',
     ];
@@ -31,6 +31,11 @@ class Taquilla extends Model
     public function grupo()
     {
         return $this->belongsTo(Grupo::class);
+    }
+
+    public function agencia()
+    {
+        return $this->belongsTo(Agencia::class);
     }
 
     public function users()

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Collection;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -25,6 +26,7 @@ class User extends Authenticatable
         'banca_id',
         'grupo_id',
         'taquilla_id',
+        'agencia_id',
         'active',
     ];
 
@@ -69,6 +71,11 @@ class User extends Authenticatable
         return $this->belongsTo(Taquilla::class);
     }
 
+    public function agencia()
+    {
+        return $this->belongsTo(Agencia::class);
+    }
+
     public function logs()
     {
         return $this->hasMany(Log::class);
@@ -87,5 +94,17 @@ class User extends Authenticatable
     public function cierresCaja()
     {
         return $this->hasMany(CierreCaja::class, 'created_by');
+    }
+
+    /**
+     * IDs de las bancas cuyo master es este usuario (super banca).
+     *
+     * @return Collection<int, int>
+     */
+    public function masterBancaIds(): Collection
+    {
+        return Banca::query()
+            ->where('master_id', $this->id)
+            ->pluck('id');
     }
 }

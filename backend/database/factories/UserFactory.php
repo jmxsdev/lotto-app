@@ -2,6 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Models\Agencia;
+use App\Models\Taquilla;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
@@ -32,9 +34,28 @@ class UserFactory extends Factory
             'banca_id' => null,
             'grupo_id' => null,
             'taquilla_id' => null,
+            'agencia_id' => null,
             'active' => true,
             'remember_token' => Str::random(10),
         ];
+    }
+
+    /**
+     * Usuario rol taquilla vinculado a una taquilla y su local (agencia).
+     */
+    public function forAgencia(?Taquilla $taquilla = null): static
+    {
+        return $this->state(function (array $attributes) use ($taquilla) {
+            $taquilla = $taquilla ?? Taquilla::factory()->forAgencia()->create();
+
+            return [
+                'role' => 'taquilla',
+                'taquilla_id' => $taquilla->id,
+                'grupo_id' => $taquilla->grupo_id,
+                'banca_id' => $taquilla->grupo->banca_id,
+                'agencia_id' => $taquilla->agencia_id,
+            ];
+        });
     }
 
     /**

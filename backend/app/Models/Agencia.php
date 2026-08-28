@@ -6,19 +6,16 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Grupo extends Model
+class Agencia extends Model
 {
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'name', 'code', 'banca_id', 'monedas_permitidas', 'vigencia_premios', 'tiempo_eliminacion', 'active', 'created_by',
+        'name', 'code', 'grupo_id', 'active', 'created_by',
         'rif', 'email', 'telefono', 'direccion', 'estado', 'municipio',
     ];
 
     protected $casts = [
-        'monedas_permitidas' => 'array',
-        'vigencia_premios' => 'integer',
-        'tiempo_eliminacion' => 'integer',
         'active' => 'boolean',
     ];
 
@@ -27,9 +24,9 @@ class Grupo extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    public function banca()
+    public function grupo()
     {
-        return $this->belongsTo(Banca::class);
+        return $this->belongsTo(Grupo::class);
     }
 
     public function taquillas()
@@ -37,23 +34,8 @@ class Grupo extends Model
         return $this->hasMany(Taquilla::class);
     }
 
-    public function agencias()
-    {
-        return $this->hasMany(Agencia::class);
-    }
-
     public function users()
     {
         return $this->hasMany(User::class);
-    }
-
-    public function comisiones()
-    {
-        return $this->hasMany(Comision::class);
-    }
-
-    public function juegoLimites()
-    {
-        return $this->hasMany(JuegoLimite::class);
     }
 }

@@ -11,7 +11,7 @@ class Banca extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'name', 'code', 'config', 'monedas_permitidas', 'vigencia_premios', 'tiempo_eliminacion', 'active', 'created_by',
+        'name', 'code', 'config', 'monedas_permitidas', 'vigencia_premios', 'tiempo_eliminacion', 'active', 'created_by', 'master_id',
         'rif', 'email', 'telefono', 'direccion', 'estado', 'municipio',
     ];
 
@@ -27,6 +27,11 @@ class Banca extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function master()
+    {
+        return $this->belongsTo(User::class, 'master_id');
     }
 
     public function grupos()
