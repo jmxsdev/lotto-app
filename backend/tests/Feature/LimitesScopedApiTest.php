@@ -48,6 +48,8 @@ class LimitesScopedApiTest extends TestCase
     {
         $master = User::where('email', 'master@lotto.com')->first();
         $master->assignRole('master');
+        // F2: el master administra la banca sembrada (ya no es global)
+        Banca::where('code', 'BT001')->update(['master_id' => $master->id]);
 
         return $master;
     }
@@ -370,30 +372,40 @@ class LimitesScopedApiTest extends TestCase
     // MODO SCOPE — TODAS LAS ENTIDADES DEL TIPO
     // ==================================================
 
-    public function test_scope_bancas_master_ve_todas()
+    public function test_scope_bancas_master_ve_solo_sus_bancas()
     {
+        $master = $this->masterUser();
         $banca = $this->bancaSeeded();
         $lotto = $this->juegoLotto();
 
-        // Segunda banca sin filas de límites sembradas
+        // Segunda banca del MISMO master, sin filas de límites sembradas
         $otraBanca = Banca::create([
             'name' => 'Banca Norte',
             'code' => 'BNZ01',
+            'master_id' => $master->id,
             'created_by' => $this->superUser()->id,
         ]);
 
-        $response = $this->actingAs($this->masterUser(), 'sanctum')
+        // Banca ajena (sin master): fuera del alcance del master
+        $bancaAjena = Banca::create([
+            'name' => 'Banca Ajena M',
+            'code' => 'BAM01',
+            'created_by' => $this->superUser()->id,
+        ]);
+
+        $response = $this->actingAs($master, 'sanctum')
             ->getJson('/api/v1/limites?scope=bancas');
 
         $response->assertStatus(200);
 
         $data = $response->json('data');
 
-        // Todas las bancas visibles para master, con tipo y nombre
+        // Solo las bancas del master (BT001 + BNZ01), nunca la ajena
         $this->assertCount(2, $data['entidades']);
         $ids = collect($data['entidades'])->pluck('id')->all();
         $this->assertContains($banca->id, $ids);
         $this->assertContains($otraBanca->id, $ids);
+        $this->assertNotContains($bancaAjena->id, $ids);
         $this->assertEquals('banca', $data['entidades'][0]['tipo']);
         $this->assertEquals('Banca Test', $data['entidades'][0]['name']);
 

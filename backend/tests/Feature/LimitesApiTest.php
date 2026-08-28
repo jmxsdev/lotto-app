@@ -41,6 +41,8 @@ class LimitesApiTest extends TestCase
     {
         $master = User::where('email', 'master@lotto.com')->first();
         $master->assignRole('master');
+        // F2: el master administra la banca sembrada (ya no es global)
+        Banca::where('code', 'BT001')->update(['master_id' => $master->id]);
 
         return $master;
     }

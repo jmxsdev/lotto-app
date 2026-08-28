@@ -22,7 +22,7 @@ class RoleAuthorizationTest extends TestCase
         $this->seed(DatabaseSeeder::class);
     }
 
-    public function test_taquilla_cannot_list_users_but_master_can()
+    public function test_taquilla_cannot_list_users_but_master_can_list_su_banca()
     {
         $taquillaUser = User::factory()->create(['role' => 'taquilla']);
         $taquillaUser->assignRole('taquilla');
@@ -34,11 +34,19 @@ class RoleAuthorizationTest extends TestCase
 
         $master = User::where('email', 'master@lotto.com')->first();
         $master->assignRole('master');
+        // F2: el master administra la banca sembrada y ve solo sus usuarios
+        Banca::where('code', 'BT001')->update(['master_id' => $master->id]);
 
         $response = $this->actingAs($master, 'sanctum')
             ->getJson('/api/v1/users');
 
         $response->assertStatus(200);
+
+        $emails = collect($response->json())->pluck('email')->all();
+        $this->assertContains('banca@lotto.com', $emails);
+        $this->assertContains('grupo@lotto.com', $emails);
+        $this->assertContains('taquilla@lotto.com', $emails);
+        $this->assertNotContains('super@lotto.com', $emails);
     }
 
     public function test_banca_can_only_create_groups_in_its_own_banca()
@@ -123,7 +131,8 @@ class RoleAuthorizationTest extends TestCase
         $master = User::where('email', 'master@lotto.com')->first();
         $master->assignRole('master');
 
-        $banca = Banca::factory()->create(['name' => 'Banca Test', 'active' => true]);
+        // La banca es administrada por el master (F2: master ya no es global)
+        $banca = Banca::factory()->create(['name' => 'Banca Test', 'master_id' => $master->id, 'active' => true]);
         $grupo = Grupo::factory()->create(['name' => 'Grupo Test', 'banca_id' => $banca->id, 'active' => true]);
 
         $juego = Juego::first();

@@ -39,6 +39,18 @@ class ActivacionEntidadesTest extends TestCase
         return [$banca, $grupo, $taquilla];
     }
 
+    /**
+     * Jerarquía cuya banca es administrada por el master (F2: master ya no es global).
+     */
+    private function crearJerarquiaDeMaster(array $overrides = []): array
+    {
+        $master = $this->master();
+
+        return $this->crearJerarquia(array_merge_recursive([
+            'banca' => ['master_id' => $master->id],
+        ], $overrides));
+    }
+
     private function crearUsuarioTaquilla(Taquilla $taquilla): User
     {
         $user = User::factory()->create([
@@ -56,7 +68,8 @@ class ActivacionEntidadesTest extends TestCase
 
     public function test_toggle_banca_invierte_active()
     {
-        $banca = Banca::factory()->create(['active' => true]);
+        $master = $this->master();
+        $banca = Banca::factory()->create(['active' => true, 'master_id' => $master->id]);
 
         $this->actingAs($this->master(), 'sanctum')
             ->patchJson("/api/v1/bancas/{$banca->id}/toggle")
@@ -75,7 +88,9 @@ class ActivacionEntidadesTest extends TestCase
 
     public function test_toggle_grupo_invierte_active()
     {
-        $grupo = Grupo::factory()->create(['active' => true]);
+        $master = $this->master();
+        $banca = Banca::factory()->create(['master_id' => $master->id]);
+        $grupo = Grupo::factory()->create(['banca_id' => $banca->id, 'active' => true]);
 
         $this->actingAs($this->master(), 'sanctum')
             ->patchJson("/api/v1/grupos/{$grupo->id}/toggle")
@@ -87,7 +102,7 @@ class ActivacionEntidadesTest extends TestCase
 
     public function test_toggle_taquilla_invierte_active()
     {
-        [, , $taquilla] = $this->crearJerarquia(['taquilla' => ['active' => true]]);
+        [, , $taquilla] = $this->crearJerarquiaDeMaster(['taquilla' => ['active' => true]]);
 
         $this->actingAs($this->master(), 'sanctum')
             ->patchJson("/api/v1/taquillas/{$taquilla->id}/toggle")
@@ -116,7 +131,7 @@ class ActivacionEntidadesTest extends TestCase
 
     public function test_desactivar_grupo_no_modifica_active_de_sus_taquillas()
     {
-        [, $grupo, $taquilla] = $this->crearJerarquia([
+        [, $grupo, $taquilla] = $this->crearJerarquiaDeMaster([
             'grupo' => ['active' => true],
             'taquilla' => ['active' => true],
         ]);
@@ -132,7 +147,7 @@ class ActivacionEntidadesTest extends TestCase
 
     public function test_desactivar_banca_no_modifica_grupos_ni_taquillas()
     {
-        [$banca, , $taquilla] = $this->crearJerarquia([
+        [$banca, , $taquilla] = $this->crearJerarquiaDeMaster([
             'grupo' => ['active' => true],
             'taquilla' => ['active' => true],
         ]);
@@ -270,7 +285,7 @@ class ActivacionEntidadesTest extends TestCase
 
     public function test_reactivar_grupo_restaura_sin_reactivacion()
     {
-        [, $grupo, $taquilla] = $this->crearJerarquia([
+        [, $grupo, $taquilla] = $this->crearJerarquiaDeMaster([
             'grupo' => ['active' => true],
             'taquilla' => [
                 'active' => true,

@@ -39,6 +39,8 @@ class GestionUsuariosTest extends TestCase
     {
         $master = User::where('email', 'master@lotto.com')->first();
         $master->assignRole('master');
+        // F2: el master administra la banca sembrada (ya no es global)
+        Banca::where('code', 'BT001')->update(['master_id' => $master->id]);
 
         return $master;
     }
@@ -321,8 +323,7 @@ class GestionUsuariosTest extends TestCase
 
     public function test_master_puede_eliminar_usuarios_de_su_alcance()
     {
-        $master = $this->masterUser();
-        $master->update(['banca_id' => $this->bancaSeeded()->id]);
+        $master = $this->masterUser(); // ya administra BT001 (banca sembrada)
 
         $taquillaUser = User::where('email', 'taquilla@lotto.com')->first();
 

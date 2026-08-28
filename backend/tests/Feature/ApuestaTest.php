@@ -230,14 +230,19 @@ class ApuestaTest extends TestCase
         }
     }
 
-    public function test_master_ve_todas_las_apuestas()
+    public function test_master_ve_solo_apuestas_de_sus_bancas()
     {
         $master = User::where('email', 'master@lotto.com')->first();
         $master->assignRole('master');
 
         $juego = Juego::where('slug', 'lotto-activo')->first();
 
-        $taquilla1 = Taquilla::factory()->create();
+        // Banca propia del master: sus apuestas deben aparecer
+        $bancaPropia = Banca::factory()->create(['master_id' => $master->id]);
+        $grupoPropio = Grupo::factory()->create(['banca_id' => $bancaPropia->id]);
+        $taquilla1 = Taquilla::factory()->create(['grupo_id' => $grupoPropio->id]);
+
+        // Banca ajena (sin master): sus apuestas NO deben aparecer
         $taquilla2 = Taquilla::factory()->create();
 
         Apuesta::create([
@@ -264,7 +269,10 @@ class ApuestaTest extends TestCase
             ->getJson('/api/v1/apuestas');
 
         $response->assertStatus(200);
-        $this->assertCount(2, $response->json('data.data'));
+
+        $taquillas = collect($response->json('data.data'))->pluck('taquilla_id')->all();
+        $this->assertContains($taquilla1->id, $taquillas);
+        $this->assertNotContains($taquilla2->id, $taquillas);
     }
 
     public function test_monto_cero_en_ambas_moneda_es_invalido()

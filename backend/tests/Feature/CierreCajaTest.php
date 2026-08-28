@@ -52,6 +52,8 @@ class CierreCajaTest extends TestCase
     {
         $master = User::where('email', 'master@lotto.com')->first();
         $master->assignRole('master');
+        // F2: el master administra la banca sembrada (ya no es global)
+        Banca::where('code', 'BT001')->update(['master_id' => $master->id]);
 
         return $master;
     }
@@ -394,7 +396,7 @@ class CierreCajaTest extends TestCase
         $this->assertCount(1, $ids);
     }
 
-    public function test_master_ve_todos_los_cierres_en_index()
+    public function test_master_ve_cierres_de_sus_bancas_en_index()
     {
         $taquilla = $this->taquillaSeeded();
         $otraTaquilla = $this->crearTaquilla('TTC06', $this->grupoSeeded()->id);
@@ -409,6 +411,7 @@ class CierreCajaTest extends TestCase
 
         $ids = collect($response->json('data'))->pluck('taquilla_id')->sort()->values()->all();
 
+        // Ambas taquillas cuelgan de la banca del master (BT001)
         $this->assertEquals([$taquilla->id, $otraTaquilla->id], $ids);
     }
 
