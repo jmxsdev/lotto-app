@@ -14,7 +14,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
         <select id="filtro-alcance">
           <option value="bancas">Todas las bancas</option>
           <option value="grupos">Todos los grupos</option>
-          <option value="taquillas">Todas las agencias</option>
+          <option value="taquillas">Todas las taquillas</option>
         </select>
       </div>
       <div class="field search">
@@ -80,12 +80,12 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     let alcanceActual = 'bancas';
     let tabla = null;
 
-    // Filtrado por rol: super_master/master ven las 3 opciones; banca sus grupos/agencias; grupo solo agencias
+    // Filtrado por rol: super_master/master ven las 3 opciones; banca sus grupos/taquillas; grupo solo taquillas
     if (rol === 'banca') {
-      alcanceSelect.innerHTML = '<option value="grupos">Todos mis grupos</option><option value="taquillas">Todas mis agencias</option>';
+      alcanceSelect.innerHTML = '<option value="grupos">Todos mis grupos</option><option value="taquillas">Todas mis taquillas</option>';
       alcanceActual = 'grupos';
     } else if (rol === 'grupo') {
-      alcanceSelect.innerHTML = '<option value="taquillas">Todas mis agencias</option>';
+      alcanceSelect.innerHTML = '<option value="taquillas">Todas mis taquillas</option>';
       alcanceActual = 'taquillas';
     }
 
@@ -122,7 +122,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
           const resultado = data?.data || { juegos: [], limites: {} };
           // Indicador de impacto: cuántas entidades del tipo se afectarán
           const n = (resultado.entidades || []).length;
-          const etiqueta = alcanceActual === 'bancas' ? 'bancas' : alcanceActual === 'grupos' ? 'grupos' : 'agencias';
+          const etiqueta = alcanceActual === 'bancas' ? 'bancas' : alcanceActual === 'grupos' ? 'grupos' : 'taquillas';
           impacto.textContent = n > 0 ? `Se aplicará a ${n} ${etiqueta}.` : 'No hay entidades en este alcance.';
           return resultado;
         },

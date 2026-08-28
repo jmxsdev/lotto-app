@@ -74,7 +74,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
           <select id="limite-alcance">
             <option value="self">Esta banca</option>
             <option value="grupos">Todos sus grupos</option>
-            <option value="agencias">Todas sus agencias</option>
+            <option value="agencias">Todas sus taquillas</option>
           </select>
         </div>
         <div class="field search"><label>Buscar juego</label>
@@ -110,11 +110,11 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
           <select name="role" id="user-role" required>
             <option value="banca">Banca</option>
             <option value="grupo">Grupo</option>
-            <option value="taquilla">Agencia</option>
+            <option value="taquilla">Taquilla</option>
           </select>
         </div>
         <div class="field" id="user-grupo-field" style="display:none"><label>Grupo</label><select name="grupo_id"></select></div>
-        <div class="field" id="user-taquilla-field" style="display:none"><label>Agencia</label><select name="taquilla_id"></select></div>
+        <div class="field" id="user-taquilla-field" style="display:none"><label>Taquilla</label><select name="taquilla_id"></select></div>
         <div class="field checkbox-line"><label><input type="checkbox" name="active" checked /> Usuario activo</label></div>
         <div class="modal-actions">
           <button type="button" class="btn btn-secondary" id="btn-user-cancel">Cancelar</button>
@@ -190,7 +190,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
     const bancaId = getParam('id') ? parseInt(getParam('id'), 10) : null;
     const isCreate = !bancaId;
 
-    const ROLE_LABELS = { super_master: 'Super Master', master: 'Master', banca: 'Banca', grupo: 'Grupo', taquilla: 'Agencia' };
+    const ROLE_LABELS = { super_master: 'Super Master', master: 'Master', banca: 'Banca', grupo: 'Grupo', agencia: 'Agencia', taquilla: 'Taquilla' };
 
     let banca = null;
     let juegos = [];
@@ -390,8 +390,8 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
           }
           const resultado = data?.data || { juegos: [], limites: {} };
           const n = (resultado.entidades || []).length;
-          const etiqueta = limitesAlcance === 'self' ? 'esta banca' : limitesAlcance === 'grupos' ? `${n} grupos` : `${n} agencias`;
-          impacto.textContent = limitesAlcance === 'self' ? 'Configurando esta banca.' : n > 0 ? `Se aplicará a ${n} ${limitesAlcance === 'grupos' ? 'grupos' : 'agencias'}.` : 'No hay entidades en este alcance.';
+          const etiqueta = limitesAlcance === 'self' ? 'esta banca' : limitesAlcance === 'grupos' ? `${n} grupos` : `${n} taquillas`;
+          impacto.textContent = limitesAlcance === 'self' ? 'Configurando esta banca.' : n > 0 ? `Se aplicará a ${n} ${limitesAlcance === 'grupos' ? 'grupos' : 'taquillas'}.` : 'No hay entidades en este alcance.';
           return resultado;
         },
         guardar: async (payload) => {
@@ -522,7 +522,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
       f.password.required = creating;
       f.active.checked = u ? !!u.active : true;
       const roleSel = document.getElementById('user-role');
-      roleSel.innerHTML = '<option value="banca">Banca</option><option value="grupo">Grupo</option><option value="taquilla">Agencia</option>';
+      roleSel.innerHTML = '<option value="banca">Banca</option><option value="grupo">Grupo</option><option value="taquilla">Taquilla</option>';
       const userRole = u?.role || 'banca';
       if (!['banca', 'grupo', 'taquilla'].includes(userRole)) {
         roleSel.innerHTML += `<option value="${userRole}">${ROLE_LABELS[userRole] || userRole}</option>`;
