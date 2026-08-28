@@ -25,6 +25,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
         <div class="form-grid">
           <div class="field"><label>Nombre</label><input name="name" required /></div>
           <div class="field"><label>Código</label><input name="code" required /></div>
+          <div class="field"><label>Master (super banca)</label><select name="master_id" id="master-select"><option value="">— Sin master —</option></select></div>
           <div class="field"><label>RIF</label><input name="rif" /></div>
           <div class="field"><label>Email</label><input name="email" type="email" /></div>
           <div class="field"><label>Teléfono</label><input name="telefono" /></div>
@@ -202,6 +203,22 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
     let usuariosInited = false;
     let userEditId = null;
 
+    // ---------- Masters (super banca) ----------
+
+    async function loadMasters() {
+      try {
+        const data = await apiFetch('GET', '/users?per_page=100');
+        const users = Array.isArray(data) ? data : (data?.data || []);
+        const masters = users.filter(u => u.role === 'master');
+        const sel = document.getElementById('master-select');
+        sel.innerHTML = '<option value="">— Sin master —</option>';
+        masters.forEach(m => {
+          sel.innerHTML += `<option value="${m.id}">${m.name} (${m.email})</option>`;
+        });
+        if (banca?.master_id) sel.value = String(banca.master_id);
+      } catch (_) { /* sin masters listables: select queda con la opción vacía */ }
+    }
+
     // ---------- Cabecera y modo creación ----------
 
     function setHeader() {
@@ -261,6 +278,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
       f.estado.value = banca?.estado || '';
       f.municipio.value = banca?.municipio || '';
       f.active.checked = banca ? !!banca.active : true;
+      if (banca?.master_id) document.getElementById('master-select').value = String(banca.master_id);
       document.getElementById('user-section').style.display = isCreate ? 'block' : 'none';
       document.getElementById('user-hint').style.display = isCreate ? 'none' : 'block';
       f.user_name.required = isCreate;
@@ -286,6 +304,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
       const body = {
         name: f.name.value,
         code: f.code.value,
+        master_id: document.getElementById('master-select').value ? parseInt(document.getElementById('master-select').value, 10) : null,
         rif: f.rif.value || null,
         email: f.email.value || null,
         telefono: f.telefono.value || null,
@@ -586,6 +605,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
       if (tab === 'usuarios' && !usuariosInited) initUsuarios();
     });
 
+    loadMasters();
     loadBanca();
   </script>
 </AdminLayout>

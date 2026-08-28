@@ -26,8 +26,8 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     import { apiFetch } from '../utils/api.ts'; import { showModal } from '../utils/modal.ts';
     async function load() {
       try { const data = await apiFetch('GET','/bancas?per_page=100'); const items = Array.isArray(data) ? data : (data?.data || []);
-        let html = '<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Código</th><th>Creado</th><th>Acciones</th></tr></thead><tbody>';
-        items.forEach(b => { html += `<tr><td><strong>${b.name}</strong></td><td>${b.code}</td><td>${new Date(b.created_at).toLocaleDateString('es-VE')}</td><td class="actions-cell"><a class="btn btn-sm btn-secondary" href="/bancas/detalle?id=${b.id}">👁️ Ver/Editar</a><button class="btn btn-sm ${b.active?'btn-danger':'btn-success'} toggle-btn" data-id="${b.id}" data-active="${b.active?'1':'0'}" title="${b.active?'Desactivar':'Activar'}">${b.active?'🔴':'🟢'}</button><button class="btn btn-sm btn-danger del-btn" data-id="${b.id}">🗑</button></td></tr>`; });
+        let html = '<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Código</th><th>Master</th><th>Creado</th><th>Acciones</th></tr></thead><tbody>';
+        items.forEach(b => { html += `<tr><td><strong>${b.name}</strong></td><td>${b.code}</td><td>${b.master?.name || '—'}</td><td>${new Date(b.created_at).toLocaleDateString('es-VE')}</td><td class="actions-cell"><a class="btn btn-sm btn-secondary" href="/bancas/detalle?id=${b.id}">👁️ Ver/Editar</a><button class="btn btn-sm ${b.active?'btn-danger':'btn-success'} toggle-btn" data-id="${b.id}" data-active="${b.active?'1':'0'}" title="${b.active?'Desactivar':'Activar'}">${b.active?'🔴':'🟢'}</button><button class="btn btn-sm btn-danger del-btn" data-id="${b.id}">🗑</button></td></tr>`; });
         html += '</tbody></table></div>'; document.getElementById('content').innerHTML = html;
       } catch(e) { document.getElementById('content').innerHTML = '<div class="loading">Error: '+e.message+'</div>'; }
     }
