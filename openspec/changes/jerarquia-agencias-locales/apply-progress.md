@@ -304,3 +304,87 @@
 ## Próximo paso (orquestador)
 
 - PR 5 (F4 — panel): login/ROLES +agencia, sidebar "Agencias", CRUD locals, select agencia, niveles local vs máquina en reportes/cuadre/rendimiento, base `feat/jerarquia-agencias-f3`. Tareas 5.1–5.5 de `tasks.md`.
+
+---
+
+# Apply Progress: jerarquia-agencias-locales — PR 5 (F4, panel)
+
+## Estado de tareas (Fase 5 — F4)
+
+| Tarea | Estado | Evidencia |
+|---|---|---|
+| 5.1 Login/ROLES +agencia | ✅ | `api.ts` ROLES +`agencia`; `login.astro` ROLES_PERMITIDOS +`agencia`; mensaje de máquinas → "Las taquillas deben usar la app de escritorio." |
+| 5.2 Sidebar Taquillas/Agencias | ✅ | `AdminLayout.astro`: "Taquillas"→`/taquillas` (🖥️, roles super/master/banca/grupo/agencia) y nueva "Agencias"→`/agencias` (🏪, super/master/banca/grupo); rol agencia ve taquillas/cuadre/reportes sin entidades superiores; count de agencias en sidebar |
+| 5.3 CRUD de agencias | ✅ | `agencias.astro` (listado con grupo/banca/estado + toggle + delete) y `agencias/detalle.astro` (crear/editar local, asignar grupo, fiscal, activar/desactivar, eliminar desvinculando, pestaña con sus taquillas y "+ Nueva taquilla" prefijando el local) |
+| 5.4 Selectores y formularios | ✅ | `usuarios.astro` (rol agencia + select de local); `taquillas.astro` (renombrada, columna Local); `taquillas/detalle.astro` (select Local con agencia_id — requirió backend); `grupos/detalle.astro` (pestaña Locales + crear usuario rol agencia); `dashboard.astro` (stats Agencias/Taquillas separadas, tolerantes a roles sin entidades superiores); `bancas.astro`/`bancas/detalle.astro`/`grupos.astro` (labels de rol y mensajes coherentes) |
+| 5.5 Verificación | ✅ | `npm run build` 22 páginas OK; backend `php artisan test` 296/294/2 (baseline PR4: 293/291 → +3 tests, 0 rotos); `pint --test` limpio |
+
+## Cambio de backend incluido en F4 (requerido por 5.4)
+
+El detalle de taquilla "permite asignar el LOCAL (agencia_id)" pero `TaquillaController::update` descartaba `agencia_id` (solo `$request->only(...)` sin esa clave). Se añadió con TDD estricto:
+
+- `TaquillaController::update`: valida `agencia_id` nullable exists, llama `authorizeAgenciaAccess` (misma autorización jerárquica que el store F1: el rol agencia solo su local → 403 en local ajeno) y lo incluye en `$data` (`null` explícito desasigna).
+- Nuevo `tests/Feature/TaquillaAgenciaIdTest.php` (3 casos).
+
+## TDD Cycle Evidence
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|---|---|---|
+| 5.4 (backend) asignar local en update | `tests/Feature/TaquillaAgenciaIdTest.php` | Integration (Feature) | ✅ 293/291 | ✅ 3 fallos (agencia_id ignorado; 403 ausente) | ✅ 3/3 | ✅ 3 escenarios (super asigna null→local; agencia su local; agencia local ajeno 403) | ✅ Pint limpio |
+| 5.1–5.4 (panel) | — (sin suite e2e) | — | ✅ build 20 páginas | N/A (panel sin test runner; verificación = `npm run build`) | ✅ build 22 páginas | N/A (build compila las 22 páginas) | ✅ labels y mensajes coherentes |
+
+## Test Summary
+
+- **Total tests escritos**: 3 (TaquillaAgenciaIdTest)
+- **Total tests pasando**: suite completa `php artisan test` → 296 tests / 294 passed / 2 skipped / 1165 assertions (baseline PR4: 293/291 → +3 tests, 0 rotos)
+- **Layers**: Integration (Feature) con RefreshDatabase
+- **Approval tests**: None — los labels/mensajes del panel se actualizaron a la nueva semántica (Agencia=local, Taquilla=máquina)
+- **Pure functions creadas**: None — el panel usa mapeos client-side (`Map id→name` para locales)
+
+## Commits del slice (rama `feat/jerarquia-agencias-f4`, base `feat/jerarquia-agencias-f3`)
+
+- `38333e1` feat(taquillas): asignar el local (agencia_id) al actualizar una taquilla
+- `ba89e96` feat(panel): acceso del rol agencia al panel y sidebar con Taquillas/Agencias separadas
+- `b7a9b9b` feat(panel): CRUD de agencias (locales) con listado y detalle
+- `a907397` feat(panel): selectores local vs maquina en usuarios, taquillas, grupo y dashboard
+- `7c00dfe` feat(panel): niveles Agencia=local y Taquilla=maquina en reportes, cuadre y limites
+- (docs) docs(sdd): progreso de apply PR 5 (F4) y tareas 5.1-5.5 completadas
+
+## Evidencia de verificación
+
+- RED: `php artisan test --filter=TaquillaAgenciaIdTest` → 3 fallos (agencia_id null tras PUT; 200 en vez de 403 para local ajeno)
+- GREEN: mismo filtro → `{"tool":"phpunit","result":"passed","tests":3,"passed":3,"assertions":7}`
+- Regresión taquillas: `--filter="TaquillaAgenciaIdTest|AgenciaScopeTest|GestionEntidadesApiTest|RoleAuthorizationTest"` → 44/44
+- `php artisan test` (suite completa): `{"tool":"phpunit","result":"passed","tests":296,"passed":294,"assertions":1165,"skipped":2}` — baseline PR4: 293/291 (3 tests nuevos, 0 rotos)
+- `./vendor/bin/pint --test`: `{"tool":"pint","result":"passed"}` (1 archivo auto-fixeado: TaquillaAgenciaIdTest)
+- `npm run build` (panel): 22 páginas construidas OK (baseline PR4: 20 → +2 páginas: /agencias y /agencias/detalle)
+- Runtime harness: los Feature tests ejercitan los endpoints HTTP reales (PUT /taquillas/{id} con agencia_id, incluyendo middleware + rutas + BD MySQL); el panel no tiene suite e2e → `npm run build` es el harness de compilación y la coherencia del contrato se validó contra el backend real (rutas `/agencias`, toggle, niveles de reportes F3)
+
+## Workload / PR Boundary
+
+- **Modo**: chained PR slice (feature-branch-chain, `auto-chain`) — PR 5 → PR 4 (`feat/jerarquia-agencias-f3`)
+- **Current work unit**: PR 5 / F4 — panel (5 tareas, 6 commits)
+- **Boundary**: empieza en `feat/jerarquia-agencias-f3` y termina con la verificación F4 completa. NO se implementaron tareas F5 (6.1–6.3).
+- **Review budget impact**: 6 commits, ~790 líneas añadidas (121 backend + tests + ~670 panel). Excede 400 líneas de un PR simple; el ciclo ya previó chained PRs (PR 5 de 6); el diff de PR 5 vs PR 4 es solo el trabajo F4.
+- **Rollback boundary**: revertir los commits de la rama `feat/jerarquia-agencias-f4` elimina el panel F4 sin tocar F0–F3. El único cambio de backend (update taquilla con agencia_id) es aditivo y nullable: revertirlo solo impide asignar el local desde el detalle de taquilla (el store F1 y el resto siguen funcionando).
+
+## Deviations from Design
+
+1. **`TaquillaController::update` acepta `agencia_id`**: el design.md no listaba `agencia_id` en el update de taquilla (solo en el store), pero la spec panel-jerarquia exige que el detalle de taquilla "muestra/permite asignar el LOCAL". Se añadió con la misma `authorizeAgenciaAccess` del store (F1) y TDD estricto. Aditivo y nullable: no rompe nada previo.
+2. **Bancas/detalle y grupos.astro solo labels**: el detalle de banca mantiene sus roles de usuario (banca/grupo/taquilla) y solo se corrigieron labels (Taquilla=máquina, Agencia=local) y etiquetas de límites; NO se añadió el rol agencia al modal del detalle de banca (el select de local se gestiona en usuarios.astro y grupos/detalle.astro, donde el alcance es claro).
+3. **Nombres de locales en listados vía mapeo client-side**: el backend no carga la relación `agencia` en `TaquillaController::index`/`UserController::index`; el panel mapea `agencia_id`→nombre con la lista de `/agencias` (patrón ya usado para bancas derivadas). Sin cambios de backend adicionales.
+
+## Issues Found
+
+- Ninguno bloqueante. El `update` de taquilla con rol agencia requiere que la máquina YA tenga el local asignado (`authorizeTaquillaAccess` compara `agencia_id`): un local no puede asignarse a una máquina sin local (403 correcto de negocio; la asignación inicial la hace un rol superior).
+- `backend/.env.example` y `panel/.astro/settings.json` seguían modificados en el working tree (pre-existentes) — NO se commitearon (fuera del alcance de la rama).
+
+## Gotchas
+
+- `authorizeTaquillaAccess` (rama agencia) exige `taquilla.agencia_id === user.agencia_id`: el rol agencia nunca ve máquinas sin local, por lo que "agencia asigna su local" solo aplica a máquinas ya vinculadas.
+- `$request->only(...)` en `TaquillaController::update` descartaba silenciosamente `agencia_id`; se añadió explícito con `$request->has('agencia_id')` para permitir también desasignar (`null`).
+- El dashboard anterior usaba `Promise.all` sin tolerancia a 403: roles banca/grupo/agencia no ven `/bancas` y todo el bloque fallaba en silencio. Ahora cada stat es tolerante (`.catch(() => '-')`).
+
+## Próximo paso (orquestador)
+
+- PR 6 (F5 — endurecer): `TerminologiaTest` final verde (claves Agencia=local/Taquilla=máquina + mensajes), `composer test` + `./vendor/bin/pint --test`, revisión post-backfill del cliente. Base `feat/jerarquia-agencias-f4`. Tareas 6.1–6.3 de `tasks.md`.

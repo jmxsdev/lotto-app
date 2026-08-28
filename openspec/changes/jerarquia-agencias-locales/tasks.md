@@ -68,11 +68,11 @@ Chain strategy: feature-branch-chain
 
 ## Phase 5 (F4): Panel
 
-- [ ] 5.1 `panel/src/utils/api.ts` (ROLES +`agencia`) y `login.astro` (ROLES_PERMITIDOS).
-- [ ] 5.2 `AdminLayout.astro`: sidebar "Taquillas"→`/taquillas`, nueva "Agencias"→`/agencias`; `ROLE_LABELS` `agencia:'Agencia'`, `taquilla:'Taquilla'`.
-- [ ] 5.3 Crear `agencias.astro` + `agencias/detalle.astro` (CRUD locals).
-- [ ] 5.4 Modificar `usuarios.astro`, `taquillas.astro`(+detalle), `dashboard.astro`, `cuadre.astro`, `reportes/*`, `limites.astro` (select agencia, nivel local vs máquina, stats locales+taquillas).
-- [ ] 5.5 Verificar `npm run build` (panel sin suite e2e — manual).
+- [x] 5.1 `panel/src/utils/api.ts` (ROLES +`agencia`) y `login.astro` (ROLES_PERMITIDOS).
+- [x] 5.2 `AdminLayout.astro`: sidebar "Taquillas"→`/taquillas`, nueva "Agencias"→`/agencias`; `ROLE_LABELS` `agencia:'Agencia'`, `taquilla:'Taquilla'`.
+- [x] 5.3 Crear `agencias.astro` + `agencias/detalle.astro` (CRUD locals).
+- [x] 5.4 Modificar `usuarios.astro`, `taquillas.astro`(+detalle), `dashboard.astro`, `cuadre.astro`, `reportes/*`, `limites.astro` (select agencia, nivel local vs máquina, stats locales+taquillas).
+- [x] 5.5 Verificar `npm run build` (panel sin suite e2e — manual).
 
 ## Phase 6 (F5): Endurecimiento
 
