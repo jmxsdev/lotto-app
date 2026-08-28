@@ -1,0 +1,259 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+---
+
+<AdminLayout>
+  <div class="page">
+    <div class="page-header">
+      <div>
+        <h2 class="page-title" id="page-title">Local</h2>
+        <p class="page-subtitle" id="page-subtitle"></p>
+      </div>
+      <a class="btn btn-secondary" href="/agencias">← Volver a Agencias</a>
+    </div>
+
+    <div class="tab-bar" id="tabs">
+      <button type="button" class="tab-btn" data-tab="informacion">📋 Información</button>
+      <button type="button" class="tab-btn" data-tab="taquillas">🖥️ Taquillas</button>
+    </div>
+
+    <!-- Pestaña 1: Información -->
+    <section class="tab-panel" data-panel="informacion" style="display:none">
+      <form id="info-form">
+        <div class="form-grid">
+          <div class="field"><label>Nombre</label><input name="name" required /></div>
+          <div class="field"><label>Código</label><input name="code" required /></div>
+          <div class="field"><label>Grupo (entidad padre)</label><select name="grupo_id" required></select></div>
+          <div class="field"><label>RIF</label><input name="rif" /></div>
+          <div class="field"><label>Email</label><input name="email" type="email" /></div>
+          <div class="field"><label>Teléfono</label><input name="telefono" /></div>
+          <div class="field"><label>Dirección</label><input name="direccion" /></div>
+          <div class="field"><label>Estado</label><input name="estado" /></div>
+          <div class="field"><label>Municipio</label><input name="municipio" /></div>
+        </div>
+        <div class="field checkbox-line"><label><input type="checkbox" name="active" checked /> Local activo</label></div>
+        <p class="user-hint">El usuario del local (rol Agencia) se gestiona desde <a href="/usuarios">Usuarios</a>, vinculado a este local.</p>
+        <div class="panel-actions">
+          <button type="submit" class="btn btn-primary">Guardar Información</button>
+          <button type="button" class="btn btn-secondary" id="btn-toggle" style="display:none">🔄 Activar/Desactivar</button>
+          <button type="button" class="btn btn-danger" id="btn-delete" style="display:none">🗑 Eliminar</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Pestaña 2: Taquillas del local -->
+    <section class="tab-panel" data-panel="taquillas" style="display:none">
+      <p class="notice" id="taquillas-notice" style="display:none">Primero guarde el local en la pestaña Información para ver sus taquillas.</p>
+      <div class="panel-actions"><a class="btn btn-primary" id="btn-taquilla-create" href="/taquillas/detalle">+ Nueva taquilla</a></div>
+      <div id="taquillas-content"><div class="loading">Cargando...</div></div>
+    </section>
+  </div>
+
+  <style is:global>
+    .page { max-width: 1000px; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .page-title { font-size: 24px; font-weight: 700; color: #1e293b; }
+    .page-subtitle { font-size: 13px; color: #64748b; margin-top: 4px; }
+    .btn { padding: 8px 16px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .15s; text-decoration: none; display: inline-block; }
+    .btn-primary { background: #3b82f6; color: #fff; } .btn-primary:hover { background: #2563eb; }
+    .btn-secondary { background: #e2e8f0; color: #333; } .btn-secondary:hover { background: #cbd5e1; }
+    .btn-danger { background: #ef4444; color: #fff; } .btn-danger:hover { background: #dc2626; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .loading { text-align: center; padding: 40px; color: #666; }
+    .tab-bar { display: flex; gap: 4px; background: #e2e8f0; padding: 4px; border-radius: 10px; margin-bottom: 20px; }
+    .tab-btn { flex: 1; padding: 10px 12px; border: none; border-radius: 8px; background: transparent; font-size: 14px; font-weight: 600; color: #64748b; cursor: pointer; transition: all .15s; }
+    .tab-btn:hover { color: #1e293b; }
+    .tab-btn-active { background: #fff; color: #1e293b; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .tab-panel { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .notice { font-size: 13px; color: #64748b; background: #f1f5f9; border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+    @media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } }
+    .panel-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+    .field { margin-bottom: 14px; } .field label { display: block; font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px; }
+    .field input, .field select { width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px; } .field input:focus, .field select:focus { border-color: #3b82f6; outline: none; }
+    .field input:disabled, .field select:disabled { background: #f1f5f9; color: #94a3b8; }
+    .checkbox-line { margin-top: 4px; } .checkbox-line label { display: flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer; } .checkbox-line input[type="checkbox"] { width: auto; margin: 0; }
+    .user-hint { font-size: 12px; color: #64748b; background: #f1f5f9; border-radius: 6px; padding: 8px 10px; margin-bottom: 12px; }
+    .user-hint a { color: #1d4ed8; }
+    .table-wrap { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    table { width: 100%; border-collapse: collapse; } th { background: #f1f5f9; padding: 10px 12px; text-align: left; font-size: 12px; font-weight: 600; color: #666; text-transform: uppercase; } td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; } tr:hover td { background: #f8fafc; }
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+    .badge-active { background: #dcfce7; color: #166534; } .badge-inactive { background: #fef2f2; color: #991b1b; }
+    .actions-cell { display: flex; gap: 4px; }
+  </style>
+
+  <script>
+    import { apiFetch, getStoredUser } from '../../utils/api.ts';
+    import { showModal } from '../../utils/modal.ts';
+    import { getParam, initTabs } from '../../utils/tabs.ts';
+
+    const TABS = ['informacion', 'taquillas'];
+    const currentUser = getStoredUser() || {};
+    const role = currentUser.role || '';
+    const canEdit = ['super_master', 'master', 'banca', 'grupo'].includes(role);
+    const agenciaId = getParam('id') ? parseInt(getParam('id'), 10) : null;
+    const isCreate = !agenciaId;
+
+    let agencia = null;
+    let grupos = [];
+    let taquillas = [];
+    let taquillasInited = false;
+
+    function setHeader() {
+      document.getElementById('page-title').textContent = isCreate ? 'Nuevo Local' : 'Local';
+      document.getElementById('page-subtitle').textContent = isCreate
+        ? 'Complete los datos para crear el local (agencia) y vincularlo a un grupo.'
+        : `ID #${agenciaId}${agencia?.code ? ' · Código ' + agencia.code : ''}`;
+    }
+
+    function disableForm(form, disabled) {
+      form.querySelectorAll('input, select, button').forEach(el => { el.disabled = disabled; });
+    }
+
+    function applyEditActions() {
+      if (isCreate || !canEdit) return;
+      document.getElementById('btn-toggle').style.display = 'inline-block';
+      document.getElementById('btn-delete').style.display = 'inline-block';
+    }
+
+    async function loadGrupos() {
+      try {
+        const data = await apiFetch('GET', '/grupos?per_page=100');
+        const items = Array.isArray(data) ? data : (data?.data || []);
+        grupos = items;
+      } catch (_) { grupos = []; }
+      // Roles grupo/agencia pueden no listar grupos: derivar de la sesión
+      if (!grupos.length && currentUser.grupo_id) {
+        grupos = [{ id: currentUser.grupo_id, name: 'Mi Grupo' }];
+      }
+      const s = document.getElementById('info-form').grupo_id;
+      s.innerHTML = '<option value="">Seleccione el grupo...</option>';
+      grupos.forEach(g => s.innerHTML += `<option value="${g.id}">${g.name}</option>`);
+    }
+
+    async function loadAgencia() {
+      await loadGrupos();
+      if (isCreate) { setHeader(); populateInfo(); return; }
+      try {
+        const data = await apiFetch('GET', '/agencias/' + agenciaId);
+        agencia = data.data || data;
+      } catch (_) {
+        await showModal({ message: 'No tienes permiso para ver este local o no existe.', type: 'error' });
+        window.location.href = '/agencias';
+        return;
+      }
+      setHeader();
+      populateInfo();
+      applyEditActions();
+    }
+
+    function populateInfo() {
+      const f = document.getElementById('info-form');
+      f.name.value = agencia?.name || '';
+      f.code.value = agencia?.code || '';
+      f.grupo_id.value = agencia?.grupo_id ? String(agencia.grupo_id) : '';
+      f.rif.value = agencia?.rif || '';
+      f.email.value = agencia?.email || '';
+      f.telefono.value = agencia?.telefono || '';
+      f.direccion.value = agencia?.direccion || '';
+      f.estado.value = agencia?.estado || '';
+      f.municipio.value = agencia?.municipio || '';
+      f.active.checked = agencia ? !!agencia.active : true;
+      if (!canEdit) disableForm(f, true);
+    }
+
+    document.getElementById('info-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = e.target;
+      const body = {
+        name: f.name.value,
+        code: f.code.value,
+        grupo_id: f.grupo_id.value,
+        rif: f.rif.value || null,
+        email: f.email.value || null,
+        telefono: f.telefono.value || null,
+        direccion: f.direccion.value || null,
+        estado: f.estado.value || null,
+        municipio: f.municipio.value || null,
+        active: f.active.checked,
+      };
+      try {
+        if (isCreate) {
+          const res = await apiFetch('POST', '/agencias', body);
+          const created = res?.agencia || res?.data?.agencia || res;
+          window.location.href = '/agencias/detalle?id=' + created.id + '&tab=informacion';
+        } else {
+          await apiFetch('PUT', '/agencias/' + agenciaId, body);
+          await showModal({ message: 'Local actualizado correctamente.', type: 'success' });
+          await loadAgencia();
+        }
+      } catch (err) {
+        await showModal({ message: err.message, type: 'error' });
+      }
+    });
+
+    document.getElementById('btn-toggle').addEventListener('click', async () => {
+      showModal({ message: agencia?.active ? '¿Desactivar local? Sus taquillas quedarán pausadas hasta reactivarlo.' : '¿Activar local?', type: 'confirm' }).then(async ok => {
+        if (!ok) return;
+        try {
+          await apiFetch('PATCH', '/agencias/' + agenciaId + '/toggle');
+          await loadAgencia();
+        } catch (err) { await showModal({ message: err.message, type: 'error' }); }
+      });
+    });
+
+    document.getElementById('btn-delete').addEventListener('click', async () => {
+      showModal({ message: '¿Eliminar este local? Sus taquillas y usuarios quedarán sin local asignado.', type: 'confirm' }).then(async ok => {
+        if (!ok) return;
+        try {
+          await apiFetch('DELETE', '/agencias/' + agenciaId);
+          window.location.href = '/agencias';
+        } catch (err) { await showModal({ message: err.message, type: 'error' }); }
+      });
+    });
+
+    // ---------- Taquillas del local ----------
+
+    async function initTaquillas() {
+      taquillasInited = true;
+      if (!agenciaId) return;
+      document.getElementById('taquillas-notice').style.display = 'none';
+      const btnCreate = document.getElementById('btn-taquilla-create');
+      btnCreate.href = '/taquillas/detalle?agencia_id=' + agenciaId;
+      if (!canEdit) btnCreate.style.display = 'none';
+      await loadTaquillas();
+    }
+
+    async function loadTaquillas() {
+      try {
+        const data = await apiFetch('GET', '/taquillas?per_page=100');
+        const items = (Array.isArray(data) ? data : (data?.data || [])).filter(t => t.agencia_id == agenciaId);
+        taquillas = items;
+        renderTaquillas();
+      } catch (err) {
+        document.getElementById('taquillas-content').innerHTML = '<div class="loading">Error: ' + err.message + '</div>';
+      }
+    }
+
+    function renderTaquillas() {
+      if (!taquillas.length) {
+        document.getElementById('taquillas-content').innerHTML = '<div class="loading">Este local no tiene taquillas asignadas.</div>';
+        return;
+      }
+      let html = '<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Código</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>';
+      taquillas.forEach(t => {
+        html += `<tr><td><strong>${t.name}</strong></td><td>${t.code}</td><td><span class="badge ${t.active?'badge-active':'badge-inactive'}">${t.active?'Activo':'Inactivo'}</span></td><td class="actions-cell"><a class="btn btn-sm btn-secondary" href="/taquillas/detalle?id=${t.id}">👁️ Ver/Editar</a></td></tr>`;
+      });
+      html += '</tbody></table></div>';
+      document.getElementById('taquillas-content').innerHTML = html;
+    }
+
+    // ---------- Arranque ----------
+
+    initTabs('tabs', TABS, (tab) => {
+      if (tab === 'taquillas' && !taquillasInited) initTaquillas();
+    });
+
+    loadAgencia();
+  </script>
+</AdminLayout>
