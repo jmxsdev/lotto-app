@@ -37,4 +37,4 @@ export function getStoredUser() {
   } catch { return null; }
 }
 
-export const ROLES = ['super_master', 'master', 'banca', 'grupo'];
+export const ROLES = ['super_master', 'master', 'banca', 'grupo', 'agencia'];

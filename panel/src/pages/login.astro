@@ -50,7 +50,7 @@ const apiUrl = (import.meta.env.PUBLIC_API_URL || 'http://localhost:8000') + '/a
 
   <script define:vars={{ apiUrl }}>
     const API_BASE = apiUrl;
-    const ROLES_PERMITIDOS = ['super_master','master','banca','grupo'];
+    const ROLES_PERMITIDOS = ['super_master','master','banca','grupo','agencia'];
     const alertEl = document.getElementById('alert');
     const btn = document.getElementById('btn-login');
 
@@ -109,7 +109,7 @@ const apiUrl = (import.meta.env.PUBLIC_API_URL || 'http://localhost:8000') + '/a
         }
 
         if (!ROLES_PERMITIDOS.includes(data.user.role)) {
-          showAlert('Las agencias deben usar la app de escritorio.', 'warning');
+          showAlert('Las taquillas deben usar la app de escritorio.', 'warning');
           btn.disabled = false;
           btn.textContent = 'Iniciar Sesión';
           return;
