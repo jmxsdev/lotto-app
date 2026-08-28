@@ -112,7 +112,7 @@ class ReporteController extends Controller
         $filters = [
             'tipo_juego' => $request->input('tipo_juego'),
             'moneda' => $request->input('moneda'),
-            'nivel' => $request->input('nivel', 'banca'), // banca, grupo, taquilla
+            'nivel' => $request->input('nivel', 'banca'), // banca, grupo, taquilla, agencia
         ];
 
         $data = $this->apuestaService->ventasTotales($query, $filters);
@@ -137,7 +137,7 @@ class ReporteController extends Controller
         $filters = [
             'fecha_desde' => $request->input('fecha_desde'),
             'fecha_hasta' => $request->input('fecha_hasta'),
-            'nivel' => $request->input('nivel', 'banca'), // banca, grupo, agencia
+            'nivel' => $request->input('nivel', 'banca'), // banca, grupo, agencia, taquilla
             'moneda' => $request->input('moneda'),
             'tipo_juego' => $request->input('tipo_juego'),
         ];
@@ -208,7 +208,10 @@ class ReporteController extends Controller
     {
         $query = $this->buildApuestaQuery($request);
 
-        $filters = [];
+        // nivel=agencia agrupa por LOCAL (agencias); nivel=taquilla (default) por máquina
+        $filters = [
+            'nivel' => $request->input('nivel', 'taquilla'),
+        ];
         $data = $this->apuestaService->rendimientoTaquillas($query, $filters);
 
         return response()->json([
@@ -229,7 +232,7 @@ class ReporteController extends Controller
         // Solo tickets con estado 'vencido'
         $query->where('estado', 'vencido');
 
-        $tickets = $query->with(['taquilla.grupo.banca', 'apuestas'])
+        $tickets = $query->with(['taquilla.agencia', 'taquilla.grupo.banca', 'apuestas'])
             ->orderBy('created_at', 'desc')
             ->paginate($request->input('per_page', 50));
 
@@ -240,7 +243,8 @@ class ReporteController extends Controller
             $ticket->Premio = (float) ($ticket->premio_total_bs + $ticket->premio_total_usd);
             $ticket->Banca = $ticket->taquilla?->grupo?->banca?->name;
             $ticket->Grupo = $ticket->taquilla?->grupo?->name;
-            $ticket->Agencia = $ticket->taquilla?->name;
+            $ticket->Agencia = $ticket->taquilla?->agencia?->name;
+            $ticket->Taquilla = $ticket->taquilla?->name;
             $ticket->Fecha = $ticket->created_at?->format('Y-m-d');
             $ticket->Jugadas = $ticket->apuestas?->count() ?? 0;
 

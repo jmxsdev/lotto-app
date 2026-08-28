@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Agencia;
 use App\Models\Apuesta;
 use App\Models\Banca;
 use App\Models\ExchangeRate;
@@ -444,20 +445,24 @@ class CuadreCajaReportTest extends TestCase
     }
 
     /**
-     * 1.5.6 — test_cuadre_nivel_agencia_agrupa_por_taquillas:
-     * Con nivel=agencia las filas se agrupan por taquilla (agencia),
-     * incluyendo pagos por taquilla.
+     * 1.5.6 — test_cuadre_nivel_agencia_agrupa_por_locales:
+     * Con nivel=agencia las filas se agrupan por LOCAL (tabla agencias),
+     * incluyendo pagos agrupados por local. Corrige el bug latente donde
+     * nivel=agencia caía a banca o agrupaba por máquina.
      */
-    public function test_cuadre_nivel_agencia_agrupa_por_taquillas()
+    public function test_cuadre_nivel_agencia_agrupa_por_locales()
     {
         $super = $this->superUser();
         $juego = Juego::where('slug', 'lotto-activo')->first();
 
-        $banca = Banca::create(['name' => 'Banca Agencias', 'code' => 'BAAGE', 'active' => true]);
-        $grupo = Grupo::create(['name' => 'Grupo Agencias', 'code' => 'GRAGE', 'banca_id' => $banca->id, 'active' => true]);
+        $banca = Banca::create(['name' => 'Banca Locales', 'code' => 'BALOC', 'active' => true]);
+        $grupo = Grupo::create(['name' => 'Grupo Locales', 'code' => 'GRLOC', 'banca_id' => $banca->id, 'active' => true]);
 
-        $taquillaUno = Taquilla::create(['name' => 'T-Agencia-1', 'code' => 'TAGE1', 'grupo_id' => $grupo->id, 'active' => true]);
-        $taquillaDos = Taquilla::create(['name' => 'T-Agencia-2', 'code' => 'TAGE2', 'grupo_id' => $grupo->id, 'active' => true]);
+        $localUno = Agencia::factory()->create(['name' => 'Local Uno', 'grupo_id' => $grupo->id, 'active' => true]);
+        $localDos = Agencia::factory()->create(['name' => 'Local Dos', 'grupo_id' => $grupo->id, 'active' => true]);
+
+        $taquillaUno = Taquilla::create(['name' => 'T-Local-1', 'code' => 'TLC1', 'grupo_id' => $grupo->id, 'agencia_id' => $localUno->id, 'active' => true]);
+        $taquillaDos = Taquilla::create(['name' => 'T-Local-2', 'code' => 'TLC2', 'grupo_id' => $grupo->id, 'agencia_id' => $localDos->id, 'active' => true]);
 
         $this->crearApuesta($taquillaUno, $juego, 600, 'pendiente');
         $this->crearApuesta($taquillaDos, $juego, 400, 'pendiente');
@@ -469,15 +474,15 @@ class CuadreCajaReportTest extends TestCase
         $response->assertStatus(200);
         $porEntidad = collect($response->json('data'))->keyBy('Entidad');
 
-        $this->assertCount(2, $porEntidad, 'Debe haber 2 filas, una por taquilla');
-        $this->assertTrue($porEntidad->has('T-Agencia-1') && $porEntidad->has('T-Agencia-2'), 'Ambas taquillas deben estar presentes');
+        $this->assertCount(2, $porEntidad, 'Debe haber 2 filas, una por local');
+        $this->assertTrue($porEntidad->has('Local Uno') && $porEntidad->has('Local Dos'), 'Ambos locales deben estar presentes');
 
-        $this->assertEquals(600, $porEntidad['T-Agencia-1']['Venta']);
-        $this->assertEquals(50, $porEntidad['T-Agencia-1']['Devoluciones'], 'Pagos agrupados por taquilla');
-        $this->assertEquals(550, $porEntidad['T-Agencia-1']['Efectivo']);
+        $this->assertEquals(600, $porEntidad['Local Uno']['Venta']);
+        $this->assertEquals(50, $porEntidad['Local Uno']['Devoluciones'], 'Pagos agrupados por local');
+        $this->assertEquals(550, $porEntidad['Local Uno']['Efectivo']);
 
-        $this->assertEquals(400, $porEntidad['T-Agencia-2']['Venta']);
-        $this->assertEquals(400, $porEntidad['T-Agencia-2']['Efectivo']);
+        $this->assertEquals(400, $porEntidad['Local Dos']['Venta']);
+        $this->assertEquals(400, $porEntidad['Local Dos']['Efectivo']);
 
         $this->assertEquals(1000, $response->json('totales.Venta'));
         $this->assertEquals(100.0, $response->json('totales.PesoVenta'));
@@ -514,26 +519,28 @@ class CuadreCajaReportTest extends TestCase
     }
 
     /**
-     * 1.5.8 — test_cuadre_usuario_grupo_solo_sus_agencias:
-     * Un usuario con rol grupo solo ve las taquillas de su propio grupo
-     * en el cuadre con nivel=agencia; las agencias ajenas quedan fuera.
+     * 1.5.8 — test_cuadre_usuario_grupo_solo_sus_locales:
+     * Un usuario con rol grupo solo ve los LOCALES de su propio grupo
+     * en el cuadre con nivel=agencia; los locales ajenos quedan fuera.
      */
-    public function test_cuadre_usuario_grupo_solo_sus_agencias()
+    public function test_cuadre_usuario_grupo_solo_sus_locales()
     {
         $super = $this->superUser();
         $juego = Juego::where('slug', 'lotto-activo')->first();
 
-        // Agencia propia: dentro del Grupo Test (GT001) del usuario grupo@lotto.com
+        // Local propio: dentro del Grupo Test (GT001) del usuario grupo@lotto.com
         $grupoPropio = Grupo::where('code', 'GT001')->first();
+        $localPropio = Agencia::factory()->create(['name' => 'Local Grupo Propio', 'grupo_id' => $grupoPropio->id, 'active' => true]);
         $taquillaPropia = Taquilla::create([
             'name' => 'T-Grupo-Propia',
             'code' => 'TGRPP',
             'grupo_id' => $grupoPropio->id,
+            'agencia_id' => $localPropio->id,
             'active' => true,
         ]);
         $this->crearApuesta($taquillaPropia, $juego, 500, 'pendiente');
 
-        // Agencia ajena: otra banca, no debe aparecer
+        // Local ajeno: otra banca, no debe aparecer
         $taquillaAjena = $this->crearJerarquia('Banca Ajena G', 'Grupo Ajena G', 'T-Ajena-G');
         $this->crearApuesta($taquillaAjena, $juego, 5000, 'pendiente');
 
@@ -546,9 +553,76 @@ class CuadreCajaReportTest extends TestCase
         $response->assertStatus(200);
         $data = $response->json('data');
 
-        $this->assertCount(1, $data, 'El grupo solo debe ver las agencias de su propio grupo');
-        $this->assertEquals('T-Grupo-Propia', $data[0]['Entidad']);
-        $this->assertEquals(500, $data[0]['Venta'], 'Solo ventas de sus propias agencias');
+        $this->assertCount(1, $data, 'El grupo solo debe ver los locales de su propio grupo');
+        $this->assertEquals('Local Grupo Propio', $data[0]['Entidad']);
+        $this->assertEquals(500, $data[0]['Venta'], 'Solo ventas de sus propios locales');
         $this->assertEquals(500, $data[0]['Efectivo']);
+    }
+
+    /**
+     * 1.5.9 — test_cuadre_nivel_taquilla_agrupa_por_maquinas:
+     * Con nivel=taquilla las filas se agrupan por MÁQUINA (taquillas),
+     * aunque varias máquinas compartan el mismo local.
+     */
+    public function test_cuadre_nivel_taquilla_agrupa_por_maquinas()
+    {
+        $super = $this->superUser();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
+
+        $banca = Banca::create(['name' => 'Banca Maquinas', 'code' => 'BAMAQ', 'active' => true]);
+        $grupo = Grupo::create(['name' => 'Grupo Maquinas', 'code' => 'GRMAQ', 'banca_id' => $banca->id, 'active' => true]);
+        $local = Agencia::factory()->create(['name' => 'Local Maquinas', 'grupo_id' => $grupo->id, 'active' => true]);
+
+        $taquillaUno = Taquilla::create(['name' => 'T-Maq-1', 'code' => 'TMAQ1', 'grupo_id' => $grupo->id, 'agencia_id' => $local->id, 'active' => true]);
+        $taquillaDos = Taquilla::create(['name' => 'T-Maq-2', 'code' => 'TMAQ2', 'grupo_id' => $grupo->id, 'agencia_id' => $local->id, 'active' => true]);
+
+        $this->crearApuesta($taquillaUno, $juego, 300, 'pendiente');
+        $this->crearApuesta($taquillaDos, $juego, 200, 'pendiente');
+
+        $response = $this->actingAs($super, 'sanctum')
+            ->getJson('/api/v1/reportes/cuadre-caja?nivel=taquilla');
+
+        $response->assertStatus(200);
+        $porEntidad = collect($response->json('data'))->keyBy('Entidad');
+
+        $this->assertCount(2, $porEntidad, 'Debe haber 2 filas, una por máquina');
+        $this->assertTrue($porEntidad->has('T-Maq-1') && $porEntidad->has('T-Maq-2'), 'Ambas máquinas deben estar presentes');
+        $this->assertEquals(300, $porEntidad['T-Maq-1']['Venta']);
+        $this->assertEquals(200, $porEntidad['T-Maq-2']['Venta']);
+        $this->assertEquals(500, $response->json('totales.Venta'));
+    }
+
+    /**
+     * 1.5.10 — test_cuadre_nivel_agencia_suma_maquinas_del_mismo_local:
+     * Varias máquinas del mismo local se agregan en una sola fila del local,
+     * incluyendo los pagos de todas sus máquinas.
+     */
+    public function test_cuadre_nivel_agencia_suma_maquinas_del_mismo_local()
+    {
+        $super = $this->superUser();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
+
+        $banca = Banca::create(['name' => 'Banca Suma Local', 'code' => 'BASUM', 'active' => true]);
+        $grupo = Grupo::create(['name' => 'Grupo Suma Local', 'code' => 'GRSUM', 'banca_id' => $banca->id, 'active' => true]);
+        $local = Agencia::factory()->create(['name' => 'Local Suma', 'grupo_id' => $grupo->id, 'active' => true]);
+
+        $taquillaUno = Taquilla::create(['name' => 'T-Suma-1', 'code' => 'TSUM1', 'grupo_id' => $grupo->id, 'agencia_id' => $local->id, 'active' => true]);
+        $taquillaDos = Taquilla::create(['name' => 'T-Suma-2', 'code' => 'TSUM2', 'grupo_id' => $grupo->id, 'agencia_id' => $local->id, 'active' => true]);
+
+        $this->crearApuesta($taquillaUno, $juego, 600, 'pendiente');
+        $this->crearApuesta($taquillaDos, $juego, 400, 'pendiente');
+        $this->crearPago($taquillaUno, $super, 'egreso', 100);
+
+        $response = $this->actingAs($super, 'sanctum')
+            ->getJson('/api/v1/reportes/cuadre-caja?nivel=agencia');
+
+        $response->assertStatus(200);
+        $data = $response->json('data');
+
+        $this->assertCount(1, $data, 'Las 2 máquinas del mismo local se agregan en 1 fila');
+        $this->assertEquals('Local Suma', $data[0]['Entidad']);
+        $this->assertEquals(1000, $data[0]['Venta']);
+        $this->assertEquals(100, $data[0]['Pagados'], 'Pagos del local suman los de sus máquinas');
+        $this->assertEquals(900, $data[0]['Efectivo']);
     }
 }

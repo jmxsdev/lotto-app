@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Agencia;
 use App\Models\Apuesta;
 use App\Models\DetalleApuesta;
 use App\Models\ExchangeRate;
@@ -488,7 +489,7 @@ class ApuestaService
      */
     public function ventasTotales($query, array $filters): array
     {
-        // Determinar nivel de agrupación: banca (default), grupo, taquilla
+        // Determinar nivel de agrupación: banca (default), grupo, taquilla, agencia
         $nivel = $filters['nivel'] ?? 'banca';
 
         // Clonar para no afectar el query original
@@ -498,6 +499,12 @@ class ApuestaService
             ->join('bancas', 'grupos.banca_id', '=', 'bancas.id')
             ->leftJoin('detalle_apuestas', 'apuestas.id', '=', 'detalle_apuestas.apuesta_id')
             ->where('apuestas.estado', '!=', 'anulada');
+
+        // Nivel agencia: agrupar por LOCAL (tabla agencias), passthrough
+        // entre grupo y taquilla (join taquillas→agencias→grupos→bancas)
+        if ($nivel === 'agencia') {
+            $base->join('agencias', 'taquillas.agencia_id', '=', 'agencias.id');
+        }
 
         // Filtro por tipo de juego (slug)
         if (! empty($filters['tipo_juego'])) {
@@ -519,12 +526,14 @@ class ApuestaService
 
         // Configurar groupBy y label según nivel
         $groupCols = match ($nivel) {
+            'agencia' => ['agencias.id', 'agencias.name'],
             'taquilla' => ['taquillas.id', 'taquillas.name'],
             'grupo' => ['grupos.id', 'grupos.name'],
             default => ['bancas.id', 'bancas.name'], // 'banca' o cualquier otro
         };
 
         $labelCol = match ($nivel) {
+            'agencia' => 'agencias.name',
             'taquilla' => 'taquillas.name',
             'grupo' => 'grupos.name',
             default => 'bancas.name',
@@ -570,7 +579,7 @@ class ApuestaService
     public function relacionTickets($query, array $filters, int $perPage = 50)
     {
         $tickets = (clone $query)
-            ->with(['taquilla', 'apuestas'])
+            ->with(['taquilla.agencia', 'apuestas'])
             ->withCount('apuestas as jugadas_count')
             ->orderBy('created_at', 'desc')
             ->paginate($perPage);
@@ -601,7 +610,8 @@ class ApuestaService
             }
 
             $ticket->Ticket_N = $ticket->ticket_code;
-            $ticket->Agencia = $ticket->taquilla?->name;
+            $ticket->Agencia = $ticket->taquilla?->agencia?->name;
+            $ticket->Taquilla = $ticket->taquilla?->name;
             $ticket->Usuario = $usuario;
             $ticket->Fecha = $ticket->created_at?->format('Y-m-d');
             $ticket->Monto = (float) ($ticket->total_bs + $ticket->total_usd);
@@ -617,42 +627,52 @@ class ApuestaService
     }
 
     /**
-     * Rendimiento por taquilla.
+     * Rendimiento por entidad (local o máquina).
      * Recibe query de apuestas pre-escalado desde el controlador.
      *
-     * Columnas: Taquilla, Venta, Anulado, Premio, Ganancia, % Peso Venta, % Peso Ganancia, Estado
+     * nivel=agencia: agrupa por LOCAL (tabla agencias), fila etiquetada "Agencia".
+     * nivel=taquilla (default): agrupa por MÁQUINA, fila etiquetada "Taquilla".
+     *
+     * Columnas: {Taquilla|Agencia}, Venta, Anulado, Premio, Ganancia,
+     * % Peso Venta, % Peso Ganancia, Estado
      */
     public function rendimientoTaquillas($query, array $filters): array
     {
-        // Obtener la taquilla_id de las apuestas en el query para contexto de jerarquía
-        $taquillaIds = (clone $query)->distinct()->pluck('taquilla_id');
+        $nivel = $filters['nivel'] ?? 'taquilla';
+        $esAgencia = $nivel === 'agencia';
 
-        $taquillas = Taquilla::whereIn('id', $taquillaIds)
-            ->with('grupo')
-            ->get()
-            ->keyBy('id');
-
-        $ventasPorTaquilla = (clone $query)
+        // Ventas/Anulado/Premio agrupados por entidad (local o máquina)
+        $ventasPorEntidad = (clone $query)
+            ->join('taquillas', 'apuestas.taquilla_id', '=', 'taquillas.id')
+            ->when($esAgencia, fn ($q) => $q->join('agencias', 'taquillas.agencia_id', '=', 'agencias.id'))
             ->leftJoin('detalle_apuestas', 'apuestas.id', '=', 'detalle_apuestas.apuesta_id')
-            ->groupBy('apuestas.taquilla_id')
-            ->selectRaw("
-                apuestas.taquilla_id,
+            ->groupBy($esAgencia ? ['agencias.id', 'agencias.name'] : 'apuestas.taquilla_id')
+            ->selectRaw('
+                '.($esAgencia ? 'agencias.id' : 'apuestas.taquilla_id')." as entidad_id,
                 SUM(CASE WHEN apuestas.estado != 'anulada' THEN apuestas.total_bs_equivalent ELSE 0 END) as Venta,
                 SUM(CASE WHEN apuestas.estado = 'anulada' THEN 1 ELSE 0 END) as Anulado,
                 COALESCE(SUM(detalle_apuestas.premio_ganado), 0) as Premio
             ")
             ->get()
-            ->keyBy('taquilla_id');
+            ->keyBy('entidad_id');
 
-        $totalVenta = $ventasPorTaquilla->sum('Venta');
+        $totalVenta = $ventasPorEntidad->sum('Venta');
 
         // Ganancia total = Venta total - Premio total
-        $totalPremio = $ventasPorTaquilla->sum('Premio');
+        $totalPremio = $ventasPorEntidad->sum('Premio');
         $totalGanancia = $totalVenta - $totalPremio;
 
+        // Entidades (locales o máquinas) con su estado de activación
+        $entidades = $esAgencia
+            ? Agencia::whereIn('id', $ventasPorEntidad->keys())->get()->keyBy('id')
+            : Taquilla::whereIn('id', $ventasPorEntidad->keys())->with('grupo')->get()->keyBy('id');
+
+        // Label de la fila: "Agencia" para el local, "Taquilla" para la máquina
+        $keyLabel = $esAgencia ? 'Agencia' : 'Taquilla';
+
         $resultados = [];
-        foreach ($ventasPorTaquilla as $taquillaId => $row) {
-            $taquilla = $taquillas->get($taquillaId);
+        foreach ($ventasPorEntidad as $entidadId => $row) {
+            $entidad = $entidades->get($entidadId);
             $venta = (float) $row->Venta;
             $anulado = (int) $row->Anulado;
             $premio = (float) $row->Premio;
@@ -662,14 +682,14 @@ class ApuestaService
             $pesoGanancia = $totalGanancia > 0 ? round(($ganancia / $totalGanancia) * 100, 2) : 0;
 
             $resultados[] = [
-                'Agencia' => $taquilla?->name ?? "Agencia #{$taquillaId}",
+                $keyLabel => $entidad?->name ?? "{$keyLabel} #{$entidadId}",
                 'Venta' => $venta,
                 'Anulado' => $anulado,
                 'Premio' => $premio,
                 'Ganancia' => $ganancia,
                 '% Peso Venta' => $pesoVenta,
                 '% Peso Ganancia' => $pesoGanancia,
-                'Estado' => $taquilla?->active ? 'Activa' : 'Inactiva',
+                'Estado' => $entidad?->active ? 'Activa' : 'Inactiva',
             ];
         }
 
@@ -692,17 +712,19 @@ class ApuestaService
      */
     public function cuadreCaja($query, array $filters): array
     {
-        // Nivel de agrupación: banca (default), grupo, agencia (taquillas)
+        // Nivel de agrupación: banca (default), grupo, agencia (locals), taquilla (máquinas)
         $nivel = $filters['nivel'] ?? 'banca';
 
         $groupCols = match ($nivel) {
-            'agencia' => ['taquillas.id', 'taquillas.name'],
+            'agencia' => ['agencias.id', 'agencias.name'],
+            'taquilla' => ['taquillas.id', 'taquillas.name'],
             'grupo' => ['grupos.id', 'grupos.name'],
             default => ['bancas.id', 'bancas.name'],
         };
 
         $labelCol = match ($nivel) {
-            'agencia' => 'taquillas.name',
+            'agencia' => 'agencias.name',
+            'taquilla' => 'taquillas.name',
             'grupo' => 'grupos.name',
             default => 'bancas.name',
         };
@@ -720,6 +742,12 @@ class ApuestaService
             ->join('grupos', 'taquillas.grupo_id', '=', 'grupos.id')
             ->join('bancas', 'grupos.banca_id', '=', 'bancas.id')
             ->where('apuestas.estado', '!=', 'anulada');
+
+        // Nivel agencia: agrupar por LOCAL (tabla agencias); las máquinas sin
+        // local asignado (agencia_id null) quedan fuera de este nivel
+        if ($nivel === 'agencia') {
+            $base->join('agencias', 'taquillas.agencia_id', '=', 'agencias.id');
+        }
 
         // Filtro por tipo de juego (slug)
         if (! empty($filters['tipo_juego'])) {
@@ -828,6 +856,11 @@ class ApuestaService
             ->join('taquillas', 'pagos.taquilla_id', '=', 'taquillas.id')
             ->join('grupos', 'taquillas.grupo_id', '=', 'grupos.id')
             ->join('bancas', 'grupos.banca_id', '=', 'bancas.id');
+
+        // Nivel agencia: los pagos también se agrupan por local
+        if (in_array('agencias.id', $groupCols, true)) {
+            $query->join('agencias', 'taquillas.agencia_id', '=', 'agencias.id');
+        }
 
         if ($desde) {
             $query->whereDate('pagos.created_at', '>=', $desde);

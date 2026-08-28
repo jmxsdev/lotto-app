@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Agencia;
 use App\Models\Apuesta;
 use App\Models\Banca;
 use App\Models\Grupo;
@@ -41,13 +42,15 @@ class TerminologiaTest extends TestCase
     }
 
     /**
-     * Jerarquía banca → grupo → taquilla con una apuesta asociada.
+     * Jerarquía banca → grupo → local (agencia) → taquilla (máquina)
+     * con una apuesta asociada.
      */
     private function crearJerarquiaConVenta(): Taquilla
     {
         $banca = Banca::create(['name' => 'Banca Term', 'code' => 'BTERM', 'active' => true]);
         $grupo = Grupo::create(['name' => 'Grupo Term', 'code' => 'GTERM', 'banca_id' => $banca->id, 'active' => true]);
-        $taquilla = Taquilla::create(['name' => 'Agencia Centro', 'code' => 'TERM1', 'grupo_id' => $grupo->id, 'active' => true]);
+        $local = Agencia::factory()->create(['name' => 'Local Term', 'grupo_id' => $grupo->id, 'active' => true]);
+        $taquilla = Taquilla::create(['name' => 'Taquilla Term', 'code' => 'TERM1', 'grupo_id' => $grupo->id, 'agencia_id' => $local->id, 'active' => true]);
 
         $juego = Juego::where('slug', 'lotto-activo')->first();
 
@@ -66,10 +69,10 @@ class TerminologiaTest extends TestCase
     }
 
     // ---------------------------------------------------------------
-    // R3 — Claves JSON de reportes usan "Agencia"
+    // R3 — Claves JSON de reportes: "Agencia"=local, "Taquilla"=máquina
     // ---------------------------------------------------------------
 
-    public function test_rendimiento_taquillas_usa_clave_agencia()
+    public function test_rendimiento_nivel_taquilla_usa_clave_taquilla()
     {
         $taquilla = $this->crearJerarquiaConVenta();
 
@@ -80,12 +83,28 @@ class TerminologiaTest extends TestCase
         $data = $response->json('data');
 
         $this->assertCount(1, $data);
-        $this->assertArrayHasKey('Agencia', $data[0]);
-        $this->assertArrayNotHasKey('Taquilla', $data[0]);
-        $this->assertEquals($taquilla->name, $data[0]['Agencia']);
+        $this->assertArrayHasKey('Taquilla', $data[0]);
+        $this->assertArrayNotHasKey('Agencia', $data[0]);
+        $this->assertEquals($taquilla->name, $data[0]['Taquilla'], 'Taquilla = máquina');
     }
 
-    public function test_relacion_tickets_usa_clave_agencia()
+    public function test_rendimiento_nivel_agencia_usa_clave_agencia()
+    {
+        $taquilla = $this->crearJerarquiaConVenta();
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->getJson('/api/v1/reportes/rendimiento-taquillas?nivel=agencia');
+
+        $response->assertStatus(200);
+        $data = $response->json('data');
+
+        $this->assertCount(1, $data);
+        $this->assertArrayHasKey('Agencia', $data[0]);
+        $this->assertArrayNotHasKey('Taquilla', $data[0]);
+        $this->assertEquals($taquilla->agencia->name, $data[0]['Agencia'], 'Agencia = local');
+    }
+
+    public function test_relacion_tickets_usa_clave_agencia_local_y_taquilla_maquina()
     {
         $taquilla = $this->crearJerarquiaConVenta();
 
@@ -104,11 +123,12 @@ class TerminologiaTest extends TestCase
 
         $this->assertNotEmpty($data);
         $this->assertArrayHasKey('Agencia', $data[0]);
-        $this->assertArrayNotHasKey('Taquilla', $data[0]);
-        $this->assertEquals($taquilla->name, $data[0]['Agencia']);
+        $this->assertArrayHasKey('Taquilla', $data[0]);
+        $this->assertEquals($taquilla->agencia->name, $data[0]['Agencia'], 'Agencia = local');
+        $this->assertEquals($taquilla->name, $data[0]['Taquilla'], 'Taquilla = máquina');
     }
 
-    public function test_vencidos_usa_clave_agencia()
+    public function test_vencidos_usa_clave_agencia_local_y_taquilla_maquina()
     {
         $taquilla = $this->crearJerarquiaConVenta();
 
@@ -127,8 +147,9 @@ class TerminologiaTest extends TestCase
 
         $this->assertNotEmpty($data);
         $this->assertArrayHasKey('Agencia', $data[0]);
-        $this->assertArrayNotHasKey('Taquilla', $data[0]);
-        $this->assertEquals($taquilla->name, $data[0]['Agencia']);
+        $this->assertArrayHasKey('Taquilla', $data[0]);
+        $this->assertEquals($taquilla->agencia->name, $data[0]['Agencia'], 'Agencia = local');
+        $this->assertEquals($taquilla->name, $data[0]['Taquilla'], 'Taquilla = máquina');
     }
 
     // ---------------------------------------------------------------

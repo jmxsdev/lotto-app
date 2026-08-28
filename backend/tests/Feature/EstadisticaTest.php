@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Agencia;
 use App\Models\Apuesta;
 use App\Models\Banca;
 use App\Models\ExchangeRate;
@@ -163,5 +164,72 @@ class EstadisticaTest extends TestCase
             $suma = array_sum($json['series'][$key]);
             $this->assertEquals(0, $suma, "Serie '$key' debe sumar 0 para rango vacío");
         }
+    }
+
+    /**
+     * 5.8 — test_time_series_agencia_solo_su_local:
+     * El alcance por local en la serie temporal lo impone buildApuestaQuery:
+     * un usuario con rol agencia solo ve las apuestas de su propio local
+     * (ningún dato del local ajeno).
+     */
+    public function test_time_series_agencia_solo_su_local()
+    {
+        $super = User::where('email', 'super@lotto.com')->first();
+        $super->assignRole('super_master');
+
+        ExchangeRate::create([
+            'rate' => 36.50,
+            'base_currency' => 'USD',
+            'reference_date' => now(),
+            'set_by' => $super->id,
+            'is_active' => true,
+        ]);
+
+        $juego = Juego::where('slug', 'lotto-activo')->first();
+
+        $banca = Banca::create(['name' => 'Banca Series Local', 'code' => 'BSLOC', 'active' => true]);
+        $grupo = Grupo::create(['name' => 'Grupo Series Local', 'code' => 'GSLOC', 'banca_id' => $banca->id, 'active' => true]);
+
+        $localPropio = Agencia::factory()->create(['name' => 'Local Series Propio', 'grupo_id' => $grupo->id, 'active' => true]);
+        $localAjeno = Agencia::factory()->create(['name' => 'Local Series Ajeno', 'grupo_id' => $grupo->id, 'active' => true]);
+
+        $taquillaPropia = Taquilla::create(['name' => 'T-Series-Propia', 'code' => 'TSRP', 'grupo_id' => $grupo->id, 'agencia_id' => $localPropio->id, 'active' => true]);
+        $taquillaAjena = Taquilla::create(['name' => 'T-Series-Ajena', 'code' => 'TSRA', 'grupo_id' => $grupo->id, 'agencia_id' => $localAjeno->id, 'active' => true]);
+
+        Apuesta::create([
+            'taquilla_id' => $taquillaPropia->id,
+            'juego_id' => $juego->id,
+            'amount_bs' => 1000,
+            'amount_usd' => 0,
+            'exchange_rate_applied' => 36.50,
+            'total_bs_equivalent' => 1000,
+            'estado' => 'pendiente',
+            'fecha_hora' => '2026-08-03 10:00:00',
+        ]);
+        Apuesta::create([
+            'taquilla_id' => $taquillaAjena->id,
+            'juego_id' => $juego->id,
+            'amount_bs' => 5000,
+            'amount_usd' => 0,
+            'exchange_rate_applied' => 36.50,
+            'total_bs_equivalent' => 5000,
+            'estado' => 'pendiente',
+            'fecha_hora' => '2026-08-03 10:00:00',
+        ]);
+
+        $agenciaUser = User::factory()->create([
+            'role' => 'agencia',
+            'agencia_id' => $localPropio->id,
+        ]);
+        $agenciaUser->assignRole('agencia');
+
+        $response = $this->actingAs($agenciaUser, 'sanctum')
+            ->getJson('/api/v1/estadisticas/rendimiento?fecha_desde=2026-08-01&fecha_hasta=2026-08-05');
+
+        $response->assertStatus(200);
+        $ventas = $response->json('series.ventas');
+
+        $this->assertEquals(1000, $ventas[2], 'Día 3 debe tener solo la apuesta de su local');
+        $this->assertEquals(1000.0, collect($ventas)->sum(), 'La serie no debe incluir datos del local ajeno');
     }
 }
