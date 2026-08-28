@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Agencia;
 use App\Models\Banca;
 use App\Models\Grupo;
 use App\Models\Juego;
@@ -63,6 +64,14 @@ class LimitesScopedApiTest extends TestCase
     {
         $user = User::where('email', 'grupo@lotto.com')->first();
         $user->assignRole('grupo');
+
+        return $user;
+    }
+
+    private function agenciaUser(): User
+    {
+        $user = User::where('email', 'agencia@lotto.com')->first();
+        $user->assignRole('agencia');
 
         return $user;
     }
@@ -277,6 +286,53 @@ class LimitesScopedApiTest extends TestCase
         $response = $this->actingAs($this->grupoUser(), 'sanctum')
             ->getJson('/api/v1/limites?grupo_id='.$otroGrupo->id);
 
+        $response->assertStatus(200);
+
+        $data = $response->json('data');
+
+        foreach ($data['limites'] as $limite) {
+            $this->assertNull($limite);
+        }
+    }
+
+    public function test_limites_agencia_consulta_su_taquilla()
+    {
+        $local = Agencia::where('code', 'LT001')->first();
+        $taquilla = $this->taquillaSeeded();
+        $taquilla->update(['agencia_id' => $local->id]);
+
+        $response = $this->actingAs($this->agenciaUser(), 'sanctum')
+            ->getJson('/api/v1/limites?taquilla_id='.$taquilla->id);
+
+        $response->assertStatus(200);
+
+        $data = $response->json('data');
+
+        // Matriz completa de juegos activos para su taquilla
+        $this->assertCount(7, $data['juegos']);
+        $this->assertCount(14, $data['limites']);
+        $this->assertCount(14, $data['origen']);
+    }
+
+    public function test_limites_agencia_taquilla_ajena_matriz_vacia()
+    {
+        $super = $this->superUser();
+        $otraBanca = Banca::create(['name' => 'Banca Ajena', 'code' => 'BAJ01', 'created_by' => $super->id]);
+        $otroGrupo = Grupo::create(['name' => 'Grupo Ajeno', 'code' => 'OGJ01', 'banca_id' => $otraBanca->id, 'created_by' => $super->id]);
+        $otraAgencia = Agencia::create(['name' => 'Local Ajeno', 'code' => 'LAJ01', 'grupo_id' => $otroGrupo->id, 'created_by' => $super->id]);
+        $taquillaAjena = Taquilla::create([
+            'name' => 'Taquilla Ajena',
+            'code' => 'TAJ01',
+            'grupo_id' => $otroGrupo->id,
+            'agencia_id' => $otraAgencia->id,
+            'active' => true,
+            'created_by' => $super->id,
+        ]);
+
+        $response = $this->actingAs($this->agenciaUser(), 'sanctum')
+            ->getJson('/api/v1/limites?taquilla_id='.$taquillaAjena->id);
+
+        // Intersección vacía: 200 con la matriz sin valores (nunca amplía el alcance)
         $response->assertStatus(200);
 
         $data = $response->json('data');
@@ -803,8 +859,12 @@ class LimitesScopedApiTest extends TestCase
         $ids = collect($data['entidades'])->pluck('id')->all();
         $this->assertContains($grupo->id, $ids);
         $this->assertContains($otroGrupo->id, $ids);
-        $this->assertNotContains($otraBanca->id, $ids); // la otra banca no es grupo
         $this->assertCount(2, $data['entidades']);
+
+        // Todas las entidades son grupos (la banca nunca aparece como entidad,
+        // aunque su id numérico coincida con el de un grupo).
+        $tipos = collect($data['entidades'])->pluck('tipo')->all();
+        $this->assertEquals(['grupo', 'grupo'], $tipos);
     }
 
     public function test_scope_taquillas_con_raiz_grupo_solo_esas_agencias()

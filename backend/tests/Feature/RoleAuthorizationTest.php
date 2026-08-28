@@ -6,6 +6,7 @@ use App\Models\Banca;
 use App\Models\Grupo;
 use App\Models\Juego;
 use App\Models\JuegoLimite;
+use App\Models\Taquilla;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -152,5 +153,64 @@ class RoleAuthorizationTest extends TestCase
         $response->assertStatus(422);
         $content = $response->json('message') ?? $response->getContent();
         $this->assertStringContainsString('100', $content);
+    }
+
+    // ==================================================
+    // ROL AGENCIA (local físico)
+    // ==================================================
+
+    public function test_agencia_lista_solo_las_taquillas_de_su_local()
+    {
+        $agencia = User::where('email', 'agencia@lotto.com')->first();
+        $agencia->assignRole('agencia');
+
+        $local = $agencia->agencia;
+        $taquillaPropia = Taquilla::factory()->create([
+            'grupo_id' => $local->grupo_id,
+            'agencia_id' => $local->id,
+            'active' => true,
+        ]);
+        // Taquilla sin agencia (o de otro local): fuera del alcance
+        $taquillaSinLocal = Taquilla::factory()->create(['active' => true]);
+
+        $response = $this->actingAs($agencia, 'sanctum')
+            ->getJson('/api/v1/taquillas');
+
+        $response->assertStatus(200);
+
+        $ids = collect($response->json())->pluck('id')->all();
+        $this->assertContains($taquillaPropia->id, $ids);
+        $this->assertNotContains($taquillaSinLocal->id, $ids);
+    }
+
+    public function test_agencia_no_accede_a_bancas_ni_grupos()
+    {
+        $agencia = User::where('email', 'agencia@lotto.com')->first();
+        $agencia->assignRole('agencia');
+
+        $this->actingAs($agencia, 'sanctum')
+            ->getJson('/api/v1/bancas')
+            ->assertStatus(403);
+
+        $this->actingAs($agencia, 'sanctum')
+            ->getJson('/api/v1/grupos')
+            ->assertStatus(403);
+    }
+
+    public function test_agencia_no_configura_limites()
+    {
+        $agencia = User::where('email', 'agencia@lotto.com')->first();
+        $agencia->assignRole('agencia');
+
+        $juego = Juego::first();
+        $banca = Banca::where('code', 'BT001')->first();
+
+        $this->actingAs($agencia, 'sanctum')
+            ->putJson('/api/v1/limites/'.$juego->id, [
+                'banca_id' => $banca->id,
+                'moneda' => 'bs',
+                'limite_maximo' => 100,
+            ])
+            ->assertStatus(403);
     }
 }

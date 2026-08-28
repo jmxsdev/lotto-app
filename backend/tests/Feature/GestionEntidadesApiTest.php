@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Agencia;
 use App\Models\Banca;
 use App\Models\Grupo;
 use App\Models\Taquilla;
@@ -169,6 +170,34 @@ class GestionEntidadesApiTest extends TestCase
         $this->assertEquals(['taquilla@lotto.com'], $this->emails($response)->values()->all());
     }
 
+    public function test_super_master_filtra_por_agencia()
+    {
+        $local = Agencia::where('code', 'LT001')->first();
+        $taquilla = $this->taquillaSeeded();
+        $taquilla->update(['agencia_id' => $local->id]);
+
+        $this->crearUsuario('taquilla', [
+            'banca_id' => $taquilla->grupo->banca_id,
+            'grupo_id' => $taquilla->grupo_id,
+            'taquilla_id' => $taquilla->id,
+            'agencia_id' => $local->id,
+        ]);
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->getJson('/api/v1/users?agencia_id='.$local->id);
+
+        $response->assertStatus(200);
+
+        $emails = $this->emails($response);
+
+        // Usuarios vinculados al local LT001: el usuario agencia y el nuevo taquilla
+        $this->assertContains('agencia@lotto.com', $emails);
+
+        // Fuera del local: ni el super, ni la taquilla sembrada (sin agencia)
+        $this->assertNotContains('super@lotto.com', $emails);
+        $this->assertNotContains('taquilla@lotto.com', $emails);
+    }
+
     // ==================================================
     // BANCA: ALCANCE + FILTROS
     // ==================================================
@@ -297,6 +326,13 @@ class GestionEntidadesApiTest extends TestCase
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors('taquilla_id');
+
+        // agencia_id no numérico
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->getJson('/api/v1/users?agencia_id=abc');
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors('agencia_id');
     }
 
     public function test_taquilla_solo_se_ve_a_si_misma()
