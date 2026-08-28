@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Agencia;
 use App\Models\Grupo;
 use App\Models\Taquilla;
 use App\Models\User;
@@ -43,8 +44,13 @@ class TaquillaController extends Controller
                 return response()->json(['message' => 'No tienes un grupo asociado.'], 403);
             }
             $query->where('grupo_id', $user->grupo_id);
+        } elseif ($user->hasRole('agencia')) {
+            if (! $user->agencia_id) {
+                return response()->json(['message' => 'No tienes una agencia asociada.'], 403);
+            }
+            $query->where('agencia_id', $user->agencia_id);
         } else {
-            return response()->json(['message' => 'No tienes permiso para ver agencias.'], 403);
+            return response()->json(['message' => 'No tienes permiso para ver taquillas.'], 403);
         }
 
         $taquillas = $query->with('grupo.banca')->get();
@@ -59,10 +65,11 @@ class TaquillaController extends Controller
     {
         $user = $request->user();
 
-        $request->validate([
+        $rules = [
             'name' => 'required|string|max:255',
             'code' => 'required|string|unique:taquillas,code',
             'grupo_id' => 'required|exists:grupos,id',
+            'agencia_id' => 'nullable|exists:agencias,id',
             'active' => 'boolean',
             'vigencia_premios' => 'nullable|integer|min:1',
             'tiempo_eliminacion' => 'nullable|integer|min:1|max:120',
@@ -75,10 +82,38 @@ class TaquillaController extends Controller
             'user_name' => 'required|string|max:255',
             'user_email' => 'required|email|unique:users,email',
             'user_password' => 'required|string|min:8',
-        ]);
+        ];
+
+        // La agencia (local) crea taquillas solo en su local: agencia_id y
+        // grupo_id se derivan de su agencia (no editables; valores ajenos → 403).
+        if ($user->hasRole('agencia')) {
+            if (! $user->agencia_id) {
+                return response()->json(['message' => 'No tienes una agencia asociada.'], 403);
+            }
+            $agencia = Agencia::find($user->agencia_id);
+            if (! $agencia) {
+                return response()->json(['message' => 'Agencia no encontrada.'], 403);
+            }
+            if ($request->filled('agencia_id') && (int) $request->agencia_id !== (int) $user->agencia_id) {
+                return response()->json(['message' => 'No tienes acceso a esta agencia.'], 403);
+            }
+            if ($request->filled('grupo_id') && (int) $request->grupo_id !== (int) $agencia->grupo_id) {
+                return response()->json(['message' => 'No tienes acceso a esta agencia.'], 403);
+            }
+            $request->merge([
+                'agencia_id' => $agencia->id,
+                'grupo_id' => $agencia->grupo_id,
+            ]);
+            $rules['grupo_id'] = 'nullable|exists:grupos,id';
+        }
+
+        $request->validate($rules);
 
         // Verificar acceso al grupo
         $this->authorizeGrupoAccess($user, $request->grupo_id);
+
+        // Verificar acceso al local (si se indicó)
+        $this->authorizeAgenciaAccess($user, $request->input('agencia_id'));
 
         $grupo = Grupo::find($request->grupo_id);
 
@@ -95,6 +130,7 @@ class TaquillaController extends Controller
             'name' => $request->name,
             'code' => $request->code,
             'grupo_id' => $request->grupo_id,
+            'agencia_id' => $request->input('agencia_id'),
             'activation_code' => $activationCode,
             'vigencia_premios' => $request->vigencia_premios ?? null,
             'tiempo_eliminacion' => $request->tiempo_eliminacion ?? null,
@@ -116,6 +152,7 @@ class TaquillaController extends Controller
             'banca_id' => $grupo->banca_id,
             'grupo_id' => $request->grupo_id,
             'taquilla_id' => $taquilla->id,
+            'agencia_id' => $taquilla->agencia_id,
             'active' => $request->active ?? true,
         ]);
 
@@ -217,12 +254,12 @@ class TaquillaController extends Controller
 
         // Verificar que no tenga apuestas (opcional)
         if ($taquilla->apuestas()->count() > 0) {
-            return response()->json(['message' => 'No se puede eliminar la agencia porque tiene apuestas asociadas.'], 422);
+            return response()->json(['message' => 'No se puede eliminar la taquilla porque tiene apuestas asociadas.'], 422);
         }
 
         $taquilla->delete();
 
-        return response()->json(['message' => 'Agencia eliminada correctamente.']);
+        return response()->json(['message' => 'Taquilla eliminada correctamente.']);
     }
 
     // --- Métodos de autorización ---
@@ -309,7 +346,65 @@ class TaquillaController extends Controller
             return;
         }
 
+        // Agencia solo puede acceder al grupo de su local
+        if ($user->hasRole('agencia')) {
+            if (! $user->agencia_id || ! $grupo->agencias()->where('id', $user->agencia_id)->exists()) {
+                abort(403, 'No tienes acceso a este grupo.');
+            }
+
+            return;
+        }
+
         abort(403, 'No tienes permiso para acceder a este grupo.');
+    }
+
+    /**
+     * Verificar que el local (agencia_id) esté dentro del alcance del rol.
+     */
+    private function authorizeAgenciaAccess($user, ?int $agenciaId)
+    {
+        if ($agenciaId === null) {
+            return;
+        }
+
+        $agencia = Agencia::find($agenciaId);
+        if (! $agencia) {
+            abort(404, 'Agencia no encontrada.');
+        }
+
+        // Super Master y Master pueden todo
+        if ($user->hasRole(['super_master', 'master'])) {
+            return;
+        }
+
+        // Banca solo accede a locales de su banca
+        if ($user->hasRole('banca')) {
+            if (! $user->banca_id || $user->banca_id != $agencia->grupo?->banca_id) {
+                abort(403, 'No tienes acceso a esta agencia.');
+            }
+
+            return;
+        }
+
+        // Grupo solo accede a locales de su grupo
+        if ($user->hasRole('grupo')) {
+            if (! $user->grupo_id || $user->grupo_id != $agencia->grupo_id) {
+                abort(403, 'No tienes acceso a esta agencia.');
+            }
+
+            return;
+        }
+
+        // Agencia solo accede a su propio local
+        if ($user->hasRole('agencia')) {
+            if (! $user->agencia_id || $user->agencia_id != $agencia->id) {
+                abort(403, 'No tienes acceso a esta agencia.');
+            }
+
+            return;
+        }
+
+        abort(403, 'No tienes permiso para acceder a esta agencia.');
     }
 
     private function authorizeTaquillaAccess($user, Taquilla $taquilla)
@@ -323,7 +418,7 @@ class TaquillaController extends Controller
         if ($user->hasRole('banca')) {
             $grupo = $taquilla->grupo;
             if (! $user->banca_id || $user->banca_id != $grupo->banca_id) {
-                abort(403, 'No tienes acceso a esta agencia.');
+                abort(403, 'No tienes acceso a esta taquilla.');
             }
 
             return;
@@ -332,12 +427,21 @@ class TaquillaController extends Controller
         // Grupo puede acceder solo a sus taquillas
         if ($user->hasRole('grupo')) {
             if (! $user->grupo_id || $user->grupo_id != $taquilla->grupo_id) {
-                abort(403, 'No tienes acceso a esta agencia.');
+                abort(403, 'No tienes acceso a esta taquilla.');
             }
 
             return;
         }
 
-        abort(403, 'No tienes permiso para acceder a esta agencia.');
+        // Agencia puede acceder solo a las taquillas de su local
+        if ($user->hasRole('agencia')) {
+            if (! $user->agencia_id || $user->agencia_id != $taquilla->agencia_id) {
+                abort(403, 'No tienes acceso a esta taquilla.');
+            }
+
+            return;
+        }
+
+        abort(403, 'No tienes permiso para acceder a esta taquilla.');
     }
 }

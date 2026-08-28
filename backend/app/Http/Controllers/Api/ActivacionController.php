@@ -60,7 +60,7 @@ class ActivacionController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Agencia reactivada exitosamente.',
+                'message' => 'Taquilla reactivada exitosamente.',
                 'data' => [
                     'taquilla_id' => $taquilla->id,
                     'name' => $taquilla->name,
@@ -77,7 +77,7 @@ class ActivacionController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Esta agencia ya está activada con otra dirección MAC.',
+                'message' => 'Esta taquilla ya está activada con otra dirección MAC.',
             ], 403);
         }
 
@@ -111,7 +111,7 @@ class ActivacionController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Agencia activada exitosamente.',
+            'message' => 'Taquilla activada exitosamente.',
             'data' => [
                 'taquilla_id' => $taquilla->id,
                 'name' => $taquilla->name,

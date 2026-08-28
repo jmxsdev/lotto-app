@@ -101,7 +101,7 @@ class TicketController extends Controller
 
         if (! $user->taquilla_id) {
             return response()->json([
-                'message' => 'Solo las agencias pueden crear tickets.',
+                'message' => 'Solo las taquillas pueden crear tickets.',
             ], 403);
         }
 

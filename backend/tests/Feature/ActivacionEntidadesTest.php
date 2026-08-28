@@ -2,10 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Models\Agencia;
 use App\Models\Banca;
 use App\Models\Grupo;
 use App\Models\Taquilla;
 use App\Models\User;
+use App\Services\ActivacionEfectivaService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -166,9 +168,9 @@ class ActivacionEntidadesTest extends TestCase
         ])->actingAs($user, 'sanctum')->getJson('/api/v1/apuestas');
 
         $response->assertStatus(403)
-            ->assertJsonPath('message', 'La agencia está pausada porque su grupo está desactivado.');
+            ->assertJsonPath('message', 'La taquilla está pausada porque su grupo está desactivado.');
 
-        // El flag propio de la agencia no se tocó
+        // El flag propio de la taquilla no se tocó
         $this->assertDatabaseHas('taquillas', ['id' => $taquilla->id, 'active' => true]);
     }
 
@@ -190,7 +192,7 @@ class ActivacionEntidadesTest extends TestCase
         ])->actingAs($user, 'sanctum')->getJson('/api/v1/apuestas');
 
         $response->assertStatus(403)
-            ->assertJsonPath('message', 'La agencia está pausada porque su banca está desactivada.');
+            ->assertJsonPath('message', 'La taquilla está pausada porque su banca está desactivada.');
     }
 
     public function test_verify_mac_bloquea_con_flag_propio_inactivo()
@@ -202,7 +204,64 @@ class ActivacionEntidadesTest extends TestCase
             ->actingAs($user, 'sanctum')->getJson('/api/v1/apuestas');
 
         $response->assertStatus(403)
-            ->assertJsonPath('message', 'La agencia está desactivada.');
+            ->assertJsonPath('message', 'La taquilla está desactivada.');
+    }
+
+    public function test_verify_mac_bloquea_cuando_local_inactivo()
+    {
+        [$banca, $grupo, $taquilla] = $this->crearJerarquia([
+            'grupo' => ['active' => true],
+            'taquilla' => [
+                'active' => true,
+                'mac_address' => 'AA:BB:CC:DD:EE:FF',
+                'device_fingerprint' => 'fp-001',
+            ],
+        ]);
+        // Local (agencia) inactivo entre taquilla y grupo
+        $agencia = Agencia::factory()->create([
+            'grupo_id' => $grupo->id,
+            'active' => false,
+        ]);
+        $taquilla->update(['agencia_id' => $agencia->id]);
+
+        $user = $this->crearUsuarioTaquilla($taquilla);
+
+        $response = $this->withHeaders([
+            'X-Device-MAC' => 'AA:BB:CC:DD:EE:FF',
+            'X-Device-Fingerprint' => 'fp-001',
+        ])->actingAs($user, 'sanctum')->getJson('/api/v1/apuestas');
+
+        $response->assertStatus(403)
+            ->assertJsonPath('message', 'La taquilla está pausada porque su local está desactivado.');
+
+        // Sin cascada: ni la taquilla ni el grupo se tocaron
+        $this->assertDatabaseHas('taquillas', ['id' => $taquilla->id, 'active' => true]);
+        $this->assertDatabaseHas('grupos', ['id' => $grupo->id, 'active' => true]);
+        $this->assertDatabaseHas('bancas', ['id' => $banca->id, 'active' => true]);
+    }
+
+    public function test_desactivar_local_pausa_sus_taquillas_sin_cascada()
+    {
+        [$banca, $grupo, $taquilla] = $this->crearJerarquia([
+            'grupo' => ['active' => true],
+            'taquilla' => ['active' => true],
+        ]);
+        $agencia = Agencia::factory()->create([
+            'grupo_id' => $grupo->id,
+            'active' => true,
+        ]);
+        $taquilla->update(['agencia_id' => $agencia->id]);
+
+        // Desactivar el local
+        $agencia->update(['active' => false]);
+
+        // Sin cascada: el flag propio de la taquilla sigue en true,
+        // pero la activación efectiva la pausa (causa 'agencia').
+        $this->assertDatabaseHas('taquillas', ['id' => $taquilla->id, 'active' => true]);
+
+        $estado = app(ActivacionEfectivaService::class)->estadoTaquilla($taquilla->fresh());
+        $this->assertFalse($estado['active']);
+        $this->assertEquals('agencia', $estado['causa']);
     }
 
     // ==================================================

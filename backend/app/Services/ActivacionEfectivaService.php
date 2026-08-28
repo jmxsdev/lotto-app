@@ -57,14 +57,18 @@ class ActivacionEfectivaService
      * Estado efectivo de una taquilla con la causa del bloqueo,
      * para poder emitir mensajes de error específicos por nivel.
      *
-     * @return array{active: bool, causa: 'taquilla'|'grupo'|'banca'|null}
+     * @return array{active: bool, causa: 'taquilla'|'agencia'|'grupo'|'banca'|null}
      */
     public function estadoTaquilla(Taquilla $taquilla): array
     {
-        $taquilla->loadMissing('grupo.banca');
+        $taquilla->loadMissing('grupo.banca', 'agencia');
 
         if (! $taquilla->active) {
             return ['active' => false, 'causa' => 'taquilla'];
+        }
+
+        if ($taquilla->agencia && ! $taquilla->agencia->active) {
+            return ['active' => false, 'causa' => 'agencia'];
         }
 
         if ($taquilla->grupo && ! $taquilla->grupo->active) {

@@ -135,7 +135,7 @@ class TerminologiaTest extends TestCase
     // R2 — Mensajes backend usan "agencia"
     // ---------------------------------------------------------------
 
-    public function test_verify_mac_mensaje_agencia_desactivada()
+    public function test_verify_mac_mensaje_taquilla_desactivada()
     {
         $taquilla = Taquilla::factory()->create(['active' => false]);
         $user = User::factory()->create([
@@ -149,10 +149,10 @@ class TerminologiaTest extends TestCase
             ->getJson('/api/v1/apuestas');
 
         $response->assertStatus(403)
-            ->assertJsonPath('message', 'La agencia está desactivada.');
+            ->assertJsonPath('message', 'La taquilla está desactivada.');
     }
 
-    public function test_login_panel_rechaza_agencia_con_mensaje()
+    public function test_login_panel_rechaza_taquilla_con_mensaje()
     {
         // Usuario demo pre-activado del seeder (rol taquilla, fingerprint demo-device-001)
         $response = $this->withHeaders([
@@ -164,10 +164,10 @@ class TerminologiaTest extends TestCase
         ]);
 
         $response->assertStatus(403)
-            ->assertJsonPath('message', 'Las agencias deben usar la app de escritorio.');
+            ->assertJsonPath('message', 'Las taquillas deben usar la app de escritorio.');
     }
 
-    public function test_activacion_mensaje_agencia_activada()
+    public function test_activacion_mensaje_taquilla_activada()
     {
         // Taquilla del seeder con activation_code 'ABCDE' y active=false
         $response = $this->postJson('/api/v1/activar', [
@@ -178,10 +178,10 @@ class TerminologiaTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJsonPath('success', true)
-            ->assertJsonPath('message', 'Agencia activada exitosamente.');
+            ->assertJsonPath('message', 'Taquilla activada exitosamente.');
     }
 
-    public function test_eliminar_taquilla_mensaje_agencia()
+    public function test_eliminar_taquilla_mensaje_taquilla()
     {
         $taquilla = Taquilla::factory()->create();
 
@@ -189,12 +189,12 @@ class TerminologiaTest extends TestCase
             ->deleteJson('/api/v1/taquillas/'.$taquilla->id);
 
         $response->assertStatus(200)
-            ->assertJsonPath('message', 'Agencia eliminada correctamente.');
+            ->assertJsonPath('message', 'Taquilla eliminada correctamente.');
 
         $this->assertSoftDeleted('taquillas', ['id' => $taquilla->id]);
     }
 
-    public function test_crear_apuesta_sin_agencia_mensaje()
+    public function test_crear_apuesta_sin_taquilla_mensaje()
     {
         $juego = Juego::where('slug', 'lotto-activo')->first();
 
@@ -207,10 +207,10 @@ class TerminologiaTest extends TestCase
             ]);
 
         $response->assertStatus(403)
-            ->assertJsonPath('message', 'Solo las agencias pueden crear apuestas.');
+            ->assertJsonPath('message', 'Solo las taquillas pueden crear apuestas.');
     }
 
-    public function test_crear_ticket_sin_agencia_mensaje()
+    public function test_crear_ticket_sin_taquilla_mensaje()
     {
         $juego = Juego::where('slug', 'lotto-activo')->first();
 
@@ -222,7 +222,7 @@ class TerminologiaTest extends TestCase
             ]);
 
         $response->assertStatus(403)
-            ->assertJsonPath('message', 'Solo las agencias pueden crear tickets.');
+            ->assertJsonPath('message', 'Solo las taquillas pueden crear tickets.');
     }
 
     // ---------------------------------------------------------------

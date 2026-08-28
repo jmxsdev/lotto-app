@@ -46,7 +46,7 @@ class VerifyMac
         // Verificar que usuario tenga taquilla asociada
         if (! $user->taquilla_id) {
             return response()->json([
-                'message' => 'Usuario sin agencia asociada.',
+                'message' => 'Usuario sin taquilla asociada.',
             ], 403);
         }
 
@@ -55,19 +55,20 @@ class VerifyMac
 
         if (! $taquilla) {
             return response()->json([
-                'message' => 'Agencia no encontrada.',
+                'message' => 'Taquilla no encontrada.',
             ], 403);
         }
 
-        // Verificar la activación efectiva: propia + grupo + banca (sin escrituras en cascada)
+        // Verificar la activación efectiva: propia + local + grupo + banca (sin escrituras en cascada)
         $estado = app(ActivacionEfectivaService::class)->estadoTaquilla($taquilla);
 
         if (! $estado['active']) {
             return response()->json([
                 'message' => match ($estado['causa']) {
-                    'grupo' => 'La agencia está pausada porque su grupo está desactivado.',
-                    'banca' => 'La agencia está pausada porque su banca está desactivada.',
-                    default => 'La agencia está desactivada.',
+                    'agencia' => 'La taquilla está pausada porque su local está desactivado.',
+                    'grupo' => 'La taquilla está pausada porque su grupo está desactivado.',
+                    'banca' => 'La taquilla está pausada porque su banca está desactivada.',
+                    default => 'La taquilla está desactivada.',
                 },
             ], 403);
         }
@@ -75,7 +76,7 @@ class VerifyMac
         // Comparar MAC del header con MAC registrada
         if ($taquilla->mac_address !== $mac) {
             return response()->json([
-                'message' => 'MAC address no coincide con la agencia registrada.',
+                'message' => 'MAC address no coincide con la taquilla registrada.',
             ], 403);
         }
 

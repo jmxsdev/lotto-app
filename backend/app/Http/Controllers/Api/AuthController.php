@@ -51,8 +51,8 @@ class AuthController extends Controller
 
         // Validar rol según tipo de cliente
         if ($request->header('X-Panel') === 'true') {
-            if (! in_array($user->role, ['super_master', 'master', 'banca', 'grupo'])) {
-                return response()->json(['message' => 'Las agencias deben usar la app de escritorio.'], 403);
+            if (! in_array($user->role, ['super_master', 'master', 'banca', 'grupo', 'agencia'])) {
+                return response()->json(['message' => 'Las taquillas deben usar la app de escritorio.'], 403);
             }
         } else {
             if ($user->role !== 'taquilla') {
@@ -101,9 +101,28 @@ class AuthController extends Controller
             }
 
             return match ($estado['causa']) {
+                'agencia' => 'Tu cuenta está pausada porque su local está desactivado.',
                 'grupo' => 'Tu cuenta está pausada porque su grupo está desactivado.',
                 default => 'Tu cuenta está pausada porque su banca está desactivada.',
             };
+        }
+
+        if ($user->role === 'agencia' && $user->agencia_id) {
+            $agencia = $user->agencia;
+            if (! $agencia) {
+                return null;
+            }
+            if (! $agencia->active) {
+                return 'Tu cuenta está pausada porque su local está desactivado.';
+            }
+            if ($agencia->grupo && ! $agencia->grupo->active) {
+                return 'Tu cuenta está pausada porque su grupo está desactivado.';
+            }
+            if ($agencia->grupo?->banca && ! $agencia->grupo->banca->active) {
+                return 'Tu cuenta está pausada porque su banca está desactivada.';
+            }
+
+            return null;
         }
 
         if ($user->role === 'grupo' && $user->grupo_id) {
