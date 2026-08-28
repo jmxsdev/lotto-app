@@ -162,3 +162,75 @@
 ## Próximo paso (orquestador)
 
 - PR 3 (F2 — super banca): `whereIn banca_id` master en ~10 puntos, base `feat/jerarquia-agencias-f1`. Tareas 3.1–3.4 de `tasks.md`.
+
+---
+
+# Apply Progress: jerarquia-agencias-locales — PR 3 (F2, super banca / master scope)
+
+## Estado de tareas (Fase 3 — F2)
+
+| Tarea | Estado | Evidencia |
+|---|---|---|
+| 3.1 TDD-RED `SuperBancaScopeTest` | ✅ | RED inicial: 10 fallos + 1 error (master aún global: veía bancas/grupos/taquillas/usuarios/apuestas/cierres/límites/reportes/estadísticas ajenas; master sin bancas veía todo) |
+| 3.2 Scope master en ~23 puntos | ✅ | Helpers `User::masterBancaScope`/`masterBancaChainScope`/`masterBancaGroupScope`/`masterCanAccessBanca`; rama master en BancaController (index/show/update/toggle/destroy/store auto-master_id), GrupoController (index + authorizeBancaAccess/authorizeGrupoAccess), TaquillaController (index + 3 authorize), ReporteController (buildApuestaQuery/buildTicketQuery), EstadisticaController (buildApuestaQuery), ApuestaController (index/historial/resumen), CierreController (index/resolveTaquillaParaCierre/authorizeCierreAccess), JuegoController (limites/listarLimites/entidadDentroDelAlcance/entidadesVisiblesPorTipo/expandirTipoAlcance/authorizeBancaLimitAccess/destroyLimite), UserController (index con whereIn por cadena + authorizeEntityBinding/authorizeUserAccess). Lista vacía ⇒ `whereRaw('1=0')` en todos |
+| 3.3 TDD-GREEN regresión | ✅ | `php artisan test --filter=SuperBancaScopeTest`: 12/12 (RED 10 fallos + 1 error). Suite completa 285/283/2 skipped (baseline PR2: 273/271 → +12 tests, 0 rotos). Actualizados: RoleAuthorizationTest, LimitesApiTest, LimitesScopedApiTest, GestionUsuariosTest, CierreCajaTest, ApuestaTest, ActivacionEntidadesTest |
+| 3.4 Panel | ✅ | `bancas/detalle.astro`: select "Master (super banca)" (carga usuarios rol master vía /users, envía master_id); `bancas.astro`: columna Master con `banca.master?.name`. `npm run build`: 20 páginas OK |
+
+## TDD Cycle Evidence
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|---|---|---|
+| 3.1/3.2/3.3 Scope master | `tests/Feature/SuperBancaScopeTest.php` | Integration (Feature) | ✅ 273/271 | ✅ 10 fallos + 1 error (master global) | ✅ 12/12 | ✅ 12 escenarios (bancas, grupos, taquillas, usuarios, apuestas, cierres, límites, reportes, estadísticas, sin-bancas-vacío, banca ajena 403, super global, regresión banca) | ✅ Pint limpio |
+
+## Test Summary
+
+- **Total tests escritos**: 12 (SuperBancaScopeTest)
+- **Total tests pasando**: suite completa `composer test` → 285 tests / 283 passed / 2 skipped / 1114 assertions (baseline PR2: 273/271 → +12 tests, 0 rotos)
+- **Layers**: Integration (Feature) con RefreshDatabase
+- **Approval tests**: None — los tests existentes que asumían master global se actualizaron a la nueva semántica (master administra sus bancas), no se preservó la antigua
+- **Pure functions creadas**: None — helpers de scope (closures) en `User`
+
+## Commits del slice (rama `feat/jerarquia-agencias-f2`, base `feat/jerarquia-agencias-f1`)
+
+- `bf024e7` feat(scope): master acotado a sus bancas en entidades, reportes, límites, apuestas y cierres
+- `82094ea` test(regresion): suite adaptada a master scoped (rol master ya no es global)
+- `33bc13d` feat(panel): select master en banca y columna master en el listado
+
+## Evidencia de verificación
+
+- `php artisan test --filter=SuperBancaScopeTest`: RED inicial 10 fallos + 1 error (SQL duplicado en límites por índice único) → GREEN `{"tool":"phpunit","result":"passed","tests":12,"passed":12,"assertions":46}`
+- `composer test` (suite completa): `{"tool":"phpunit","result":"passed","tests":285,"passed":283,"assertions":1114,"skipped":2}` — baseline PR2: 273/271 (12 tests nuevos, 0 rotos)
+- `./vendor/bin/pint --test`: `{"tool":"pint","result":"passed"}` (1 archivo auto-fixeado: SuperBancaScopeTest EOF)
+- `npm run build` (panel): 20 páginas construidas OK
+
+## Workload / PR Boundary
+
+- **Modo**: chained PR slice (feature-branch-chain, `auto-chain`) — PR 3 → PR 2 (`feat/jerarquia-agencias-f1`)
+- **Current work unit**: PR 3 / F2 — super banca (4 tareas, 3 commits)
+- **Boundary**: empieza en `feat/jerarquia-agencias-f1` y termina con la verificación F2 completa. NO se implementaron tareas F3–F5 (4.1–6.3).
+- **Review budget impact**: 3 commits, ~800 líneas (712 + 68 + 22). Excede 400 líneas de un PR simple; el ciclo ya previó chained PRs (PR 3 de 6); el diff de PR 3 vs PR 2 es solo el trabajo F2.
+- **Rollback boundary**: revertir los 3 commits de la rama `feat/jerarquia-agencias-f2` elimina el scope master sin tocar F0/F1 (migraciones/backfill/scope agencia intactos). El master vuelve a ser global al quitar `whereIn`.
+
+## Deviations from Design
+
+1. **JuegoController::destroyLimite y authorizeBancaLimitAccess**: el design menciona "JuegoController::limites/listarLimites" como puntos; también se acotaron las ESCRITURAS de límites (`updateLimites` vía `authorizeBancaLimitAccess`, `batchLimites` vía expandir*, `destroyLimite`) para que un master no pueda escribir/borrar límites de bancas ajenas — misma regla "master solo sus bancas" aplicada a escritura (el design no la excluía; sin esto habría fuga de escritura).
+2. **BancaController::store auto-asigna master_id**: cuando el creador es rol master, la banca nueva queda `master_id = creador` (coherente con el backfill F0 "master_id = created_by"). Sin esto, un master que crea una banca no podría verla después (violaría la regla F2).
+3. **UserController::authorizeUserAccess master**: antes verificaba `targetUser->banca_id != currentUser->banca_id`; ahora resuelve la banca efectiva del objetivo por cadena (`resolveBancaId`) y la compara contra `masterBancaIds()`. Más correcto: cubre usuarios de agencias/taquillas cuyo banca_id directo puede ser null.
+4. **UserController::index master**: se usó el patrón del rol banca (whereIn banca_id + orWhereHas taquilla→grupo) en vez del `where('banca_id', user->banca_id)` previo, porque un master administra N bancas, no una sola.
+
+## Issues Found
+
+- Ninguno bloqueante. Los 31 fallos iniciales tras el cambio eran tests que asumían master global (el design los fija como "actualizar"); se actualizaron 7 archivos de tests.
+- `backend/.env.example` y `panel/.astro/settings.json` seguían modificados en el working tree (pre-existentes) — NO se commitearon (fuera del alcance de la rama).
+
+## Gotchas
+
+- `JuegoLimite` tiene índice único `idx_jl_entity_level (juego_id, moneda, banca_id, grupo_id, taquilla_id)` con `4294967295` para NULL en MySQL: no se puede crear 2 filas iguales en el mismo nivel para el mismo juego+moneda (el test RED original chocó contra esto).
+- `Banca` filtra por columna `id` (no `banca_id`): `masterBancaScope('id')` para BancaController::index.
+- `Taquilla` no tiene relación `taquilla`: usar `masterBancaGroupScope()` (primer eslabón grupo→banca), no `masterBancaChainScope()`.
+- `ApuestaController::index` envuelve el paginator en `['data' => ...]`: los items están en `json('data.data')`, no en `json('data')` (a diferencia de CierreController que devuelve el paginator directo).
+- El resumen estadístico de `ApuestaController::index` usaba `Apuesta::query()` (global) cuando no había filtros: ahora siempre usa `clone $query` (scoped), cerrando una fuga de datos para master sin filtros.
+
+## Próximo paso (orquestador)
+
+- PR 4 (F3 — reportes por local): `ApuestaService` niveles/labels, base `feat/jerarquia-agencias-f2`. Tareas 4.1–4.3 de `tasks.md`.

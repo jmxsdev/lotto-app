@@ -55,10 +55,10 @@ Chain strategy: feature-branch-chain
 
 ## Phase 3 (F2): Super banca (master scope)
 
-- [ ] 3.1 [TDD-RED] Crear `SuperBancaScopeTest.php` (master ve solo sus bancas/descendientes; sin bancas = vacío `whereRaw('1=0')`; super global).
-- [ ] 3.2 `User::masterBancaIds()` + `whereIn('banca_id', $ids)` en ~10 puntos: Banca/Grupo/Taquilla/User controllers, Reporte/Estadistica `buildApuestaQuery`+`buildTicketQuery`, Apuesta/Cierre/Juego::limites. Lista vacía ⇒ `whereRaw('1=0')`.
-- [ ] 3.3 [TDD-GREEN] Actualizar `RoleAuthorizationTest` (master scoped). `php artisan test --filter=SuperBancaScopeTest`.
-- [ ] 3.4 Panel: `bancas.astro` + `bancas/detalle.astro` (select master). `npm run build`.
+- [x] 3.1 [TDD-RED] Crear `SuperBancaScopeTest.php` (master ve solo sus bancas/descendientes; sin bancas = vacío `whereRaw('1=0')`; super global).
+- [x] 3.2 `User::masterBancaIds()` + `whereIn('banca_id', $ids)` en ~10 puntos: Banca/Grupo/Taquilla/User controllers, Reporte/Estadistica `buildApuestaQuery`+`buildTicketQuery`, Apuesta/Cierre/Juego::limites. Lista vacía ⇒ `whereRaw('1=0')`.
+- [x] 3.3 [TDD-GREEN] Actualizar `RoleAuthorizationTest` (master scoped). `php artisan test --filter=SuperBancaScopeTest`.
+- [x] 3.4 Panel: `bancas.astro` + `bancas/detalle.astro` (select master). `npm run build`.
 
 ## Phase 4 (F3): Reportes por local
 
