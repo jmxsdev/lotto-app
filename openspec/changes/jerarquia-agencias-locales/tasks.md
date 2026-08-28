@@ -42,16 +42,16 @@ Chain strategy: feature-branch-chain
 
 ## Phase 2 (F1): Alcance agencia
 
-- [ ] 2.1 [TDD-RED] Crear `AgenciaApiTest.php` (CRUD scoped) y `AgenciaScopeTest.php` (agencia solo su local, rechazo en otro local).
-- [ ] 2.2 Modificar `AuthController::login` (X-Panel admite `agencia`; taquilla → 403 "app de escritorio"; payload `agencia_id`) y `VerifyMac.php` (mensajes "agencia"→"taquilla" solo rol taquilla).
-- [ ] 2.3 Modificar `ApuestaPolicy.php` (`viewAny`/`view`/`delete` rama agencia vía `taquilla.agencia_id`).
-- [ ] 2.4 Modificar `TaquillaController.php` (`store` deriva `agencia_id=user.agencia_id` y `grupo_id`; `index` rama; nueva `authorizeAgenciaAccess`).
-- [ ] 2.5 Modificar `UserController.php` (validar `agencia_id`, `validateRoleBindings`, `authorizeEntityBinding` rama agencia).
-- [ ] 2.6 Modificar `ApuestaController`, `CierreController`, `JuegoController::limites` GET (rama agencia).
-- [ ] 2.7 Modificar `ReporteController`/`EstadisticaController` `buildApuestaQuery` (rama agencia).
-- [ ] 2.8 Modificar `ActivacionEfectivaService.php` (estadoTaquilla + agencia causa `'agencia'`; `mensajeCadenaInactiva` rama) + extender `ActivacionEntidadesTest`.
-- [ ] 2.9 Modificar `routes/api.php` (`role:agencia` en taquillas/limites GET; `apiResource('agencias')`) + crear `AgenciaController.php` (index/store/update/toggle/destroy scoped).
-- [ ] 2.10 [TDD-GREEN] Actualizar `RoleAuthorizationTest`, `GestionEntidadesApiTest` (filtro `agencia_id`), `LimitesScopedApiTest`, login X-Panel, `TerminologiaTest` (mensajes VerifyMac/controllers). `php artisan test`.
+- [x] 2.1 [TDD-RED] Crear `AgenciaApiTest.php` (CRUD scoped) y `AgenciaScopeTest.php` (agencia solo su local, rechazo en otro local).
+- [x] 2.2 Modificar `AuthController::login` (X-Panel admite `agencia`; taquilla → 403 "app de escritorio"; payload `agencia_id`) y `VerifyMac.php` (mensajes "agencia"→"taquilla" solo rol taquilla).
+- [x] 2.3 Modificar `ApuestaPolicy.php` (`viewAny`/`view`/`delete` rama agencia vía `taquilla.agencia_id`).
+- [x] 2.4 Modificar `TaquillaController.php` (`store` deriva `agencia_id=user.agencia_id` y `grupo_id`; `index` rama; nueva `authorizeAgenciaAccess`).
+- [x] 2.5 Modificar `UserController.php` (validar `agencia_id`, `validateRoleBindings`, `authorizeEntityBinding` rama agencia).
+- [x] 2.6 Modificar `ApuestaController`, `CierreController`, `JuegoController::limites` GET (rama agencia).
+- [x] 2.7 Modificar `ReporteController`/`EstadisticaController` `buildApuestaQuery` (rama agencia).
+- [x] 2.8 Modificar `ActivacionEfectivaService.php` (estadoTaquilla + agencia causa `'agencia'`; `mensajeCadenaInactiva` rama) + extender `ActivacionEntidadesTest`.
+- [x] 2.9 Modificar `routes/api.php` (`role:agencia` en taquillas/limites GET; `apiResource('agencias')`) + crear `AgenciaController.php` (index/store/update/toggle/destroy scoped).
+- [x] 2.10 [TDD-GREEN] Actualizar `RoleAuthorizationTest`, `GestionEntidadesApiTest` (filtro `agencia_id`), `LimitesScopedApiTest`, login X-Panel, `TerminologiaTest` (mensajes VerifyMac/controllers). `php artisan test`.
 
 ## Phase 3 (F2): Super banca (master scope)
 
