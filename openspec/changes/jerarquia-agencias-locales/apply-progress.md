@@ -717,3 +717,73 @@ php artisan agencias:backfill --force    # 2ª ejecución: debe reportar 0 creac
 - **Current work unit**: PANEL MASTERS (2 commits de código + 1 docs).
 - **Review budget impact**: ~350 líneas (backend +218/−1, panel +126/−1, docs). Dentro del presupuesto por work unit.
 - **Rollback boundary**: revertir `da9559a` elimina el soporte backend (filtro role, relación bancas, guard jerárquico) sin tocar F0–F5; revertir `5e1a9f5` elimina la página y la entrada del sidebar (el backend previo no rompe: el filtro role solo se usa desde la página). Cada commit es reversible de forma independiente.
+
+---
+
+# FIX WARNING DESTROY AGENCIA (work unit del PR 6, rama `feat/jerarquia-agencias-f5`)
+
+> **Estado**: RESUELTO con TDD estricto RED→GREEN. Suite completa 343/341/2 (baseline 338/336/2 + 5 tests, 0 rotos), Pint limpio.
+> **Origen**: el verify-report del ciclo (PASS WITH WARNINGS) detectó que `AgenciaController::destroy` dejaba taquillas con `agencia_id = null`, contradiciendo la regla de negocio "la taquilla SIEMPRE tiene local" (fix auditoría 4): las máquinas quedaban huérfanas, sin poder re-asignarse (validación `required`) y fuera del reporte `nivel=agencia`.
+> **Decisión del cliente**: autorizó el BORRADO EN CASCADA ("se pudiera corregir ese warning? antes de archive? si necesita un borrado en cascada pues tendrá que ser asi").
+
+## Decisión documentada (cascada)
+
+| Aspecto | Decisión | Razón |
+|---|---|---|
+| Taquillas del local | **SOFT-DELETE** (conservan `agencia_id`, nunca null) | Conservar trazabilidad: el historial de apuestas/pagos/cierres queda intacto y las relaciones se mantienen; `Taquilla` ya usa `SoftDeletes`. Un hard-delete rompería reportes históricos y auditoría. |
+| Usuarios rol taquilla del local | **DESACTIVAR** (`active=false`, conservan `agencia_id`) | `User` NO usa SoftDeletes; desactivar conserva el registro y bloquea el acceso de la máquina sin borrar al usuario (auditoría de quién operó). |
+| Apuestas/pagos/cierres | **NO se tocan** | El historial se conserva íntegro; soft-delete mantiene las relaciones. |
+| Reportes con taquillas trashed | **No se rompen; conservan el historial** | `ventasTotales`/`cuadreCaja` agregan por joins directos (incluyen trashed); `rendimientoTaquillas`/`relacionTickets`/`vencidos` ahora cargan labels con `withTrashed()` para conservar los nombres local/máquina en el historial. |
+| Alcance jerárquico (whereHas) | **Sin cambios** (decisión) | Los `whereHas('taquilla...')` de listados/reportes excluyen soft-deleted: un banca/grupo/master no ve en sus reportes las máquinas de un local borrado (solo `super_master` global las ve; los datos siguen en BD, auditables). Si el cliente quiere el historial completo en niveles superiores, es una mejora futura con `withTrashed()` en el alcance. |
+
+## Implementación
+
+- `AgenciaController::destroy`: reemplaza la desvinculación (`update(['agencia_id' => null])`) por CASCADA en `DB::transaction`:
+  1. `$agencia->taquillas()->delete()` → soft-delete de TODAS las taquillas del local (conservan `agencia_id`).
+  2. `$agencia->users()->where('role', 'taquilla')->update(['active' => false])` → desactiva usuarios rol taquilla del local.
+  3. `$agencia->delete()` → soft-delete del local.
+  - Permisos intactos: `authorizeGestion` + `authorizeAgenciaAccess` (403 para roles sin permiso) no se tocaron.
+  - Comportamiento: local sin taquillas → borrado normal; local con taquillas → cascada.
+- Trazabilidad en reportes (`withTrashed()`):
+  - `ApuestaService::relacionTickets` → eager load `taquilla` y `taquilla.agencia` con `withTrashed()` (labels local/máquina conservados en tickets históricos).
+  - `ApuestaService::rendimientoTaquillas` → lookup de entidades (`Agencia`/`Taquilla`) con `withTrashed()` (fila trashed se muestra 'Inactiva' con su nombre real, no "Agencia #id").
+  - `ReporteController::vencidos` → eager load `taquilla`/`taquilla.agencia`/`taquilla.grupo.banca` con `withTrashed()`.
+- `AgenciaApiTest::test_destroy_soft_delete_y_set_null_en_taquillas_y_usuarios` → actualizado a `test_destroy_soft_delete_en_cascada_taquillas_y_desactiva_usuarios` (cascada).
+- Spec `jerarquia-agencias` R2: escenario "Borrado sin cascada destructiva" → **"Borrado en cascada del local"** (decisión del cliente; el verify-report quedó actualizado con el WARNING RESUELTO).
+
+## TDD Cycle Evidence (FIX DESTROY AGENCIA)
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|---|---|---|
+| Destroy en cascada (soft-delete taquillas + desactivar usuarios rol taquilla + conservar historial) | `tests/Feature/AgenciaDestroyCascadaTest.php` (5) + `AgenciaApiTest` actualizado | Feature (HTTP) | ✅ 76/76 (AgenciaApi/Model/MasterScope/Reporte/Terminologia/Cuadre/Estadistica/SuperBanca) | ✅ 2 fallos (taquilla quedaba con `agencia_id=null` sin soft-delete; local sin fila en reportes) | ✅ 5/5 (31 assertions) | ✅ 5 escenarios (cascada con historial, local sin taquillas, 403 agencia, 403 banca ajena, reportes con taquillas trashed) | ✅ Pint limpio (1 archivo auto-fixeado) |
+
+## Test Summary (FIX DESTROY AGENCIA)
+
+- **Total tests escritos**: 5 nuevos (AgenciaDestroyCascadaTest) + 1 actualizado (AgenciaApiTest)
+- **Suite completa**: `COMPOSER_PROCESS_TIMEOUT=900 composer test` → `{"tool":"phpunit","result":"passed","tests":343,"passed":341,"assertions":1322,"skipped":2}` — baseline 338/336/2 (+5 tests, 0 rotos)
+- **Pint**: `./vendor/bin/pint --test` → `{"tool":"pint","result":"passed"}`
+- **Panel**: sin cambios (fix 100% backend); build previo 23 páginas sigue válido
+
+## Commits del work unit (rama `feat/jerarquia-agencias-f5`)
+
+- `fix(backend): borrado en cascada de un local con taquillas soft-delete y usuarios desactivados`
+- `fix(backend): conservar trazabilidad de taquillas y locales trashed en reportes`
+- `docs(sdd): warning de verify resuelto con cascada y actualización de spec y apply-progress`
+
+## Deviations from Design
+
+1. **La cascada sustituye el "set null" de F1**: es la decisión del cliente que resuelve el WARNING de verify; la spec R2 se actualizó en el mismo work unit (de "Borrado sin cascada destructiva" a "Borrado en cascada del local").
+2. **Reportes con `withTrashed()`**: `rendimientoTaquillas`/`relacionTickets`/`vencidos` ahora muestran entidades soft-deleted con su nombre (historial trazable). Aditivo: para filas no trashed el comportamiento es idéntico (verificado por ReporteTest/TerminologiaTest/CuadreCajaReportTest verdes).
+
+## Issues / Gotchas (FIX DESTROY AGENCIA)
+
+- **Riesgo documentado (NO bloqueante)**: los usuarios rol **agencia** cuyo local fue borrado quedan con `agencia_id` apuntando a un local soft-deleted: no pueden ingresar al panel (la autorización del rol agencia resuelve su local contra agencias activas → 403 en login) pero su registro se conserva. El objetivo del work unit era solo usuarios rol taquilla; el destino de los usuarios rol agencia huérfanos queda pendiente para la fase de endurecimiento NOT NULL (opciones: desactivarlos también en la cascada, o reasignación).
+- **Alcance jerárquico con `whereHas`**: los listados/reportes de banca/grupo/master excluyen taquillas soft-deleted (comportamiento de Eloquent). Decisión: no se tocó (ver tabla de decisión). Si el cliente quiere ver el historial de un local borrado en los reportes de niveles superiores, es una mejora futura con `withTrashed()` en el alcance.
+- `backend/.env.example` y `panel/.astro/settings.json` seguían modificados en el working tree (pre-existentes) — NO se commitearon.
+
+## Workload / PR Boundary (FIX DESTROY AGENCIA)
+
+- **Modo**: chained PR slice (feature-branch-chain) — mismo PR 6 sobre la rama `feat/jerarquia-agencias-f5`. NO se abrió PR.
+- **Current work unit**: FIX WARNING DESTROY AGENCIA (2 commits de código + 1 docs).
+- **Review budget impact**: ~400 líneas (código backend + tests nuevos/actualizados + docs). Dentro del presupuesto por work unit.
+- **Rollback boundary**: revertir los 2 commits de código elimina la cascada y los `withTrashed()` sin tocar F0–F5 ni los work units previos (backend previo no rompe: vuelve al set null documentado en F1); el commit docs es independiente. Test nuevo y actualización de AgenciaApiTest se revierten con el commit de código correspondiente.

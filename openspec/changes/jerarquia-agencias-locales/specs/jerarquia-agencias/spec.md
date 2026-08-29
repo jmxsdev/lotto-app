@@ -32,7 +32,7 @@ El sistema MUST persistir un local físico (`agencia`) con `code` único, `name`
 
 ### Requirement: Asociación taquilla y usuario a agencia
 
-El sistema MUST permitir `taquillas.agencia_id` y `users.agencia_id` (nullable). Eliminar una agencia MUST NOT eliminar sus taquillas ni usuarios (`set null`). `taquillas.grupo_id` MUST conservarse.
+El sistema MUST permitir `taquillas.agencia_id` y `users.agencia_id` (nullable en BD). Eliminar una agencia MUST aplicar **cascada**: soft-delete de sus taquillas (conservando `agencia_id`) y desactivación (`active=false`) de sus usuarios rol taquilla (conservando `agencia_id`); apuestas/pagos/cierres MUST conservarse intactos. `taquillas.grupo_id` MUST conservarse. La cascada MUST NEVER dejar taquillas con `agencia_id` null (regla de negocio: la taquilla SIEMPRE tiene local asignado).
 
 #### Scenario: Vinculación de taquilla
 
@@ -40,11 +40,12 @@ El sistema MUST permitir `taquillas.agencia_id` y `users.agencia_id` (nullable).
 - WHEN se le asigna una agencia
 - THEN `agencia_id` referencia el local
 
-#### Scenario: Borrado sin cascada destructiva
+#### Scenario: Borrado en cascada del local
 
-- GIVEN una agencia con taquillas y usuarios vinculados
+- GIVEN una agencia con taquillas y usuarios rol taquilla vinculados, con historial de apuestas
 - WHEN se elimina la agencia
-- THEN taquillas y usuarios conservan `agencia_id = null`
+- THEN las taquillas quedan soft-deleted conservando `agencia_id` (nunca null), los usuarios rol taquilla quedan desactivados conservando `agencia_id`, y las apuestas del historial siguen existiendo
+- AND los reportes que usan taquillas conservan el historial (no se rompen con taquillas trashed)
 
 #### Scenario: Conservación de grupo_id
 
