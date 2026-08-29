@@ -72,7 +72,10 @@ class TaquillaController extends Controller
             'name' => 'required|string|max:255',
             'code' => 'required|string|unique:taquillas,code',
             'grupo_id' => 'required|exists:grupos,id',
-            'agencia_id' => 'nullable|exists:agencias,id',
+            // Decisión del cliente: una taquilla SIEMPRE tiene un local asignado.
+            // El rol agencia lo deriva de su sesión (merge más abajo); el resto
+            // de roles (super/master/grupo/banca) deben enviarlo.
+            'agencia_id' => 'required|exists:agencias,id',
             'active' => 'boolean',
             'vigencia_premios' => 'nullable|integer|min:1',
             'tiempo_eliminacion' => 'nullable|integer|min:1|max:120',
@@ -195,7 +198,10 @@ class TaquillaController extends Controller
             'name' => 'sometimes|string|max:255',
             'code' => ['sometimes', 'string', Rule::unique('taquillas')->ignore($taquilla->id)],
             'grupo_id' => 'sometimes|exists:grupos,id',
-            'agencia_id' => 'nullable|exists:agencias,id',
+            // Decisión del cliente: el local no se puede desasignar (si el campo
+            // viene, debe ser un local real y no null); los PUT parciales de
+            // otras pestañas (sin el campo) siguen siendo válidos.
+            'agencia_id' => 'sometimes|required|exists:agencias,id',
             'mac_address' => 'nullable|string',
             'activation_code' => 'nullable|string|unique:taquillas,activation_code,'.$taquilla->id,
             'active' => 'boolean',
@@ -237,7 +243,9 @@ class TaquillaController extends Controller
 
         $data = $request->only(['name', 'code', 'grupo_id', 'mac_address', 'activation_code', 'active', 'vigencia_premios', 'tiempo_eliminacion', 'rif', 'email', 'telefono', 'direccion', 'estado', 'municipio']);
 
-        // El local se asigna/desasigna explícitamente (null = sin local)
+        // El local se asigna explícitamente; la validación (sometimes|required)
+        // impide desasignarlo con null (decisión del cliente: la taquilla
+        // siempre tiene local).
         if ($request->has('agencia_id')) {
             $data['agencia_id'] = $request->input('agencia_id');
         }

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Agencia;
 use App\Models\Apuesta;
 use App\Models\Banca;
 use App\Models\Grupo;
@@ -89,12 +90,14 @@ class EliminacionApuestasTest extends TestCase
     public function test_tiempo_eliminacion_default_cinco_minutos()
     {
         $grupo = Grupo::factory()->create();
+        $local = Agencia::factory()->create(['grupo_id' => $grupo->id, 'active' => true]);
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
             ->postJson('/api/v1/taquillas', [
                 'name' => 'Agencia Default',
                 'code' => 'TDFLT',
                 'grupo_id' => $grupo->id,
+                'agencia_id' => $local->id,
                 'user_name' => 'Usuario Default',
                 'user_email' => 'default-elim@lotto.com',
                 'user_password' => 'password123',
@@ -156,12 +159,14 @@ class EliminacionApuestasTest extends TestCase
     {
         $banca = Banca::create(['name' => 'Banca Q', 'code' => 'BCQ', 'active' => true, 'tiempo_eliminacion' => 20]);
         $grupo = Grupo::create(['name' => 'Grupo Q', 'code' => 'GCQ', 'banca_id' => $banca->id, 'active' => true, 'tiempo_eliminacion' => 10]);
+        $local = Agencia::factory()->create(['grupo_id' => $grupo->id, 'active' => true]);
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
             ->postJson('/api/v1/taquillas', [
                 'name' => 'Agencia Exceso',
                 'code' => 'TEXC',
                 'grupo_id' => $grupo->id,
+                'agencia_id' => $local->id,
                 'tiempo_eliminacion' => 15,
                 'user_name' => 'Usuario Agencia',
                 'user_email' => 'agencia-exceso@lotto.com',

@@ -275,12 +275,14 @@ class TerminologiaTest extends TestCase
     {
         $banca = Banca::create(['name' => 'Banca Vig', 'code' => 'BVIG', 'active' => true]);
         $grupo = Grupo::create(['name' => 'Grupo Vig', 'code' => 'GVIG', 'banca_id' => $banca->id, 'active' => true, 'vigencia_premios' => 5]);
+        $local = Agencia::factory()->create(['grupo_id' => $grupo->id, 'active' => true]);
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
             ->postJson('/api/v1/taquillas', [
                 'name' => 'Taquilla Vig',
                 'code' => 'TVIG',
                 'grupo_id' => $grupo->id,
+                'agencia_id' => $local->id,
                 'vigencia_premios' => 10,
                 'user_name' => 'Usuario Taquilla',
                 'user_email' => 'taquilla-vig@test.com',
@@ -295,12 +297,14 @@ class TerminologiaTest extends TestCase
     {
         $banca = Banca::create(['name' => 'Banca Tmp', 'code' => 'BTMP', 'active' => true]);
         $grupo = Grupo::create(['name' => 'Grupo Tmp', 'code' => 'GTMP', 'banca_id' => $banca->id, 'active' => true, 'tiempo_eliminacion' => 5]);
+        $local = Agencia::factory()->create(['grupo_id' => $grupo->id, 'active' => true]);
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
             ->postJson('/api/v1/taquillas', [
                 'name' => 'Taquilla Tmp',
                 'code' => 'TTMP',
                 'grupo_id' => $grupo->id,
+                'agencia_id' => $local->id,
                 'tiempo_eliminacion' => 10,
                 'user_name' => 'Usuario Taquilla',
                 'user_email' => 'taquilla-tmp@test.com',

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Agencia;
 use App\Models\Banca;
 use App\Models\Grupo;
 use App\Models\Juego;
@@ -92,6 +93,8 @@ class RoleAuthorizationTest extends TestCase
         $banca = Banca::factory()->create();
         $grupo1 = Grupo::factory()->create(['name' => 'Grupo 1', 'banca_id' => $banca->id]);
         $grupo2 = Grupo::factory()->create(['name' => 'Grupo 2', 'banca_id' => $banca->id]);
+        $local1 = Agencia::factory()->create(['grupo_id' => $grupo1->id, 'active' => true]);
+        $local2 = Agencia::factory()->create(['grupo_id' => $grupo2->id, 'active' => true]);
 
         $userGrupo1 = User::factory()->create([
             'role' => 'grupo',
@@ -105,6 +108,7 @@ class RoleAuthorizationTest extends TestCase
                 'name' => 'Taquilla Test',
                 'code' => 'TT999',
                 'grupo_id' => $grupo2->id,
+                'agencia_id' => $local2->id,
                 'user_name' => 'Usuario Taquilla',
                 'user_email' => 'taquilla_test@test.com',
                 'user_password' => 'password123',
@@ -118,6 +122,7 @@ class RoleAuthorizationTest extends TestCase
                 'name' => 'Taquilla Test',
                 'code' => 'TT998',
                 'grupo_id' => $grupo1->id,
+                'agencia_id' => $local1->id,
                 'user_name' => 'Usuario Taquilla',
                 'user_email' => 'taquilla_test2@test.com',
                 'user_password' => 'password123',

@@ -26,7 +26,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
           <div class="field"><label>Nombre</label><input name="name" required /></div>
           <div class="field"><label>Código</label><input name="code" required /></div>
           <div class="field"><label>Grupo (entidad padre)</label><select name="grupo_id" required></select></div>
-          <div class="field"><label>Local (Agencia)</label><select name="agencia_id"><option value="">Sin local asignado</option></select></div>
+          <div class="field"><label>Local (Agencia)</label><select name="agencia_id" required></select></div>
           <div class="field"><label>Código de Activación</label><input name="activation_code" /></div>
           <div class="field"><label>MAC Address</label><input name="mac_address" disabled /></div>
           <div class="field"><label>RIF</label><input name="rif" /></div>
@@ -254,7 +254,8 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
       const s = document.getElementById('info-form').agencia_id;
       const prev = s.value;
       const list = grupoSel ? agencias.filter(a => a.grupo_id == grupoSel) : agencias;
-      s.innerHTML = '<option value="">Sin local asignado</option>';
+      // Decisión del cliente: la taquilla siempre tiene local, no hay opción vacía.
+      s.innerHTML = '';
       list.forEach(a => s.innerHTML += `<option value="${a.id}">${a.name}</option>`);
       if (prev && list.some(a => String(a.id) === prev)) s.value = prev;
     }
@@ -314,6 +315,8 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
       f.user_name.required = isCreate;
       f.user_email.required = isCreate;
       f.user_password.required = isCreate;
+      // Refiltrar el select de locales por el grupo cargado y preservar el local actual
+      renderAgencias();
       if (!canEditTaquilla) disableForm(f, true);
     }
 

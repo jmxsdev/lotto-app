@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Agencia;
 use App\Models\Banca;
 use App\Models\Grupo;
 use App\Models\User;
@@ -112,12 +113,14 @@ class InformacionFiscalTest extends TestCase
     {
         $banca = Banca::create(['name' => 'Banca Fiscal T', 'code' => 'BFISCT', 'active' => true]);
         $grupo = Grupo::create(['name' => 'Grupo Fiscal T', 'code' => 'GFISCT', 'banca_id' => $banca->id, 'active' => true]);
+        $local = Agencia::factory()->create(['grupo_id' => $grupo->id, 'active' => true]);
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
             ->postJson('/api/v1/taquillas', array_merge([
                 'name' => 'Agencia Fiscal',
                 'code' => 'TFISC',
                 'grupo_id' => $grupo->id,
+                'agencia_id' => $local->id,
                 'user_name' => 'Usuario Agencia Fiscal',
                 'user_email' => 'taquilla-fiscal@lotto.com',
                 'user_password' => 'password123',
