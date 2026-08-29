@@ -43,7 +43,11 @@ class BancaController extends Controller
             'monedas_permitidas.usd' => 'boolean',
             'vigencia_premios' => 'nullable|integer|min:1',
             'tiempo_eliminacion' => 'nullable|integer|min:1|max:120',
-            'master_id' => 'nullable|exists:users,id',
+            'master_id' => ['nullable', 'exists:users,id', function ($attribute, $value, $fail) {
+                if ($value !== null && ! User::where('id', $value)->role('master')->exists()) {
+                    $fail('El master seleccionado no tiene el rol master.');
+                }
+            }],
             'rif' => 'nullable|string|max:20',
             'email' => 'nullable|email',
             'telefono' => 'nullable|string|max:30',
@@ -129,7 +133,11 @@ class BancaController extends Controller
             'monedas_permitidas.usd' => 'boolean',
             'vigencia_premios' => 'nullable|integer|min:1',
             'tiempo_eliminacion' => 'nullable|integer|min:1|max:120',
-            'master_id' => 'nullable|exists:users,id',
+            'master_id' => ['nullable', 'exists:users,id', function ($attribute, $value, $fail) {
+                if ($value !== null && ! User::where('id', $value)->role('master')->exists()) {
+                    $fail('El master seleccionado no tiene el rol master.');
+                }
+            }],
             'rif' => 'nullable|string|max:20',
             'email' => 'nullable|email',
             'telefono' => 'nullable|string|max:30',
