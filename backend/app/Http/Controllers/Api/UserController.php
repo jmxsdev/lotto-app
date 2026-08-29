@@ -27,6 +27,7 @@ class UserController extends Controller
             'grupo_id' => 'nullable|integer|exists:grupos,id',
             'taquilla_id' => 'nullable|integer|exists:taquillas,id',
             'agencia_id' => 'nullable|integer|exists:agencias,id',
+            'role' => ['nullable', Rule::in(['super_master', 'master', 'banca', 'grupo', 'agencia', 'taquilla'])],
         ]);
 
         $query = User::query();
@@ -103,7 +104,14 @@ class UserController extends Controller
             $query->where('taquilla_id', $filtros['taquilla_id']);
         }
 
-        $users = $query->with('banca', 'grupo', 'taquilla', 'roles')->get();
+        // Filtro por rol: intersección con el alcance jerárquico (nunca amplía).
+        // Un master que filtre role=master solo vería masters con banca_id dentro
+        // de sus bancas, que no existen (los masters no pertenecen a una banca) → vacío.
+        if (isset($filtros['role'])) {
+            $query->where('role', $filtros['role']);
+        }
+
+        $users = $query->with('banca', 'grupo', 'taquilla', 'roles', 'bancas')->get();
 
         return response()->json($users);
     }
@@ -251,6 +259,12 @@ class UserController extends Controller
         if ($currentUser->hasRole('master')) {
             if ($role === 'super_master') {
                 abort(403, 'No puedes asignar el rol super_master.');
+            }
+
+            // Los masters son pares del master autenticado: solo el super_master
+            // asigna el rol master (jerarquía: super_master → master → ...).
+            if ($role === 'master') {
+                abort(403, 'No puedes asignar el rol master.');
             }
 
             // El master solo puede vincular usuarios a sus propias bancas

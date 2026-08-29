@@ -61,6 +61,14 @@ class User extends Authenticatable
         return $this->belongsTo(Banca::class);
     }
 
+    /**
+     * Bancas que este usuario administra como super banca (master).
+     */
+    public function bancas()
+    {
+        return $this->hasMany(Banca::class, 'master_id');
+    }
+
     public function grupo()
     {
         return $this->belongsTo(Grupo::class);
