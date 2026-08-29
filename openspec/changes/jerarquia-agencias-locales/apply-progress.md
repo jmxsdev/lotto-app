@@ -514,3 +514,61 @@ php artisan agencias:backfill --force    # 2ª ejecución: debe reportar 0 creac
 ## Próximo paso (orquestador)
 
 - **VERIFICAR**: ejecutar `sdd-verify` con el mapeo tareas→specs anterior (4 specs cubiertas: jerarquia-agencias, alcance-super-banca, reportes-agencia, panel-jerarquia) y el diff completo del ciclo F0→F5.
+
+---
+
+# CORRECCIONES DE AUDITORÍA (work unit del PR 6, rama `feat/jerarquia-agencias-f5`)
+
+> **Estado**: 4/4 correcciones implementadas con TDD estricto RED→GREEN. Suite completa verde.
+> **Decisión del cliente**: UNA TAQUILLA NO PUEDE EXISTIR SIN UN LOCAL ASIGNADO (agencia_id obligatorio en API/UI; la columna sigue nullable en BD — el endurecimiento NOT NULL queda para fase posterior con backfill).
+
+## Correcciones implementadas
+
+| # | Severidad | Corrección | Archivos | Tests |
+|---|---|---|---|---|
+| 1 | CRÍTICO | `AgenciaController` sin scoping para master: `index` separa super_master (global) de master (`masterBancaGroupScope()`, lista vacía ⇒ `whereRaw('1=0')`); `authorizeGrupoAccess` y `authorizeAgenciaAccess` usan `masterCanAccessBanca` (banca del local vía `$agencia->grupo?->banca_id`) → 403 fuera de sus bancas | `AgenciaController.php` | `AgenciaMasterScopeTest.php` (8) |
+| 2 | ALTO | Taquilla con `grupo_id` y `agencia_id` inconsistentes: nuevo `validarLocalPerteneceAlGrupo` en store y update (grupo efectivo = enviado o actual de la taquilla) → 422 'El local no pertenece al grupo indicado.' | `TaquillaController.php` | `TaquillaGrupoAgenciaConsistenciaTest.php` (5) |
+| 3 | MEDIO | `BancaController` `master_id` sin validar rol: regla de validación (store y update) — si `master_id` viene, el usuario debe tener rol master → 422 'El master seleccionado no tiene el rol master.' | `BancaController.php` | `BancaMasterIdTest.php` (4) |
+| 4 | NEGOCIO | Taquilla SIEMPRE con local: store `agencia_id` → `required|exists:agencias,id` (el rol agencia lo deriva de su sesión); update → `sometimes|required|exists:agencias,id` (no se puede desasignar con null; PUT parciales de Monedas/Vigencia siguen válidos). Panel: select Local `required` y sin opción 'Sin local asignado'; el select se refiltra por grupo al cargar | `TaquillaController.php`, `panel/src/pages/taquillas/detalle.astro` | `TaquillaLocalObligatorioTest.php` (4) |
+
+### TDD Cycle Evidence (correcciones)
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|---|---|---|
+| 1 (master scope) | `AgenciaMasterScopeTest.php` | Feature (HTTP) | ✅ 85/85 | ✅ 6 fallos (master global) | ✅ 8/8 | ✅ 8 casos (2 listado + 4 escritura 403 + 1 gestión propia + 1 super global) | ✅ Pint limpio |
+| 2 (consistencia grupo/local) | `TaquillaGrupoAgenciaConsistenciaTest.php` | Feature (HTTP) | ✅ 85/85 | ✅ 3 fallos (inconsistencias aceptadas) | ✅ 5/5 | ✅ 5 casos (3 rechazo + 2 parejas consistentes) | ✅ Pint limpio |
+| 3 (rol master en banca) | `BancaMasterIdTest.php` | Feature (HTTP) | ✅ 85/85 | ✅ 2 fallos (no-master aceptado) | ✅ 4/4 | ✅ 4 casos (2 rechazo + 2 aceptación) | ✅ Pint limpio |
+| 4 (local obligatorio) | `TaquillaLocalObligatorioTest.php` | Feature (HTTP) | ✅ 85/85 | ✅ 2 fallos (sin local / null aceptados) | ✅ 4/4 | ✅ 4 casos (2 rechazo + store válido + PUT parcial) | ✅ Pint limpio |
+
+### Test Summary (correcciones)
+
+- **Total tests escritos**: 21 nuevos (8 + 5 + 4 + 4)
+- **Tests existentes actualizados** (creaban taquillas sin local; ahora envían `agencia_id`): `RoleAuthorizationTest`, `TerminologiaTest` (2), `InformacionFiscalTest`, `EliminacionApuestasTest` (2)
+- **Suite completa**: `COMPOSER_PROCESS_TIMEOUT=900 composer test` → `{"tool":"phpunit","result":"passed","tests":323,"passed":321,"assertions":1235,"skipped":2}` — baseline PR6: 302/300 (+21 tests, 0 rotos)
+- **Pint**: `./vendor/bin/pint --test` → `{"tool":"pint","result":"passed"}`
+- **Panel**: `npm run build` → 22 páginas construidas OK
+
+### Commits de las correcciones (rama `feat/jerarquia-agencias-f5`)
+
+- `3f7bb6b` fix(backend): acotar el alcance del master en el CRUD de agencias
+- `50b7563` fix(backend): validar consistencia grupo-local al asignar una taquilla
+- `c34c0d3` fix(backend): validar que master_id apunte a un usuario con rol master
+- `2b43e32` fix(backend,panel): la taquilla siempre requiere un local asignado
+
+### Deviations from Design (correcciones)
+
+1. **Fix 4 en update usa `sometimes|required` en vez de `required` plano**: el PUT parcial de la pestaña Monedas/Vigencia del panel envía solo `vigencia_premios`/`tiempo_eliminacion`; un `required` plano rompería esa pestaña siempre. `sometimes|required` logra el mismo objetivo de negocio (no se puede desasignar el local con null) sin romper las actualizaciones parciales.
+2. **Fix 3 también cubre `update`** (la auditoría citaba solo `:46`/store): el mismo bug existía en update (`:132`), se corrigió en ambos con la misma regla.
+
+### Issues / Gotchas (correcciones)
+
+- `AgenciaController::destroy` sigue desvinculando taquillas/usuarios (`agencia_id = null`) al borrar un local: tras la decisión del cliente quedan máquinas sin local en ese ciclo de vida. El endurecimiento NOT NULL + backfill posterior deberá decidir el destino de esas taquillas (riesgo documentado, fuera del alcance de este work unit).
+- La suite tarda >2 min con el process-timeout default de composer (300s): usar `COMPOSER_PROCESS_TIMEOUT=900 composer test` o `php artisan test` directo.
+- `backend/.env.example` y `panel/.astro/settings.json` seguían modificados en el working tree (pre-existentes) — NO se commitearon.
+
+### Workload / PR Boundary (correcciones)
+
+- **Modo**: chained PR slice (feature-branch-chain) — correcciones del mismo PR 6 sobre la rama `feat/jerarquia-agencias-f5` (base f4). NO se abrió PR.
+- **Current work unit**: CORRECCIONES DE AUDITORÍA (4 fixes + regresión completa).
+- **Review budget impact**: 4 commits, ~590 líneas (279 código/panel + 4 tests nuevos ~310 + actualizaciones de tests). Acumulado del PR 6 con F5 previo: dentro del presupuesto de 400 líneas por revisión al ser work units independientes.
+- **Rollback boundary**: revertir los 4 commits de corrección elimina los fixes sin tocar F0–F5 (backend previo no rompe); cada commit es reversible de forma independiente.
