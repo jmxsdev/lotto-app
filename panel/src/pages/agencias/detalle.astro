@@ -116,6 +116,13 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
       document.getElementById('btn-delete').style.display = 'inline-block';
     }
 
+    function applyCreateNotices() {
+      if (!isCreate) return;
+      // Create mode: la pestaña Taquillas no aplica (aún no existe el local)
+      document.querySelector('[data-tab="taquillas"]').style.display = 'none';
+      document.querySelector('[data-panel="taquillas"]').style.display = 'none';
+    }
+
     async function loadGrupos() {
       try {
         const data = await apiFetch('GET', '/grupos?per_page=100');
@@ -133,7 +140,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
 
     async function loadAgencia() {
       await loadGrupos();
-      if (isCreate) { setHeader(); populateInfo(); return; }
+      if (isCreate) { setHeader(); populateInfo(); applyCreateNotices(); return; }
       try {
         const data = await apiFetch('GET', '/agencias/' + agenciaId);
         agencia = data.data || data;
@@ -152,6 +159,11 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
       f.name.value = agencia?.name || '';
       f.code.value = agencia?.code || '';
       f.grupo_id.value = agencia?.grupo_id ? String(agencia.grupo_id) : '';
+      // Prefijar el grupo al crear desde el detalle de un grupo (encadenamiento)
+      if (isCreate && !f.grupo_id.value) {
+        const prefijada = getParam('grupo_id');
+        if (prefijada) f.grupo_id.value = prefijada;
+      }
       f.rif.value = agencia?.rif || '';
       f.email.value = agencia?.email || '';
       f.telefono.value = agencia?.telefono || '';
@@ -250,7 +262,10 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
 
     // ---------- Arranque ----------
 
-    initTabs('tabs', TABS, (tab) => {
+    // Create mode: la pestaña Taquillas no aplica (aún no existe el local)
+    const tabsValidas = isCreate ? TABS.filter(t => t !== 'taquillas') : TABS;
+
+    initTabs('tabs', tabsValidas, (tab) => {
       if (tab === 'taquillas' && !taquillasInited) initTaquillas();
     });
 

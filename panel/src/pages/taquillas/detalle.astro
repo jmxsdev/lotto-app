@@ -73,7 +73,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
 
     <!-- Pestaña 3: Límites -->
     <section class="tab-panel" data-panel="limites" style="display:none">
-      <p class="notice" id="limites-notice" style="display:none">Primero guarde la taquilla en la pestaña Información para configurar sus límites.</p>
+      <p class="notice" id="limites-notice" style="display:none">Configure los límites iniciales de la taquilla; se guardarán junto con la taquilla al guardar la información.</p>
       <div class="filters">
         <div class="field"><label>Aplicar a</label>
           <select id="limite-alcance">
@@ -215,11 +215,16 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
       if (!isCreate) return;
       document.getElementById('monedas-notice').style.display = 'block';
       document.getElementById('limites-notice').style.display = 'block';
-      document.getElementById('usuarios-notice').style.display = 'block';
       disableForm(document.getElementById('monedas-form'), true);
-      const btnL = document.getElementById('btn-limite-guardar');
-      if (btnL) btnL.disabled = true;
-      document.getElementById('btn-user-create').disabled = true;
+      // Create mode: los límites se configuran en la tabla y se guardan con la
+      // entidad (POST de creación); no hay alcance ni botón de guardado propio.
+      const alcanceField = document.getElementById('limite-alcance');
+      if (alcanceField) alcanceField.closest('.field').style.display = 'none';
+      const acciones = document.querySelector('[data-panel="limites"] .panel-actions');
+      if (acciones) acciones.style.display = 'none';
+      // Create mode: la pestaña Usuarios no aplica (el usuario jefe se crea en Información)
+      document.querySelector('[data-tab="usuarios"]').style.display = 'none';
+      document.querySelector('[data-panel="usuarios"]').style.display = 'none';
     }
 
     // ---------- Carga de grupos (selector de entidad padre) ----------
@@ -380,6 +385,10 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
         body.user_name = f.user_name.value;
         body.user_email = f.user_email.value;
         body.user_password = f.user_password.value;
+        // Create mode: persistir los límites configurados junto con la taquilla
+        if (limitesTabla && limitesTabla.hayCambios()) {
+          body.limites = limitesTabla.itemsTocados();
+        }
       }
       try {
         if (isCreate) {
@@ -397,7 +406,11 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
     });
 
     // Al cambiar el grupo, re-filtrar los locales disponibles
-    document.getElementById('info-form').grupo_id.addEventListener('change', () => renderAgencias());
+    document.getElementById('info-form').grupo_id.addEventListener('change', () => {
+      renderAgencias();
+      // Create mode: recargar la base de límites del nuevo grupo padre
+      if (isCreate && limitesInited) montarLimites();
+    });
 
     // ---------- Pestaña Monedas y Vigencia ----------
 
@@ -422,9 +435,16 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
     let limitesAlcance = 'self';
     let limitesTabla = null;
 
+    // Juegos activos (la matriz no depende de la entidad: se carga en create mode)
+    async function juegosActivos() {
+      const data = await apiFetch('GET', '/juegos');
+      const items = Array.isArray(data) ? data : (data?.data || []);
+      return items.filter(j => j.active !== false).map(j => ({ id: j.id, name: j.name, slug: j.slug }));
+    }
+
     async function initLimites() {
       limitesInited = true;
-      if (!taquillaId) return;
+      if (!taquillaId) { montarLimites(); return; }
       montarLimites();
     }
 
@@ -445,12 +465,27 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
         mostrarOrigen: true,
         filasPorPagina: 15,
         cargarDatos: async () => {
+          if (isCreate) {
+            // Create mode: base editable = límites efectivos del grupo seleccionado
+            const grupoSel = document.getElementById('info-form').grupo_id.value;
+            if (!grupoSel) {
+              impacto.textContent = 'Seleccione el grupo para precargar sus límites como base editable.';
+              return { juegos: await juegosActivos(), limites: {} };
+            }
+            const data = await apiFetch('GET', '/limites?grupo_id=' + grupoSel);
+            const resultado = data?.data || { juegos: [], limites: {} };
+            impacto.textContent = 'Valores iniciales: límites efectivos del grupo seleccionado. Se guardarán al crear la taquilla.';
+            return resultado;
+          }
           const data = await apiFetch('GET', '/limites?taquilla_id=' + taquillaId);
           const resultado = data?.data || { juegos: [], limites: {} };
           impacto.textContent = 'Configurando esta taquilla (celdas vacías = heredan del grupo o la banca).';
           return resultado;
         },
         guardar: async (payload) => {
+          if (isCreate) {
+            throw new Error('Los límites se guardan junto con la taquilla al guardar la información.');
+          }
           // ítems legacy con la cadena completa de la agencia
           const items = payload.limites.map(i => ({
             ...i,
@@ -592,9 +627,10 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
 
     // ---------- Arranque ----------
 
-    if (!canEditLimites) document.getElementById('btn-limite-create').style.display = 'none';
+    // Create mode: la pestaña Usuarios no aplica (el usuario jefe se crea en Información)
+    const tabsValidas = isCreate ? TABS.filter(t => t !== 'usuarios') : TABS;
 
-    initTabs('tabs', TABS, (tab) => {
+    initTabs('tabs', tabsValidas, (tab) => {
       if (tab === 'limites' && !limitesInited) initLimites();
       if (tab === 'usuarios' && !usuariosInited) initUsuarios();
     });

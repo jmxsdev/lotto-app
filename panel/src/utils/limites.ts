@@ -213,7 +213,7 @@ export function crearTablaLimites(opts: OpcionesTablaLimites) {
     pintar();
   }
 
-  async function guardar(): Promise<any> {
+  function construirItems(): Record<string, any>[] {
     // Construir ítems solo con campos tocados (present-fields-only)
     const limites: Record<string, any>[] = [];
     for (const [clave, campos] of tocadas) {
@@ -225,6 +225,16 @@ export function crearTablaLimites(opts: OpcionesTablaLimites) {
       };
       limites.push(item);
     }
+    return limites;
+  }
+
+  /** Ítems modificados (sin enviarlos). Útil para persistir límites junto a la creación de la entidad. */
+  function itemsTocados(): Record<string, any>[] {
+    return construirItems();
+  }
+
+  async function guardar(): Promise<any> {
+    const limites = construirItems();
     if (limites.length === 0) {
       throw new Error('No hay cambios para guardar.');
     }
@@ -241,5 +251,5 @@ export function crearTablaLimites(opts: OpcionesTablaLimites) {
     return tocadas.size > 0;
   }
 
-  return { montar, pintar, buscar, guardar, hayCambios };
+  return { montar, pintar, buscar, guardar, hayCambios, itemsTocados };
 }

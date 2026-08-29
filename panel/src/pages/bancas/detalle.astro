@@ -68,7 +68,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
 
     <!-- Pestaña 3: Límites -->
     <section class="tab-panel" data-panel="limites" style="display:none">
-      <p class="notice" id="limites-notice" style="display:none">Primero guarde la banca en la pestaña Información para configurar sus límites.</p>
+      <p class="notice" id="limites-notice" style="display:none">Configure los límites iniciales de la banca; se guardarán junto con la banca al guardar la información.</p>
       <div class="filters">
         <div class="field"><label>Aplicar a</label>
           <select id="limite-alcance">
@@ -236,12 +236,16 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
       if (!isCreate) return;
       document.getElementById('monedas-notice').style.display = 'block';
       document.getElementById('limites-notice').style.display = 'block';
-      document.getElementById('usuarios-notice').style.display = 'block';
       disableForm(document.getElementById('monedas-form'), true);
-      document.getElementById('limite-juego').disabled = true;
-      document.getElementById('limite-moneda').disabled = true;
-      document.getElementById('btn-limite-create').disabled = true;
-      document.getElementById('btn-user-create').disabled = true;
+      // Create mode: los límites se configuran en la tabla y se guardan con la
+      // entidad (POST de creación); no hay alcance ni botón de guardado propio.
+      const alcanceField = document.getElementById('limite-alcance');
+      if (alcanceField) alcanceField.closest('.field').style.display = 'none';
+      const acciones = document.querySelector('[data-panel="limites"] .panel-actions');
+      if (acciones) acciones.style.display = 'none';
+      // Create mode: la pestaña Usuarios no aplica (el usuario jefe se crea en Información)
+      document.querySelector('[data-tab="usuarios"]').style.display = 'none';
+      document.querySelector('[data-panel="usuarios"]').style.display = 'none';
     }
 
     // ---------- Carga de la banca ----------
@@ -317,6 +321,10 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
         body.user_name = f.user_name.value;
         body.user_email = f.user_email.value;
         body.user_password = f.user_password.value;
+        // Create mode: persistir los límites configurados junto con la banca
+        if (limitesTabla && limitesTabla.hayCambios()) {
+          body.limites = limitesTabla.itemsTocados();
+        }
       }
       try {
         if (isCreate) {
@@ -357,9 +365,16 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
     let limitesAlcance = 'self';
     let limitesTabla = null;
 
+    // Juegos activos (la matriz no depende de la entidad: se carga en create mode)
+    async function juegosActivos() {
+      const data = await apiFetch('GET', '/juegos');
+      const items = Array.isArray(data) ? data : (data?.data || []);
+      return items.filter(j => j.active !== false).map(j => ({ id: j.id, name: j.name, slug: j.slug }));
+    }
+
     async function initLimites() {
       limitesInited = true;
-      if (!bancaId) return;
+      if (!bancaId) { montarLimites(); return; }
       montarLimites();
     }
 
@@ -380,6 +395,11 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
         mostrarOrigen: false,
         filasPorPagina: 15,
         cargarDatos: async () => {
+          if (isCreate) {
+            // Create mode: matriz de juegos con celdas vacías (la banca no tiene padre)
+            impacto.textContent = 'Defina los límites iniciales de la banca (se guardarán al crear).';
+            return { juegos: await juegosActivos(), limites: {} };
+          }
           let data;
           if (limitesAlcance === 'self') {
             data = await apiFetch('GET', '/limites?banca_id=' + bancaId);
@@ -395,6 +415,9 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
           return resultado;
         },
         guardar: async (payload) => {
+          if (isCreate) {
+            throw new Error('Los límites se guardan junto con la banca al guardar la información.');
+          }
           if (limitesAlcance === 'self') {
             // ítems legacy con banca_id explícita (solo esta banca)
             const items = payload.limites.map(i => ({ ...i, banca_id: bancaId }));
@@ -600,7 +623,10 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
 
     // ---------- Arranque ----------
 
-    initTabs('tabs', TABS, (tab) => {
+    // Create mode: la pestaña Usuarios no aplica (el usuario jefe se crea en Información)
+    const tabsValidas = isCreate ? TABS.filter(t => t !== 'usuarios') : TABS;
+
+    initTabs('tabs', tabsValidas, (tab) => {
       if (tab === 'limites' && !limitesInited) initLimites();
       if (tab === 'usuarios' && !usuariosInited) initUsuarios();
     });

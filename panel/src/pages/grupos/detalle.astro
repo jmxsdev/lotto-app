@@ -77,7 +77,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
 
     <!-- Pestaña 3: Límites -->
     <section class="tab-panel" data-panel="limites" style="display:none">
-      <p class="notice" id="limites-notice" style="display:none">Primero guarde el grupo en la pestaña Información para configurar sus límites.</p>
+      <p class="notice" id="limites-notice" style="display:none">Configure los límites iniciales del grupo; se guardarán junto con el grupo al guardar la información.</p>
       <div class="filters">
         <div class="field"><label>Aplicar a</label>
           <select id="limite-alcance">
@@ -232,11 +232,18 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
       if (!isCreate) return;
       document.getElementById('monedas-notice').style.display = 'block';
       document.getElementById('limites-notice').style.display = 'block';
-      document.getElementById('usuarios-notice').style.display = 'block';
       disableForm(document.getElementById('monedas-form'), true);
-      const btnL = document.getElementById('btn-limite-guardar');
-      if (btnL) btnL.disabled = true;
-      document.getElementById('btn-user-create').disabled = true;
+      // Create mode: los límites se configuran en la tabla y se guardan con la
+      // entidad (POST de creación); no hay alcance ni botón de guardado propio.
+      const alcanceField = document.getElementById('limite-alcance');
+      if (alcanceField) alcanceField.closest('.field').style.display = 'none';
+      const acciones = document.querySelector('[data-panel="limites"] .panel-actions');
+      if (acciones) acciones.style.display = 'none';
+      // Create mode: Locales y Usuarios no aplican (aún no existe el grupo)
+      document.querySelector('[data-tab="locales"]').style.display = 'none';
+      document.querySelector('[data-panel="locales"]').style.display = 'none';
+      document.querySelector('[data-tab="usuarios"]').style.display = 'none';
+      document.querySelector('[data-panel="usuarios"]').style.display = 'none';
     }
 
     // ---------- Carga de bancas (selector de entidad padre) ----------
@@ -347,6 +354,10 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
         body.user_name = f.user_name.value;
         body.user_email = f.user_email.value;
         body.user_password = f.user_password.value;
+        // Create mode: persistir los límites configurados junto con el grupo
+        if (limitesTabla && limitesTabla.hayCambios()) {
+          body.limites = limitesTabla.itemsTocados();
+        }
       }
       try {
         if (isCreate) {
@@ -387,9 +398,16 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
     let limitesAlcance = 'self';
     let limitesTabla = null;
 
+    // Juegos activos (la matriz no depende de la entidad: se carga en create mode)
+    async function juegosActivos() {
+      const data = await apiFetch('GET', '/juegos');
+      const items = Array.isArray(data) ? data : (data?.data || []);
+      return items.filter(j => j.active !== false).map(j => ({ id: j.id, name: j.name, slug: j.slug }));
+    }
+
     async function initLimites() {
       limitesInited = true;
-      if (!grupoId) return;
+      if (!grupoId) { montarLimites(); return; }
       montarLimites();
     }
 
@@ -410,6 +428,18 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
         mostrarOrigen: true,
         filasPorPagina: 15,
         cargarDatos: async () => {
+          if (isCreate) {
+            // Create mode: base editable = límites efectivos de la banca seleccionada
+            const bancaSel = document.getElementById('info-form').banca_id.value;
+            if (!bancaSel) {
+              impacto.textContent = 'Seleccione la banca para precargar sus límites como base editable.';
+              return { juegos: await juegosActivos(), limites: {} };
+            }
+            const data = await apiFetch('GET', '/limites?banca_id=' + bancaSel);
+            const resultado = data?.data || { juegos: [], limites: {} };
+            impacto.textContent = 'Valores iniciales: límites efectivos de la banca seleccionada. Se guardarán al crear el grupo.';
+            return resultado;
+          }
           let data;
           if (limitesAlcance === 'self') {
             data = await apiFetch('GET', '/limites?grupo_id=' + grupoId);
@@ -424,6 +454,9 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
           return resultado;
         },
         guardar: async (payload) => {
+          if (isCreate) {
+            throw new Error('Los límites se guardan junto con el grupo al guardar la información.');
+          }
           if (limitesAlcance === 'self') {
             // ítems legacy con grupo_id + banca_id (solo este grupo)
             const items = payload.limites.map(i => ({ ...i, banca_id: grupo?.banca_id, grupo_id: grupoId }));
@@ -466,6 +499,11 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
       } finally {
         document.getElementById('btn-limite-guardar').disabled = false;
       }
+    });
+
+    // Al cambiar la banca en create mode, recargar la base de límites del nuevo padre
+    document.getElementById('info-form').banca_id.addEventListener('change', () => {
+      if (isCreate && limitesInited) montarLimites();
     });
 
     // ---------- Pestaña Locales ----------
@@ -661,9 +699,10 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
 
     // ---------- Arranque ----------
 
-    if (!canEditLimites) document.getElementById('btn-limite-create').style.display = 'none';
+    // Create mode: Locales y Usuarios no aplican (aún no existe el grupo)
+    const tabsValidas = isCreate ? TABS.filter(t => t !== 'locales' && t !== 'usuarios') : TABS;
 
-    initTabs('tabs', TABS, (tab) => {
+    initTabs('tabs', tabsValidas, (tab) => {
       if (tab === 'locales' && !localesInited) initLocales();
       if (tab === 'limites' && !limitesInited) initLimites();
       if (tab === 'usuarios' && !usuariosInited) initUsuarios();
