@@ -655,3 +655,65 @@ php artisan agencias:backfill --force    # 2ª ejecución: debe reportar 0 creac
 - **Current work unit**: CORRECCIONES FRONT CREATE MODE (2 commits de código).
 - **Review budget impact**: 2 commits, ~810 líneas (backend: +652/−253 incl. servicio y tests; panel: +155/−29). Dentro del presupuesto por ser work units independientes.
 - **Rollback boundary**: revertir `11e2d2a` + `3d37fb3` elimina el create-with-limits y el ocultado de pestañas sin tocar F0–F5 ni las correcciones de auditoría; cada commit es reversible de forma independiente. El servicio `JuegoLimiteService` se elimina con el revert del backend (JuegoController vuelve a sus métodos privados).
+
+---
+
+# PANEL MASTERS (work unit del PR 6, rama `feat/jerarquia-agencias-f5`)
+
+> **Estado**: implementado con TDD estricto RED→GREEN (backend) + verificación panel. Suite 338/336/2.
+> **Reporte del usuario (super master)**: el sidebar no mostraba el nivel MASTER (el más alto visible era Banca); el super debe poder ver/gestionar a los masters (usuarios rol master / super banca).
+
+## A. Backend — soporte para la página Masters ✅
+
+- **Filtro `role` en `UserController::index`** (`GET /users?role=master`): validado con `Rule::in` de los 6 roles; se aplica DESPUÉS del alcance jerárquico (intersección, nunca amplía). Super ve todos los masters; un master que filtre `role=master` ve lista vacía (los masters no tienen `banca_id`, la regla de alcance F2 los excluye → sin fuga).
+- **Relación `User::bancas()`** (hasMany Banca por `master_id`): el index la carga (`with('bancas')`) para que el panel muestre las bancas de cada master sin mapeo client-side.
+- **Guard jerárquico en `authorizeEntityBinding`**: un master ya NO puede crear a otro master (`403 'No puedes asignar el rol master.'`). El rol master solo lo asigna el super_master — decisión del cliente ("los super los crea él") y coherencia: los masters son pares entre sí.
+- **Desvinculación de bancas**: sin cambios de backend — `BancaController::update` ya acepta `master_id: null` (fix de auditoría previo); la página lo usa con confirmación.
+
+## B. Panel — sidebar + página Masters ✅
+
+- **`AdminLayout.astro`**: nueva entrada "Masters" (👑) como PRIMER ítem del dropdown Entidades, visible SOLO para `super_master`, con contador (`GET /users?role=master&per_page=1`). Decisión documentada: un master NO ve "Masters" porque los masters son pares (la relación es `bancas.master_id`, no master→master) y la spec `alcance-super-banca` exige "master ve SOLO sus propias entidades"; mostrar una entrada que devuelve vacío siempre sería confuso.
+- **`panel/src/pages/masters.astro`** (nueva, `/masters`): lista usuarios rol master (nombre, email, bancas como chips con enlace a `/bancas/detalle` y botón ✕ para desvincular, o "Sin bancas", estado activo/inactivo), con:
+  - Crear master (modal: nombre, email, password ≥8, activo) → `POST /users` con `role: 'master'`.
+  - Toggle activo → `PUT /users/{id}` `{active}`.
+  - Desvincular banca → `PUT /bancas/{id}` `{master_id: null}` con confirmación.
+  - Hint: las bancas se asignan desde el detalle de la banca (select Master).
+- Reutiliza el patrón de `usuarios.astro` (modal) y `bancas.astro` (tabla/badges/chips).
+
+## TDD Cycle Evidence (PANEL MASTERS)
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|---|---|---|
+| Filtro role + relación bancas + guard jerárquico | `tests/Feature/MastersPanelTest.php` (8) | Feature (HTTP) | ✅ 32/32 (GestionUsuarios/BancaMasterId/SuperBancaScope) | ✅ 6 rojos (4 fallos + 2 errores: filtro inexistente, sin clave `bancas`, master creaba master, role inválido 200) | ✅ 8/8 | ✅ 8 casos (listar solo masters, crear master, sin bancas, con banca, 403 master-crea-master, master no ve a otros, role inválido 422, desvincular banca) | ✅ Pint limpio (1 archivo auto-fixeado) |
+| Sidebar + página Masters | — (panel sin suite e2e; verificación = build) | E2E manual | ✅ build 22 páginas | N/A (sin test runner) | ✅ build 23 páginas | N/A | ✅ patrones existentes (usuarios/bancas) |
+
+## Test Summary (PANEL MASTERS)
+
+- **Total tests escritos**: 8 nuevos (MastersPanelTest)
+- **Suite completa**: `COMPOSER_PROCESS_TIMEOUT=900 composer test` → 338 tests / 336 passed / 2 skipped / 1290 assertions — baseline 330/328/2 (+8 tests, 0 rotos)
+- **Pint**: `./vendor/bin/pint --test` → passed
+- **Panel**: `npm run build` → 23 páginas (baseline 22 → +1: /masters)
+
+## Commits del work unit (rama `feat/jerarquia-agencias-f5`)
+
+- `da9559a` feat(backend): soporte para listar y crear masters con sus bancas
+- `5e1a9f5` feat(panel): pagina de masters con listado, creacion y desvinculacion de bancas
+- (docs): este progreso de apply
+
+## Deviations from Design
+
+1. **Sidebar "Masters" solo super_master**: el enunciado sugería evaluar que el master pudiera ver a otros masters; se decidió NO (documentado en el código y en el sidebar). La spec `alcance-super-banca` ("master ve SOLO sus propias entidades") y el hecho de que los masters son pares sin relación de propiedad lo justifican; el backend además devuelve lista vacía a un master que filtre `role=master` (sin fuga).
+2. **Guard "master no crea master"**: aditivo al design (que solo documentaba la restricción a `super_master`); cierra la vía de que un master cree a su par. El panel nunca lo ofreció; el backend ahora lo prohíbe explícitamente con 403.
+
+## Issues / Gotchas (PANEL MASTERS)
+
+- El seeder `DatabaseSeeder` ya crea `master@lotto.com` (rol master): el listado `?role=master` del super incluye ese usuario de seed (correcto — es un master real).
+- La suite tarda >2 min con el process-timeout default de composer (300s): usar `COMPOSER_PROCESS_TIMEOUT=900 composer test` o `php artisan test` directo.
+- `backend/.env.example` y `panel/.astro/settings.json` seguían modificados en el working tree (pre-existentes) — NO se commitearon.
+
+## Workload / PR Boundary (PANEL MASTERS)
+
+- **Modo**: chained PR slice (feature-branch-chain) — mismo PR 6 sobre la rama `feat/jerarquia-agencias-f5` (base f4). NO se abrió PR.
+- **Current work unit**: PANEL MASTERS (2 commits de código + 1 docs).
+- **Review budget impact**: ~350 líneas (backend +218/−1, panel +126/−1, docs). Dentro del presupuesto por work unit.
+- **Rollback boundary**: revertir `da9559a` elimina el soporte backend (filtro role, relación bancas, guard jerárquico) sin tocar F0–F5; revertir `5e1a9f5` elimina la página y la entrada del sidebar (el backend previo no rompe: el filtro role solo se usa desde la página). Cada commit es reversible de forma independiente.
