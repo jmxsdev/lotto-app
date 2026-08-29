@@ -122,17 +122,19 @@ const name = user?.name || '';
       const headers = { 'Accept': 'application/json', 'X-Panel': 'true' };
       if (token) headers['Authorization'] = 'Bearer ' + token;
       try {
-        const [b, g, t, a] = await Promise.all([
+        const [b, g, t, a, m] = await Promise.all([
           fetch(API_BASE + '/bancas?per_page=1', { headers }).then(r => r.ok ? r.json() : []),
           fetch(API_BASE + '/grupos?per_page=1', { headers }).then(r => r.ok ? r.json() : []),
           fetch(API_BASE + '/taquillas?per_page=1', { headers }).then(r => r.ok ? r.json() : []),
           fetch(API_BASE + '/agencias?per_page=1', { headers }).then(r => r.ok ? r.json() : []),
+          fetch(API_BASE + '/users?role=master&per_page=1', { headers }).then(r => r.ok ? r.json() : []),
         ]);
         window.entityCounts = {
           bancas: Array.isArray(b) ? b.length : (b?.data?.length || b?.meta?.total || 0),
           grupos: Array.isArray(g) ? g.length : (g?.data?.length || g?.meta?.total || 0),
           taquillas: Array.isArray(t) ? t.length : (t?.data?.length || t?.meta?.total || 0),
           agencias: Array.isArray(a) ? a.length : (a?.data?.length || a?.meta?.total || 0),
+          masters: Array.isArray(m) ? m.length : (m?.data?.length || m?.meta?.total || 0),
         };
         // Update dropdown counts
         document.querySelectorAll('.dropdown-count').forEach(el => {
@@ -168,6 +170,10 @@ const name = user?.name || '';
 
     // Entidades dropdown — varies by role
     const entidades = [];
+    // Masters: SOLO super_master. Los masters son pares entre sí (la relación es
+    // bancas.master_id, no master→master); un master no gestiona a otros masters,
+    // y el rol master solo lo asigna el super_master.
+    if (role === 'super_master') entidades.push({ label: 'Masters', href: '/masters', icon: '👑', count: entityCounts.masters, key: 'masters' });
     if (role === 'super_master' || role === 'master') entidades.push({ label: 'Bancas', href: '/bancas', icon: '🏦', count: entityCounts.bancas, key: 'bancas' });
     if (role === 'super_master' || role === 'master' || role === 'banca') entidades.push({ label: 'Grupos', href: '/grupos', icon: '📂', count: entityCounts.grupos, key: 'grupos' });
     if (['super_master','master','banca','grupo'].includes(role)) entidades.push({ label: 'Agencias', href: '/agencias', icon: '🏪', count: entityCounts.agencias, key: 'agencias' });
