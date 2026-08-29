@@ -118,6 +118,9 @@ class TaquillaController extends Controller
         // Verificar acceso al local (si se indicó)
         $this->authorizeAgenciaAccess($user, $request->input('agencia_id'));
 
+        // El local debe pertenecer al grupo indicado (consistencia jerárquica)
+        $this->validarLocalPerteneceAlGrupo($request->input('agencia_id'), (int) $request->grupo_id);
+
         $grupo = Grupo::find($request->grupo_id);
 
         // Validar vigencia_premios contra el grupo (más restrictivo)
@@ -214,6 +217,10 @@ class TaquillaController extends Controller
         // jerárquica que el store (F1): el rol agencia solo su local.
         if ($request->has('agencia_id')) {
             $this->authorizeAgenciaAccess($user, $request->input('agencia_id'));
+
+            // El local debe pertenecer al grupo efectivo (el indicado o el actual)
+            $grupoEfectivo = $request->filled('grupo_id') ? (int) $request->grupo_id : (int) $taquilla->grupo_id;
+            $this->validarLocalPerteneceAlGrupo($request->input('agencia_id'), $grupoEfectivo);
         }
 
         // Validar vigencia_premios contra el grupo padre
@@ -278,6 +285,22 @@ class TaquillaController extends Controller
     }
 
     // --- Métodos de autorización ---
+
+    /**
+     * Validar que el local (agencia_id) pertenezca al grupo indicado.
+     * Un local de otro grupo es un estado inconsistente de la jerarquía.
+     */
+    private function validarLocalPerteneceAlGrupo(?int $agenciaId, int $grupoId): void
+    {
+        if ($agenciaId === null) {
+            return;
+        }
+
+        $agencia = Agencia::find($agenciaId);
+        if ($agencia && (int) $agencia->grupo_id !== $grupoId) {
+            abort(422, 'El local no pertenece al grupo indicado.');
+        }
+    }
 
     /**
      * Validar que la vigencia_premios de la taquilla no exceda la del grupo.
