@@ -136,12 +136,12 @@ class TicketController extends Controller
             $monedas = $this->apuestaService->getEffectiveMonedas($user->taquilla_id);
             if ($hasUsd && ! $monedas['usd']) {
                 return response()->json([
-                    'message' => 'Moneda USD no permitida para esta agencia.',
+                    'message' => 'Moneda USD no permitida para esta taquilla.',
                 ], 422);
             }
             if ($hasBs && ! $monedas['bs']) {
                 return response()->json([
-                    'message' => 'Moneda BS no permitida para esta agencia.',
+                    'message' => 'Moneda BS no permitida para esta taquilla.',
                 ], 422);
             }
             if ($hasBs && $hasUsd && (! $monedas['bs'] || ! $monedas['usd'])) {

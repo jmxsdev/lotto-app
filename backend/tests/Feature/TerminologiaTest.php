@@ -215,6 +215,125 @@ class TerminologiaTest extends TestCase
         $this->assertSoftDeleted('taquillas', ['id' => $taquilla->id]);
     }
 
+    public function test_moneda_no_permitida_apuesta_mensaje_taquilla()
+    {
+        $user = User::where('email', 'super@lotto.com')->first();
+
+        $banca = Banca::create([
+            'name' => 'Banca Moneda', 'code' => 'BMON', 'active' => true,
+            'monedas_permitidas' => ['bs' => true, 'usd' => false],
+        ]);
+        $grupo = Grupo::create(['name' => 'Grupo Moneda', 'code' => 'GMON', 'banca_id' => $banca->id, 'active' => true]);
+        $taquilla = Taquilla::create(['name' => 'Taquilla Moneda', 'code' => 'TMON', 'grupo_id' => $grupo->id, 'active' => true, 'mac_address' => 'AA:BB:CC:DD:EE:FF']);
+
+        $taquillaUser = User::factory()->create(['taquilla_id' => $taquilla->id, 'role' => 'taquilla']);
+        $taquillaUser->assignRole('taquilla');
+
+        $juego = Juego::where('slug', 'lotto-activo')->first();
+
+        $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
+            ->actingAs($taquillaUser, 'sanctum')
+            ->postJson('/api/v1/apuestas', [
+                'juego_id' => $juego->id,
+                'combinacion' => ['animal' => 'perro', 'numero' => 5],
+                'amount_bs' => 0,
+                'amount_usd' => 50,
+                'sorteo_hora' => now()->addHours(2)->format('Y-m-d H:i:s'),
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'Moneda USD no permitida para esta taquilla.');
+    }
+
+    public function test_moneda_no_permitida_ticket_mensaje_taquilla()
+    {
+        $banca = Banca::create([
+            'name' => 'Banca Ticket', 'code' => 'BTIC', 'active' => true,
+            'monedas_permitidas' => ['bs' => true, 'usd' => false],
+        ]);
+        $grupo = Grupo::create(['name' => 'Grupo Ticket', 'code' => 'GTIC', 'banca_id' => $banca->id, 'active' => true]);
+        $taquilla = Taquilla::create(['name' => 'Taquilla Ticket', 'code' => 'TTIC', 'grupo_id' => $grupo->id, 'active' => true, 'mac_address' => 'AA:BB:CC:DD:EE:FF']);
+
+        $taquillaUser = User::factory()->create(['taquilla_id' => $taquilla->id, 'role' => 'taquilla']);
+        $taquillaUser->assignRole('taquilla');
+
+        $juego = Juego::where('slug', 'lotto-activo')->first();
+
+        $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
+            ->actingAs($taquillaUser, 'sanctum')
+            ->postJson('/api/v1/tickets', [
+                'lines' => [
+                    ['juego_id' => $juego->id, 'amount_bs' => 0, 'amount_usd' => 50],
+                ],
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'Moneda USD no permitida para esta taquilla.');
+    }
+
+    public function test_vigencia_taquilla_mensaje_taquilla()
+    {
+        $banca = Banca::create(['name' => 'Banca Vig', 'code' => 'BVIG', 'active' => true]);
+        $grupo = Grupo::create(['name' => 'Grupo Vig', 'code' => 'GVIG', 'banca_id' => $banca->id, 'active' => true, 'vigencia_premios' => 5]);
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/taquillas', [
+                'name' => 'Taquilla Vig',
+                'code' => 'TVIG',
+                'grupo_id' => $grupo->id,
+                'vigencia_premios' => 10,
+                'user_name' => 'Usuario Taquilla',
+                'user_email' => 'taquilla-vig@test.com',
+                'user_password' => 'password123',
+            ]);
+
+        $response->assertStatus(422);
+        $this->assertStringContainsString('de la taquilla', $response->json('message'));
+    }
+
+    public function test_tiempo_taquilla_mensaje_taquilla()
+    {
+        $banca = Banca::create(['name' => 'Banca Tmp', 'code' => 'BTMP', 'active' => true]);
+        $grupo = Grupo::create(['name' => 'Grupo Tmp', 'code' => 'GTMP', 'banca_id' => $banca->id, 'active' => true, 'tiempo_eliminacion' => 5]);
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/taquillas', [
+                'name' => 'Taquilla Tmp',
+                'code' => 'TTMP',
+                'grupo_id' => $grupo->id,
+                'tiempo_eliminacion' => 10,
+                'user_name' => 'Usuario Taquilla',
+                'user_email' => 'taquilla-tmp@test.com',
+                'user_password' => 'password123',
+            ]);
+
+        $response->assertStatus(422);
+        $this->assertStringContainsString('de la taquilla', $response->json('message'));
+    }
+
+    public function test_dispositivo_no_registrado_mensaje_taquilla()
+    {
+        $response = $this->postJson('/api/v1/dispositivo/verificar', [
+            'device_fingerprint' => 'fingerprint-desconocido-001',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('message', 'Dispositivo no registrado. Active su taquilla.');
+    }
+
+    public function test_eliminar_grupo_con_taquillas_mensaje_taquillas()
+    {
+        $banca = Banca::factory()->create();
+        $grupo = Grupo::factory()->create(['banca_id' => $banca->id]);
+        Taquilla::factory()->create(['grupo_id' => $grupo->id]);
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->deleteJson('/api/v1/grupos/'.$grupo->id);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'No se puede eliminar el grupo porque tiene taquillas asociadas.');
+    }
+
     public function test_crear_apuesta_sin_taquilla_mensaje()
     {
         $juego = Juego::where('slug', 'lotto-activo')->first();

@@ -250,14 +250,14 @@ class ApuestaService
         if ($usaUsd && ! $monedas['usd']) {
             return [
                 'valid' => false,
-                'message' => 'Moneda USD no permitida para esta agencia.',
+                'message' => 'Moneda USD no permitida para esta taquilla.',
             ];
         }
 
         if ($usaBs && ! $monedas['bs']) {
             return [
                 'valid' => false,
-                'message' => 'Moneda BS no permitida para esta agencia.',
+                'message' => 'Moneda BS no permitida para esta taquilla.',
             ];
         }
 

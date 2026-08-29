@@ -242,7 +242,7 @@ class TaquillaController extends Controller
     }
 
     /**
-     * Alternar el estado activo de una agencia.
+     * Alternar el estado activo de una taquilla (máquina).
      * PATCH /api/taquillas/{taquilla}/toggle
      * No desregistra el dispositivo: MAC y huella permanecen intactos,
      * por lo que al reactivar no se requiere re-activación.
@@ -292,7 +292,7 @@ class TaquillaController extends Controller
         $grupoVigencia = $grupo->vigencia_premios;
         if ($grupoVigencia !== null && $request->vigencia_premios > $grupoVigencia) {
             abort(422, json_encode([
-                'message' => "La vigencia de premios de la agencia ({$request->vigencia_premios} días) no puede ser mayor que la del grupo ({$grupoVigencia} días). La jerarquía inferior solo puede acortar el plazo.",
+                'message' => "La vigencia de premios de la taquilla ({$request->vigencia_premios} días) no puede ser mayor que la del grupo ({$grupoVigencia} días). La jerarquía inferior solo puede acortar el plazo.",
             ]));
         }
 
@@ -301,7 +301,7 @@ class TaquillaController extends Controller
             $bancaVigencia = $grupo->banca?->vigencia_premios;
             if ($bancaVigencia !== null && $request->vigencia_premios > $bancaVigencia) {
                 abort(422, json_encode([
-                    'message' => "La vigencia de premios de la agencia ({$request->vigencia_premios} días) no puede ser mayor que la de la banca ({$bancaVigencia} días). La jerarquía inferior solo puede acortar el plazo.",
+                    'message' => "La vigencia de premios de la taquilla ({$request->vigencia_premios} días) no puede ser mayor que la de la banca ({$bancaVigencia} días). La jerarquía inferior solo puede acortar el plazo.",
                 ]));
             }
         }
@@ -319,14 +319,14 @@ class TaquillaController extends Controller
 
         $grupoTiempo = $grupo->tiempo_eliminacion;
         if ($grupoTiempo !== null && $request->tiempo_eliminacion > $grupoTiempo) {
-            abort(422, "El tiempo máximo de la agencia ({$request->tiempo_eliminacion} minutos) no puede ser mayor que el del grupo ({$grupoTiempo} minutos). La jerarquía inferior solo puede acortar el plazo.");
+            abort(422, "El tiempo máximo de la taquilla ({$request->tiempo_eliminacion} minutos) no puede ser mayor que el del grupo ({$grupoTiempo} minutos). La jerarquía inferior solo puede acortar el plazo.");
         }
 
         // También validar contra banca (si el grupo no tiene tiempo configurado)
         if ($grupoTiempo === null) {
             $bancaTiempo = $grupo->banca?->tiempo_eliminacion ?? 5;
             if ($request->tiempo_eliminacion > $bancaTiempo) {
-                abort(422, "El tiempo máximo de la agencia ({$request->tiempo_eliminacion} minutos) no puede ser mayor que el de la banca ({$bancaTiempo} minutos). La jerarquía inferior solo puede acortar el plazo.");
+                abort(422, "El tiempo máximo de la taquilla ({$request->tiempo_eliminacion} minutos) no puede ser mayor que el de la banca ({$bancaTiempo} minutos). La jerarquía inferior solo puede acortar el plazo.");
             }
         }
     }
