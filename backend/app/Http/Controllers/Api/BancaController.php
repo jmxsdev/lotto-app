@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Banca;
 use App\Models\User;
+use App\Services\JuegoLimiteService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 
@@ -57,38 +59,52 @@ class BancaController extends Controller
             'user_name' => 'required|string|max:255',
             'user_email' => 'required|email|unique:users,email',
             'user_password' => 'required|string|min:8',
+            // Create mode: límites iniciales persistidos en la misma transacción
+            'limites' => 'nullable|array',
         ]);
 
-        $banca = Banca::create([
-            'name' => $request->name,
-            'code' => $request->code,
-            'config' => $request->config,
-            'monedas_permitidas' => $request->monedas_permitidas ?? null,
-            'vigencia_premios' => $request->vigencia_premios ?? null,
-            'tiempo_eliminacion' => $request->tiempo_eliminacion ?? null,
-            'active' => $request->active ?? true,
-            'created_by' => $authUser->id,
-            // Si el creador es un master, la banca queda administrada por él
-            // (coherente con el backfill F0: master_id = created_by).
-            'master_id' => $authUser->hasRole('master') ? $authUser->id : ($request->master_id ?? null),
-            'rif' => $request->rif,
-            'email' => $request->email,
-            'telefono' => $request->telefono,
-            'direccion' => $request->direccion,
-            'estado' => $request->estado,
-            'municipio' => $request->municipio,
-        ]);
+        $banca = null;
+        $user = null;
 
-        $user = User::create([
-            'name' => $request->user_name,
-            'email' => $request->user_email,
-            'password' => Hash::make($request->user_password),
-            'role' => 'banca',
-            'banca_id' => $banca->id,
-            'active' => $request->active ?? true,
-        ]);
+        DB::transaction(function () use ($request, $authUser, &$banca, &$user) {
+            $banca = Banca::create([
+                'name' => $request->name,
+                'code' => $request->code,
+                'config' => $request->config,
+                'monedas_permitidas' => $request->monedas_permitidas ?? null,
+                'vigencia_premios' => $request->vigencia_premios ?? null,
+                'tiempo_eliminacion' => $request->tiempo_eliminacion ?? null,
+                'active' => $request->active ?? true,
+                'created_by' => $authUser->id,
+                // Si el creador es un master, la banca queda administrada por él
+                // (coherente con el backfill F0: master_id = created_by).
+                'master_id' => $authUser->hasRole('master') ? $authUser->id : ($request->master_id ?? null),
+                'rif' => $request->rif,
+                'email' => $request->email,
+                'telefono' => $request->telefono,
+                'direccion' => $request->direccion,
+                'estado' => $request->estado,
+                'municipio' => $request->municipio,
+            ]);
 
-        $user->assignRole('banca');
+            $user = User::create([
+                'name' => $request->user_name,
+                'email' => $request->user_email,
+                'password' => Hash::make($request->user_password),
+                'role' => 'banca',
+                'banca_id' => $banca->id,
+                'active' => $request->active ?? true,
+            ]);
+
+            $user->assignRole('banca');
+
+            // Límites iniciales (create mode): atómicos con la entidad.
+            // Cualquier error de validación/restrictividad revierte TODO.
+            if (! empty($request->limites)) {
+                app(JuegoLimiteService::class)->validarItems($request->limites);
+                app(JuegoLimiteService::class)->persistirParaEntidad($request->limites, 'banca', $banca->id);
+            }
+        });
 
         return response()->json([
             'banca' => $banca,

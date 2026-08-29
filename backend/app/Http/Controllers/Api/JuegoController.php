@@ -9,6 +9,7 @@ use App\Models\Juego;
 use App\Models\JuegoAuditoria;
 use App\Models\JuegoLimite;
 use App\Models\Taquilla;
+use App\Services\JuegoLimiteService;
 use App\Services\JuegoPluginManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,6 +19,8 @@ use Illuminate\Validation\Rule;
 
 class JuegoController extends Controller
 {
+    public function __construct(private JuegoLimiteService $limites) {}
+
     public function index()
     {
         $juegos = Juego::with('pluginJuego')->get();
@@ -387,7 +390,7 @@ class JuegoController extends Controller
 
         // Validar jerarquía de restricción: hijo ≤ padre
         if ($request->grupo_id || $request->taquilla_id) {
-            $this->validarRestrictividadLimite(
+            $this->limites->validarRestrictividadLimite(
                 $request->banca_id,
                 $request->juego_id ?? $juego->id,
                 $request->moneda,
@@ -493,7 +496,7 @@ class JuegoController extends Controller
                     $this->authorizeBancaLimitAccess($user, $item['banca_id']);
 
                     if (! empty($item['grupo_id']) || ! empty($item['taquilla_id'])) {
-                        $this->validarRestrictividadLimite(
+                        $this->limites->validarRestrictividadLimite(
                             (int) $item['banca_id'],
                             $item['juego_id'],
                             $item['moneda'],
@@ -504,14 +507,14 @@ class JuegoController extends Controller
                         );
                     }
 
-                    $this->aplicarItemLimite($item, null, $resultados);
+                    $this->limites->aplicarItemLimite($item, null, $resultados);
 
                     continue;
                 }
 
                 // Modo scope: aplicar a cada entidad expandida (padre-primero)
                 foreach ($objetivos as $objetivo) {
-                    $this->aplicarItemLimite($item, $objetivo, $resultados);
+                    $this->limites->aplicarItemLimite($item, $objetivo, $resultados);
                 }
             }
         });
@@ -668,106 +671,6 @@ class JuegoController extends Controller
         }
 
         return $objetivos;
-    }
-
-    /**
-     * Aplicar un ítem de límite a una entidad objetivo (o a la entidad
-     * explícita del ítem en modo legacy).
-     *
-     * Semántica present-fields-only: solo se escriben los campos presentes
-     * en el payload. Si algún campo de límite llega explícitamente null,
-     * se ELIMINA la fila (volver a heredar del padre).
-     */
-    private function aplicarItemLimite(array $item, ?array $objetivo, array &$resultados): void
-    {
-        // Resolver la cadena de la entidad objetivo
-        [$bancaId, $grupoId, $taquillaId] = $this->resolverCadenaObjetivo($objetivo, $item);
-
-        $campos = ['limite_minimo', 'limite_maximo', 'porcentaje_pago', 'participacion', 'fraccion', 'limite_tiempo'];
-        $presentes = [];
-
-        foreach ($campos as $campo) {
-            if (array_key_exists($campo, $item)) {
-                $presentes[$campo] = $item[$campo];
-            }
-        }
-
-        $clave = [
-            'juego_id' => $item['juego_id'],
-            'banca_id' => $bancaId,
-            'grupo_id' => $grupoId,
-            'taquilla_id' => $taquillaId,
-            'moneda' => $item['moneda'],
-        ];
-
-        // Null explícito en cualquier campo de límite → eliminar fila (heredar)
-        $tieneNull = false;
-        foreach ($presentes as $valor) {
-            if ($valor === null) {
-                $tieneNull = true;
-                break;
-            }
-        }
-
-        if ($tieneNull) {
-            JuegoLimite::where($clave)->delete();
-
-            return;
-        }
-
-        if (empty($presentes)) {
-            abort(422, 'Cada ítem de límite debe incluir al menos un campo configurable.');
-        }
-
-        // Validar jerarquía (hijo ≤ padre) antes de escribir
-        if ($grupoId !== null || $taquillaId !== null) {
-            $this->validarRestrictividadLimite(
-                $bancaId,
-                $item['juego_id'],
-                $item['moneda'],
-                $grupoId,
-                $taquillaId,
-                $presentes['limite_minimo'] ?? null,
-                $presentes['limite_maximo'] ?? null,
-            );
-        }
-
-        $resultados[] = JuegoLimite::updateOrCreate($clave, $presentes);
-    }
-
-    /**
-     * Resolver la cadena banca→grupo→taquilla de un objetivo de alcance.
-     * En modo legacy el ítem ya trae su banca_id (y opcional grupo/taquilla).
-     *
-     * @return array{0: int, 1: int|null, 2: int|null}
-     */
-    private function resolverCadenaObjetivo(?array $objetivo, array $item): array
-    {
-        if ($objetivo === null) {
-            return [
-                (int) $item['banca_id'],
-                ! empty($item['grupo_id']) ? (int) $item['grupo_id'] : null,
-                ! empty($item['taquilla_id']) ? (int) $item['taquilla_id'] : null,
-            ];
-        }
-
-        if ($objetivo['nivel'] === 'banca') {
-            return [$objetivo['id'], null, null];
-        }
-
-        if ($objetivo['nivel'] === 'grupo') {
-            $grupo = Grupo::find($objetivo['id']);
-
-            return [$grupo ? (int) $grupo->banca_id : 0, $objetivo['id'], null];
-        }
-
-        $taquilla = Taquilla::with('grupo')->find($objetivo['id']);
-
-        return [
-            $taquilla?->grupo?->banca_id ?? 0,
-            $taquilla?->grupo_id,
-            $objetivo['id'],
-        ];
     }
 
     /**
@@ -1128,65 +1031,5 @@ class JuegoController extends Controller
         }
 
         return $valores;
-    }
-
-    /**
-     * Validar que un límite hijo no sea más permisivo que el padre.
-     * Aplica cuando se configura un límite a nivel grupo o taquilla.
-     */
-    private function validarRestrictividadLimite(
-        int $bancaId,
-        int $juegoId,
-        string $moneda,
-        ?int $grupoId,
-        ?int $taquillaId,
-        $limiteMinimo,
-        $limiteMaximo,
-    ): void {
-        // Determinar el nivel padre
-        $parentQuery = JuegoLimite::where('juego_id', $juegoId)
-            ->where('banca_id', $bancaId)
-            ->where('moneda', $moneda);
-
-        if ($taquillaId) {
-            // Padre es el límite del grupo (o banca si no hay grupo)
-            $parentQuery->where(function ($q) use ($grupoId) {
-                $q->where('grupo_id', $grupoId)->whereNull('taquilla_id');
-            });
-            if (! $parentQuery->exists()) {
-                // Fallback a banca
-                $parentQuery = JuegoLimite::where('juego_id', $juegoId)
-                    ->where('banca_id', $bancaId)
-                    ->where('moneda', $moneda)
-                    ->whereNull('grupo_id')
-                    ->whereNull('taquilla_id');
-            }
-        } elseif ($grupoId) {
-            // Padre es el límite de la banca
-            $parentQuery->whereNull('grupo_id')->whereNull('taquilla_id');
-        } else {
-            // Es nivel banca, no hay padre que validar
-            return;
-        }
-
-        $parent = $parentQuery->first();
-
-        if (! $parent) {
-            return; // Sin límite padre, no hay restricción que validar
-        }
-
-        // validar limite_maximo: hijo ≤ padre
-        if ($limiteMaximo !== null && $parent->limite_maximo !== null) {
-            if ($limiteMaximo > $parent->limite_maximo) {
-                abort(422, "El límite máximo ({$limiteMaximo}) no puede ser mayor que el límite del nivel superior ({$parent->limite_maximo}).");
-            }
-        }
-
-        // validar limite_minimo: hijo ≥ padre
-        if ($limiteMinimo !== null && $parent->limite_minimo !== null) {
-            if ($limiteMinimo < $parent->limite_minimo) {
-                abort(422, "El límite mínimo ({$limiteMinimo}) no puede ser menor que el límite del nivel superior ({$parent->limite_minimo}).");
-            }
-        }
     }
 }

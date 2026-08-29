@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Banca;
 use App\Models\Grupo;
 use App\Models\User;
+use App\Services\JuegoLimiteService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 
@@ -86,6 +88,8 @@ class GrupoController extends Controller
             'direccion' => 'nullable|string|max:255',
             'estado' => 'nullable|string|max:100',
             'municipio' => 'nullable|string|max:100',
+            // Create mode: límites iniciales persistidos en la misma transacción
+            'limites' => 'nullable|array',
         ]);
 
         // Verificar que el usuario tenga acceso a la banca
@@ -124,38 +128,50 @@ class GrupoController extends Controller
             }
         }
 
-        $grupo = Grupo::create([
-            'name' => $request->name,
-            'code' => $request->code,
-            'banca_id' => $request->banca_id,
-            'active' => $request->active ?? true,
-            'monedas_permitidas' => $request->monedas_permitidas ?? null,
-            'vigencia_premios' => $request->vigencia_premios ?? null,
-            'tiempo_eliminacion' => $request->tiempo_eliminacion ?? null,
-            'created_by' => $user->id,
-            'rif' => $request->rif,
-            'email' => $request->email,
-            'telefono' => $request->telefono,
-            'direccion' => $request->direccion,
-            'estado' => $request->estado,
-            'municipio' => $request->municipio,
-        ]);
+        $grupo = null;
+        $userCreado = null;
 
-        $user = User::create([
-            'name' => $request->user_name,
-            'email' => $request->user_email,
-            'password' => Hash::make($request->user_password),
-            'role' => 'grupo',
-            'banca_id' => $request->banca_id,
-            'grupo_id' => $grupo->id,
-            'active' => $request->active ?? true,
-        ]);
+        DB::transaction(function () use ($request, $user, &$grupo, &$userCreado) {
+            $grupo = Grupo::create([
+                'name' => $request->name,
+                'code' => $request->code,
+                'banca_id' => $request->banca_id,
+                'active' => $request->active ?? true,
+                'monedas_permitidas' => $request->monedas_permitidas ?? null,
+                'vigencia_premios' => $request->vigencia_premios ?? null,
+                'tiempo_eliminacion' => $request->tiempo_eliminacion ?? null,
+                'created_by' => $user->id,
+                'rif' => $request->rif,
+                'email' => $request->email,
+                'telefono' => $request->telefono,
+                'direccion' => $request->direccion,
+                'estado' => $request->estado,
+                'municipio' => $request->municipio,
+            ]);
 
-        $user->assignRole('grupo');
+            $userCreado = User::create([
+                'name' => $request->user_name,
+                'email' => $request->user_email,
+                'password' => Hash::make($request->user_password),
+                'role' => 'grupo',
+                'banca_id' => $request->banca_id,
+                'grupo_id' => $grupo->id,
+                'active' => $request->active ?? true,
+            ]);
+
+            $userCreado->assignRole('grupo');
+
+            // Límites iniciales (create mode): atómicos con la entidad.
+            // Cualquier error de validación/restrictividad revierte TODO.
+            if (! empty($request->limites)) {
+                app(JuegoLimiteService::class)->validarItems($request->limites);
+                app(JuegoLimiteService::class)->persistirParaEntidad($request->limites, 'grupo', $grupo->id);
+            }
+        });
 
         return response()->json([
             'grupo' => $grupo->load('banca'),
-            'user' => $user->load('roles'),
+            'user' => $userCreado->load('roles'),
         ], 201);
     }
 

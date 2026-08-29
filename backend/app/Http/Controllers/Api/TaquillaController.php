@@ -7,7 +7,9 @@ use App\Models\Agencia;
 use App\Models\Grupo;
 use App\Models\Taquilla;
 use App\Models\User;
+use App\Services\JuegoLimiteService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -88,6 +90,8 @@ class TaquillaController extends Controller
             'user_name' => 'required|string|max:255',
             'user_email' => 'required|email|unique:users,email',
             'user_password' => 'required|string|min:8',
+            // Create mode: límites iniciales persistidos en la misma transacción
+            'limites' => 'nullable|array',
         ];
 
         // La agencia (local) crea taquillas solo en su local: agencia_id y
@@ -135,41 +139,53 @@ class TaquillaController extends Controller
         // Generar activation_code automáticamente si no se proporciona
         $activationCode = $request->activation_code ?? Str::random(16);
 
-        $taquilla = Taquilla::create([
-            'name' => $request->name,
-            'code' => $request->code,
-            'grupo_id' => $request->grupo_id,
-            'agencia_id' => $request->input('agencia_id'),
-            'activation_code' => $activationCode,
-            'vigencia_premios' => $request->vigencia_premios ?? null,
-            'tiempo_eliminacion' => $request->tiempo_eliminacion ?? null,
-            'active' => $request->active ?? false,
-            'created_by' => $user->id,
-            'rif' => $request->rif,
-            'email' => $request->email,
-            'telefono' => $request->telefono,
-            'direccion' => $request->direccion,
-            'estado' => $request->estado,
-            'municipio' => $request->municipio,
-        ]);
+        $taquilla = null;
+        $userCreado = null;
 
-        $user = User::create([
-            'name' => $request->user_name,
-            'email' => $request->user_email,
-            'password' => Hash::make($request->user_password),
-            'role' => 'taquilla',
-            'banca_id' => $grupo->banca_id,
-            'grupo_id' => $request->grupo_id,
-            'taquilla_id' => $taquilla->id,
-            'agencia_id' => $taquilla->agencia_id,
-            'active' => $request->active ?? true,
-        ]);
+        DB::transaction(function () use ($request, $user, $grupo, $activationCode, &$taquilla, &$userCreado) {
+            $taquilla = Taquilla::create([
+                'name' => $request->name,
+                'code' => $request->code,
+                'grupo_id' => $request->grupo_id,
+                'agencia_id' => $request->input('agencia_id'),
+                'activation_code' => $activationCode,
+                'vigencia_premios' => $request->vigencia_premios ?? null,
+                'tiempo_eliminacion' => $request->tiempo_eliminacion ?? null,
+                'active' => $request->active ?? false,
+                'created_by' => $user->id,
+                'rif' => $request->rif,
+                'email' => $request->email,
+                'telefono' => $request->telefono,
+                'direccion' => $request->direccion,
+                'estado' => $request->estado,
+                'municipio' => $request->municipio,
+            ]);
 
-        $user->assignRole('taquilla');
+            $userCreado = User::create([
+                'name' => $request->user_name,
+                'email' => $request->user_email,
+                'password' => Hash::make($request->user_password),
+                'role' => 'taquilla',
+                'banca_id' => $grupo->banca_id,
+                'grupo_id' => $request->grupo_id,
+                'taquilla_id' => $taquilla->id,
+                'agencia_id' => $taquilla->agencia_id,
+                'active' => $request->active ?? true,
+            ]);
+
+            $userCreado->assignRole('taquilla');
+
+            // Límites iniciales (create mode): atómicos con la entidad.
+            // Cualquier error de validación/restrictividad revierte TODO.
+            if (! empty($request->limites)) {
+                app(JuegoLimiteService::class)->validarItems($request->limites);
+                app(JuegoLimiteService::class)->persistirParaEntidad($request->limites, 'taquilla', $taquilla->id);
+            }
+        });
 
         return response()->json([
             'taquilla' => $taquilla->load('grupo.banca'),
-            'user' => $user->load('roles'),
+            'user' => $userCreado->load('roles'),
         ], 201);
     }
 
