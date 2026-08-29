@@ -18,10 +18,10 @@ class CierreController extends Controller
     }
 
     /**
-     * Ejecutar el cierre de caja de una agencia.
+     * Ejecutar el cierre de caja de una taquilla (máquina).
      *
-     * La agencia (rol taquilla) cierra su propia caja; los roles
-     * administrativos deben indicar la agencia (taquilla_id) dentro de
+     * La taquilla (rol taquilla) cierra su propia caja; los roles
+     * administrativos deben indicar la taquilla (taquilla_id) dentro de
      * su alcance jerárquico.
      */
     public function store(Request $request)

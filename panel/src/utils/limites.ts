@@ -155,7 +155,7 @@ export function crearTablaLimites(opts: OpcionesTablaLimites) {
       if (opts.mostrarOrigen) {
         const origen = linea.origen;
         const txt = origen
-          ? `<span class="origen-tag">hereda de ${origen.nivel === 'banca' ? 'Banca' : origen.nivel === 'grupo' ? 'Grupo' : 'Agencia'}: ${origen.valor ? Object.values(origen.valor)[0] : 'valor'}</span>`
+          ? `<span class="origen-tag">hereda de ${origen.nivel === 'banca' ? 'Banca' : origen.nivel === 'grupo' ? 'Grupo' : 'Taquilla'}: ${origen.valor ? Object.values(origen.valor)[0] : 'valor'}</span>`
           : '';
         html += `<td>${txt}</td>`;
       }

@@ -11,11 +11,11 @@ use Illuminate\Support\Facades\DB;
 class CierreService
 {
     /**
-     * Ejecutar el cierre de caja de una agencia.
+     * Ejecutar el cierre de caja de una taquilla (máquina).
      *
      * El período abarca [fecha_inicio, fecha_fin):
      *  - fecha_fin = now()
-     *  - fecha_inicio = fecha_fin del último cierre de la agencia, o la
+     *  - fecha_inicio = fecha_fin del último cierre de la taquilla, o la
      *    fecha_hora de su primera apuesta, o now() si no tiene actividad.
      *
      * Ventas: apuestas con estado != 'anulada' por fecha_hora.
