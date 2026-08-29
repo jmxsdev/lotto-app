@@ -572,3 +572,86 @@ php artisan agencias:backfill --force    # 2ª ejecución: debe reportar 0 creac
 - **Current work unit**: CORRECCIONES DE AUDITORÍA (4 fixes + regresión completa).
 - **Review budget impact**: 4 commits, ~590 líneas (279 código/panel + 4 tests nuevos ~310 + actualizaciones de tests). Acumulado del PR 6 con F5 previo: dentro del presupuesto de 400 líneas por revisión al ser work units independientes.
 - **Rollback boundary**: revertir los 4 commits de corrección elimina los fixes sin tocar F0–F5 (backend previo no rompe); cada commit es reversible de forma independiente.
+
+---
+
+# CORRECCIONES FRONT — CREATE MODE (work unit del PR 6, rama `feat/jerarquia-agencias-f5`)
+
+> **Estado**: 3/3 objetivos implementados con TDD estricto RED→GREEN (backend) + verificación panel (`npm run build`).
+> **Pedido del cliente**: configurar los límites de una entidad MIENTRAS se crea (no después de guardarla) y ocultar la pestaña Usuarios en create mode.
+> **Contexto**: continuación del apply-progress del ciclo (topic `sdd/jerarquia-agencias-locales/apply-progress`); se guarda como sección de este archivo canónico porque el documento completo excede el límite de 50k chars del store.
+
+## Objetivo A — Pestaña LÍMITES funcional en CREATE MODE ✅
+
+### Análisis previo (patrón actual)
+- **Edit mode**: la pestaña Límites monta `crearTablaLimites` (utils/limites.ts) con `GET /limites?{banca|grupo|taquilla}_id=X` → matriz `{juegos, limites, origen}`; guarda con `POST /limites/batch` (ítems legacy con banca_id/grupo_id/taquilla_id) que aplica `validarRestrictividadLimite` (hijo ≤ padre) + `updateOrCreate`.
+- **Create mode (antes)**: `initLimites()` retornaba temprano sin id → la pestaña quedaba con "Cargando límites..." y el notice "Primero guarde la entidad..."; el POST de creación no aceptaba límites.
+- **Patrón elegido**: la matriz de juegos NO depende de la entidad (`GET /juegos` la devuelve con `active`); los límites del padre SÍ se pre-cargables como base editable (`GET /limites?banca_id=padre` para grupo, `?grupo_id=padre` para taquilla); la banca no tiene padre → matriz vacía con juegos. Los límites configurados se PERSISTEN junto con la entidad: el POST de creación acepta `limites` (array de ítems juego×moneda sin entidades explícitas) y los crea en la MISMA transacción que la entidad y su usuario jefe.
+- **Decisión documentada**: se priorizó la persistencia junto con el create (pedido explícito del cliente) sobre la alternativa "crear y redirigir con ?tab=limites". La AGENCIA (local) NO recibe límites: es passthrough (spec `jerarquia-agencias`: "SHALL NOT configurar monedas/vigencia/tiempo/límites"; design D1/D6) y su página no tiene pestaña Límites — desviación del enunciado del work unit, alineada con spec/design.
+
+### Backend (TDD estricto)
+- Nuevo `app/Services/JuegoLimiteService.php` (fuente única de la lógica de límites):
+  - `validarItems(array $items)` — reglas idénticas a `POST /limites/batch` (juego_id, moneda, límites numéricos, fraccion boolean).
+  - `persistirParaEntidad(array $items, string $tipo, int $entidadId)` — resuelve la cadena desde la entidad (banca → [id,null,null]; grupo → [banca_id,id,null]; taquilla → [banca_id,grupo_id,id]), valida que los ítems NO traigan entidades explícitas (422) y delega en `aplicarItemLimite`.
+  - `aplicarItemLimite` / `validarRestrictividadLimite` / `resolverCadenaObjetivo` — EXTRADOS del JuegoController (refactor guiado por tests: 77/77 tests de límites/scope verdes antes y después).
+- `JuegoController` refactorizado: constructor inyecta el servicio; `updateLimites`/`batchLimites` delegan en él (comportamiento idéntico, verificado por LimitesApiTest/LimitesScopedApiTest).
+- Stores de `BancaController`/`GrupoController`/`TaquillaController::store`: validación `'limites' => 'nullable|array'` + creación de entidad, usuario y límites DENTRO de `DB::transaction` (cualquier 422 revierte TODO). `AgenciaController::store` NO cambia (passthrough).
+
+### Panel (create mode)
+- `utils/limites.ts`: refactor de `guardar()` → `construirItems()` + nuevo método público `itemsTocados()` (ítems modificados sin enviarlos).
+- `bancas/detalle.astro`: pestaña Límites activa en create (matriz de juegos con celdas vacías, "Defina los límites iniciales"); se ocultan el selector "Aplicar a" y el botón "Guardar cambios" (el guardado ocurre con el POST de creación); el submit de Información incluye `body.limites = limitesTabla.itemsTocados()` si hay cambios.
+- `grupos/detalle.astro`: base editable = límites efectivos de la banca seleccionada (`GET /limites?banca_id=X`), con re-montaje de la tabla al cambiar la banca; idem submit con límites.
+- `taquillas/detalle.astro`: base editable = límites efectivos del grupo seleccionado (`GET /limites?grupo_id=X`), re-montaje al cambiar el grupo; idem submit con límites.
+
+## Objetivo B — Pestaña USUARIOS oculta en CREATE MODE ✅
+
+- En create mode (sin id) el botón `[data-tab="usuarios"]` y el panel `[data-panel="usuarios"]` se ocultan (display:none) y se excluyen de las tabs válidas de `initTabs` (`?tab=usuarios` → fallback `informacion`). El usuario inicial se crea con el formulario principal (sección "Usuario Jefe").
+- `grupos/detalle.astro`: además se oculta la pestaña Locales en create (sin grupo no hay locales); `agencias/detalle.astro`: se oculta la pestaña Taquillas en create (sin local no hay taquillas). Ninguna pestaña muestra "Cargando..." en create mode: o carga contenido útil (Límites) o está oculta.
+- Edit mode intacto: las pestañas Usuarios/Locales/Taquillas funcionan como antes.
+
+## Objetivo C — Coherencia ✅
+
+- **Encadenamiento grupo→local→taquilla verificado**: `grupos/detalle` → "+ Nuevo local" (`/agencias/detalle?grupo_id=X`) → agencias/detalle AHORA pre-fija el select de grupo desde el query param (el prefijado faltaba — bug del encadenamiento del work unit anterior, corregido); `agencias/detalle` → "+ Nueva taquilla" (`/taquillas/detalle?agencia_id=X`) → taquillas/detalle pre-fija local y grupo (ya funcionaba).
+- **Sin "Cargando..." en create mode**: pestañas sin contenido útil ocultas; Límites carga la matriz con base del padre.
+- **Bug latente corregido**: `applyCreateNotices` de bancas y el arranque de grupos/taquillas referenciaban elementos inexistentes (`limite-juego`, `limite-moneda`, `btn-limite-create`) → TypeError en runtime de create mode para ciertos roles; eliminadas esas referencias.
+- **Suite completa**: `COMPOSER_PROCESS_TIMEOUT=900 composer test` → `{"tool":"phpunit","result":"passed","tests":330,"passed":328,"assertions":1259,"skipped":2}` — baseline 323/321/2 (+7 tests nuevos, 0 rotos).
+- **Pint**: `./vendor/bin/pint --test` → passed.
+- **Panel**: `npm run build` → 22 páginas OK (baseline 22).
+
+## TDD Cycle Evidence (correcciones front)
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|---|---|---|
+| Persistir límites en create (banca/grupo/taquilla) | `tests/Feature/CrearEntidadConLimitesTest.php` (7) | Feature (HTTP) | ✅ 323/321/2 | ✅ 6 fallos (stores ignoraban `limites`) | ✅ 7/7 | ✅ 7 casos (banca con/sin/válido, grupo persiste/excede, taquilla persiste/inválido) | ✅ Pint limpio + refactor JuegoController→JuegoLimiteService (77/77 tests de límites verdes) |
+| Panel create mode (límites/usuarios/encadenamiento) | — (panel sin suite e2e; verificación = build) | E2E manual | ✅ build 22 páginas | N/A (sin test runner) | ✅ build 22 páginas | N/A | ✅ estructura consistente en las 4 páginas |
+
+## Test Summary (correcciones front)
+
+- **Total tests escritos**: 7 nuevos (CrearEntidadConLimitesTest)
+- **Suite completa**: `COMPOSER_PROCESS_TIMEOUT=900 composer test` → 330 tests / 328 passed / 2 skipped / 1259 assertions — baseline 323/321/2 (+7 tests, 0 rotos)
+- **Pint**: `./vendor/bin/pint --test` → passed
+- **Panel**: `npm run build` → 22 páginas
+
+## Commits del work unit (rama `feat/jerarquia-agencias-f5`)
+
+- `11e2d2a` feat(backend): persistir límites junto con la creación de banca, grupo y taquilla
+- `3d37fb3` feat(panel): configurar límites desde la creación y ocultar pestañas sin entidad
+
+## Deviations from Design (correcciones front)
+
+1. **La agencia NO acepta límites en su store**: el enunciado del work unit decía "cada entidad (banca/grupo/agencia/taquilla)"; la spec `jerarquia-agencias` y el design D1/D6 definen la agencia como passthrough (solo identidad, SHALL NOT configurar límites) y su página no tiene pestaña Límites. Se documenta como desviación deliberada.
+2. **Refactor de JuegoController**: la lógica de límites (aplicarItemLimite/validarRestrictividadLimite/resolverCadenaObjetivo) se extrajo a `JuegoLimiteService` para que stores y controlador compartan UNA fuente de verdad. Comportamiento idéntico (verificado por los 77 tests de límites/scope existentes).
+
+## Issues / Gotchas (correcciones front)
+
+- `applyCreateNotices` de bancas y `btn-limite-create` de grupos/taquillas referenciaban ids inexistentes en el HTML actual (legado de un diseño anterior): TypeError en runtime de create mode; se eliminaron en este work unit.
+- El encadenamiento grupo→local (`?grupo_id=`) llegaba a agencias/detalle sin pre-fijar el select de grupo: corregido en este work unit (objetivo C).
+- La suite tarda >2 min con el process-timeout default de composer (300s): usar `COMPOSER_PROCESS_TIMEOUT=900 composer test` o `php artisan test` directo.
+- `backend/.env.example` y `panel/.astro/settings.json` seguían modificados en el working tree (pre-existentes) — NO se commitearon.
+
+## Workload / PR Boundary (correcciones front)
+
+- **Modo**: chained PR slice (feature-branch-chain) — mismo PR 6 sobre la rama `feat/jerarquia-agencias-f5` (base f4). NO se abrió PR.
+- **Current work unit**: CORRECCIONES FRONT CREATE MODE (2 commits de código).
+- **Review budget impact**: 2 commits, ~810 líneas (backend: +652/−253 incl. servicio y tests; panel: +155/−29). Dentro del presupuesto por ser work units independientes.
+- **Rollback boundary**: revertir `11e2d2a` + `3d37fb3` elimina el create-with-limits y el ocultado de pestañas sin tocar F0–F5 ni las correcciones de auditoría; cada commit es reversible de forma independiente. El servicio `JuegoLimiteService` se elimina con el revert del backend (JuegoController vuelve a sus métodos privados).
