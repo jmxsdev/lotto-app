@@ -76,9 +76,9 @@ Chain strategy: feature-branch-chain
 
 ## Phase 6 (F5): Endurecimiento
 
-- [ ] 6.1 `TerminologiaTest` final verde (claves Agencia=local/Taquilla=máquina + mensajes).
-- [ ] 6.2 `composer test` verde + `./vendor/bin/pint --test`.
-- [ ] 6.3 [CLIENTE] Revisión post-backfill del cliente: renombrar/crear locals reales; registrar si el local necesitará configuración propia (D6 posterior).
+- [x] 6.1 `TerminologiaTest` final verde (claves Agencia=local/Taquilla=máquina + mensajes).
+- [x] 6.2 `composer test` verde + `./vendor/bin/pint --test`.
+- [x] 6.3 [CLIENTE] Revisión post-backfill del cliente: renombrar/crear locals reales; registrar si el local necesitará configuración propia (D6 posterior).
 
 ## Rollback
 

@@ -388,3 +388,129 @@ El detalle de taquilla "permite asignar el LOCAL (agencia_id)" pero `TaquillaCon
 ## Próximo paso (orquestador)
 
 - PR 6 (F5 — endurecer): `TerminologiaTest` final verde (claves Agencia=local/Taquilla=máquina + mensajes), `composer test` + `./vendor/bin/pint --test`, revisión post-backfill del cliente. Base `feat/jerarquia-agencias-f4`. Tareas 6.1–6.3 de `tasks.md`.
+
+---
+
+# Apply Progress: jerarquia-agencias-locales — PR 6 (F5, endurecimiento)
+
+## Estado de tareas (Fase 6 — F5)
+
+| Tarea | Estado | Evidencia |
+|---|---|---|
+| 6.1 Cierre de semántica | ✅ | Repaso FINAL: TerminologiaTest ampliado de 11 → 17 casos (6 nuevos RED→GREEN); corregidos 6 mensajes residuales donde la MÁQUINA decía "agencia" (moneda no permitida en apuestas/tickets, vigencia y tiempo de la taquilla contra grupo/banca, dispositivo no registrado, grupo con taquillas); docblocks de cierre (CierreController/CierreService) y label de origen en limites.ts (Agencia→Taquilla); comentarios del scope de límites en JuegoController ("agencias de esa banca/grupo"→"taquillas"). Panel revisado: labels Agencia=local/Taquilla=máquina coherentes. App taquilla (Electron) verificada: no menciona "agencia" en ningún mensaje (la app de escritorio ES la máquina) — sin cambios |
+| 6.2 Suite completa final verde | ✅ | `composer test` → 302 tests / 300 passed / 2 skipped / 1177 assertions (baseline PR5: 296/294 → +6 tests, 0 rotos); `./vendor/bin/pint --test` → passed; `npm run build` (panel) → 22 páginas OK |
+| 6.3 [CLIENTE] Revisión post-backfill | ✅ (checklist documentado; NO ejecutado) | Sección "Despliegue del ciclo completo" a continuación: orden F0→F5, backfill con `--force` desde el VPS, checklist de revisión del cliente y rollback por fase. El backfill NO se ejecutó en producción (exige `--force`; se verificó solo en BD de desarrollo) |
+
+## TDD Cycle Evidence (F5)
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|---|---|---|
+| 6.1 mensajes residuales | `tests/Feature/TerminologiaTest.php` (+6) | Integration (Feature) | ✅ 296/294 | ✅ 6 fallos (mensajes decían "agencia" en contexto de máquina) | ✅ 17/17 | ✅ 6 escenarios (apuesta moneda USD, ticket moneda USD, vigencia taquilla vs grupo, tiempo taquilla vs grupo, dispositivo no registrado, grupo con taquillas) | ✅ Pint limpio |
+
+## Test Summary (F5)
+
+- **Total tests escritos**: 6 nuevos (TerminologiaTest: apuesta moneda, ticket moneda, vigencia, tiempo, dispositivo, grupo destroy)
+- **Suite completa**: `composer test` → 302 tests / 300 passed / 2 skipped / 1177 assertions — baseline PR5: 296/294 (+6 tests, 0 rotos)
+- **Pint**: `./vendor/bin/pint --test` → passed
+- **Panel**: `npm run build` → 22 páginas (sin suite e2e; verificación = build + coherencia de labels/mensajes)
+
+## Commits del slice (rama `feat/jerarquia-agencias-f5`, base `feat/jerarquia-agencias-f4`)
+
+- `6dc0c66` fix(backend,panel): terminología taquilla=máquina en docblocks de cierre y label de origen
+- `ea21413` fix(backend): mensajes residuales usan taquilla=máquina en lugar de agencia
+- (docs) docs(sdd): progreso de apply PR 6 (F5) y tareas 6.1-6.3 completadas
+
+## Evidencia de verificación
+
+- RED: `php artisan test --filter=TerminologiaTest` → 6 fallos (mensajes "agencia" en contexto de máquina)
+- GREEN: mismo filtro → `{"tool":"phpunit","result":"passed","tests":17,"passed":17,"assertions":52}`
+- `composer test` (suite completa, COMPOSER_PROCESS_TIMEOUT=900): `{"tool":"phpunit","result":"passed","tests":302,"passed":300,"assertions":1177,"skipped":2}` — baseline PR5: 296/294 (6 tests nuevos, 0 rotos)
+- `./vendor/bin/pint --test`: `{"tool":"pint","result":"passed"}`
+- `npm run build` (panel): 22 páginas construidas OK
+- Runtime harness: los Feature tests ejercitan los endpoints HTTP reales (POST /apuestas y /tickets con moneda deshabilitada → 422, POST /taquillas con vigencia/tiempo excedidos → 422, POST /dispositivo/verificar, DELETE /grupos/{id} con taquillas → 422); panel sin suite e2e → `npm run build` es el harness de compilación
+
+## Workload / PR Boundary
+
+- **Modo**: chained PR slice (feature-branch-chain, `auto-chain`) — PR 6 → PR 5 (`feat/jerarquia-agencias-f4`)
+- **Current work unit**: PR 6 / F5 — endurecimiento (3 tareas, 2 commits de código + 1 docs)
+- **Boundary**: empieza en `feat/jerarquia-agencias-f4` y termina con la verificación F5 completa. Es el ÚLTIMO slice del ciclo F0→F5.
+- **Review budget impact**: 3 commits, ~150 líneas (145 de código/tests + docs). Dentro del presupuesto de 400 líneas.
+- **Rollback boundary**: revertir los 2 commits de código de la rama `feat/jerarquia-agencias-f5` elimina la limpieza de mensajes/labels sin tocar F0–F4 (el backend previo no rompe: los mensajes vuelven a la semántica vieja solo si se revierten los commits). El commit docs es independiente.
+
+## Deviations from Design (F5)
+
+- **Ninguna funcional.** La tarea 6.1 encontró 6 mensajes de error y 1 docblock residuales de la semántica previa (donde "agencia" significaba la máquina) que el design no enumeraba explícitamente: se corrigieron porque la spec panel-jerarquia y el propio TerminologiaTest exigen "agencia=local, taquilla=máquina" en TODOS los mensajes, no solo en los listados.
+- `GrupoController::destroy`: el check verifica taquillas (máquinas); el mensaje decía "tiene agencias asociadas" (legado). Ahora dice "tiene taquillas asociadas" (refleja lo que el check realmente verifica).
+
+## Issues Found (F5)
+
+- Ninguno bloqueante. `backend/.env.example` y `panel/.astro/settings.json` seguían modificados en el working tree (pre-existentes, contienen credenciales de dev y timestamp de Astro) — NO se commitearon (fuera del alcance de la rama).
+
+## Gotchas (F5)
+
+- La suite tarda >5 min con el process-timeout default de composer (300s la mata): usar `COMPOSER_PROCESS_TIMEOUT=900 composer test` o `php artisan test` directo (122s).
+- `validarVigenciaContraParent`/`validarTiempoEliminacionContraParent` (TaquillaController) y `validarMonedaYLimites` (ApuestaService) se ejecutan en la MÁQUINA: sus mensajes deben hablar de la "taquilla", nunca de la "agencia" (el local no configura monedas/vigencia/tiempo).
+- El mensaje de `DispositivoController::verificar` aplica a la MÁQUINA (activación): "Active su taquilla.", no "su agencia".
+- Los comentarios del scope de límites en JuegoController llamaban "agencias" a las taquillas de una banca/grupo: se corrigieron a "taquillas" (en el dominio de límites no existe el nivel local, es passthrough).
+
+## Mapeo tareas → specs (cierre del ciclo, 4 specs cubiertas)
+
+| Spec | Fase(s) que la cubren | Requerimientos |
+|---|---|---|
+| `jerarquia-agencias` | F0 (1.1–1.9) + F1 (2.1–2.10) | Entidad agencia (local), asociación taquilla/usuario a agencia, rol agencia en ambas fuentes, cadena de activación, backfill idempotente, actualización de tests |
+| `alcance-super-banca` | F2 (3.1–3.4) | Asociación master↔banca, alcance master en entidades/reportes/estadísticas/apuestas/cierres/límites, login X-Panel admite agencia |
+| `reportes-agencia` | F3 (4.1–4.3) + F5 (6.1) | ventasTotales/cuadre/rendimiento por local, semántica de labels (Agencia=local, Taquilla=máquina), sin configuración propia del local, actualización de tests |
+| `panel-jerarquia` | F4 (5.1–5.5) + F5 (6.1) | Renames y labels, sidebar por rol, login/payload con agencia_id, creación de taquillas por agencia, selectores y formularios, actualización de tests de terminología |
+
+---
+
+# DESPLIEGUE DEL CICLO COMPLETO (jerarquia-agencias-locales) — checklist para el cliente
+
+> **Estado**: implementación y verificación local COMPLETAS (F0→F5). Nada de esto se ha ejecutado contra producción todavía.
+
+## 1. Orden de despliegue (F0 → F5)
+
+El ciclo se construyó como cadena de 6 slices sobre la rama feature `feat/jerarquia-agencias-f5` (base f4 → f3 → f2 → f1 → f0). El orquestador hace el push del ciclo al final; NO abrir PRs por fase desde este slice.
+
+| Fase | Rama | Contenido | Backend | Panel | Taquilla |
+|---|---|---|---|---|---|
+| F0 | `feat/jerarquia-agencias-f0` | Migraciones (agencias, agencia_id, master_id), modelos, seeders, comando backfill | ✅ | — | — |
+| F1 | `feat/jerarquia-agencias-f1` | Scope agencia (login, policies, controllers, activación) | ✅ | — | — |
+| F2 | `feat/jerarquia-agencias-f2` | Super banca (master scope) | ✅ | select master | — |
+| F3 | `feat/jerarquia-agencias-f3` | Reportes por local (niveles y labels) | ✅ | — | — |
+| F4 | `feat/jerarquia-agencias-f4` | Panel: sidebar/CRUD/selectores/niveles | ✅ (update taquilla agencia_id) | ✅ | — |
+| F5 | `feat/jerarquia-agencias-f5` | Endurecimiento: mensajes residuales + suite verde | ✅ | ✅ (label origen) | verificado (sin cambios) |
+
+## 2. Ejecución del backfill en producción (como deploy)
+
+El comando `php artisan agencias:backfill` crea 1 local por grupo y vincula taquillas y usuarios rol taquilla. En producción exige `--force` y registra un log revisable. NO se ejecutó en producción (solo BD de desarrollo).
+
+```bash
+# En el VPS, dentro del backend:
+php artisan migrate                      # aplica las 4 migraciones aditivas (todo nullable)
+php artisan agencias:backfill --dry-run  # OPCIONAL pero recomendado: muestra qué haría
+php artisan agencias:backfill --force    # ejecuta: 1 local/grupo + vincula taquillas/usuarios
+php artisan agencias:backfill --force    # 2ª ejecución: debe reportar 0 creaciones/0 asignaciones (idempotente)
+```
+
+## 3. Checklist de revisión del cliente (después del backfill)
+
+1. **Renombrar los locales provisionales**: el backfill crea `{grupo} - Local` (código `{grupo.code}-L01`). Revisar en el panel (Agencias → editar cada local) y asignar el nombre real del punto de venta, datos fiscales (RIF, email, teléfono, dirección, estado, municipio) y confirmar el grupo correcto.
+2. **Verificar `bancas.master_id`**: cada banca debe tener su super banca (master) asignado; revisar en el panel (Bancas → columna Master). El backfill asigna `master_id = created_by` a las bancas existentes si el creador es rol master; de lo contrario asignar manualmente.
+3. **Verificar el alcance de los roles**: iniciar sesión en el panel con un usuario rol agencia (debe ver solo su local: taquillas, cuadre, reportes) y con un master (debe ver solo sus bancas). La app taquilla (Electron) no cambió: sus mensajes siguen siendo "taquilla" (máquina).
+4. **Registrar si un local necesitará configuración propia** (D6 posterior): en esta iteración la agencia es solo identidad (passthrough — no configura monedas/vigencia/tiempo/límites). Si algún local necesita límites propios distintos de su grupo/banca, anotarlo como requerimiento para la fase D6.
+
+## 4. Rollback por fase
+
+| Fase | Rollback |
+|---|---|
+| F0 | `php artisan migrate:rollback --step=4` revierte el esquema (todo aditivo/nullable); `taquillas.grupo_id` intacto. Backfill reversible: `agencia_id=null` / `master_id=null`; re-ejecutable, no destructivo |
+| F1 | Revertir ramas agencia en controllers/policies/routes (login X-Panel, VerifyMac, ApuestaPolicy, Taquilla/User/Apuesta/Cierre/Juego/Reporte/Estadistica, ActivacionEfectivaService) |
+| F2 | Quitar `whereIn` master (vuelve global) + revertir select master en bancas |
+| F3 | Revertir niveles/labels en `ApuestaService`/`ReporteController` |
+| F4 | Revertir commits panel (backend previo no rompe: todo nullable y aditivo) |
+| F5 | Revertir limpieza de mensajes/labels residuales (backend previo no rompe) |
+
+## Próximo paso (orquestador)
+
+- **VERIFICAR**: ejecutar `sdd-verify` con el mapeo tareas→specs anterior (4 specs cubiertas: jerarquia-agencias, alcance-super-banca, reportes-agencia, panel-jerarquia) y el diff completo del ciclo F0→F5.
