@@ -579,7 +579,13 @@ class ApuestaService
     public function relacionTickets($query, array $filters, int $perPage = 50)
     {
         $tickets = (clone $query)
-            ->with(['taquilla.agencia', 'apuestas'])
+            // withTrashed: un ticket histórico conserva los labels local/máquina
+            // aunque la taquilla o el local hayan sido soft-deleted (cascada FIX)
+            ->with([
+                'taquilla' => fn ($q) => $q->withTrashed(),
+                'taquilla.agencia' => fn ($q) => $q->withTrashed(),
+                'apuestas',
+            ])
             ->withCount('apuestas as jugadas_count')
             ->orderBy('created_at', 'desc')
             ->paginate($perPage);
@@ -662,10 +668,13 @@ class ApuestaService
         $totalPremio = $ventasPorEntidad->sum('Premio');
         $totalGanancia = $totalVenta - $totalPremio;
 
-        // Entidades (locales o máquinas) con su estado de activación
+        // Entidades (locales o máquinas) con su estado de activación.
+        // withTrashed: conserva el nombre de entidades soft-deleted (cascada
+        // FIX) para que el historial siga trazable; una trashed se muestra
+        // como 'Inactiva' con su nombre real.
         $entidades = $esAgencia
-            ? Agencia::whereIn('id', $ventasPorEntidad->keys())->get()->keyBy('id')
-            : Taquilla::whereIn('id', $ventasPorEntidad->keys())->with('grupo')->get()->keyBy('id');
+            ? Agencia::withTrashed()->whereIn('id', $ventasPorEntidad->keys())->get()->keyBy('id')
+            : Taquilla::withTrashed()->whereIn('id', $ventasPorEntidad->keys())->with('grupo')->get()->keyBy('id');
 
         // Label de la fila: "Agencia" para el local, "Taquilla" para la máquina
         $keyLabel = $esAgencia ? 'Agencia' : 'Taquilla';

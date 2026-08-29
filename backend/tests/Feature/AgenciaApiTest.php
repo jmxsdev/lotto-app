@@ -197,7 +197,7 @@ class AgenciaApiTest extends TestCase
         $this->assertDatabaseHas('agencias', ['id' => $local->id, 'active' => false]);
     }
 
-    public function test_destroy_soft_delete_y_set_null_en_taquillas_y_usuarios()
+    public function test_destroy_soft_delete_en_cascada_taquillas_y_desactiva_usuarios()
     {
         $super = $this->superUser();
         $local = Agencia::factory()->create(['active' => true]);
@@ -217,9 +217,12 @@ class AgenciaApiTest extends TestCase
         $response->assertStatus(200);
 
         $this->assertSoftDeleted('agencias', ['id' => $local->id]);
-        // FK set null: taquillas y usuarios conservan la fila sin agencia
-        $this->assertDatabaseHas('taquillas', ['id' => $taquilla->id, 'agencia_id' => null]);
-        $this->assertDatabaseHas('users', ['id' => $user->id, 'agencia_id' => null]);
+        // CASCADA (decisión del cliente): la taquilla se soft-deletea y
+        // CONSERVA su local (nunca agencia_id null); el usuario rol taquilla
+        // se desactiva conservando el registro y su local.
+        $this->assertSoftDeleted('taquillas', ['id' => $taquilla->id]);
+        $this->assertDatabaseHas('taquillas', ['id' => $taquilla->id, 'agencia_id' => $local->id]);
+        $this->assertDatabaseHas('users', ['id' => $user->id, 'agencia_id' => $local->id, 'active' => false]);
     }
 
     public function test_banca_no_crea_agencia_en_grupo_de_otra_banca()

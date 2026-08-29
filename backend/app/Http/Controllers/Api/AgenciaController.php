@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Agencia;
 use App\Models\Grupo;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 /**
@@ -151,9 +152,16 @@ class AgenciaController extends Controller
     }
 
     /**
-     * Eliminar (soft delete) una agencia. Las taquillas y usuarios vinculados
-     * conservan la fila con agencia_id null (el soft delete no dispara la FK
-     * set null, por lo que se desvincula explícitamente).
+     * Eliminar (soft delete) un local con CASCADA (decisión del cliente tras
+     * el WARNING de verify: la taquilla SIEMPRE tiene local asignado, nunca
+     * se deja con agencia_id null):
+     * - Taquillas del local: SOFT-DELETE (conservan agencia_id; el historial
+     *   de apuestas/pagos/cierres queda intacto y trazable en reportes).
+     * - Usuarios rol taquilla del local: se DESACTIVAN (active=false) y
+     *   conservan agencia_id (User no usa SoftDeletes; se conserva el registro).
+     * - El local se soft-deletea. Todo en una transacción.
+     * Permisos intactos: authorizeGestion + authorizeAgenciaAccess ya acotan
+     * quién puede borrar el local (roles sin permiso → 403).
      */
     public function destroy(Request $request, Agencia $agencia)
     {
@@ -162,9 +170,15 @@ class AgenciaController extends Controller
         $this->authorizeGestion($user);
         $this->authorizeAgenciaAccess($user, $agencia);
 
-        $agencia->taquillas()->update(['agencia_id' => null]);
-        $agencia->users()->update(['agencia_id' => null]);
-        $agencia->delete();
+        DB::transaction(function () use ($agencia) {
+            // CASCADA: soft-delete de las taquillas del local (conservan agencia_id)
+            $agencia->taquillas()->delete();
+
+            // Usuarios rol taquilla del local: se desactivan (no se borran)
+            $agencia->users()->where('role', 'taquilla')->update(['active' => false]);
+
+            $agencia->delete();
+        });
 
         return response()->json(['message' => 'Agencia eliminada correctamente.']);
     }

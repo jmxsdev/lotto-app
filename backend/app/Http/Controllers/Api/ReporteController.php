@@ -232,7 +232,14 @@ class ReporteController extends Controller
         // Solo tickets con estado 'vencido'
         $query->where('estado', 'vencido');
 
-        $tickets = $query->with(['taquilla.agencia', 'taquilla.grupo.banca', 'apuestas'])
+        $tickets = $query->with([
+            // withTrashed: un ticket vencido histórico conserva los labels
+            // local/máquina aunque la taquilla o el local estén soft-deleted
+            'taquilla' => fn ($q) => $q->withTrashed(),
+            'taquilla.agencia' => fn ($q) => $q->withTrashed(),
+            'taquilla.grupo.banca' => fn ($q) => $q->withTrashed(),
+            'apuestas',
+        ])
             ->orderBy('created_at', 'desc')
             ->paginate($request->input('per_page', 50));
 
