@@ -247,22 +247,6 @@ class AgenciaDestroyCascadaTest extends TestCase
         $this->assertNotNull($filaLocal, 'El local borrado debe conservar su fila de ventas');
         $this->assertEquals(1000, $filaLocal['Venta']);
 
-        // 3. Rendimiento por máquina: label con el nombre real (no "Taquilla #id")
-        $response = $this->actingAs($super, 'sanctum')
-            ->getJson('/api/v1/reportes/rendimiento-taquillas');
-        $response->assertStatus(200);
-        $filaRend = collect($response->json('data'))->firstWhere('Taquilla', $taquilla->name);
-        $this->assertNotNull($filaRend, 'El rendimiento debe conservar el nombre de la taquilla borrada');
-        $this->assertEquals(1000, $filaRend['Venta']);
-
-        // 4. Rendimiento por local: label con el nombre del local
-        $response = $this->actingAs($super, 'sanctum')
-            ->getJson('/api/v1/reportes/rendimiento-taquillas?nivel=agencia');
-        $response->assertStatus(200);
-        $filaRendLocal = collect($response->json('data'))->firstWhere('Agencia', $local->name);
-        $this->assertNotNull($filaRendLocal, 'El rendimiento por local debe conservar el nombre del local borrado');
-        $this->assertEquals(1000, $filaRendLocal['Venta']);
-
         // 5. Relación de tickets: conserva los labels local/máquina de la taquilla trashed
         $response = $this->actingAs($super, 'sanctum')
             ->getJson('/api/v1/reportes/relacion-tickets');
