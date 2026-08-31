@@ -200,26 +200,6 @@ class ReporteController extends Controller
     }
 
     /**
-     * GET /api/reportes/rendimiento-taquillas
-     *
-     * Rendimiento por taquilla con métricas de venta, anulación, premio y ganancia.
-     */
-    public function rendimientoTaquillas(Request $request)
-    {
-        $query = $this->buildApuestaQuery($request);
-
-        // nivel=agencia agrupa por LOCAL (agencias); nivel=taquilla (default) por máquina
-        $filters = [
-            'nivel' => $request->input('nivel', 'taquilla'),
-        ];
-        $data = $this->apuestaService->rendimientoTaquillas($query, $filters);
-
-        return response()->json([
-            'data' => $data,
-        ]);
-    }
-
-    /**
      * GET /api/reportes/vencidos
      *
      * Lista de tickets expirados (estado = 'vencido').

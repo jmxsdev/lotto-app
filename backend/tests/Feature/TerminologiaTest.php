@@ -68,42 +68,6 @@ class TerminologiaTest extends TestCase
         return $taquilla;
     }
 
-    // ---------------------------------------------------------------
-    // R3 — Claves JSON de reportes: "Agencia"=local, "Taquilla"=máquina
-    // ---------------------------------------------------------------
-
-    public function test_rendimiento_nivel_taquilla_usa_clave_taquilla()
-    {
-        $taquilla = $this->crearJerarquiaConVenta();
-
-        $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->getJson('/api/v1/reportes/rendimiento-taquillas');
-
-        $response->assertStatus(200);
-        $data = $response->json('data');
-
-        $this->assertCount(1, $data);
-        $this->assertArrayHasKey('Taquilla', $data[0]);
-        $this->assertArrayNotHasKey('Agencia', $data[0]);
-        $this->assertEquals($taquilla->name, $data[0]['Taquilla'], 'Taquilla = máquina');
-    }
-
-    public function test_rendimiento_nivel_agencia_usa_clave_agencia()
-    {
-        $taquilla = $this->crearJerarquiaConVenta();
-
-        $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->getJson('/api/v1/reportes/rendimiento-taquillas?nivel=agencia');
-
-        $response->assertStatus(200);
-        $data = $response->json('data');
-
-        $this->assertCount(1, $data);
-        $this->assertArrayHasKey('Agencia', $data[0]);
-        $this->assertArrayNotHasKey('Taquilla', $data[0]);
-        $this->assertEquals($taquilla->agencia->name, $data[0]['Agencia'], 'Agencia = local');
-    }
-
     public function test_relacion_tickets_usa_clave_agencia_local_y_taquilla_maquina()
     {
         $taquilla = $this->crearJerarquiaConVenta();
