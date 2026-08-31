@@ -1,0 +1,78 @@
+# Tasks: Integración de juegos + scrapers (incremental)
+
+## Review Workload Forecast
+
+| Field | Value |
+|-------|-------|
+| Estimated changed lines | ~6.000 (fundación ~500 + 14 juegos × ~400) |
+| 800-line budget risk | High |
+| Chained PRs recommended | Yes |
+| Suggested split | PR1 fundación → PR2..15 (1 juego/PR) |
+| Delivery strategy | auto-chain |
+| Chain strategy | feature-branch-chain |
+
+Decision needed before apply: No
+Chained PRs recommended: Yes
+Chain strategy: feature-branch-chain
+400-line budget risk: High
+
+### Suggested Work Units
+
+| Unit | Goal | Likely PR | Focused test command | Runtime harness | Rollback boundary |
+|------|------|-----------|----------------------|-----------------|-------------------|
+| 1 | Fundación: catálogo + migración + resolver + fail-fast | PR 1 (base=tracker) | `composer test -- --filter=ScraperResolverTest` | `php artisan migrate` + `php artisan db:seed` | Revertir migración + restaurar resolveScraper legacy |
+| 2..15 | Un juego c/u (#9–22) | PR 2..15 (base=PR anterior) | `composer test -- --filter=Juego<Xxx>` | `php artisan tinker` → fetch+parse con URL real | Eliminar seeder + clase + fixtures + fila juego |
+
+## Phase 1: Fundación (PR 1)
+
+- [x] 1.1 Migración `backend/database/migrations/*_add_scraper_class_to_juegos_table.php`: `string('scraper_class')->nullable()`; down `dropColumn`.
+- [x] 1.2 `backend/app/Models/Juego.php`: `scraper_class` en `$fillable` y `$hidden` (no exponer en payload API).
+- [x] 1.3 Catálogo `backend/docs/juegos.md`: 7 juegos actuales + hueco `#8` (nombre, slug, type, horarios, fuente, estado).
+- [x] 1.4 `backend/app/Jobs/ScrapeResultsJob.php` `resolveScraper`: orden `scraper_class` → match URL (lottoactivo/triplezulia) → convención `{Studly(type)}Scraper`. Clase inexistente → warning + null.
+- [x] 1.5 `instantiateScraper`: rama Animalitos pasa `$juego`; resto `new $class($juego)`.
+- [x] 1.6 `backend/app/Plugins/Scrapers/BaseScraper.php`: hoistear `saveResults()` (upsert juego+fecha+hora), `findJuegoOrFail()` (slug→name→throw "juego no registrado; ejecuta su seeder"), `normalizeHora()` ("10:00 AM"|"H:i:s"→"H:i" America/Caracas).
+- [x] 1.7 `AnimalitosScraper.php`: `findOrCreateJuego` → `findJuegoOrFail` (conserva mapa canónico slug); elimina `saveResults` local.
+- [x] 1.8 `TripletasScraper.php`: constructor `__construct(?Juego $juego = null)` (productId desde `config['scraper']['product_id']` default '2'); migra a `findJuegoOrFail`; elimina `saveResults` local.
+- [x] 1.9 RED→GREEN `backend/tests/Unit/ScraperResolverTest.php`: scraper_class gana; clase inexistente→null; `trio-activo`→AnimalitosScraper (orden URL→convención); convención por type.
+- [x] 1.10 RED→GREEN fail-fast: nombre desconocido lanza `RuntimeException` y NO crea filas (`Juego::count()` invariante).
+
+## Phase 2: Juegos #9–22 (1 work unit por juego, orden de URLs del cliente)
+
+Plantilla por juego (RED→GREEN, TDD estricto):
+
+- [ ] a. Seeder `backend/database/seeders/<Xxx>Seeder.php`: `Juego::firstOrCreate(['slug'])` + `scraper_class` + `JuegoLimite` (banca/bs/3600) + `PluginJuego` (reusa clase por type) + `JuegoOpcion*` + `JuegoHorario` (`firstOrCreate(['juego_id','hora'])`); registrar en `DatabaseSeeder`.
+- [ ] b. Scraper `backend/app/Plugins/Scrapers/<Xxx>Scraper.php` (solo fetch+parse+constructor) según fuente.
+- [ ] c. Fixture real `backend/tests/Fixtures/<xxx>_*.{json,html}`.
+- [ ] d. RED→GREEN `tests/Unit/Juego<Xxx>ScraperTest.php` (Reflection sobre parse) + `tests/Feature/Juego<Xxx>ResultsTest.php` (RefreshDatabase, saveResults+dedupe). Comando: `composer test -- --filter=Juego<Xxx>`.
+- [ ] e. Fila en `backend/docs/juegos.md` (mismo WU).
+- [ ] f. Verificación funcional con URL real (`php artisan tinker` → fetch+parse) antes del siguiente juego.
+
+| # | Juego | slug | type (fuente) | Flag |
+|---|-------|------|---------------|------|
+| 9 | Triple Caliente | triple-caliente | tripletas (API productId) | |
+| 10 | Cazaloton | cazaloton | según URL cliente | |
+| 11 | Triple Chance | triple-chance | tripletas (API productId) | |
+| 12 | El Arrejuntado | el-arrejuntado | según URL cliente | |
+| 13 | El Guacharito | el-guacharito | según URL cliente | |
+| 14 | Guacharo Activo | guacharo-activo | según URL cliente | |
+| 15 | La Granjita | la-granjita | según URL cliente | |
+| 16 | La Ricachona | la-ricachona | según URL cliente | |
+| 17 | Loto Chaima | loto-chaima | según URL cliente | |
+| 18 | Mega Animal 40 | mega-animal-40 | animalitos (lottoactivo) | |
+| 19 | Selva Plus | selva-plus | según URL cliente | |
+| 20 | Triple Tachira | triple-tachira | tripletas (API productId) | |
+| 21 | Triple Facil | triple-facil (+terminal) | tripletas/terminales | **CONDICIONAL** (doble) |
+| 22 | Triple Zamorano | triple-zamorano | tripletas (API productId) | |
+
+**Condicionales**: `#21 Triple Facil` — decisión cliente (D8: dos juegos `triple-facil`/`triple-facil-terminal` + un `TripleFacilScraper` que emite ambas y filtra por `config['scraper']['modalidad']`). `#8` hueco — confirmar al integrar juego 9. Cada tarea `b` debe indicar al apply qué información pedir al cliente (URL + estructura + productId + type).
+
+## Phase 3: Verificación / cierre
+
+- [ ] 3.1 Suite general completa al integrar 10 juegos (criterio cliente), documentado en `docs/juegos.md`.
+- [ ] 3.2 `vendor/bin/pint --test` (CI) limpio.
+- [ ] 3.3 Confirmar `panel/` y contratos API intactos.
+
+## Rollback por unidad
+
+- Juego: eliminar seeder + clase scraper + fixtures + fila `juegos`; sin afectar otros juegos.
+- Fundación: `php artisan migrate:rollback` (drop column) restaura resolver legacy.
