@@ -2,16 +2,37 @@
 
 namespace Tests\Unit;
 
+use App\Models\Juego;
 use App\Plugins\Scrapers\AnimalitosScraper;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class AnimalitosScraperTest extends TestCase
 {
+    use RefreshDatabase;
+
     protected AnimalitosScraper $scraper;
 
     protected function setUp(): void
     {
         parent::setUp();
+
+        // Registro explícito de los juegos del feed (fail-fast: el scraper ya no crea juegos)
+        Juego::create([
+            'name' => 'Lotto Activo',
+            'slug' => 'lotto-activo',
+            'type' => 'animalitos',
+            'requires_scraper' => true,
+            'active' => true,
+        ]);
+        Juego::create([
+            'name' => 'Lotto Activo RD',
+            'slug' => 'lotto-activo-rd',
+            'type' => 'animalitos',
+            'requires_scraper' => true,
+            'active' => true,
+        ]);
+
         $this->scraper = new AnimalitosScraper;
     }
 

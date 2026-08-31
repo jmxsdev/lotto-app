@@ -3,7 +3,6 @@
 namespace App\Plugins\Scrapers;
 
 use App\Models\Juego;
-use App\Models\Resultado;
 
 class AnimalitosScraper extends BaseScraper
 {
@@ -69,13 +68,7 @@ class AnimalitosScraper extends BaseScraper
         // [{"resultado1":"486","time_s":"08:00 AM","fecha":"...","id":"..."}, ...]
         if ($esFormatoPlano) {
             $gameName = $this->slug === 'trio_activo' ? 'Trío Activo' : 'Terminal Activo';
-            $juego = $this->findOrCreateJuego(['name' => $gameName]);
-
-            if (! $juego) {
-                $this->logWarning("No se pudo encontrar/crear juego: {$gameName}");
-
-                return [];
-            }
+            $juego = $this->findJuegoOrFail(['name' => $gameName]);
 
             foreach ($data['datos'] as $item) {
                 $resultados[] = $this->mapToResultado($item, $juego, $item);
@@ -87,13 +80,7 @@ class AnimalitosScraper extends BaseScraper
         // Formato anidado: Animalitos
         // [{"name":"Lotto Activo","resultados":[{...}]}, ...]
         foreach ($data['datos'] as $juegoData) {
-            $juego = $this->findOrCreateJuego($juegoData);
-
-            if (! $juego) {
-                $this->logWarning('No se pudo encontrar/crear juego: '.($juegoData['name'] ?? 'desconocido'));
-
-                continue;
-            }
+            $juego = $this->findJuegoOrFail($juegoData);
 
             foreach ($juegoData['resultados'] ?? [] as $resultadoData) {
                 $resultados[] = $this->mapToResultado($resultadoData, $juego, $juegoData);
@@ -130,12 +117,12 @@ class AnimalitosScraper extends BaseScraper
         return null;
     }
 
-    protected function findOrCreateJuego(array $juegoData): ?Juego
+    protected function findJuegoOrFail(array $juegoData): Juego
     {
         $name = $juegoData['name'] ?? null;
 
         if (! $name) {
-            return null;
+            throw new \RuntimeException('Nombre de juego ausente en el feed');
         }
 
         $rawSlug = \Str::slug($name);
@@ -149,26 +136,7 @@ class AnimalitosScraper extends BaseScraper
             default => $rawSlug,
         };
 
-        $type = match ($this->slug) {
-            'trio_activo' => 'tripletas',
-            'terminal_activo' => 'terminales',
-            default => 'animalitos',
-        };
-
-        $existing = Juego::where('slug', $canonicalSlug)->first();
-        if ($existing) {
-            return $existing;
-        }
-
-        return Juego::create([
-            'slug' => $canonicalSlug,
-            'name' => $name,
-            'type' => $type,
-            'config' => ['premio_multiplo' => 30],
-            'requires_scraper' => true,
-            'scraper_url' => $this->baseUrl.'/resultados/'.$this->slug.'/',
-            'active' => true,
-        ]);
+        return parent::findJuegoOrFail(['slug' => $canonicalSlug, 'name' => $name]);
     }
 
     protected function mapToResultado(array $data, Juego $juego, array $juegoData): array
@@ -218,31 +186,5 @@ class AnimalitosScraper extends BaseScraper
             'sorteo_id_externo' => $data['id'] ?? null,
             'premios_detalle' => null,
         ];
-    }
-
-    public function saveResults(array $resultados, string $fecha): int
-    {
-        $guardados = 0;
-
-        foreach ($resultados as $resultadoData) {
-            $resultadoData['fecha_sorteo'] = $fecha;
-
-            $existing = Resultado::where('juego_id', $resultadoData['juego_id'])
-                ->whereDate('fecha_sorteo', $fecha)
-                ->where('hora_sorteo', $resultadoData['hora_sorteo'])
-                ->first();
-
-            if ($existing) {
-                $existing->update($resultadoData);
-                $this->logInfo("Resultado actualizado: hora {$resultadoData['hora_sorteo']}");
-            } else {
-                Resultado::create($resultadoData);
-                $this->logInfo("Resultado creado: hora {$resultadoData['hora_sorteo']}");
-            }
-
-            $guardados++;
-        }
-
-        return $guardados;
     }
 }

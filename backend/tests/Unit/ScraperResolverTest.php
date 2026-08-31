@@ -171,4 +171,99 @@ class ScraperResolverTest extends TestCase
 
         $this->assertInstanceOf(TripletasScraper::class, $scraper);
     }
+
+    public function test_fail_fast_animalitos_juego_no_registrado_lanza_y_no_crea_filas(): void
+    {
+        $this->assertEquals(0, Juego::count());
+
+        $scraper = new AnimalitosScraper('animalitos');
+
+        $json = json_encode(['datos' => [
+            ['name' => 'Juego Fantasma', 'resultados' => []],
+        ]]);
+
+        $parse = new \ReflectionMethod($scraper, 'parse');
+        $parse->setAccessible(true);
+
+        try {
+            $parse->invoke($scraper, $json);
+            $this->fail('Debería lanzar RuntimeException por juego no registrado');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('no registrado', $e->getMessage());
+        }
+
+        $this->assertEquals(0, Juego::count(), 'No debe crearse ningún juego en caliente');
+    }
+
+    public function test_fail_fast_animalitos_resuelve_juego_por_mapa_canonico(): void
+    {
+        $juego = Juego::create([
+            'name' => 'Monje Millonario',
+            'slug' => 'monje-millonario',
+            'type' => 'animalitos',
+            'requires_scraper' => true,
+            'active' => true,
+        ]);
+
+        $scraper = new AnimalitosScraper('animalitos');
+
+        $json = json_encode(['datos' => [
+            ['name' => 'Lotto Activo 2 Monje Millonario', 'resultados' => [
+                ['number_animal' => 5, 'name_animal' => 'León', 'time_s' => '08:00 AM', 'id_game' => 'g1'],
+            ]],
+        ]]);
+
+        $parse = new \ReflectionMethod($scraper, 'parse');
+        $parse->setAccessible(true);
+
+        $resultados = $parse->invoke($scraper, $json);
+
+        $this->assertCount(1, $resultados);
+        $this->assertEquals($juego->id, $resultados[0]['juego_id']);
+        $this->assertEquals('León', $resultados[0]['numeros_ganadores']['nombre_animal']);
+    }
+
+    public function test_fail_fast_tripletas_lanza_sin_juego_registrado(): void
+    {
+        $this->assertEquals(0, Juego::count());
+
+        $scraper = new TripletasScraper;
+        $json = file_get_contents(base_path('tests/Fixtures/triplezulia_response.json'));
+
+        $parse = new \ReflectionMethod($scraper, 'parse');
+        $parse->setAccessible(true);
+
+        try {
+            $parse->invoke($scraper, $json);
+            $this->fail('Debería lanzar RuntimeException por triple-zulia no registrado');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('no registrado', $e->getMessage());
+        }
+
+        $this->assertEquals(0, Juego::count(), 'No debe crearse ningún juego en caliente');
+    }
+
+    public function test_fail_fast_tripletas_resuelve_juego_registrado(): void
+    {
+        $juego = Juego::create([
+            'name' => 'Triple Zulia',
+            'slug' => 'triple-zulia',
+            'type' => 'tripletas',
+            'requires_scraper' => true,
+            'active' => true,
+        ]);
+
+        $scraper = new TripletasScraper;
+        $json = file_get_contents(base_path('tests/Fixtures/triplezulia_response.json'));
+
+        $parse = new \ReflectionMethod($scraper, 'parse');
+        $parse->setAccessible(true);
+
+        $resultados = $parse->invoke($scraper, $json);
+
+        $this->assertCount(3, $resultados);
+        foreach ($resultados as $resultado) {
+            $this->assertEquals($juego->id, $resultado['juego_id']);
+        }
+    }
 }
