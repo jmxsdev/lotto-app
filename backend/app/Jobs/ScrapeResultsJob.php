@@ -119,6 +119,18 @@ class ScrapeResultsJob implements ShouldQueue
 
     protected function resolveScraper(Juego $juego): ?string
     {
+        if ($juego->scraper_class) {
+            $class = $juego->scraper_class;
+
+            if (class_exists($class)) {
+                return $class;
+            }
+
+            FacadeLog::warning("ScrapeResultsJob: scraper_class {$juego->scraper_class} no existe para {$juego->name}");
+
+            return null;
+        }
+
         $url = $juego->scraper_url ?? '';
         $type = $juego->type;
 
@@ -137,10 +149,9 @@ class ScrapeResultsJob implements ShouldQueue
 
     protected function instantiateScraper(string $class, Juego $juego): object
     {
-        $url = $juego->scraper_url ?? '';
-
         if ($class === AnimalitosScraper::class) {
             $slug = 'animalitos';
+            $url = $juego->scraper_url ?? '';
             if (str_contains($url, 'trio_activo')) {
                 $slug = 'trio_activo';
             }
@@ -151,7 +162,7 @@ class ScrapeResultsJob implements ShouldQueue
             return new AnimalitosScraper($slug);
         }
 
-        return new $class;
+        return new $class($juego);
     }
 
     protected function logToDatabase(string $level, string $message, array $context = []): void
