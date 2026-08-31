@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Models\Juego;
+use App\Plugins\Scrapers\TripletasScraper;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -16,13 +17,13 @@ class JuegoScraperClassTest extends TestCase
             'name' => 'Juego Prueba',
             'slug' => 'juego-prueba',
             'type' => 'tripletas',
-            'scraper_class' => \App\Plugins\Scrapers\TripletasScraper::class,
+            'scraper_class' => TripletasScraper::class,
             'requires_scraper' => true,
             'active' => true,
         ]);
 
-        $this->assertEquals(\App\Plugins\Scrapers\TripletasScraper::class, $juego->scraper_class);
-        $this->assertEquals(\App\Plugins\Scrapers\TripletasScraper::class, $juego->fresh()->scraper_class);
+        $this->assertEquals(TripletasScraper::class, $juego->scraper_class);
+        $this->assertEquals(TripletasScraper::class, $juego->fresh()->scraper_class);
     }
 
     public function test_scraper_class_no_se_expone_en_payload_api(): void
@@ -31,7 +32,7 @@ class JuegoScraperClassTest extends TestCase
             'name' => 'Juego Prueba',
             'slug' => 'juego-prueba',
             'type' => 'tripletas',
-            'scraper_class' => \App\Plugins\Scrapers\TripletasScraper::class,
+            'scraper_class' => TripletasScraper::class,
             'requires_scraper' => true,
             'active' => true,
         ]);
@@ -39,7 +40,7 @@ class JuegoScraperClassTest extends TestCase
         $payload = $juego->toArray();
 
         $this->assertArrayNotHasKey('scraper_class', $payload);
-        $this->assertEquals(\App\Plugins\Scrapers\TripletasScraper::class, $juego->scraper_class);
+        $this->assertEquals(TripletasScraper::class, $juego->scraper_class);
     }
 
     public function test_scraper_class_nullable_sin_scraper_explicito(): void
