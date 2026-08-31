@@ -220,20 +220,16 @@ const name = user?.name || '';
     // Juegos
     if (['super_master','master'].includes(role)) sidebarNav.appendChild(addLink('Juegos', '/juegos', '🎲'));
 
-    // Rendimiento — todos los roles
-    sidebarNav.appendChild(addLink('Rendimiento', '/rendimiento', '📈'));
+    // Gráficos — todos los roles
+    sidebarNav.appendChild(addLink('Gráficos', '/rendimiento', '📈'));
 
     // Límites — vista de auditoría de solo lectura, únicamente super_master
     if (role === 'super_master') sidebarNav.appendChild(addLink('Límites', '/limites', '🎯'));
-
-    // Cuadre de caja
-    if (['super_master','master','banca','grupo','agencia'].includes(role)) sidebarNav.appendChild(addLink('Cuadre de Caja', '/cuadre', '💰'));
 
     // Reportes dropdown — todos los roles
     const reportes = [
       { label: 'Ventas Totales', href: '/reportes/ventas', icon: '💰' },
       { label: 'Relación Tickets', href: '/reportes/tickets', icon: '🎫' },
-      { label: 'Rendimiento por Agencia', href: '/reportes/taquillas', icon: '📊' },
       { label: 'Premios Vencidos', href: '/reportes/vencidos', icon: '⏰' },
     ];
 
