@@ -30,6 +30,7 @@ class DatabaseSeeder extends Seeder
             TripleChanceSeeder::class,
             ElArrejuntadoSeeder::class,
             ElGuacharitoSeeder::class,
+            GuacharoActivoSeeder::class,
         ]);
     }
 }
