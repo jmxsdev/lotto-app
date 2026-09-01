@@ -27,6 +27,7 @@ class DatabaseSeeder extends Seeder
             TrioActivoSeeder::class,
             TripleCalienteSeeder::class,
             CazalotonSeeder::class,
+            TripleChanceSeeder::class,
         ]);
     }
 }
