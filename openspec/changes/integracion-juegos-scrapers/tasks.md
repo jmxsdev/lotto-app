@@ -68,7 +68,15 @@ Juego 11 (Triple Chance) completado en el PR 4 de la cadena (rama
 - [x] 11e. Fila en `backend/docs/juegos.md` (mismo WU).
 - [ ] 11f. Verificación funcional con URL real (`php artisan tinker` → fetch+parse) pendiente del cliente (datos reales).
 
-Plantilla para los juegos restantes (#12–22):
+### Juego 12 (El Arrejuntado) — completado en PR 5 (rama f4-el-arrejuntado, base f3-triple-chance)
+- [x] 12a. Seeder `ElArrejuntadoSeeder.php`: slug `el-arrejuntado`, type `tripletas`, `premio_multiplo` 30, `scraper_url` https://backend.serviciosintegradostriple7.com/api/v1/products/el-arrejuntao/results/, `scraper_class` ElArrejuntaoScraper, `requires_scraper` true, `JuegoLimite` banca/bs/3600, `PluginJuego` Tripletas, `JuegoOpcion` 12 signos, `JuegoHorario` 10:00/13:00/16:00/19:00/23:00 (5); registrado en `DatabaseSeeder`.
+- [x] 12b. Scraper `ElArrejuntaoScraper.php` (extiende BaseScraper): fetch del endpoint JSON por fecha (`?date=`), parsea draws con `is_published=true`, normaliza `draw_time` 12h→H:i (`normalizeHora`), mapea las 6 modalidades a `numeros_ganadores` (array JSON flexible), `findJuegoOrFail` fail-fast, `saveResults` heredado (dedupe).
+- [x] 12c. Fixture real `backend/tests/Fixtures/elarrejuntao_results.json` (snapshot del endpoint 2026-09-01: 1 draw publicado con 6 modalidades).
+- [x] 12d. RED→GREEN `ElArrejuntadoScraperTest.php` (unit, 7) + `ElArrejuntadoResultsTest.php` (feature, 6) → `composer test -- --filter=Arrejuntado` 13/13. `LimitesScopedApiTest` conteos 10→11 juegos/20→22 límites+origen/40→44 scope, mixto 20→22.
+- [x] 12e. Fila en `backend/docs/juegos.md` (juego 12, type tripletas, 5 horarios, fuente API) + nota de la estructura multi-modalidad.
+- [ ] 12f. Verificación funcional con URL real pendiente del cliente (datos reales).
+
+Plantilla para los juegos restantes (#13–22):
 
 - [ ] a. Seeder `backend/database/seeders/<Xxx>Seeder.php`: `Juego::firstOrCreate(['slug'])` + `scraper_class` + `JuegoLimite` (banca/bs/3600) + `PluginJuego` (reusa clase por type) + `JuegoOpcion*` + `JuegoHorario` (`firstOrCreate(['juego_id','hora'])`); registrar en `DatabaseSeeder`.
 - [ ] b. Scraper `backend/app/Plugins/Scrapers/<Xxx>Scraper.php` (solo fetch+parse+constructor) según fuente.
@@ -82,7 +90,7 @@ Plantilla para los juegos restantes (#12–22):
 | 9 | Triple Caliente | triple-caliente | tripletas (API productId) | ✅ integrado (PR 2) |
 | 10 | Cazaloton | cazaloton | animalitos | ✅ integrado (PR 3) |
 | 11 | Triple Chance | triple-chance | tripletas (API productId) | ✅ integrado (PR 4) |
-| 12 | El Arrejuntado | el-arrejuntado | según URL cliente | |
+| 12 | El Arrejuntado | el-arrejuntado | tripletas (API serviciosintegradostriple7) | ✅ integrado (PR 5) |
 | 13 | El Guacharito | el-guacharito | según URL cliente | |
 | 14 | Guacharo Activo | guacharo-activo | según URL cliente | |
 | 15 | La Granjita | la-granjita | según URL cliente | |

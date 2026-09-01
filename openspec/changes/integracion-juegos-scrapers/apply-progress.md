@@ -286,3 +286,110 @@ Cazaloton). El scraper no cambió porque `parseTripletas` ya manejaba los bloque
   cliente; no bloquea los siguientes juegos pero debe cerrarse antes de marcar Triple Chance como
   verificado con datos reales.
 - `sdd-verify` del PR 4 cuando el orquestador lo dispare.
+
+---
+
+# Sección Juego 4 — El Arrejuntado (PR 5, tareas 12a–12f)
+
+**Rama**: `feat/integracion-juegos-scrapers-f4-el-arrejuntado` (base: `feat/integracion-juegos-scrapers-f3-triple-chance`)
+**Estado**: ✅ 12a–12e completadas; ⏳ 12f (verificación con URL real) pendiente del cliente
+
+## Resumen
+
+Integración del juego 12 (El Arrejuntado): seeder (slug `el-arrejuntado`, type `tripletas`,
+`premio_multiplo` 30, límite default banca/bs/3600, plugin Tripletas, opciones de 12 signos,
+horarios 10:00/13:00/16:00/19:00/23:00 (5), `scraper_url` de la API JSON de
+serviciosintegradostriple7.com y `scraper_class` ElArrejuntaoScraper), scraper dedicado
+`ElArrejuntaoScraper` (fetch del endpoint por fecha, parsea draws publicados, mapea las 6
+modalidades a `numeros_ganadores`, fail-fast `findJuegoOrFail`, `normalizeHora` 12h→H:i,
+`saveResults` heredado con dedupe), fixture real (snapshot del endpoint 2026-09-01) y tests
+unit + feature.
+
+## Decisión de mapeo (multi-modalidad)
+
+La tabla del cliente registra El Arrejuntado con type `tripletas`; la fuente API expone 6
+modalidades por draw (`animalito`, `el-arrimao`, `el-pegadito`, `triple-a`, `triple-b`,
+`triple-signo`). El modelo `Resultado.numeros_ganadores` es un **array JSON flexible** (cast
+`array`), por lo que se persiste CADA draw como UN resultado cuya `numeros_ganadores` conserva
+**las 6 modalidades**:
+
+- `triple-a` → `triple_a` ("894")
+- `triple-b` → `triple_b` ("082")
+- `triple-signo` "259 LEO" → `triple_c` ("259") + `signo` ("LEO") — se divide para ser
+  compatible con el esquema tripletas que renderiza el panel (A/B/C + signo).
+- `animalito` → `animalito` ("73"), `el-arrimao` → `arrimao` ("1825"), `el-pegadito` →
+  `pegadito` ("10503") — modalidades adicionales conservadas en el mismo array (no consumidas
+  por la renderización tripletas en esta iteración, pero persisten).
+
+Esta decisión agota lo que el modelo actual soporta (array JSON flexible) SIN inventar tablas
+nuevas. Si más adelante el sistema consume `animalito`/`arrimao`/`pegadito`, ya están
+persistidos en `numeros_ganadores`.
+
+## Hallazgo: conteos de juegos en LimitesScopedApiTest
+
+Al registrar el undécimo juego en `DatabaseSeeder`, la matriz juego×moneda de `/api/v1/limites`
+pasa de 10 a 11 juegos. Se actualizaron las aserciones de conteo (juegos 10→11,
+límites/origen 20→22, scope de entidades 40→44, `mixto` 20→22) — comportamiento probado sin cambios.
+
+## TDD Cycle Evidence (Juego 4)
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| 12b/12c/12d | `tests/Unit/ElArrejuntadoScraperTest.php` | Unit | ✅ TripleChance 14/14 | ✅ 7 errores (clase inexistente) | ✅ 7/7 | ✅ 7 casos (draws publicados, ignora no publicados, hora H:i, 6 modalidades, estructura, fail-fast, draw sin modalidades) | ✅ Pint clean |
+| 12a/12d | `tests/Feature/ElArrejuntadoResultsTest.php` | Feature | ✅ idem | ✅ 6 errores (seeder inexistente) | ✅ 6/6 | ✅ 6 casos (juego+scraper_class, límite+plugin, 5 horarios, persistencia, dedupe, resolver) | ✅ Pint clean |
+| 12d | `tests/Feature/LimitesScopedApiTest.php` | Feature | ✅ previo | N/A (ajuste conteos) | ✅ 30/30 | ✅ conteos 11/22/44 | ✅ |
+
+**Test Summary (Juego 4)**: +13 tests (421 vs 408 baseline); suite completa 421/419/2 + pint limpio.
+
+## Work Unit Evidence (Juego 4)
+
+| Work unit | Focused test command y resultado | Runtime harness y resultado | Rollback boundary |
+|-----------|----------------------------------|-----------------------------|-------------------|
+| WU1 seeder+scraper+fixture | `composer test -- --filter=Arrejuntado` → 13/13 (51 assertions) | N/A — parseo contra fixture real (snapshot del endpoint 2026-09-01); fetch con URL real verificado (el endpoint respondió el snapshot); persisten 12f para datos reales del día | Eliminar `ElArrejuntadoSeeder` + `ElArrejuntaoScraper` + fixture + revertir `DatabaseSeeder` |
+| WU2 feature persistencia | `composer test -- --filter=ElArrejuntadoResultsTest` → 6/6 | `php artisan tinker` → `new ElArrejuntaoScraper($juego)` + parse/saveResults contra fixture | Idem WU1 + filas `resultados` de el-arrejuntado |
+| WU3 conteos LimitesScopedApiTest | `--filter=LimitesScopedApiTest` → 30/30 | N/A (regresión de API) | Revertir solo las aserciones de conteo (11→10, 22→20, 44→40) |
+
+## Archivos cambiados (Juego 4)
+
+| Archivo | Acción | Qué se hizo |
+|---------|--------|-------------|
+| `backend/database/seeders/ElArrejuntadoSeeder.php` | Create | Juego `el-arrejuntado` + JuegoLimite banca/bs/3600 + PluginJuego Tripletas + JuegoOpcion signos + JuegoHorario 10:00/13:00/16:00/19:00/23:00 (5) + `scraper_class` |
+| `backend/app/Plugins/Scrapers/ElArrejuntaoScraper.php` | Create | Scraper dedicado (API JSON por fecha, draws publicados, 6 modalidades a `numeros_ganadores`, fail-fast, normalizeHora) |
+| `backend/database/seeders/DatabaseSeeder.php` | Modify | Registra `ElArrejuntadoSeeder` |
+| `backend/tests/Fixtures/elarrejuntao_results.json` | Create | Snapshot real del endpoint (2026-09-01: 1 draw publicado con 6 modalidades) |
+| `backend/tests/Unit/ElArrejuntadoScraperTest.php` | Create | 7 tests unit (parseo, ignora no publicados, hora, 6 modalidades, estructura, fail-fast, draw sin modalidades) |
+| `backend/tests/Feature/ElArrejuntadoResultsTest.php` | Create | 6 tests feature (seeder, límite+plugin, horarios, persistencia, dedupe, resolver) |
+| `backend/tests/Feature/LimitesScopedApiTest.php` | Modify | Conteos de la matriz juego×moneda: 10→11 juegos, 20→22 límites/origen, 40→44 scope, mixto 20→22 |
+| `backend/docs/juegos.md` | Modify | El Arrejuntado movido de pendientes a "Juegos integrados" + nota de la estructura multi-modalidad |
+| `openspec/changes/integracion-juegos-scrapers/tasks.md` | Modify | 12a–12e marcadas `[x]`; 12f pendiente; fila 12 ✅ integrado (PR 5) |
+
+## Desviaciones del diseño (Juego 4)
+
+None — implementation matches design. El Arrejuntado usa el tipo `tripletas` existente (según la
+tabla del cliente) con un scraper dedicado para su API JSON multi-modalidad; el modelo
+`numeros_ganadores` (array JSON flexible) permite conservar las 6 modalidades sin tablas nuevas.
+
+## Problemas encontrados (Juego 4)
+
+- **Suite completa roja tras integrar el 11º juego**: `LimitesScopedApiTest` asumía 10 juegos
+  sembrados. Resuelto actualizando los conteos (ver hallazgo). Es un ajuste legítimo de regresión.
+- **Cambios ajenos del checkout compartido**: `backend/.env.example` y `panel/.astro/settings.json`
+  (modificados) y `.atl/`, `.codegraph/`, `openspec/config.yaml` (sin seguimiento) no pertenecen al
+  work unit; se dejaron fuera de los commits.
+- **`ReflectionMethod::setAccessible()` deprecado en PHP 8.5**: warning pre-existente en el patrón de
+  tests (sin efecto desde 8.1); no introducido por este WU.
+
+## Workload / PR Boundary (Juego 4)
+
+- Modo: chained PR slice (feature-branch-chain, PR 5 de la cadena; base = PR 4 `feat/integracion-juegos-scrapers-f3-triple-chance`).
+- Boundary: integración completa del juego 12 (seeder → scraper → fixture → tests → docs) con
+  verificación incluida (suite completa 421/419/2 + pint limpio). NO se abrieron PRs.
+- Rollback boundary por unidad: ver tabla Work Unit Evidence (Juego 4).
+
+## Siguiente paso recomendado
+
+- Juego 13 (El Guacharito): requiere URL y estructura de la fuente del cliente antes de aplicar.
+- `12f` — verificación funcional con URL real (`php artisan tinker` → fetch+parse) pendiente del
+  cliente; no bloquea los siguientes juegos pero debe cerrarse antes de marcar El Arrejuntado como
+  verificado con datos reales.
+- `sdd-verify` del PR 5 cuando el orquestador lo dispare.
