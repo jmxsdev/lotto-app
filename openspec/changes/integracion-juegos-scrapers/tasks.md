@@ -38,7 +38,15 @@ Chain strategy: feature-branch-chain
 
 ## Phase 2: Juegos #9–22 (1 work unit por juego, orden de URLs del cliente)
 
-Plantilla por juego (RED→GREEN, TDD estricto):
+Plantilla por juego (RED→GREEN, TDD estricto). Juego 9 (Triple Caliente) completado
+en el PR 2 de la cadena (rama `feat/integracion-juegos-scrapers-f1-triple-caliente`, base f0):
+
+- [x] 9a. Seeder `TripleCalienteSeeder.php`: `firstOrCreate(['slug'])` + `scraper_class` + `JuegoLimite` (banca/bs/3600) + `PluginJuego` (Tripletas) + `JuegoOpcion*` (signos) + `JuegoHorario` 13:00/16:30/19:10; registrado en `DatabaseSeeder`.
+- [x] 9b. Scraper `LoteriaDeHoyScraper.php` (parametrizado por juego, fetch+parse+constructor) para loteriadehoy.com.
+- [x] 9c. Fixture real `backend/tests/Fixtures/loteriadehoy_triplecaliente.html`.
+- [x] 9d. RED→GREEN `TripleCalienteScraperTest.php` (unit, 8) + `TripleCalienteResultsTest.php` (feature, 6). Comando: `composer test -- --filter=TripleCaliente` → 14/14.
+- [x] 9e. Fila en `backend/docs/juegos.md` (mismo WU).
+- [ ] 9f. Verificación funcional con URL real (`php artisan tinker` → fetch+parse) pendiente del cliente (datos reales).
 
 - [ ] a. Seeder `backend/database/seeders/<Xxx>Seeder.php`: `Juego::firstOrCreate(['slug'])` + `scraper_class` + `JuegoLimite` (banca/bs/3600) + `PluginJuego` (reusa clase por type) + `JuegoOpcion*` + `JuegoHorario` (`firstOrCreate(['juego_id','hora'])`); registrar en `DatabaseSeeder`.
 - [ ] b. Scraper `backend/app/Plugins/Scrapers/<Xxx>Scraper.php` (solo fetch+parse+constructor) según fuente.
@@ -49,7 +57,7 @@ Plantilla por juego (RED→GREEN, TDD estricto):
 
 | # | Juego | slug | type (fuente) | Flag |
 |---|-------|------|---------------|------|
-| 9 | Triple Caliente | triple-caliente | tripletas (API productId) | |
+| 9 | Triple Caliente | triple-caliente | tripletas (API productId) | ✅ integrado (PR 2) |
 | 10 | Cazaloton | cazaloton | según URL cliente | |
 | 11 | Triple Chance | triple-chance | tripletas (API productId) | |
 | 12 | El Arrejuntado | el-arrejuntado | según URL cliente | |
