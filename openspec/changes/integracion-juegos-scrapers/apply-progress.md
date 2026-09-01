@@ -393,3 +393,94 @@ tabla del cliente) con un scraper dedicado para su API JSON multi-modalidad; el 
   cliente; no bloquea los siguientes juegos pero debe cerrarse antes de marcar El Arrejuntado como
   verificado con datos reales.
 - `sdd-verify` del PR 5 cuando el orquestador lo dispare.
+
+---
+
+# Sección Juego 5 — El Guacharito Millonario (PR 6, tareas 13a–13f)
+
+**Rama**: `feat/integracion-juegos-scrapers-f5-el-guacharito` (base: `feat/integracion-juegos-scrapers-f4-el-arrejuntado`)
+**Estado**: ✅ 13a–13e completadas; ⏳ 13f (verificación con URL real) pendiente del cliente
+
+## Resumen
+
+Integración del juego 13 (El Guacharito Millonario): seeder (slug `el-guacharito`, type
+`animalitos`, `premio_multiplo` 30, límite default banca/bs/3600, plugin Animalitos, horarios
+08:30–19:30 (:30 cada hora, 12 sorteos/día), `scraper_url` de loteriadehoy.com y `scraper_class`
+LoteriaDeHoyScraper), fixture real de la página de resultados, y tests unit+feature. NO requirió
+cambio de código en el scraper: el juego usa el MISMO patrón que Cazaloton (type `animalitos`,
+misma fuente loteriadehoy.com), por lo que `LoteriaDeHoyScraper::parseAnimalitos` lo cubre tal cual.
+
+## Hallazgo: mismo patrón animalitos que Cazaloton
+
+La página `https://loteriadehoy.com/animalito/elguacharitomillonario/resultados/` tiene la misma
+estructura que Cazaloton: bloques de `div.js-con div.mb-5` con número + animal + hora (12h), y solo
+renderiza los sorteos ya ocurridos del día (resultados parciales). El snapshot real del 2026-09-01
+muestra 4 bloques (08:30, 09:30, 10:30 y 11:30) de los 12 horarios del día. Se verificó con el
+snapshot real descargado que `parseAnimalitos` los parsea sin cambios de código.
+
+## Hallazgo: conteos de juegos en LimitesScopedApiTest
+
+Al registrar el duodécimo juego en `DatabaseSeeder`, la matriz juego×moneda de `/api/v1/limites`
+pasa de 11 a 12 juegos. Se actualizaron las aserciones de conteo (juegos 11→12, límites/origen
+22→24, scope de entidades 44→48, `mixto` 22→24) — comportamiento probado sin cambios.
+
+## TDD Cycle Evidence (Juego 5)
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| 13b/13c/13d | `tests/Unit/ElGuacharitoScraperTest.php` | Unit | ✅ suite 421/419/2 | ✅ 0 fallos (parse ya cubierto; se verificó el fixture) | ✅ 7/7 | ✅ 7 casos (parcial, numero/animal, horas H:i, estructura, fail-fast, sin bloques, malformado) | ✅ Pint clean |
+| 13a/13d | `tests/Feature/ElGuacharitoResultsTest.php` | Feature | ✅ idem | ✅ 6 errores (seeder inexistente) | ✅ 6/6 | ✅ 6 casos (juego+scraper_class, límite+plugin, 12 horarios, persistencia, dedupe, resolver) | ✅ Pint clean |
+| 13d | `tests/Feature/LimitesScopedApiTest.php` | Feature | ✅ previo | N/A (ajuste conteos) | ✅ 30/30 | ✅ conteos 12/24/48 | ✅ |
+
+**Test Summary (Juego 5)**: +13 tests (434 vs 421 baseline); suite completa 434/432/2 + pint limpio.
+
+## Work Unit Evidence (Juego 5)
+
+| Work unit | Focused test command y resultado | Runtime harness y resultado | Rollback boundary |
+|-----------|----------------------------------|-----------------------------|-------------------|
+| WU1 seeder+fixture | `composer test -- --filter=Guacharito` → 13/13 (45 assertions) | N/A — parseo contra fixture real (snapshot descargado del 2026-09-01, 4 bloques); fetch con URL real verificado (la URL respondió el snapshot); persisten 13f para datos reales del día | Eliminar `ElGuacharitoSeeder` + fixture + revertir `DatabaseSeeder` |
+| WU2 feature persistencia | `composer test -- --filter=ElGuacharitoResultsTest` → 6/6 | `php artisan tinker` → `new LoteriaDeHoyScraper($juego)` + parse/saveResults contra fixture | Idem WU1 + filas `resultados` de el-guacharito |
+| WU3 conteos LimitesScopedApiTest | `--filter=LimitesScopedApiTest` → 30/30 | N/A (regresión de API) | Revertir solo las aserciones de conteo (12→11, 24→22, 48→44) |
+
+## Archivos cambiados (Juego 5)
+
+| Archivo | Acción | Qué se hizo |
+|---------|--------|-------------|
+| `backend/database/seeders/ElGuacharitoSeeder.php` | Create | Juego `el-guacharito` + JuegoLimite banca/bs/3600 + PluginJuego Animalitos + JuegoHorario 08:30–19:30 (:30, 12) + `scraper_class` |
+| `backend/database/seeders/DatabaseSeeder.php` | Modify | Registra `ElGuacharitoSeeder` |
+| `backend/tests/Fixtures/loteriadehoy_elguacharito.html` | Create | Snapshot real de `https://loteriadehoy.com/animalito/elguacharitomillonario/resultados/` (2026-09-01: 4 bloques 08:30–11:30) |
+| `backend/tests/Unit/ElGuacharitoScraperTest.php` | Create | 7 tests unit (parseo, horas, números/animales, estructura, fail-fast, sin bloques, malformado) |
+| `backend/tests/Feature/ElGuacharitoResultsTest.php` | Create | 6 tests feature (seeder, límite+plugin, 12 horarios, persistencia, dedupe, resolver) |
+| `backend/tests/Feature/LimitesScopedApiTest.php` | Modify | Conteos de la matriz juego×moneda: 11→12 juegos, 22→24 límites/origen, 44→48 scope, mixto 22→24 |
+| `backend/docs/juegos.md` | Modify | El Guacharito Millonario movido de pendientes a "Juegos integrados" + removido de la tabla de pendientes |
+| `openspec/changes/integracion-juegos-scrapers/tasks.md` | Modify | 13a–13e marcadas `[x]`; 13f pendiente; fila 13 ✅ integrado (PR 6) |
+
+## Desviaciones del diseño (Juego 5)
+
+None — implementation matches design. El Guacharito Millonario usa el tipo `animalitos` existente
+(según la tabla del cliente y la URL de la fuente) con el `LoteriaDeHoyScraper::parseAnimalitos`
+reutilizado (patrón Cazaloton). El slug `el-guacharito` sigue el patrón de slugs del sistema (nombre
+del juego en kebab-case, sin el sufijo "millonario").
+
+## Problemas encontrados (Juego 5)
+
+- **Suite completa roja tras integrar el 12º juego**: `LimitesScopedApiTest` asumía 11 juegos
+  sembrados. Resuelto actualizando los conteos (ver hallazgo). Es un ajuste legítimo de regresión.
+- **Cambios ajenos del checkout compartido**: `backend/.env.example` y `panel/.astro/settings.json`
+  (modificados) y `.atl/`, `.codegraph/`, `openspec/config.yaml` (sin seguimiento) no pertenecen al
+  work unit; se dejaron fuera de los commits.
+
+## Workload / PR Boundary (Juego 5)
+
+- Modo: chained PR slice (feature-branch-chain, PR 6 de la cadena; base = PR 5 `feat/integracion-juegos-scrapers-f4-el-arrejuntado`).
+- Boundary: integración completa del juego 13 (seeder → fixture → tests → docs) con verificación
+  incluida (suite completa 434/432/2 + pint limpio). NO se abrieron PRs.
+- Rollback boundary por unidad: ver tabla Work Unit Evidence (Juego 5).
+
+## Siguiente paso recomendado
+
+- Juego 14 (Guacharo Activo): requiere URL y estructura de la fuente del cliente antes de aplicar.
+- `13f` — verificación funcional con URL real (`php artisan tinker` → fetch+parse) pendiente del
+  cliente; no bloquea los siguientes juegos pero debe cerrarse antes de marcar El Guacharito
+  Millonario como verificado con datos reales.
+- `sdd-verify` del PR 6 cuando el orquestador lo dispare.
