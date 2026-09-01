@@ -29,6 +29,7 @@ class DatabaseSeeder extends Seeder
             CazalotonSeeder::class,
             TripleChanceSeeder::class,
             ElArrejuntadoSeeder::class,
+            ElGuacharitoSeeder::class,
         ]);
     }
 }
