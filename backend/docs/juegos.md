@@ -36,6 +36,7 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 | 9 | Triple Caliente | `triple-caliente` | tripletas | 13:00, 16:30, 19:10 | `https://loteriadehoy.com/loteria/triplecaliente/resultados/` | `LoteriaDeHoyScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
 | 10 | Cazaloton | `cazaloton` | animalitos | 09:00–19:00 (11 horarios `:00`) | `https://loteriadehoy.com/animalito/cazaloton/resultados/` | `LoteriaDeHoyScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
 | 11 | Triple Chance | `triple-chance` | tripletas | 09:00–19:00 (11 horarios `:00`) | `https://loteriadehoy.com/loteria/triplechance/resultados/` | `LoteriaDeHoyScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
+| 12 | El Arrejuntado | `el-arrejuntado` | tripletas | 10:00, 13:00, 16:00, 19:00, 23:00 (5 horarios) | `https://backend.serviciosintegradostriple7.com/api/v1/products/el-arrejuntao/results/` | `ElArrejuntaoScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
 
 > `LoteriaDeHoyScraper` es parametrizado: reutiliza el mismo `scraper_class` para los juegos de
 > loteriadehoy.com registrando la `scraper_url` de cada juego (se usa su slug/name para fail-fast
@@ -47,6 +48,16 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 > del día y solo los ya sorteados traen A/B/C; los horarios futuros aparecen como filas de hora sin
 > resultado, que el scraper ignora (no genera resultado vacío ni error).
 
+> `ElArrejuntaoScraper` consume la API JSON de serviciosintegradostriple7.com (endpoint por fecha).
+> Cada draw publicado (`is_published=true`) trae 6 modalidades: `animalito`, `el-arrimao`,
+> `el-pegadito`, `triple-a`, `triple-b` y `triple-signo`. El juego se registra con type `tripletas`
+> (según la tabla del cliente) y cada draw se persiste como UN resultado cuya `numeros_ganadores`
+> (array JSON flexible) conserva las 6 modalidades: `triple-a` → `triple_a`, `triple-b` → `triple_b`,
+> y `triple-signo` ("259 LEO") se divide en `triple_c` ("259") + `signo` ("LEO") para ser compatible
+> con el esquema tripletas que renderiza el panel; `animalito`, `arrimao` y `pegadito` se conservan
+> en el mismo array (modalidades adicionales no consumidas por la renderización tripletas en esta
+> iteración).
+
 ## Juegos pendientes (10–22)
 
 Pendientes de integración (un work unit por juego, orden de URLs del cliente). Se agregarán
@@ -54,7 +65,6 @@ aquí en su mismo work unit:
 
 | # | Nombre | slug | type (fuente) | Notas |
 |---|--------|------|---------------|-------|
-| 12 | El Arrejuntado | `el-arrejuntado` | según URL cliente | |
 | 13 | El Guacharito | `el-guacharito` | según URL cliente | |
 | 14 | Guacharo Activo | `guacharo-activo` | según URL cliente | |
 | 15 | La Granjita | `la-granjita` | según URL cliente | |
