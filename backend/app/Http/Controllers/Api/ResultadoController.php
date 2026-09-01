@@ -49,6 +49,61 @@ class ResultadoController extends Controller
         return response()->json($resultado->load('juego'));
     }
 
+    /**
+     * Apariciones previas de un resultado: identidad server-side por tipo.
+     *
+     * animalitos/terminales → valor `numero` del JSON de la fila clicada (sin params);
+     * tripletas → ?posicion (whitelist triple_a|triple_b|triple_c) + `signo` de la fila
+     * cuando es no-nulo. Orden fecha_sorteo DESC luego hora_sorteo DESC, cap FIJO 5,
+     * excluyendo el sorteo clicado. Sin identidad o sin historial → [] (200).
+     */
+    public function apariciones(Request $request, Resultado $resultado)
+    {
+        $resultado->load('juego');
+        $type = $resultado->juego->type;
+        $numeros = $resultado->numeros_ganadores ?? [];
+
+        if ($type === 'tripletas') {
+            $validated = $request->validate(['posicion' => 'nullable|in:triple_a,triple_b,triple_c']);
+            $posicion = $validated['posicion'] ?? null;
+
+            if ($posicion === null) {
+                return response()->json([
+                    'message' => 'El parámetro posicion es requerido para tripletas',
+                    'errors' => ['posicion' => ['El parámetro posicion es requerido para tripletas']],
+                ], 422);
+            }
+
+            $valor = $numeros[$posicion] ?? null;
+            $signo = $numeros['signo'] ?? null;
+            $clave = $posicion;
+        } else {
+            $valor = $numeros['numero'] ?? null;
+            $signo = null;
+            $clave = 'numero';
+        }
+
+        // Sin identidad (p. ej. fila sin la clave): sin query, historial vacío
+        if ($valor === null) {
+            return response()->json([]);
+        }
+
+        $query = Resultado::where('juego_id', $resultado->juego_id)
+            ->whereKeyNot($resultado->getKey())
+            ->where('numeros_ganadores->'.$clave, (string) $valor);
+
+        if ($signo !== null) {
+            $query->where('numeros_ganadores->signo', (string) $signo);
+        }
+
+        $apariciones = $query->orderByDesc('fecha_sorteo')
+            ->orderByDesc('hora_sorteo')
+            ->limit(5)
+            ->get(['id', 'fecha_sorteo', 'hora_sorteo']);
+
+        return response()->json($apariciones);
+    }
+
     public function scrape(Request $request)
     {
         $juegoId = $request->input('juego_id');
