@@ -111,6 +111,7 @@ Route::prefix('v1')->group(function () {
         // ==================================================
         Route::get('/resultados', [ResultadoController::class, 'index']);
         Route::get('/resultados/{resultado}', [ResultadoController::class, 'show']);
+        Route::get('/resultados/{resultado}/apariciones', [ResultadoController::class, 'apariciones']);
 
         // Scraper manual (solo Super Master y Master)
         Route::middleware(['role:super_master|master'])->group(function () {
