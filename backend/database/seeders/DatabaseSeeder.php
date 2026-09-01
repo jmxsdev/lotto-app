@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
             MonjeMillonarioSeeder::class,
             TrioActivoSeeder::class,
             TripleCalienteSeeder::class,
+            CazalotonSeeder::class,
         ]);
     }
 }

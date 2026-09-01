@@ -34,10 +34,14 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 | # | Nombre | slug | type | Horarios (juego_horarios) | Fuente scraper | Clase scraper | Estado |
 |---|--------|------|------|---------------------------|----------------|---------------|--------|
 | 9 | Triple Caliente | `triple-caliente` | tripletas | 13:00, 16:30, 19:10 | `https://loteriadehoy.com/loteria/triplecaliente/resultados/` | `LoteriaDeHoyScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
+| 10 | Cazaloton | `cazaloton` | animalitos | 09:00–19:00 (11 horarios `:00`) | `https://loteriadehoy.com/animalito/cazaloton/resultados/` | `LoteriaDeHoyScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
 
 > `LoteriaDeHoyScraper` es parametrizado: reutiliza el mismo `scraper_class` para los juegos de
 > loteriadehoy.com registrando la `scraper_url` de cada juego (se usa su slug/name para fail-fast
-> y su URL para fetch). Formato soportado: tabla de resultados de triples (`table.resultados`).
+> y su URL para fetch). Formato soportado según type: tabla de resultados de triples
+> (`table.resultados`) para `tripletas`, y bloques de número + animal + hora (`div.js-con`) para
+> `animalitos`. En modo animalitos la página solo renderiza los sorteos ya ocurridos del día, por
+> lo que el scraper maneja resultados parciales (los bloques presentes, sin asumir el total).
 
 ## Juegos pendientes (10–22)
 
@@ -46,7 +50,6 @@ aquí en su mismo work unit:
 
 | # | Nombre | slug | type (fuente) | Notas |
 |---|--------|------|---------------|-------|
-| 10 | Cazaloton | `cazaloton` | según URL cliente | |
 | 11 | Triple Chance | `triple-chance` | tripletas (API productId) | |
 | 12 | El Arrejuntado | `el-arrejuntado` | según URL cliente | |
 | 13 | El Guacharito | `el-guacharito` | según URL cliente | |
