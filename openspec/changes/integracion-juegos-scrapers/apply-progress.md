@@ -163,3 +163,126 @@ actualización la suite completa fallaba (6 errores).
   cliente; no bloquea los siguientes juegos pero debe cerrarse antes de marcar Triple Caliente
   como verificado con datos reales.
 - `sdd-verify` del PR 2 cuando el orquestador lo dispare (o del PR 1 si aún no se verificó).
+
+---
+
+# Sección Juego 2 — Cazaloton (PR 3, tareas 10a–10f)
+
+**Rama**: `feat/integracion-juegos-scrapers-f2-cazaloton` (base: `feat/integracion-juegos-scrapers-f1-triple-caliente`)
+**Estado**: ✅ 10a–10e completadas; ⏳ 10f (verificación con URL real) pendiente del cliente
+
+## Resumen
+
+Integración del juego 10 (Cazaloton): seeder (slug `cazaloton`, type `animalitos`, `premio_multiplo`
+30, límite default banca/bs/3600, plugin Animalitos, horarios 09:00–19:00 (11), `scraper_url` y
+`scraper_class` LoteriaDeHoyScraper), extensión de `LoteriaDeHoyScraper` con modo animalitos
+(`parseAnimalitos`: `div.js-con`, bloques número+animal+hora 12h), fixture real, y tests unit+feature.
+
+## TDD Cycle Evidence (Juego 2)
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| 10a/10d | `tests/Feature/CazalotonResultsTest.php` | Feature | ✅ TripleCaliente 14/14 | ✅ | ✅ 6/6 | ✅ 6 casos (juego+scraper_class, límite+plugin, 11 horarios, persistencia, dedupe, resolver) | ✅ Clean |
+| 10b/10c/10d | `tests/Unit/CazalotonScraperTest.php` | Unit | ✅ idem | ✅ | ✅ 7/7 | ✅ 7 casos (parcial, numero/animal, horas, estructura, fail-fast, sin bloques, malformado) | ✅ Clean |
+| 10d | `tests/Feature/LimitesScopedApiTest.php` | Feature | ✅ previo | N/A (ajuste conteos) | ✅ 30/30 | ✅ conteos 9/18/36 | ✅ |
+
+**Test Summary (Juego 2)**: +13 tests (394 vs 381 baseline); suite completa 394/392/2 + pint limpio.
+
+## Work Unit Evidence (Juego 2)
+
+| Work unit | Focused test command y resultado | Runtime harness y resultado | Rollback boundary |
+|-----------|----------------------------------|-----------------------------|-------------------|
+| WU1 seeder+scraper+fixture | `composer test -- --filter=Cazaloton` → 13/13 | N/A — parseo contra fixture real; fetch con URL real pendiente (10f) | Eliminar `CazalotonSeeder` + modo animalitos + fixture + revertir `DatabaseSeeder` |
+| WU2 feature persistencia | `composer test -- --filter=CazalotonResultsTest` → 6/6 | `php artisan tinker` → `new LoteriaDeHoyScraper($juego)` + parse/saveResults contra fixture | Idem WU1 + filas `resultados` de cazaloton |
+| WU3 conteos LimitesScopedApiTest | `--filter=LimitesScopedApiTest` → 30/30 | N/A (regresión de API) | Revertir solo las aserciones de conteo (9→8, 18→16, 36→32) |
+
+---
+
+# Sección Juego 3 — Triple Chance (PR 4, tareas 11a–11f)
+
+**Rama**: `feat/integracion-juegos-scrapers-f3-triple-chance` (base: `feat/integracion-juegos-scrapers-f2-cazaloton`)
+**Estado**: ✅ 11a–11e completadas; ⏳ 11f (verificación con URL real) pendiente del cliente
+
+## Resumen
+
+Integración del juego 11 (Triple Chance): seeder (slug `triple-chance`, type `tripletas`,
+`premio_multiplo` 30, límite default banca/bs/3600, plugin Tripletas, opciones de 12 signos,
+horarios 09:00–19:00 (11), `scraper_url` y `scraper_class` LoteriaDeHoyScraper), fixture real de la
+página de resultados, y tests unit+feature. NO requirió cambio de código en el scraper: se confirmó
+que `parseTripletas` ya ignora los bloques de hora sin resultado.
+
+## Hallazgo: bloques de hora sin resultado en el modo tripletas
+
+La página de Triple Chance lista los 11 bloques de horario del día (09:00–19:00) como filas de
+`table.resultados tbody tr`, pero solo los ya sorteados traen las celdas A/B/C + signo; los horarios
+futuros (11:00 AM – 07:00 PM) aparecen como filas con un único `<td>` de hora. El `parseTripletas`
+actual descarta esas filas por `count($celdas) < 5` (y por la guarda `! $hora || ! $tripleA ||
+! $tripleB || ! $tripleC`), por lo que no genera resultado vacío ni error — se confirmó con un test
+sin cambiar el código. El fixture real del snapshot captura ambos casos (2 bloques con resultado y 9
+sin resultado).
+
+## Hallazgo: conteos de juegos en LimitesScopedApiTest
+
+Al registrar el décimo juego en `DatabaseSeeder`, la matriz juego×moneda de `/api/v1/limites` pasa
+de 9 a 10 juegos. Se actualizaron las aserciones de conteo (juegos 9→10, límites/origen 18→20,
+scope de entidades 36→40, `mixto` 18→20) — comportamiento probado sin cambios.
+
+## TDD Cycle Evidence (Juego 3)
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| 11b/11c/11d | `tests/Unit/TripleChanceScraperTest.php` | Unit | ✅ TripleCaliente+Cazaloton 27/27 | ✅ | ✅ 8/8 | ✅ 8 casos (solo bloques con resultado, ignora hora sin resultado, horas H:i, A/B/C, signo, estructura, fail-fast, malformado) | ✅ Clean |
+| 11a/11d | `tests/Feature/TripleChanceResultsTest.php` | Feature | ✅ idem | ✅ | ✅ 6/6 | ✅ 6 casos (juego+scraper_class, límite+plugin, 11 horarios, persistencia, dedupe, resolver) | ✅ Clean |
+| 11d | `tests/Feature/LimitesScopedApiTest.php` | Feature | ✅ previo | N/A (ajuste conteos) | ✅ 30/30 | ✅ conteos 10/20/40 | ✅ |
+
+**Test Summary (Juego 3)**: +14 tests (408 vs 394 baseline); suite completa 408/406/2 + pint limpio.
+
+## Work Unit Evidence (Juego 3)
+
+| Work unit | Focused test command y resultado | Runtime harness y resultado | Rollback boundary |
+|-----------|----------------------------------|-----------------------------|-------------------|
+| WU1 seeder+fixture | `composer test -- --filter=TripleChance` → 14/14 (54 assertions) | N/A — parseo contra fixture real (snapshot del 2026-09-01); fetch con URL real pendiente (11f) | Eliminar `TripleChanceSeeder` + fixture + revertir `DatabaseSeeder` |
+| WU2 feature persistencia | `composer test -- --filter=TripleChanceResultsTest` → 6/6 | `php artisan tinker` → `new LoteriaDeHoyScraper($juego)` + parse/saveResults contra fixture | Idem WU1 + filas `resultados` de triple-chance |
+| WU3 conteos LimitesScopedApiTest | `--filter=LimitesScopedApiTest` → 30/30 | N/A (regresión de API) | Revertir solo las aserciones de conteo (10→9, 20→18, 40→36) |
+
+## Archivos cambiados (Juego 3)
+
+| Archivo | Acción | Qué se hizo |
+|---------|--------|-------------|
+| `backend/database/seeders/TripleChanceSeeder.php` | Create | Juego `triple-chance` + JuegoLimite banca/bs/3600 + PluginJuego Tripletas + JuegoOpcion signos + JuegoHorario 09:00–19:00 (11) + `scraper_class` |
+| `backend/database/seeders/DatabaseSeeder.php` | Modify | Registra `TripleChanceSeeder` |
+| `backend/tests/Fixtures/loteriadehoy_triplechance.html` | Create | Snapshot real de `https://loteriadehoy.com/loteria/triplechance/resultados/` (2 bloques con resultado + 9 bloques de hora sin resultado) |
+| `backend/tests/Unit/TripleChanceScraperTest.php` | Create | 8 tests unit (parseo, ignora bloques sin resultado, horas, números, signo, estructura, fail-fast, malformado) |
+| `backend/tests/Feature/TripleChanceResultsTest.php` | Create | 6 tests feature (seeder, límite+plugin, horarios, persistencia, dedupe, resolver) |
+| `backend/tests/Feature/LimitesScopedApiTest.php` | Modify | Conteos de la matriz juego×moneda: 9→10 juegos, 18→20 límites/origen, 36→40 scope, mixto 18→20 |
+| `backend/docs/juegos.md` | Modify | Triple Chance movido de pendientes a "Juegos integrados" + nota del formato tripletas con bloques sin resultado |
+| `openspec/changes/integracion-juegos-scrapers/tasks.md` | Modify | 11a–11e marcadas `[x]`; 11f pendiente; fila 11 ✅ integrado (PR 4) |
+
+## Desviaciones del diseño (Juego 3)
+
+None — implementation matches design. Triple Chance usa el tipo `tripletas` existente: seeder con
+plugin Tripletas + opciones de signos (patrón TripleCaliente) y horarios 09:00–19:00 (11, patrón
+Cazaloton). El scraper no cambió porque `parseTripletas` ya manejaba los bloques sin resultado.
+
+## Problemas encontrados (Juego 3)
+
+- **Suite completa roja tras integrar el 10º juego**: `LimitesScopedApiTest` asumía 9 juegos
+  sembrados. Resuelto actualizando los conteos (ver hallazgo). Es un ajuste legítimo de regresión.
+- **Cambios ajenos del checkout compartido**: `backend/.env.example` y `panel/.astro/settings.json`
+  (modificados) y `.atl/`, `.codegraph/`, `openspec/config.yaml` (sin seguimiento) no pertenecen al
+  work unit; se dejaron fuera de los commits.
+
+## Workload / PR Boundary (Juego 3)
+
+- Modo: chained PR slice (feature-branch-chain, PR 4 de la cadena; base = PR 3 `feat/integracion-juegos-scrapers-f2-cazaloton`).
+- Boundary: integración completa del juego 11 (seeder → fixture → tests → docs) con verificación
+  incluida (suite completa 408/406/2 + pint limpio).
+- Rollback boundary por unidad: ver tabla Work Unit Evidence (Juego 3).
+
+## Siguiente paso recomendado
+
+- Juego 12 (El Arrejuntado): requiere URL y estructura de la fuente del cliente antes de aplicar.
+- `11f` — verificación funcional con URL real (`php artisan tinker` → fetch+parse) pendiente del
+  cliente; no bloquea los siguientes juegos pero debe cerrarse antes de marcar Triple Chance como
+  verificado con datos reales.
+- `sdd-verify` del PR 4 cuando el orquestador lo dispare.

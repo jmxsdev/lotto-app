@@ -58,7 +58,17 @@ Juego 10 (Cazaloton) completado en el PR 3 de la cadena (rama
 - [x] 10e. Fila en `backend/docs/juegos.md` (mismo WU).
 - [ ] 10f. Verificación funcional con URL real (`php artisan tinker` → fetch+parse) pendiente del cliente (datos reales).
 
-Plantilla para los juegos restantes (#11–22):
+Juego 11 (Triple Chance) completado en el PR 4 de la cadena (rama
+`feat/integracion-juegos-scrapers-f3-triple-chance`, base f2-cazaloton):
+
+- [x] 11a. Seeder `TripleChanceSeeder.php`: `firstOrCreate(['slug'])` + `scraper_class` (LoteriaDeHoyScraper) + `JuegoLimite` (banca/bs/3600) + `PluginJuego` (Tripletas) + `JuegoOpcion*` (signos) + `JuegoHorario` 09:00–19:00 (11); registrado en `DatabaseSeeder`.
+- [x] 11b. Confirmado que `LoteriaDeHoyScraper::parseTripletas` ignora los bloques de hora sin resultado (filas con solo `<td>` de hora, `<5` celdas) — no genera resultado vacío ni error; confirmado con test (sin cambio de código).
+- [x] 11c. Fixture real `backend/tests/Fixtures/loteriadehoy_triplechance.html` (snapshot con 2 bloques con resultado y 9 bloques de hora sin resultado).
+- [x] 11d. RED→GREEN `TripleChanceScraperTest.php` (unit, 8) + `TripleChanceResultsTest.php` (feature, 6). Comando: `composer test -- --filter=TripleChance` → 14/14. Conteos de `LimitesScopedApiTest` actualizados por el 10º juego (9→10 juegos, 18→20, 36→40).
+- [x] 11e. Fila en `backend/docs/juegos.md` (mismo WU).
+- [ ] 11f. Verificación funcional con URL real (`php artisan tinker` → fetch+parse) pendiente del cliente (datos reales).
+
+Plantilla para los juegos restantes (#12–22):
 
 - [ ] a. Seeder `backend/database/seeders/<Xxx>Seeder.php`: `Juego::firstOrCreate(['slug'])` + `scraper_class` + `JuegoLimite` (banca/bs/3600) + `PluginJuego` (reusa clase por type) + `JuegoOpcion*` + `JuegoHorario` (`firstOrCreate(['juego_id','hora'])`); registrar en `DatabaseSeeder`.
 - [ ] b. Scraper `backend/app/Plugins/Scrapers/<Xxx>Scraper.php` (solo fetch+parse+constructor) según fuente.
@@ -71,7 +81,7 @@ Plantilla para los juegos restantes (#11–22):
 |---|-------|------|---------------|------|
 | 9 | Triple Caliente | triple-caliente | tripletas (API productId) | ✅ integrado (PR 2) |
 | 10 | Cazaloton | cazaloton | animalitos | ✅ integrado (PR 3) |
-| 11 | Triple Chance | triple-chance | tripletas (API productId) | |
+| 11 | Triple Chance | triple-chance | tripletas (API productId) | ✅ integrado (PR 4) |
 | 12 | El Arrejuntado | el-arrejuntado | según URL cliente | |
 | 13 | El Guacharito | el-guacharito | según URL cliente | |
 | 14 | Guacharo Activo | guacharo-activo | según URL cliente | |
