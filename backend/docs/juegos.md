@@ -29,14 +29,23 @@ y los seeders materializan los datos que esta lista documenta (slug, type, fuent
 
 La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (decisión del cliente).
 
-## Juegos nuevos (9–22)
+## Juegos integrados (nuevos)
+
+| # | Nombre | slug | type | Horarios (juego_horarios) | Fuente scraper | Clase scraper | Estado |
+|---|--------|------|------|---------------------------|----------------|---------------|--------|
+| 9 | Triple Caliente | `triple-caliente` | tripletas | 13:00, 16:30, 19:10 | `https://loteriadehoy.com/loteria/triplecaliente/resultados/` | `LoteriaDeHoyScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
+
+> `LoteriaDeHoyScraper` es parametrizado: reutiliza el mismo `scraper_class` para los juegos de
+> loteriadehoy.com registrando la `scraper_url` de cada juego (se usa su slug/name para fail-fast
+> y su URL para fetch). Formato soportado: tabla de resultados de triples (`table.resultados`).
+
+## Juegos pendientes (10–22)
 
 Pendientes de integración (un work unit por juego, orden de URLs del cliente). Se agregarán
 aquí en su mismo work unit:
 
 | # | Nombre | slug | type (fuente) | Notas |
 |---|--------|------|---------------|-------|
-| 9 | Triple Caliente | `triple-caliente` | tripletas (API productId) | |
 | 10 | Cazaloton | `cazaloton` | según URL cliente | |
 | 11 | Triple Chance | `triple-chance` | tripletas (API productId) | |
 | 12 | El Arrejuntado | `el-arrejuntado` | según URL cliente | |
