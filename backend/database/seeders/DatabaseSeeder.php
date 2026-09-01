@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
             LottoActivoRDSDSeeder::class,
             MonjeMillonarioSeeder::class,
             TrioActivoSeeder::class,
+            TripleCalienteSeeder::class,
         ]);
     }
 }
