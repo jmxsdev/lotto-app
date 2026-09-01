@@ -38,6 +38,7 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 | 11 | Triple Chance | `triple-chance` | tripletas | 09:00–19:00 (11 horarios `:00`) | `https://loteriadehoy.com/loteria/triplechance/resultados/` | `LoteriaDeHoyScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
 | 12 | El Arrejuntado | `el-arrejuntado` | tripletas | 10:00, 13:00, 16:00, 19:00, 23:00 (5 horarios) | `https://backend.serviciosintegradostriple7.com/api/v1/products/el-arrejuntao/results/` | `ElArrejuntaoScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
 | 13 | El Guacharito Millonario | `el-guacharito` | animalitos | 08:30–19:30 (12 horarios `:30`) | `https://loteriadehoy.com/animalito/elguacharitomillonario/resultados/` | `LoteriaDeHoyScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
+| 14 | Guacharo Activo | `guacharo-activo` | animalitos | 08:00–19:00 (12 horarios `:00`) | `https://loteriadehoy.com/animalito/guacharoactivo/resultados/` | `LoteriaDeHoyScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
 
 > `LoteriaDeHoyScraper` es parametrizado: reutiliza el mismo `scraper_class` para los juegos de
 > loteriadehoy.com registrando la `scraper_url` de cada juego (se usa su slug/name para fail-fast
@@ -66,7 +67,6 @@ aquí en su mismo work unit:
 
 | # | Nombre | slug | type (fuente) | Notas |
 |---|--------|------|---------------|-------|
-| 14 | Guacharo Activo | `guacharo-activo` | según URL cliente | |
 | 15 | La Granjita | `la-granjita` | según URL cliente | |
 | 16 | La Ricachona | `la-ricachona` | según URL cliente | |
 | 17 | Loto Chaima | `loto-chaima` | según URL cliente | |
