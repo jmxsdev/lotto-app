@@ -1,0 +1,358 @@
+---
+import AdminLayout from '../layouts/AdminLayout.astro';
+---
+
+<AdminLayout>
+  <div class="page">
+    <div class="page-header">
+      <h2 class="page-title">Resultados Loterías</h2>
+    </div>
+    <div class="filters">
+      <input type="date" id="filter-fecha" class="filter-input" />
+      <input type="text" id="filter-search" class="filter-input search-input" placeholder="Buscar por juego, animal, número, signo o triples..." />
+      <button class="btn btn-secondary" id="btn-refresh">Actualizar</button>
+    </div>
+    <div class="resultados-tabs" id="resultados-tabs">
+      <button class="result-tab active" data-tab="animalitos">🐾 Animalitos</button>
+      <button class="result-tab" data-tab="tripletas">🎲 Tripletas</button>
+      <button class="result-tab" data-tab="terminales">🎯 Terminales</button>
+    </div>
+    <div id="content"><div class="loading">Cargando resultados...</div></div>
+  </div>
+
+  <div class="modal-overlay" id="tracker-modal" style="display:none" role="dialog" aria-label="Apariciones previas de un valor">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="tracker-title">Apariciones previas</h3>
+        <button class="modal-close" id="tracker-close" aria-label="Cerrar">✕</button>
+      </div>
+      <div id="tracker-body"></div>
+    </div>
+  </div>
+
+  <style is:global>
+    .page { max-width: 1100px; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .page-title { font-size: 24px; font-weight: 700; color: #1e293b; }
+    .filters { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+    .filter-input { padding: 9px 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; }
+    .filter-input:focus { border-color: #3b82f6; outline: none; }
+    .search-input { flex: 1; min-width: 200px; }
+    .btn { padding: 8px 16px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .15s; }
+    .btn-primary { background: #3b82f6; color: #fff; } .btn-primary:hover { background: #2563eb; }
+    .btn-secondary { background: #e2e8f0; color: #333; } .btn-secondary:hover { background: #cbd5e1; }
+    .resultados-tabs { display: flex; gap: 0; margin-bottom: 18px; }
+    .result-tab { padding: 10px 22px; border: 2px solid #e2e8f0; background: #fff; cursor: pointer; font-size: 14px; font-weight: 600; color: #64748b; transition: all .15s; }
+    .result-tab:first-child { border-radius: 8px 0 0 8px; }
+    .result-tab:last-child { border-radius: 0 8px 8px 0; }
+    .result-tab:not(:last-child) { border-right: none; }
+    .result-tab:hover { background: #f0f6ff; color: #2563eb; }
+    .result-tab.active { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+    .loading { text-align: center; padding: 40px; color: #666; }
+    .empty-state { text-align: center; padding: 30px; color: #94a3b8; font-style: italic; }
+    .error-state { text-align: center; padding: 30px; color: #dc3545; }
+    .table-wrap { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #f1f5f9; padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600; color: #666; text-transform: uppercase; }
+    td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+    tr:hover td { background: #f8fafc; }
+    .value-btn { display: inline-block; border: none; cursor: pointer; font-family: inherit; padding: 3px 10px; border-radius: 6px; font-weight: 700; font-size: 14px; margin-right: 4px; margin-bottom: 2px; transition: all .15s; }
+    .value-btn:hover { transform: translateY(-1px); box-shadow: 0 2px 6px rgba(0,0,0,0.18); }
+    .numero-ganador { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; }
+    .triple-badge { font-size: 13px; }
+    .triple-badge.triple-a { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .triple-badge.triple-b { background: #e3f2fd; color: #1565c0; border: 1px solid #90caf9; }
+    .triple-badge.triple-c { background: #fff3e0; color: #e65100; border: 1px solid #ffcc80; }
+    .signo-badge { background: #f3e5f5; color: #7b1fa2; border: 1px solid #ce93d8; font-size: 13px; }
+    .animal-badge { display: inline-block; padding: 5px 14px; border-radius: 20px; font-weight: 700; font-size: 14px; letter-spacing: 0.3px; }
+    .animal-badge.verde { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .animal-badge.azul { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+    .animal-badge.rojo { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    .animal-badge.amarillo { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+    .animal-badge.default { background: #e9ecef; color: #495057; border: 1px solid #dee2e6; }
+    .color-swatch { display: inline-block; width: 24px; height: 24px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.15); vertical-align: middle; }
+    .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 20px; align-items: center; }
+    .page-btn { padding: 8px 14px; border: 1px solid #e2e8f0; background: #fff; border-radius: 6px; cursor: pointer; font-size: 14px; }
+    .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+    .modal-card { background: #fff; border-radius: 12px; padding: 24px; width: 460px; max-width: 95%; max-height: 85vh; overflow-y: auto; box-shadow: 0 8px 30px rgba(0,0,0,0.2); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .modal-header h3 { font-size: 16px; color: #1e293b; }
+    .modal-close { background: none; border: none; font-size: 18px; cursor: pointer; color: #64748b; padding: 4px; border-radius: 6px; }
+    .modal-close:hover { background: #f1f5f9; color: #333; }
+    .tracker-list { list-style: none; }
+    .tracker-list li { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+    .tracker-list li:last-child { border-bottom: none; }
+    .tracker-hora { font-weight: 600; color: #3b82f6; }
+    #tracker-body .error-state { padding: 16px; }
+    #tracker-body .btn { margin-top: 8px; display: block; margin-left: auto; margin-right: auto; }
+  </style>
+  <script>
+    import { apiFetch } from '../utils/api.ts';
+
+    let currentPage = 1;
+    let lastPage = 1;
+    let resultadosCache = [];
+    let activeTab = 'animalitos';
+    let searchTimeout = null;
+
+    function normalizeHora(hora) {
+      if (!hora) return '99:99:99';
+      const m = String(hora).match(/^(\d+):(\d+)(?::(\d+))?\s*(AM|PM)?$/i);
+      if (!m) return '99:99:99';
+      let h = parseInt(m[1]);
+      const min = m[2];
+      const sec = m[3] || '00';
+      const ampm = (m[4] || '').toUpperCase();
+      if (ampm === 'PM' && h !== 12) h += 12;
+      if (ampm === 'AM' && h === 12) h = 0;
+      return String(h).padStart(2, '0') + ':' + min.padStart(2, '0') + ':' + sec.padStart(2, '0');
+    }
+
+    function getColorClass(color) {
+      if (!color) return 'default';
+      const c = color.toLowerCase();
+      if (c.includes('verde') || c === 'green') return 'verde';
+      if (c.includes('azul') || c === 'blue') return 'azul';
+      if (c.includes('roj') || c === 'red') return 'rojo';
+      if (c.includes('amarill') || c === 'yellow') return 'amarillo';
+      return 'default';
+    }
+
+    function toCssColor(nombre) {
+      if (!nombre) return '#ccc';
+      const c = nombre.toLowerCase();
+      if (c.includes('roj')) return '#dc3545';
+      if (c.includes('verde')) return '#28a745';
+      if (c.includes('azul')) return '#2563eb';
+      if (c.includes('amarill')) return '#eab308';
+      if (c.includes('negro')) return '#333';
+      if (c.includes('blanco')) return '#f0f0f0';
+      if (c.includes('morado') || c.includes('púrpura') || c.includes('purpura')) return '#7c3aed';
+      if (c.includes('naranja')) return '#f97316';
+      if (c.includes('gris')) return '#6b7280';
+      if (c.includes('marrón') || c.includes('marron') || c.includes('café') || c.includes('cafe')) return '#92400e';
+      if (c.includes('rosado') || c.includes('rosa')) return '#ec4899';
+      return '#ccc';
+    }
+
+    // Botón clicable de un valor: identidad por tipo (A5).
+    // animalitos/terminales → numero; tripletas → posición (+ signo cuando la fila lo porta).
+    function valueBtn(o) {
+      const extra = o.cls || '';
+      return `<button class="value-btn ${extra}" data-resultado-id="${o.id}" data-tipo="${o.tipo}" data-posicion="${o.posicion}" data-valor="${o.valor}" data-signo="${o.signo}" data-juego="${o.juego}" title="Ver apariciones previas de ${o.label}">${o.label}</button>`;
+    }
+
+    function renderResultados() {
+      const container = document.getElementById('content');
+
+      if (resultadosCache.length === 0) {
+        container.innerHTML = '<div class="empty-state">No hay resultados para esta fecha</div>';
+        return;
+      }
+
+      const searchTerm = (document.getElementById('filter-search')?.value || '').toLowerCase().trim();
+
+      let filtered = resultadosCache.filter(r => {
+        const type = r.juego?.type || 'animalitos';
+        return type === activeTab;
+      });
+
+      if (searchTerm) {
+        filtered = filtered.filter(r => {
+          const g = (typeof r.numeros_ganadores === 'object' && r.numeros_ganadores !== null) ? r.numeros_ganadores : {};
+          const animal = (g.nombre_animal || '').toLowerCase();
+          const signo = (g.signo || '').toLowerCase();
+          const juego = (r.juego?.name || '').toLowerCase();
+          const triples = ['triple_a', 'triple_b', 'triple_c'].map(k => g[k] || '').join(' ');
+          const nums = String(g.numero ?? '');
+          return [juego, animal, signo, nums, triples].join(' ').includes(searchTerm);
+        });
+      }
+
+      let html = '<div class="table-wrap"><table><thead><tr><th>Juego</th><th>Fecha</th><th>Hora</th><th>Números</th>';
+      if (activeTab === 'animalitos') html += '<th>Animal</th><th>Color</th>';
+      html += '</tr></thead><tbody>';
+
+      if (filtered.length === 0) {
+        html += '<tr><td colspan="' + (activeTab === 'animalitos' ? '6' : '4') + '" class="empty-state">Sin coincidencias</td></tr>';
+      } else {
+        filtered.forEach(r => {
+          const g = (typeof r.numeros_ganadores === 'object' && r.numeros_ganadores !== null) ? r.numeros_ganadores : {};
+          const type = r.juego?.type || 'animalitos';
+          const juego = r.juego?.name || '-';
+          const fecha = r.fecha_sorteo ? new Date(r.fecha_sorteo).toLocaleDateString('es-VE') : '-';
+          const hora = r.hora_sorteo || '-';
+
+          let numerosHtml = '';
+          if (type === 'animalitos') {
+            numerosHtml = g.numero !== undefined
+              ? valueBtn({ id: r.id, tipo: type, posicion: '', valor: g.numero, signo: '', juego, label: '#' + g.numero, cls: 'numero-ganador' })
+              : '<span style="color:#999;font-style:italic">Pendiente</span>';
+          } else if (type === 'tripletas') {
+            const parts = [];
+            if (g.triple_a) parts.push(valueBtn({ id: r.id, tipo: type, posicion: 'triple_a', valor: g.triple_a, signo: g.signo || '', juego, label: 'A: ' + g.triple_a, cls: 'triple-badge triple-a' }));
+            if (g.triple_b) parts.push(valueBtn({ id: r.id, tipo: type, posicion: 'triple_b', valor: g.triple_b, signo: g.signo || '', juego, label: 'B: ' + g.triple_b, cls: 'triple-badge triple-b' }));
+            if (g.triple_c) parts.push(valueBtn({ id: r.id, tipo: type, posicion: 'triple_c', valor: g.triple_c, signo: g.signo || '', juego, label: 'C: ' + g.triple_c, cls: 'triple-badge triple-c' }));
+            if (g.signo) parts.push(valueBtn({ id: r.id, tipo: type, posicion: 'triple_c', valor: g.triple_c, signo: g.signo, juego, label: g.signo, cls: 'signo-badge' }));
+            numerosHtml = parts.length > 0 ? parts.join('') : '<span style="color:#999;font-style:italic">Pendiente</span>';
+          } else {
+            numerosHtml = g.numero !== undefined
+              ? valueBtn({ id: r.id, tipo: type, posicion: '', valor: g.numero, signo: '', juego, label: '#' + String(g.numero).padStart(2, '0'), cls: 'numero-ganador' })
+              : '<span style="color:#999;font-style:italic">Pendiente</span>';
+          }
+
+          html += `<tr><td><strong>${juego}</strong></td><td>${fecha}</td><td>${hora}</td><td>${numerosHtml}</td>`;
+
+          if (type === 'animalitos') {
+            const nombre = g.nombre_animal || '-';
+            const color = g.color_animal || null;
+            html += `<td>${nombre !== '-' ? `<span class="animal-badge ${getColorClass(color)}">${nombre}</span>` : '-'}</td>`;
+            html += `<td>${color ? `<span class="color-swatch" style="background:${toCssColor(color)};" title="${color}"></span>` : '-'}</td>`;
+          }
+
+          html += '</tr>';
+        });
+      }
+      html += '</tbody></table></div>';
+
+      if (lastPage > 1) {
+        html += '<div class="pagination">';
+        html += `<button class="page-btn" data-page="${currentPage - 1}" ${currentPage <= 1 ? 'disabled' : ''}>Anterior</button>`;
+        html += `<span style="padding:8px 12px;color:#666;">Página ${currentPage} de ${lastPage}</span>`;
+        html += `<button class="page-btn" data-page="${currentPage + 1}" ${currentPage >= lastPage ? 'disabled' : ''}>Siguiente</button>`;
+        html += '</div>';
+      }
+
+      container.innerHTML = html;
+    }
+
+    function setActiveTab(tab) {
+      activeTab = tab;
+      document.querySelectorAll('.result-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.tab === tab);
+      });
+    }
+
+    async function loadResultados(page) {
+      const container = document.getElementById('content');
+      container.innerHTML = '<div class="loading">Cargando resultados...</div>';
+
+      try {
+        const fecha = document.getElementById('filter-fecha').value;
+        let url = '/resultados?per_page=100&page=' + (page || 1);
+        if (fecha) url += '&fecha=' + fecha;
+        const data = await apiFetch('GET', url);
+
+        currentPage = data.current_page || 1;
+        lastPage = data.last_page || 1;
+        resultadosCache = (data.data || []).sort((a, b) => {
+          const ha = normalizeHora(a.hora_sorteo);
+          const hb = normalizeHora(b.hora_sorteo);
+          return hb.localeCompare(ha);
+        });
+
+        renderResultados();
+      } catch (error) {
+        container.innerHTML = '<div class="error-state">Error al cargar resultados: ' + error.message + '</div>';
+      }
+    }
+
+    // ============ Modal tracker (D1/D2) ============
+
+    function buildLabel(tipo, posicion, valor, signo) {
+      if (tipo === 'tripletas') {
+        const pos = (posicion || '').replace('triple_', '').toUpperCase();
+        const base = pos + ': ' + valor;
+        return signo ? base + ' + ' + signo : base;
+      }
+      return '#' + valor;
+    }
+
+    function onEsc(e) {
+      if (e.key === 'Escape') closeTracker();
+    }
+
+    function openTracker(btn) {
+      const overlay = document.getElementById('tracker-modal');
+      const title = document.getElementById('tracker-title');
+      const body = document.getElementById('tracker-body');
+      const { resultadoId, tipo, posicion, valor, signo, juego } = btn.dataset;
+
+      title.textContent = 'Apariciones previas — ' + juego + ' ' + buildLabel(tipo, posicion, valor, signo);
+      body.innerHTML = '<div class="loading">Cargando apariciones...</div>';
+      overlay.style.display = 'flex';
+      document.addEventListener('keydown', onEsc);
+      loadApariciones(resultadoId, posicion);
+    }
+
+    async function loadApariciones(id, posicion) {
+      const body = document.getElementById('tracker-body');
+      try {
+        let url = '/resultados/' + id + '/apariciones';
+        if (posicion) url += '?posicion=' + posicion;
+        const data = await apiFetch('GET', url);
+        const rows = Array.isArray(data) ? data : [];
+
+        if (rows.length === 0) {
+          body.innerHTML = '<div class="empty-state">Sin apariciones previas para este resultado</div>';
+          return;
+        }
+
+        body.innerHTML = '<ul class="tracker-list">' + rows.map(r => {
+          const fecha = r.fecha_sorteo ? new Date(r.fecha_sorteo).toLocaleDateString('es-VE') : '-';
+          return '<li><span>' + fecha + '</span><span class="tracker-hora">' + (r.hora_sorteo || '-') + '</span></li>';
+        }).join('') + '</ul>';
+      } catch (error) {
+        body.innerHTML = '<div class="error-state">Error al cargar apariciones: ' + error.message + '</div>' +
+          '<button class="btn btn-secondary" id="tracker-retry">Reintentar</button>';
+        document.getElementById('tracker-retry').addEventListener('click', () => loadApariciones(id, posicion));
+      }
+    }
+
+    function closeTracker() {
+      const overlay = document.getElementById('tracker-modal');
+      if (overlay.style.display === 'none') return;
+      overlay.style.display = 'none';
+      document.getElementById('tracker-body').innerHTML = '';
+      document.removeEventListener('keydown', onEsc);
+    }
+
+    (function init() {
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('filter-fecha').value = today;
+
+      loadResultados(1);
+
+      document.getElementById('btn-refresh').addEventListener('click', () => loadResultados(1));
+      document.getElementById('filter-fecha').addEventListener('change', () => loadResultados(1));
+      document.getElementById('filter-search').addEventListener('input', () => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => renderResultados(), 300);
+      });
+
+      document.querySelectorAll('.result-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+          setActiveTab(btn.dataset.tab);
+          renderResultados();
+        });
+      });
+
+      document.getElementById('content').addEventListener('click', (e) => {
+        const pBtn = e.target.closest('.page-btn');
+        if (pBtn && !pBtn.disabled) {
+          const page = parseInt(pBtn.dataset.page);
+          if (page >= 1 && page <= lastPage) loadResultados(page);
+          return;
+        }
+        const vb = e.target.closest('.value-btn');
+        if (vb) openTracker(vb);
+      });
+
+      document.getElementById('tracker-close').addEventListener('click', closeTracker);
+      document.getElementById('tracker-modal').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) closeTracker();
+      });
+    })();
+  </script>
+</AdminLayout>
