@@ -35,6 +35,7 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 |---|--------|------|------|---------------------------|----------------|---------------|--------|
 | 9 | Triple Caliente | `triple-caliente` | tripletas | 13:00, 16:30, 19:10 | `https://loteriadehoy.com/loteria/triplecaliente/resultados/` | `LoteriaDeHoyScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
 | 10 | Cazaloton | `cazaloton` | animalitos | 09:00–19:00 (11 horarios `:00`) | `https://loteriadehoy.com/animalito/cazaloton/resultados/` | `LoteriaDeHoyScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
+| 11 | Triple Chance | `triple-chance` | tripletas | 09:00–19:00 (11 horarios `:00`) | `https://loteriadehoy.com/loteria/triplechance/resultados/` | `LoteriaDeHoyScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
 
 > `LoteriaDeHoyScraper` es parametrizado: reutiliza el mismo `scraper_class` para los juegos de
 > loteriadehoy.com registrando la `scraper_url` de cada juego (se usa su slug/name para fail-fast
@@ -42,6 +43,9 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 > (`table.resultados`) para `tripletas`, y bloques de número + animal + hora (`div.js-con`) para
 > `animalitos`. En modo animalitos la página solo renderiza los sorteos ya ocurridos del día, por
 > lo que el scraper maneja resultados parciales (los bloques presentes, sin asumir el total).
+> En modo tripletas la página de algunos juegos (p. ej. Triple Chance) lista los bloques de horario
+> del día y solo los ya sorteados traen A/B/C; los horarios futuros aparecen como filas de hora sin
+> resultado, que el scraper ignora (no genera resultado vacío ni error).
 
 ## Juegos pendientes (10–22)
 
@@ -50,7 +54,6 @@ aquí en su mismo work unit:
 
 | # | Nombre | slug | type (fuente) | Notas |
 |---|--------|------|---------------|-------|
-| 11 | Triple Chance | `triple-chance` | tripletas (API productId) | |
 | 12 | El Arrejuntado | `el-arrejuntado` | según URL cliente | |
 | 13 | El Guacharito | `el-guacharito` | según URL cliente | |
 | 14 | Guacharo Activo | `guacharo-activo` | según URL cliente | |
