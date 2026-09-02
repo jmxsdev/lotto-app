@@ -48,6 +48,14 @@ en el PR 2 de la cadena (rama `feat/integracion-juegos-scrapers-f1-triple-calien
 - [x] 9e. Fila en `backend/docs/juegos.md` (mismo WU).
 - [ ] 9f. Verificación funcional con URL real (`php artisan tinker` → fetch+parse) pendiente del cliente (datos reales).
 
+### Juego 9 — Migración a fuente oficial (PR 8, rama f7-tc-oficial, base f6-guacharo-activo) — ✅ COMPLETADO
+- [x] 9g. Scraper `TripleCalienteOficialScraper.php` (extiende BaseScraper): POST al API oficial `https://triplecaliente.com/api/gaming/results/product` con `game_product_id` (constante `'4'` con override vía `config['scraper']['product_id']` del juego), parse de sorteos con fecha/hora local America/Caracas desde `event_timestamp.seconds`, A/B/C+signo al esquema tripletas, `sorteo_id_externo` = primer `event`, `findJuegoOrFail` fail-fast, y `execute` filtra el histórico por fecha (patrón `TripletasScraper`, misma familia de API).
+- [x] 9h. Seeder `TripleCalienteSeeder.php` migrado: `updateOrCreate` (aplica el cambio sobre el juego ya registrado) con `scraper_url` = API oficial y `scraper_class` = TripleCalienteOficialScraper; horarios 13:00/16:30/19:10 y límites/plugin/signos intactos. `LoteriaDeHoyScraper` NO se borra (queda para Cazaloton/Triple Chance/El Guacharito/Guacharo Activo y respaldo).
+- [x] 9i. Fixture real `backend/tests/Fixtures/triplecaliente_oficial.json` (snapshot del API oficial: 6 sorteos reales, 2 días × 3 horarios).
+- [x] 9j. RED→GREEN `TripleCalienteOficialScraperTest.php` (unit, 11: parse, epoch→Caracas, A/B/C+signo, dedupe por fecha, fail-fast, product_id desde config, JSON inválido/vacío) + `TripleCalienteResultsTest.php` actualizado (6 feature: nueva fuente, 3 sorteos persistidos, dedupe, resolver). `composer test -- --filter=TripleCaliente` → 25/25. Suite completa 486/484/2 + pint limpio.
+- [x] 9k. Fila en `backend/docs/juegos.md` (juego 9: fuente API oficial, estado "verificado con datos reales") + nota del scraper.
+- [x] 9l. CARGA REAL EN BD LOCAL: `php artisan db:seed --class=TripleCalienteSeeder --force` actualiza el juego; scraper contra el API real persiste **3 sorteos** del 2026-09-01 (13:00/16:30/19:10) en `resultados`; rescrape verifica dedupe (sigue en 3). HOY 02-09 aún sin sorteos (primer sorteo 13:00, ejecución 12:16 Caracas — resultados parciales correctos).
+
 Juego 10 (Cazaloton) completado en el PR 3 de la cadena (rama
 `feat/integracion-juegos-scrapers-f2-cazaloton`, base f1-triple-caliente):
 
@@ -103,7 +111,7 @@ Plantilla para los juegos restantes (#15–22):
 
 | # | Juego | slug | type (fuente) | Flag |
 |---|-------|------|---------------|------|
-| 9 | Triple Caliente | triple-caliente | tripletas (API productId) | ✅ integrado (PR 2) |
+| 9 | Triple Caliente | triple-caliente | tripletas (API oficial productId) | ✅ integrado (PR 2) + fuente oficial (PR 8) |
 | 10 | Cazaloton | cazaloton | animalitos | ✅ integrado (PR 3) |
 | 11 | Triple Chance | triple-chance | tripletas (API productId) | ✅ integrado (PR 4) |
 | 12 | El Arrejuntado | el-arrejuntado | tripletas (API serviciosintegradostriple7) | ✅ integrado (PR 5) |

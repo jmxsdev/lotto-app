@@ -578,3 +578,122 @@ tabla del cliente y la URL de la fuente) con el `LoteriaDeHoyScraper::parseAnima
   cliente; no bloquea los siguientes juegos pero debe cerrarse antes de marcar Guacharo Activo
   como verificado con datos reales.
 - `sdd-verify` del PR 7 cuando el orquestador lo dispare.
+
+---
+
+# Sección Triple Caliente — fuente oficial (PR 8, tareas 9g–9l) — ✅ COMPLETADO
+
+**Rama**: `feat/integracion-juegos-scrapers-f7-tc-oficial` (base: `feat/integracion-juegos-scrapers-f6-guacharo-activo`)
+**Estado**: ✅ 9g–9l completadas (migración de fuente de Triple Caliente al API oficial)
+
+## Resumen
+
+El scraper de Triple Caliente usaba `LoteriaDeHoyScraper` (HTML de loteriadehoy.com), BLOQUEADO por
+el challenge de Cloudflare (verificado en local y VPS). Se descubrió el API oficial de
+triplecaliente.com (`POST /api/gaming/results/product`, body `{"game_product_id":"4"}`, sin auth ni
+anti-bot) y se migró el juego a la nueva fuente: nuevo `TripleCalienteOficialScraper`, seeder
+actualizado, fixture real, tests RED→GREEN y docs. `LoteriaDeHoyScraper` NO se borra (sigue para
+Cazaloton, Triple Chance, El Guacharito y Guacharo Activo, y como respaldo).
+
+## Decisión: game_product_id
+
+Convención documentada en el docblock de la clase y en `docs/juegos.md`: el `game_product_id` se lee
+de `config['scraper']['product_id']` del juego registrado, con default la constante del scraper
+`GAME_PRODUCT_ID = '4'`. El seeder registra `config => ['premio_multiplo' => 30, 'scraper' =>
+['product_id' => '4']]`. Alternativas descartadas: config global `config('scraper.product_id')`
+(no existe `config/scraper.php` en el proyecto; TripletasScraper usa fallback '2') y hardcodear '4'
+en el scraper (menos configurable).
+
+## Hallazgo: misma familia de API que Triple Zulia
+
+`TripletasScraper` (legacy) ya consume el MISMO endpoint (`/api/gaming/results/product` con
+`game_product_id`) contra resultadostriplezulia.com. Por eso el nuevo scraper sigue su patrón:
+`execute` filtra el histórico devuelto por la API (los últimos N sorteos) a la fecha solicitada
+antes de `saveResults`, y `sorteo_id_externo` usa el primer id del array `events` (ids únicos por
+sorteo). Timestamps verificados: `1788304200` → 2026-09-01 19:10 America/Caracas (UTC-4), que
+coincide con los horarios oficiales 13:00/16:30/19:10.
+
+## Hallazgo: C incluye el signo (formato "589-ESC")
+
+El campo C de la API oficial viene como `"589-ESC"` (número + guión + signo de 3 letras), igual que
+el `triple-signo "259 LEO"` de ElArrejuntao pero con guión. El scraper divide en `triple_c` ("589")
++ `signo` ("ESC") con `splitTripleSigno` (regex `^(\d+)-([A-Za-z]+)$`), compatible con el esquema
+tripletas que renderiza el panel.
+
+## Hallazgo: seeder con updateOrCreate para migrar fuente
+
+El juego ya existía en BD (integración PR 2). `firstOrCreate` no aplicaría el cambio de fuente sobre
+la fila existente, así que el seeder pasa a `updateOrCreate(['slug'], [...])` — única diferencia
+frente al patrón de los otros seeders, necesaria para que la migración de fuente sea idempotente y
+aplique sobre el juego ya registrado (verificado en BD local: id=8, fuente oficial).
+
+## TDD Cycle Evidence (Juego 9 fuente oficial)
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| 9g/9i/9j | `tests/Unit/TripleCalienteOficialScraperTest.php` | Unit | ✅ suite 475/473/2 + TripleCaliente 14/14 | ✅ 11 errores (clase no existe) | ✅ 11/11 (35 assertions) | ✅ 11 casos (parse 6, epoch→Caracas, A/B/C+signo×2, events, estructura, fail-fast, filtrarPorFecha×2 fechas, product_id config, JSON inválido, vacío) | ✅ Pint clean |
+| 9h/9j | `tests/Feature/TripleCalienteResultsTest.php` | Feature | ✅ idem | ✅ 3 errores (URL/clase vieja) | ✅ 6/6 | ✅ 6 casos (seeder nueva fuente, límite+plugin, 3 horarios, persistencia 3 sorteos, dedupe, resolver) | ✅ Pint clean |
+| 9k | N/A (docs) | Docs | ✅ | ➖ | ➖ | Omitida | ✅ |
+| 9l | Runtime real | Harness | ✅ | ➖ | ✅ 3 sorteos persistidos | ✅ dedupe rescrape (sigue 3) | ➖ |
+
+**Test Summary (Juego 9 fuente oficial)**: +11 tests (486 vs 475 baseline); suite completa 486/484/2
++ pint limpio. Comando focused: `composer test -- --filter=TripleCaliente` → 25/25 (92 assertions).
+
+## Work Unit Evidence (Juego 9 fuente oficial)
+
+| Work unit | Focused test command y resultado | Runtime harness y resultado | Rollback boundary |
+|-----------|----------------------------------|-----------------------------|-------------------|
+| WU1 scraper+fixture | `composer test -- --filter=TripleCalienteOficialScraperTest` → 11/11 (35 assertions) | `php artisan tinker` → `new TripleCalienteOficialScraper($juego)` + `execute('2026-09-01')` contra el API real → 3 resultados (13:00/16:30/19:10, eventos 132355/132396/132401) | Eliminar `TripleCalienteOficialScraper.php` + fixture + test unit |
+| WU2 seeder+feature | `composer test -- --filter=TripleCalienteResultsTest` → 6/6 | `php artisan db:seed --class=TripleCalienteSeeder --force` → juego actualizado (fuente oficial); scraper real → `saveResults` persiste **3 sorteos** en `resultados`; rescrape mantiene 3 (dedupe upsert) | Revertir seeder a fuente loteriadehoy + revertir feature test |
+| WU3 docs | N/A | N/A (docs) | Revertir solo la fila 9 y la nota en `docs/juegos.md` |
+
+## Archivos cambiados (Juego 9 fuente oficial)
+
+| Archivo | Acción | Qué se hizo |
+|---------|--------|-------------|
+| `backend/app/Plugins/Scrapers/TripleCalienteOficialScraper.php` | Create | Scraper del API oficial: POST `/api/gaming/results/product` con `game_product_id`, parse epoch→Caracas (fecha+hora), A/B/C+signo, `sorteo_id_externo`=events[0], `filtrarPorFecha`, fail-fast |
+| `backend/database/seeders/TripleCalienteSeeder.php` | Modify | `updateOrCreate` + `scraper_url` API oficial + `scraper_class` TripleCalienteOficialScraper + `config['scraper']['product_id']='4'`; horarios intactos |
+| `backend/tests/Fixtures/triplecaliente_oficial.json` | Create | Snapshot real del API oficial (2026-09-01/08-31, 6 sorteos: 013/511/589-ESC, 779/646/237-LIB, 758/073/439-ACU, 319/076/408-LEO, 514/634/062-ARI, 465/764/946-VIR) |
+| `backend/tests/Unit/TripleCalienteOficialScraperTest.php` | Create | 11 tests unit (parse, horas/fechas Caracas desde epoch, A/B/C+signo con cero inicial, events, estructura, fail-fast, filtro por fecha, product_id config, JSON inválido/vacío) |
+| `backend/tests/Feature/TripleCalienteResultsTest.php` | Modify | Nueva fuente en aserciones del seeder, persistencia con fixture JSON (3 sorteos), dedupe, resolver → TripleCalienteOficialScraper |
+| `backend/tests/Feature/ResultadoAparicionesTest.php` | Modify | Newline final (pint --test, tarea 3.2); formateo puro pre-existente, sin lógica |
+| `backend/docs/juegos.md` | Modify | Fila 9 → fuente API oficial + estado "verificado con datos reales" + nota del scraper y convención product_id |
+| `openspec/changes/integracion-juegos-scrapers/tasks.md` | Modify | 9g–9l marcadas `[x]`; fila 9 "✅ integrado (PR 2) + fuente oficial (PR 8)" |
+| `openspec/changes/integracion-juegos-scrapers/apply-progress.md` | Modify | Sección Triple Caliente fuente oficial añadida (merge) |
+
+## Desviaciones del diseño (Juego 9 fuente oficial)
+
+- Seeder `TripleCalienteSeeder` usa `updateOrCreate` en lugar de `firstOrCreate` (patrón de los
+  demás seeders): necesario para que la migración de fuente aplique sobre el juego ya registrado.
+  Única desviación; el resto del patrón (JuegoLimite, PluginJuego, JuegoOpcion, JuegoHorario) intacto.
+- `TripleCalienteOficialScraper::execute` sobrescribe el `execute` de `BaseScraper` para filtrar el
+  histórico por fecha (patrón `TripletasScraper`, misma familia de API): la API devuelve los últimos
+  N sorteos, no solo los del día; sin el filtro, `saveResults` perseguiría fechas pasadas con la
+  fecha del job (upsert incorrecto). Documentado en el docblock.
+
+## Problemas encontrados (Juego 9 fuente oficial)
+
+- **HOY (02-09) sin sorteos al momento de la carga real**: la ejecución fue a las 12:16 Caracas y el
+  primer sorteo del día es 13:00; la API solo devuelve sorteos ya ocurridos. `execute('2026-09-02')`
+  → 0 resultados (comportamiento correcto de resultados parciales, mismo patrón que loteriadehoy
+  modo animalitos). La carga real se verificó con el último día completo disponible (2026-09-01).
+- **pint tocó `ResultadoAparicionesTest.php`** (newline final pre-existente): se incluyó en un commit
+  de estilo separado y documentado para mantener `pint --test` limpio (tarea 3.2).
+- **Cambios ajenos del checkout compartido**: `backend/.env.example` y `panel/.astro/settings.json`
+  (modificados) y `.atl/`, `.codegraph/`, `openspec/config.yaml` (sin seguimiento) quedaron fuera de
+  los commits.
+
+## Workload / PR Boundary (Juego 9 fuente oficial)
+
+- Modo: chained PR slice (feature-branch-chain, PR 8 de la cadena; base = PR 7 `feat/integracion-juegos-scrapers-f6-guacharo-activo`).
+- Boundary: migración completa de la fuente de Triple Caliente (scraper → seeder → fixture → tests →
+  docs → carga real en BD local) con verificación incluida (suite completa 486/484/2 + pint limpio).
+  NO se abrieron PRs.
+- Rollback boundary por unidad: ver tabla Work Unit Evidence (Juego 9 fuente oficial).
+
+## Siguiente paso recomendado
+
+- Juego 15 (La Granjita): requiere URL y estructura de la fuente del cliente antes de aplicar.
+- `9f` original (verificación con URL real de la fuente ANTERIOR) queda cerrado por sustitución:
+  la nueva fuente se verificó con datos reales en este PR (3 sorteos persistidos en BD local).
+- `sdd-verify` del PR 8 cuando el orquestador lo dispare.
