@@ -58,6 +58,11 @@ class ReleaseController extends Controller
      * GET /api/v1/releases/serve — signed:relative + throttle (sin auth:
      * la firma ES la credencial).
      */
+    /**
+     * Sirve el .exe por streaming desde el volumen persistente (REQ-A4).
+     * GET /api/v1/releases/serve — signed:relative + throttle (sin auth:
+     * la firma ES la credencial).
+     */
     public function serve(Request $request): StreamedResponse
     {
         $release = Release::query()->current()->first();
@@ -70,6 +75,25 @@ class ReleaseController extends Controller
 
         return Storage::disk('releases')->download($release->file_path, $filename, [
             'Content-Type' => 'application/octet-stream',
+        ]);
+    }
+
+    /**
+     * Notificación de versión para la taquilla instalada (REQ-B1, D1):
+     * notify-only — nunca auto-instala ni expone URL de descarga.
+     * GET /api/v1/update-check — público + throttle:30,1.
+     */
+    public function updateCheck(): JsonResponse
+    {
+        $release = Release::query()->current()->first();
+
+        if (! $release) {
+            return response()->json(['message' => 'No hay releases publicadas.'], 404);
+        }
+
+        return response()->json([
+            'version' => $release->version,
+            'sha256' => $release->sha256,
         ]);
     }
 }

@@ -37,6 +37,9 @@ Route::prefix('v1')->group(function () {
         ->middleware(['signed:relative', 'throttle:releases-download'])
         ->name('releases.serve');
 
+    // Update-check (REQ-B1): notificación de versión para la taquilla instalada.
+    Route::get('/update-check', [ReleaseController::class, 'updateCheck'])->middleware('throttle:30,1');
+
     // Rutas protegidas solo con Sanctum (sin verificación MAC)
     Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/user', [AuthController::class, 'user']);
