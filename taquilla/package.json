@@ -27,6 +27,7 @@
   "build": {
     "appId": "com.lotto.taquilla",
     "productName": "Lotto Taquilla",
+    "artifactName": "Taquilla-Setup-${version}.${ext}",
     "directories": {
       "output": "build"
     },
