@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\ExchangeRateController;
 use App\Http\Controllers\Api\GrupoController;
 use App\Http\Controllers\Api\JuegoController;
 use App\Http\Controllers\Api\PagoController;
+use App\Http\Controllers\Api\ReleaseController;
 use App\Http\Controllers\Api\ReporteController;
 use App\Http\Controllers\Api\ResultadoController;
 use App\Http\Controllers\Api\TaquillaController;
@@ -209,6 +210,15 @@ Route::prefix('v1')->group(function () {
             Route::post('/exchange-rates/scrape', [ExchangeRateController::class, 'scrape']);
             Route::put('/exchange-rates/{exchange_rate}', [ExchangeRateController::class, 'update']);
             Route::post('/exchange-rates/{exchange_rate}/set-active', [ExchangeRateController::class, 'setActive']);
+        });
+
+        // ==================================================
+        // DISTRIBUCIÓN DE TAQUILLA (releases del instalador)
+        // latest/download: roles del panel (5); taquilla → 403.
+        // serve: URL firmada, fuera de auth (U2).
+        // ==================================================
+        Route::middleware(['role:super_master|master|banca|grupo|agencia'])->group(function () {
+            Route::get('/releases/latest', [ReleaseController::class, 'latest']);
         });
     }); // fin Route::prefix('v1')
 });
