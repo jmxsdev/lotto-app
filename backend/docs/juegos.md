@@ -33,7 +33,7 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 
 | # | Nombre | slug | type | Horarios (juego_horarios) | Fuente scraper | Clase scraper | Estado |
 |---|--------|------|------|---------------------------|----------------|---------------|--------|
-| 9 | Triple Caliente | `triple-caliente` | tripletas | 13:00, 16:30, 19:10 | `https://loteriadehoy.com/loteria/triplecaliente/resultados/` | `LoteriaDeHoyScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
+| 9 | Triple Caliente | `triple-caliente` | tripletas | 13:00, 16:30, 19:10 | `https://triplecaliente.com/api/gaming/results/product` (API oficial) | `TripleCalienteOficialScraper` | ✅ Verificado con datos reales (API oficial, sin anti-bot) |
 | 10 | Cazaloton | `cazaloton` | animalitos | 09:00–19:00 (11 horarios `:00`) | `https://loteriadehoy.com/animalito/cazaloton/resultados/` | `LoteriaDeHoyScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
 | 11 | Triple Chance | `triple-chance` | tripletas | 09:00–19:00 (11 horarios `:00`) | `https://loteriadehoy.com/loteria/triplechance/resultados/` | `LoteriaDeHoyScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
 | 12 | El Arrejuntado | `el-arrejuntado` | tripletas | 10:00, 13:00, 16:00, 19:00, 23:00 (5 horarios) | `https://backend.serviciosintegradostriple7.com/api/v1/products/el-arrejuntao/results/` | `ElArrejuntaoScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
@@ -59,6 +59,19 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 > con el esquema tripletas que renderiza el panel; `animalito`, `arrimao` y `pegadito` se conservan
 > en el mismo array (modalidades adicionales no consumidas por la renderización tripletas en esta
 > iteración).
+
+> `TripleCalienteOficialScraper` consume la API oficial de triplecaliente.com (POST
+> `/api/gaming/results/product`, body `{"game_product_id":"4"}`, sin auth ni anti-bot). Sustituye a
+> `LoteriaDeHoyScraper` para Triple Caliente porque loteriadehoy.com quedó bloqueado por el challenge
+> de Cloudflare. La API devuelve el histórico de sorteos (los últimos N), cada uno con 3 `events`
+> (ids únicos), `results` A/B/C (C incluye signo, p. ej. `589-ESC`) y `event_timestamp.seconds`
+> (epoch). El scraper deriva `fecha_sorteo`/`hora_sorteo` locales en America/Caracas (UTC-4) desde el
+> timestamp, mapea A/B/C+signo al esquema tripletas, usa el primer `event` como `sorteo_id_externo`,
+> y `execute` filtra el histórico a la fecha solicitada (patrón `TripletasScraper`, misma familia de
+> API). El `game_product_id` se lee de `config['scraper']['product_id']` del juego (default `'4'`,
+> constante del scraper) — documentado en el docblock de la clase. `LoteriaDeHoyScraper` se conserva
+> para los demás juegos de loteriadehoy.com (Cazaloton, Triple Chance, El Guacharito, Guacharo Activo)
+> y como respaldo.
 
 ## Juegos pendientes (10–22)
 
