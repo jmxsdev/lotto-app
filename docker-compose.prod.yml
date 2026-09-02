@@ -47,6 +47,8 @@ services:
     container_name: lotto_api_prod
     restart: unless-stopped
     env_file: .env.production
+    volumes:
+      - taquilla_releases:/var/www/html/storage/app/releases
     healthcheck:
       test: ["CMD-SHELL", "curl -s -o /dev/null -w '%{http_code}' -H 'Accept: application/json' http://127.0.0.1:10000/api/v1/juegos | grep -qE '^(200|401)$' || exit 1"]
       interval: 30s
@@ -110,3 +112,4 @@ volumes:
   redis_prod_data:
   caddy_data:
   caddy_config:
+  taquilla_releases:
