@@ -9,7 +9,7 @@ use App\Models\JuegoLimite;
 use App\Models\JuegoOpcion;
 use App\Models\PluginJuego;
 use App\Plugins\Juegos\Tripletas;
-use App\Plugins\Scrapers\LoteriaDeHoyScraper;
+use App\Plugins\Scrapers\TripleCalienteOficialScraper;
 use Illuminate\Database\Seeder;
 
 class TripleCalienteSeeder extends Seeder
@@ -22,15 +22,21 @@ class TripleCalienteSeeder extends Seeder
 
     public function run(): void
     {
-        $juego = Juego::firstOrCreate(
+        // updateOrCreate: el juego ya existe desde la integración previa (fuente
+        // loteriadehoy.com, bloqueada por Cloudflare); este seeder migra la fuente
+        // al API oficial de triplecaliente.com manteniendo slug, type y horarios.
+        $juego = Juego::updateOrCreate(
             ['slug' => 'triple-caliente'],
             [
                 'name' => 'Triple Caliente',
                 'type' => 'tripletas',
-                'config' => ['premio_multiplo' => 30],
+                'config' => [
+                    'premio_multiplo' => 30,
+                    'scraper' => ['product_id' => '4'],
+                ],
                 'requires_scraper' => true,
-                'scraper_url' => 'https://loteriadehoy.com/loteria/triplecaliente/resultados/',
-                'scraper_class' => LoteriaDeHoyScraper::class,
+                'scraper_url' => 'https://triplecaliente.com/api/gaming/results/product',
+                'scraper_class' => TripleCalienteOficialScraper::class,
                 'active' => true,
             ]
         );
@@ -79,6 +85,6 @@ class TripleCalienteSeeder extends Seeder
             );
         }
 
-        $this->command->info('Juego Triple Caliente actualizado (type: tripletas, scraper: LoteriaDeHoyScraper).');
+        $this->command->info('Juego Triple Caliente actualizado (type: tripletas, scraper: TripleCalienteOficialScraper, fuente: API oficial).');
     }
 }

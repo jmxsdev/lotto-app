@@ -10,7 +10,7 @@ use App\Models\JuegoLimite;
 use App\Models\PluginJuego;
 use App\Models\Resultado;
 use App\Plugins\Juegos\Tripletas;
-use App\Plugins\Scrapers\LoteriaDeHoyScraper;
+use App\Plugins\Scrapers\TripleCalienteOficialScraper;
 use Database\Seeders\TripleCalienteSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -40,9 +40,10 @@ class TripleCalienteResultsTest extends TestCase
         $this->assertEquals('Triple Caliente', $juego->name);
         $this->assertEquals('tripletas', $juego->type);
         $this->assertTrue($juego->requires_scraper);
-        $this->assertEquals('https://loteriadehoy.com/loteria/triplecaliente/resultados/', $juego->scraper_url);
-        $this->assertEquals(LoteriaDeHoyScraper::class, $juego->scraper_class);
+        $this->assertEquals('https://triplecaliente.com/api/gaming/results/product', $juego->scraper_url);
+        $this->assertEquals(TripleCalienteOficialScraper::class, $juego->scraper_class);
         $this->assertEquals(30, $juego->config['premio_multiplo']);
+        $this->assertEquals('4', $juego->config['scraper']['product_id']);
     }
 
     public function test_seeder_registra_limite_default_y_plugin(): void
@@ -78,48 +79,58 @@ class TripleCalienteResultsTest extends TestCase
         $this->assertEquals(0, Resultado::count());
 
         $juego = Juego::where('slug', 'triple-caliente')->first();
-        $scraper = new LoteriaDeHoyScraper($juego);
-        $html = file_get_contents(base_path('tests/Fixtures/loteriadehoy_triplecaliente.html'));
+        $scraper = new TripleCalienteOficialScraper($juego);
+        $json = file_get_contents(base_path('tests/Fixtures/triplecaliente_oficial.json'));
 
         $reflection = new \ReflectionClass($scraper);
         $parse = $reflection->getMethod('parse');
         $parse->setAccessible(true);
-        $resultados = $parse->invoke($scraper, $html);
+        $todos = $parse->invoke($scraper, $json);
 
-        $guardados = $scraper->saveResults($resultados, '2026-08-31');
+        // El fixture trae 2 días (6 sorteos); el flujo real filtra por la fecha
+        // solicitada (execute → filtrarPorFecha), como hace el job.
+        $filtrar = $reflection->getMethod('filtrarPorFecha');
+        $filtrar->setAccessible(true);
+        $resultados = $filtrar->invoke($scraper, $todos, '2026-09-01');
+
+        $guardados = $scraper->saveResults($resultados, '2026-09-01');
 
         $this->assertEquals(3, count($resultados));
         $this->assertEquals(3, $guardados);
         $this->assertEquals(3, Resultado::count());
 
         $persistido = Resultado::where('juego_id', $juego->id)
-            ->whereDate('fecha_sorteo', '2026-08-31')
+            ->whereDate('fecha_sorteo', '2026-09-01')
             ->where('hora_sorteo', '13:00')
             ->first();
 
         $this->assertNotNull($persistido);
-        $this->assertEquals('465', $persistido->numeros_ganadores['triple_a']);
-        $this->assertEquals('764', $persistido->numeros_ganadores['triple_b']);
-        $this->assertEquals('946', $persistido->numeros_ganadores['triple_c']);
-        $this->assertEquals('VIR', $persistido->numeros_ganadores['signo']);
+        $this->assertEquals('758', $persistido->numeros_ganadores['triple_a']);
+        $this->assertEquals('073', $persistido->numeros_ganadores['triple_b']);
+        $this->assertEquals('439', $persistido->numeros_ganadores['triple_c']);
+        $this->assertEquals('ACU', $persistido->numeros_ganadores['signo']);
         $this->assertEquals('VE', $persistido->numeros_ganadores['pais']);
     }
 
     public function test_dedupe_al_rescrapear_el_mismo_dia(): void
     {
         $juego = Juego::where('slug', 'triple-caliente')->first();
-        $scraper = new LoteriaDeHoyScraper($juego);
-        $html = file_get_contents(base_path('tests/Fixtures/loteriadehoy_triplecaliente.html'));
+        $scraper = new TripleCalienteOficialScraper($juego);
+        $json = file_get_contents(base_path('tests/Fixtures/triplecaliente_oficial.json'));
 
         $reflection = new \ReflectionClass($scraper);
         $parse = $reflection->getMethod('parse');
         $parse->setAccessible(true);
-        $resultados = $parse->invoke($scraper, $html);
+        $todos = $parse->invoke($scraper, $json);
 
-        $scraper->saveResults($resultados, '2026-08-31');
+        $filtrar = $reflection->getMethod('filtrarPorFecha');
+        $filtrar->setAccessible(true);
+        $resultados = $filtrar->invoke($scraper, $todos, '2026-09-01');
+
+        $scraper->saveResults($resultados, '2026-09-01');
         $this->assertEquals(3, Resultado::count());
 
-        $scraper->saveResults($resultados, '2026-08-31');
+        $scraper->saveResults($resultados, '2026-09-01');
         $this->assertEquals(3, Resultado::count(), 'No debe duplicarse el resultado del mismo sorteo');
     }
 
@@ -127,12 +138,12 @@ class TripleCalienteResultsTest extends TestCase
     {
         $juego = Juego::where('slug', 'triple-caliente')->first();
 
-        $job = new ScrapeResultsJob($juego->id, '2026-08-31');
+        $job = new ScrapeResultsJob($juego->id, '2026-09-01');
 
         $reflection = new \ReflectionClass($job);
         $method = $reflection->getMethod('resolveScraper');
         $method->setAccessible(true);
 
-        $this->assertEquals(LoteriaDeHoyScraper::class, $method->invoke($job, $juego));
+        $this->assertEquals(TripleCalienteOficialScraper::class, $method->invoke($job, $juego));
     }
 }
