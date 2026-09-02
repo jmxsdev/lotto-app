@@ -61,7 +61,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
   </style>
 
   <script>
-    import { apiFetch, API_BASE } from '../utils/api.ts';
+    import { apiFetch, API_ORIGIN } from '../utils/api.ts';
 
     const loading = document.getElementById('release-loading');
     const info = document.getElementById('release-info');
@@ -98,7 +98,9 @@ import AdminLayout from '../layouts/AdminLayout.astro';
         const data = await apiFetch('GET', '/releases/download');
         // Navegación por anchor: el navegador descarga directo desde la API
         // (URL firmada), sin fetch → sin CORS en el .exe.
-        window.location.href = API_BASE + data.url;
+        // data.url ya es una ruta server-rooted (/api/v1/releases/serve?...) —
+        // solo anteponer el ORIGEN, nunca API_BASE (que ya incluye /api/v1).
+        window.location.href = API_ORIGIN + data.url;
       } catch (e) {
         estado.textContent = '';
         alert('Error al generar la descarga: ' + e.message);
