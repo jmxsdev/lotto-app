@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\ExchangeRateController;
 use App\Http\Controllers\Api\GrupoController;
 use App\Http\Controllers\Api\JuegoController;
 use App\Http\Controllers\Api\PagoController;
+use App\Http\Controllers\Api\ReleaseController;
 use App\Http\Controllers\Api\ReporteController;
 use App\Http\Controllers\Api\ResultadoController;
 use App\Http\Controllers\Api\TaquillaController;
@@ -29,6 +30,15 @@ Route::prefix('v1')->group(function () {
     Route::get('/exchange-rate/active', [ExchangeRateController::class, 'active']);
     Route::post('/activar', [ActivacionController::class, 'activar'])->middleware('throttle:10,60');
     Route::post('/dispositivo/verificar', [DispositivoController::class, 'verificar']);
+
+    // Serve del instalador: URL firmada (relativa) + throttle; sin auth
+    // (la firma ES la credencial, REQ-A2/A3).
+    Route::get('/releases/serve', [ReleaseController::class, 'serve'])
+        ->middleware(['signed:relative', 'throttle:releases-download'])
+        ->name('releases.serve');
+
+    // Update-check (REQ-B1): notificación de versión para la taquilla instalada.
+    Route::get('/update-check', [ReleaseController::class, 'updateCheck'])->middleware('throttle:30,1');
 
     // Rutas protegidas solo con Sanctum (sin verificación MAC)
     Route::middleware(['auth:sanctum'])->group(function () {
@@ -209,6 +219,16 @@ Route::prefix('v1')->group(function () {
             Route::post('/exchange-rates/scrape', [ExchangeRateController::class, 'scrape']);
             Route::put('/exchange-rates/{exchange_rate}', [ExchangeRateController::class, 'update']);
             Route::post('/exchange-rates/{exchange_rate}/set-active', [ExchangeRateController::class, 'setActive']);
+        });
+
+        // ==================================================
+        // DISTRIBUCIÓN DE TAQUILLA (releases del instalador)
+        // latest/download: roles del panel (5); taquilla → 403.
+        // serve: URL firmada, fuera de auth (arriba).
+        // ==================================================
+        Route::middleware(['role:super_master|master|banca|grupo|agencia'])->group(function () {
+            Route::get('/releases/latest', [ReleaseController::class, 'latest']);
+            Route::get('/releases/download', [ReleaseController::class, 'download'])->middleware('throttle:releases-download');
         });
     }); // fin Route::prefix('v1')
 });

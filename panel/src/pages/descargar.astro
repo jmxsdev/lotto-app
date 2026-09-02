@@ -1,0 +1,123 @@
+---
+import AdminLayout from '../layouts/AdminLayout.astro';
+---
+
+<AdminLayout>
+  <div class="page">
+    <div class="page-header">
+      <h2 class="page-title">Descargar Taquilla</h2>
+      <p class="page-subtitle">Última versión publicada del instalador de la taquilla.</p>
+    </div>
+
+    <div class="card" id="release-card">
+      <div class="loading" id="release-loading">Consultando la última release...</div>
+      <div class="release-info" id="release-info" hidden>
+        <div class="field-row">
+          <span class="field-label">Versión</span>
+          <span class="field-value" id="release-version">-</span>
+        </div>
+        <div class="field-row">
+          <span class="field-label">Publicada</span>
+          <span class="field-value" id="release-published">-</span>
+        </div>
+        <div class="field-row checksum-row">
+          <span class="field-label">SHA-256</span>
+          <div class="checksum-wrap">
+            <code id="release-sha256">-</code>
+            <button class="btn btn-secondary" id="btn-copiar" type="button">📋 Copiar</button>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary" id="btn-descargar" type="button">⬇️ Descargar instalador</button>
+          <span class="estado" id="estado-descarga"></span>
+        </div>
+        <p class="hint">Verifica el checksum después de la descarga: <code>sha256sum Taquilla-Setup-&lt;version&gt;.exe</code></p>
+      </div>
+      <div class="empty" id="release-empty" hidden>No hay releases publicadas todavía.</div>
+    </div>
+  </div>
+
+  <style is:global>
+    .page { max-width: 720px; }
+    .page-header { margin-bottom: 20px; }
+    .page-title { font-size: 24px; font-weight: 700; color: #1e293b; }
+    .page-subtitle { font-size: 14px; color: #64748b; margin-top: 4px; }
+    .card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .loading, .empty { text-align: center; padding: 32px; color: #666; }
+    .field-row { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; }
+    .field-label { width: 110px; font-size: 13px; font-weight: 600; color: #666; text-transform: uppercase; flex-shrink: 0; }
+    .field-value { font-size: 15px; color: #1e293b; }
+    .checksum-row { align-items: flex-start; }
+    .checksum-wrap { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .checksum-wrap code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; background: #f1f5f9; padding: 6px 10px; border-radius: 6px; word-break: break-all; }
+    .actions { display: flex; align-items: center; gap: 12px; margin-top: 20px; }
+    .btn { padding: 8px 16px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .btn-primary { background: #3b82f6; color: #fff; } .btn-primary:hover { background: #2563eb; }
+    .btn-primary:disabled { opacity: 0.5; cursor: default; }
+    .btn-secondary { background: #f1f5f9; color: #334155; } .btn-secondary:hover { background: #e2e8f0; }
+    .estado { font-size: 13px; color: #16a34a; }
+    .hint { margin-top: 16px; font-size: 12px; color: #64748b; }
+    .hint code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
+  </style>
+
+  <script>
+    import { apiFetch, API_ORIGIN } from '../utils/api.ts';
+
+    const loading = document.getElementById('release-loading');
+    const info = document.getElementById('release-info');
+    const empty = document.getElementById('release-empty');
+    const versionEl = document.getElementById('release-version');
+    const publishedEl = document.getElementById('release-published');
+    const sha256El = document.getElementById('release-sha256');
+    const btnDescargar = document.getElementById('btn-descargar');
+    const btnCopiar = document.getElementById('btn-copiar');
+    const estado = document.getElementById('estado-descarga');
+
+    async function cargarRelease() {
+      try {
+        const data = await apiFetch('GET', '/releases/latest');
+        versionEl.textContent = data.version;
+        publishedEl.textContent = new Date(data.published_at).toLocaleString();
+        sha256El.textContent = data.sha256;
+        loading.hidden = true;
+        info.hidden = false;
+      } catch (e) {
+        loading.hidden = true;
+        if (e.message && e.message.includes('No hay releases')) {
+          empty.hidden = false;
+        } else {
+          alert('Error al consultar la release: ' + e.message);
+        }
+      }
+    }
+
+    btnDescargar.addEventListener('click', async () => {
+      btnDescargar.disabled = true;
+      estado.textContent = 'Generando URL firmada...';
+      try {
+        const data = await apiFetch('GET', '/releases/download');
+        // Navegación por anchor: el navegador descarga directo desde la API
+        // (URL firmada), sin fetch → sin CORS en el .exe.
+        // data.url ya es una ruta server-rooted (/api/v1/releases/serve?...) —
+        // solo anteponer el ORIGEN, nunca API_BASE (que ya incluye /api/v1).
+        window.location.href = API_ORIGIN + data.url;
+      } catch (e) {
+        estado.textContent = '';
+        alert('Error al generar la descarga: ' + e.message);
+        btnDescargar.disabled = false;
+      }
+    });
+
+    btnCopiar.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(sha256El.textContent);
+        btnCopiar.textContent = '✅ Copiado';
+        setTimeout(() => { btnCopiar.textContent = '📋 Copiar'; }, 2000);
+      } catch (_) {
+        alert('No se pudo copiar el checksum.');
+      }
+    });
+
+    cargarRelease();
+  </script>
+</AdminLayout>

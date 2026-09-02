@@ -223,6 +223,9 @@ const name = user?.name || '';
     // Gráficos — todos los roles
     sidebarNav.appendChild(addLink('Gráficos', '/rendimiento', '📈'));
 
+    // Descargar Taquilla — todos los roles (D2)
+    sidebarNav.appendChild(addLink('Descargar Taquilla', '/descargar', '⬇️'));
+
     // Límites — vista de auditoría de solo lectura, únicamente super_master
     if (role === 'super_master') sidebarNav.appendChild(addLink('Límites', '/limites', '🎯'));
 

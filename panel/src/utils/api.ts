@@ -1,4 +1,6 @@
-const API_BASE = (import.meta.env.PUBLIC_API_URL || 'http://localhost:8000') + '/api/v1';
+// Server origin only (no /api/v1). Used to join server-rooted paths like signed URLs.
+export const API_ORIGIN = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
+export const API_BASE = API_ORIGIN + '/api/v1';
 
 export async function apiFetch(method, url, body) {
   const token = localStorage.getItem('panel_token');

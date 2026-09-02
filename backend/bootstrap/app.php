@@ -9,6 +9,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Exceptions\InvalidSignatureException;
 use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 use Spatie\Permission\Exceptions\UnauthorizedException;
 use Spatie\Permission\Middleware\PermissionMiddleware;
@@ -72,5 +73,10 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'Recurso no encontrado.'], 404);
             }
+        });
+
+        // URL firmada inválida o expirada (REQ-A2): siempre JSON 403.
+        $exceptions->render(function (InvalidSignatureException $e, Request $request) {
+            return response()->json(['message' => 'Firma de URL inválida o expirada.'], 403);
         });
     })->create();
