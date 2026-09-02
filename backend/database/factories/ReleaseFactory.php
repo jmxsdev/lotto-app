@@ -24,7 +24,7 @@ class ReleaseFactory extends Factory
         return [
             'version' => $version,
             'sha256' => hash('sha256', $this->faker->unique()->uuid()),
-            'file_path' => "releases/Taquilla-Setup-{$version}.exe",
+            'file_path' => "Taquilla-Setup-{$version}.exe",
             'file_size' => $this->faker->numberBetween(1024, 1024 * 1024),
             'published_at' => now(),
         ];

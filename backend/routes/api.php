@@ -31,6 +31,12 @@ Route::prefix('v1')->group(function () {
     Route::post('/activar', [ActivacionController::class, 'activar'])->middleware('throttle:10,60');
     Route::post('/dispositivo/verificar', [DispositivoController::class, 'verificar']);
 
+    // Serve del instalador: URL firmada (relativa) + throttle; sin auth
+    // (la firma ES la credencial, REQ-A2/A3).
+    Route::get('/releases/serve', [ReleaseController::class, 'serve'])
+        ->middleware(['signed:relative', 'throttle:releases-download'])
+        ->name('releases.serve');
+
     // Rutas protegidas solo con Sanctum (sin verificación MAC)
     Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/user', [AuthController::class, 'user']);
@@ -215,10 +221,11 @@ Route::prefix('v1')->group(function () {
         // ==================================================
         // DISTRIBUCIÓN DE TAQUILLA (releases del instalador)
         // latest/download: roles del panel (5); taquilla → 403.
-        // serve: URL firmada, fuera de auth (U2).
+        // serve: URL firmada, fuera de auth (arriba).
         // ==================================================
         Route::middleware(['role:super_master|master|banca|grupo|agencia'])->group(function () {
             Route::get('/releases/latest', [ReleaseController::class, 'latest']);
+            Route::get('/releases/download', [ReleaseController::class, 'download'])->middleware('throttle:releases-download');
         });
     }); // fin Route::prefix('v1')
 });
