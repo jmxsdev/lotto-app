@@ -14,15 +14,16 @@
     "vercel-build": "npm run build"
   },
   "dependencies": {
-    "astro": "^4.0.0",
+    "astro": "^6.0.5",
     "axios": "^1.6.0",
     "electron-pos-printer": "^1.4.0",
+    "electron-serve": "^3.0.1",
     "keytar": "^7.9.0"
   },
   "devDependencies": {
-    "electron": "^37.0.0",
-    "electron-builder": "^24.6.4",
-    "vite": "^4.5.0"
+    "electron": "^41.7.1",
+    "electron-builder": "^26.15.3",
+    "vite": "^8.2.2"
   },
   "build": {
     "appId": "com.lotto.taquilla",
@@ -42,6 +43,16 @@
     "files": [
       "dist/**/*",
       "electron/**/*"
-    ]
+    ],
+    "extraResources": [
+      {
+        "from": "dist",
+        "to": "dist",
+        "filter": ["**/*"]
+      } 
+    ],
+    "directories": {
+       "output": "release"
+    }
   }
 }
