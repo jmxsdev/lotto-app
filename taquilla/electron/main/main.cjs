@@ -70,10 +70,9 @@ function registerCustomProtocol() {
             try {
                 stats = await fs.promises.stat(filePath);
             } catch (err) {
-                // El archivo no existe -> SPA: servir index.html
-                filePath = path.join(distPath, 'index.html');
-                console.log('🔄 Archivo no encontrado, sirviendo index.html');
-                stats = await fs.promises.stat(filePath);
+                // El archivo no existe -> 404 real (sin fallback SPA a index.html)
+                console.log('🚫 Archivo no encontrado:', filePath);
+                return new Response('Not Found', { status: 404 });
             }
 
             // Si es un directorio, buscar index.html dentro
@@ -83,9 +82,9 @@ function registerCustomProtocol() {
                     await fs.promises.stat(indexPath);
                     filePath = indexPath;
                 } catch (err) {
-                    // Si no hay index.html en el directorio, usar el raíz
-                    filePath = path.join(distPath, 'index.html');
-                    console.log('📁 Directorio sin index.html, usando raíz');
+                    // Directorio sin index.html -> 404 real (sin fallback a la raíz)
+                    console.log('🚫 Directorio sin index.html:', filePath);
+                    return new Response('Not Found', { status: 404 });
                 }
                 stats = await fs.promises.stat(filePath);
             }
@@ -117,16 +116,38 @@ function registerCustomProtocol() {
 }
 // Registrar protocolo api:// como proxy a la API real
 function registerApiProtocol() {
-    const API_BASE = 'https://lotto.gzuz.dev';
-    console.log('🔄 Proxy API configurado:', API_BASE);
+    const API_UPSTREAM = 'https://lotto.gzuz.dev';
+    console.log('🔄 Proxy API configurado:', API_UPSTREAM);
     // ... (código anterior)
 
-// Protocolo proxy para la API
+// Protocolo proxy para la API (sin prefijo: api:///api/v1/* -> <upstream>/api/v1/*)
 protocol.handle('api', async (request) => {
     try {
         const url = new URL(request.url);
+        const origin = request.headers.get('origin');
+        const requestedHeaders = request.headers.get('access-control-request-headers');
+
+        // CORS local del proxy: el renderer habla con api:// (corsEnabled) y el upstream
+        // recibe Origin: app://index.html (o localhost en dev), por lo que no responde ACAO.
+        // El proxy decide el CORS en lugar de depender del CORS de producción.
+        const corsHeaders = {
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': requestedHeaders || '*',
+            'Access-Control-Max-Age': '600',
+        };
+        // Eco del Origin del renderer (dev: http://localhost:3000; empaquetado: app://index.html).
+        // Sin Origin no se emite ACAO (evita un eco roto tipo "null").
+        if (origin) {
+            corsHeaders['Access-Control-Allow-Origin'] = origin;
+        }
+
+        // Preflight: se responde localmente con 204, nunca se reenvía al upstream.
+        if (request.method === 'OPTIONS') {
+            return new Response(null, { status: 204, headers: corsHeaders });
+        }
+
         // Construir la URL de destino
-        const targetUrl = `https://lotto.gzuz.dev/api${url.pathname}${url.search}`;
+        const targetUrl = `${API_UPSTREAM}${url.pathname}${url.search}`;
         console.log('🔀 Reenviando a:', targetUrl);
 
         // Preparar las opciones para fetch
@@ -161,12 +182,23 @@ protocol.handle('api', async (request) => {
         // Realizar la petición a la API
         const response = await fetch(targetUrl, fetchOptions);
 
-        // Devolver la respuesta al frontend
-        // Nota: response.body es un ReadableStream, podemos pasarlo directamente
+        // Devolver la respuesta al frontend.
+        // Se eliminan los headers access-control-* del upstream (hoy pasan verbatim y
+        // entran en conflicto con el CORS local) y se inyectan los del proxy.
+        const headers = new Headers();
+        for (const [name, value] of response.headers) {
+            if (!name.toLowerCase().startsWith('access-control-')) {
+                headers.append(name, value);
+            }
+        }
+        for (const [name, value] of Object.entries(corsHeaders)) {
+            headers.set(name, value);
+        }
+
         return new Response(response.body, {
             status: response.status,
             statusText: response.statusText,
-            headers: response.headers,
+            headers,
         });
     } catch (error) {
         console.error('❌ Error en proxy API:', error);
