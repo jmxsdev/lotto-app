@@ -27,7 +27,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
           <div class="field"><label>Código</label><input name="code" required /></div>
           <div class="field"><label>Grupo (entidad padre)</label><select name="grupo_id" required></select></div>
           <div class="field"><label>Local (Agencia)</label><select name="agencia_id" required></select></div>
-          <div class="field"><label>Código de Activación</label><input name="activation_code" /></div>
+          <div class="field"><label>Código de Activación</label><input name="activation_code" disabled readonly /></div>
           <div class="field"><label>MAC Address</label><input name="mac_address" disabled /></div>
           <div class="field"><label>RIF</label><input name="rif" /></div>
           <div class="field"><label>Email</label><input name="email" type="email" /></div>
@@ -372,7 +372,6 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
         code: f.code.value,
         grupo_id: f.grupo_id.value,
         agencia_id: f.agencia_id.value || null,
-        activation_code: f.activation_code.value || null,
         rif: f.rif.value || null,
         email: f.email.value || null,
         telefono: f.telefono.value || null,
