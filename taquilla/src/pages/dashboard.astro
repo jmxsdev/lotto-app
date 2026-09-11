@@ -1,7 +1,8 @@
 ---
 import MainLayout from '../layouts/MainLayout.astro';
+import { API_BASE } from '../config/api';
 
-const apiUrl = 'api:///api/v1';
+const apiUrl = API_BASE;
 ---
 
 <MainLayout currentPage="dashboard">
@@ -1350,7 +1351,13 @@ const apiUrl = 'api:///api/v1';
             window.location.href = '/activacion';
             return;
           }
-        } catch (_) {}
+        } catch (error) {
+          console.error('No se pudo verificar el dispositivo:', error);
+          await window.showModal({
+            message: 'No se pudo verificar el dispositivo. Verifique su conexión e intente nuevamente.',
+            type: 'error',
+          });
+        }
       }
 
       initClock();

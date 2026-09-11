@@ -1,9 +1,10 @@
 import axios from 'axios';
+import { API_BASE } from '../config/api';
 
 const isBrowser = typeof window !== 'undefined';
 
 const api = axios.create({
-  baseURL: 'api:///api/v1',
+  baseURL: API_BASE,
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',

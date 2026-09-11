@@ -1,4 +1,6 @@
 ---
+import { API_BASE } from '../config/api';
+
 interface Props {
   taquillaName?: string;
   userName?: string;
@@ -11,7 +13,7 @@ const {
   currentPage = 'dashboard'
 } = Astro.props;
 
-const apiUrl = "api:///api/v1";
+const apiUrl = API_BASE;
 
 let tasaInicial = 36.50;
 try {
@@ -22,7 +24,9 @@ try {
     const data = await response.json();
     tasaInicial = data.rate;
   }
-} catch (_) {}
+} catch (error) {
+  console.error('No se pudo obtener la tasa inicial:', error);
+}
 ---
 
 <!DOCTYPE html>
@@ -152,7 +156,9 @@ try {
             const data = await res.json();
             document.getElementById('header-tasa').textContent = Number(data.rate).toLocaleString('es-VE', { minimumFractionDigits: 2 });
           }
-        } catch (_) {}
+        } catch (error) {
+          console.warn('No se pudo refrescar la tasa:', error);
+        }
       }
       setInterval(refreshTasa, 60000);
 
@@ -198,7 +204,9 @@ try {
               'Content-Type': 'application/json',
             }
           });
-        } catch (_) {}
+        } catch (error) {
+          console.error('Error al cerrar sesión en el servidor:', error);
+        }
         localStorage.removeItem('auth_token');
         window.location.href = '/login';
       });

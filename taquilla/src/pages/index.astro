@@ -1,5 +1,6 @@
 ---
 // Splash screen que verifica autenticación y redirige
+import { API_BASE } from '../config/api';
 const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
 ---
 
@@ -46,6 +47,20 @@ const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
         animation: spin 1s linear infinite;
         margin: 2rem auto;
       }
+      #splash-retry {
+        display: none;
+        margin-top: 1rem;
+        padding: 0.6rem 1.5rem;
+        font-size: 1rem;
+        border: none;
+        border-radius: 8px;
+        background: white;
+        color: #1a2a6c;
+        cursor: pointer;
+      }
+      #splash-retry:hover {
+        opacity: 0.9;
+      }
       @keyframes spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
@@ -63,13 +78,14 @@ const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
       <p class="subtitle">Sistema de Loterías Multi-Moneda</p>
       <div class="spinner"></div>
       <p id="splash-status">Iniciando taquilla...</p>
+      <button id="splash-retry" type="button">Reintentar</button>
       <div class="footer">
         <p>Versión: 0.1.0</p>
         <p id="mac-info">MAC: Cargando...</p>
       </div>
     </div>
 
-<script define:vars={{ apiUrl: 'api:///api/v1', demoMac: import.meta.env.PUBLIC_DEMO_MAC || '', demoFp: import.meta.env.PUBLIC_DEMO_FP || 'demo-device-001' }}>
+<script define:vars={{ apiUrl: API_BASE, demoMac: import.meta.env.PUBLIC_DEMO_MAC || '', demoFp: import.meta.env.PUBLIC_DEMO_FP || 'demo-device-001' }}>
       async function init() {
         let fp = localStorage.getItem('device_fingerprint');
         if (!fp || (fp === demoFp && window.electron?.getVersion)) {
@@ -106,11 +122,20 @@ const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
           } else {
             window.location.href = '/activacion';
           }
-        } catch (_) {
+        } catch (error) {
+          console.error('Error al verificar el dispositivo:', error);
           document.getElementById('splash-status').textContent = 'Error de conexión con el servidor';
           document.querySelector('.spinner').style.display = 'none';
+          document.getElementById('splash-retry').style.display = 'inline-block';
         }
       }
+
+      document.getElementById('splash-retry').addEventListener('click', () => {
+        document.getElementById('splash-status').textContent = 'Iniciando taquilla...';
+        document.querySelector('.spinner').style.display = 'block';
+        document.getElementById('splash-retry').style.display = 'none';
+        init();
+      });
 
       init();
     </script>
