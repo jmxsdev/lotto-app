@@ -73,11 +73,15 @@ class TaquillaController extends Controller
         $rules = [
             'name' => 'required|string|max:255',
             'code' => 'required|string|unique:taquillas,code',
-            'grupo_id' => 'required|exists:grupos,id',
+            // Defensa en profundidad (espejo de la regla del update): la API
+            // genera el código en servidor e ignora el del cliente, pero si un
+            // cliente enviara uno, debe ser único (nunca 500 por colisión).
+            'activation_code' => 'nullable|string|unique:taquillas,activation_code',
+            'grupo_id' => ['required', Rule::exists('grupos', 'id')->whereNull('deleted_at')],
             // Decisión del cliente: una taquilla SIEMPRE tiene un local asignado.
             // El rol agencia lo deriva de su sesión (merge más abajo); el resto
             // de roles (super/master/grupo/banca) deben enviarlo.
-            'agencia_id' => 'required|exists:agencias,id',
+            'agencia_id' => ['required', Rule::exists('agencias', 'id')->whereNull('deleted_at')],
             'active' => 'boolean',
             'vigencia_premios' => 'nullable|integer|min:1',
             'tiempo_eliminacion' => 'nullable|integer|min:1|max:120',
@@ -114,7 +118,7 @@ class TaquillaController extends Controller
                 'agencia_id' => $agencia->id,
                 'grupo_id' => $agencia->grupo_id,
             ]);
-            $rules['grupo_id'] = 'nullable|exists:grupos,id';
+            $rules['grupo_id'] = ['nullable', Rule::exists('grupos', 'id')->whereNull('deleted_at')];
         }
 
         $request->validate($rules);
@@ -130,14 +134,24 @@ class TaquillaController extends Controller
 
         $grupo = Grupo::find($request->grupo_id);
 
+        // Invariante de jerarquía: el grupo debe tener una banca viva para
+        // poder derivar la banca del usuario taquilla. Un grupo sin banca
+        // (o con la banca soft-deleted) es inconsistente → 422, nunca 500.
+        if ($grupo->banca === null) {
+            abort(422, 'El grupo no tiene una banca válida.');
+        }
+
         // Validar vigencia_premios contra el grupo (más restrictivo)
         $this->validarVigenciaContraParent($grupo, $request);
 
         // Validar tiempo_eliminacion contra el grupo/banca (más restrictivo: no puede alargar la ventana)
         $this->validarTiempoEliminacionContraParent($grupo, $request);
 
-        // Generar activation_code automáticamente si no se proporciona
-        $activationCode = $request->activation_code ?? Str::random(16);
+        // La API genera SIEMPRE el código de activación en servidor (P7):
+        // cualquier valor enviado por el cliente se ignora. El panel enviaba
+        // códigos hardcodeados que ya existían en prod → colisión de unique
+        // (taquillas_activation_code_unique, UniqueConstraintViolationException).
+        $activationCode = Str::random(16);
 
         $taquilla = null;
         $userCreado = null;
@@ -213,11 +227,11 @@ class TaquillaController extends Controller
         $request->validate([
             'name' => 'sometimes|string|max:255',
             'code' => ['sometimes', 'string', Rule::unique('taquillas')->ignore($taquilla->id)],
-            'grupo_id' => 'sometimes|exists:grupos,id',
+            'grupo_id' => ['sometimes', Rule::exists('grupos', 'id')->whereNull('deleted_at')],
             // Decisión del cliente: el local no se puede desasignar (si el campo
             // viene, debe ser un local real y no null); los PUT parciales de
             // otras pestañas (sin el campo) siguen siendo válidos.
-            'agencia_id' => 'sometimes|required|exists:agencias,id',
+            'agencia_id' => ['sometimes', 'required', Rule::exists('agencias', 'id')->whereNull('deleted_at')],
             'mac_address' => 'nullable|string',
             'activation_code' => 'nullable|string|unique:taquillas,activation_code,'.$taquilla->id,
             'active' => 'boolean',
@@ -321,7 +335,11 @@ class TaquillaController extends Controller
         }
 
         $agencia = Agencia::find($agenciaId);
-        if ($agencia && (int) $agencia->grupo_id !== $grupoId) {
+        if (! $agencia) {
+            abort(422, 'El local no existe o fue eliminado.');
+        }
+
+        if ((int) $agencia->grupo_id !== $grupoId) {
             abort(422, 'El local no pertenece al grupo indicado.');
         }
     }
@@ -330,8 +348,14 @@ class TaquillaController extends Controller
      * Validar que la vigencia_premios de la taquilla no exceda la del grupo.
      * El nivel hijo solo puede ser más restrictivo (menor o igual).
      */
-    private function validarVigenciaContraParent(Grupo $grupo, Request $request): void
+    private function validarVigenciaContraParent(?Grupo $grupo, Request $request): void
     {
+        // El grupo padre puede resolver null si fue soft-deleted (update).
+        // Sin grupo no hay contra qué validar: error HTTP limpio, no TypeError.
+        if ($grupo === null) {
+            abort(422, 'El grupo asociado a la taquilla no existe o fue eliminado.');
+        }
+
         if ($request->vigencia_premios === null) {
             return;
         }
@@ -358,8 +382,14 @@ class TaquillaController extends Controller
      * Validar que el tiempo_eliminacion de la taquilla no exceda el efectivo del grupo/banca.
      * El nivel hijo solo puede acortar la ventana (más restrictivo).
      */
-    private function validarTiempoEliminacionContraParent(Grupo $grupo, Request $request): void
+    private function validarTiempoEliminacionContraParent(?Grupo $grupo, Request $request): void
     {
+        // El grupo padre puede resolver null si fue soft-deleted (update).
+        // Sin grupo no hay contra qué validar: error HTTP limpio, no TypeError.
+        if ($grupo === null) {
+            abort(422, 'El grupo asociado a la taquilla no existe o fue eliminado.');
+        }
+
         if ($request->tiempo_eliminacion === null) {
             return;
         }
