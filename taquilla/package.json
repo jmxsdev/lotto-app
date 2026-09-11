@@ -8,16 +8,16 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
+    "clean:artifacts": "node scripts/clean-artifacts.mjs",
     "electron:dev": "node scripts/electron-dev.mjs",
-    "electron:build": "npm run build && electron-builder",
-    "electron:build:win": "npm run build && electron-builder --win",
+    "electron:build": "npm run clean:artifacts && npm run build && electron-builder",
+    "electron:build:win": "npm run clean:artifacts && npm run build && electron-builder --win",
     "vercel-build": "npm run build"
   },
   "dependencies": {
     "astro": "^6.0.5",
     "axios": "^1.6.0",
     "electron-pos-printer": "^1.4.0",
-    "electron-serve": "^3.0.1",
     "keytar": "^7.9.0"
   },
   "devDependencies": {
@@ -30,18 +30,21 @@
     "productName": "Lotto Taquilla",
     "artifactName": "Taquilla-Setup-${version}.${ext}",
     "directories": {
-      "output": "build"
+      "output": "release"
     },
     "win": {
       "target": "nsis",
       "icon": "public/icon.ico"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "public/icon.png"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
     },
     "files": [
-      "dist/**/*",
       "electron/**/*"
     ],
     "extraResources": [
@@ -49,10 +52,7 @@
         "from": "dist",
         "to": "dist",
         "filter": ["**/*"]
-      } 
-    ],
-    "directories": {
-       "output": "release"
-    }
+      }
+    ]
   }
 }
