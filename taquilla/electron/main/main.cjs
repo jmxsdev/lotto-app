@@ -120,7 +120,7 @@ function registerApiProtocol() {
     console.log('🔄 Proxy API configurado:', API_UPSTREAM);
     // ... (código anterior)
 
-// Protocolo proxy para la API (sin prefijo: api:///api/v1/* -> <upstream>/api/v1/*)
+// Protocolo proxy para la API (normaliza el path: garantiza <upstream>/api/v1/*)
 protocol.handle('api', async (request) => {
     try {
         const url = new URL(request.url);
@@ -146,8 +146,16 @@ protocol.handle('api', async (request) => {
             return new Response(null, { status: 204, headers: corsHeaders });
         }
 
+        // Chromium normaliza los esquemas estándar promoviendo el primer segmento del
+        // path a host (api:///api/v1/x llega como api://api/v1/x), por lo que el pathname
+        // pierde el prefijo /api. Se restaura para que el upstream reciba /api/v1/*.
+        let pathname = url.pathname;
+        if (!pathname.startsWith('/api/')) {
+            pathname = '/api' + pathname;
+        }
+
         // Construir la URL de destino
-        const targetUrl = `${API_UPSTREAM}${url.pathname}${url.search}`;
+        const targetUrl = `${API_UPSTREAM}${pathname}${url.search}`;
         console.log('🔀 Reenviando a:', targetUrl);
 
         // Preparar las opciones para fetch
