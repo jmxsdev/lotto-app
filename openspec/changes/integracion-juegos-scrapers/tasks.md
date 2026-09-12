@@ -100,7 +100,17 @@ Juego 11 (Triple Chance) completado en el PR 4 de la cadena (rama
 - [x] 14e. Fila en `backend/docs/juegos.md` (juego 14, type animalitos, 12 horarios, fuente loteriadehoy) + removido de pendientes.
 - [ ] 14f. Verificación funcional con URL real pendiente del cliente (datos reales).
 
-Plantilla para los juegos restantes (#15–22):
+### WU f10 — La Granjita con API oficial (PR 11, rama f10-la-granjita, base f9-catalogo-json) — ✅ COMPLETADO
+- [x] f10.1 Scraper `LaGranjitaScraper.php` (extiende BaseScraper): GET `https://www.lagranjita.com/api/results.json?date=YYYY-MM-DD&productId=1` (sin auth ni anti-bot; soporta fechas pasadas), parse con `product_id` constante '1' y override `config['scraper']['product_id']`, clave del objeto = nombre del producto tomando el PRIMER valor (no hardcodeada), skip de sorteos no ocurridos (`result_id: null`), numero/animal desde `result_value`/`result_name`, hora 12h→H:i (`normalizeHora`), `sorteo_id_externo = result_id`, `findJuegoOrFail` fail-fast, `saveResults` heredado (dedupe). `execute($fecha)` carga la fecha pedida (el API soporta fechas, sin filtrar). Maneja JSON inválido/vacío y respuesta sin la estructura esperada.
+- [x] f10.2 Seeder `LaGranjitaSeeder.php`: slug `la-granjita`, name "La Granjita", type `animalitos`, `premio_multiplo` 30, `scraper_url` `https://www.lagranjita.com/api/results.json?productId=1`, `scraper_class` LaGranjitaScraper, `requires_scraper` true, JuegoLimite banca/bs/3600, PluginJuego Animalitos, JuegoHorario 08:00–19:00 (12); registrado en `DatabaseSeeder` (14º juego).
+- [x] f10.3 Fixture real `backend/tests/Fixtures/lagranjita_results.json` (día completo 2026-09-11, 12 sorteos) + `lagranjita_parcial.json` (2026-09-12: 4 sorteos + 8 nulls). Snapshots literales del API (captura documentada en el docblock del test).
+- [x] f10.4 RED→GREEN `LaGranjitaScraperTest.php` (unit, 12: parse día completo, horas H:i, numero/animal incl. DELFIN=0, skip nulls, result_id como externo, estructura, fail-fast, product_id config, JSON inválido, respuesta vacía/sin estructura, clave distinta) + `LaGranjitaResultsTest.php` (feature, 6: seeder, límite+plugin, 12 horarios, persistencia 12, dedupe, resolver). `composer test -- --filter=LaGranjita` → 18/18.
+- [x] f10.5 Regresión: `JuegosJsonTest` 13→14 juegos (SLUGS_POR_ID + la-granjita en animalitos sin tabla 38 opciones) y `LimitesScopedApiTest` 13→14 juegos/26→28 límites+origen/52→56 scope/mixto 26→28.
+- [x] f10.6 REGENERADO `docs/juegos.json` con `php artisan juegos:export` (14 juegos, id 14 = la-granjita, 38 opciones vía plugin Animalitos, horarios 08:00–19:00) y COMMITEADO; determinista (2 ejecuciones = mismo md5).
+- [x] f10.7 CARGA REAL: `ScrapeResultsJob` contra el API real → HOY 2026-09-12: 4 resultados parciales (08:00 GALLINA 25, 09:00 RATON 8, 10:00 MONO 13, 11:00 LAPA 31); AYER 2026-09-11: 12 resultados (día completo). Rescrape idempotente (4/12, 16 únicos, 0 errores). BD local total 128.
+- [x] f10.8 Docs: fila 15 en `backend/docs/juegos.md` (type animalitos, 12 horarios, fuente API oficial, estado "verificado con datos reales 12-sep") + nota del scraper y de la plataforma (productId, otros productos del portal). tasks.md + apply-progress (merge) + commits work-unit en español. NO se abren PRs.
+
+Plantilla para los juegos restantes (#16–22):
 
 - [ ] a. Seeder `backend/database/seeders/<Xxx>Seeder.php`: `Juego::firstOrCreate(['slug'])` + `scraper_class` + `JuegoLimite` (banca/bs/3600) + `PluginJuego` (reusa clase por type) + `JuegoOpcion*` + `JuegoHorario` (`firstOrCreate(['juego_id','hora'])`); registrar en `DatabaseSeeder`.
 - [ ] b. Scraper `backend/app/Plugins/Scrapers/<Xxx>Scraper.php` (solo fetch+parse+constructor) según fuente.
@@ -117,7 +127,7 @@ Plantilla para los juegos restantes (#15–22):
 | 12 | El Arrejuntado | el-arrejuntado | tripletas (API serviciosintegradostriple7) | ✅ integrado (PR 5) |
 | 13 | El Guacharito | el-guacharito | animalitos (loteriadehoy) | ✅ integrado (PR 6) |
 | 14 | Guacharo Activo | guacharo-activo | animalitos (loteriadehoy) | ✅ integrado (PR 7) |
-| 15 | La Granjita | la-granjita | según URL cliente | |
+| 15 | La Granjita | la-granjita | animalitos (API oficial lagranjita.com) | ✅ integrado (PR 11) |
 | 16 | La Ricachona | la-ricachona | según URL cliente | |
 | 17 | Loto Chaima | loto-chaima | según URL cliente | |
 | 18 | Mega Animal 40 | mega-animal-40 | animalitos (lottoactivo) | |

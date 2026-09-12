@@ -922,3 +922,151 @@ normalización de hora (columna TIME `H:i:s` → `H:i`), orden y consecutividad 
 
 - `sdd-verify` del PR 10 cuando el orquestador lo dispare.
 - Juego 15 (La Granjita): requiere URL y estructura de la fuente del cliente antes de aplicar.
+
+---
+
+# Sección WU f10 — La Granjita con API oficial (PR 11)
+
+**Rama**: `feat/integracion-juegos-scrapers-f10-la-granjita` (base: `feat/integracion-juegos-scrapers-f9-catalogo-json`)
+**Estado**: ✅ COMPLETADO (f10.1–f10.8) — integración del juego 15 con datos reales verificados
+
+## Resumen
+
+Integración del juego 15 (La Granjita) usando la API OFICIAL de lagranjita.com
+(`GET /api/results.json?date=YYYY-MM-DD&productId=1`, sin auth ni anti-bot;
+soporta fechas actuales y pasadas — verificada para 2026-09-12 y 2026-09-11 con
+datos distintos). Seeder completo (slug `la-granjita`, type `animalitos`,
+`premio_multiplo` 30, límite banca/bs/3600, plugin Animalitos, 12 horarios
+08:00–19:00 `:00`, `scraper_class` LaGranjitaScraper), scraper dedicado que
+toma el PRIMER valor del objeto JSON (la clave es el nombre del producto, no se
+hardcodea), salta sorteos no ocurridos (`result_id: null`), usa `result_id`
+como `sorteo_id_externo`, normaliza hora 12h→H:i y mapea numero/animal al
+esquema animalitos (zoológico canónico del plugin: GALLINA=25, RATON=8, MONO=13,
+LAPA=31...). Fixtures reales (día completo 2026-09-11 + parcial 2026-09-12),
+tests unit+feature RED→GREEN, regresión de conteos (JuegosJson 14 juegos,
+LimitesScoped 14/28/56), `docs/juegos.json` regenerado y commiteado (14 juegos),
+y carga real en BD local verificada con dedupe.
+
+## Hallazgo: formato de la API de lagranjita.com
+
+La API devuelve UN objeto con el nombre del producto como clave y un array de
+sorteos como valor: `{"LA GRANJITA":[{result_id, result_value, result_name,
+lotery_hour, ...}, ...]}`. Detalles clave del contrato:
+
+- **12 entradas por día** (08:00 AM – 07:00 PM, `:00` cada hora), una por horario.
+- **Sorteos NO ocurridos**: entradas con `result_id: null` (y resto de campos
+  null) → el scraper las salta (resultados parciales del día, mismo patrón
+  loteriadehoy modo animalitos). El parcial del 12-sep traía 4 reales + 8 nulls.
+- **`result_id` único por sorteo** (414878, 414902...) → ideal para
+  `sorteo_id_externo` (dedupe por juego+fecha+hora en `saveResults` heredado).
+- **Clave del objeto = nombre del producto**: se toma el primer valor, sin
+  hardcodear ("LA GRANJITA").
+- **Zoológico canónico**: el API usa los MISMOS nombres/números del plugin
+  Animalitos (GALLINA=25, RATON=8, MONO=13, LAPA=31, CABALLO=12, CAIMAN=30,
+  DELFIN=0...) → sin mapeo adicional.
+- **El API soporta fechas**: `execute($fecha)` carga la fecha pedida, sin
+  necesidad de filtrar (a diferencia del histórico de Triple Caliente).
+- **scraper_url documental con query**: el seeder registra
+  `https://www.lagranjita.com/api/results.json?productId=1`; el fetch
+  reconstruye la query real (`date` + `productId` de config) con `parse_url` +
+  `http_build_query`, ignorando la query documental (evita `?productId=1?date=`).
+
+## Hallazgo: otros productos del portal (documentados, FUERA DE ALCANCE)
+
+lagranjita.com aloja más productos accesibles por `productId`: pid=2 ZOOLOGICO
+ACTIVO (ANIMALES77), pid=3 RULETA ACTIVA, pid=4 LOTTOMAX, pid=5 LOTTO ACTIVO,
+pid=6 GRANJA MILLONARIA, pid=7 JUNGLA MILLONARIA, pid=8 LOTTO REY; y páginas
+`/granjitaplus` (GRANJITA PLUS) y `/terminalgranjita` (TERMINAL LA GRANJITA).
+No integrados en este WU (regla: solo La Granjita); documentados en
+`docs/juegos.md` para WUs futuros.
+
+## Hallazgo: conteos de juegos en LimitesScopedApiTest y JuegosJsonTest
+
+Al registrar el 14º juego en `DatabaseSeeder`, la matriz juego×moneda de
+`/api/v1/limites` pasa de 13 a 14 juegos: se actualizaron las aserciones de
+conteo (juegos 13→14, límites/origen 26→28, scope de entidades 52→56, `mixto`
+26→28). `JuegosJsonTest` pasó de 13 a 14 juegos: `SLUGS_POR_ID` + `la-granjita`,
+conteo de juegos 13→14, `la-granjita` en el grupo de animalitos sin tabla (38
+opciones vía plugin Animalitos) y `assertSame(13→14)`. Comportamiento probado
+sin cambios (ajuste legítimo de regresión, patrón de WUs anteriores).
+
+## TDD Cycle Evidence (WU f10)
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| f10.1+f10.3+f10.4 | `tests/Unit/LaGranjitaScraperTest.php` | Unit (RefreshDatabase) | ✅ suite 494/492/2 + focused 58/58 | ✅ 12 errores (clase inexistente) | ✅ 12/12 (31 assertions) | ✅ 12 casos (día completo, horas H:i, numero/animal DELFIN=0, skip nulls, result_id, estructura, fail-fast, product_id config, JSON inválido, vacío, sin estructura, clave distinta) | ✅ Pint clean |
+| f10.2+f10.4 | `tests/Feature/LaGranjitaResultsTest.php` | Feature (RefreshDatabase + seeder) | ✅ idem | ✅ 6 errores (seeder inexistente) | ✅ 6/6 | ✅ 6 casos (juego+scraper_class+config, límite+plugin, 12 horarios, persistencia 12, dedupe, resolver) | ✅ Pint clean |
+| f10.5 | `tests/Feature/JuegosJsonTest.php` + `LimitesScopedApiTest.php` | Feature | ✅ previo | ✅ 2 fallos (contrato JSON 13 vs 14) | ✅ 51/51 (708 assertions) | ✅ conteos 14/28/56 + 38 opciones | ✅ |
+| f10.6 | Harness real | Runtime | N/A (nuevo) | — | ✅ `juegos:export` → 14 juegos, id 14 la-granjita | ✅ idempotencia (md5 idéntico ×2) | ✅ |
+| f10.7 | Harness real (job) | Runtime | N/A | — | ✅ HOY 4 + AYER 12 persistidos | ✅ rescrape dedupe (4/12, 16 únicos) | ➖ |
+| f10.8 | N/A (docs) | Docs | ✅ | ➖ | ➖ | ➖ Omitida: documentación | ✅ |
+
+**Test Summary (WU f10)**: +18 tests (512 vs 494 baseline); focused
+`composer test -- --filter=LaGranjita` → **18/18 (56 assertions)**;
+`--filter='LaGranjita|JuegosJsonTest|LimitesScopedApiTest'` → 51/51 (708);
+suite completa **512/510/2** (2368 assertions); `vendor/bin/pint --test` → passed.
+
+## Work Unit Evidence (WU f10)
+
+| Work unit | Focused test command y resultado | Runtime harness y resultado | Rollback boundary |
+|-----------|----------------------------------|-----------------------------|-------------------|
+| WU1 scraper+fixtures | `composer test -- --filter=LaGranjitaScraperTest` → RED 0/12 → GREEN 12/12 (31 assertions) | Parse de fixtures reales del API (12-sep) vía Reflection sobre `parse`; fetch real verificado en el harness | Eliminar `LaGranjitaScraper.php` + 2 fixtures + test unit |
+| WU2 seeder+feature | `composer test -- --filter=LaGranjitaResultsTest` → RED 0/6 → GREEN 6/6 | `php artisan db:seed --class=LaGranjitaSeeder --force` → juego id=14 en BD local; `juegos:export` → 14 juegos | Eliminar `LaGranjitaSeeder` + revertir `DatabaseSeeder` + revertir feature test |
+| WU3 regresión conteos | `composer test -- --filter=JuegosJsonTest` → 3/3 (309→323 assertions) + `--filter=LimitesScopedApiTest` → 30/30 | N/A (regresión de API) | Revertir solo aserciones de conteo (14→13, 28→26, 56→52) |
+| WU4 contrato JSON | Suite completa 512/510/2 | `php artisan juegos:export` contra BD local (14 juegos, ids 1-14) → `docs/juegos.json`; 2ª ejecución md5 idéntico | Regenerar el archivo (se produce con el comando) |
+| WU5 carga real | `--filter=LaGranjita` 18/18 | `ScrapeResultsJob` ×2 fechas: HOY 4 (08:00–11:00 parcial), AYER 12 (día completo); rescrape 4/12 (dedupe), 16 `sorteo_id_externo` únicos, 0 errores en log | Filas `resultados` de la-granjita (16) — borrables sin tocar código |
+
+## Archivos cambiados (WU f10)
+
+| Archivo | Acción | Qué se hizo |
+|---------|--------|-------------|
+| `backend/app/Plugins/Scrapers/LaGranjitaScraper.php` | Create | Scraper del API oficial: GET por fecha+productId, primer valor del objeto, skip `result_id: null`, numero/animal, `normalizeHora`, `sorteo_id_externo=result_id`, fail-fast, JSON inválido/vacío/sin estructura |
+| `backend/database/seeders/LaGranjitaSeeder.php` | Create | Juego `la-granjita` + JuegoLimite banca/bs/3600 + PluginJuego Animalitos + JuegoHorario 08:00–19:00 (12) + `scraper_class` + `config['scraper']['product_id']='1'` |
+| `backend/database/seeders/DatabaseSeeder.php` | Modify | Registra `LaGranjitaSeeder` (14º juego) |
+| `backend/tests/Fixtures/lagranjita_results.json` | Create | Snapshot real del API (2026-09-11, día completo: 12 sorteos, ids 414469–414813) |
+| `backend/tests/Fixtures/lagranjita_parcial.json` | Create | Snapshot real del API (2026-09-12, parcial: 4 sorteos + 8 entradas `result_id: null`) |
+| `backend/tests/Unit/LaGranjitaScraperTest.php` | Create | 12 tests unit (parse día completo, horas H:i, numero/animal, skip nulls, result_id, estructura, fail-fast, product_id config, JSON inválido, vacío, sin estructura, clave distinta) |
+| `backend/tests/Feature/LaGranjitaResultsTest.php` | Create | 6 tests feature (seeder, límite+plugin, 12 horarios, persistencia, dedupe, resolver) |
+| `backend/tests/Feature/JuegosJsonTest.php` | Modify | 13→14 juegos: SLUGS_POR_ID + `la-granjita`, assertCount 14, animalitos sin tabla + `la-granjita` (38 opciones), assertSame 14 |
+| `backend/tests/Feature/LimitesScopedApiTest.php` | Modify | Conteos matriz juego×moneda: 13→14 juegos, 26→28 límites/origen, 52→56 scope, mixto 26→28 |
+| `docs/juegos.json` (raíz repo) | Modify | REGENERADO con `php artisan juegos:export`: 14 juegos (id 14 = la-granjita, 38 opciones vía plugin, horarios 08:00–19:00) |
+| `backend/docs/juegos.md` | Modify | Fila 15 → "Juegos integrados" + estado "✅ Verificado con datos reales (12-sep)" + nota del scraper y la plataforma (productId, otros productos del portal) |
+| `openspec/changes/integracion-juegos-scrapers/tasks.md` | Modify | Sección WU f10 añadida con tareas `[x]`; fila 15 ✅ integrado (PR 11) |
+| `openspec/changes/integracion-juegos-scrapers/apply-progress.md` | Modify | Sección WU f10 añadida (merge) |
+
+## Desviaciones del diseño (WU f10)
+
+None — implementation matches design. La Granjita usa el tipo `animalitos`
+existente (según la URL del cliente y el contrato del API: `lotery_type:
+ANIMALES`, zoológico canónico del plugin) con un scraper dedicado para su API
+oficial JSON. Detalle de implementación documentado: la `scraper_url` del
+seeder incluye la query documental `?productId=1` (tal como la documenta el
+orquestador) y el fetch la reconstruye con `parse_url` + `http_build_query`
+para construir la query real `date` + `productId` sin duplicar parámetros.
+
+## Problemas encontrados (WU f10)
+
+- **Contrato JSON 13 vs 14 al regenerar**: `JuegosJsonTest` fallaba (2 tests)
+  hasta regenerar `docs/juegos.json` con el comando contra la BD local (14
+  juegos). Resuelto: export regenerado y commiteado; test de consistencia verde.
+- **Pint tocó espacios en el scraper** (`unary_operator_spaces`,
+  `not_operator_with_successor_space`): ajuste de estilo aplicado y re-verde.
+- **Cambios ajenos del checkout compartido**: `collections/*.yml`,
+  `panel/.astro/settings.json` (modificados) y `.atl/`, `.codegraph/`,
+  `openspec/config.yaml` (sin seguimiento) quedaron fuera de los commits (NO se
+  tocan ni se commitean).
+
+## Workload / PR Boundary (WU f10)
+
+- Modo: chained PR slice (feature-branch-chain, PR 11 de la cadena; base = PR 10
+  `feat/integracion-juegos-scrapers-f9-catalogo-json`). NO se abrieron PRs.
+- Boundary: integración completa del juego 15 (scraper → seeder → fixtures →
+  tests → regresión de conteos → contrato JSON regenerado → docs → carga real en
+  BD local) con verificación incluida (suite completa 512/510/2 + pint limpio).
+- Rollback boundary por unidad: ver tabla Work Unit Evidence (WU f10).
+
+## Siguiente paso recomendado
+
+- `sdd-verify` del PR 11 cuando el orquestador lo dispare.
+- Juego 16 (La Ricachona): requiere URL y estructura de la fuente del cliente
+  antes de aplicar.

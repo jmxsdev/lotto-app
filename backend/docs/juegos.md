@@ -54,6 +54,7 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 | 12 | El Arrejuntado | `el-arrejuntado` | tripletas | 10:00, 13:00, 16:00, 19:00, 23:00 (5 horarios) | `https://backend.serviciosintegradostriple7.com/api/v1/products/el-arrejuntao/results/` | `ElArrejuntaoScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
 | 13 | El Guacharito Millonario | `el-guacharito` | animalitos | 08:30–19:30 (12 horarios `:30`) | `https://loteriadehoy.com/animalito/elguacharitomillonario/resultados/` | `LoteriaDeHoyScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
 | 14 | Guacharo Activo | `guacharo-activo` | animalitos | 08:00–19:00 (12 horarios `:00`) | `https://loteriadehoy.com/animalito/guacharoactivo/resultados/` | `LoteriaDeHoyScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
+| 15 | La Granjita | `la-granjita` | animalitos | 08:00–19:00 (12 horarios `:00`) | `https://www.lagranjita.com/api/results.json?productId=1` (API oficial) | `LaGranjitaScraper` | ✅ Verificado con datos reales (12-sep, API oficial sin anti-bot) |
 
 > `LoteriaDeHoyScraper` es parametrizado: reutiliza el mismo `scraper_class` para los juegos de
 > loteriadehoy.com registrando la `scraper_url` de cada juego (se usa su slug/name para fail-fast
@@ -88,14 +89,35 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 > para los demás juegos de loteriadehoy.com (Cazaloton, Triple Chance, El Guacharito, Guacharo Activo)
 > y como respaldo.
 
-## Juegos pendientes (10–22)
+> `LaGranjitaScraper` consume la API oficial de lagranjita.com (GET
+> `/api/results.json?date=YYYY-MM-DD&productId=1`, sin auth ni anti-bot; soporta
+> fechas actuales y pasadas). La respuesta es un objeto cuya clave es el nombre
+> del producto (`"LA GRANJITA"`) con un array de sorteos por valor (uno por
+> horario del día, 12 en total): el scraper toma el PRIMER valor del objeto sin
+> hardcodear la clave. Los sorteos NO ocurridos llegan con `result_id: null`
+> (resto de campos null) y se saltan (resultados parciales del día, patrón
+> loteriadehoy modo animalitos); `result_id` es único por sorteo y se usa como
+> `sorteo_id_externo` (dedupe por juego+fecha+hora en `saveResults`).
+> `result_value` es el número del animal y `result_name` su nombre (GALLINA=25,
+> RATON=8, MONO=13, LAPA=31...), coincidiendo con el zoológico canónico del
+> plugin Animalitos; `lotery_hour` ("08:00 AM") se normaliza a `H:i` con
+> `normalizeHora`. El `product_id` se lee de `config['scraper']['product_id']`
+> del juego (default `'1'`, constante del scraper). El portal lagranjita.com
+> aloja OTROS productos fuera de alcance (documentación): pid=2 ZOOLOGICO
+> ACTIVO, pid=3 RULETA ACTIVA, pid=4 LOTTOMAX, pid=5 LOTTO ACTIVO, pid=6 GRANJA
+> MILLONARIA, pid=7 JUNGLA MILLONARIA, pid=8 LOTTO REY; y las páginas
+> `/granjitaplus` (GRANJITA PLUS) y `/terminalgranjita` (TERMINAL LA GRANJITA).
+> El seeder registra la `scraper_url` documental con `?productId=1`; el fetch
+> reconstruye la query real (`date` + `productId` de config) ignorando la query
+> documental.
+
+## Juegos pendientes (16–22)
 
 Pendientes de integración (un work unit por juego, orden de URLs del cliente). Se agregarán
 aquí en su mismo work unit:
 
 | # | Nombre | slug | type (fuente) | Notas |
 |---|--------|------|---------------|-------|
-| 15 | La Granjita | `la-granjita` | según URL cliente | |
 | 16 | La Ricachona | `la-ricachona` | según URL cliente | |
 | 17 | Loto Chaima | `loto-chaima` | según URL cliente | |
 | 18 | Mega Animal 40 | `mega-animal-40` | animalitos (lottoactivo) | |
