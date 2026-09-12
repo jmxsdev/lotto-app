@@ -8,18 +8,33 @@ y los seeders materializan los datos que esta lista documenta (slug, type, fuent
 
 | # | Nombre | slug | type | Horarios (juego_horarios) | Fuente scraper | Clase scraper | Estado |
 |---|--------|------|------|---------------------------|----------------|---------------|--------|
-| 1 | Lotto Activo | `lotto-activo` | animalitos | 08:00–19:00 (cada hora `:00`) | `https://www.lottoactivo.com/resultados/animalitos/` | `AnimalitosScraper` | Activo |
-| 2 | Triple Zulia | `triple-zulia` | tripletas | 12:45, 16:45, 19:05 | `https://resultadostriplezulia.com/` | `TripletasScraper` | Activo |
-| 3 | Terminal Activo | `terminal-activo` | terminales | 08:00–19:00 (cada hora `:00`) | `https://www.lottoactivo.com/resultados/terminal_activo/` | `AnimalitosScraper` (vía URL) | Activo |
-| 4 | Lotto Activo RD Internacional | `lotto-activo-rd` | animalitos | 08:30–19:30 (cada hora `:30`) | `https://www.lottoactivo.com/resultados/animalitos/` | `AnimalitosScraper` | Activo |
-| 5 | Lotto Activo República Dominicana | `lotto-activo-rep-dom` | animalitos | 08:00–21:00 (cada hora `:00`) | `https://www.lottoactivo.com/resultados/animalitos/` | `AnimalitosScraper` | Activo |
-| 6 | Monje Millonario | `monje-millonario` | animalitos | 08:05–19:05 (cada hora `:05`) | `https://www.lottoactivo.com/resultados/animalitos/` | `AnimalitosScraper` | Activo |
-| 7 | Trío Activo | `trio-activo` | tripletas | 08:00–19:00 (cada hora `:00`) | `https://www.lottoactivo.com/resultados/trio_activo/` | `AnimalitosScraper` (vía URL) | Activo |
+| 1 | Lotto Activo | `lotto-activo` | animalitos | 08:00–19:00 (cada hora `:00`) | `https://www.lottoactivo.com/resultados/animalitos/` | `AnimalitosScraper` | ✅ Verificado con datos reales (12-sep) |
+| 2 | Triple Zulia | `triple-zulia` | tripletas | 12:45, 16:45, 19:05 | `https://resultadostriplezulia.com/` | `TripletasScraper` | ✅ Verificado con datos reales (12-sep) |
+| 3 | Terminal Activo | `terminal-activo` | terminales | 08:00–19:00 (cada hora `:00`) | `https://www.lottoactivo.com/resultados/terminal_activo/` | `AnimalitosScraper` (vía URL, formato plano) | ✅ Verificado con datos reales (12-sep) |
+| 4 | Lotto Activo RD Internacional | `lotto-activo-rd` | animalitos | 08:30–19:30 (cada hora `:30`) | `https://www.lottoactivo.com/resultados/animalitos/` | `AnimalitosScraper` | ✅ Verificado con datos reales (12-sep) |
+| 5 | Lotto Activo República Dominicana | `lotto-activo-rep-dom` | animalitos | 08:00–21:00 (cada hora `:00`) | `https://www.lottoactivo.com/resultados/animalitos/` | `AnimalitosScraper` | ✅ Verificado con datos reales (12-sep) |
+| 6 | Monje Millonario | `monje-millonario` | animalitos | 08:05–19:05 (cada hora `:05`) | `https://www.lottoactivo.com/resultados/animalitos/` | `AnimalitosScraper` | ✅ Verificado con datos reales (12-sep) |
+| 7 | Trío Activo | `trio-activo` | tripletas | 08:00–19:00 (cada hora `:00`) | `https://www.lottoactivo.com/resultados/trio_activo/` | `AnimalitosScraper` (vía URL, formato plano) | ✅ Verificado con datos reales (12-sep) |
 
 > Nota de resolución de scraper: la clase se resuelve en orden `juegos.scraper_class` →
 > match de URL (`lottoactivo.com` / `triplezulia`) → convención `{Studly(type)}Scraper`.
 > Los juegos 3 y 7 (type `terminales`/`tripletas`) usan `AnimalitosScraper` porque su fuente
 > es lottoactivo; el match de URL prevalece sobre la convención por type.
+
+> Familia lottoactivo — verificación con datos reales (12-sep-2026): los 7 juegos se verificaron
+> en vivo contra `lottoactivo.com` (batch `ScrapeResultsJob` por juego, 13 juegos en total, sin
+> errores). El feed de `/resultados/animalitos/<fecha>/` es un JSON anidado que incluye LOS CUATRO
+> juegos animalitos (Lotto Activo, Lotto Activo RD Internacional, Lotto Activo República Dominicana
+> y "Lotto Activo 2 (Monje Millonario)") en una sola respuesta: `AnimalitosScraper` mapea el nombre
+> de cada juego a su slug canónico (`lotto-activo-rd-internacional` → `lotto-activo-rd`,
+> `lotto-activo-republica-dominicana` → `lotto-activo-rep-dom`,
+> `lotto-activo-2-monje-millonario` → `monje-millonario`) y persiste cada uno en su fila con dedupe
+> por juego+fecha+hora. `/resultados/terminal_activo/` y `/resultados/trio_activo/` devuelven un
+> formato PLANO (`resultado1..resultado4`, `time_s`, `fecha`, `id`) que se mapea a `numero` (terminales)
+> o `triple_a` (tripletas); las etiquetas `[TerminalActivoScraper]`/`[TrioActivoScraper]` de los logs
+> son dinámicas del mismo `AnimalitosScraper` (nombre derivado del slug), no clases aparte. Los
+> fixtures reales `tests/Fixtures/lottoactivo_*` (capturados el 12-sep-2026) cubren ambas rutas y el
+> mapeo de slugs en `AnimalitosScraperTest`.
 
 ## Hueco #8
 
