@@ -42,6 +42,7 @@ class JuegosJsonTest extends TestCase
         16 => 'loto-chaima',
         17 => 'mega-animal-40',
         18 => 'selva-plus',
+        19 => 'triple-tachira',
     ];
 
     protected function setUp(): void
@@ -106,7 +107,7 @@ class JuegosJsonTest extends TestCase
     public function test_esquema_minimo_y_conteos_de_opciones_por_tipo(): void
     {
         $this->assertSame(1, $this->generado['version']);
-        $this->assertCount(18, $this->generado['juegos']);
+        $this->assertCount(19, $this->generado['juegos']);
 
         $porSlug = collect($this->generado['juegos'])->keyBy('slug');
 
@@ -215,6 +216,21 @@ class JuegosJsonTest extends TestCase
         $cabra = collect($porSlug['selva-plus']['opciones'])->firstWhere('value', 'cabra');
         $this->assertSame(87, $cabra['numero']);
         $this->assertSame('Cabra', $cabra['label']);
+
+        // triple-tachira: 12 signos PROPIOS desde la tabla juego_opciones
+        // (patrón triple-caliente) y premios OFICIALES del reglamento
+        // G-20004065-3 (A/B 500x, cola 50x, zodiacal 5.000x).
+        $this->assertCount(12, $porSlug['triple-tachira']['opciones']);
+        $this->assertSame(500, $porSlug['triple-tachira']['premio_multiplo']);
+        $this->assertSame(
+            ['13:15', '16:45', '22:10'],
+            $porSlug['triple-tachira']['horarios']
+        );
+
+        $labelsTachira = array_column($porSlug['triple-tachira']['opciones'], 'label');
+        $this->assertContains('Aries', $labelsTachira);
+        $this->assertContains('Piscis', $labelsTachira);
+        $this->assertContains('Acuario', $labelsTachira);
     }
 
     public function test_ids_de_los_juegos_coinciden_con_el_orden_del_seeder(): void
@@ -245,6 +261,6 @@ class JuegosJsonTest extends TestCase
         for ($i = 1; $i < count($idsGenerados); $i++) {
             $this->assertSame(1, $idsGenerados[$i] - $idsGenerados[$i - 1], 'Los ids generados deben ser estrictamente consecutivos.');
         }
-        $this->assertSame(18, count($idsGenerados), 'Deben ser exactamente 18 juegos.');
+        $this->assertSame(19, count($idsGenerados), 'Deben ser exactamente 19 juegos.');
     }
 }

@@ -36,6 +36,7 @@ class DatabaseSeeder extends Seeder
             LotoChaimaSeeder::class,
             MegaAnimal40Seeder::class,
             SelvaPlusSeeder::class,
+            TripleTachiraSeeder::class,
         ]);
     }
 }
