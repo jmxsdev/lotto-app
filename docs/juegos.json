@@ -4357,6 +4357,82 @@
                     "value": "99"
                 }
             ]
+        },
+        {
+            "id": 21,
+            "slug": "triple-zamorano",
+            "nombre": "Triple Zamorano",
+            "tipo": "tripletas",
+            "premio_multiplo": 30,
+            "horarios": [
+                "10:00",
+                "12:00",
+                "14:00",
+                "16:00",
+                "19:00"
+            ],
+            "opciones": [
+                {
+                    "numero": null,
+                    "label": "Aries",
+                    "value": "ARI"
+                },
+                {
+                    "numero": null,
+                    "label": "Tauro",
+                    "value": "TAU"
+                },
+                {
+                    "numero": null,
+                    "label": "Géminis",
+                    "value": "GEM"
+                },
+                {
+                    "numero": null,
+                    "label": "Cáncer",
+                    "value": "CAN"
+                },
+                {
+                    "numero": null,
+                    "label": "Leo",
+                    "value": "LEO"
+                },
+                {
+                    "numero": null,
+                    "label": "Virgo",
+                    "value": "VIR"
+                },
+                {
+                    "numero": null,
+                    "label": "Libra",
+                    "value": "LIB"
+                },
+                {
+                    "numero": null,
+                    "label": "Escorpio",
+                    "value": "ESC"
+                },
+                {
+                    "numero": null,
+                    "label": "Sagitario",
+                    "value": "SAG"
+                },
+                {
+                    "numero": null,
+                    "label": "Capricornio",
+                    "value": "CAP"
+                },
+                {
+                    "numero": null,
+                    "label": "Acuario",
+                    "value": "ACU"
+                },
+                {
+                    "numero": null,
+                    "label": "Piscis",
+                    "value": "PIS"
+                }
+            ]
         }
     ]
 }
