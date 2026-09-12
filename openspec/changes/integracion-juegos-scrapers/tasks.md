@@ -128,7 +128,7 @@ Plantilla para los juegos restantes (#16–22):
 | 13 | El Guacharito | el-guacharito | animalitos (loteriadehoy) | ✅ integrado (PR 6) |
 | 14 | Guacharo Activo | guacharo-activo | animalitos (loteriadehoy) | ✅ integrado (PR 7) |
 | 15 | La Granjita | la-granjita | animalitos (API oficial lagranjita.com) | ✅ integrado (PR 11) |
-| 16 | La Ricachona | la-ricachona | según URL cliente | |
+| 16 | La Ricachona | la-ricachona | tripletas (HTML oficial laricachona.com) | ✅ integrado (PR 12) |
 | 17 | Loto Chaima | loto-chaima | según URL cliente | |
 | 18 | Mega Animal 40 | mega-animal-40 | animalitos (lottoactivo) | |
 | 19 | Selva Plus | selva-plus | según URL cliente | |
@@ -155,6 +155,15 @@ Plantilla para los juegos restantes (#16–22):
 - [x] f9.4 Harness runtime: `php artisan juegos:export` contra BD local (13 juegos, ids 1-13) → `docs/juegos.json` (68.788 B) + `--path` opcional verificado con salida idéntica. Suite completa **494/492/2** (491/489/2 +3) + `pint --test` limpio.
 - [x] f9.5 Docs: nota en `backend/docs/juegos.md` (contrato JSON + regeneración), tasks.md + apply-progress (merge) + Engram `apply-progress-f9`. Commits work-unit en español. NO se abren PRs.
 - [x] f9.6 INVESTIGACIÓN ids test vs archivo (documentada): la BD de tests comparte auto-increment de MySQL que NO retrocede con el rollback de RefreshDatabase → ids corridos (1-13 en test limpio, 14-26, 27-39 según posición en la suite). Resuelto sin romper el contrato: el archivo mantiene ids 1-13 (BD real); el test compara por slug (estructura+valores, id excluido) y verifica orden relativo + consecutividad del generado. Discrepancia de conteo: el plugin Animalitos tiene 38 animales (ballena+delfin comparten numero 0), no 37 como se estimó — el archivo refleja el plugin (38) y el test lo valida.
+
+### WU f12 — La Ricachona versión triples (PR 12, rama f12-la-ricachona, base f11-docs-plataformas) — ✅ COMPLETADO
+- [x] f12.1 Rama `feat/integracion-juegos-scrapers-f12-la-ricachona` creada desde f11. Scraper `LaRicachonaScraper` (extiende BaseScraper): `fetch` construye `https://laricachona.com/?date=<fecha>`, parse de `article.tripleResultArticle` (hora del `<h1>` con `normalizeHora`, número del `<p>` del MEDIO con ceros a la izquierda como STRING, saltar `--`/`---`), `findJuegoOrFail` fail-fast, `saveResults` heredado. Maneja HTML sin artículos, HTML de error y respuestas vacías (RuntimeException).
+- [x] f12.2 Seeder `LaRicachonaSeeder`: slug `la-ricachona`, name "La Ricachona", type `tripletas`, `premio_multiplo` 30, `modalidades_permitidas: ["triple_a"]`, `scraper_url` = `https://laricachona.com/`, `scraper_class` = LaRicachonaScraper, `requires_scraper` true, JuegoLimite banca/bs/3600, PluginJuego Tripletas, JuegoHorario 08:05–19:05 (12, cada hora `:05`). Registrado en `DatabaseSeeder`.
+- [x] f12.3 Fixtures reales `backend/tests/Fixtures/laricachona_results.html` (día completo 2026-09-11, 12 sorteos) + `laricachona_parcial.html` (hoy con `--`/`---`).
+- [x] f12.4 RED→GREEN `LaRicachonaScraperTest.php` (unit, 9) + `LaRicachonaResultsTest.php` (feature, 6) → `composer test -- --filter=Ricachona` 15/15 (47 assertions). `JuegosJsonTest` (15 juegos + conteos) y `LimitesScopedApiTest` (15/30/60, mixto 30) actualizados → 3/3 y 30/30.
+- [x] f12.5 REGENERADO `docs/juegos.json` con `php artisan juegos:export` (15 juegos, id 15 = la-ricachona, 12 opciones vía plugin Tripletas, horarios 08:05–19:05) y COMMITEADO; determinista (2 ejecuciones = mismo md5 4cb93cd6...).
+- [x] f12.6 CARGA REAL: `ScrapeResultsJob` contra el HTML real → HOY 2026-09-12: 5 resultados parciales (08:05→900, 09:05→962, 10:05→204, 11:05→370, 12:05→418); AYER 2026-09-11: 12 resultados (día completo). Rescrape idempotente (5/12, 17 total, 0 errores). BD local total 145.
+- [x] f12.7 Docs: fila 16 en `backend/docs/juegos.md` (type tripletas, 12 horarios, fuente HTML oficial, estado "verificado con datos reales 12-sep") + nota del scraper; `docs/plataformas-juegos.md` actualizado (La Ricachona triples → integrado; animalitos sigue candidato). tasks.md + apply-progress (merge) + commits work-unit en español. NO se abren PRs.
 
 ## Phase 3: Verificación / cierre
 

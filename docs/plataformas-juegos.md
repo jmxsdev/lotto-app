@@ -3,7 +3,7 @@
 Referencia operativa: qué plataformas alojan varios juegos bajo un mismo backend, cómo detectarlas
 al recibir nuevas URLs y qué juegos candidatos quedan pendientes de decisión del cliente.
 
-> Última actualización: 2026-09-12 (integración de La Granjita; La Ricachona en curso).
+> Última actualización: 2026-09-12 (integración de La Ricachona triples).
 
 ## Plataforma 1 — premierpluss (portal: lagranjita.com)
 
@@ -39,7 +39,7 @@ GET https://www.lagranjita.com/api/results.json?date=YYYY-MM-DD&productId=N
 
 ## Plataforma 2 — laricachona.com (portal propio, Laravel)
 
-**Detectada con**: La Ricachona versión triples (integración en curso).
+**Detectada con**: La Ricachona versión triples (juego 16, integrado).
 
 **Patrón de datos** (HTML server-rendered por fecha, sin API pública):
 
@@ -53,8 +53,8 @@ GET https://laricachona.com/?date=YYYY-MM-DD
 - Sorteos no ocurridos: `--` / `---` (se saltan).
 - Los sorteos de hoy se renderizan sin parámetro; `?date=YYYY-MM-DD` renderiza fechas pasadas.
 
-**Productos del portal**: La Ricachona triples (12 sorteos, 08:05–19:05, cada hora `:05`) ·
-La Ricachona animalitos (sección `#animalitos`, cada hora `:10`) — ⏳ candidato.
+**Productos del portal**: La Ricachona triples (12 sorteos, 08:05–19:05, cada hora `:05`) — ✅ integrado
+(juego id 15, `LaRicachonaScraper`) · La Ricachona animalitos (sección `#animalitos`, cada hora `:10`) — ⏳ candidato.
 
 **Cómo reconocer este patrón**: sitio Laravel clásico con jQuery + datepicker, secciones `#triples`/`#animalitos`,
 resultados server-rendered con `?date=`.
@@ -70,4 +70,5 @@ resultados server-rendered con `?date=`.
 - [ ] Lotto Rey (premierpluss, pid 8)
 - [ ] Granjita Plus (premierpluss, `/granjitaplus`)
 - [ ] Terminal La Granjita (premierpluss, `/terminalgranjita`)
-- [ ] La Ricachona animalitos (laricachona.com)
+- [ ] La Ricachona animalitos (laricachona.com) — ya no aplica: verificado como sección
+  `animalsResultArticle` (cada hora `:10`); pendiente de decisión del cliente.

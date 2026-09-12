@@ -55,6 +55,7 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 | 13 | El Guacharito Millonario | `el-guacharito` | animalitos | 08:30–19:30 (12 horarios `:30`) | `https://loteriadehoy.com/animalito/elguacharitomillonario/resultados/` | `LoteriaDeHoyScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
 | 14 | Guacharo Activo | `guacharo-activo` | animalitos | 08:00–19:00 (12 horarios `:00`) | `https://loteriadehoy.com/animalito/guacharoactivo/resultados/` | `LoteriaDeHoyScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
 | 15 | La Granjita | `la-granjita` | animalitos | 08:00–19:00 (12 horarios `:00`) | `https://www.lagranjita.com/api/results.json?productId=1` (API oficial) | `LaGranjitaScraper` | ✅ Verificado con datos reales (12-sep, API oficial sin anti-bot) |
+| 16 | La Ricachona | `la-ricachona` | tripletas | 08:05–19:05 (12 horarios `:05`) | `https://laricachona.com/` (HTML oficial por fecha) | `LaRicachonaScraper` | ✅ Verificado con datos reales (12-sep, HTML oficial) |
 
 > `LoteriaDeHoyScraper` es parametrizado: reutiliza el mismo `scraper_class` para los juegos de
 > loteriadehoy.com registrando la `scraper_url` de cada juego (se usa su slug/name para fail-fast
@@ -111,14 +112,29 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 > reconstruye la query real (`date` + `productId` de config) ignorando la query
 > documental.
 
-## Juegos pendientes (16–22)
+> `LaRicachonaScraper` consume el HTML server-rendered por fecha del portal
+> laricachona.com (sin API pública): `GET https://laricachona.com/` renderiza
+> los sorteos de HOY y `GET https://laricachona.com/?date=YYYY-MM-DD` los de
+> esa fecha. Los sorteos de triples están en artículos `tripleResultArticle`
+> con la hora en el `<h1>` (formato 12h, p. ej. "08:05 AM") y 3 `<p>`: el del
+> MEDIO es el número de 3 dígitos del sorteo ("030", cero inicial conservado
+> como STRING → `numeros_ganadores.triple_a`); los laterales son decorativos
+> (derivados `-1`/`+1` del último par) y NO se guardan. Sorteos no ocurridos:
+> los 3 `<p>` vienen como `--`/`---` → se saltan (resultados parciales del
+> día, patrón loteriadehoy/lagranjita). Sin signo en los resultados. El portal
+> también renderiza la sección `animalsResultArticle` (La Ricachona animalitos,
+> cada hora `:10`) — FUERA DE ALCANCE, documentada como candidato en
+> `docs/plataformas-juegos.md`; el selector del scraper filtra SOLO
+> `tripleResultArticle`. Sin ID externo por sorteo → `sorteo_id_externo` null
+> y dedupe por juego+fecha+hora en `saveResults` heredado.
+
+## Juegos pendientes (17–22)
 
 Pendientes de integración (un work unit por juego, orden de URLs del cliente). Se agregarán
 aquí en su mismo work unit:
 
 | # | Nombre | slug | type (fuente) | Notas |
 |---|--------|------|---------------|-------|
-| 16 | La Ricachona | `la-ricachona` | según URL cliente | |
 | 17 | Loto Chaima | `loto-chaima` | según URL cliente | |
 | 18 | Mega Animal 40 | `mega-animal-40` | animalitos (lottoactivo) | |
 | 19 | Selva Plus | `selva-plus` | según URL cliente | |

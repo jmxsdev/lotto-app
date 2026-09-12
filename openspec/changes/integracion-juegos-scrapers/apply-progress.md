@@ -1070,3 +1070,83 @@ para construir la query real `date` + `productId` sin duplicar parámetros.
 - `sdd-verify` del PR 11 cuando el orquestador lo dispare.
 - Juego 16 (La Ricachona): requiere URL y estructura de la fuente del cliente
   antes de aplicar.
+
+---
+
+# Apply Progress (WU f12) — PR 12 (La Ricachona versión triples)
+
+**Cambio**: integracion-juegos-scrapers
+**Modo**: Strict TDD (backend: `composer test`)
+**Cadena**: feature-branch-chain (PR 12; base = PR 11 `feat/integracion-juegos-scrapers-f11-docs-plataformas`)
+**Rama**: `feat/integracion-juegos-scrapers-f12-la-ricachona`
+**Estado**: COMPLETADO (f12.1–f12.7)
+
+## Resumen
+Integración del juego 16 (La Ricachona) con el HTML server-rendered por fecha de
+laricachona.com (sin API pública): `GET https://laricachona.com/` = hoy,
+`GET https://laricachona.com/?date=YYYY-MM-DD` = fecha pasada. Seeder `la-ricachona`
+(tripletas, premio_multiplo 30, modalidades `["triple_a"]`, límite banca/bs/3600,
+plugin Tripletas, 12 horarios 08:05–19:05 cada hora `:05`, scraper_class
+LaRicachonaScraper), scraper dedicado (artículos `tripleResultArticle`: hora del
+`<h1>` normalizada, número del `<p>` del MEDIO como STRING con ceros a la izquierda,
+saltar `--`/`---`, laterales decorativos NO guardados, fail-fast, HTML vacío/de
+error/sin artículos → RuntimeException), 2 fixtures reales, tests unit+feature,
+regresión de conteos, docs/juegos.json regenerado (15 juegos) y carga real.
+
+## Hallazgos
+- HTML por fecha sin API: `?date=` renderiza fechas pasadas; el día actual se sirve
+  sin parámetro. 12 sorteos de triples (08:05 AM–07:05 PM, cada hora `:05`).
+- Artículo: `<article class='tripleResultArticle'><h1>08:05 AM</h1><p>29</p><p>030</p>
+  <p>31</p></article>` — el `<p>` del MEDIO es el número de 3 dígitos ("030", cero
+  inicial conservado como STRING); los laterales son decorativos (-1/+1 del último
+  par, NO se guardan). Sin signo.
+- Sorteos no ocurridos: los 3 `<p>` vienen como `--`/`---` → se saltan (parcial).
+- El portal también renderiza `animalsResultArticle` (La Ricachona animalitos, cada
+  hora `:10`) — FUERA DE ALCANCE; el selector filtra SOLO `tripleResultArticle`.
+- Sin ID externo por sorteo → `sorteo_id_externo` null; dedupe por juego+fecha+hora
+  (saveResults heredado), como el resto.
+- Modelado tipo Trío Activo (tripletas sin signo, una modalidad): config
+  `{"premio_multiplo":30,"modalidades_permitidas":["triple_a"]}` y
+  `numeros_ganadores = {"triple_a":"030"}`.
+
+## TDD Cycle Evidence
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| f12.1/f12.3 | tests/Unit/LaRicachonaScraperTest.php | Unit | N/A (nuevo) | 9 errores (clase inexistente) | 9/9 (24 assertions) | 9 casos (completo, parcial, ceros, horas, fail-fast, sin artículos, error, vacío) | Pint clean |
+| f12.2 | tests/Feature/LaRicachonaResultsTest.php | Feature | N/A (nuevo) | 6 errores (seeder inexistente) | 6/6 (23 assertions) | 6 casos | Pint clean |
+| f12.4 | JuegosJsonTest + LimitesScopedApiTest | Feature | previo 3/3, 30/30 | 2+6 fallos (contrato 14 vs 15) | 3/3 (357) + 30/30 (333) | conteos 15/30/60, mixto 30 | OK |
+| f12.5 | Contrato JSON | Runtime | — | juegos:export → 15 juegos | md5 idéntico ×2 (4cb93cd6) | — | OK |
+| f12.6 | Harness real (job) | Runtime | N/A | — | HOY 5 + AYER 12 | rescrape 5/12, 17 total | — |
+
+**Test Summary**: +15 tests (15 unit+feature Ricachona); focused `--filter=Ricachona` → 15/15 (47 assertions);
+`--filter=JuegosJson` 3/3; `--filter=LimitesScopedApi` 30/30; suite completa pendiente de correr al cierre.
+
+## Work Unit Evidence
+| Work unit | Focused test | Runtime harness | Rollback boundary |
+|-----------|--------------|-----------------|-------------------|
+| WU1 scraper+fixtures | --filter=LaRicachonaScraperTest → 9/9 | parse fixtures reales; fetch real en harness | Eliminar LaRicachonaScraper + 2 fixtures + test |
+| WU2 seeder+feature | --filter=LaRicachonaResultsTest → 6/6 | db:seed LaRicachonaSeeder → juego id=15; export 15 juegos | Eliminar LaRicachonaSeeder + revertir DatabaseSeeder + feature test |
+| WU3 regresión conteos | JuegosJsonTest 3/3 + LimitesScopedApiTest 30/30 | N/A (regresión API) | Revertir aserciones (15→14, 30→28, 60→56) |
+| WU4 contrato JSON | Suite (consistencia verde) | juegos:export contra BD local → docs/juegos.json; md5 idéntico ×2 | Regenerar el archivo con el comando |
+| WU5 carga real | --filter=Ricachona 15/15 | ScrapeResultsJob ×2 fechas: HOY 5 (parcial 08:05–12:05), AYER 12 (día completo); rescrape 5/12, 17 únicos, 0 errores | Filas resultados de la-ricachona (17) |
+
+## Carga real (BD local)
+- HOY 2026-09-12: 5 resultados (08:05→900, 09:05→962, 10:05→204, 11:05→370, 12:05→418) — parcial correcto.
+- AYER 2026-09-11: 12 resultados (día completo).
+- Dedupe: rescrape mantiene 5/12 (17 total, 0 errores en log). BD local total 145 (128 previos + 17).
+
+## Archivos
+- backend/app/Plugins/Scrapers/LaRicachonaScraper.php (create)
+- backend/database/seeders/LaRicachonaSeeder.php (create) + DatabaseSeeder (modify)
+- backend/tests/Fixtures/laricachona_results.html + laricachona_parcial.html (create, reales)
+- backend/tests/Unit/LaRicachonaScraperTest.php + Feature/LaRicachonaResultsTest.php (create)
+- backend/tests/Feature/JuegosJsonTest.php + LimitesScopedApiTest.php (modify: 14→15)
+- docs/juegos.json (regenerado, 15 juegos) + backend/docs/juegos.md (fila 16) + docs/plataformas-juegos.md (estado)
+- openspec/.../tasks.md + apply-progress.md (modify)
+
+## Commits (rama f12)
+- (se generan al cierre del WU, work-unit en español, NO se abren PRs)
+
+## Siguiente paso
+- sdd-verify del PR 12 cuando el orquestador lo dispare.
+- Juego 17 (Loto Chaima): requiere URL/estructura del cliente.
