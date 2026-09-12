@@ -44,6 +44,7 @@ class JuegosJsonTest extends TestCase
         18 => 'selva-plus',
         19 => 'triple-tachira',
         20 => 'triple-facil',
+        21 => 'triple-zamorano',
     ];
 
     protected function setUp(): void
@@ -108,7 +109,7 @@ class JuegosJsonTest extends TestCase
     public function test_esquema_minimo_y_conteos_de_opciones_por_tipo(): void
     {
         $this->assertSame(1, $this->generado['version']);
-        $this->assertCount(20, $this->generado['juegos']);
+        $this->assertCount(21, $this->generado['juegos']);
 
         $porSlug = collect($this->generado['juegos'])->keyBy('slug');
 
@@ -150,7 +151,7 @@ class JuegosJsonTest extends TestCase
         $this->assertSame('99', $porSlug['terminal-activo']['opciones'][99]['label']);
 
         // tripletas con tabla: 12 signos
-        foreach (['triple-zulia', 'triple-caliente', 'triple-chance', 'el-arrejuntado'] as $slug) {
+        foreach (['triple-zulia', 'triple-caliente', 'triple-chance', 'el-arrejuntado', 'triple-zamorano'] as $slug) {
             $this->assertCount(12, $porSlug[$slug]['opciones'], "[{$slug}] debe tener 12 opciones (tabla).");
         }
 
@@ -248,6 +249,22 @@ class JuegosJsonTest extends TestCase
         $this->assertSame(0, $porSlug['triple-facil']['opciones'][0]['numero']);
         $this->assertSame('99', $porSlug['triple-facil']['opciones'][99]['label']);
         $this->assertSame(99, $porSlug['triple-facil']['opciones'][99]['numero']);
+
+        // triple-zamorano: 12 signos PROPIOS desde la tabla juego_opciones
+        // (patrón triple-caliente), premio_multiplo 30 (default de los triples;
+        // la informativa declara 600x/60x/6.000x SIN fuente oficial verificada,
+        // pendiente) y 5 horarios oficiales 10:00/12:00/14:00/16:00/19:00.
+        $this->assertCount(12, $porSlug['triple-zamorano']['opciones']);
+        $this->assertSame(30, $porSlug['triple-zamorano']['premio_multiplo']);
+        $this->assertSame(
+            ['10:00', '12:00', '14:00', '16:00', '19:00'],
+            $porSlug['triple-zamorano']['horarios']
+        );
+
+        $labelsZamorano = array_column($porSlug['triple-zamorano']['opciones'], 'label');
+        $this->assertContains('Aries', $labelsZamorano);
+        $this->assertContains('Piscis', $labelsZamorano);
+        $this->assertContains('Acuario', $labelsZamorano);
     }
 
     public function test_ids_de_los_juegos_coinciden_con_el_orden_del_seeder(): void
@@ -278,6 +295,6 @@ class JuegosJsonTest extends TestCase
         for ($i = 1; $i < count($idsGenerados); $i++) {
             $this->assertSame(1, $idsGenerados[$i] - $idsGenerados[$i - 1], 'Los ids generados deben ser estrictamente consecutivos.');
         }
-        $this->assertSame(20, count($idsGenerados), 'Deben ser exactamente 20 juegos.');
+        $this->assertSame(21, count($idsGenerados), 'Deben ser exactamente 21 juegos.');
     }
 }

@@ -38,6 +38,7 @@ class DatabaseSeeder extends Seeder
             SelvaPlusSeeder::class,
             TripleTachiraSeeder::class,
             TripleFacilSeeder::class,
+            TripleZamoranoSeeder::class,
         ]);
     }
 }
