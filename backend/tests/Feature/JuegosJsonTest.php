@@ -40,6 +40,7 @@ class JuegosJsonTest extends TestCase
         14 => 'la-granjita',
         15 => 'la-ricachona',
         16 => 'loto-chaima',
+        17 => 'mega-animal-40',
     ];
 
     protected function setUp(): void
@@ -104,7 +105,7 @@ class JuegosJsonTest extends TestCase
     public function test_esquema_minimo_y_conteos_de_opciones_por_tipo(): void
     {
         $this->assertSame(1, $this->generado['version']);
-        $this->assertCount(16, $this->generado['juegos']);
+        $this->assertCount(17, $this->generado['juegos']);
 
         $porSlug = collect($this->generado['juegos'])->keyBy('slug');
 
@@ -154,7 +155,7 @@ class JuegosJsonTest extends TestCase
         // (el mapa del plugin tiene 38: ballena y delfin comparten numero 0;
         // 37 sería contar los números 0-36, pero son 38 etiquetas — evidencia:
         // JuegoAnimalitosSeeder y la BD local con 38 filas).
-        foreach (['lotto-activo-rd', 'lotto-activo-rep-dom', 'monje-millonario', 'cazaloton', 'el-guacharito', 'guacharo-activo', 'la-granjita'] as $slug) {
+        foreach (['lotto-activo-rd', 'lotto-activo-rep-dom', 'monje-millonario', 'cazaloton', 'el-guacharito', 'guacharo-activo', 'la-granjita', 'mega-animal-40'] as $slug) {
             $this->assertCount(38, $porSlug[$slug]['opciones'], "[{$slug}] debe tener 38 opciones (plugin Animalitos).");
         }
 
@@ -175,6 +176,20 @@ class JuegosJsonTest extends TestCase
         $this->assertSame('ciempies', $porSlug['loto-chaima']['opciones'][4]['value'], 'value = slug sin acentos.');
         $this->assertSame('Oso Hormiguero', $porSlug['loto-chaima']['opciones'][56]['label']);
         $this->assertSame(55, $porSlug['loto-chaima']['opciones'][56]['numero']);
+
+        // mega-animal-40 sin tabla: 38 animales canónicos desde el plugin Animalitos
+        // (zoológico canónico del proveedor: Delfín/Ballena 0 ... Culebra 36; el comodín
+        // "MEGA" de 40x NO se modela — premio_multiplo estático 30, ver docs/comparacion-juegos.md).
+        // Las labels del plugin son SIN acentos ('Delfin', 'Caiman'), a diferencia de la
+        // tabla propia de loto-chaima ('Delfín').
+        $this->assertCount(38, $porSlug['mega-animal-40']['opciones']);
+        $this->assertSame('Ballena', $porSlug['mega-animal-40']['opciones'][0]['label']);
+        $this->assertSame(0, $porSlug['mega-animal-40']['opciones'][0]['numero']);
+        $this->assertSame('Delfin', $porSlug['mega-animal-40']['opciones'][1]['label']);
+        $this->assertSame(0, $porSlug['mega-animal-40']['opciones'][1]['numero']);
+        $this->assertSame('Culebra', $porSlug['mega-animal-40']['opciones'][37]['label']);
+        $this->assertSame(36, $porSlug['mega-animal-40']['opciones'][37]['numero']);
+        $this->assertSame(30, $porSlug['mega-animal-40']['premio_multiplo']);
     }
 
     public function test_ids_de_los_juegos_coinciden_con_el_orden_del_seeder(): void
@@ -205,6 +220,6 @@ class JuegosJsonTest extends TestCase
         for ($i = 1; $i < count($idsGenerados); $i++) {
             $this->assertSame(1, $idsGenerados[$i] - $idsGenerados[$i - 1], 'Los ids generados deben ser estrictamente consecutivos.');
         }
-        $this->assertSame(16, count($idsGenerados), 'Deben ser exactamente 16 juegos.');
+        $this->assertSame(17, count($idsGenerados), 'Deben ser exactamente 17 juegos.');
     }
 }

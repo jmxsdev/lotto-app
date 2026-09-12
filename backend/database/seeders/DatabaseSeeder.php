@@ -34,6 +34,7 @@ class DatabaseSeeder extends Seeder
             LaGranjitaSeeder::class,
             LaRicachonaSeeder::class,
             LotoChaimaSeeder::class,
+            MegaAnimal40Seeder::class,
         ]);
     }
 }
