@@ -18,7 +18,7 @@ class JuegosJsonTest extends TestCase
     private array $generado;
 
     /**
-     * Orden de siembra del DatabaseSeeder: los ids 1..13 deben coincidir
+     * Orden de siembra del DatabaseSeeder: los ids 1..14 deben coincidir
      * con el archivo commiteado (contrato estable para el front/taquilla).
      *
      * @var array<int, string>
@@ -37,6 +37,7 @@ class JuegosJsonTest extends TestCase
         11 => 'el-arrejuntado',
         12 => 'el-guacharito',
         13 => 'guacharo-activo',
+        14 => 'la-granjita',
     ];
 
     protected function setUp(): void
@@ -85,7 +86,7 @@ class JuegosJsonTest extends TestCase
             // tests reutiliza auto-increment de MySQL que no retrocede con el
             // rollback de RefreshDatabase (evidencia: ids corridos 27-39 en la
             // suite compartida), mientras que el archivo commiteado mantiene el
-            // contrato estable con los ids reales 1-13 de la BD local.
+            // contrato estable con los ids reales 1-14 de la BD local.
             $juegoArchivoSinId = $juegoArchivo;
             $juegoGeneradoSinId = $porSlugGenerado[$slug];
             unset($juegoArchivoSinId['id'], $juegoGeneradoSinId['id']);
@@ -101,7 +102,7 @@ class JuegosJsonTest extends TestCase
     public function test_esquema_minimo_y_conteos_de_opciones_por_tipo(): void
     {
         $this->assertSame(1, $this->generado['version']);
-        $this->assertCount(13, $this->generado['juegos']);
+        $this->assertCount(14, $this->generado['juegos']);
 
         $porSlug = collect($this->generado['juegos'])->keyBy('slug');
 
@@ -151,7 +152,7 @@ class JuegosJsonTest extends TestCase
         // (el mapa del plugin tiene 38: ballena y delfin comparten numero 0;
         // 37 sería contar los números 0-36, pero son 38 etiquetas — evidencia:
         // JuegoAnimalitosSeeder y la BD local con 38 filas).
-        foreach (['lotto-activo-rd', 'lotto-activo-rep-dom', 'monje-millonario', 'cazaloton', 'el-guacharito', 'guacharo-activo'] as $slug) {
+        foreach (['lotto-activo-rd', 'lotto-activo-rep-dom', 'monje-millonario', 'cazaloton', 'el-guacharito', 'guacharo-activo', 'la-granjita'] as $slug) {
             $this->assertCount(38, $porSlug[$slug]['opciones'], "[{$slug}] debe tener 38 opciones (plugin Animalitos).");
         }
 
@@ -162,7 +163,7 @@ class JuegosJsonTest extends TestCase
 
     public function test_ids_de_los_juegos_coinciden_con_el_orden_del_seeder(): void
     {
-        // El ARCHIVO es el contrato: ids reales 1-13 en el orden del DatabaseSeeder.
+        // El ARCHIVO es el contrato: ids reales 1-14 en el orden del DatabaseSeeder.
         $idsArchivo = collect($this->archivo['juegos'])->pluck('slug', 'id')->all();
         $this->assertSame(
             self::SLUGS_POR_ID,
@@ -188,6 +189,6 @@ class JuegosJsonTest extends TestCase
         for ($i = 1; $i < count($idsGenerados); $i++) {
             $this->assertSame(1, $idsGenerados[$i] - $idsGenerados[$i - 1], 'Los ids generados deben ser estrictamente consecutivos.');
         }
-        $this->assertSame(13, count($idsGenerados), 'Deben ser exactamente 13 juegos.');
+        $this->assertSame(14, count($idsGenerados), 'Deben ser exactamente 14 juegos.');
     }
 }
