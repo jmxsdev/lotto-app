@@ -32,6 +32,7 @@ class DatabaseSeeder extends Seeder
             ElGuacharitoSeeder::class,
             GuacharoActivoSeeder::class,
             LaGranjitaSeeder::class,
+            LaRicachonaSeeder::class,
         ]);
     }
 }

@@ -18,7 +18,7 @@ class JuegosJsonTest extends TestCase
     private array $generado;
 
     /**
-     * Orden de siembra del DatabaseSeeder: los ids 1..14 deben coincidir
+     * Orden de siembra del DatabaseSeeder: los ids 1..15 deben coincidir
      * con el archivo commiteado (contrato estable para el front/taquilla).
      *
      * @var array<int, string>
@@ -38,6 +38,7 @@ class JuegosJsonTest extends TestCase
         12 => 'el-guacharito',
         13 => 'guacharo-activo',
         14 => 'la-granjita',
+        15 => 'la-ricachona',
     ];
 
     protected function setUp(): void
@@ -102,7 +103,7 @@ class JuegosJsonTest extends TestCase
     public function test_esquema_minimo_y_conteos_de_opciones_por_tipo(): void
     {
         $this->assertSame(1, $this->generado['version']);
-        $this->assertCount(14, $this->generado['juegos']);
+        $this->assertCount(15, $this->generado['juegos']);
 
         $porSlug = collect($this->generado['juegos'])->keyBy('slug');
 
@@ -156,8 +157,10 @@ class JuegosJsonTest extends TestCase
             $this->assertCount(38, $porSlug[$slug]['opciones'], "[{$slug}] debe tener 38 opciones (plugin Animalitos).");
         }
 
-        // trio-activo sin tabla: 12 signos desde el plugin Tripletas
-        $this->assertCount(12, $porSlug['trio-activo']['opciones'], '[trio-activo] debe tener 12 opciones (plugin Tripletas).');
+        // trio-activo / la-ricachona sin tabla: 12 signos desde el plugin Tripletas
+        foreach (['trio-activo', 'la-ricachona'] as $slug) {
+            $this->assertCount(12, $porSlug[$slug]['opciones'], "[{$slug}] debe tener 12 opciones (plugin Tripletas).");
+        }
         $this->assertSame('Géminis', $porSlug['trio-activo']['opciones'][2]['label'], 'Acentos correctos desde el plugin.');
     }
 
@@ -189,6 +192,6 @@ class JuegosJsonTest extends TestCase
         for ($i = 1; $i < count($idsGenerados); $i++) {
             $this->assertSame(1, $idsGenerados[$i] - $idsGenerados[$i - 1], 'Los ids generados deben ser estrictamente consecutivos.');
         }
-        $this->assertSame(14, count($idsGenerados), 'Deben ser exactamente 14 juegos.');
+        $this->assertSame(15, count($idsGenerados), 'Deben ser exactamente 15 juegos.');
     }
 }
