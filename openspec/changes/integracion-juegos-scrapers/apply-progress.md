@@ -1234,3 +1234,90 @@ suite completa pendiente de correr al cierre.
 ## Siguiente paso
 - sdd-verify del PR 13 cuando el orquestador lo dispare.
 - Juego 18 (Mega Animal 40): requiere URL/estructura del cliente.
+
+---
+
+# Apply Progress (WU f18) — PR 18 (Triple Táchira con el sitio oficial tripletachira.com)
+
+**Cambio**: integracion-juegos-scrapers
+**Modo**: Strict TDD (backend: `composer test`)
+**Cadena**: feature-branch-chain (PR 18; base = PR 17 `feat/integracion-juegos-scrapers-f17-docs-fuentes`)
+**Rama**: `feat/integracion-juegos-scrapers-f18-triple-tachira`
+**Estado**: COMPLETADO (f18.1–f18.8)
+
+> Nota de merge: las secciones f14 (Mega Animal 40), f16 (Selva Plus) y f17 (docs fuentes)
+> viven en Engram (`apply-progress-f14`/`f16`); este archivo de filesystem se actualiza con la
+> sección f18. El estado acumulado completo está en el topic `sdd/integracion-juegos-scrapers/apply-progress`.
+
+## Resumen
+Integración del juego 20 (Triple Táchira) con el sitio OFICIAL tripletachira.com (HTML
+server-rendered, sin anti-bot): `GET /pruebah.php?bt=DD/MM/YYYY&bt2=DD/MM/YYYY` → tabla semanal
+de 7 columnas. Scraper dedicado que localiza la columna por su FECHA en el header (el nombre del
+día es FIJO Lunes..Domingo, no el día real — nunca se usa), parsea filas A/B/ZODI agrupadas por
+hora, convierte horas 12h sin AM/PM a 24h (01:15→13:15, 04:45→16:45, 10:10→22:10 — todos PM),
+mapea signos (PIC→PIS) y salta `--------`. Seeder con **premios OFICIALES del reglamento
+G-20004065-3** (Lotería del Táchira; PDF descargado y texto extraído con pdftotext): A/B 500×,
+cola 50×, zodiacal 5.000× (la informativa declara 600/60/6.000 — desajuste H9). 3 fixtures reales,
+tests unit+feature, regresión de conteos (18→19 juegos), `docs/juegos.json` regenerado y carga real.
+
+## Hallazgos
+- **El sitio etiqueta los días con nombres FIJOS**: "Lunes 01/09/2026" cuando el 01-09 es martes.
+  La columna se localiza por su FECHA, nunca por el nombre del día. La estrategia `bt=fecha&bt2=fecha`
+  (una sola columna) + localización por fecha es robusta.
+- **Horas 12h sin AM/PM, todos PM**: la home etiqueta "1:15PM"; el reglamento lista 1:15/4:45/10:10.
+  Conversión: h<12 → +12; 12 → 12. Verificado contra datos reales (01:15→13:15 con los 3 dígitos
+  correctos del 11-sep).
+- **Reglamento oficial PARSEABLE** (`docs/reglamento.pdf`, 15 páginas, pdftotext OK): premios A/B
+  **500×**, Terminal/Cola **50×**, Triple+Zodiacal **5.000×**, Par Millonario 200.000×, aproximación
+  10×, Terminal+Zodiacal 500×... → **H9: la informativa (RV) está EQUIVOCADA** en premios
+  (600/60/6.000) y en el 3er sorteo (19:20 vs 22:10 oficial). El seeder registra los valores OFICIALES.
+- **Comportamiento dominical NO uniforme**: 06-sep (domingo) solo sorteo de 22:10 (829/232/926-PIC);
+  13-sep (domingo) NINGUNO. La informativa dice 17:10 — pendiente de confirmar con más muestras.
+- **Vista semanal con estado transitorio**: una captura de la semana 11-17 mostró la columna 11/09
+  con datos del 12/09 (cache del sitio); recapturada, coincidió con la vista diaria. Por eso el
+  scraper SIEMPRE pide `bt=fecha&bt2=fecha` (nunca rangos).
+- **Dedupe**: sin ID externo en la tabla → `sorteo_id_externo` null, upsert por juego+fecha+hora
+  (saveResults heredado); rescrape real mantiene 4 filas (3 ayer + 1 hoy parcial), 0 errores.
+
+## TDD Cycle Evidence
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| f18.1/f18.3 | tests/Unit/TripleTachiraScraperTest.php | Unit | N/A (nuevo) | 15 errores (clase inexistente) | 15/15 (63) | 15 casos (completo 11/09, parcial 12/09, domingo vacío 13/09, domingo solo 22:10 06/09, primera columna, sin datos 2020, horas ×6, signos ×12, estructura, fail-fast, vacío, sin tabla, fecha no encontrada) | Pint clean |
+| f18.2/f18.4 | tests/Feature/TripleTachiraResultsTest.php | Feature | N/A (nuevo) | 7 errores (seeder inexistente) | 7/7 (30) | 7 casos (juego+premios oficiales, límite+plugin, 3 horarios, 12 opciones, persistencia, dedupe, resolver) | Pint clean |
+| f18.5 | JuegosJsonTest + LimitesScopedApiTest | Feature | previo 33/33 | 2 fallos (archivo stale 18 vs 19) | 3/3 + 30/30 | conteos 19/38/76 mixto 38; 12 opciones triple-tachira | OK |
+| f18.6 | Contrato JSON | Runtime | — | juegos:export → 19 juegos | md5 idéntico ×2 (23894802) | — | OK |
+| f18.7 | Harness real (job) | Runtime | N/A | — | AYER 3 + HOY 1 | rescrape 4 filas, 0 errores | — |
+
+**Test Summary**: +22 tests (15 unit + 7 feature Tachira); focused `--filter=Tachira` → 22/22 (93 assertions);
+`--filter=JuegosJsonTest|LimitesScopedApiTest|TripleTachira` → 55/55 (958); suite completa **610/608/2**
+(2947 assertions) + `pint --test` limpio (pendiente de correr al cierre).
+
+## Work Unit Evidence
+| Work unit | Focused test | Runtime harness | Rollback boundary |
+|-----------|--------------|-----------------|-------------------|
+| WU1 scraper+fixtures | --filter=TripleTachiraScraperTest → 15/15 | parse fixtures reales; fetch real en harness | Eliminar TripleTachiraScraper + 3 fixtures + test unit |
+| WU2 seeder+feature | --filter=TripleTachiraResultsTest → 7/7 | db:seed TripleTachiraSeeder → juego id 19; export 19 juegos | Eliminar TripleTachiraSeeder + revertir DatabaseSeeder + feature test |
+| WU3 regresión conteos | JuegosJsonTest 3/3 + LimitesScopedApiTest 30/30 | N/A (regresión API) | Revertir aserciones (18→19, 36→38, 72→76) |
+| WU4 contrato JSON | Suite (consistencia verde) | juegos:export contra BD local → docs/juegos.json; md5 idéntico ×2 | Regenerar el archivo con el comando |
+| WU5 carga real | --filter=Tachira 22/22 | ScrapeResultsJob ×2 fechas: AYER 3 (día completo), HOY 1 (parcial 13:15); rescrape 4 filas, 0 errores | Filas resultados de triple-tachira (4) |
+
+## Carga real (BD local)
+- AYER 2026-09-11: 3 resultados (13:15 → 245/998/160-PIS, 16:45 → 572/033/981-GEM, 22:10 → 623/539/998-ACU) — día completo.
+- HOY 2026-09-12: 1 resultado parcial (13:15 → 203/894/094-SAG) — parcial correcto.
+- Dedupe: rescrape mantiene 4 filas (0 errores en log). BD local total **203** (199 previos + 4).
+
+## Archivos
+- backend/app/Plugins/Scrapers/TripleTachiraScraper.php (create)
+- backend/database/seeders/TripleTachiraSeeder.php (create) + DatabaseSeeder (modify)
+- backend/tests/Fixtures/tripletachira_semana.html + tripletachira_domingo.html + tripletachira_sin_datos.html (create, reales)
+- backend/tests/Unit/TripleTachiraScraperTest.php + Feature/TripleTachiraResultsTest.php (create)
+- backend/tests/Feature/JuegosJsonTest.php + LimitesScopedApiTest.php (modify: 18→19)
+- docs/juegos.json (regenerado, 19 juegos) + backend/docs/juegos.md (fila 20) + docs/fuentes-oficiales.md (fila 19 verificada) + docs/comparacion-juegos.md (fila + H9)
+- openspec/.../tasks.md + apply-progress.md (modify)
+
+## Commits (rama f18)
+- (se generan al cierre del WU, work-unit en español, NO se abren PRs)
+
+## Siguiente paso
+- sdd-verify del PR 18 cuando el orquestador lo dispare.
+- Juego 21 (Triple Facil): CONDICIONAL — decisión del cliente (dos juegos `triple-facil`/`triple-facil-terminal` vs uno con dos plugins).

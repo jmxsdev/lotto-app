@@ -29,7 +29,7 @@ oficial y se compara contra la informativa para detectar desajustes (patrón val
 | 16 | `loto-chaima` | animalitos | api.lotterly.co `/v1/results/loto-chaima/` | RV `/lottery/loto-chaima` | ✅ opciones coinciden (57) |
 | 17 | `mega-animal-40` | animalitos | resultadosvenezuela.com (excepción autorizada: sin página oficial) | RV `/lottery/mega-animal-40` | ⚠️ comodín MEGA sin representación en datos (pendiente) |
 | 18 | `selva-plus` | animalitos | api.lotterly.co `/v1/results/selva-plus/` | RV `/lottery/selva-plus` | ✅ verificada — proveedor ERRÓNEO (38/30×/11 vs oficial 101+2/80×/13) |
-| 19 | `triple-tachira` | tripletas | tripletachira.com `pruebah.php?bt=&bt2=` | RV `/lottery/triple-tachira` | 🔄 en curso (WU f18) — desajuste detectado en 3er sorteo (19:20 informativa vs 22:10 oficial) |
+| 19 | `triple-tachira` | tripletas | tripletachira.com `pruebah.php?bt=&bt2=` (sitio oficial) | RV `/lottery/triple-tachira` | ✅ verificada (WU f18) — informativa con desajustes: 3er sorteo 19:20 vs **22:10** oficial; premios 600/60/6.000 vs **500/50/5.000** del reglamento G-20004065-3 (ver H9) |
 
 ## Notas
 

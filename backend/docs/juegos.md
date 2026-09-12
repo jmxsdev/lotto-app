@@ -59,6 +59,7 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 | 17 | Loto Chaima | `loto-chaima` | animalitos | 08:00–19:00 (12 horarios `:00`) | `https://api.lotterly.co/v1/results/loto-chaima/` (API oficial) | `LotoChaimaScraper` | ✅ Verificado con datos reales (12-sep, API oficial sin auth) |
 | 18 | Mega Animal 40 | `mega-animal-40` | animalitos | 09:00–20:00 (12 horarios `:00`) | `https://resultadosvenezuela.com/lottery/mega-animal-40` (HTML agregador por fecha) | `MegaAnimal40Scraper` | ✅ Verificado con datos reales (12-sep: HOY 5 + AYER 12, dedupe) |
 | 19 | Selva Plus | `selva-plus` | animalitos | 08:15–20:15 (13 horarios `:15`) | `https://api.lotterly.co/v1/results/selva-plus/` (API oficial) | `SelvaPlusScraper` | ✅ Verificado con datos reales (12-sep: HOY 7 + AYER 13, dedupe) |
+| 20 | Triple Táchira | `triple-tachira` | tripletas | 13:15, 16:45, 22:10 (3 horarios) | `https://tripletachira.com/pruebah.php` (sitio oficial) | `TripleTachiraScraper` | ✅ Verificado con datos reales (12-sep: AYER 3 + HOY 1, dedupe) |
 
 > `LoteriaDeHoyScraper` es parametrizado: reutiliza el mismo `scraper_class` para los juegos de
 > loteriadehoy.com registrando la `scraper_url` de cada juego (se usa su slug/name para fail-fast
@@ -203,8 +204,27 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 > externo por sorteo → `sorteo_id_externo` null y dedupe por juego+fecha+hora
 > en `saveResults` heredado. Sorteos sin `result` se saltan (resultados
 > parciales del día); respuesta vacía/inválida/sin entradas → RuntimeException.
-> Documentada como segundo producto verificado de la Plataforma 3 (lotterly.co)
-> en `docs/plataformas-juegos.md`.
+> `TripleTachiraScraper` consume el sitio OFICIAL tripletachira.com (HTML
+> server-rendered, sin anti-bot): `GET /pruebah.php?bt=DD/MM/YYYY&bt2=DD/MM/YYYY`
+> devuelve una tabla semanal (7 columnas desde `bt`, fecha en el header
+> `<th>Lunes<br>11/09/2026</th>`; filas por horario/modalidad `01:15 A`,
+> `01:15 B`, `01:15 ZODI`, luego `04:45` y `10:10`). El scraper pide SIEMPRE
+> `bt=fecha&bt2=fecha` y localiza la columna por su FECHA en el header (robusto:
+> el nombre del día del header es FIJO Lunes..Domingo, no el día real de la
+> fecha — 01-09-2026 es martes y el sitio lo etiqueta "Lunes"). Las horas vienen
+> en 12h SIN AM/PM y TODOS los sorteos son PM (home "1:15PM"; reglamento
+> oficial 1:15/4:45/10:10) → 24h: **13:15, 16:45, 22:10**. Celdas `--------` =
+> sin sorteo (se saltan); una fecha cuya columna está toda `--------` devuelve
+> `[]` (estado válido). ZODI = triple + signo de 3 letras + punto (`160 <br>PIC.`)
+> → `triple_c` + `signo` (PIC→PIS, resto igual). **Premios OFICIALES del
+> reglamento G-20004065-3 (Lotería del Táchira, PDF parseable)**: A/B **500×**,
+> Terminal/Cola **50×**, Triple+Zodiacal **5.000×** — la informativa
+> (resultadosvenezuela.com) declara 600/60/6.000 y un 3er sorteo 19:20:
+> desajuste H9 documentado en `docs/comparacion-juegos.md` (el seeder registra
+> los valores OFICIALES del reglamento). Sin ID externo → `sorteo_id_externo`
+> null y dedupe por juego+fecha+hora en `saveResults` heredado. Comportamiento
+> dominical NO uniforme en la muestra (06-sep solo 22:10; 13-sep ninguno) —
+> pendiente de confirmar con más muestras (la informativa dice 17:10).
 
 ## Juegos pendientes (20–22)
 
@@ -213,7 +233,6 @@ aquí en su mismo work unit:
 
 | # | Nombre | slug | type (fuente) | Notas |
 |---|--------|------|---------------|-------|
-| 20 | Triple Tachira | `triple-tachira` | tripletas (API productId) | |
 | 21 | Triple Facil | `triple-facil` | tripletas/terminales | **Condicional** (doble modalidad, decisión del cliente) |
 | 22 | Triple Zamorano | `triple-zamorano` | tripletas (API productId) | |
 

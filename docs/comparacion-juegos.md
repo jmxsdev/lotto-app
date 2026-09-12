@@ -29,7 +29,8 @@
 | 16 | `loto-chaima` | `/lottery/loto-chaima` | ✅ |
 | 17 | `mega-animal-40` | `/lottery/mega-animal-40` | ✅ (integrado en este WU) |
 | 18 | `selva-plus` | `/lottery/selva-plus` | ✅ (integrado en este WU) — ⚠️ el proveedor declara datos EQUIVOCADOS, ver hallazgo H8 |
-| — | `triple-tachira`, `triple-caracas`, `triple-zamorano`, `triple-uneloton`, `triple-centena`, `triple-dorado`, `triple-facil`, `granjita-plus`, `granja-millonaria`, `granjazo`, `ruleta-activa`, `la-ruca`, `chance-animalitos`, `centena-*` | — | ⏳ pendientes de integración (fuera de alcance) |
+| 19 | `triple-tachira` | `/lottery/triple-tachira` | ✅ (integrado en este WU) — ⚠️ el proveedor declara datos EQUIVOCADOS, ver hallazgo H9 |
+| — | `triple-caracas`, `triple-zamorano`, `triple-uneloton`, `triple-centena`, `triple-dorado`, `triple-facil`, `granjita-plus`, `granja-millonaria`, `granjazo`, `ruleta-activa`, `la-ruca`, `chance-animalitos`, `centena-*` | — | ⏳ pendientes de integración (fuera de alcance) |
 
 **Resumen**: 15 de nuestros 16 juegos tienen página en el proveedor; `terminal-activo` y
 `el-arrejuntado` NO (el proveedor tiene terminales propios, pero de otros juegos).
@@ -57,6 +58,7 @@ fallback) vs el zoológico/tabla que declara el proveedor:
 | mega-animal-40 | 38 (plugin Animalitos) | **38** animalitos | ✅ |
 | triple-zulia | 12 signos (tabla) | A/B + **Zodiaco del Zulia** (12 signos) | ✅ |
 | triple-chance | 12 signos (tabla) | A/B/C + **Signo Zodiacal** (12 signos) | ✅ |
+| triple-tachira | 12 signos (tabla propia) | A/B + **12 signos zodiacales** | ✅ signos |
 
 **Conclusiones Nivel 1**:
 
@@ -97,6 +99,7 @@ fallback) vs el zoológico/tabla que declara el proveedor:
 | triple-caliente | A/B **600x** (6.000 Bs por cada 10 Bs); Terminal/Triple-Terminal con otros pagos |
 | triple-zulia | A/B **600x**; **Zodiaco hasta 6.000x** (sección de mayor premio) |
 | triple-chance | 2 secciones (A y B Millonario), **7 modalidades** con pagos escalonados (10x–600x) |
+| triple-tachira | el proveedor declara A/B **600x**, Cola **60x**, Triple+Zodiacal **6.000x** y 3er sorteo **19:20** — la verdad OFICIAL (reglamento G-20004065-3, Lotería del Táchira, PDF parseable) es **A/B 500x**, Terminal/Cola **50x**, **Triple+Zodiacal 5.000x** y **3 sorteos 13:15/16:45/22:10** (el 3ro es 22:10, no 19:20) |
 | cazaloton | (la página no declara premios) |
 
 **Conclusiones Nivel 2**:
@@ -135,6 +138,9 @@ fallback) vs el zoológico/tabla que declara el proveedor:
    - triple-chance → **Inversiones Loto Real, C.A.** / Lotería de Cojedes.
    - triple-zulia → **Operadora Relámpago 99, C.A.** / Lotería del Zulia.
    - trio-activo → **Corporación Big Lot 777, C.A.** / Lotería de Oriente (Monagas).
+   - triple-tachira → **Lotería del Táchira** (IOBPAS), reglamento **G-20004065-3** disponible en
+     el sitio oficial (`https://tripletachira.com/docs/reglamento.pdf`, 15 páginas, texto
+     extraído con pdftotext el 12-sep-2026 — parseable).
 3. **Bloques horarios reglamentarios**: mega-animal-40 divide sus 12 sorteos en **Mañana
    (09-11) / Tarde (12-17) / Noche (18-20)**; el sitio permite filtrar por bloque y declara
    historial de 90 días.
@@ -164,6 +170,7 @@ fallback) vs el zoológico/tabla que declara el proveedor:
 | H6 | **cazaloton** sin datos de zoo/premios en su página del proveedor. | ¿Verificar con loteriadehoy.com (nuestra fuente actual) si el zoo es canónico? |
 | H7 | **la-ricachona**: el proveedor separa "Triple y Terminal" (`la-ricachona`) y "Animalito" (`la-ricachona-animalito`, :10); nosotros integramos solo la versión triples. | ¿Integrar la modalidad animalito de La Ricachona como juego separado? (candidato ya listado en `docs/plataformas-juegos.md`). |
 | H8 | **El proveedor está EQUIVOCADO para selva-plus**: declara 38 animalitos / 30× / 11 sorteos, pero la fuente OFICIAL (sitio selvaplus.com → API lotterly.co, misma plataforma de Loto Chaima) muestra **101 figuras (0–99) + 2 comodines** (A "Leoncito" 160×, B "Selva Plus" 200×), **80× base** y **13 sorteos diarios** 08:15–20:15. El juego lanzó el 2026-09-07 (fechas anteriores → `[]`). | Integrado con los datos oficiales (este WU). Para el futuro: contrastar SIEMPRE los agregadores con la fuente oficial antes de modelar un juego; si la representación de los comodines aparece en `result` (hoy NO observada, 65 sorteos numéricos), capturarla con el parser defensivo ya implementado. |
+| H9 | **El proveedor está EQUIVOCADO para triple-tachira** (verificado en el WU f18 contra el sitio oficial tripletachira.com y su reglamento G-20004065-3): la informativa declara A/B **600×**, Cola **60×**, Triple+Zodiacal **6.000×** y **3er sorteo 19:20** + domingos 17:10; la verdad OFICIAL es **A/B 500×**, Terminal/Cola **50×**, **Triple+Zodiacal 5.000×** y **3 sorteos 13:15/16:45/22:10** (1:15/4:45/10:10 PM; el 3ro es **22:10**, no 19:20). El reglamento añade modalidades fuera de nuestro modelo de apuesta: Terminal+Zodiacal 500×, Par Millonario 200.000×, aproximación 10×, Terminal del Par 5.000×/5×. **Comportamiento dominical NO uniforme** en la muestra: 06-sep solo sorteo de 22:10 (829/232/926-PIC), 13-sep ninguno — pendiente de confirmar con más muestras (la informativa dice 17:10). | Integrado con los datos oficiales (este WU): seeder con `premio_multiplo` 500 y `modalidades` {cola: 50, zodiacal: 5000} (valores del reglamento); horarios 13:15/16:45/22:10; el scraper parsea la columna por fecha y salta `--------` (los domingos sin sorteo devuelven `[]`). Para el futuro: confirmar el horario dominical con más muestras y decidir si se modelan las modalidades Par Millonario/Terminal (requieren ampliar el modelo de apuesta). |
 
 > Nada de lo anterior se implementa en este WU: el documento es SOLO análisis. La integración de
 > juegos adicionales del proveedor queda fuera de alcance (un work unit por juego, decisión del cliente).
