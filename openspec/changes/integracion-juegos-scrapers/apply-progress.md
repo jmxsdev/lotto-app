@@ -697,3 +697,129 @@ aplique sobre el juego ya registrado (verificado en BD local: id=8, fuente ofici
 - `9f` original (verificación con URL real de la fuente ANTERIOR) queda cerrado por sustitución:
   la nueva fuente se verificó con datos reales en este PR (3 sorteos persistidos en BD local).
 - `sdd-verify` del PR 8 cuando el orquestador lo dispare.
+
+---
+
+# Sección Familia Lotto Activo — estabilización y datos reales (PR 9, WU f8) — ✅ COMPLETADO
+
+**Rama**: `feat/integracion-juegos-scrapers-f8-lottoactivo` (base: `feat/integracion-juegos-scrapers-f7-tc-oficial`)
+**Estado**: ✅ COMPLETADO — auditoría/limpieza de BD local, recarga real 12-sep (13 juegos), cobertura de tests terminal/trio/monje/RD con fixtures reales y docs.
+
+## Resumen
+
+Requisito del cliente: sin datos de seeder/tests en `resultados`. Se auditaron las 117 filas de la BD local (MySQL `lotto_db`), se identificaron y eliminaron las **32 filas DEMO** (creadas 2026-09-02 10:06:38/39, previas al batch real de scrape) y se verificó que las 85 filas restantes son 100 % de origen scraper (batch 2-sep 15:36–15:38 + 3 sorteos oficiales de Triple Caliente del 1-sep). Se ejecutó el batch en vivo del 12-sep-2026 (mismo mecanismo: `ScrapeResultsJob` por juego, secuencial): los 13 juegos corrieron SIN errores y se cargaron 27 resultados reales del día (parciales, 10:26 Caracas). La familia lottoactivo quedó **verificada con datos reales** y se amplió la cobertura de tests con fixtures reales de las rutas `terminal_activo`, `trio_activo` y el mapeo canónico monje/RD.
+
+## Auditoría y limpieza de BD local (tarea 2)
+
+### Evidencia pre-borrado (imprimida antes de eliminar; copia local en `backend/storage/app/auditoria_demo_antes_borrado.txt`, gitignored)
+
+| Rango IDs | Juego | Filas | created_at | Firma |
+|-----------|-------|-------|------------|-------|
+| 1–18 | lotto-activo | 18 | 2026-09-02 10:06:38/39 | Valores repetidos (Tigre=23 a las 14:00 en 6 días; Ratón=7; León=15; Elefante=19; Halcón=31; Venado=42; Perico=5), patrón de 3 sorteos/día 10:00/12:00/14:00 vs. reales por hora 08:00–19:00 |
+| 19–29 | triple-zulia | 11 | 2026-09-02 10:06:39 | 05/12/34 LEO y 21/08/34 TAU repetidos diariamente, 2 sorteos/día |
+| 30–32 | terminal-activo | 3 | 2026-09-02 10:06:39 | `nombre_animal` presente (formato INCORRECTO para terminales; las reales solo traen `numero`), valores 42/7 copiados de los demos de lotto-activo |
+
+**Eliminadas: 32 filas** (criterio: rango id 1–32 ∩ created_at 10:06:38/39). Sin otras filas sospechosas: el resto (85) proviene del batch real (12:33:55 triple-caliente oficial + 15:36:58–15:37:06 los 13 juegos).
+
+### Re-auditoría post-limpieza (85 filas, 100 % scraper)
+
+| slug | total | origen |
+|------|-------|--------|
+| lotto-activo / lotto-activo-rd / lotto-activo-rep-dom / monje-millonario | 8 c/u | batch 2-sep 15:36:58 |
+| terminal-activo | 8 | batch 2-sep 15:36:59–15:37:00 |
+| trio-activo | 8 | batch 2-sep 15:37:03 |
+| triple-caliente | 4 | 3× 12:33:55 (1-sep, API oficial) + 1× 15:37:04 (2-sep 13:00) |
+| cazaloton / triple-chance | 7 c/u | batch 2-sep 15:37:04 |
+| el-arrejuntado | 2 | batch 2-sep 15:37:05 |
+| el-guacharito / guacharo-activo | 8 c/u | batch 2-sep 15:37:05/06 |
+| triple-zulia | 1 | batch 2-sep 15:36:59 (12:45) |
+| **TOTAL** | **85** | Residuales 10:06: **0** |
+
+### Seeders que generan filas demo en `resultados` (documentación, NO se borran)
+
+- `ResultadoTestSeeder` — ÚNICO seeder que CREA filas en `resultados` (updateOrCreate de un resultado "perro" para slug `animalitos` y "123/456/789 LEO" para `triple-zulia`, fechados ayer). **NO está registrado en `DatabaseSeeder`** (uso manual/de test). Referencia el slug `animalitos`, que NO existe en la BD (el juego real es `lotto-activo`): el bloque se salta silenciosamente por el guard `if ($animalitos)`; el bloque de `triple-zulia` SÍ crearía una fila demo si alguien ejecuta el seeder a mano. Riesgo documentado.
+- `TicketsGanadoresDemoSeeder` — SOLO LEE `resultados` (toma 10 con hora para crear tickets demo). No registrado en `DatabaseSeeder`. No contamina `resultados`.
+- `ApuestaGanadoraSeeder` — SOLO LEE `Resultado` (para asociar apuestas). No registrado en `DatabaseSeeder`. No contamina `resultados`.
+- Conclusión: `php artisan db:seed` (DatabaseSeeder) NO re-contamina `resultados`; el único riesgo es ejecutar `ResultadoTestSeeder` a mano.
+
+## Verificación en vivo + recarga real 12-sep-2026 (tarea 3)
+
+Mecanismo idéntico al batch del 2-sep: `new ScrapeResultsJob($juegoId, '2026-09-12')` → `handle()` por juego, secuencial (10:26 Caracas). Los 13 juegos corrieron SIN excepciones; log `laravel.log` sin `ERROR ScrapeResultsJob`.
+
+| slug | resultados HOY (fecha 2026-09-12) | horas cargadas | notas |
+|------|-----------------------------------|----------------|-------|
+| lotto-activo | 3 | 08:00, 09:00, 10:00 AM | feed anidado trae los 4 juegos (11 guardados totales en el job) |
+| lotto-activo-rd | 2 | 08:30, 09:30 AM | idem |
+| lotto-activo-rep-dom | 3 | 08:00, 09:00, 10:00 AM | idem |
+| monje-millonario | 3 | 08:05, 09:05, 10:05 AM | idem |
+| terminal-activo | 3 | 08:00, 09:00, 10:00 AM | formato plano, solo `numero` |
+| trio-activo | 3 | 08:00, 09:00, 10:00 AM | formato plano, solo `triple_a` |
+| cazaloton | 2 | 09:00, 10:00 | |
+| triple-chance | 2 | 09:00, 10:00 | |
+| el-guacharito | 2 | 08:30, 09:30 | |
+| guacharo-activo | 3 | 08:00, 09:00, 10:00 | |
+| el-arrejuntado | 1 | 10:00 | |
+| triple-zulia | 0 | — | "sin resultados" correcto: 1er sorteo del día aún no ocurre (parcial) |
+| triple-caliente | 0 | — | idem: primer sorteo 13:00 (parcial) |
+| **TOTAL HOY** | **27** | | TOTAL BD: 112 (85 previas + 27) |
+
+Dedupe verificado: re-ejecución de lotto-activo y terminal-activo mantiene conteos (3/3) y total 112 (idempotente).
+
+## TDD Cycle Evidence (tarea 4 — cobertura terminal/trio/monje/RD)
+
+Cobertura previa: `AnimalitosScraperTest` solo cubría el formato ANIDADO (Lotto Activo/RD) y el token de la página `animalitos`. Las rutas `terminal_activo`/`trio_activo` (formato plano + rama de token con `fecha`) y el mapeo canónico de slugs (monje/RD) NO estaban cubiertas. Se capturaron fixtures REALES del 12-sep-2026 y se añadieron 5 tests.
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| token terminal/trio | `tests/Unit/AnimalitosScraperTest.php` | Unit | ✅ suite 486/484/2 | ✅ 2 errores (fixture inexistente) | ✅ 2/2 (tokens 148 chars reales) | ✅ 2 páginas reales | ➖ None needed |
+| parse plano terminal | `tests/Unit/AnimalitosScraperTest.php` | Unit | ✅ idem | ✅ 1 error (fixture inexistente) | ✅ 1/1 | ✅ 3 sorteos + valores exactos (41/08:00 AM/id 5) | ➖ None needed |
+| parse plano trio (tripletas) | `tests/Unit/AnimalitosScraperTest.php` | Unit | ✅ idem | ✅ 1 error (fixture inexistente) | ✅ 1/1 | ✅ 3 sorteos + valores exactos (941/08:00 AM/id 4) | ➖ None needed |
+| feed anidado real monje/RD | `tests/Unit/AnimalitosScraperTest.php` | Unit | ✅ idem | ✅ 1 error (fixture inexistente) | ✅ 1/1 | ✅ 11 resultados × 4 juegos + paises + monje (Tiburon) | ➖ None needed |
+
+**Test Summary (WU f8)**: +5 tests (491 vs 486 baseline); focused `composer test -- --filter=AnimalitosScraperTest` → 10/10 (69 assertions); suite completa **491/489/2** + pint limpio. Los tests son de cobertura/regresión sobre código EXISTENTE ya probado en vivo (el RED fue por fixtures inexistentes, no por código faltante).
+
+## Work Unit Evidence (WU f8)
+
+| Work unit | Focused test command y resultado | Runtime harness y resultado | Rollback boundary |
+|-----------|----------------------------------|-----------------------------|-------------------|
+| WU1 limpieza BD | N/A (datos, no código) | Query tinker: 117 filas → evidencia → delete 32 demo → re-auditoría 85 filas / 0 residuales | No aplica a código; datos locales no versionados |
+| WU2 recarga real 12-sep | N/A (runtime) | `ScrapeResultsJob` × 13 juegos (10:26 Caracas): 27 resultados reales, 0 errores; dedupe verificado (112 total) | No aplica a código; filas `resultados` de 12-sep |
+| WU3 tests+fixtures | `composer test -- --filter=AnimalitosScraperTest` → 10/10 (69 assertions) | Parse de fixtures reales capturados del sitio (12-sep) vía `AnimalitosScraper::fetch` (token real + POST process.php OK) | Eliminar los 5 fixtures `lottoactivo_*` + revertir `AnimalitosScraperTest` |
+| WU4 docs | Suite completa 491/489/2 + `vendor/bin/pint --test` → passed | N/A (docs) | Revertir solo la sección familia en `docs/juegos.md` |
+
+## Archivos cambiados (WU f8)
+
+| Archivo | Acción | Qué se hizo |
+|---------|--------|-------------|
+| `backend/tests/Unit/AnimalitosScraperTest.php` | Modify | +5 tests (token terminal/trio, parse plano terminal, parse plano trio, feed anidado real monje/RD) y siembra de los 6 juegos de la familia en `setUp` |
+| `backend/tests/Fixtures/lottoactivo_terminal_activo_page.html` | Create | Página real `https://www.lottoactivo.com/resultados/terminal_activo/2026-09-12/` (29.781 B) |
+| `backend/tests/Fixtures/lottoactivo_terminal_activo_response.json` | Create | Respuesta real process.php formato plano (3 sorteos: 41/54/58) |
+| `backend/tests/Fixtures/lottoactivo_trio_activo_page.html` | Create | Página real `https://www.lottoactivo.com/resultados/trio_activo/2026-09-12/` (29.757 B) |
+| `backend/tests/Fixtures/lottoactivo_trio_activo_response.json` | Create | Respuesta real process.php formato plano (3 sorteos: 941/554/258) |
+| `backend/tests/Fixtures/lottoactivo_animalitos_response.json` | Create | Feed real anidado (4 juegos: Lotto Activo/RD Internacional/República Dominicana/Monje, 11 sorteos) |
+| `backend/docs/juegos.md` | Modify | Familia lottoactivo → estado "✅ Verificado con datos reales (12-sep)" + nota del feed anidado, formato plano y mapeo canónico de slugs |
+| `openspec/changes/integracion-juegos-scrapers/tasks.md` | Modify | Sección WU f8 añadida con tareas `[x]` |
+| `openspec/changes/integracion-juegos-scrapers/apply-progress.md` | Modify | Sección Familia Lotto Activo añadida (merge) |
+
+## Desviaciones del diseño (WU f8)
+
+None — implementation matches design. La limpieza de datos (requisito del cliente) es un work unit de DATOS, no de código: no altera seeders, migraciones ni clases; solo se documentó el riesgo de `ResultadoTestSeeder`.
+
+## Problemas encontrados (WU f8)
+
+- **Filas demo en BD local** (32): origen desconocido pero firma inequívoca (created_at 10:06:38/39 + valores repetidos + formato incorrecto en terminales). Eliminadas con evidencia; el mecanismo de scraper no las genera (los jobs escriben con la hora real del sorteo y formato correcto).
+- **`ResultadoTestSeeder` referencia slug inexistente `animalitos`**: el bloque se salta silenciosamente; el bloque `triple-zulia` crearía una fila demo si se ejecuta a mano. No registrado en `DatabaseSeeder`; riesgo documentado, seeder NO borrado (regla del WU).
+- **Warning pre-existente `ReflectionMethod::setAccessible()` deprecado (PHP 8.5)**: patrón heredado de los tests existentes; se conservó por consistencia (no es un fallo).
+- **Cambios ajenos del checkout compartido**: `collections/*.yml`, `panel/.astro/settings.json` (modificados) y `.atl/`, `.codegraph/`, `openspec/config.yaml` (sin seguimiento) quedaron fuera de los commits.
+
+## Workload / PR Boundary (WU f8)
+
+- Modo: chained PR slice (feature-branch-chain, PR 9 de la cadena; base = PR 8 `feat/integracion-juegos-scrapers-f7-tc-oficial`).
+- Boundary: estabilización de la familia Lotto Activo (limpieza BD local + recarga real 12-sep + cobertura terminal/trio/monje/RD + docs) con verificación incluida (suite completa 491/489/2 + pint limpio). NO se abrieron PRs.
+- Rollback boundary por unidad: ver tabla Work Unit Evidence (WU f8).
+
+## Siguiente paso recomendado
+
+- `sdd-verify` del PR 9 cuando el orquestador lo dispare.
+- Catálogo JSON de juegos (WU f9 siguiente, NO incluido en este WU por regla).
+- Juego 15 (La Granjita): requiere URL y estructura de la fuente del cliente antes de aplicar.

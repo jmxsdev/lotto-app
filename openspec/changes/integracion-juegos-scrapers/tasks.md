@@ -128,6 +128,16 @@ Plantilla para los juegos restantes (#15–22):
 
 **Condicionales**: `#21 Triple Facil` — decisión cliente (D8: dos juegos `triple-facil`/`triple-facil-terminal` + un `TripleFacilScraper` que emite ambas y filtra por `config['scraper']['modalidad']`). `#8` hueco — confirmar al integrar juego 9. Cada tarea `b` debe indicar al apply qué información pedir al cliente (URL + estructura + productId + type).
 
+### WU f8 — Familia Lotto Activo: estabilización y datos reales (PR 9, rama f8-lottoactivo, base f7-tc-oficial) — ✅ COMPLETADO
+- [x] f8.1 Auditoría de BD local `resultados`: listar filas por juego con created_at clasificando demo vs real; imprimir evidencia ANTES de borrar.
+- [x] f8.2 Eliminar SOLO las 32 filas demo (lotto-activo #1–18, triple-zulia #19–29, terminal-activo #30–32, created_at 2026-09-02 10:06:38/39); reportar otras sospechosas con evidencia (no había).
+- [x] f8.3 Re-auditar conteos por juego post-limpieza: 85 filas, 100 % origen scraper, 0 residuales demo.
+- [x] f8.4 Documentar seeders que generan filas demo en `resultados` (`ResultadoTestSeeder` crea — NO registrado en DatabaseSeeder, referencia slug `animalitos` inexistente; `TicketsGanadoresDemoSeeder`/`ApuestaGanadoraSeeder` solo leen — NO registrados). Sin borrarlos.
+- [x] f8.5 Verificación en vivo + recarga real 2026-09-12: `ScrapeResultsJob` por juego (13 juegos, secuencial) → 27 resultados reales, 0 errores; dedupe idempotente (total BD 112).
+- [x] f8.6 Cobertura TDD rutas `terminal_activo`/`trio_activo`/monje/RD de `AnimalitosScraper` con fixtures REALES (`lottoactivo_*`): +5 tests → `composer test -- --filter=AnimalitosScraperTest` 10/10; suite completa 491/489/2; pint limpio.
+- [x] f8.7 Docs: `backend/docs/juegos.md` — familia lottoactivo "✅ Verificado con datos reales (12-sep)" + nota feed anidado/formato plano/mapeo slugs.
+- [x] f8.8 tasks.md + apply-progress (sección "Familia Lotto Activo — estabilización") + commits work-unit en español. NO se abren PRs. Catálogo JSON = WU f9 (fuera de alcance).
+
 ## Phase 3: Verificación / cierre
 
 - [ ] 3.1 Suite general completa al integrar 10 juegos (criterio cliente), documentado en `docs/juegos.md`.
