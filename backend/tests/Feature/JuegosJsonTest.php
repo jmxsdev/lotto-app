@@ -39,6 +39,7 @@ class JuegosJsonTest extends TestCase
         13 => 'guacharo-activo',
         14 => 'la-granjita',
         15 => 'la-ricachona',
+        16 => 'loto-chaima',
     ];
 
     protected function setUp(): void
@@ -103,7 +104,7 @@ class JuegosJsonTest extends TestCase
     public function test_esquema_minimo_y_conteos_de_opciones_por_tipo(): void
     {
         $this->assertSame(1, $this->generado['version']);
-        $this->assertCount(15, $this->generado['juegos']);
+        $this->assertCount(16, $this->generado['juegos']);
 
         $porSlug = collect($this->generado['juegos'])->keyBy('slug');
 
@@ -162,6 +163,18 @@ class JuegosJsonTest extends TestCase
             $this->assertCount(12, $porSlug[$slug]['opciones'], "[{$slug}] debe tener 12 opciones (plugin Tripletas).");
         }
         $this->assertSame('Géminis', $porSlug['trio-activo']['opciones'][2]['label'], 'Acentos correctos desde el plugin.');
+
+        // loto-chaima: 57 animales PROPIOS desde la tabla juego_opciones
+        // (zoológico de 0–55 distinto al canónico; ballena y delfín comparten
+        // el numero 0; orden por numero → ballena/delfín primero).
+        $this->assertCount(57, $porSlug['loto-chaima']['opciones']);
+        $this->assertSame('Ballena', $porSlug['loto-chaima']['opciones'][0]['label']);
+        $this->assertSame(0, $porSlug['loto-chaima']['opciones'][0]['numero']);
+        $this->assertSame('Delfín', $porSlug['loto-chaima']['opciones'][1]['label']);
+        $this->assertSame('Ciempiés', $porSlug['loto-chaima']['opciones'][4]['label'], 'Acentos correctos desde la tabla.');
+        $this->assertSame('ciempies', $porSlug['loto-chaima']['opciones'][4]['value'], 'value = slug sin acentos.');
+        $this->assertSame('Oso Hormiguero', $porSlug['loto-chaima']['opciones'][56]['label']);
+        $this->assertSame(55, $porSlug['loto-chaima']['opciones'][56]['numero']);
     }
 
     public function test_ids_de_los_juegos_coinciden_con_el_orden_del_seeder(): void
@@ -192,6 +205,6 @@ class JuegosJsonTest extends TestCase
         for ($i = 1; $i < count($idsGenerados); $i++) {
             $this->assertSame(1, $idsGenerados[$i] - $idsGenerados[$i - 1], 'Los ids generados deben ser estrictamente consecutivos.');
         }
-        $this->assertSame(15, count($idsGenerados), 'Deben ser exactamente 15 juegos.');
+        $this->assertSame(16, count($idsGenerados), 'Deben ser exactamente 16 juegos.');
     }
 }
