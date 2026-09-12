@@ -1,0 +1,193 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Services\JuegoCatalogoService;
+use Database\Seeders\DatabaseSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+class JuegosJsonTest extends TestCase
+{
+    use RefreshDatabase;
+
+    /** @var array{version: int, juegos: array<int, array<string, mixed>>} */
+    private array $archivo;
+
+    /** @var array{version: int, juegos: array<int, array<string, mixed>>} */
+    private array $generado;
+
+    /**
+     * Orden de siembra del DatabaseSeeder: los ids 1..13 deben coincidir
+     * con el archivo commiteado (contrato estable para el front/taquilla).
+     *
+     * @var array<int, string>
+     */
+    private const SLUGS_POR_ID = [
+        1 => 'lotto-activo',
+        2 => 'triple-zulia',
+        3 => 'terminal-activo',
+        4 => 'lotto-activo-rd',
+        5 => 'lotto-activo-rep-dom',
+        6 => 'monje-millonario',
+        7 => 'trio-activo',
+        8 => 'triple-caliente',
+        9 => 'cazaloton',
+        10 => 'triple-chance',
+        11 => 'el-arrejuntado',
+        12 => 'el-guacharito',
+        13 => 'guacharo-activo',
+    ];
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->seed(DatabaseSeeder::class);
+
+        $this->archivo = $this->leerArchivoCommiteado();
+        $this->generado = app(JuegoCatalogoService::class)->generar();
+    }
+
+    /**
+     * @return array{version: int, juegos: array<int, array<string, mixed>>}
+     */
+    private function leerArchivoCommiteado(): array
+    {
+        $ruta = base_path('../docs/juegos.json');
+
+        $this->assertFileExists($ruta, 'docs/juegos.json debe existir commiteado (entregable para el front).');
+
+        $contenido = file_get_contents($ruta);
+        $this->assertNotFalse($contenido, 'No se pudo leer docs/juegos.json.');
+
+        $datos = json_decode($contenido, true);
+        $this->assertIsArray($datos, 'docs/juegos.json no es JSON válido.');
+
+        return $datos;
+    }
+
+    public function test_el_catalogo_generado_coincide_con_el_archivo_commiteado(): void
+    {
+        $this->assertSame($this->archivo['version'], $this->generado['version']);
+
+        $porSlugArchivo = collect($this->archivo['juegos'])->keyBy('slug');
+        $porSlugGenerado = collect($this->generado['juegos'])->keyBy('slug');
+
+        $this->assertEqualsCanonicalizing(
+            $porSlugArchivo->keys()->all(),
+            $porSlugGenerado->keys()->all(),
+            'Los slugs del archivo commiteado y del catálogo generado deben coincidir.'
+        );
+
+        foreach ($porSlugArchivo as $slug => $juegoArchivo) {
+            // La comparación es estable por slug y valores, NO por id: la BD de
+            // tests reutiliza auto-increment de MySQL que no retrocede con el
+            // rollback de RefreshDatabase (evidencia: ids corridos 27-39 en la
+            // suite compartida), mientras que el archivo commiteado mantiene el
+            // contrato estable con los ids reales 1-13 de la BD local.
+            $juegoArchivoSinId = $juegoArchivo;
+            $juegoGeneradoSinId = $porSlugGenerado[$slug];
+            unset($juegoArchivoSinId['id'], $juegoGeneradoSinId['id']);
+
+            $this->assertEquals(
+                $juegoArchivoSinId,
+                $juegoGeneradoSinId,
+                "El juego [{$slug}] del archivo commiteado difiere del generado con la BD sembrada."
+            );
+        }
+    }
+
+    public function test_esquema_minimo_y_conteos_de_opciones_por_tipo(): void
+    {
+        $this->assertSame(1, $this->generado['version']);
+        $this->assertCount(13, $this->generado['juegos']);
+
+        $porSlug = collect($this->generado['juegos'])->keyBy('slug');
+
+        foreach ($this->generado['juegos'] as $juego) {
+            foreach (['id', 'slug', 'nombre', 'tipo', 'premio_multiplo', 'horarios', 'opciones'] as $campo) {
+                $this->assertArrayHasKey($campo, $juego, "Falta el campo [{$campo}] en el juego [{$juego['slug']}].");
+            }
+
+            $this->assertNotEmpty($juego['horarios'], "El juego [{$juego['slug']}] no tiene horarios.");
+
+            foreach ($juego['horarios'] as $hora) {
+                $this->assertMatchesRegularExpression(
+                    '/^\d{2}:\d{2}$/',
+                    $hora,
+                    "La hora [{$hora}] de [{$juego['slug']}] no está normalizada a H:i."
+                );
+            }
+
+            $horariosOrdenados = $juego['horarios'];
+            sort($horariosOrdenados);
+            $this->assertSame(
+                $horariosOrdenados,
+                $juego['horarios'],
+                "Los horarios de [{$juego['slug']}] no están ordenados ascendentemente."
+            );
+        }
+
+        // premio_multiplo desde config del juego
+        $this->assertSame(30, $porSlug['lotto-activo']['premio_multiplo']);
+        $this->assertSame(20, $porSlug['terminal-activo']['premio_multiplo']);
+
+        // lotto-activo: 38 animales desde tabla juego_opciones
+        $this->assertCount(38, $porSlug['lotto-activo']['opciones']);
+        $this->assertSame('Delfín', $porSlug['lotto-activo']['opciones'][1]['label'], 'Acentos correctos desde la tabla.');
+
+        // terminal-activo: 100 números 00-99 desde el plugin Terminales
+        $this->assertCount(100, $porSlug['terminal-activo']['opciones']);
+        $this->assertSame('00', $porSlug['terminal-activo']['opciones'][0]['label']);
+        $this->assertSame('99', $porSlug['terminal-activo']['opciones'][99]['label']);
+
+        // tripletas con tabla: 12 signos
+        foreach (['triple-zulia', 'triple-caliente', 'triple-chance', 'el-arrejuntado'] as $slug) {
+            $this->assertCount(12, $porSlug[$slug]['opciones'], "[{$slug}] debe tener 12 opciones (tabla).");
+        }
+
+        // animalitos sin tabla: 38 animales canónicos desde el plugin Animalitos
+        // (el mapa del plugin tiene 38: ballena y delfin comparten numero 0;
+        // 37 sería contar los números 0-36, pero son 38 etiquetas — evidencia:
+        // JuegoAnimalitosSeeder y la BD local con 38 filas).
+        foreach (['lotto-activo-rd', 'lotto-activo-rep-dom', 'monje-millonario', 'cazaloton', 'el-guacharito', 'guacharo-activo'] as $slug) {
+            $this->assertCount(38, $porSlug[$slug]['opciones'], "[{$slug}] debe tener 38 opciones (plugin Animalitos).");
+        }
+
+        // trio-activo sin tabla: 12 signos desde el plugin Tripletas
+        $this->assertCount(12, $porSlug['trio-activo']['opciones'], '[trio-activo] debe tener 12 opciones (plugin Tripletas).');
+        $this->assertSame('Géminis', $porSlug['trio-activo']['opciones'][2]['label'], 'Acentos correctos desde el plugin.');
+    }
+
+    public function test_ids_de_los_juegos_coinciden_con_el_orden_del_seeder(): void
+    {
+        // El ARCHIVO es el contrato: ids reales 1-13 en el orden del DatabaseSeeder.
+        $idsArchivo = collect($this->archivo['juegos'])->pluck('slug', 'id')->all();
+        $this->assertSame(
+            self::SLUGS_POR_ID,
+            $idsArchivo,
+            'Los ids del archivo commiteado deben coincidir con el orden de siembra del DatabaseSeeder.'
+        );
+
+        // El catálogo GENERADO en la BD de tests conserva el MISMO orden relativo
+        // (slugs por id ascendente) pero los ids absolutos pueden quedar corridos
+        // por el auto-increment de MySQL que no retrocede con el rollback de
+        // RefreshDatabase (evidencia: corrida 27-39 en suite compartida).
+        $juegosGenerados = collect($this->generado['juegos'])->sortBy('id')->values();
+        $this->assertSame(
+            array_values(self::SLUGS_POR_ID),
+            $juegosGenerados->pluck('slug')->all(),
+            'Los slugs generados (por id ascendente) deben seguir el orden del DatabaseSeeder.'
+        );
+
+        $idsGenerados = $juegosGenerados->pluck('id')->all();
+        $idsConsecutivos = $idsGenerados;
+        sort($idsConsecutivos);
+        $this->assertSame($idsConsecutivos, $idsGenerados, 'Los ids generados deben ser consecutivos (sin huecos ni juegos extra).');
+        for ($i = 1; $i < count($idsGenerados); $i++) {
+            $this->assertSame(1, $idsGenerados[$i] - $idsGenerados[$i - 1], 'Los ids generados deben ser estrictamente consecutivos.');
+        }
+        $this->assertSame(13, count($idsGenerados), 'Deben ser exactamente 13 juegos.');
+    }
+}
