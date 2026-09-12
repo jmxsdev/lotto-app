@@ -41,6 +41,7 @@ class JuegosJsonTest extends TestCase
         15 => 'la-ricachona',
         16 => 'loto-chaima',
         17 => 'mega-animal-40',
+        18 => 'selva-plus',
     ];
 
     protected function setUp(): void
@@ -105,7 +106,7 @@ class JuegosJsonTest extends TestCase
     public function test_esquema_minimo_y_conteos_de_opciones_por_tipo(): void
     {
         $this->assertSame(1, $this->generado['version']);
-        $this->assertCount(17, $this->generado['juegos']);
+        $this->assertCount(18, $this->generado['juegos']);
 
         $porSlug = collect($this->generado['juegos'])->keyBy('slug');
 
@@ -190,6 +191,30 @@ class JuegosJsonTest extends TestCase
         $this->assertSame('Culebra', $porSlug['mega-animal-40']['opciones'][37]['label']);
         $this->assertSame(36, $porSlug['mega-animal-40']['opciones'][37]['numero']);
         $this->assertSame(30, $porSlug['mega-animal-40']['premio_multiplo']);
+
+        // selva-plus: 103 opciones PROPIAS desde la tabla juego_opciones
+        // (101 figuras 0–99 del zoológico propio + 2 comodines con numero null).
+        // El catálogo ordena por `numero` (MySQL: NULLs primero) → los comodines
+        // quedan al inicio; se valida por value/label, no por posición.
+        $this->assertCount(103, $porSlug['selva-plus']['opciones']);
+        $this->assertSame(80, $porSlug['selva-plus']['premio_multiplo']);
+
+        $labelsSelva = array_column($porSlug['selva-plus']['opciones'], 'label');
+        $this->assertContains('Ballena', $labelsSelva);
+        $this->assertContains('Delfín', $labelsSelva);
+        $this->assertContains('Cabra', $labelsSelva);
+        $this->assertContains('Halcón', $labelsSelva);
+        $this->assertContains('Leoncito (comodín A)', $labelsSelva);
+        $this->assertContains('Selva Plus (comodín B)', $labelsSelva);
+
+        $comodinA = collect($porSlug['selva-plus']['opciones'])->firstWhere('value', 'comodin-a');
+        $comodinB = collect($porSlug['selva-plus']['opciones'])->firstWhere('value', 'comodin-b');
+        $this->assertNull($comodinA['numero']);
+        $this->assertNull($comodinB['numero']);
+
+        $cabra = collect($porSlug['selva-plus']['opciones'])->firstWhere('value', 'cabra');
+        $this->assertSame(87, $cabra['numero']);
+        $this->assertSame('Cabra', $cabra['label']);
     }
 
     public function test_ids_de_los_juegos_coinciden_con_el_orden_del_seeder(): void
@@ -220,6 +245,6 @@ class JuegosJsonTest extends TestCase
         for ($i = 1; $i < count($idsGenerados); $i++) {
             $this->assertSame(1, $idsGenerados[$i] - $idsGenerados[$i - 1], 'Los ids generados deben ser estrictamente consecutivos.');
         }
-        $this->assertSame(17, count($idsGenerados), 'Deben ser exactamente 17 juegos.');
+        $this->assertSame(18, count($idsGenerados), 'Deben ser exactamente 18 juegos.');
     }
 }
