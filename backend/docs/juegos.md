@@ -61,6 +61,7 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 | 19 | Selva Plus | `selva-plus` | animalitos | 08:15–20:15 (13 horarios `:15`) | `https://api.lotterly.co/v1/results/selva-plus/` (API oficial) | `SelvaPlusScraper` | ✅ Verificado con datos reales (12-sep: HOY 7 + AYER 13, dedupe) |
 | 20 | Triple Táchira | `triple-tachira` | tripletas | 13:15, 16:45, 22:10 (3 horarios) | `https://tripletachira.com/pruebah.php` (sitio oficial) | `TripleTachiraScraper` | ✅ Verificado con datos reales (12-sep: AYER 3 + HOY 1, dedupe) |
 | 21 | Triple Fácil | `triple-facil` | tripletas | 08:00–19:00 (12 horarios `:00`) | `https://api.lotterly.co/v1/results/triple-facil/` (API oficial lotterly.co) | `TripleFacilScraper` | ✅ Verificado con datos reales (12-sep: AYER 12 + HOY 10, dedupe) |
+| 22 | Triple Zamorano | `triple-zamorano` | tripletas | 10:00, 12:00, 14:00, 16:00, 19:00 (5 horarios) | `https://www.triplezamorano.com/api/gaming/results/product` (API oficial) | `TripleZamoranoScraper` | ✅ Verificado con datos reales (12-sep: AYER 5 + HOY 4, dedupe) |
 
 > `LoteriaDeHoyScraper` es parametrizado: reutiliza el mismo `scraper_class` para los juegos de
 > loteriadehoy.com registrando la `scraper_url` de cada juego (se usa su slug/name para fail-fast
@@ -254,14 +255,40 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 > juego+fecha+hora en `saveResults` heredado. Sorteos sin `result` se saltan;
 > respuesta vacía/inválida/sin entradas → RuntimeException (fail-fast).
 
-## Juegos pendientes (22)
+> `TripleZamoranoScraper` consume la API OFICIAL de triplezamorano.com (la
+> MISMA casa/plataforma que Triple Caliente, con `game_product_id` distinto):
+> `POST /api/gaming/results/product` con body `{"game_product_id":"1"}` (sin
+> auth ni anti-bot). La respuesta trae el histórico de sorteos (~386 entradas,
+> más recientes primero): cada una con `events` (2 ids por sorteo), `results`
+> **SOLO A y C (NO hay B)** — `A` es el triple de 3 cifras y `C` el triple de
+> 3 cifras + signo (sufijo tras el guion, p. ej. `452-ARI`) — y
+> `event_timestamp.seconds` (epoch). El scraper deriva `fecha_sorteo`/
+> `hora_sorteo` locales en America/Caracas (UTC-4), mapea A → `triple_a` y
+> C → `triple_c` + `signo` (regex `^(\d+)-([A-Za-z]+)$`, mismo patrón
+> TripleCalienteOficialScraper), usa `events[0]` como `sorteo_id_externo`
+> (dedupe) y `execute` filtra el histórico a la fecha solicitada. El
+> `game_product_id` se lee de `config['scraper']['product_id']` del juego
+> (default `'1'`, constante del scraper). **Horarios oficiales verificados con
+> los timestamps**: **5 sorteos diarios 10:00/12:00/14:00/16:00/19:00** (87 días
+> de histórico; los domingos solo 19:00 — mismo patrón no-uniforme documentado
+> en H9/Táchira, aquí consistente en toda la muestra). **Premios**: la
+> informativa (RV `/lottery/triple-zamorano`) declara 600×/60×/6.000×/600× pero
+> SIN fuente oficial verificada (los mismos valores que RV declaró para Triple
+> Táchira resultaron EQUIVOCADOS — H9), por lo que `premio_multiplo` queda en
+> **30× default de los triples** y pendiente de verificación con el reglamento
+> oficial (hallazgo H11 en `docs/comparacion-juegos.md`). Operador (informativa):
+> Operadora 1923, C.A. / Lotería del Zulia. Respuesta inválida/vacía/sin eventos
+> → RuntimeException (fail-fast); histórico filtrado por fecha en `execute`.
+
+## Juegos pendientes
 
 Pendientes de integración (un work unit por juego, orden de URLs del cliente). Se agregarán
 aquí en su mismo work unit:
 
 | # | Nombre | slug | type (fuente) | Notas |
 |---|--------|------|---------------|-------|
-| 22 | Triple Zamorano | `triple-zamorano` | tripletas (API productId) | |
+
+> Con el WU f20 (Triple Zamorano) se completaron los juegos 9–22 de la lista original del cliente.
 
 ## Estrategia de tests
 

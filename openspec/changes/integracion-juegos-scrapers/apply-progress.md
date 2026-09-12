@@ -1404,3 +1404,96 @@ suite completa **629/627/2** (3056 assertions) + `pint --test` limpio.
 - Juego 22 (Triple Zamorano): requiere URL y estructura de la fuente del cliente antes de aplicar.
 - Pendientes de cliente: decidir si el motor debe derivar el terminal (n % 100) del triple para
   validar apuestas de terminal/aproximación de Triple Fácil (H10 — el motor no usa premio_multiplo aún).
+
+---
+
+# Apply Progress (WU f20) — PR 20 (Triple Zamorano con API oficial de triplezamorano.com)
+
+**Rama**: `feat/integracion-juegos-scrapers-f20-triple-zamorano`
+**Base**: `feat/integracion-juegos-scrapers-f19-triple-facil`
+**Estado**: COMPLETADO (f20.1–f20.8)
+
+> Nota de merge: secciones previas viven en este archivo y en Engram (`apply-progress-f14`/`f16`/`f18`).
+> El estado acumulado completo está en el topic `sdd/integracion-juegos-scrapers/apply-progress`.
+
+## Resumen
+
+Integración del juego 22 (Triple Zamorano) con la API oficial de triplezamorano.com (la MISMA
+casa/plataforma que Triple Caliente, `game_product_id` distinto): `POST /api/gaming/results/product`
+con body `{"game_product_id":"1"}` (sin auth ni anti-bot). El scraper parsea el histórico (~386
+entradas) y persiste SOLO A y C (NO hay B): A = triple de 3 cifras (`triple_a`), C = triple de 3
+cifras + signo (`triple_c` + `signo`, regex `^(\d+)-([A-Za-z]+)$`). Fecha/hora local en
+America/Caracas desde `event_timestamp.seconds`; `sorteo_id_externo` = `events[0]` (2 ids por
+sorteo, dedupe); `execute` filtra el histórico por fecha (patrón Caliente/Tripletas). El seeder
+registra el juego con 12 signos y **5 horarios oficiales 10:00/12:00/14:00/16:00/19:00**
+(verificados con los timestamps: 87 días de histórico; domingos solo 19:00).
+
+## HALLAZGO H11 — la informativa declara 3 sorteos y premios SIN verificar (verificación oficial vs informativa)
+
+- **Horarios**: la informativa (RV `/lottery/triple-zamorano`, y lotoven con texto idéntico) declara
+  **3 sorteos** 12:00/16:00/19:00 (claramente STALE). La API oficial prueba **5 sorteos diarios
+  10:00/12:00/14:00/16:00/19:00** (87 días de histórico; los domingos solo 19:00 — consistente en
+  TODA la muestra, a diferencia del domingo no-uniforme de Táchira H9). → desajuste de horario H11.
+- **Premios**: la informativa declara 600× (Triple), 60× (Cola), 6.000× (Astro), 600× (Cola+Signo).
+  La API oficial NO publica cifras ni reglamento → SIN fuente oficial verificada. Los mismos valores
+  (600/60/6.000) que RV declaró para Triple Táchira resultaron EQUIVOCADOS contra su reglamento
+  (H9) → parecen un TEMPLATE del agregador, no datos verificados. Se usa `premio_multiplo` **30**
+  (default de los triples, instrucción del orquestador) y queda pendiente de verificación con el
+  reglamento oficial de la Operadora 1923, C.A. / Lotería del Zulia.
+- **Resultados oficiales**: SOLO A y C (NO hay B) — `results: [{"A":"683"},{"C":"452-ARI"}]`.
+- **Operador** (informativa): Operadora 1923, C.A. / Lotería del Zulia (IOBPAS).
+
+## TDD Cycle Evidence
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| f20.1/f20.3 | tests/Unit/TripleZamoranoScraperTest.php | Unit | ✅ 58/58 (TripleCaliente+JuegosJson+Limites) | ✅ 11 errores (clase inexistente) | ✅ 11/11 (34) | ✅ 11 casos (parse 9, horas Caracas desde epoch, fechas, A+C+signo SIN B, events[0], estructura, fail-fast, filtro ×2 fechas, product_id config, JSON inválido, sin sorteos) | ✅ Pint clean |
+| f20.2/f20.4 | tests/Feature/TripleZamoranoResultsTest.php | Feature | ✅ idem | ✅ 7 errores (seeder inexistente) | ✅ 7/7 (31) | ✅ 7 casos (juego+scraper_class+config, límite+plugin, 5 horarios, 12 opciones, persistencia 5, dedupe, resolver) | ✅ Pint clean |
+| f20.5 | JuegosJsonTest + LimitesScopedApiTest | Feature | ✅ previo | ✅ 2 fallos (archivo stale 20 vs 21) | ✅ 3/3 + 30/30 (focused 51/51, 1011) | ✅ conteos 21/42/84 mixto 42; 12 opciones triple-zamorano | OK |
+| f20.6 | Contrato JSON | Runtime | — | juegos:export → 21 juegos | md5 idéntico ×2 (ea647a57) | — | OK |
+| f20.7 | Harness real (scraper) | Runtime | N/A | — | AYER 5 + HOY 4 | rescrape 9 filas, 9 `sorteo_id_externo` únicos, 0 errores | — |
+
+**Test Summary**: +18 tests (11 unit + 7 feature Zamorano); focused `--filter=Zamorano` → 18/18 (65 assertions);
+suite completa **647/645/2** (3158 assertions) + `pint --test` limpio.
+
+## Work Unit Evidence
+
+| Work unit | Focused test | Runtime harness | Rollback boundary |
+|-----------|--------------|-----------------|-------------------|
+| WU1 scraper+fixture | --filter=TripleZamoranoScraperTest → 11/11 | parse fixture real; fetch real verificado en vivo (12-sep) | Eliminar TripleZamoranoScraper + fixture + test unit |
+| WU2 seeder+feature | --filter=TripleZamoranoResultsTest → 7/7 | db:seed TripleZamoranoSeeder → juego id 21; export 21 juegos | Eliminar TripleZamoranoSeeder + revertir DatabaseSeeder + feature test |
+| WU3 regresión conteos | JuegosJsonTest 3/3 + LimitesScopedApiTest 30/30 | N/A (regresión API) | Revertir aserciones (20→21, 40→42, 80→84, mixto 40→42) |
+| WU4 contrato JSON | Suite (consistencia verde) | juegos:export contra BD local → docs/juegos.json; md5 idéntico ×2 | Regenerar el archivo con el comando |
+| WU5 carga real | --filter=Zamorano 18/18 | TripleZamoranoScraper ×2 fechas: AYER 5 (día completo), HOY 4 (parcial 10:00–16:00); rescrape 9 filas, 9 únicos, 0 errores | Filas resultados de triple-zamorano (9) |
+
+## Carga real (BD local)
+
+- AYER 2026-09-11: 5 resultados (10:00 634/778-VIR, 12:00 295/733-PIS, 14:00 196/782-LIB, 16:00
+  769/549-GEM, 19:00 902/047-VIR) — día completo.
+- HOY 2026-09-12: 4 resultados parciales (10:00 561/805-LEO, 12:00 197/731-SAG, 14:00 274/384-SAG,
+  16:00 683/452-ARI) — parcial correcto (el sorteo de 19:00 aún no ocurre).
+- Dedupe: rescrape mantiene 9 filas (9 `sorteo_id_externo` únicos, 0 errores). BD local total
+  **234** (225 previos + 9, 21 juegos).
+
+## Archivos
+
+- backend/app/Plugins/Scrapers/TripleZamoranoScraper.php (create)
+- backend/database/seeders/TripleZamoranoSeeder.php (create) + DatabaseSeeder (modify: 21º juego)
+- backend/tests/Fixtures/triplezamorano_results.json (create, real — recortado 386→9, documentado)
+- backend/tests/Unit/TripleZamoranoScraperTest.php + Feature/TripleZamoranoResultsTest.php (create)
+- backend/tests/Feature/JuegosJsonTest.php + LimitesScopedApiTest.php (modify: 20→21)
+- docs/juegos.json (regenerado, 21 juegos, md5 ea647a57) + backend/docs/juegos.md (fila 22 + nota
+  scraper + pendientes vacío) + docs/fuentes-oficiales.md (fila 21 verificada) +
+  docs/comparacion-juegos.md (fila + H11)
+- openspec/.../tasks.md + apply-progress.md (modify)
+
+## Commits (rama f20)
+
+- (se generan al cierre del WU, work-unit en español, NO se abren PRs)
+
+## Siguiente paso
+
+- sdd-verify del PR 20 cuando el orquestador lo dispare.
+- Con el WU f20 se completaron los juegos 9–22 de la lista del cliente (catálogo 21 juegos).
+- Pendientes de cliente: reglamento oficial de Triple Zamorano (H11) y de Triple Fácil (H10,
+  terminales derivadas / premios informativos).
