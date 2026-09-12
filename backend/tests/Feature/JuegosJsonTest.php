@@ -43,6 +43,7 @@ class JuegosJsonTest extends TestCase
         17 => 'mega-animal-40',
         18 => 'selva-plus',
         19 => 'triple-tachira',
+        20 => 'triple-facil',
     ];
 
     protected function setUp(): void
@@ -107,7 +108,7 @@ class JuegosJsonTest extends TestCase
     public function test_esquema_minimo_y_conteos_de_opciones_por_tipo(): void
     {
         $this->assertSame(1, $this->generado['version']);
-        $this->assertCount(19, $this->generado['juegos']);
+        $this->assertCount(20, $this->generado['juegos']);
 
         $porSlug = collect($this->generado['juegos'])->keyBy('slug');
 
@@ -231,6 +232,22 @@ class JuegosJsonTest extends TestCase
         $this->assertContains('Aries', $labelsTachira);
         $this->assertContains('Piscis', $labelsTachira);
         $this->assertContains('Acuario', $labelsTachira);
+
+        // triple-facil: 100 opciones de TERMINAL PROPIAS desde la tabla
+        // juego_opciones (label "00".."99" con padding, value "0".."99" sin
+        // padding, numero 0..99 — patrón del plugin Terminales) y premios
+        // INFORMATIVOS documentados (el sitio oficial no publica cifras):
+        // triple completo 700×, terminal 60×, aproximación 10×.
+        $this->assertCount(100, $porSlug['triple-facil']['opciones']);
+        $this->assertSame(700, $porSlug['triple-facil']['premio_multiplo']);
+        $this->assertSame(
+            ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'],
+            $porSlug['triple-facil']['horarios']
+        );
+        $this->assertSame('00', $porSlug['triple-facil']['opciones'][0]['label']);
+        $this->assertSame(0, $porSlug['triple-facil']['opciones'][0]['numero']);
+        $this->assertSame('99', $porSlug['triple-facil']['opciones'][99]['label']);
+        $this->assertSame(99, $porSlug['triple-facil']['opciones'][99]['numero']);
     }
 
     public function test_ids_de_los_juegos_coinciden_con_el_orden_del_seeder(): void
@@ -261,6 +278,6 @@ class JuegosJsonTest extends TestCase
         for ($i = 1; $i < count($idsGenerados); $i++) {
             $this->assertSame(1, $idsGenerados[$i] - $idsGenerados[$i - 1], 'Los ids generados deben ser estrictamente consecutivos.');
         }
-        $this->assertSame(19, count($idsGenerados), 'Deben ser exactamente 19 juegos.');
+        $this->assertSame(20, count($idsGenerados), 'Deben ser exactamente 20 juegos.');
     }
 }
