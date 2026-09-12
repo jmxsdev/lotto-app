@@ -3008,6 +3008,219 @@
                     "value": "oso-hormiguero"
                 }
             ]
+        },
+        {
+            "id": 17,
+            "slug": "mega-animal-40",
+            "nombre": "Mega Animal 40",
+            "tipo": "animalitos",
+            "premio_multiplo": 30,
+            "horarios": [
+                "09:00",
+                "10:00",
+                "11:00",
+                "12:00",
+                "13:00",
+                "14:00",
+                "15:00",
+                "16:00",
+                "17:00",
+                "18:00",
+                "19:00",
+                "20:00"
+            ],
+            "opciones": [
+                {
+                    "numero": 0,
+                    "label": "Ballena",
+                    "value": "ballena"
+                },
+                {
+                    "numero": 0,
+                    "label": "Delfin",
+                    "value": "delfin"
+                },
+                {
+                    "numero": 1,
+                    "label": "Carnero",
+                    "value": "carnero"
+                },
+                {
+                    "numero": 2,
+                    "label": "Toro",
+                    "value": "toro"
+                },
+                {
+                    "numero": 3,
+                    "label": "Ciempies",
+                    "value": "ciempies"
+                },
+                {
+                    "numero": 4,
+                    "label": "Alacran",
+                    "value": "alacran"
+                },
+                {
+                    "numero": 5,
+                    "label": "Leon",
+                    "value": "leon"
+                },
+                {
+                    "numero": 6,
+                    "label": "Rana",
+                    "value": "rana"
+                },
+                {
+                    "numero": 7,
+                    "label": "Perico",
+                    "value": "perico"
+                },
+                {
+                    "numero": 8,
+                    "label": "Raton",
+                    "value": "raton"
+                },
+                {
+                    "numero": 9,
+                    "label": "Aguila",
+                    "value": "aguila"
+                },
+                {
+                    "numero": 10,
+                    "label": "Tigre",
+                    "value": "tigre"
+                },
+                {
+                    "numero": 11,
+                    "label": "Gato",
+                    "value": "gato"
+                },
+                {
+                    "numero": 12,
+                    "label": "Caballo",
+                    "value": "caballo"
+                },
+                {
+                    "numero": 13,
+                    "label": "Mono",
+                    "value": "mono"
+                },
+                {
+                    "numero": 14,
+                    "label": "Paloma",
+                    "value": "paloma"
+                },
+                {
+                    "numero": 15,
+                    "label": "Zorro",
+                    "value": "zorro"
+                },
+                {
+                    "numero": 16,
+                    "label": "Oso",
+                    "value": "oso"
+                },
+                {
+                    "numero": 17,
+                    "label": "Pavo",
+                    "value": "pavo"
+                },
+                {
+                    "numero": 18,
+                    "label": "Burro",
+                    "value": "burro"
+                },
+                {
+                    "numero": 19,
+                    "label": "Chivo",
+                    "value": "chivo"
+                },
+                {
+                    "numero": 20,
+                    "label": "Cochino",
+                    "value": "cochino"
+                },
+                {
+                    "numero": 21,
+                    "label": "Gallo",
+                    "value": "gallo"
+                },
+                {
+                    "numero": 22,
+                    "label": "Camello",
+                    "value": "camello"
+                },
+                {
+                    "numero": 23,
+                    "label": "Cobra",
+                    "value": "cobra"
+                },
+                {
+                    "numero": 24,
+                    "label": "Iguana",
+                    "value": "iguana"
+                },
+                {
+                    "numero": 25,
+                    "label": "Gallina",
+                    "value": "gallina"
+                },
+                {
+                    "numero": 26,
+                    "label": "Vaca",
+                    "value": "vaca"
+                },
+                {
+                    "numero": 27,
+                    "label": "Perro",
+                    "value": "perro"
+                },
+                {
+                    "numero": 28,
+                    "label": "Zamuro",
+                    "value": "zamuro"
+                },
+                {
+                    "numero": 29,
+                    "label": "Elefante",
+                    "value": "elefante"
+                },
+                {
+                    "numero": 30,
+                    "label": "Caiman",
+                    "value": "caiman"
+                },
+                {
+                    "numero": 31,
+                    "label": "Lapa",
+                    "value": "lapa"
+                },
+                {
+                    "numero": 32,
+                    "label": "Ardilla",
+                    "value": "ardilla"
+                },
+                {
+                    "numero": 33,
+                    "label": "Pescado",
+                    "value": "pescado"
+                },
+                {
+                    "numero": 34,
+                    "label": "Venado",
+                    "value": "venado"
+                },
+                {
+                    "numero": 35,
+                    "label": "Jirafa",
+                    "value": "jirafa"
+                },
+                {
+                    "numero": 36,
+                    "label": "Culebra",
+                    "value": "culebra"
+                }
+            ]
         }
     ]
 }
