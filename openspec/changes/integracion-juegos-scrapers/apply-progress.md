@@ -823,3 +823,102 @@ None — implementation matches design. La limpieza de datos (requisito del clie
 - `sdd-verify` del PR 9 cuando el orquestador lo dispare.
 - Catálogo JSON de juegos (WU f9 siguiente, NO incluido en este WU por regla).
 - Juego 15 (La Granjita): requiere URL y estructura de la fuente del cliente antes de aplicar.
+
+---
+
+# Sección WU f9 — Catálogo JSON para el front/taquilla (PR 10)
+
+**Rama**: `feat/integracion-juegos-scrapers-f9-catalogo-json` (base: `feat/integracion-juegos-scrapers-f8-lottoactivo`)
+**Estado**: ✅ COMPLETADO (f9.1–f9.6)
+
+## Resumen
+
+Entregable para el front/taquilla: `docs/juegos.json` (carpeta `docs/` RAÍZ del repo, junto a
+`plugins.md`/`deploy.md`) con los 13 juegos (ids reales 1–13 de la BD local en orden del
+`DatabaseSeeder`): id, slug, nombre, tipo, `premio_multiplo`, horarios (`H:i`, ordenados) y las
+opciones/animales de cada juego. Se implementó el comando `php artisan juegos:export`
+(`JuegosExportCommand`) con la lógica extraída a `App\Services\JuegoCatalogoService` (compartida
+por comando y test). La resolución de opciones replica EXACTAMENTE `JuegoController::opciones`
+(filas de `juego_opciones` → fallback al plugin vía `JuegoPluginManager`). Salida determinista e
+idempotente (2 ejecuciones = mismo md5), pretty-print con acentos UTF-8 sin escapar
+(`JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT` + newline final).
+El archivo `docs/juegos.json` se generó contra la BD local real y se commiteó.
+
+**Contenido del archivo**: 13 juegos, **426 opciones** totales (animalitos 266, tripletas 60,
+terminales 100): lotto-activo 38 (tabla, acentos correctos: "Delfín"); triple-zulia/
+triple-caliente/triple-chance/el-arrejuntado 12 (tabla de signos); terminal-activo 100 (plugin
+Terminales 00–99); trio-activo 12 (plugin Tripletas, "Géminis"); animalitos sin tabla (rd,
+rep-dom, monje, cazaloton, el-guacharito, guacharo-activo) 38 c/u (plugin Animalitos).
+
+## TDD Cycle Evidence (WU f9)
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| f9.1+f9.2 | `tests/Feature/JuegosJsonTest.php` | Feature (RefreshDatabase + DatabaseSeeder) | ✅ baseline 491/489/2 (orquestador) | ✅ 3 fallos (clase inexistente + archivo ausente) | ✅ 3/3 (309 assertions) | ✅ 3 tests: consistencia por slug, esquema/conteos (38/12/100/12), ids seeder | ✅ Pint aplicado y re-verde |
+| f9.3+f9.4 | Harness real | Runtime | N/A (nuevo) | — | ✅ `php artisan juegos:export` → `docs/juegos.json` 68.788 B | ✅ `--path` alternativo = mismo contenido; idempotencia (md5 idéntico) | ✅ |
+
+**Test Summary (WU f9)**: +3 tests (494 vs 491 baseline); focused
+`composer test -- --filter=JuegosJsonTest` → **3/3 (309 assertions)**; suite completa
+**494/492/2**; `vendor/bin/pint --test` → passed. Triangulación: rutas de opciones desde tabla
+(lotto-activo/tripletas con tabla), desde plugin (terminales/trio/animalitos sin tabla),
+normalización de hora (columna TIME `H:i:s` → `H:i`), orden y consecutividad de ids.
+
+## Work Unit Evidence (WU f9)
+
+| Work unit | Focused test command y resultado | Runtime harness y resultado | Rollback boundary |
+|-----------|----------------------------------|-----------------------------|-------------------|
+| WU1 servicio+comando | `composer test -- --filter=JuegosJsonTest` → RED 0/3 → GREEN 3/3 (309 assertions) | `php artisan juegos:export` → exit 0, archivo generado; `--path=/tmp/...` idéntico | Eliminar `JuegoCatalogoService.php` + `JuegosExportCommand.php` + `JuegosJsonTest.php` |
+| WU2 contrato JSON | Suite completa 494/492/2 + pint limpio | Export contra BD local real (13 juegos ids 1-13) → `docs/juegos.json` 68.788 B; 2ª ejecución md5 idéntico | Eliminar `docs/juegos.json` (se regenera con el comando) |
+| WU3 docs+persistencia | Suite completa 494/492/2 | N/A (docs) | Revertir nota en `docs/juegos.md` + secciones tasks/apply-progress |
+
+## Archivos cambiados (WU f9)
+
+| Archivo | Acción | Qué se hizo |
+|---------|--------|-------------|
+| `backend/app/Services/JuegoCatalogoService.php` | Create | Genera el catálogo (versión + juegos): opciones con semántica de `JuegoController::opciones` (tabla → plugin), horarios normalizados `H:i` y ordenados, `premio_multiplo` desde `config` |
+| `backend/app/Console/Commands/JuegosExportCommand.php` | Create | `php artisan juegos:export` (default `base_path('../docs/juegos.json')`, `--path` opcional); JSON pretty-print + newline final |
+| `backend/tests/Feature/JuegosJsonTest.php` | Create | 3 tests de consistencia (309 assertions): igualdad por slug con el archivo commiteado (id excluido), esquema mínimo + conteos por tipo (38/12/100/12), ids del archivo 1-13 + orden relativo/consecutividad del generado |
+| `docs/juegos.json` (raíz repo) | Create | Entregable front/taquilla: 13 juegos, ids 1-13, 400 opciones, horarios, premio_multiplo |
+| `backend/docs/juegos.md` | Modify | Sección "Contrato JSON para el front/taquilla" (regeneración con `php artisan juegos:export`, semántica de opciones, no editar a mano) |
+| `openspec/changes/integracion-juegos-scrapers/tasks.md` | Modify | Sección WU f9 añadida con tareas `[x]` |
+| `openspec/changes/integracion-juegos-scrapers/apply-progress.md` | Modify | Sección WU f9 añadida (merge) |
+
+## Desviaciones del diseño (WU f9)
+
+1. **El controller NO reutiliza el servicio** (decisión documentada): `JuegoController::opciones`
+   devuelve el modelo `JuegoOpcion` completo (id, juego_id, imagen_url, color, metadata, active,
+   timestamps) y cambiarlo al mapeo `{numero,label,value}` rompería el contrato API actual de
+   panel/taquilla. El servicio se comparte entre comando y test (requisito del WU cumplido).
+2. **Conteo de animales del plugin**: el prompt estimaba 37 animales canónicos, pero el plugin
+   `Animalitos` tiene **38** (ballena y delfin comparten numero 0; 38 etiquetas). Evidencia:
+   `JuegoAnimalitosSeeder` (38 filas), mapa del plugin (38 entradas), BD local (38). El archivo
+   y el test usan 38 (semántica exacta del plugin, prioritaria según el WU).
+3. **Ids del archivo vs ids del test**: el archivo mantiene los ids reales 1-13 (contrato); el
+   test compara por slug excluyendo el id (ver Problemas, punto 1).
+
+## Problemas encontrados (WU f9)
+
+1. **Ids corridos en la BD de tests (evidencia: corrida 27-39)**: `RefreshDatabase` envuelve cada
+   test en una transacción que se revierte, PERO el auto-increment de MySQL/InnoDB NO retrocede
+   con el rollback (evidencia directa: tras 2 corridas filtradas el contador quedó en 40 con 0
+   filas commiteadas). En una suite compartida, los 13 juegos sembrados por `DatabaseSeeder`
+   reciben ids desplazados según cuántos juegos hayan creado antes otros tests (1-13, 14-26,
+   27-39...). RESUELTO sin romper el contrato: la comparación de consistencia es estable por
+   slug y valores (id excluido), el archivo conserva ids 1-13 (contrato front), y el test
+   verifica que el generado sigue el MISMO orden relativo del seeder con ids estrictamente
+   consecutivos (sin huecos ni juegos extra). El test es independiente del orden de ejecución
+   (verificado dentro de la suite completa 494/492/2).
+2. **Cambios ajenos del checkout compartido**: `collections/*.yml`, `panel/.astro/settings.json`
+   (modificados) y `.atl/`, `.codegraph/`, `openspec/config.yaml` (sin seguimiento) quedaron
+   fuera de los commits (NO se tocan ni se commitean).
+
+## Workload / PR Boundary (WU f9)
+
+- Modo: chained PR slice (feature-branch-chain, PR 10 de la cadena; base = PR 9 `feat/integracion-juegos-scrapers-f8-lottoactivo`). NO se abrieron PRs.
+- Boundary: catálogo JSON para el front (servicio + comando + contrato `docs/juegos.json` + test de consistencia + docs) con verificación incluida (suite completa 494/492/2 + pint limpio).
+- Rollback boundary por unidad: ver tabla Work Unit Evidence (WU f9).
+
+## Siguiente paso recomendado
+
+- `sdd-verify` del PR 10 cuando el orquestador lo dispare.
+- Juego 15 (La Granjita): requiere URL y estructura de la fuente del cliente antes de aplicar.

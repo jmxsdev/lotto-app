@@ -138,6 +138,14 @@ Plantilla para los juegos restantes (#15–22):
 - [x] f8.7 Docs: `backend/docs/juegos.md` — familia lottoactivo "✅ Verificado con datos reales (12-sep)" + nota feed anidado/formato plano/mapeo slugs.
 - [x] f8.8 tasks.md + apply-progress (sección "Familia Lotto Activo — estabilización") + commits work-unit en español. NO se abren PRs. Catálogo JSON = WU f9 (fuera de alcance).
 
+### WU f9 — Catálogo JSON para el front/taquilla (PR 10, rama f9-catalogo-json, base f8-lottoactivo) — ✅ COMPLETADO
+- [x] f9.1 RED→GREEN `JuegosExportCommand` (`php artisan juegos:export`) + servicio reutilizable `App\Services\JuegoCatalogoService` (comando y test comparten la lógica; el controller NO se toca — su payload de opciones es el modelo completo y cambiarlo rompería el contrato API). Semántica de opciones idéntica a `JuegoController::opciones` (tabla `juego_opciones` → fallback plugin).
+- [x] f9.2 RED→GREEN `backend/tests/Feature/JuegosJsonTest.php` (3 tests, 309 assertions): consistencia con el archivo commiteado (comparación estable por slug y valores, sin id), esquema mínimo (version=1, 13 juegos, campos, horarios H:i ordenados, premio_multiplo) y conteos por tipo (lotto-activo 38, terminal-activo 100, tripletas con tabla 12, animalitos sin tabla 38 vía plugin, trio-activo 12 vía plugin).
+- [x] f9.3 Generado `docs/juegos.json` (raíz del repo, contrato front) con el comando contra la BD local real y COMMITEADO; pretty-print `JSON_UNESCAPED_UNICODE|UNESCAPED_SLASHES|PRETTY_PRINT` + newline final; determinista e idempotente (2 ejecuciones = mismo md5).
+- [x] f9.4 Harness runtime: `php artisan juegos:export` contra BD local (13 juegos, ids 1-13) → `docs/juegos.json` (68.788 B) + `--path` opcional verificado con salida idéntica. Suite completa **494/492/2** (491/489/2 +3) + `pint --test` limpio.
+- [x] f9.5 Docs: nota en `backend/docs/juegos.md` (contrato JSON + regeneración), tasks.md + apply-progress (merge) + Engram `apply-progress-f9`. Commits work-unit en español. NO se abren PRs.
+- [x] f9.6 INVESTIGACIÓN ids test vs archivo (documentada): la BD de tests comparte auto-increment de MySQL que NO retrocede con el rollback de RefreshDatabase → ids corridos (1-13 en test limpio, 14-26, 27-39 según posición en la suite). Resuelto sin romper el contrato: el archivo mantiene ids 1-13 (BD real); el test compara por slug (estructura+valores, id excluido) y verifica orden relativo + consecutividad del generado. Discrepancia de conteo: el plugin Animalitos tiene 38 animales (ballena+delfin comparten numero 0), no 37 como se estimó — el archivo refleja el plugin (38) y el test lo valida.
+
 ## Phase 3: Verificación / cierre
 
 - [ ] 3.1 Suite general completa al integrar 10 juegos (criterio cliente), documentado en `docs/juegos.md`.

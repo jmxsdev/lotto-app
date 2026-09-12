@@ -119,3 +119,27 @@ aquí en su mismo work unit:
   fixture real y tests, y su fila en esta lista — todo en el mismo work unit.
 - Ningún scraper crea juegos en caliente: `findJuegoOrFail` lanza si el juego no está registrado.
 - Los scrapers nuevos normalizan `hora_sorteo` a `H:i` (America/Caracas) vía `normalizeHora`.
+
+## Contrato JSON para el front/taquilla (`docs/juegos.json`)
+
+> `docs/juegos.json` (en la RAÍZ del repo, junto a `plugins.md`/`deploy.md`) es el contrato
+> para el front/taquilla: los juegos integrados + existentes con su **id real de BD**, slug,
+> nombre, tipo (animalitos/tripletas/terminales), `premio_multiplo`, horarios y las
+> opciones/animales que permite cada juego. Se regenera con:
+>
+> ```bash
+> php artisan juegos:export          # escribe docs/juegos.json en la raíz del repo
+> php artisan juegos:export --path=/ruta/alternativa.json
+> ```
+>
+> La salida es determinista e idempotente (correr dos veces = mismo archivo): orden por id
+> ascendente, horarios normalizados a `H:i` y ordenados, pretty-print con acentos UTF-8 sin
+> escapar (`JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT`).
+> La resolución de opciones replica EXACTAMENTE `JuegoController::opciones`: filas de
+> `juego_opciones` si existen (lotto-activo 38 animales; triple-zulia/triple-caliente/
+> triple-chance/el-arrejuntado 12 signos), si no, fallback al plugin vía
+> `JuegoPluginManager` (terminal-activo 100 números 00-99 vía Terminales; trio-activo 12
+> signos vía Tripletas; animalitos sin tabla — rd, rep-dom, monje, cazaloton, el-guacharito,
+> guacharo-activo — 38 animales canónicos vía Animalitos). NO editar el archivo a mano:
+> regenerarlo con el comando. La lógica vive en `App\Services\JuegoCatalogoService`
+> (compartida por el comando y el test de consistencia `JuegosJsonTest`).
