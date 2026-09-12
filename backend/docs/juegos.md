@@ -58,6 +58,7 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 | 16 | La Ricachona | `la-ricachona` | tripletas | 08:05–19:05 (12 horarios `:05`) | `https://laricachona.com/` (HTML oficial por fecha) | `LaRicachonaScraper` | ✅ Verificado con datos reales (12-sep, HTML oficial) |
 | 17 | Loto Chaima | `loto-chaima` | animalitos | 08:00–19:00 (12 horarios `:00`) | `https://api.lotterly.co/v1/results/loto-chaima/` (API oficial) | `LotoChaimaScraper` | ✅ Verificado con datos reales (12-sep, API oficial sin auth) |
 | 18 | Mega Animal 40 | `mega-animal-40` | animalitos | 09:00–20:00 (12 horarios `:00`) | `https://resultadosvenezuela.com/lottery/mega-animal-40` (HTML agregador por fecha) | `MegaAnimal40Scraper` | ✅ Verificado con datos reales (12-sep: HOY 5 + AYER 12, dedupe) |
+| 19 | Selva Plus | `selva-plus` | animalitos | 08:15–20:15 (13 horarios `:15`) | `https://api.lotterly.co/v1/results/selva-plus/` (API oficial) | `SelvaPlusScraper` | ✅ Verificado con datos reales (12-sep: HOY 7 + AYER 13, dedupe) |
 
 > `LoteriaDeHoyScraper` es parametrizado: reutiliza el mismo `scraper_class` para los juegos de
 > loteriadehoy.com registrando la `scraper_url` de cada juego (se usa su slug/name para fail-fast
@@ -174,14 +175,44 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 > dedupe por juego+fecha+hora en `saveResults` heredado. Documentada como
 > Plataforma 4 en `docs/plataformas-juegos.md`.
 
-## Juegos pendientes (19–22)
+> `SelvaPlusScraper` consume la API oficial de la plataforma lotterly.co (la
+> MISMA de Loto Chaima, con `product_slug` distinto): `GET
+> https://api.lotterly.co/v1/results/selva-plus/?exact_date=YYYY-MM-DD`, sin
+> auth ni anti-bot; soporta fechas actuales y pasadas (verificada para
+> 2026-09-12 y 2026-09-11 con datos distintos). La respuesta es un array de
+> sorteos (uno por horario del día, **13 en total, 08:15–20:15 cada hora
+> `:15`**) con `time` en 24h `HH:MM:SS` (→ `normalizeHora` a "H:i") y `result`
+> como STRING numérico 00-99 con padding de 2 dígitos salvo el cero (`"0"`,
+> `"04"`, `"87"`): el sitio resuelve la figura con el string tal cual
+> (`"0"`→Delfín, `"04"`→Alacrán); por robustez el scraper maneja también
+> `"00"` (Ballena) y el fallback de padding (`"8"`→"08"→Ratón). El zoológico
+> es PROPIO de **101 figuras (0–99, Ballena y Delfín comparten el 0)**, distinto
+> al canónico del plugin Animalitos, y es la fuente de los nombres y de las
+> opciones del juego (el mapa `SelvaPlusScraper::ZOOLOGICO` lo comparte el
+> seeder; `value` = slug sin acentos vía `Str::slug`). **Premios oficiales**:
+> base **80×** (tabla: 1→80, 5→400, 10→800, 50→4.000, 100→8.000) + **2
+> comodines**: Comodín A "Leoncito" (160×) y Comodín B "Selva Plus" (200×),
+> registrados en `config.comodines` del juego (valor REAL para el JSON del
+> front y futuro motor; el motor actual NO usa `premio_multiplo` al liquidar —
+> gap conocido, ver `docs/estrategia-scrapers-premios.md`). El juego lanzó el
+> **2026-09-07**: fechas anteriores devuelven `[]` (estado válido del
+> proveedor). La representación de los comodines en `result` NO se ha observado
+> aún (65 sorteos del 07-11 sep, todos numéricos) → parser DEFENSIVO: si
+> `result` no es numérico se guarda el valor crudo en `numeros_ganadores`
+> (`resultado_crudo`) + log de advertencia, sin mapeos inventados. Sin ID
+> externo por sorteo → `sorteo_id_externo` null y dedupe por juego+fecha+hora
+> en `saveResults` heredado. Sorteos sin `result` se saltan (resultados
+> parciales del día); respuesta vacía/inválida/sin entradas → RuntimeException.
+> Documentada como segundo producto verificado de la Plataforma 3 (lotterly.co)
+> en `docs/plataformas-juegos.md`.
+
+## Juegos pendientes (20–22)
 
 Pendientes de integración (un work unit por juego, orden de URLs del cliente). Se agregarán
 aquí en su mismo work unit:
 
 | # | Nombre | slug | type (fuente) | Notas |
 |---|--------|------|---------------|-------|
-| 19 | Selva Plus | `selva-plus` | según URL cliente | |
 | 20 | Triple Tachira | `triple-tachira` | tripletas (API productId) | |
 | 21 | Triple Facil | `triple-facil` | tripletas/terminales | **Condicional** (doble modalidad, decisión del cliente) |
 | 22 | Triple Zamorano | `triple-zamorano` | tripletas (API productId) | |
@@ -219,9 +250,11 @@ aquí en su mismo work unit:
 > escapar (`JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT`).
 > La resolución de opciones replica EXACTAMENTE `JuegoController::opciones`: filas de
 > `juego_opciones` si existen (lotto-activo 38 animales; triple-zulia/triple-caliente/
-> triple-chance/el-arrejuntado 12 signos; loto-chaima 57 animales propios), si no, fallback al
+> triple-chance/el-arrejuntado 12 signos; loto-chaima 57 animales propios; selva-plus
+> **103 opciones** — 101 figuras propias + 2 comodines con `numero` null, que por el
+> orden por `numero` de MySQL quedan al inicio del array), si no, fallback al
 > plugin vía `JuegoPluginManager` (terminal-activo 100 números 00-99 vía Terminales; trio-activo
 > 12 signos vía Tripletas; animalitos sin tabla — rd, rep-dom, monje, cazaloton, el-guacharito,
-> guacharo-activo, la-granjita — 38 animales canónicos vía Animalitos). NO editar el archivo a mano:
+> guacharo-activo, la-granjita, mega-animal-40 — 38 animales canónicos vía Animalitos). NO editar el archivo a mano:
 > regenerarlo con el comando. La lógica vive en `App\Services\JuegoCatalogoService`
 > (compartida por el comando y el test de consistencia `JuegosJsonTest`).

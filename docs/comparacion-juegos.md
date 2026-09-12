@@ -28,7 +28,8 @@
 | 15 | `la-ricachona` | `/lottery/la-ricachona` (Triple y Terminal) + `/lottery/la-ricachona-animalito` | ✅ (2 páginas) |
 | 16 | `loto-chaima` | `/lottery/loto-chaima` | ✅ |
 | 17 | `mega-animal-40` | `/lottery/mega-animal-40` | ✅ (integrado en este WU) |
-| — | `triple-tachira`, `triple-caracas`, `triple-zamorano`, `triple-uneloton`, `triple-centena`, `triple-dorado`, `triple-facil`, `granjita-plus`, `selva-plus`, `granja-millonaria`, `granjazo`, `ruleta-activa`, `la-ruca`, `chance-animalitos`, `centena-*` | — | ⏳ pendientes de integración (fuera de alcance) |
+| 18 | `selva-plus` | `/lottery/selva-plus` | ✅ (integrado en este WU) — ⚠️ el proveedor declara datos EQUIVOCADOS, ver hallazgo H8 |
+| — | `triple-tachira`, `triple-caracas`, `triple-zamorano`, `triple-uneloton`, `triple-centena`, `triple-dorado`, `triple-facil`, `granjita-plus`, `granja-millonaria`, `granjazo`, `ruleta-activa`, `la-ruca`, `chance-animalitos`, `centena-*` | — | ⏳ pendientes de integración (fuera de alcance) |
 
 **Resumen**: 15 de nuestros 16 juegos tienen página en el proveedor; `terminal-activo` y
 `el-arrejuntado` NO (el proveedor tiene terminales propios, pero de otros juegos).
@@ -52,6 +53,7 @@ fallback) vs el zoológico/tabla que declara el proveedor:
 | la-granjita | 38 (plugin Animalitos) | **38** animalitos | ✅ |
 | la-ricachona | 12 signos (plugin Tripletas) | animalito: **38**; triples: 12 signos | ~ nuestra versión es la de triples |
 | loto-chaima | 57 (tabla propia, 0–55) | **57** figuras (0–55) | ✅ idéntico |
+| selva-plus | **103** (tabla propia: 101 figuras 0–99 + 2 comodines) | **38** animalitos (según el proveedor) | ❌ el proveedor declara menos figuras que las reales |
 | mega-animal-40 | 38 (plugin Animalitos) | **38** animalitos | ✅ |
 | triple-zulia | 12 signos (tabla) | A/B + **Zodiaco del Zulia** (12 signos) | ✅ |
 | triple-chance | 12 signos (tabla) | A/B/C + **Signo Zodiacal** (12 signos) | ✅ |
@@ -90,6 +92,7 @@ fallback) vs el zoológico/tabla que declara el proveedor:
 | la-granjita | siempre 30x |
 | la-ricachona-animalito | 30x |
 | loto-chaima | 40x |
+| selva-plus | el proveedor declara **30x y 11 sorteos** — la verdad OFICIAL (API lotterly.co) es **80× base** (1→80, 5→400, 10→800, 50→4.000, 100→8.000) + **comodín A "Leoncito" 160×** y **comodín B "Selva Plus" 200×**; **13 sorteos** 08:15–20:15 |
 | trio-activo | Triple **600x** (3 cifras exactas); Terminal **60x**; Punta **60x** |
 | triple-caliente | A/B **600x** (6.000 Bs por cada 10 Bs); Terminal/Triple-Terminal con otros pagos |
 | triple-zulia | A/B **600x**; **Zodiaco hasta 6.000x** (sección de mayor premio) |
@@ -160,6 +163,7 @@ fallback) vs el zoológico/tabla que declara el proveedor:
 | H5 | **trio-activo**: el proveedor lo describe como terminales de 3 cifras con 3 sorteos diarios; nosotros lo tenemos como tripletas con 12 horarios. | ¿Contrastar con la fuente oficial (lottoactivo.com) y alinear type/horarios? |
 | H6 | **cazaloton** sin datos de zoo/premios en su página del proveedor. | ¿Verificar con loteriadehoy.com (nuestra fuente actual) si el zoo es canónico? |
 | H7 | **la-ricachona**: el proveedor separa "Triple y Terminal" (`la-ricachona`) y "Animalito" (`la-ricachona-animalito`, :10); nosotros integramos solo la versión triples. | ¿Integrar la modalidad animalito de La Ricachona como juego separado? (candidato ya listado en `docs/plataformas-juegos.md`). |
+| H8 | **El proveedor está EQUIVOCADO para selva-plus**: declara 38 animalitos / 30× / 11 sorteos, pero la fuente OFICIAL (sitio selvaplus.com → API lotterly.co, misma plataforma de Loto Chaima) muestra **101 figuras (0–99) + 2 comodines** (A "Leoncito" 160×, B "Selva Plus" 200×), **80× base** y **13 sorteos diarios** 08:15–20:15. El juego lanzó el 2026-09-07 (fechas anteriores → `[]`). | Integrado con los datos oficiales (este WU). Para el futuro: contrastar SIEMPRE los agregadores con la fuente oficial antes de modelar un juego; si la representación de los comodines aparece en `result` (hoy NO observada, 65 sorteos numéricos), capturarla con el parser defensivo ya implementado. |
 
 > Nada de lo anterior se implementa en este WU: el documento es SOLO análisis. La integración de
 > juegos adicionales del proveedor queda fuera de alcance (un work unit por juego, decisión del cliente).
