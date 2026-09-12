@@ -2617,6 +2617,89 @@
                     "value": "culebra"
                 }
             ]
+        },
+        {
+            "id": 15,
+            "slug": "la-ricachona",
+            "nombre": "La Ricachona",
+            "tipo": "tripletas",
+            "premio_multiplo": 30,
+            "horarios": [
+                "08:05",
+                "09:05",
+                "10:05",
+                "11:05",
+                "12:05",
+                "13:05",
+                "14:05",
+                "15:05",
+                "16:05",
+                "17:05",
+                "18:05",
+                "19:05"
+            ],
+            "opciones": [
+                {
+                    "numero": null,
+                    "label": "Aries",
+                    "value": "ARI"
+                },
+                {
+                    "numero": null,
+                    "label": "Tauro",
+                    "value": "TAU"
+                },
+                {
+                    "numero": null,
+                    "label": "Géminis",
+                    "value": "GEM"
+                },
+                {
+                    "numero": null,
+                    "label": "Cáncer",
+                    "value": "CAN"
+                },
+                {
+                    "numero": null,
+                    "label": "Leo",
+                    "value": "LEO"
+                },
+                {
+                    "numero": null,
+                    "label": "Virgo",
+                    "value": "VIR"
+                },
+                {
+                    "numero": null,
+                    "label": "Libra",
+                    "value": "LIB"
+                },
+                {
+                    "numero": null,
+                    "label": "Escorpio",
+                    "value": "ESC"
+                },
+                {
+                    "numero": null,
+                    "label": "Sagitario",
+                    "value": "SAG"
+                },
+                {
+                    "numero": null,
+                    "label": "Capricornio",
+                    "value": "CAP"
+                },
+                {
+                    "numero": null,
+                    "label": "Acuario",
+                    "value": "ACU"
+                },
+                {
+                    "numero": null,
+                    "label": "Piscis",
+                    "value": "PIS"
+                }
+            ]
         }
     ]
 }
