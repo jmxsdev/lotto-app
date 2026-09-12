@@ -30,6 +30,7 @@ oficial y se compara contra la informativa para detectar desajustes (patrón val
 | 17 | `mega-animal-40` | animalitos | resultadosvenezuela.com (excepción autorizada: sin página oficial) | RV `/lottery/mega-animal-40` | ⚠️ comodín MEGA sin representación en datos (pendiente) |
 | 18 | `selva-plus` | animalitos | api.lotterly.co `/v1/results/selva-plus/` | RV `/lottery/selva-plus` | ✅ verificada — proveedor ERRÓNEO (38/30×/11 vs oficial 101+2/80×/13) |
 | 19 | `triple-tachira` | tripletas | tripletachira.com `pruebah.php?bt=&bt2=` (sitio oficial) | RV `/lottery/triple-tachira` | ✅ verificada (WU f18) — informativa con desajustes: 3er sorteo 19:20 vs **22:10** oficial; premios 600/60/6.000 vs **500/50/5.000** del reglamento G-20004065-3 (ver H9) |
+| 20 | `triple-facil` | tripletas | api.lotterly.co `/v1/results/triple-facil/` (sitio oficial triplefacil.com → SPA lotterly) | RV `/lottery/triple-facil` | ✅ verificada (WU f19): **12 sorteos diarios 08:00–19:00 confirmados por la API oficial**; el sitio oficial NO publica cifras ni reglamento → premiación INFORMATIVA (700×/60×/10×). **Hallazgo terminales**: los "3 resultados" de la web (prev/main/next) NO son independientes — main es el triple y prev/next son terminales DERIVADAS (2 últimos dígitos ±1, cálculo del front); probados los slugs `triple-facil-terminal`, `terminal-facil`, etc. en lotterly → **400 "product_slug does not exist"** (no existe producto terminal aparte) |
 
 ## Notas
 

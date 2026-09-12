@@ -1321,3 +1321,86 @@ tests unit+feature, regresión de conteos (18→19 juegos), `docs/juegos.json` r
 ## Siguiente paso
 - sdd-verify del PR 18 cuando el orquestador lo dispare.
 - Juego 21 (Triple Facil): CONDICIONAL — decisión del cliente (dos juegos `triple-facil`/`triple-facil-terminal` vs uno con dos plugins).
+
+---
+
+# Apply Progress (WU f19) — PR 19 (Triple Fácil con API oficial de lotterly.co)
+
+**Rama**: `feat/integracion-juegos-scrapers-f19-triple-facil`
+**Base**: `feat/integracion-juegos-scrapers-f18-triple-tachira`
+**Estado**: COMPLETADO (f19.1–f19.8)
+
+> Nota de merge: secciones previas viven en este archivo y en Engram (`apply-progress-f14`/`f16`/`f18`).
+> El estado acumulado completo está en el topic `sdd/integracion-juegos-scrapers/apply-progress`.
+
+## Resumen
+
+Integración del juego 21 (Triple Fácil) con la API oficial de lotterly.co (la MISMA plataforma de
+Loto Chaima y Selva Plus): el sitio oficial triplefacil.com es una SPA que consume
+`GET /v1/results/triple-facil/?exact_date=YYYY-MM-DD`. El scraper parsea los 12 sorteos diarios
+(08:00–19:00, cada hora `:00`) y guarda el TRIPLE (3 cifras, STRING con ceros a la izquierda) como
+`triple_a` en `numeros_ganadores`. El seeder registra el juego con 100 opciones de TERMINAL (00-99)
+y premios INFORMATIVOS (el sitio oficial no publica cifras).
+
+## HALLAZGO H10 — los "3 resultados" de la web son terminales DERIVADAS (respuesta a la duda del cliente)
+
+La web oficial muestra por cada sorteo `prev / main / next`: `main` es el TRIPLE (3 cifras) y
+`prev`/`next` son los **2 últimos dígitos ±1** (cálculo del front: `r = n % 100`, prev = r-1,
+next = r+1). NO son resultados independientes ni existe un juego/producto terminal aparte:
+probados los slugs `triple-facil-terminal`, `terminal-facil`, `triple-facil-terminales` y
+`terminales-facil` en lotterly → TODOS devuelven **400 "product_slug does not exist"** (verificado
+en vivo el 12-sep-2026). Se documenta en `docs/fuentes-oficiales.md` y `docs/comparacion-juegos.md`
+(hallazgo H10). El juego se modela como UN juego: el scraper persiste el triple; el seeder registra
+las 100 opciones del terminal real (label "00".."99", value "0".."99", numero 0..99) y documenta en
+config las modalidades (terminal 60×, aproximación 10×) + `premio_multiplo` 700 informativo.
+
+## TDD Cycle Evidence
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| f19.1/f19.3 | tests/Unit/TripleFacilScraperTest.php | Unit | N/A (nuevo) | 12 errores (clase inexistente) | 12/12 (30) | 12 casos (día completo 12, horas 08:00–19:00, triple_a "489"/"939" string, padding "73"→"073" y "7"→"007", parcial 9 con "073", estructura+sin id externo, entradas sin resultado, fail-fast, JSON inválido, vacío, `[]`, sin estructura) | Pint clean |
+| f19.2/f19.4 | tests/Feature/TripleFacilResultsTest.php | Feature | N/A (nuevo) | 7 errores (seeder inexistente) | 7/7 (35) | 7 casos (juego+config informativo, límite+plugin Tripletas, 12 horarios, 100 opciones de terminal, persistencia 12, dedupe, resolver) | Pint clean |
+| f19.5 | JuegosJsonTest + LimitesScopedApiTest | Feature | previo 33/33 | 3+2 fallos (archivo stale 19 vs 20; conteos 19) | 3/3 (506) + 30/30 (403) | conteos 20/40/80 mixto 40; 100 opciones triple-facil | OK |
+| f19.6 | Contrato JSON | Runtime | — | juegos:export → 20 juegos | md5 idéntico ×2 (fa69555a) | — | OK |
+| f19.7 | Harness real (scraper) | Runtime | N/A | — | AYER 12 + HOY 10 | rescrape 22 filas, 0 errores | — |
+
+**Test Summary**: +19 tests (12 unit + 7 feature Facil); focused `--filter=Facil` → 19/19 (65 assertions);
+suite completa **629/627/2** (3056 assertions) + `pint --test` limpio.
+
+## Work Unit Evidence
+
+| Work unit | Focused test | Runtime harness | Rollback boundary |
+|-----------|--------------|-----------------|-------------------|
+| WU1 scraper+fixtures | --filter=TripleFacilScraperTest → 12/12 | parse fixtures reales; fetch real verificado en vivo (12-sep) | Eliminar TripleFacilScraper + 3 fixtures + test unit |
+| WU2 seeder+feature | --filter=TripleFacilResultsTest → 7/7 | db:seed TripleFacilSeeder → juego id 20; export 20 juegos | Eliminar TripleFacilSeeder + revertir DatabaseSeeder + feature test |
+| WU3 regresión conteos | JuegosJsonTest 3/3 + LimitesScopedApiTest 30/30 | N/A (regresión API) | Revertir aserciones (19→20, 38→40, 76→80, mixto 38→40) |
+| WU4 contrato JSON | Suite (consistencia verde) | juegos:export contra BD local → docs/juegos.json; md5 idéntico ×2 | Regenerar el archivo con el comando |
+| WU5 carga real | --filter=Facil 19/19 | TripleFacilScraper ×2 fechas: AYER 12 (día completo), HOY 10 (parcial 08:00–17:00); rescrape 22 filas, 0 errores | Filas resultados de triple-facil (22) |
+
+## Carga real (BD local)
+
+- AYER 2026-09-11: 12 resultados (08:00 489 … 19:00 939) — día completo.
+- HOY 2026-09-12: 10 resultados parciales (08:00 964, 09:00 570, 10:00 **073**, 11:00 558, 12:00 767,
+  13:00 759, 14:00 **049**, 15:00 346, 16:00 992, 17:00 193) — parcial correcto, ceros a la izquierda ✓.
+- Dedupe: rescrape mantiene 22 filas (0 errores). BD local total **225** (203 previos + 22, 20 juegos).
+
+## Archivos
+
+- backend/app/Plugins/Scrapers/TripleFacilScraper.php (create)
+- backend/database/seeders/TripleFacilSeeder.php (create) + DatabaseSeeder (modify: 20º juego)
+- backend/tests/Fixtures/triplefacil_results.json + triplefacil_parcial.json + triplefacil_vacio.json (create, reales)
+- backend/tests/Unit/TripleFacilScraperTest.php + Feature/TripleFacilResultsTest.php (create)
+- backend/tests/Feature/JuegosJsonTest.php + LimitesScopedApiTest.php (modify: 19→20)
+- docs/juegos.json (regenerado, 20 juegos, md5 fa69555a) + backend/docs/juegos.md (fila 21 + nota H10) + docs/fuentes-oficiales.md (fila 20 verificada) + docs/comparacion-juegos.md (fila + H10)
+- openspec/.../tasks.md + apply-progress.md (modify)
+
+## Commits (rama f19)
+
+- (se generan al cierre del WU, work-unit en español, NO se abren PRs)
+
+## Siguiente paso
+
+- sdd-verify del PR 19 cuando el orquestador lo dispare.
+- Juego 22 (Triple Zamorano): requiere URL y estructura de la fuente del cliente antes de aplicar.
+- Pendientes de cliente: decidir si el motor debe derivar el terminal (n % 100) del triple para
+  validar apuestas de terminal/aproximación de Triple Fácil (H10 — el motor no usa premio_multiplo aún).

@@ -60,6 +60,7 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 | 18 | Mega Animal 40 | `mega-animal-40` | animalitos | 09:00–20:00 (12 horarios `:00`) | `https://resultadosvenezuela.com/lottery/mega-animal-40` (HTML agregador por fecha) | `MegaAnimal40Scraper` | ✅ Verificado con datos reales (12-sep: HOY 5 + AYER 12, dedupe) |
 | 19 | Selva Plus | `selva-plus` | animalitos | 08:15–20:15 (13 horarios `:15`) | `https://api.lotterly.co/v1/results/selva-plus/` (API oficial) | `SelvaPlusScraper` | ✅ Verificado con datos reales (12-sep: HOY 7 + AYER 13, dedupe) |
 | 20 | Triple Táchira | `triple-tachira` | tripletas | 13:15, 16:45, 22:10 (3 horarios) | `https://tripletachira.com/pruebah.php` (sitio oficial) | `TripleTachiraScraper` | ✅ Verificado con datos reales (12-sep: AYER 3 + HOY 1, dedupe) |
+| 21 | Triple Fácil | `triple-facil` | tripletas | 08:00–19:00 (12 horarios `:00`) | `https://api.lotterly.co/v1/results/triple-facil/` (API oficial lotterly.co) | `TripleFacilScraper` | ✅ Verificado con datos reales (12-sep: AYER 12 + HOY 10, dedupe) |
 
 > `LoteriaDeHoyScraper` es parametrizado: reutiliza el mismo `scraper_class` para los juegos de
 > loteriadehoy.com registrando la `scraper_url` de cada juego (se usa su slug/name para fail-fast
@@ -226,14 +227,40 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 > dominical NO uniforme en la muestra (06-sep solo 22:10; 13-sep ninguno) —
 > pendiente de confirmar con más muestras (la informativa dice 17:10).
 
-## Juegos pendientes (20–22)
+> `TripleFacilScraper` consume la API oficial de la plataforma lotterly.co (la
+> MISMA de Loto Chaima y Selva Plus, con `product_slug` distinto): el sitio
+> oficial triplefacil.com es una SPA que llama a
+> `GET /v1/results/triple-facil/?exact_date=YYYY-MM-DD` (sin auth ni anti-bot).
+> La respuesta es un array de **12 sorteos diarios (08:00–19:00, cada hora
+> `:00`)**, `result` = triple de 3 cifras como STRING con ceros a la izquierda
+> ("073", "049") → se normaliza con padding a 3 dígitos y se guarda como
+> `triple_a` en `numeros_ganadores` (`{"pais":"VE","triple_a":"346"}`, patrón
+> Trio Activo / La Ricachona). **HALLAZGO — los "3 resultados" de la web**:
+> la web oficial muestra por sorteo `prev / main / next` donde `main` es el
+> TRIPLE (3 cifras) y `prev`/`next` son **terminales DERIVADAS** (los 2 últimos
+> dígitos ±1, calculados matemáticamente en el front — función oficial
+> `r = n % 100`, prev = r-1, next = r+1): NO son resultados independientes ni
+> existe un juego/producto terminal aparte (probados los slugs
+> `triple-facil-terminal`, `terminal-facil`, etc. en lotterly → 400
+> "product_slug does not exist"). El juego se registra con las **100 opciones
+> del terminal real (00-99)**: label "00".."99", value "0".."99", numero
+> 0..99 (mismo patrón que el plugin Terminales); el triple es entrada libre
+> (000-999) y queda documentado en `config`. **Premios INFORMATIVOS** (el sitio
+> oficial NO publica cifras ni tiene reglamento visible; fuente RV
+> `/lottery/triple-facil`): Triple completo **700×**, Terminal **60×**,
+> Aproximación (terminal ±1) **10×** — el motor no usa `premio_multiplo` aún
+> (gap conocido). Operador: First Success Online C.A. / Lotería de Oriente
+> (Monagas). Sin ID externo → `sorteo_id_externo` null y dedupe por
+> juego+fecha+hora en `saveResults` heredado. Sorteos sin `result` se saltan;
+> respuesta vacía/inválida/sin entradas → RuntimeException (fail-fast).
+
+## Juegos pendientes (22)
 
 Pendientes de integración (un work unit por juego, orden de URLs del cliente). Se agregarán
 aquí en su mismo work unit:
 
 | # | Nombre | slug | type (fuente) | Notas |
 |---|--------|------|---------------|-------|
-| 21 | Triple Facil | `triple-facil` | tripletas/terminales | **Condicional** (doble modalidad, decisión del cliente) |
 | 22 | Triple Zamorano | `triple-zamorano` | tripletas (API productId) | |
 
 ## Estrategia de tests
