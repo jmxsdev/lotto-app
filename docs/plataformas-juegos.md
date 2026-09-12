@@ -3,7 +3,8 @@
 Referencia operativa: qué plataformas alojan varios juegos bajo un mismo backend, cómo detectarlas
 al recibir nuevas URLs y qué juegos candidatos quedan pendientes de decisión del cliente.
 
-> Última actualización: 2026-09-12 (integración de Loto Chaima vía API lotterly.co).
+> Última actualización: 2026-09-12 (integración de Loto Chaima vía API lotterly.co;
+> investigación y documentación de resultadosvenezuela.com como Plataforma 4).
 
 ## Plataforma 1 — premierpluss (portal: lagranjita.com)
 
@@ -87,6 +88,69 @@ como 57 opciones del juego (`JuegoOpcion`, `value` = slug sin acentos vía `Str:
 **Cómo reconocer este patrón**: API REST con `product_slug` en la ruta, filtro `exact_date`, resultados en 24h
 y string con padding; se detecta al recibir URLs de tipo `https://<plataforma>/<juego>/resultados` cuyo
 frontend consuma este endpoint.
+
+## Plataforma 4 — resultadosvenezuela.com (agregador HTML)
+
+**Detectada con**: Mega Animal 40 (juego 18, integrado).
+
+**Naturaleza**: AGREGADOR de resultados (no la fuente oficial de ningún juego). El cliente no
+encontró página oficial para Mega Animal 40 y eligió este agregador; el sitio publica datos
+"directamente desde fuentes oficiales" según su propio texto, pero para el resto de los juegos
+conviene preferir las fuentes oficiales cuando existan (ver `docs/comparacion-juegos.md`).
+
+**Patrón de datos** (HTML server-rendered por fecha, SIN API JSON pública — verificados 404:
+`/api*`, `*.json`, `lottery_stats.php` es HTML):
+
+```
+GET https://resultadosvenezuela.com/lottery/{slug}              → día en curso (parcial)
+GET https://resultadosvenezuela.com/lottery/{slug}?date=YYYY-MM-DD → fecha pasada (completo)
+```
+
+- Cada resultado es una card `<div class="result-card">` con `card-time` (12h, p. ej. "08:00 PM"),
+  `card-number` (número del animal), `card-name` (nombre del animal) y `card-date` (DD/MM/YYYY);
+  la imagen lleva `alt="Animalito X número N - <Juego> <fecha>"`.
+- El sitio SOLO renderiza horas ya sorteadas (el día en curso es parcial). Una fecha sin sorteos
+  ocurridos renderiza la página completa SIN cards (mensaje "No se encontraron sorteos para este
+  periodo") — estado válido, no un error.
+- Los juegos de TRIPLES del proveedor renderizan el próximo sorteo como card "Pendiente" (🕒, sin
+  `card-number`, `opacity: 0.5`) — el parser debe saltar cards sin número.
+- Sitemap público en `https://resultadosvenezuela.com/sitemap.xml` (permite enumerar el catálogo).
+
+**Anti-bot / cortesía** (verificado 2026-09-12):
+
+- Sin challenge anti-bot ni CAPTCHA (respuesta HTML normal con User-Agent de navegador).
+- `robots.txt`: `User-agent: *` con `Allow: /` y `Disallow: /cache/ /includes/ /logs/ /scraper/
+  /admin-add-result.php /result.php` → **NUNCA** tocar esas rutas (en especial `result.php`, que
+  sirve los certificados oficiales de los sorteos).
+- Cortesía: pocas requests y `sleep ~2s` entre peticiones (así se hizo el relevamiento del catálogo).
+
+**Catálogo del proveedor** (35 páginas `/lottery/*` en el sitemap, NO integrar otras en este WU):
+lotto-activo, la-granjita, granja-millonaria, granjazo, guacharo-activo, guacharito-millonario,
+chance-animalitos, centena-animalitos, centena-plus, cazaloton, selva-plus, monje-millonario,
+mega-animal-40, ruleta-activa, la-ricachona-animalito, lotto-activo-rd, lotto-activo-rdominicana,
+loto-chaima, triple-chance, triple-zulia, triple-tachira, triple-caracas, triple-caliente,
+triple-zamorano, triple-uneloton, triple-centena, triple-dorado, triple-facil, la-ricachona,
+trio-activo, la-ruca, terminal-trio, terminal-la-granjita, triple-centena-terminal, granjita-plus.
+
+**Producto integrado**: Mega Animal 40 — ✅ integrado (juego id 17, `MegaAnimal40Scraper`), con
+zoológico CANÓNICO de 38 animalitos (coincide con el plugin Animalitos: el juego no registra
+`JuegoOpcion` propias y el catálogo cae al plugin por fallback), 12 sorteos diarios 09:00–20:00
+en bloques Mañana (09-11) / Tarde (12-17) / Noche (18-20) según el Reglamento N° DIF-RGTO-033-00,
+operado por **Big Data Tecnology, C.A.** bajo la **Lotería de Cojedes** (Fundación de Beneficencia
+Pública y Bienestar Social del Estado Cojedes), sistema certificado por **SENCAMER**. Premio:
+**30x normal y 40x cuando el sistema sortea el comodín "MEGA"** (automático, sin costo extra).
+
+**Hallazgo — comodín "MEGA"**: el comodín de 40x NO aparece como marcador en las cards
+(escaneadas las fechas 11, 10, 9, 8, 7, 6, 5, 4, 3-sep + 12-sep parcial + 13-sep): las
+ocurrencias de "MEGA" en el HTML son el nombre del juego y la ruta de las imágenes
+(`/assets/images/animales/mega-animal-40/`). El comodín queda documentado como hallazgo de la
+comparación (NO implementado: `premio_multiplo` 30 estático en este WU). Si el proveedor llega a
+marcarlo, el scraper deberá capturarlo (p. ej. `comodin: true` en `numeros_ganadores`).
+
+**Cómo reconocer este patrón**: HTML server-rendered con cards `.result-card` (`.card-time`,
+`.card-number`, `.card-name`, `.card-date`), filtro `?date=YYYY-MM-DD`, imágenes por juego en
+`/assets/images/animales/{slug}/`, secciones de información en acordeones (`#game-info`,
+"¿Qué es X?", "¿Cómo jugar y ganar?", FAQs, "⏱️ Horarios").
 
 ## Candidatos (para consultar al cliente)
 

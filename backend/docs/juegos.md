@@ -57,6 +57,7 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 | 15 | La Granjita | `la-granjita` | animalitos | 08:00–19:00 (12 horarios `:00`) | `https://www.lagranjita.com/api/results.json?productId=1` (API oficial) | `LaGranjitaScraper` | ✅ Verificado con datos reales (12-sep, API oficial sin anti-bot) |
 | 16 | La Ricachona | `la-ricachona` | tripletas | 08:05–19:05 (12 horarios `:05`) | `https://laricachona.com/` (HTML oficial por fecha) | `LaRicachonaScraper` | ✅ Verificado con datos reales (12-sep, HTML oficial) |
 | 17 | Loto Chaima | `loto-chaima` | animalitos | 08:00–19:00 (12 horarios `:00`) | `https://api.lotterly.co/v1/results/loto-chaima/` (API oficial) | `LotoChaimaScraper` | ✅ Verificado con datos reales (12-sep, API oficial sin auth) |
+| 18 | Mega Animal 40 | `mega-animal-40` | animalitos | 09:00–20:00 (12 horarios `:00`) | `https://resultadosvenezuela.com/lottery/mega-animal-40` (HTML agregador por fecha) | `MegaAnimal40Scraper` | ✅ Verificado con datos reales (12-sep: HOY 5 + AYER 12, dedupe) |
 
 > `LoteriaDeHoyScraper` es parametrizado: reutiliza el mismo `scraper_class` para los juegos de
 > loteriadehoy.com registrando la `scraper_url` de cada juego (se usa su slug/name para fail-fast
@@ -151,14 +152,35 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 > devuelven 400 "product_slug does not exist") — solo se integra
 > `loto-chaima`; documentada como Plataforma 3 en `docs/plataformas-juegos.md`.
 
-## Juegos pendientes (18–22)
+> `MegaAnimal40Scraper` consume el HTML server-rendered del agregador
+> resultadosvenezuela.com (sin API JSON pública): `GET /lottery/mega-animal-40`
+> renderiza el día en curso (parcial: SOLO horas ya sorteadas) y
+> `GET /lottery/mega-animal-40?date=YYYY-MM-DD` una fecha pasada (completo).
+> Cada resultado es una card `.result-card` con `card-time` (12h, → `normalizeHora`
+> a "H:i"), `card-number` y `card-name` (zoológico CANÓNICO de 38 animalitos,
+> Delfín/Ballena 0 ... Culebra 36 — coincide con el plugin Animalitos, por lo que
+> el juego NO registra `JuegoOpcion` propias y el catálogo cae al plugin por
+> fallback). Una fecha sin sorteos ocurridos renderiza la página completa SIN
+> cards (estado VÁLIDO → `parse` devuelve `[]`); solo el cuerpo vacío lanza
+> RuntimeException (fail-fast). Cards "Pendiente" (sin `card-number`, usadas por
+> los juegos de triples del proveedor) se saltan (defensivo). El proveedor es un
+> AGREGADOR (no la fuente oficial): la página documenta que el juego es operado
+> por Big Data Tecnology, C.A. bajo Lotería de Cojedes (Reglamento DIF-RGTO-033-00,
+> SENCAMER), con 12 sorteos diarios 09:00–20:00 en bloques Mañana/Tarde/Noche y
+> **premio 30x normal / 40x con comodín "MEGA" automático** (el comodín NO aparece
+> como marcador en las cards — hallazgo documentado en `docs/plataformas-juegos.md`
+> y `docs/comparacion-juegos.md`; `premio_multiplo` queda en 30, sin lógica de
+> comodín en este WU). Sin ID externo por sorteo → `sorteo_id_externo` null y
+> dedupe por juego+fecha+hora en `saveResults` heredado. Documentada como
+> Plataforma 4 en `docs/plataformas-juegos.md`.
+
+## Juegos pendientes (19–22)
 
 Pendientes de integración (un work unit por juego, orden de URLs del cliente). Se agregarán
 aquí en su mismo work unit:
 
 | # | Nombre | slug | type (fuente) | Notas |
 |---|--------|------|---------------|-------|
-| 18 | Mega Animal 40 | `mega-animal-40` | animalitos (lottoactivo) | |
 | 19 | Selva Plus | `selva-plus` | según URL cliente | |
 | 20 | Triple Tachira | `triple-tachira` | tripletas (API productId) | |
 | 21 | Triple Facil | `triple-facil` | tripletas/terminales | **Condicional** (doble modalidad, decisión del cliente) |
