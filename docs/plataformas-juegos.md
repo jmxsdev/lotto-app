@@ -3,7 +3,7 @@
 Referencia operativa: qué plataformas alojan varios juegos bajo un mismo backend, cómo detectarlas
 al recibir nuevas URLs y qué juegos candidatos quedan pendientes de decisión del cliente.
 
-> Última actualización: 2026-09-12 (integración de La Ricachona triples).
+> Última actualización: 2026-09-12 (integración de Loto Chaima vía API lotterly.co).
 
 ## Plataforma 1 — premierpluss (portal: lagranjita.com)
 
@@ -58,6 +58,35 @@ GET https://laricachona.com/?date=YYYY-MM-DD
 
 **Cómo reconocer este patrón**: sitio Laravel clásico con jQuery + datepicker, secciones `#triples`/`#animalitos`,
 resultados server-rendered con `?date=`.
+
+## Plataforma 3 — lotterly.co (API results por `product_slug`)
+
+**Detectada con**: Loto Chaima (juego 17, integrado).
+
+**Patrón de datos** (API JSON, sin auth ni anti-bot, soporta fechas actuales y pasadas):
+
+```
+GET https://api.lotterly.co/v1/results/{product_slug}/?exact_date=YYYY-MM-DD
+```
+
+**Contrato** (verificado 2026-09-11/12 con datos distintos):
+
+- Respuesta: array de sorteos, uno por horario del día (12 para Loto Chaima: 08:00–19:00, cada hora `:00`):
+  `[{"date":"2026-09-12","time":"08:00:00","result":"31"}, ...]`.
+- `time` en 24h `HH:MM:SS`; `result` es un STRING con padding de 2 dígitos salvo el cero (`"0"`, `"04"`, `"46"`).
+- El sitio resuelve el nombre del animal con el string tal cual (`"0"`→Delfín, `"04"`→Alacrán); el scraper
+  maneja también `"00"` (Ballena) y el fallback de padding (`"4"`→"04"→Alacrán).
+- El API ya filtra por fecha (`exact_date`): no hay que filtrar el resultado.
+- La plataforma es **multi-producto por `product_slug`**: otros slugs devuelven 400 `"product_slug does not
+  exist"` (verificado). Solo se integra `loto-chaima` en este WU.
+
+**Producto del portal**: Loto Chaima — ✅ integrado (juego id 16, `LotoChaimaScraper`), con **zoológico
+PROPIO de 57 animales (0–55)** distinto al canónico (37→Tortuga, 38→Búfalo, 23→Cebra, 46→Puma...), registrado
+como 57 opciones del juego (`JuegoOpcion`, `value` = slug sin acentos vía `Str::slug`).
+
+**Cómo reconocer este patrón**: API REST con `product_slug` en la ruta, filtro `exact_date`, resultados en 24h
+y string con padding; se detecta al recibir URLs de tipo `https://<plataforma>/<juego>/resultados` cuyo
+frontend consuma este endpoint.
 
 ## Candidatos (para consultar al cliente)
 

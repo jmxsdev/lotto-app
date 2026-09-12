@@ -1150,3 +1150,87 @@ regresión de conteos, docs/juegos.json regenerado (15 juegos) y carga real.
 ## Siguiente paso
 - sdd-verify del PR 12 cuando el orquestador lo dispare.
 - Juego 17 (Loto Chaima): requiere URL/estructura del cliente.
+
+---
+
+# Apply Progress (WU f13) — PR 13 (Loto Chaima con API oficial de lotterly.co)
+
+**Cambio**: integracion-juegos-scrapers
+**Modo**: Strict TDD (backend: `composer test`)
+**Cadena**: feature-branch-chain (PR 13; base = PR 12 `feat/integracion-juegos-scrapers-f12-la-ricachona`)
+**Rama**: `feat/integracion-juegos-scrapers-f13-loto-chaima`
+**Estado**: COMPLETADO (f13.1–f13.8)
+
+## Resumen
+Integración del juego 17 (Loto Chaima) con la API OFICIAL de la plataforma lotterly.co:
+`GET https://api.lotterly.co/v1/results/loto-chaima/?exact_date=YYYY-MM-DD` (sin auth ni anti-bot;
+soporta fechas actuales y pasadas — verificada para 2026-09-12 y 2026-09-11 con datos distintos).
+Seeder `loto-chaima` (animalitos, premio_multiplo 30, límite banca/bs/3600, plugin Animalitos, 12
+horarios 08:00–19:00, scraper_class LotoChaimaScraper), scraper dedicado (parse del array: numero
+int desde `result`, `nombre_animal` por lookup del mapa propio de 57 animales con fallback de
+padding, hora `HH:MM:SS`→`H:i` con `normalizeHora`, `sorteo_id_externo` null, fail-fast,
+respuesta vacía/inválida/sin entradas → RuntimeException), 2 fixtures reales, tests unit+feature,
+regresión de conteos, `docs/juegos.json` regenerado (16 juegos, 57 opciones novas) y carga real.
+
+## Hallazgos
+- API oficial multi-producto por `product_slug`: la plataforma lotterly.co expone
+  `GET https://api.lotterly.co/v1/results/{product_slug}/?exact_date=YYYY-MM-DD`; otros slugs
+  devuelven 400 `"product_slug does not exist"`. Solo se integra `loto-chaima`; documentada como
+  Plataforma 3 en `docs/plataformas-juegos.md`.
+- Contrato: array de 12 sorteos/día (08:00–19:00, cada hora `:00`), `time` en 24h `HH:MM:SS`,
+  `result` STRING con padding de 2 dígitos salvo el cero (`"0"`, `"04"`, `"46"`). El API ya filtra
+  por fecha (`exact_date`): `execute` carga la fecha pedida sin filtrar (patrón LaGranjita).
+- **Zoológico PROPIO de 57 animales (0–55)**, distinto al canónico del plugin Animalitos
+  (37→Tortuga, 38→Búfalo, 23→Cebra, 46→Puma...). Extraído del bundle oficial del sitio y definido
+  como `LotoChaimaScraper::ZOOLOGICO` (fuente única: el scraper resuelve `nombre_animal` y el seeder
+  genera las 57 `JuegoOpcion` con `value = Str::slug(label)`).
+- Lookup del nombre: primero con el string tal cual (`"0"`→Delfín, `"04"`→Alacrán, `"00"`→Ballena);
+  si no está, fallback de padding (`"4"`→`"04"`→Alacrán). El cero sin padding del 13:00 del
+  11-sep se verificó contra datos reales (`0`→Delfín).
+- Ballena y Delfín comparten `numero` 0 (57 etiquetas para 56 números); `sort_order` determinista
+  según el orden del mapa.
+- Sin ID externo por sorteo → `sorteo_id_externo` null; dedupe por juego+fecha+hora (`saveResults`
+  heredado), como el resto.
+
+## TDD Cycle Evidence
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| f13.1/f13.3 | tests/Unit/LotoChaimaScraperTest.php | Unit | N/A (nuevo) | 15 errores (clase inexistente) | 15/15 | 15 casos (completo, parcial, horas, `"0"`/`"00"`/padding, acentos, entradas sin resultado, fail-fast, JSON inválido, vacío, `[]`, `{}`, estructura) | Pint clean |
+| f13.2/f13.4 | tests/Feature/LotoChaimaResultsTest.php | Feature | N/A (nuevo) | 7 errores (seeder inexistente) | 7/7 | 7 casos (juego+scraper_class, límite+plugin, 12 horarios, 57 opciones, persistencia 12, dedupe, resolver) | Pint clean |
+| f13.5 | JuegosJsonTest + LimitesScopedApiTest | Feature | previo 3/3, 30/30 | 2 fallos (contrato JSON 15 vs 16) | 3/3 (388) + 30/30 (347) | conteos 16/32/64, mixto 32, 57 opciones propias | OK |
+| f13.6 | Contrato JSON | Runtime | — | juegos:export → 16 juegos | md5 idéntico ×2 (c9ed8e26) | — | OK |
+| f13.7 | Harness real (job) | Runtime | N/A | — | HOY 5 + AYER 12 | rescrape 5/12, 17 total, 0 errores | — |
+
+**Test Summary**: +22 tests (15 unit + 7 feature Chaima); focused `--filter=Chaima` → 22/22 (77 assertions);
+`--filter=JuegosJsonTest` 3/3 (388 assertions); `--filter=LimitesScopedApiTest` 30/30 (347 assertions);
+suite completa pendiente de correr al cierre.
+
+## Work Unit Evidence
+| Work unit | Focused test | Runtime harness | Rollback boundary |
+|-----------|--------------|-----------------|-------------------|
+| WU1 scraper+fixtures | --filter=LotoChaimaScraperTest → 15/15 | parse fixtures reales; fetch real en harness | Eliminar LotoChaimaScraper + 2 fixtures + test unit |
+| WU2 seeder+feature | --filter=LotoChaimaResultsTest → 7/7 | db:seed LotoChaimaSeeder → juego id=16; export 16 juegos | Eliminar LotoChaimaSeeder + revertir DatabaseSeeder + feature test |
+| WU3 regresión conteos | JuegosJsonTest 3/3 + LimitesScopedApiTest 30/30 | N/A (regresión API) | Revertir aserciones (16→15, 32→30, 64→60) |
+| WU4 contrato JSON | Suite (consistencia verde) | juegos:export contra BD local → docs/juegos.json; md5 idéntico ×2 | Regenerar el archivo con el comando |
+| WU5 carga real | --filter=Chaima 22/22 | ScrapeResultsJob ×2 fechas: HOY 5 (parcial 08:00–12:00), AYER 12 (día completo); rescrape 5/12, 17 únicos, 0 errores | Filas resultados de loto-chaima (17) |
+
+## Carga real (BD local)
+- HOY 2026-09-12: 5 resultados (08:00→31 Lapa, 09:00→46 Puma, 10:00→33 Pescado, 11:00→4 Alacrán, 12:00→39 Lechuza) — parcial correcto.
+- AYER 2026-09-11: 12 resultados (día completo: 37 Tortuga, 18 Burro, 43 Mariposa, 3 Ciempiés, 36 Culebra, 0 Delfín, 44 Chigüire, 5 León, 38 Búfalo, 13 Mono, 2 Toro, 23 Cebra).
+- Dedupe: rescrape mantiene 5/12 (17 total, 0 errores en log). BD local total 162 (145 previos + 17).
+
+## Archivos
+- backend/app/Plugins/Scrapers/LotoChaimaScraper.php (create)
+- backend/database/seeders/LotoChaimaSeeder.php (create) + DatabaseSeeder (modify)
+- backend/tests/Fixtures/lotochaima_results.json + lotochaima_parcial.json (create, reales)
+- backend/tests/Unit/LotoChaimaScraperTest.php + Feature/LotoChaimaResultsTest.php (create)
+- backend/tests/Feature/JuegosJsonTest.php + LimitesScopedApiTest.php (modify: 15→16)
+- docs/juegos.json (regenerado, 16 juegos) + backend/docs/juegos.md (fila 17) + docs/plataformas-juegos.md (Plataforma 3)
+- openspec/.../tasks.md + apply-progress.md (modify)
+
+## Commits (rama f13)
+- (se generan al cierre del WU, work-unit en español, NO se abren PRs)
+
+## Siguiente paso
+- sdd-verify del PR 13 cuando el orquestador lo dispare.
+- Juego 18 (Mega Animal 40): requiere URL/estructura del cliente.

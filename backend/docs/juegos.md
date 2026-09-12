@@ -56,6 +56,7 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 | 14 | Guacharo Activo | `guacharo-activo` | animalitos | 08:00–19:00 (12 horarios `:00`) | `https://loteriadehoy.com/animalito/guacharoactivo/resultados/` | `LoteriaDeHoyScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
 | 15 | La Granjita | `la-granjita` | animalitos | 08:00–19:00 (12 horarios `:00`) | `https://www.lagranjita.com/api/results.json?productId=1` (API oficial) | `LaGranjitaScraper` | ✅ Verificado con datos reales (12-sep, API oficial sin anti-bot) |
 | 16 | La Ricachona | `la-ricachona` | tripletas | 08:05–19:05 (12 horarios `:05`) | `https://laricachona.com/` (HTML oficial por fecha) | `LaRicachonaScraper` | ✅ Verificado con datos reales (12-sep, HTML oficial) |
+| 17 | Loto Chaima | `loto-chaima` | animalitos | 08:00–19:00 (12 horarios `:00`) | `https://api.lotterly.co/v1/results/loto-chaima/` (API oficial) | `LotoChaimaScraper` | ✅ Verificado con datos reales (12-sep, API oficial sin auth) |
 
 > `LoteriaDeHoyScraper` es parametrizado: reutiliza el mismo `scraper_class` para los juegos de
 > loteriadehoy.com registrando la `scraper_url` de cada juego (se usa su slug/name para fail-fast
@@ -128,14 +129,35 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 > `tripleResultArticle`. Sin ID externo por sorteo → `sorteo_id_externo` null
 > y dedupe por juego+fecha+hora en `saveResults` heredado.
 
-## Juegos pendientes (17–22)
+> `LotoChaimaScraper` consume la API oficial de la plataforma lotterly.co
+> (GET `https://api.lotterly.co/v1/results/loto-chaima/?exact_date=YYYY-MM-DD`,
+> sin auth ni anti-bot; soporta fechas actuales y pasadas — verificada para
+> 2026-09-12 y 2026-09-11 con datos distintos). La respuesta es un array de
+> sorteos (uno por horario del día, 12 en total) con `time` en 24h `HH:MM:SS`
+> (→ `normalizeHora` a "H:i") y `result` como STRING con padding de 2 dígitos
+> salvo el cero (`"0"`, `"04"`, `"46"`): el sitio resuelve el nombre del
+> animal con el string tal cual (`"0"`→Delfín, `"04"`→Alacrán); por robustez
+> el scraper maneja también `"00"` (Ballena) y el fallback de padding
+> (`"4"`→"04"→Alacrán). El zoológico es PROPIO de **57 animales (0–55)**,
+> distinto al canónico del plugin Animalitos (37→Tortuga, 38→Búfalo, 23→Cebra,
+> 46→Puma...), y es la fuente de los nombres y de las opciones del juego
+> (el mapa `LotoChaimaScraper::ZOOLOGICO` lo comparte el seeder; `value` =
+> slug sin acentos vía `Str::slug`). El API ya filtra por fecha (`exact_date`):
+> `execute` carga la fecha solicitada sin filtrar (patrón LaGranjita). Sin ID
+> externo por sorteo → `sorteo_id_externo` null y dedupe por juego+fecha+hora
+> en `saveResults` heredado. Sorteos sin `result` se saltan (resultados
+> parciales del día); respuesta vacía/inválida/sin entradas → RuntimeException.
+> La plataforma lotterly.co es multi-producto por `product_slug` (otros slugs
+> devuelven 400 "product_slug does not exist") — solo se integra
+> `loto-chaima`; documentada como Plataforma 3 en `docs/plataformas-juegos.md`.
+
+## Juegos pendientes (18–22)
 
 Pendientes de integración (un work unit por juego, orden de URLs del cliente). Se agregarán
 aquí en su mismo work unit:
 
 | # | Nombre | slug | type (fuente) | Notas |
 |---|--------|------|---------------|-------|
-| 17 | Loto Chaima | `loto-chaima` | según URL cliente | |
 | 18 | Mega Animal 40 | `mega-animal-40` | animalitos (lottoactivo) | |
 | 19 | Selva Plus | `selva-plus` | según URL cliente | |
 | 20 | Triple Tachira | `triple-tachira` | tripletas (API productId) | |
@@ -175,9 +197,9 @@ aquí en su mismo work unit:
 > escapar (`JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT`).
 > La resolución de opciones replica EXACTAMENTE `JuegoController::opciones`: filas de
 > `juego_opciones` si existen (lotto-activo 38 animales; triple-zulia/triple-caliente/
-> triple-chance/el-arrejuntado 12 signos), si no, fallback al plugin vía
-> `JuegoPluginManager` (terminal-activo 100 números 00-99 vía Terminales; trio-activo 12
-> signos vía Tripletas; animalitos sin tabla — rd, rep-dom, monje, cazaloton, el-guacharito,
-> guacharo-activo — 38 animales canónicos vía Animalitos). NO editar el archivo a mano:
+> triple-chance/el-arrejuntado 12 signos; loto-chaima 57 animales propios), si no, fallback al
+> plugin vía `JuegoPluginManager` (terminal-activo 100 números 00-99 vía Terminales; trio-activo
+> 12 signos vía Tripletas; animalitos sin tabla — rd, rep-dom, monje, cazaloton, el-guacharito,
+> guacharo-activo, la-granjita — 38 animales canónicos vía Animalitos). NO editar el archivo a mano:
 > regenerarlo con el comando. La lógica vive en `App\Services\JuegoCatalogoService`
 > (compartida por el comando y el test de consistencia `JuegosJsonTest`).

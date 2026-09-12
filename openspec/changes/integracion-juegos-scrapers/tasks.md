@@ -110,7 +110,7 @@ Juego 11 (Triple Chance) completado en el PR 4 de la cadena (rama
 - [x] f10.7 CARGA REAL: `ScrapeResultsJob` contra el API real → HOY 2026-09-12: 4 resultados parciales (08:00 GALLINA 25, 09:00 RATON 8, 10:00 MONO 13, 11:00 LAPA 31); AYER 2026-09-11: 12 resultados (día completo). Rescrape idempotente (4/12, 16 únicos, 0 errores). BD local total 128.
 - [x] f10.8 Docs: fila 15 en `backend/docs/juegos.md` (type animalitos, 12 horarios, fuente API oficial, estado "verificado con datos reales 12-sep") + nota del scraper y de la plataforma (productId, otros productos del portal). tasks.md + apply-progress (merge) + commits work-unit en español. NO se abren PRs.
 
-Plantilla para los juegos restantes (#16–22):
+Plantilla para los juegos restantes (#18–22):
 
 - [ ] a. Seeder `backend/database/seeders/<Xxx>Seeder.php`: `Juego::firstOrCreate(['slug'])` + `scraper_class` + `JuegoLimite` (banca/bs/3600) + `PluginJuego` (reusa clase por type) + `JuegoOpcion*` + `JuegoHorario` (`firstOrCreate(['juego_id','hora'])`); registrar en `DatabaseSeeder`.
 - [ ] b. Scraper `backend/app/Plugins/Scrapers/<Xxx>Scraper.php` (solo fetch+parse+constructor) según fuente.
@@ -129,7 +129,7 @@ Plantilla para los juegos restantes (#16–22):
 | 14 | Guacharo Activo | guacharo-activo | animalitos (loteriadehoy) | ✅ integrado (PR 7) |
 | 15 | La Granjita | la-granjita | animalitos (API oficial lagranjita.com) | ✅ integrado (PR 11) |
 | 16 | La Ricachona | la-ricachona | tripletas (HTML oficial laricachona.com) | ✅ integrado (PR 12) |
-| 17 | Loto Chaima | loto-chaima | según URL cliente | |
+| 17 | Loto Chaima | loto-chaima | animalitos (API oficial lotterly.co) | ✅ integrado (PR 13) |
 | 18 | Mega Animal 40 | mega-animal-40 | animalitos (lottoactivo) | |
 | 19 | Selva Plus | selva-plus | según URL cliente | |
 | 20 | Triple Tachira | triple-tachira | tripletas (API productId) | |
@@ -164,6 +164,16 @@ Plantilla para los juegos restantes (#16–22):
 - [x] f12.5 REGENERADO `docs/juegos.json` con `php artisan juegos:export` (15 juegos, id 15 = la-ricachona, 12 opciones vía plugin Tripletas, horarios 08:05–19:05) y COMMITEADO; determinista (2 ejecuciones = mismo md5 4cb93cd6...).
 - [x] f12.6 CARGA REAL: `ScrapeResultsJob` contra el HTML real → HOY 2026-09-12: 5 resultados parciales (08:05→900, 09:05→962, 10:05→204, 11:05→370, 12:05→418); AYER 2026-09-11: 12 resultados (día completo). Rescrape idempotente (5/12, 17 total, 0 errores). BD local total 145.
 - [x] f12.7 Docs: fila 16 en `backend/docs/juegos.md` (type tripletas, 12 horarios, fuente HTML oficial, estado "verificado con datos reales 12-sep") + nota del scraper; `docs/plataformas-juegos.md` actualizado (La Ricachona triples → integrado; animalitos sigue candidato). tasks.md + apply-progress (merge) + commits work-unit en español. NO se abren PRs.
+
+### WU f13 — Loto Chaima con API oficial de lotterly.co (PR 13, rama f13-loto-chaima, base f12-la-ricachona) — ✅ COMPLETADO
+- [x] f13.1 Rama `feat/integracion-juegos-scrapers-f13-loto-chaima` creada desde f12. Scraper `LotoChaimaScraper` (extiende BaseScraper): `fetch` construye `https://api.lotterly.co/v1/results/loto-chaima/?exact_date=<fecha>`, parse del array JSON (numero `int` desde `result`, `nombre_animal` por lookup del mapa `ZOOLOGICO` de 57 animales con fallback de padding, hora `normalizeHora` de `HH:MM:SS`), `findJuegoOrFail` fail-fast, `saveResults` heredado (`numeros_ganadores = {"pais":"VE","numero":N,"nombre_animal":"X"}`). Maneja respuesta vacía/inválida/sin entradas (RuntimeException).
+- [x] f13.2 Seeder `LotoChaimaSeeder`: slug `loto-chaima`, name "Loto Chaima", type `animalitos`, `premio_multiplo` 30, `scraper_url` = `https://api.lotterly.co/v1/results/loto-chaima/`, `scraper_class` = LotoChaimaScraper, `requires_scraper` true, JuegoLimite banca/bs/3600, PluginJuego Animalitos, JuegoHorario 08:00–19:00 (12), y **57 filas de JuegoOpcion** (label con acentos, `value` = Str::slug sin acentos, `numero`, ballena y delfín con numero 0, `sort_order` determinista del mapa). Registrado en `DatabaseSeeder` (16º juego).
+- [x] f13.3 Fixtures reales `backend/tests/Fixtures/lotochaima_results.json` (día completo 2026-09-11, 12 sorteos, incluye `"0"`→Delfín) + `lotochaima_parcial.json` (2026-09-12: 5 sorteos). Snapshots literales del API.
+- [x] f13.4 RED→GREEN `LotoChaimaScraperTest.php` (unit, 15: parse día completo, horas H:i, numero/animal Tortuga=37/Cebra=23, lookup `"0"`→Delfín, `"00"`→Ballena, padding `"4"`→Alacrán, acentos Ciempiés/Búfalo, parcial, estructura, entradas sin resultado, fail-fast, JSON inválido, vacío, array vacío, sin estructura) + `LotoChaimaResultsTest.php` (feature, 7: seeder, límite+plugin, 12 horarios, 57 opciones, persistencia 12, dedupe, resolver). `composer test -- --filter=Chaima` → 22/22 (77 assertions).
+- [x] f13.5 Regresión: `JuegosJsonTest` 15→16 juegos (SLUGS_POR_ID + loto-chaima, 57 opciones desde tabla con acentos) y `LimitesScopedApiTest` 15→16 juegos/30→32 límites+origen/60→64 scope/mixto 30→32.
+- [x] f13.6 REGENERADO `docs/juegos.json` con `php artisan juegos:export` (16 juegos, id 16 = loto-chaima, **57 opciones** propias, horarios 08:00–19:00) y COMMITEADO; determinista (2 ejecuciones = mismo md5 c9ed8e26).
+- [x] f13.7 CARGA REAL: `ScrapeResultsJob` contra el API real → HOY 2026-09-12: 5 resultados parciales (08:00 Lapa 31, 09:00 Puma 46, 10:00 Pescado 33, 11:00 Alacrán 4, 12:00 Lechuza 39); AYER 2026-09-11: 12 resultados (día completo, incl. 13:00 Delfín 0). Rescrape idempotente (5/12, 17 únicos, 0 errores). BD local total 162.
+- [x] f13.8 Docs: fila 17 en `backend/docs/juegos.md` (type animalitos, 57 animales propios, 12 horarios, fuente API lotterly, estado "verificado con datos reales 12-sep") + nota del scraper y del zoológico propio; `docs/plataformas-juegos.md` → Plataforma 3 (lotterly.co, API por product_slug + exact_date, Loto Chaima integrado). tasks.md + apply-progress (merge) + commits work-unit en español. NO se abren PRs.
 
 ## Phase 3: Verificación / cierre
 
