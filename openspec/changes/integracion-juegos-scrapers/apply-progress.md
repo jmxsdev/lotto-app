@@ -1873,3 +1873,128 @@ Suite completa **693/691/2** (3399 assertions) + `pint --test` limpio.
 - `sdd-verify` del WU f25 cuando el orquestador lo dispare.
 - Pendientes de cliente (Monje): **premio especial de El Patronus** (reglamento 404) y
   **semántica de `special_result`** (flag 1/0 sin documentar).
+
+# Apply Progress (WU f26) — Cacería de reglamentos: fase final de consistencia
+
+**Rama**: `feat/integracion-juegos-scrapers-f26-caceria-reglamentos` (base: `f25-monje-zoo`)
+**Modo**: Strict TDD (backend: `composer test` vía `php artisan test`)
+**Estado**: ✅ COMPLETADO — 5/5 tareas
+
+## Resumen
+
+Cacería del **reglamento oficial (o afiche/reglas oficiales)** de los **18 juegos** sin reglamento
+verificado (los ya verificados —cazaloton 9, triple-tachira 19, trio-activo 7— no se repitieron).
+Método por juego: (1) barrido del sitio oficial (menú/footer/rutas típicas/PDFs; las SPAs se
+revisaron en sus bundles JS), (2) operador/lotería reguladora, (3) búsqueda web acotada
+(buscadores bloqueados → evidencia por rutas revisadas), (4) **descarga de TODO artefacto
+encontrado** a `docs/reglamentos/`, (5) extracción y aplicación con TDD (patrón Táchira),
+(6) documentación.
+
+**Resultado**: 11 PDFs de reglamento (6 **parseables** + 5 **escaneados**), 3 licencias RUNLOT,
+7 afiches oficiales de la familia Lotto Activo, índice README. **3 reglamentos parseables
+aplicados**: Triple Zulia, Triple Caliente y Triple Zamorano → `premio_multiplo` 30→**600** +
+`modalidades` (los 3 en `docs/juegos.json`). **Hallazgos**: H18 (Caliente: reglamento 5 sorteos
+vs API 3), H19 (Zamorano: reglamento L-D vs API domingos solo 19:00), H20 (sitio oficial
+megaanimal40.com; scraper NO migrado), **H11 RESUELTO** (premios de Zamorano con fuente).
+
+## Reporte por juego (reglamento: encontrado-parseable / encontrado-imagen / no publicado)
+
+| Juego | Reglamento | Dónde se encontró | Ruta guardada | Cambios aplicados |
+|---|---|---|---|---|
+| 1 `lotto-activo` | encontrado-imagen (1 pág, no parseable) | admin.lottoactivo.com (licencia vía POST `/core/process.php`) | `docs/reglamentos/reglamento-lotto-activo.pdf` | Ninguno (FAQ 30× ya aplicado en f22) |
+| 2 `triple-zulia` | **encontrado-parseable** (17 págs) | resultadostriplezulia.com (bundle JS → `/images/REGLAMENTO TRIPLE ZULIA NOV2025_.pdf`) | `docs/reglamentos/reglamento-triple-zulia.pdf` + `licencia-triple-zulia-runlot.pdf` | **premio 30→600×** + modalidades {cola:60, zodiacal:6000, terminal_zodiacal:600} |
+| 3 `terminal-activo` | encontrado-parseable (1 pág) | admin.lottoactivo.com (`Terminal_Trio.pdf`, md5 = Trio_Activo.pdf) | `docs/reglamentos/reglamento-terminal-activo.pdf` | Ninguno (60× ya aplicado en f22) |
+| 4 `lotto-activo-rd` | encontrado-parseable (mislink "Ruleta Royal", 4 págs) | admin.lottoactivo.com (`Lotto_Activo_Rd_Ve.pdf`) | `docs/reglamentos/reglamento-lotto-activo-rd.pdf` | Ninguno (confirma 30× y 23=Cebra ya aplicados) |
+| 5 `lotto-activo-rep-dom` | encontrado-parseable (mismo mislink, md5 idéntico) | admin.lottoactivo.com (`Lotto_Activo_RD.pdf`) | `docs/reglamentos/reglamento-lotto-activo-rep-dom.pdf` | Ninguno |
+| 6 `monje-millonario` | **no publicado** | `Lotto_Activo_2.pdf` → 404 (+6 variantes probadas) | — | Ninguno (premio Patronus sigue pendiente, H14) |
+| 8 `triple-caliente` | **encontrado-parseable** (17 págs) | triplecaliente.com (bundle JS → `/images/Reglamento TRIPLE CALIENTE.pdf`) | `docs/reglamentos/reglamento-triple-caliente.pdf` + `licencia-triple-caliente-runlot.pdf` | **premio 30→600×** + modalidades; horarios se mantienen 13:00/16:30/19:10 (operación, H18) |
+| 10 `triple-chance` | encontrado-escaneado (2 PDFs) | tuchance.com.ve `/reglamentos/` | `docs/reglamentos/reglamento-triple-chance.pdf` (VIGENTE) + `reglamento-triple-chance-2024.pdf` | Ninguno (premios ya del afiche, f24; el cliente extraerá los textos) |
+| 11 `el-arrejuntado` | **no publicado** | landing SPA (Astro) + backend API-only; rutas `/reglamento`, `/docs`, `/api/v1/reglamentos/`, `/openapi.json` → 404 | — | Ninguno |
+| 12 `el-guacharito` | **no publicado** | bundle oficial (`index-EQw1Zdrz.js`) sin reglamento; "Operado bajo licencia de la Lotería de Oriente" | — | Ninguno |
+| 13 `guacharo-activo` | **no publicado** | bundle oficial (`index-Dv-KFMIs.js`) sin reglamento | — | Ninguno |
+| 14 `la-granjita` | encontrado-escaneado (17 págs) | lagranjita.com → cdns2.premierpluss.com | `docs/reglamentos/reglamento-la-granjita.pdf` | Ninguno (el cliente extraerá los textos) |
+| 15 `la-ricachona` | encontrado-escaneado (15 págs) | laricachona.com `assets/files/` | `docs/reglamentos/reglamento-la-ricachona.pdf` | Ninguno |
+| 16 `loto-chaima` | **no publicado** | bundle de lotochaima.com (`index-DKeh2UsF.js`) sin reglamento | — | Ninguno |
+| 17 `mega-animal-40` | **no publicado (solo referenciado)** | reglamento N° DIF-RGTO-033-00 (14-nov-2023) citado por RV y el sitio; **sitio oficial encontrado**: megaanimal40.com (CONALOT/Big Data/Lotería de Cojedes) confirma premios 30×/40× MEGA, 12 sorteos 09:00–20:00 | — | Ninguno (premio 30 ya en config; comodín MEGA sigue sin modelar, H1) |
+| 18 `selva-plus` | **no publicado** | bundle de selvaplus.com (`index-BI-rgou6.js`) sin reglamento | — | Ninguno |
+| 20 `triple-facil` | **no publicado** | bundle de triplefacil.com (`index-CnppWFwM.js`) + ruta `/reglamento` (SPA catch-all) sin PDF | — | Ninguno (700× informativo sigue pendiente, H10) |
+| 21 `triple-zamorano` | **encontrado-parseable** (18 págs) | triplezamorano.com (bundle JS → `/images/REGLAMENTO TP ZAMORANO NOV2025.pdf`) | `docs/reglamentos/reglamento-triple-zamorano.pdf` + `licencia-triple-zamorano-runlot.pdf` | **premio 30→600×** + modalidades {cola:60, uña:5, zodiacal:6000, cola_signo:600, uña_signo:60} (**H11 RESUELTO**) |
+
+Afiches oficiales descargados (familia Lotto Activo, `/descargas/`): `afiche-lotto-activo-animalitos.jpg`,
+`afiche-lotto-activo-triple-terminal-v1.jpg`, `afiche-lotto-activo-triple-terminal-v2.jpg`,
+`afiche-lotto-activo-ganar-divertido.jpg`, `afiche-lotto-activo-pendon-resultados.jpg`,
+`afiche-lotto-activo-ruleta-animales-grupos.jpg`, `afiche-lotto-activo-terminal.jpg`.
+
+## TDD Cycle Evidence
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| f26.3 zulia | `tests/Feature/VerificacionOriginalesTest.php` (+1 test) | Feature | ✅ previo | ✅ "30 is identical to 600" | ✅ 5/5 (15) | ✅ premio 600 + modalidades exactas {cola:60, zodiacal:6000, terminal_zodiacal:600} | ✅ seeder `firstOrCreate`→`updateOrCreate` (aplica en BD existentes) |
+| f26.3 caliente | `tests/Feature/TripleCalienteResultsTest.php` | Feature | ✅ previo | ✅ "30 matches expected 600" | ✅ 6/6 (27) | ✅ premio + modalidades + `product_id` intacto | ✅ comentarios de evidencia del reglamento |
+| f26.3 zamorano | `tests/Feature/TripleZamoranoResultsTest.php` | Feature | ✅ previo | ✅ "30 matches expected 600" | ✅ 7/7 (32) | ✅ premio + 5 modalidades (cola/uña/zodiacal/cola_signo/uña_signo) | ✅ seeder `firstOrCreate`→`updateOrCreate` |
+| f26.4 regresión JSON | `tests/Feature/JuegosJsonTest.php` | Feature | ✅ previo | ✅ archivo commiteado 30 vs generado 600 (3 juegos) | ✅ 3/3 (556) | ✅ asserts 600× para zulia/caliente/zamorano | ✅ juegos.json regenerado |
+| f26.4 contrato JSON | Harness real (`juegos:export`) | Runtime | — | — | ✅ 3 juegos con `premio_multiplo` 600 | ✅ verificado por script (jq/python) | — |
+
+**Test Summary (WU f26)**: +1 test neto y +6 assertions. Suite completa **694/692/2** (3405
+assertions) + `pint --test` limpio. Baseline previo 693/691/2 → **694/692/2**.
+
+## Work Unit Evidence
+
+| Evidence | Valor |
+|---|---|
+| Focused test command y resultado | `composer test -- --filter='VerificacionOriginalesTest\|TripleCalienteResultsTest\|TripleZamoranoResultsTest\|JuegosJsonTest'` → **24/24 (660 assertions)**; cada ciclo RED→GREEN verificado por separado (5/5, 6/6, 7/7, 3/3) |
+| Runtime harness command/scenario y resultado | **Cacería en vivo** (14-sep-2026, sleeps ~1-2s, UA navegador): 15 sitios oficiales barridos + 21 artefactos descargados a `docs/reglamentos/`. **Extracción**: `pdftotext` sobre los 3 reglamentos de los triples → premios Art. 19 (600×/60×/6.000×/600×...). **Re-seed**: `db:seed --class=Triple{Zulia,Caliente,Zamorano}Seeder` → config 600× verificada por tinker. **Export**: `php artisan juegos:export` → `docs/juegos.json` con 600× en los 3 |
+| Rollback boundary | Revertir los 3 seeders (config 30×/sin modalidades) + los 4 tests tocados + regenerar `docs/juegos.json`; los PDFs/afiches descargados en `docs/reglamentos/` se pueden borrar sin tocar código. Sin tocar scrapers, motor ni otros juegos |
+
+## Archivos cambiados (WU f26)
+
+| Archivo | Acción | Qué se hizo |
+|---------|--------|-------------|
+| `docs/reglamentos/*` (21 artefactos + README) | Created | Reglamentos (11 PDFs), licencias RUNLOT (3) y afiches oficiales (7 JPG) + índice |
+| `backend/database/seeders/TripleZuliaSeeder.php` | Modify | `premio_multiplo` 30→600 + modalidades (reglamento Lotería del Zulia); `updateOrCreate` |
+| `backend/database/seeders/TripleCalienteSeeder.php` | Modify | `premio_multiplo` 30→600 + modalidades (reglamento Lotería de Cojedes); nota H18 |
+| `backend/database/seeders/TripleZamoranoSeeder.php` | Modify | `premio_multiplo` 30→600 + modalidades (reglamento NOV2025); `updateOrCreate` |
+| `backend/tests/Feature/VerificacionOriginalesTest.php` | Modify | +`test_triple_zulia_premios_oficiales_del_reglamento` |
+| `backend/tests/Feature/TripleCalienteResultsTest.php` | Modify | Aserciones de premio 600 + modalidades |
+| `backend/tests/Feature/TripleZamoranoResultsTest.php` | Modify | Aserciones de premio 600 + 5 modalidades |
+| `backend/tests/Feature/JuegosJsonTest.php` | Modify | 600× para zulia/caliente/zamorano |
+| `docs/juegos.json` | Modify | Regenerado: premio_multiplo 600 en los 3 triples |
+| `docs/seguimiento-verificacion.md` | Modify | Matriz + resumen + pendientes + evidencia LOTE 3 (sección H) + H18–H20 |
+| `docs/fuentes-oficiales.md` | Modify | Filas con reglamentos obtenidos y rutas |
+| `docs/inconsistencias.md` | Modify | H11 resuelto, H1 respaldado, H18/H19/H20 nuevos |
+| `docs/comparacion-juegos.md` | Modify | Nivel 2/3 operadores + H11 resuelto + H18–H20 |
+| `backend/docs/juegos.md` | Modify | Filas 2/9/22 + nota de premios de Zamorano |
+
+## Desviaciones del diseño (WU f26)
+
+- Ninguna estructural. Nota: los buscadores web (websearch MCP, DDG, Bing, Startpage) estaban
+  bloqueados (403/consent/challenge) → la búsqueda web acotada se sustituyó por barrido directo
+  de sitios oficiales + bundles JS + rutas típicas, documentado como evidencia por juego.
+- Los seeders de Zulia y Zamorano pasaron de `firstOrCreate` a `updateOrCreate` para que la
+  corrección de premios aplique en BD existentes (mismo patrón que TripleCalienteSeeder).
+
+## Problemas encontrados (WU f26)
+
+- `Lotto_Activo_2.pdf` (Monje) → 404; 6 variantes de nombre probadas → 404. Reglamento de
+  Monje **no publicado** (premio de El Patronus sigue pendiente, H14).
+- La API de Triple Caliente opera **3 horarios** (13:00/16:30/19:10) pero el reglamento declara
+  **5** (11:10–19:10) → H18, se prioriza la operación.
+- El reglamento de Zamorano declara sorteos L-D; la API muestra domingos solo 19:00 → H19.
+- Sitios de loterías reguladoras (Cojedes, Zulia, Oriente, Caracas) no resuelven desde este
+  entorno; CONALOT no publica reglamentos por juego.
+
+## Workload / PR Boundary (WU f26)
+
+- Modo: chained PR slice (feature-branch-chain, base = PR f25). NO se abren PRs.
+- Boundary: cacería de reglamentos (barrido → descarga → extracción TDD → catálogo → docs)
+  con verificación incluida (suite completa 694/692/2 + pint limpio).
+- Rollback boundary: revertir los 3 seeders + 4 tests + `docs/juegos.json`; borrar
+  `docs/reglamentos/` (artefactos); sin tocar scrapers, motor ni otros juegos.
+
+## Siguiente paso recomendado
+
+- `sdd-verify` del WU f26 cuando el orquestador lo dispare.
+- Decisiones de cliente: (a) extraer los textos de los 5 reglamentos escaneados (el agente no
+  hace OCR), (b) confirmar H12 (Terminal Trío 60× vs 70× FAQ), H18 (Caliente 5 vs 3 sorteos),
+  H19 (Zamorano domingos), (c) decidir si migrar el scraper de Mega Animal 40 a su sitio
+  oficial (H20) y modelar el comodín MEGA (H1), (d) premio de El Patronus (H14).
