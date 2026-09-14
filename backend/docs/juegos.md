@@ -13,7 +13,7 @@ y los seeders materializan los datos que esta lista documenta (slug, type, fuent
 | 3 | Terminal Activo | `terminal-activo` | terminales | 08:00–19:00 (cada hora `:00`) | `https://www.lottoactivo.com/resultados/terminal_activo/` | `AnimalitosScraper` (vía URL, formato plano) | ✅ Verificado con datos reales (12-sep) |
 | 4 | Lotto Activo RD Internacional | `lotto-activo-rd` | animalitos | 08:30–19:30 (cada hora `:30`) | `https://www.lottoactivo.com/resultados/animalitos/` | `AnimalitosScraper` | ✅ Verificado con datos reales (12-sep) |
 | 5 | Lotto Activo República Dominicana | `lotto-activo-rep-dom` | animalitos | 08:00–21:00 (cada hora `:00`) | `https://www.lottoactivo.com/resultados/animalitos/` | `AnimalitosScraper` | ✅ Verificado con datos reales (12-sep) |
-| 6 | Monje Millonario | `monje-millonario` | animalitos | 08:05–19:05 (cada hora `:05`) | `https://www.lottoactivo.com/resultados/animalitos/` | `AnimalitosScraper` | ✅ Verificado con datos reales (12-sep) |
+| 6 | Monje Millonario | `monje-millonario` | animalitos | 08:05–19:05 (cada hora `:05`) | `https://www.lottoactivo.com/resultados/animalitos/` | `AnimalitosScraper` | ✅ Verificado con datos reales (12-sep) — **zoo propio COMPLETO de 77 figuras** (WU f25) |
 | 7 | Trío Activo | `trio-activo` | tripletas | 08:00–19:00 (cada hora `:00`) | `https://www.lottoactivo.com/resultados/trio_activo/` | `AnimalitosScraper` (vía URL, formato plano) | ✅ Verificado con datos reales (12-sep) |
 
 > Nota de resolución de scraper: la clase se resuelve en orden `juegos.scraper_class` →
@@ -35,6 +35,16 @@ y los seeders materializan los datos que esta lista documenta (slug, type, fuent
 > son dinámicas del mismo `AnimalitosScraper` (nombre derivado del slug), no clases aparte. Los
 > fixtures reales `tests/Fixtures/lottoactivo_*` (capturados el 12-sep-2026) cubren ambas rutas y el
 > mapeo de slugs en `AnimalitosScraperTest`.
+
+> Zoológico de Monje Millonario (WU f22 + f25): el juego usa un zoológico PROPIO distinto al
+> canónico de 38 — números 0–75 con animales propios (49=Pereza, 42=Tucán, 74=Turpial,
+> 75=Patronus). Las **77 figuras** (76 números 0–75 + el 0 duplicado Delfín/Ballena) quedaron
+> **confirmadas con el feed oficial** muestreando el histórico de 75 días consecutivos
+> (2026-07-02..09-14, ~900 sorteos): los 7 nombres que faltaban tras la muestra corta del WU f22
+> (37 Tortuga, 39 Lechuza, 57 Pato, 65 Araña, 67 Avestruz, 68 Jaguar, 75 Patronus) salieron en la
+> muestra y quedaron registrados en `MonjeMillonarioSeeder`. El feed marca `special_result` como
+> flag 1/0 variable (~9/12 por día, horas no fijas) — semántica sin documentar (H14); el premio
+> especial de El Patronus sigue pendiente (reglamento `Lotto_Activo_2.pdf` → 404).
 
 ## Hueco #8
 
@@ -324,10 +334,11 @@ aquí en su mismo work unit:
 > triple-chance/el-arrejuntado 12 signos; loto-chaima 57 animales propios; selva-plus
 > **103 opciones** — 101 figuras propias + 2 comodines con `numero` null, que por el
 > orden por `numero` de MySQL quedan al inicio del array; el-guacharito **101 figuras**
-> propias y guacharo-activo **77 figuras** propias — zoos oficiales lotterly, WU f24),
+> propias y guacharo-activo **77 figuras** propias — zoos oficiales lotterly, WU f24;
+> monje-millonario **77 figuras** propias confirmadas con el feed oficial — WU f22+f25),
 > si no, fallback al
 > plugin vía `JuegoPluginManager` (terminal-activo 100 números 00-99 vía Terminales; trio-activo
-> 12 signos vía Tripletas; animalitos sin tabla — rd, rep-dom, monje, cazaloton,
+> 12 signos vía Tripletas; animalitos sin tabla — rd, rep-dom, cazaloton,
 > la-granjita, mega-animal-40 — 38 animales canónicos vía Animalitos). NO editar el archivo a mano:
 > regenerarlo con el comando. La lógica vive en `App\Services\JuegoCatalogoService`
 > (compartida por el comando y el test de consistencia `JuegosJsonTest`).

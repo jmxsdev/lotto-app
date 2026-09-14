@@ -31,7 +31,7 @@ comodines, premiación y **reglamento oficial**. Complementa a:
 | 3 | `terminal-activo` | ✅ | ✅ | — | ⚠️ | ⚠️ | Feed: 12 sorteos 08:00–19:00; terminal = **2 últimos dígitos del Trío Activo** (verificado cruzando feeds). Reglamento oficial (Trio_Activo.pdf, mismo md5 que Terminal_Trio.pdf): TERMINAL **60×** → **corregido 20→60**. FAQ oficial dice 70×+5× aprox → discrepancia H12 |
 | 4 | `lotto-activo-rd` | ✅ | ✅ | — | ✅ | ⚠️ | Feed + metadata + FAQ: 12 sorteos cada hora 08:30–19:30. Zoo canónico 38 (23=Cebra). FAQ 30×. Reglamento enlazado por error (es de "Ruleta Royal", confirma 30×) |
 | 5 | `lotto-activo-rep-dom` | ✅ | ✅ | — | ✅ | ⚠️ | Feed: **14 sorteos 08:00–21:00** (el texto oficial dice 09:00–21:00 y "trece (14)" → nota). Zoo canónico 38. FAQ 30× |
-| 6 | `monje-millonario` | ✅ | ⚠️ | — | ⏳ | ❌ | **H2 CONFIRMADO**: feed oficial muestra 0–74 con zoo propio (49=Pereza, 42=Tucán…). Creadas **70 figuras confirmadas** (patrón Loto Chaima); **7 números sin nombre oficial pendientes: 37, 39, 57, 65, 67, 68, 75** (el 75 sería El Patronus). PDF del reglamento 404; Patronus sin premio oficial |
+| 6 | `monje-millonario` | ✅ | ✅ | — | ⏳ | ❌ | **H2 CONFIRMADO + H14 RESUELTO (WU f25)**: muestreo del feed oficial de **75 días (2026-07-02..09-14, ~900 sorteos)** → rango completo **0–75** y confirmados los 7 nombres que faltaban: 37 Tortuga, 39 Lechuza, 57 Pato, 65 Araña, 67 Avestruz, 68 Jaguar y **75 Patronus**. Zoo propio **COMPLETO: 77 figuras** (76 números + 0 duplicado). `special_result` NO es siempre 1: varía 1/0 (~9/12 por día, horas no fijas) — semántica sin documentar. PDF del reglamento 404; premio de Patronus sin fuente oficial |
 | 7 | `trio-activo` | ✅ | ✅ | — | ✅ | ✅ | **H5 DESMENTIDO**: es un juego de **TRIPLE de 3 cifras** (000–999) con modalidades TRIPLE/TERMINAL/PUNTA, NO "terminales 3 cifras"; feed: 12 sorteos 08:00–19:00 (reglamento 2020 dice 3 → stale). Reglamento oficial: TRIPLE **600×** → **corregido 30→600** + modalidades terminal/punta 60×; opciones corregidas a terminal 00–99 (no hay zodiaco) |
 | 8 | `triple-caliente` | ✅ | ✅ | — | ⏳ | ❌ | API oficial verificada con datos reales (12 signos); premiación pendiente de reglamento |
 | 9 | `cazaloton` | ✅ | ✅ | — | ✅ | ✅ | **Reglamento oficial verificado** (Reglamento.pdf de cazaloton.com, 17 págs, parseable): 38 figuras (0/00/1–36) ✓, 11 sorteos 09:00–19:00 ✓, CAZALOTÓN 30× ✓ → modalidades oficiales DUPLETA 800× / TRIPLETA 200× registradas en config. Fuente de resultados SE MANTIENE en loteriadehoy (cazaloton.com NO publica resultados; sus enlaces apuntan al agregador) |
@@ -78,8 +78,10 @@ comodines, premiación y **reglamento oficial**. Complementa a:
 
 ✅ **LOTE 1 COMPLETADO (2026-09-14, WU f22)**. Ver evidencia detallada abajo.
 Pendientes que quedaron abiertos del lote:
-- **Monje Millonario (6)**: 7 números del zoológico sin nombre oficial (37, 39, 57, 65, 67, 68, 75)
-  y el premio de "El Patronus" (el PDF del reglamento da 404 en el sitio oficial).
+- **Monje Millonario (6)**: ✅ zoológico COMPLETADO en el WU f25 (muestreo de 75 días del feed
+  oficial confirmó los 7 nombres que faltaban; 77 figuras). Queda pendiente el **premio de
+  "El Patronus"** (el PDF del reglamento da 404 en el sitio oficial) y la semántica de
+  `special_result` (H14).
 - **Terminal Trío (3)**: discrepancia de premio reglamento 60× vs FAQ oficial 70×+5× aprox (H12).
 - **Lotto Activo (1)**: reglamento PDF es imagen no parseable; la modalidad Dupleta 1.000× de la
   informativa no tiene respaldo en el reglamento disponible.
@@ -96,7 +98,7 @@ Pendientes que quedaron abiertos del lote:
 | H11 | Premios Zamorano | 600×/60×/6.000×/600× informativos sin verificar (template del agregador) |
 | H12 | **Premio Terminal Trío: reglamento 60× vs FAQ oficial 70× (+5× aproximación)** | **Pendiente de decisión del cliente** — se usó el valor del reglamento (60×, patrón Táchira); falta confirmar cuál paga la operación |
 | H13 | **Normalización de acentos en `Animalitos::calcularPremio`** | El feed oficial entrega nombres sin acentos ("Delfin", "Caiman") y las opciones tienen acentos ("Delfín", "Caimán") → `strtolower` no iguala y el premio sale 0. **Afecta a toda la familia Lotto Activo + Monje**; es del MOTOR (ciclo futuro), NO se toca en este WU |
-| H14 | **Monje Millonario: 7 números sin nombre oficial + El Patronus** | Zoo propio creado con 70 figuras confirmadas; 37/39/57/65/67/68/75 pendientes. El `special_result=1` aparece en TODOS los resultados del feed de Monje (semántica sin documentar) |
+| H14 | **Monje Millonario: nombres sin confirmar + El Patronus + `special_result`** | **ZOO RESUELTO (WU f25)**: muestreo del feed oficial de 75 días (2026-07-02..09-14, ~900 sorteos) confirmó 37 Tortuga, 39 Lechuza, 57 Pato, 65 Araña, 67 Avestruz, 68 Jaguar y **75 Patronus** → zoo completo de 77 figuras. Quedan pendientes: **premio de El Patronus** (reglamento 404) y la **semántica de `special_result`**: NO es siempre 1 — varía 1/0 (~9/12 por día, horas no fijas; solo en Monje; el resto de la familia trae 0) |
 | H15 | **Trio Activo: reglamento (3 sorteos, 2020) vs operación real (12 sorteos)** | El feed oficial opera 12 sorteos/día 08:00–19:00; el reglamento PDF declara 3. Se priorizó la operación real (lo que consume el scraper). Confirmar con el operador |
 | H16 | **Textos oficiales de horarios desactualizados** | Las páginas `/informacion/` y el FAQ declaran "once (11) sorteos 09:00–19:00" para Lotto Activo/Trío/Terminal y "trece (14)" para Rep. Dominicana, pero el feed opera 12 (08:00–19:00) y 14 (08:00–21:00) respectivamente. El feed (dato operativo) manda |
 
@@ -128,14 +130,17 @@ Fuentes muestreadas el 2026-09-10..14 (con `sleep` entre peticiones, User-Agent 
 5. **`lotto-activo-rep-dom` (5)** — Feed: **14 sorteos 08:00–21:00** ✓ (coincide con nuestro
    seeder). El texto oficial dice "trece (14) sorteos... 09:00 AM hasta 9:00 PM" (H16). Zoo
    canónico 38 (0 = Ballena y Delfín). FAQ 30×. Reglamento enlazado = mismo mislink Ruleta Royal.
-6. **`monje-millonario` (6)** — **H2 CONFIRMADO**. Feed oficial ("Lotto Activo 2 (Monje
-   Millonario)"): 12 sorteos 08:05–19:05 ✓ y **números 0–74** con zoo propio (13 días, 66
-   resultados, 65 números observados). Zoológico **propio de 70 figuras confirmadas** creado
-   (patrón Loto Chaima): canónico 0–36 (23=Cebra) + 32 figuras nuevas (38 Búfalo, 40 Avispa,
-   42 Tucán, 49 Pereza, 74 Turpial…). **Pendientes sin nombre oficial: 37, 39, 57, 65, 67, 68,
-   75** (el 75 sería "El Patronus" según la informativa, sin confirmar). `special_result=1` en
-   todos los resultados del feed (semántica sin documentar). El PDF del reglamento
-   (`Lotto_Activo_2.pdf`) da **404** → Patronus sin premio oficial (H14).
+6. **`monje-millonario` (6)** — **H2 CONFIRMADO + H14 RESUELTO (WU f25)**. Feed oficial
+   ("Lotto Activo 2 (Monje Millonario)"): 12 sorteos 08:05–19:05 ✓. El **muestreo del histórico
+   de 75 días consecutivos (2026-07-02..09-14, ~900 sorteos, 76 números distintos 0–75)**
+   confirmó los 7 nombres que faltaban de la muestra corta de f22: **37 Tortuga, 39 Lechuza,
+   57 Pato, 65 Araña, 67 Avestruz, 68 Jaguar y 75 Patronus** (la figura especial de la
+   informativa; 4 apariciones en la muestra). Zoológico propio **COMPLETO: 77 figuras**
+   (76 números 0–75 + el 0 duplicado Delfín/Ballena), sin números pendientes. Hallazgo sobre
+   `special_result`: **NO es siempre 1** (la muestra de 13 días de f22 era corta) — es un flag
+   por resultado que varía 1/0 (~9/12 por día, horas no fijas) y solo Monje lo trae así (el
+   resto de la familia trae 0) → semántica sin documentar, pendiente (H14). El PDF del
+   reglamento (`Lotto_Activo_2.pdf`) da **404** → premio de Patronus sin fuente oficial (H14).
 7. **`trio-activo` (7)** — **H5 DESMENTIDO**. El feed oficial `/resultados/trio_activo/` devuelve
    **12 sorteos/día 08:00–19:00** de un **TRIPLE de 3 cifras** (p. ej. "491"), no "terminales 3
    cifras ni 3 sorteos". El reglamento oficial `Trio_Activo.pdf` ("TRIOACTIVO EL PATRONUS",
