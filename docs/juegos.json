@@ -1451,9 +1451,19 @@
                     "value": "culebra"
                 },
                 {
+                    "numero": 37,
+                    "label": "Tortuga",
+                    "value": "tortuga"
+                },
+                {
                     "numero": 38,
                     "label": "Búfalo",
                     "value": "bufalo"
+                },
+                {
+                    "numero": 39,
+                    "label": "Lechuza",
+                    "value": "lechuza"
                 },
                 {
                     "numero": 40,
@@ -1541,6 +1551,11 @@
                     "value": "tiburon"
                 },
                 {
+                    "numero": 57,
+                    "label": "Pato",
+                    "value": "pato"
+                },
+                {
                     "numero": 58,
                     "label": "Hormiga",
                     "value": "hormiga"
@@ -1576,9 +1591,24 @@
                     "value": "gavilan"
                 },
                 {
+                    "numero": 65,
+                    "label": "Araña",
+                    "value": "arana"
+                },
+                {
                     "numero": 66,
                     "label": "Lobo",
                     "value": "lobo"
+                },
+                {
+                    "numero": 67,
+                    "label": "Avestruz",
+                    "value": "avestruz"
+                },
+                {
+                    "numero": 68,
+                    "label": "Jaguar",
+                    "value": "jaguar"
                 },
                 {
                     "numero": 69,
@@ -1609,6 +1639,11 @@
                     "numero": 74,
                     "label": "Turpial",
                     "value": "turpial"
+                },
+                {
+                    "numero": 75,
+                    "label": "Patronus",
+                    "value": "patronus"
                 }
             ]
         },
