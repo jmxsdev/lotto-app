@@ -10,6 +10,10 @@ use App\Models\JuegoOpcion;
  * front/taquilla (docs/juegos.json). La resolución de opciones usa EXACTAMENTE
  * la misma semántica que JuegoController::opciones: filas de juego_opciones si
  * existen, si no fallback al plugin vía JuegoPluginManager::getPlugin().
+ *
+ * Campos ADITIVOS y OPCIONALES (WU f27): `comodines` y `modalidades` se
+ * exportan desde `config` cuando existen (null si no); no rompen el contrato
+ * previo del front.
  */
 class JuegoCatalogoService
 {
@@ -30,6 +34,8 @@ class JuegoCatalogoService
                 'nombre' => $juego->name,
                 'tipo' => $juego->type,
                 'premio_multiplo' => $juego->config['premio_multiplo'] ?? null,
+                'comodines' => $juego->config['comodines'] ?? null,
+                'modalidades' => $juego->config['modalidades'] ?? null,
                 'horarios' => $this->obtenerHorarios($juego),
                 'opciones' => $this->obtenerOpciones($juego),
             ])->values()->all(),

@@ -114,7 +114,7 @@ class JuegosJsonTest extends TestCase
         $porSlug = collect($this->generado['juegos'])->keyBy('slug');
 
         foreach ($this->generado['juegos'] as $juego) {
-            foreach (['id', 'slug', 'nombre', 'tipo', 'premio_multiplo', 'horarios', 'opciones'] as $campo) {
+            foreach (['id', 'slug', 'nombre', 'tipo', 'premio_multiplo', 'comodines', 'modalidades', 'horarios', 'opciones'] as $campo) {
                 $this->assertArrayHasKey($campo, $juego, "Falta el campo [{$campo}] en el juego [{$juego['slug']}].");
             }
 
@@ -141,6 +141,60 @@ class JuegosJsonTest extends TestCase
         $this->assertSame(30, $porSlug['lotto-activo']['premio_multiplo']);
         $this->assertSame(60, $porSlug['terminal-activo']['premio_multiplo']);
         $this->assertSame(600, $porSlug['trio-activo']['premio_multiplo']);
+
+        // Contrato JSON enriquecido (WU f27): `comodines` y `modalidades` son
+        // campos ADITIVOS y OPCIONALES exportados desde config cuando existen;
+        // un juego sin ellos los lleva en null.
+        $this->assertNull($porSlug['lotto-activo']['comodines']);
+        $this->assertNull($porSlug['lotto-activo']['modalidades']);
+
+        // mega-animal-40: comodín MEGA 40× desde la fuente OFICIAL
+        // megaanimal40.com (WU f27; resuelve H1/H20). Base 30×, 40× con MEGA.
+        $this->assertSame(
+            ['mega' => ['nombre' => 'MEGA', 'premio_multiplo' => 40]],
+            $porSlug['mega-animal-40']['comodines']
+        );
+        $this->assertNull($porSlug['mega-animal-40']['modalidades']);
+
+        // selva-plus: comodines A (Leoncito 160×) y B (Selva Plus 200×)
+        $this->assertSame(
+            [
+                'comodin-a' => ['nombre' => 'Leoncito', 'premio_multiplo' => 160],
+                'comodin-b' => ['nombre' => 'Selva Plus', 'premio_multiplo' => 200],
+            ],
+            $porSlug['selva-plus']['comodines']
+        );
+
+        // el-guacharito (Guacharito 99 → 150×) y guacharo-activo (Guácharo 75 → 120×)
+        $this->assertSame('Guacharito', $porSlug['el-guacharito']['comodines']['guacharito-99']['nombre']);
+        $this->assertSame(150, $porSlug['el-guacharito']['comodines']['guacharito-99']['premio_multiplo']);
+        $this->assertSame('Guácharo', $porSlug['guacharo-activo']['comodines']['guacharo-75']['nombre']);
+        $this->assertSame(120, $porSlug['guacharo-activo']['comodines']['guacharo-75']['premio_multiplo']);
+
+        // modalidades desde config donde aplique (triples, trío, terminal, etc.)
+        $this->assertSame(
+            ['cola' => 60, 'zodiacal' => 6000, 'terminal_zodiacal' => 600],
+            $porSlug['triple-zulia']['modalidades']
+        );
+        $this->assertSame(
+            ['cola' => 60, 'zodiacal' => 6000, 'terminal_zodiacal' => 600],
+            $porSlug['triple-caliente']['modalidades']
+        );
+        $this->assertSame(
+            ['cola' => 50, 'zodiacal' => 5000],
+            $porSlug['triple-tachira']['modalidades']
+        );
+        $this->assertSame(
+            ['cola' => 60, 'uña' => 5, 'zodiacal' => 6000, 'cola_signo' => 600, 'uña_signo' => 60],
+            $porSlug['triple-zamorano']['modalidades']
+        );
+        $this->assertSame(['punta' => 60, 'terminal' => 60], $porSlug['trio-activo']['modalidades']);
+        $this->assertSame(['terminal' => 60], $porSlug['terminal-activo']['modalidades']);
+        $this->assertSame(['dupleta' => 800, 'tripleta' => 200], $porSlug['cazaloton']['modalidades']);
+        $this->assertSame(['terminal' => 60, 'aproximacion' => 10], $porSlug['triple-facil']['modalidades']);
+        $this->assertSame(200000, $porSlug['triple-chance']['modalidades']['triple_a_b']);
+        $this->assertSame(5000, $porSlug['triple-chance']['modalidades']['triple_c_signo']);
+        $this->assertNull($porSlug['triple-chance']['comodines']);
 
         // lotto-activo: 38 animales desde tabla juego_opciones
         $this->assertCount(38, $porSlug['lotto-activo']['opciones']);
