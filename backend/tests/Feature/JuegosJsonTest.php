@@ -169,16 +169,19 @@ class JuegosJsonTest extends TestCase
             $this->assertCount(38, $porSlug[$slug]['opciones'], "[{$slug}] debe tener 38 opciones (plugin Animalitos).");
         }
 
-        // monje-millonario: zoológico PROPIO de 70 figuras confirmadas con la
-        // fuente oficial (feed lottoactivo.com 2026-09-02..14; H2 CONFIRMADO —
-        // números 0-74 con animales propios como Pereza 49/Tucán 42). Quedan
-        // pendientes sin nombre oficial: 37, 39, 57, 65, 67, 68 y 75 (Patronus).
-        $this->assertCount(70, $porSlug['monje-millonario']['opciones']);
+        // monje-millonario: zoológico PROPIO de 77 figuras confirmadas con la
+        // fuente oficial (feed lottoactivo.com, muestreo de 75 días
+        // 2026-07-02..09-14, ~900 sorteos; H2 CONFIRMADO + H14 RESUELTO). Los
+        // 7 nombres que faltaban quedaron confirmados: 37 Tortuga, 39 Lechuza,
+        // 57 Pato, 65 Araña, 67 Avestruz, 68 Jaguar y 75 Patronus (figura
+        // especial). Rango completo 0–75 (76 números + 0 duplicado = 77).
+        $this->assertCount(77, $porSlug['monje-millonario']['opciones']);
         $labelsMonje = array_column($porSlug['monje-millonario']['opciones'], 'label');
         $this->assertContains('Pereza', $labelsMonje);
         $this->assertContains('Tucán', $labelsMonje);
         $this->assertContains('Turpial', $labelsMonje);
         $this->assertContains('Cebra', $labelsMonje);
+        $this->assertContains('Patronus', $labelsMonje);
         $this->assertNotContains('Cobra', $labelsMonje);
 
         // trio-activo: 100 opciones de TERMINAL (00-99) propias desde la tabla

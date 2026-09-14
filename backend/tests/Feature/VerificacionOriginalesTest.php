@@ -48,28 +48,55 @@ class VerificacionOriginalesTest extends TestCase
         $this->assertNull($opciones->firstWhere('value', 'cobra'), 'No debe quedar la opción obsoleta "cobra".');
     }
 
-    public function test_monje_millonario_tiene_zoo_propio_con_figuras_mayores_a_36(): void
+    public function test_monje_millonario_tiene_zoo_propio_completo(): void
     {
-        // Evidencia (H2 CONFIRMADO con fuente oficial): el feed oficial muestra
-        // para "Lotto Activo 2 (Monje Millonario)" números 0–74 con animales
-        // propios (p. ej. 49 = Pereza, 42 = Tucán, 74 = Turpial) y
-        // special_result=1. Zoo propio con las 70 figuras CONFIRMADAS en el
-        // feed + canónicas 0–36 (mismos nombres que la familia). Quedan
-        // pendientes sin nombre oficial: 37, 39, 57, 65, 67, 68 y 75 (Patronus).
+        // Evidencia (H14 RESUELTO con fuente oficial): muestreo del feed
+        // lottoactivo.com /resultados/animalitos/ de 75 días consecutivos
+        // (2026-07-02..09-14, ~900 sorteos de Monje) → aparecen TODOS los
+        // números 0–75 y quedan confirmados los 7 nombres que faltaban:
+        // 37 Tortuga, 39 Lechuza, 57 Pato, 65 Arana→Araña, 67 Avestruz,
+        // 68 Jaguar y 75 Patronus (la figura especial que declara la
+        // informativa; 4 apariciones en la muestra). El zoo queda COMPLETO:
+        // 77 etiquetas (76 números 0–75 + el 0 duplicado Delfín/Ballena).
         $opciones = $this->opcionesDe('monje-millonario');
-        $this->assertCount(70, $opciones);
+        $this->assertCount(77, $opciones);
 
-        $perezosa = $opciones->firstWhere('numero', 49);
-        $this->assertNotNull($perezosa);
-        $this->assertSame('Pereza', $perezosa->label);
+        $confirmados = [
+            37 => 'Tortuga',
+            39 => 'Lechuza',
+            57 => 'Pato',
+            65 => 'Araña',
+            67 => 'Avestruz',
+            68 => 'Jaguar',
+            75 => 'Patronus',
+        ];
+        foreach ($confirmados as $numero => $label) {
+            $opcion = $opciones->firstWhere('numero', $numero);
+            $this->assertNotNull($opcion, "El número {$numero} debe existir en el zoo.");
+            $this->assertSame($label, $opcion->label, "El número {$numero} debe ser {$label}.");
+        }
 
-        $tucan = $opciones->firstWhere('numero', 42);
-        $this->assertNotNull($tucan);
-        $this->assertSame('Tucán', $tucan->label);
-
+        $this->assertSame('Pereza', $opciones->firstWhere('numero', 49)->label);
+        $this->assertSame('Tucán', $opciones->firstWhere('numero', 42)->label);
         $this->assertNotNull($opciones->firstWhere('numero', 74), 'Turpial (74) observado en el feed oficial.');
         $this->assertNotNull($opciones->firstWhere('numero', 0), 'Delfín/Ballena (0) canónico.');
         $this->assertNull($opciones->firstWhere('value', 'cobra'), '23 debe ser Cebra también en Monje.');
+    }
+
+    public function test_monje_millonario_zoo_cubre_todos_los_numeros_0_a_75(): void
+    {
+        // Evidencia: el muestreo de 75 días del feed oficial cubre el rango
+        // COMPLETO 0–75 sin huecos. La informativa declara 77 figuras = 76
+        // números (0–75) + la etiqueta extra del 0 (Delfín y Ballena comparten
+        // el 0). Si el feed dejara de servir algún número, este test lo delata.
+        $opciones = $this->opcionesDe('monje-millonario');
+
+        $numeros = $opciones->pluck('numero')->map(fn ($n) => (int) $n)->unique()->sort()->values()->all();
+        $this->assertSame(range(0, 75), $numeros, 'El zoo debe cubrir 0..75 sin huecos.');
+
+        // 77 etiquetas para 76 números distintos: el 0 tiene Delfín y Ballena.
+        $this->assertCount(76, $numeros);
+        $this->assertCount(2, $opciones->where('numero', 0), 'El 0 lo comparten Delfín y Ballena.');
     }
 
     public function test_trio_activo_es_triple_con_opciones_de_terminal_y_premio_600(): void

@@ -15,18 +15,23 @@ use Illuminate\Support\Str;
 class MonjeMillonarioSeeder extends Seeder
 {
     /**
-     * Zoológico PROPIO de Monje Millonario ("Lotto Activo 2"), 70 figuras
-     * CONFIRMADAS con la fuente oficial (feed lottoactivo.com muestreado
-     * 2026-09-02..14 — 66 resultados, números 0–74 — y los nombres canónicos
-     * de la familia para 0–36).
+     * Zoológico PROPIO de Monje Millonario ("Lotto Activo 2"), 77 figuras
+     * CONFIRMADAS con la fuente oficial. El feed lottoactivo.com
+     * /resultados/animalitos/ se muestreó 75 días consecutivos
+     * (2026-07-02..09-14, ~900 sorteos de Monje) y aparecieron TODOS los
+     * números 0–75, cerrando los 7 huecos que quedaban tras la muestra corta
+     * de f22: 37 Tortuga, 39 Lechuza, 57 Pato, 65 Araña, 67 Avestruz,
+     * 68 Jaguar y 75 Patronus.
      *
      * - 0–36: mismo zoológico canónico de la familia Lotto Activo (38 etiquetas
      *   con Ballena y Delfín en 0; 23 = Cebra según el feed oficial y el
      *   reglamento Ruleta Royal).
-     * - 37–75: figuras nuevas observadas en el feed (p. ej. 49 = Pereza,
-     *   42 = Tucán, 74 = Turpial). Los números 16/22/25/34 no salieron en la
-     *   muestra de Monje pero se completan con el nombre canónico de la familia
-     *   (evidencia: aparecen en los feeds de Lotto Activo/RD con esos nombres).
+     * - 37–75: figuras propias observadas en el feed. 75 = "Patronus" es la
+     *   figura especial que declara la informativa (77 figuras = 76 números +
+     *   el 0 duplicado Delfín/Ballena).
+     *
+     * Los labels usan la ortografía con acentos del resto del zoo (la fuente
+     * viaja sin acentos: "Arana" → "Araña", "Delfin" → "Delfín").
      *
      * @var array<int, array{0: int, 1: string}> pares [numero, nombre]
      */
@@ -38,26 +43,17 @@ class MonjeMillonarioSeeder extends Seeder
         [19, 'Chivo'], [20, 'Cochino'], [21, 'Gallo'], [22, 'Camello'], [23, 'Cebra'],
         [24, 'Iguana'], [25, 'Gallina'], [26, 'Vaca'], [27, 'Perro'], [28, 'Zamuro'],
         [29, 'Elefante'], [30, 'Caimán'], [31, 'Lapa'], [32, 'Ardilla'], [33, 'Pescado'],
-        [34, 'Venado'], [35, 'Jirafa'], [36, 'Culebra'],
-        [38, 'Búfalo'], [40, 'Avispa'], [41, 'Canguro'], [42, 'Tucán'], [43, 'Mariposa'],
-        [44, 'Chigüire'], [45, 'Garza'], [46, 'Puma'], [47, 'Pavo Real'], [48, 'Puercoespín'],
-        [49, 'Pereza'], [50, 'Canario'], [51, 'Pelícano'], [52, 'Pulpo'], [53, 'Caracol'],
-        [54, 'Grillo'], [55, 'Oso Hormiguero'], [56, 'Tiburón'], [58, 'Hormiga'],
-        [59, 'Pantera'], [60, 'Camaleón'], [61, 'Panda'], [62, 'Cachicamo'],
-        [63, 'Cangrejo'], [64, 'Gavilán'], [66, 'Lobo'], [69, 'Conejo'], [70, 'Bisonte'],
-        [71, 'Guacamaya'], [72, 'Gorila'], [73, 'Hipopótamo'], [74, 'Turpial'],
+        [34, 'Venado'], [35, 'Jirafa'], [36, 'Culebra'], [37, 'Tortuga'],
+        [38, 'Búfalo'], [39, 'Lechuza'], [40, 'Avispa'], [41, 'Canguro'], [42, 'Tucán'],
+        [43, 'Mariposa'], [44, 'Chigüire'], [45, 'Garza'], [46, 'Puma'], [47, 'Pavo Real'],
+        [48, 'Puercoespín'], [49, 'Pereza'], [50, 'Canario'], [51, 'Pelícano'],
+        [52, 'Pulpo'], [53, 'Caracol'], [54, 'Grillo'], [55, 'Oso Hormiguero'],
+        [56, 'Tiburón'], [57, 'Pato'], [58, 'Hormiga'], [59, 'Pantera'], [60, 'Camaleón'],
+        [61, 'Panda'], [62, 'Cachicamo'], [63, 'Cangrejo'], [64, 'Gavilán'],
+        [65, 'Araña'], [66, 'Lobo'], [67, 'Avestruz'], [68, 'Jaguar'], [69, 'Conejo'],
+        [70, 'Bisonte'], [71, 'Guacamaya'], [72, 'Gorila'], [73, 'Hipopótamo'],
+        [74, 'Turpial'], [75, 'Patronus'],
     ];
-
-    /**
-     * Números del zoológico SIN nombre confirmado en la fuente oficial
-     * (nunca salieron en la muestra de 66 resultados): 37, 39, 57, 65, 67, 68
-     * y 75. El 75 podría ser la figura especial "El Patronus" (la informativa
-     * declara 77 figuras: 76 animales + Patronus), pero NO hay confirmación
-     * oficial → quedan PENDIENTES (ver docs/seguimiento-verificacion.md).
-     *
-     * @var array<int, int>
-     */
-    protected array $pendientes = [37, 39, 57, 65, 67, 68, 75];
 
     public function run(): void
     {
@@ -124,6 +120,6 @@ class MonjeMillonarioSeeder extends Seeder
             );
         }
 
-        $this->command->info('Juego Monje Millonario actualizado: zoológico propio de '.count($this->zoo).' figuras confirmadas ('.count($this->pendientes).' números sin nombre oficial pendientes: '.implode(', ', $this->pendientes).').');
+        $this->command->info('Juego Monje Millonario actualizado: zoológico propio COMPLETO de '.count($this->zoo).' figuras confirmadas (rango 0–75 sin números pendientes).');
     }
 }
