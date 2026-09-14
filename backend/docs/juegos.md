@@ -9,7 +9,7 @@ y los seeders materializan los datos que esta lista documenta (slug, type, fuent
 | # | Nombre | slug | type | Horarios (juego_horarios) | Fuente scraper | Clase scraper | Estado |
 |---|--------|------|------|---------------------------|----------------|---------------|--------|
 | 1 | Lotto Activo | `lotto-activo` | animalitos | 08:00–19:00 (cada hora `:00`) | `https://www.lottoactivo.com/resultados/animalitos/` | `AnimalitosScraper` | ✅ Verificado con datos reales (12-sep) |
-| 2 | Triple Zulia | `triple-zulia` | tripletas | 12:45, 16:45, 19:05 | `https://resultadostriplezulia.com/` | `TripletasScraper` | ✅ Verificado con datos reales (12-sep) |
+| 2 | Triple Zulia | `triple-zulia` | tripletas | 12:45, 16:45, 19:05 | `https://resultadostriplezulia.com/` | `TripletasScraper` | ✅ Verificado con datos reales (12-sep) + reglamento oficial (WU f26: 600×/60×/6.000×/600×) |
 | 3 | Terminal Activo | `terminal-activo` | terminales | 08:00–19:00 (cada hora `:00`) | `https://www.lottoactivo.com/resultados/terminal_activo/` | `AnimalitosScraper` (vía URL, formato plano) | ✅ Verificado con datos reales (12-sep) |
 | 4 | Lotto Activo RD Internacional | `lotto-activo-rd` | animalitos | 08:30–19:30 (cada hora `:30`) | `https://www.lottoactivo.com/resultados/animalitos/` | `AnimalitosScraper` | ✅ Verificado con datos reales (12-sep) |
 | 5 | Lotto Activo República Dominicana | `lotto-activo-rep-dom` | animalitos | 08:00–21:00 (cada hora `:00`) | `https://www.lottoactivo.com/resultados/animalitos/` | `AnimalitosScraper` | ✅ Verificado con datos reales (12-sep) |
@@ -58,7 +58,7 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 
 | # | Nombre | slug | type | Horarios (juego_horarios) | Fuente scraper | Clase scraper | Estado |
 |---|--------|------|------|---------------------------|----------------|---------------|--------|
-| 9 | Triple Caliente | `triple-caliente` | tripletas | 13:00, 16:30, 19:10 | `https://triplecaliente.com/api/gaming/results/product` (API oficial) | `TripleCalienteOficialScraper` | ✅ Verificado con datos reales (API oficial, sin anti-bot) |
+| 9 | Triple Caliente | `triple-caliente` | tripletas | 13:00, 16:30, 19:10 | `https://triplecaliente.com/api/gaming/results/product` (API oficial) | `TripleCalienteOficialScraper` | ✅ Verificado con datos reales (API oficial, sin anti-bot) + reglamento oficial (WU f26: 600×/60×/6.000×/600×; reglamento declara 5 sorteos, la API opera 3 — H18) |
 | 10 | Cazaloton | `cazaloton` | animalitos | 09:00–19:00 (11 horarios `:00`) | `https://loteriadehoy.com/animalito/cazaloton/resultados/` (SE MANTIENE — el sitio oficial cazaloton.com NO publica resultados; sus enlaces apuntan a loteriadehoy) | `LoteriaDeHoyScraper` | ✅ Verificado con datos reales (12-sep) + reglamento oficial (38 figuras, 30x, dupleta 800x, tripleta 200x) |
 | 11 | Triple Chance | `triple-chance` | tripletas | 09:00–19:00 (11 horarios `:00`) | `https://api.scalalot.com/servicelotteryresults/ServicioResultados.svc/ServicioResultados/ConsultarResultadoSorteo/Q0hBTkNF/` (API oficial tuchance.com.ve "Chance en línea") | `TripleChanceOficialScraper` | ✅ Verificado con datos reales (12-sep: 11 sorteos, API oficial sin anti-bot; premios oficiales 600x) |
 | 12 | El Arrejuntado | `el-arrejuntado` | tripletas | 10:00, 13:00, 16:00, 19:00, 23:00 (5 horarios) | `https://backend.serviciosintegradostriple7.com/api/v1/products/el-arrejuntao/results/` | `ElArrejuntaoScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
@@ -71,7 +71,7 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 | 19 | Selva Plus | `selva-plus` | animalitos | 08:15–20:15 (13 horarios `:15`) | `https://api.lotterly.co/v1/results/selva-plus/` (API oficial) | `SelvaPlusScraper` | ✅ Verificado con datos reales (12-sep: HOY 7 + AYER 13, dedupe) |
 | 20 | Triple Táchira | `triple-tachira` | tripletas | 13:15, 16:45, 22:10 (3 horarios) | `https://tripletachira.com/pruebah.php` (sitio oficial) | `TripleTachiraScraper` | ✅ Verificado con datos reales (12-sep: AYER 3 + HOY 1, dedupe) |
 | 21 | Triple Fácil | `triple-facil` | tripletas | 08:00–19:00 (12 horarios `:00`) | `https://api.lotterly.co/v1/results/triple-facil/` (API oficial lotterly.co) | `TripleFacilScraper` | ✅ Verificado con datos reales (12-sep: AYER 12 + HOY 10, dedupe) |
-| 22 | Triple Zamorano | `triple-zamorano` | tripletas | 10:00, 12:00, 14:00, 16:00, 19:00 (5 horarios) | `https://www.triplezamorano.com/api/gaming/results/product` (API oficial) | `TripleZamoranoScraper` | ✅ Verificado con datos reales (12-sep: AYER 5 + HOY 4, dedupe) |
+| 22 | Triple Zamorano | `triple-zamorano` | tripletas | 10:00, 12:00, 14:00, 16:00, 19:00 (5 horarios) | `https://www.triplezamorano.com/api/gaming/results/product` (API oficial) | `TripleZamoranoScraper` | ✅ Verificado con datos reales (12-sep: AYER 5 + HOY 4, dedupe) + reglamento oficial NOV2025 (WU f26: 600×/60×/5×/6.000×/600×/60×) |
 
 > `LoteriaDeHoyScraper` es parametrizado: reutiliza el mismo `scraper_class` para los juegos de
 > loteriadehoy.com registrando la `scraper_url` de cada juego (se usa su slug/name para fail-fast
@@ -279,13 +279,15 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 > (default `'1'`, constante del scraper). **Horarios oficiales verificados con
 > los timestamps**: **5 sorteos diarios 10:00/12:00/14:00/16:00/19:00** (87 días
 > de histórico; los domingos solo 19:00 — mismo patrón no-uniforme documentado
-> en H9/Táchira, aquí consistente en toda la muestra). **Premios**: la
-> informativa (RV `/lottery/triple-zamorano`) declara 600×/60×/6.000×/600× pero
-> SIN fuente oficial verificada (los mismos valores que RV declaró para Triple
-> Táchira resultaron EQUIVOCADOS — H9), por lo que `premio_multiplo` queda en
-> **30× default de los triples** y pendiente de verificación con el reglamento
-> oficial (hallazgo H11 en `docs/comparacion-juegos.md`). Operador (informativa):
-> Operadora 1923, C.A. / Lotería del Zulia. Respuesta inválida/vacía/sin eventos
+> en H9/Táchira, aquí consistente en toda la muestra). **Premios OFICIALES del
+> reglamento (WU f26)**: `REGLAMENTO TP ZAMORANO NOV2025` publicado en el
+> propio triplezamorano.com (Lotería del Zulia G-20007649-6, PDF parseable en
+> `docs/reglamentos/reglamento-triple-zamorano.pdf`): TRIPLE **600×**, COLA
+> **60×**, UÑA **5×**, ASTRO **6.000×**, COLA+SIGNO **600×**, UÑA+SIGNO **60×**
+> → `premio_multiplo` 30→**600** + `modalidades` (resuelve H11: la informativa
+> 600/60/6.000/600 era correcta, ahora con fuente). Operador (informativa):
+> Operadora 1923, C.A. / Lotería del Zulia. Reglamento declara sorteos L-D,
+> la API muestra domingos solo 19:00 (H19). Respuesta inválida/vacía/sin eventos
 > → RuntimeException (fail-fast); histórico filtrado por fecha en `execute`.
 
 ## Juegos pendientes

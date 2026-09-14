@@ -5,9 +5,12 @@ comodines, premiación y **reglamento oficial**. Complementa a:
 - `docs/fuentes-oficiales.md` → URLs de cada fuente (registro).
 - `docs/comparacion-juegos.md` → hallazgos H1–H11 (desajustes oficial vs informativa).
 
-> Actualizado: 2026-09-14 (WU f24 — LOTE 2: los 4 juegos de fuente agregador verificados contra
-> fuente oficial: cazaloton, triple-chance, el-guacharito y guacharo-activo).
-> La **verificación integral** continúa: quedan los pendientes de reglamento de los triples.
+> Actualizado: 2026-09-14 (WU f26 — CACERÍA DE REGLAMENTOS: reglamentos oficiales obtenidos para
+> Triple Zulia, Triple Caliente y Triple Zamorano (PDF parseables desde los sitios oficiales),
+> Triple Chance (escaneado), La Granjita y La Ricachona (escaneados), familia Lotto Activo
+> (PDFs/afiches) y Mega Animal 40 (sitio oficial con premios; reglamento solo referenciado).
+> Pendientes por NO PUBLICAR: Monje (PDF 404), El Arrejuntado, El Guacharito, Guácharo Activo,
+> Loto Chaima, Selva Plus y Triple Fácil (sus sitios/bundles no publican reglamento).
 >
 > Evidencia del LOTE 1 (2026-09-10..14): feed oficial `lottoactivo.com/resultados/animalitos/`
 > (4 juegos animalitos en un JSON), `/resultados/terminal_activo/`, `/resultados/trio_activo/`,
@@ -26,44 +29,49 @@ comodines, premiación y **reglamento oficial**. Complementa a:
 
 | # | Juego | Horarios | Opciones | Comodines | Premiación | Reglamento | Notas |
 |---|-------|:---:|:---:|:---:|:---:|:---:|---|
-| 1 | `lotto-activo` | ✅ | ✅ | — | ✅ | ⚠️ | Feed oficial: 12 sorteos 08:00–19:00 (el texto de la web dice 11 desde 09:00 → nota). Zoo canónico 38; **corregido 23 Cobra→Cebra**. FAQ oficial: 30×. Reglamento PDF existe pero es imagen no parseable; Dupleta sin respaldo en reglamento |
-| 2 | `triple-zulia` | ✅ | ✅ | — | ⏳ | ❌ | API oficial: SOLO 3 sorteos 12:45/16:45/19:05 y A/B/C+12 signos (234 registros). API no publica premios ni hay reglamento → premio 30 queda pendiente |
-| 3 | `terminal-activo` | ✅ | ✅ | — | ⚠️ | ⚠️ | Feed: 12 sorteos 08:00–19:00; terminal = **2 últimos dígitos del Trío Activo** (verificado cruzando feeds). Reglamento oficial (Trio_Activo.pdf, mismo md5 que Terminal_Trio.pdf): TERMINAL **60×** → **corregido 20→60**. FAQ oficial dice 70×+5× aprox → discrepancia H12 |
-| 4 | `lotto-activo-rd` | ✅ | ✅ | — | ✅ | ⚠️ | Feed + metadata + FAQ: 12 sorteos cada hora 08:30–19:30. Zoo canónico 38 (23=Cebra). FAQ 30×. Reglamento enlazado por error (es de "Ruleta Royal", confirma 30×) |
-| 5 | `lotto-activo-rep-dom` | ✅ | ✅ | — | ✅ | ⚠️ | Feed: **14 sorteos 08:00–21:00** (el texto oficial dice 09:00–21:00 y "trece (14)" → nota). Zoo canónico 38. FAQ 30× |
-| 6 | `monje-millonario` | ✅ | ✅ | — | ⏳ | ❌ | **H2 CONFIRMADO + H14 RESUELTO (WU f25)**: muestreo del feed oficial de **75 días (2026-07-02..09-14, ~900 sorteos)** → rango completo **0–75** y confirmados los 7 nombres que faltaban: 37 Tortuga, 39 Lechuza, 57 Pato, 65 Araña, 67 Avestruz, 68 Jaguar y **75 Patronus**. Zoo propio **COMPLETO: 77 figuras** (76 números + 0 duplicado). `special_result` NO es siempre 1: varía 1/0 (~9/12 por día, horas no fijas) — semántica sin documentar. PDF del reglamento 404; premio de Patronus sin fuente oficial |
+| 1 | `lotto-activo` | ✅ | ✅ | — | ✅ | ⚠️ | Feed oficial: 12 sorteos 08:00–19:00 (el texto de la web dice 11 desde 09:00 → nota). Zoo canónico 38; **corregido 23 Cobra→Cebra**. FAQ oficial: 30×. Reglamento PDF existe pero es imagen no parseable (**descargado**: `docs/reglamentos/reglamento-lotto-activo.pdf`); Dupleta sin respaldo en reglamento |
+| 2 | `triple-zulia` | ✅ | ✅ | — | ✅ | ✅ | API oficial: SOLO 3 sorteos 12:45/16:45/19:05 y A/B/C+12 signos (234 registros). **Reglamento oficial obtenido (WU f26)**: `docs/reglamentos/reglamento-triple-zulia.pdf` (Lotería del Zulia, NOV2025, parseable): TRIPLE A/B/C **600×**, TERMINAL **60×**, ZODIACO DEL ZULIA **6.000×**, TERMINAL ZODIACO **600×** → **corregido 30→600** + modalidades en config |
+| 3 | `terminal-activo` | ✅ | ✅ | — | ⚠️ | ⚠️ | Feed: 12 sorteos 08:00–19:00; terminal = **2 últimos dígitos del Trío Activo** (verificado cruzando feeds). Reglamento oficial (Trio_Activo.pdf, mismo md5 que Terminal_Trio.pdf): TERMINAL **60×** → **corregido 20→60**. **Descargado**: `docs/reglamentos/reglamento-terminal-activo.pdf`. FAQ oficial dice 70×+5× aprox → discrepancia H12 |
+| 4 | `lotto-activo-rd` | ✅ | ✅ | — | ✅ | ⚠️ | Feed + metadata + FAQ: 12 sorteos cada hora 08:30–19:30. Zoo canónico 38 (23=Cebra). FAQ 30×. Reglamento enlazado por error (es de "Ruleta Royal", confirma 30× y el zoo 23=Cebra) — **descargado**: `docs/reglamentos/reglamento-lotto-activo-rd.pdf` |
+| 5 | `lotto-activo-rep-dom` | ✅ | ✅ | — | ✅ | ⚠️ | Feed: **14 sorteos 08:00–21:00** (el texto oficial dice 09:00–21:00 y "trece (14)" → nota). Zoo canónico 38. FAQ 30×. Mismo mislink Ruleta Royal — **descargado**: `docs/reglamentos/reglamento-lotto-activo-rep-dom.pdf` |
+| 6 | `monje-millonario` | ✅ | ✅ | — | ⏳ | ❌ | **H2 CONFIRMADO + H14 RESUELTO (WU f25)**: muestreo del feed oficial de **75 días (2026-07-02..09-14, ~900 sorteos)** → rango completo **0–75** y confirmados los 7 nombres que faltaban: 37 Tortuga, 39 Lechuza, 57 Pato, 65 Araña, 67 Avestruz, 68 Jaguar y **75 Patronus**. Zoo propio **COMPLETO: 77 figuras** (76 números + 0 duplicado). `special_result` NO es siempre 1: varía 1/0 (~9/12 por día, horas no fijas) — semántica sin documentar. **Reglamento `Lotto_Activo_2.pdf` CONFIRMADO 404 (WU f26)** + 6 variantes de nombre probadas → premio de Patronus sin fuente oficial (H14) |
 | 7 | `trio-activo` | ✅ | ✅ | — | ✅ | ✅ | **H5 DESMENTIDO**: es un juego de **TRIPLE de 3 cifras** (000–999) con modalidades TRIPLE/TERMINAL/PUNTA, NO "terminales 3 cifras"; feed: 12 sorteos 08:00–19:00 (reglamento 2020 dice 3 → stale). Reglamento oficial: TRIPLE **600×** → **corregido 30→600** + modalidades terminal/punta 60×; opciones corregidas a terminal 00–99 (no hay zodiaco) |
-| 8 | `triple-caliente` | ✅ | ✅ | — | ⏳ | ❌ | API oficial verificada con datos reales (12 signos); premiación pendiente de reglamento |
+| 8 | `triple-caliente` | ✅ | ✅ | — | ✅ | ✅ | API oficial verificada con datos reales (12 signos). **Reglamento oficial obtenido (WU f26)**: `docs/reglamentos/reglamento-triple-caliente.pdf` (Lotería de Cojedes, parseable): TRIPLE A/B/C **600×**, TERMINAL **60×**, SIGNO CALIENTE **6.000×**, TERMINAL SIGNO **600×** → **corregido 30→600** + modalidades en config. **Desajuste H18**: el reglamento declara 5 sorteos 11:10–19:10 pero la API opera 3 (13:00/16:30/19:10) → se prioriza la operación real |
 | 9 | `cazaloton` | ✅ | ✅ | — | ✅ | ✅ | **Reglamento oficial verificado** (Reglamento.pdf de cazaloton.com, 17 págs, parseable): 38 figuras (0/00/1–36) ✓, 11 sorteos 09:00–19:00 ✓, CAZALOTÓN 30× ✓ → modalidades oficiales DUPLETA 800× / TRIPLETA 200× registradas en config. Fuente de resultados SE MANTIENE en loteriadehoy (cazaloton.com NO publica resultados; sus enlaces apuntan al agregador) |
-| 10 | `triple-chance` | ✅ | ✅ | — | ✅ | ⚠️ | **MIGRADO a fuente oficial** (WU f24): tuchance.com.ve "Chance en línea" → API scalalot (11 horarios 09:00–19:00 ✓, 12 signos ✓). Premios del **afiche oficial** (PDF parseable): TRIPLE A/B 600×, TRIPLE A+B 200.000×, SOLO A o B 100×, TERMINAL 60×, TRIPLE C+SIGNO 5.000×, SIGNO 6× → config 600. Reglamento publicado pero ESCANEADO (no parseable). Informativa desactualizada (3 sorteos vs 11 reales) |
-| 11 | `el-arrejuntado` | ✅ | ✅ | — | ⏳ | ❌ | API oficial verificada con datos reales (6 modalidades); premiación pendiente |
-| 12 | `el-guacharito` | ✅ | ✅ | — | ✅ | ❌ | **MIGRADO a fuente oficial** (WU f24): API lotterly (12 horarios :30 ✓). **101 figuras propias** confirmadas (bundle oficial; la informativa tenía razón). Premios oficiales del bundle: animalito 70× + figura especial Guacharito (99) 150× → config 70. Sin reglamento publicado |
-| 13 | `guacharo-activo` | ✅ | ✅ | — | ✅ | ❌ | **MIGRADO a fuente oficial** (WU f24): API lotterly (12 horarios :00 ✓). **77 figuras propias** confirmadas (bundle oficial; la informativa tenía razón). Premios oficiales del bundle: 60× + comodín Guácharo (75) 120× → config 60. Sin reglamento publicado |
-| 14 | `la-granjita` | ✅ | ✅ | — | ⏳ | ❌ | API oficial: 12 horarios, 38 opciones coinciden; premiación sin dato oficial |
-| 15 | `la-ricachona` | ✅ | ✅ | — | ⏳ | ❌ | HTML oficial: 12 horarios `:05`, signos coinciden; premiación sin dato oficial |
-| 16 | `loto-chaima` | ✅ | ✅ | — | ⏳ | ❌ | API oficial: 12 horarios, 57 figuras propias coinciden; premiación sin dato oficial |
-| 17 | `mega-animal-40` | ⚠️ | ✅ | ⚠️ | ⚠️ | ❌ | Fuente: proveedor (excepción autorizada, sin página oficial). 38 canónico ✓; **comodín MEGA 40× sin representación en los datos** (H1) |
-| 18 | `selva-plus` | ✅ | ✅ | ⚠️ | ✅ | ❌ | API oficial: 13 sorteos, 101 figuras + 2 comodines ✓; premiación base 80×/comodines 160×/200× documentada de fuente oficial; **representación de comodines en datos aún no observada** (H8) |
+| 10 | `triple-chance` | ✅ | ✅ | — | ✅ | ⚠️ | **MIGRADO a fuente oficial** (WU f24): tuchance.com.ve "Chance en línea" → API scalalot (11 horarios 09:00–19:00 ✓, 12 signos ✓). Premios del **afiche oficial** (PDF parseable): TRIPLE A/B 600×, TRIPLE A+B 200.000×, SOLO A o B 100×, TERMINAL 60×, TRIPLE C+SIGNO 5.000×, SIGNO 6× → config 600. Reglamento publicado pero **ESCANEADO (no parseable)** — **descargado (WU f26)**: `docs/reglamentos/reglamento-triple-chance.pdf` (VIGENTE) y `docs/reglamentos/reglamento-triple-chance-2024.pdf`. Informativa desactualizada (3 sorteos vs 11 reales) |
+| 11 | `el-arrejuntado` | ✅ | ✅ | — | ⏳ | ❌ | API oficial verificada con datos reales (6 modalidades); premiación pendiente. **Reglamento NO publicado (WU f26)**: sitio es landing SPA (Astro) y el backend es API-only; sin PDF ni ruta de reglamento (revisadas `/reglamento`, `/docs`, `/api/v1/reglamentos`, `/openapi.json`) |
+| 12 | `el-guacharito` | ✅ | ✅ | — | ✅ | ❌ | **MIGRADO a fuente oficial** (WU f24): API lotterly (12 horarios :30 ✓). **101 figuras propias** confirmadas (bundle oficial; la informativa tenía razón). Premios oficiales del bundle: animalito 70× + figura especial Guacharito (99) 150× → config 70. **Reglamento NO publicado (WU f26)**: el bundle oficial (`index-EQw1Zdrz.js`) solo tiene footer de copyright; sitio "Operado bajo licencia de la Lotería de Oriente" |
+| 13 | `guacharo-activo` | ✅ | ✅ | — | ✅ | ❌ | **MIGRADO a fuente oficial** (WU f24): API lotterly (12 horarios :00 ✓). **77 figuras propias** confirmadas (bundle oficial; la informativa tenía razón). Premios oficiales del bundle: 60× + comodín Guácharo (75) 120× → config 60. **Reglamento NO publicado (WU f26)**: bundle (`index-Dv-KFMIs.js`) sin reglamento; "Operado bajo licencia de la Lotería de Oriente" |
+| 14 | `la-granjita` | ✅ | ✅ | — | ⏳ | ⚠️ | API oficial: 12 horarios, 38 opciones coinciden; premiación sin dato oficial. **Reglamento oficial DESCARGADO (WU f26)**: `docs/reglamentos/reglamento-la-granjita.pdf` (enlazado desde lagranjita.com, 17 págs, **escaneado** — el cliente extraerá los textos) |
+| 15 | `la-ricachona` | ✅ | ✅ | — | ⏳ | ⚠️ | HTML oficial: 12 horarios `:05`, signos coinciden; premiación sin dato oficial. **Reglamento oficial DESCARGADO (WU f26)**: `docs/reglamentos/reglamento-la-ricachona.pdf` (enlazado desde laricachona.com, 15 págs, **escaneado** — el cliente extraerá los textos) |
+| 16 | `loto-chaima` | ✅ | ✅ | — | ⏳ | ❌ | API oficial: 12 horarios, 57 figuras propias coinciden; premiación sin dato oficial. **Reglamento NO publicado (WU f26)**: bundle de lotochaima.com (`index-DKeh2UsF.js`) sin reglamento; "Operado bajo licencia de la Lotería de Oriente" |
+| 17 | `mega-animal-40` | ⚠️ | ✅ | ⚠️ | ⚠️ | ⚠️ | Fuente: proveedor (excepción autorizada, sin página oficial). 38 canónico ✓; **comodín MEGA 40× sin representación en los datos** (H1). **WU f26**: encontrado el **sitio oficial megaanimal40.com** (logos CONALOT + Big Data Tecnology + Lotería de Cojedes): confirma **12 sorteos 09:00–20:00**, 38 figuras y **premio 30× / 40× con el comodín MEGA** (texto oficial "Como jugar"). El **reglamento N° DIF-RGTO-033-00 (14-nov-2023) solo está referenciado** (RV + actas), no publicado en PDF accesible → pendiente de la Lotería de Cojedes |
+| 18 | `selva-plus` | ✅ | ✅ | ⚠️ | ✅ | ❌ | API oficial: 13 sorteos, 101 figuras + 2 comodines ✓; premiación base 80×/comodines 160×/200× documentada de fuente oficial; **representación de comodines en datos aún no observada** (H8). **Reglamento NO publicado (WU f26)**: bundle de selvaplus.com (`index-BI-rgou6.js`) sin reglamento; footer con logo "Lotería de Oriente" |
 | 19 | `triple-tachira` | ✅ | ✅ | — | ✅ | ✅ | **Reglamento oficial verificado** (PDF G-20004065-3): 500×/50×/5.000×, 3 sorteos 13:15/16:45/22:10; solo pendiente confirmar domingos (H9) |
-| 20 | `triple-facil` | ✅ | ✅ | — | ⚠️ | ❌ | API oficial: 12 sorteos, 100 opciones terminal; premiación INFORMATIVA (700×/60×/10×) sin reglamento publicado (H10) |
-| 21 | `triple-zamorano` | ✅ | ✅ | — | ⚠️ | ❌ | API oficial: 5 sorteos (domingos solo 19:00); premiación informativa 600×/60×/6.000×/600× **sin verificar** (template sospechoso, H11) → 30× default |
+| 20 | `triple-facil` | ✅ | ✅ | — | ⚠️ | ❌ | API oficial: 12 sorteos, 100 opciones terminal; premiación INFORMATIVA (700×/60×/10×) sin reglamento publicado (H10). **WU f26**: confirmado NO publicado — el bundle de triplefacil.com (`index-CnppWFwM.js`) y la ruta `/reglamento` (SPA catch-all) no exponen reglamento; "Operado bajo licencia de la Lotería de Oriente" |
+| 21 | `triple-zamorano` | ✅ | ✅ | — | ✅ | ✅ | API oficial: 5 sorteos (domingos solo 19:00); **Reglamento oficial obtenido (WU f26)**: `docs/reglamentos/reglamento-triple-zamorano.pdf` (REGLAMENTO TP ZAMORANO NOV2025, Lotería del Zulia, parseable): TRIPLE **600×**, COLA **60×**, UÑA **5×**, ASTRO **6.000×**, COLA+SIGNO **600×**, UÑA+SIGNO **60×** → **corregido 30→600** + modalidades en config (**H11 RESUELTO**: la informativa 600/60/6.000/600 era correcta, ahora con fuente) |
 
 ## Resumen
 
-- **Con reglamento oficial verificado: 3/21** (Triple Táchira, Trío Activo — PDF parseables — y **Cazaloton**, PDF parseable 17 págs).
-- **Verificación funcional con fuente oficial (horarios/opciones): 19/21** — los 7 originales (lote 1) + Táchira, Selva, Fácil, Zamorano, Granjita, Ricachona, Chaima, Caliente, Arrejuntado, Mega* (*Mega solo con el proveedor por excepción) + **lote 2: Cazaloton (reglamento), Triple Chance, Guacharito, Guácharo Activo (API oficial)**.
-- **Premiación verificada con fuente oficial: 9/21** — Táchira (reglamento), Trío Activo (reglamento), Terminal Trío (reglamento), Lotto Activo/RD/Rep.Dom (FAQ oficial 30×), Selva (base 80×), **Cazaloton (reglamento 30×), Triple Chance (afiche oficial 600×), Guacharito (bundle 70×/150×), Guácharo Activo (bundle 60×/120×)**.
-- **Pendientes mayores: reglamentos de los triples (2, 8, 11) y premiaciones sin fuente oficial (2, 8, 11, 14–17).**
+- **Con reglamento oficial: 9/21** — PDF **parseables**: Triple Táchira, Trío Activo, Cazaloton,
+  **Triple Zulia, Triple Caliente, Triple Zamorano** (WU f26) + **mislink Ruleta Royal** (RD/Rep.Dom,
+  parseable, confirma 30×). **Escaneados (descargados, pendientes de extracción por el cliente)**:
+  Triple Chance (2 PDFs), La Granjita, La Ricachona. **Imagen no parseable**: Lotto Activo.
+  **Referenciado sin PDF**: Mega Animal 40 (DIF-RGTO-033-00; sitio oficial confirma 30×/40×).
+- **Verificación funcional con fuente oficial (horarios/opciones): 19/21** — los 7 originales (lote 1) + Táchira, Selva, Fácil, Zamorano, Granjita, Ricachona, Chaima, Caliente, Arrejuntado, Mega* (*Mega solo con el proveedor por excepción; el sitio oficial megaanimal40.com existe pero el scraper NO se migra en este WU) + **lote 2: Cazaloton (reglamento), Triple Chance, Guacharito, Guácharo Activo (API oficial)**.
+- **Premiación verificada con fuente oficial: 12/21** — Táchira (reglamento), Trío Activo (reglamento), Terminal Trío (reglamento), Lotto Activo/RD/Rep.Dom (FAQ oficial 30× + mislink Ruleta Royal), Selva (base 80×), **Cazaloton (reglamento 30×), Triple Chance (afiche oficial 600×), Guacharito (bundle 70×/150×), Guácharo Activo (bundle 60×/120×), Triple Zulia, Triple Caliente y Triple Zamorano (reglamentos, 600×)** + Mega Animal 40 (texto oficial del sitio: 30×/40× comodín).
+- **Pendientes mayores: reglamentos NO publicados (7 juegos) y premiaciones sin fuente oficial (4: Arrejuntado, Granjita, Ricachona, Chaima — escaneados pendientes de extracción; Fácil 700× informativo).**
 
 ## Pendientes por tipo
 
-### A. Reglamentos oficiales por obtener (pedir al cliente)
+### A. Reglamentos oficiales por obtener
 
 | Juego(s) | Qué falta | Impacto |
 |---|---|---|
-| `triple-facil`, `triple-zamorano` | Reglamento (no publicado en su web) | Premiación + modalidades reales |
-| `triple-caliente`, `triple-zulia`, `triple-chance`, `el-arrejuntado` | Reglamentos | Premiación real (hoy 30× genérico) |
-| `lotto-activo` y familia | Reglamentos + verificación integral | Premios/modaliades (Dupleta 1000×, etc.) |
+| `triple-facil`, `el-arrejuntado`, `el-guacharito`, `guacharo-activo`, `loto-chaima`, `selva-plus` | **No publicados** (verificado WU f26 en sitios/bundles oficiales) | Premiación real (Fácil hoy 700× informativo; Arrejuntado 30×; Granjita/Ricachona/Chaima escaneados pendientes de extracción) |
+| `monje-millonario` | Reglamento `Lotto_Activo_2.pdf` **404** en el sitio oficial (+6 variantes probadas) | Premio especial de El Patronus (H14) |
+| `mega-animal-40` | Reglamento N° **DIF-RGTO-033-00** solo referenciado, no publicado en PDF | Respaldo formal del 30×/40× (el sitio oficial ya lo confirma) |
+| `lotto-activo` y familia | Reglamentos son imagen no parseable o mislink Ruleta Royal | Premios/modaliades (Dupleta 1.000×, etc.) |
 
 ### B. Fuentes: estado con las URLs oficiales recibidas (2026-09-14)
 
@@ -80,12 +88,12 @@ comodines, premiación y **reglamento oficial**. Complementa a:
 Pendientes que quedaron abiertos del lote:
 - **Monje Millonario (6)**: ✅ zoológico COMPLETADO en el WU f25 (muestreo de 75 días del feed
   oficial confirmó los 7 nombres que faltaban; 77 figuras). Queda pendiente el **premio de
-  "El Patronus"** (el PDF del reglamento da 404 en el sitio oficial) y la semántica de
-  `special_result` (H14).
+  "El Patronus"** (el PDF del reglamento da 404 en el sitio oficial — CONFIRMADO de nuevo en el
+  WU f26 con 6 variantes de nombre) y la semántica de `special_result` (H14).
 - **Terminal Trío (3)**: discrepancia de premio reglamento 60× vs FAQ oficial 70×+5× aprox (H12).
-- **Lotto Activo (1)**: reglamento PDF es imagen no parseable; la modalidad Dupleta 1.000× de la
-  informativa no tiene respaldo en el reglamento disponible.
-- **Triple Zulia (2)**: sin reglamento oficial (premio 30 genérico pendiente).
+- **Lotto Activo (1)**: reglamento PDF es imagen no parseable (descargado en WU f26); la
+  modalidad Dupleta 1.000× de la informativa no tiene respaldo en el reglamento disponible.
+- **Triple Zulia (2)**: ✅ **RESUELTO (WU f26)** — reglamento oficial obtenido (600×/60×/6.000×/600×).
 
 ### D. Puntos específicos abiertos
 
@@ -101,6 +109,9 @@ Pendientes que quedaron abiertos del lote:
 | H14 | **Monje Millonario: nombres sin confirmar + El Patronus + `special_result`** | **ZOO RESUELTO (WU f25)**: muestreo del feed oficial de 75 días (2026-07-02..09-14, ~900 sorteos) confirmó 37 Tortuga, 39 Lechuza, 57 Pato, 65 Araña, 67 Avestruz, 68 Jaguar y **75 Patronus** → zoo completo de 77 figuras. Quedan pendientes: **premio de El Patronus** (reglamento 404) y la **semántica de `special_result`**: NO es siempre 1 — varía 1/0 (~9/12 por día, horas no fijas; solo en Monje; el resto de la familia trae 0) |
 | H15 | **Trio Activo: reglamento (3 sorteos, 2020) vs operación real (12 sorteos)** | El feed oficial opera 12 sorteos/día 08:00–19:00; el reglamento PDF declara 3. Se priorizó la operación real (lo que consume el scraper). Confirmar con el operador |
 | H16 | **Textos oficiales de horarios desactualizados** | Las páginas `/informacion/` y el FAQ declaran "once (11) sorteos 09:00–19:00" para Lotto Activo/Trío/Terminal y "trece (14)" para Rep. Dominicana, pero el feed opera 12 (08:00–19:00) y 14 (08:00–21:00) respectivamente. El feed (dato operativo) manda |
+| H18 | **Triple Caliente: el reglamento declara 5 sorteos pero la operación real es de 3** (WU f26) | El reglamento oficial (Art. 10) declara 5 horarios 11:10/13:10/15:10/17:10/19:10 (domingos solo 19:10); la API oficial (timestamps, 234 respuestas) opera **3 sorteos 13:00/16:30/19:10** (domingos solo 19:10). Se prioriza la **operación real** (lo que consume el scraper), misma política H15/H16. Confirmar con el operador si el reglamento se reformó |
+| H19 | **Zamorano: el reglamento NOV2025 declara sorteos todos los días, pero la API muestra domingos solo 19:00** (WU f26) | El reglamento (Art. 10) no exime domingos (5 horarios L-D); la muestra de f20 (87 días) y el reglamento NOV2025 coexistían: se mantiene la operación real (domingos solo 19:00, consistente en toda la muestra). Confirmar con la Operadora 1923 |
+| H20 | **Sitios oficiales "nuevos" encontrados en la cacería (WU f26)** | `megaanimal40.com` (sitio oficial de Mega Animal 40 con premios 30×/40× y resultados) y los PDFs de reglamento en los bundles de triplecaliente/triplezamorano/resultadostriplezulia — **el scraper de Mega Animal 40 NO se migra** (fuera de alcance; decisión del cliente) |
 
 ### F. Evidencia del LOTE 1 (7 juegos originales)
 
@@ -196,6 +207,85 @@ peticiones y User-Agent de navegador):
    Premios OFICIALES del bundle: animalito regular **60×** (1→60, 10→600, 100→6.000) y **comodín
    Guácharo (75) = 120×** ("El Guácharo es el comodín especial... ¡duplicas tu premio!") → `config`
    premio 60 + comodines {guacharo-75: 120×}. Sin reglamento publicado (❌ no existe en el bundle).
+
+### H. Evidencia del LOTE 3 — Cacería de reglamentos (WU f26, 2026-09-14)
+
+Cacería del reglamento oficial (o afiche) de todos los juegos sin reglamento verificado.
+Método por juego: (1) barrido del sitio oficial (menú/footer/rutas típicas/PDFs), (2) operador o
+lotería reguladora, (3) búsqueda web acotada, (4) descarga del artefacto a `docs/reglamentos/`,
+(5) extracción y aplicación (TDD), (6) documentación. Cortesía: ~1-2s entre peticiones,
+User-Agent de navegador, robots.txt respetado (los sitios no lo prohíben para estas rutas).
+
+1. **Familia Lotto Activo (1, 3, 4, 5, 6)** — lottoactivo.com. Las páginas `/informacion/<juego>/`
+   rellenan el enlace "Reglamento" vía POST a `/core/process.php` (payload con `loteria` = slug),
+   que devuelve `licencia` (nombre del PDF), `operadora` e IOBPAS oficiales: **Lotto Activo =
+   Corporación BigLot 777 C.A / Lotería de Cojedes**; **Monje = Corporación BigLot 777 C.A /
+   Lotería de Caracas**; **RD Internacional = Corporación BigLot 777 C.A / Lotería Internacional
+   de Margarita**; **Rep. Dominicana = Corporación BigLot 777 C.A / notaría dominicana**;
+   **Terminal Trío y Trío Activo = Corporación BigLot 777 C.A / Lotería de Oriente (Monagas)**.
+   - `Lotto_Activo.pdf` (1 pág, **imagen no parseable**) → descargado
+     `docs/reglamentos/reglamento-lotto-activo.pdf`.
+   - `Lotto_Activo_2.pdf` (Monje) → **404**; probadas 6 variantes de nombre (Lotto_Activo2,
+     LottoActivo_2, LottoActivo2, lotto_activo_2, Lotto_Activo_II, Lotto_Activo_2(Monje_Millonario))
+     → todas 404. **Reglamento de Monje no publicado** (H14 sigue abierto para el premio del Patronus).
+   - `Lotto_Activo_Rd_Ve.pdf` = `Lotto_Activo_RD.pdf` (md5 idéntico `2598d97e…`, 4 págs,
+     **parseable**): es el reglamento de **"RULETA ROYAL"** (Empresa Apuestas Royal) — el sitio lo
+     enlaza por error (mislink) para RD/Rep.Dom — pero confirma el **zoo 0–36 con 23 = Cebra** y el
+     **pago de 30× por animal** (Art. NOVENA). Descargados:
+     `docs/reglamentos/reglamento-lotto-activo-rd.pdf` y `reglamento-lotto-activo-rep-dom.pdf`.
+   - `Terminal_Trio.pdf` = `Trio_Activo.pdf` (md5 `50148e8e…`, parseable, Lotería de Oriente):
+     ya verificado en f22 (TRIPLE 600× / TERMINAL 60× / PUNTA 60×) → descargado como
+     `docs/reglamentos/reglamento-terminal-activo.pdf`.
+   - **Afiches oficiales** de `/descargas/` descargados (7 JPG): animalitos, triple+terminal v1/v2,
+     "ganar siempre será divertido", pendón de resultados, ruleta animales y grupos, terminal.
+2. **Triple Zulia (2)** — resultadostriplezulia.com (SPA). Del bundle JS oficial
+   (`index-CMaMKI7c.js`) se extrajeron las rutas `/images/REGLAMENTO TRIPLE ZULIA NOV2025_.pdf`
+   (reglamento, 17 págs, **parseable**) y `/licencia/RUNLOT_TP_ZULIA.pdf` (licencia RUNLOT 2026).
+   **Premios Art. 19**: TRIPLE A/B/C **600×**, TERMINAL A/B/C **60×**, ZODIACO DEL ZULIA **6.000×**,
+   TERMINAL ZODIACO **600×** (probabilidades 1:1000/1:100/1:12000/1:1200). Horarios Art. 10:
+   12:45/16:45/19:05 (domingos solo 19:05) ✓ coinciden con la API. → **CORREGIDO** `premio_multiplo`
+   30→**600** + modalidades {cola:60, zodiacal:6000, terminal_zodiacal:600} (patrón Táchira).
+3. **Triple Caliente (8)** — triplecaliente.com (SPA). Del bundle (`index-CNUviVGR.js`):
+   `/images/Reglamento TRIPLE CALIENTE.pdf` (17 págs, **parseable**, Lotería de Cojedes
+   G-20008572-1) + `/licencia/RUNLOT_Triple_Calientes.pdf`. **Premios Art. 19**: TRIPLE A/B/C
+   **600×**, TERMINAL A/B/C **60×**, SIGNO CALIENTE **6.000×**, TERMINAL SIGNO **600×**. Horarios
+   Art. 10: **5 sorteos 11:10/13:10/15:10/17:10/19:10** (domingos solo 19:10) pero la **API opera 3
+   (13:00/16:30/19:10** — timestamps, 234 respuestas) → desajuste **H18**, se prioriza la operación.
+   → **CORREGIDO** `premio_multiplo` 30→**600** + modalidades {cola:60, zodiacal:6000,
+   terminal_zodiacal:600}.
+4. **Triple Zamorano (21)** — triplezamorano.com (SPA). Del bundle (`index-DaG7U4s6.js`):
+   `/images/REGLAMENTO TP ZAMORANO NOV2025.pdf` (18 págs, **parseable**, Lotería del Zulia
+   G-20007649-6) + `/licencia/RUNLOT_TP_ZAMORANO_28.11.2026.pdf`. **Premios Art. 19**: TRIPLE
+   **600×**, COLA **60×**, UÑA **5×**, ASTRO **6.000×**, COLA+SIGNO **600×**, UÑA+SIGNO **60×**.
+   Horarios Art. 10: 5 sorteos 10:00/12:00/14:00/16:00/19:00 **todos los días** (la API muestra
+   domingos solo 19:00 → **H19**). → **CORREGIDO** `premio_multiplo` 30→**600** + modalidades
+   {cola:60, uña:5, zodiacal:6000, cola_signo:600, uña_signo:60}. **H11 RESUELTO**: los valores
+   informativos (600/60/6.000/600) eran correctos, ahora con fuente oficial.
+5. **Triple Chance (10)** — tuchance.com.ve `/reglamentos/`: 2 PDFs oficiales, ambos **escaneados**
+   (sin capa de texto): `REGLAMENTO-CHANCE-EN-LINEA-VIGENTE.pdf` (8 págs) y `Reglamento.pdf` 2024
+   (19 págs) → descargados (`reglamento-triple-chance.pdf`, `reglamento-triple-chance-2024.pdf`).
+   El cliente extraerá los textos (los premios ya vienen del afiche parseable, WU f24).
+6. **La Granjita (14)** — lagranjita.com enlaza `https://cdns2.premierpluss.com/assets_webpages/
+   granjita/reglamento_la_granjita.pdf` (17 págs, **escaneado**) → descargado
+   `docs/reglamentos/reglamento-la-granjita.pdf`.
+7. **La Ricachona (15)** — laricachona.com enlaza `https://laricachona.com/assets/files/
+   reglamento_la_ricachona.pdf` (15 págs, **escaneado**) → descargado
+   `docs/reglamentos/reglamento-la-ricachona.pdf`.
+8. **Mega Animal 40 (17)** — encontrado el **sitio oficial megaanimal40.com** (con logos CONALOT,
+   Big Data Tecnology y Lotería de Cojedes): "**12 sorteos diarios 09:00AM–08:00PM**", "**38
+   figuras**" y texto oficial de premios: "La jugada tendrá un premio de **treinta (30) veces** lo
+   apostado... si el resultado sale con la palabra [MEGA] tu premio se aumenta **(40) veces**". El
+   **reglamento N° DIF-RGTO-033-00 (14-nov-2023) solo está referenciado** (RV y el propio sitio);
+   no hay PDF accesible (el sitio de la Lotería de Cojedes no resuelve; CONALOT no publica
+   reglamentos por juego). El scraper NO se migra a este sitio (fuera de alcance, H20).
+9. **El Arrejuntado (11)** — serviciosintegradostriple7.com es una landing SPA (Astro) y el backend
+   `backend.serviciosintegradostriple7.com` es API-only: revisadas `/reglamento`, `/docs`,
+   `/api/v1/reglamentos/`, `/openapi.json` → todo 404. **No publicado**.
+10. **Loterly SPA (12, 13, 16, 18, 20)** — elguacharitomillonario.com, guacharoactivo.com.ve,
+    lotochaima.com, selvaplus.com y triplefacil.com: los bundles oficiales NO contienen reglamento
+    (solo footer de copyright); las rutas `/reglamento` devuelven el mismo index (SPA catch-all).
+    Todos confirman "**Operado bajo licencia de la Lotería de Oriente**" (Selva Plus: logo ldo).
+    → **No publicados**.
 
 ### E. Fuera del catálogo (candidatos — decisión del cliente)
 
