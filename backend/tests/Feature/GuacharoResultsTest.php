@@ -7,10 +7,11 @@ use App\Models\Banca;
 use App\Models\Juego;
 use App\Models\JuegoHorario;
 use App\Models\JuegoLimite;
+use App\Models\JuegoOpcion;
 use App\Models\PluginJuego;
 use App\Models\Resultado;
 use App\Plugins\Juegos\Animalitos;
-use App\Plugins\Scrapers\LoteriaDeHoyScraper;
+use App\Plugins\Scrapers\GuacharoActivoOficialScraper;
 use Database\Seeders\GuacharoActivoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -40,9 +41,21 @@ class GuacharoResultsTest extends TestCase
         $this->assertEquals('Guacharo Activo', $juego->name);
         $this->assertEquals('animalitos', $juego->type);
         $this->assertTrue($juego->requires_scraper);
-        $this->assertEquals('https://loteriadehoy.com/animalito/guacharoactivo/resultados/', $juego->scraper_url);
-        $this->assertEquals(LoteriaDeHoyScraper::class, $juego->scraper_class);
-        $this->assertEquals(30, $juego->config['premio_multiplo']);
+        $this->assertEquals('https://api.lotterly.co/v1/results/guacharo-activo/', $juego->scraper_url);
+        $this->assertEquals(GuacharoActivoOficialScraper::class, $juego->scraper_class);
+        $this->assertEquals(60, $juego->config['premio_multiplo']);
+    }
+
+    public function test_seeder_registra_el_comodin_guacharo_75(): void
+    {
+        $juego = Juego::where('slug', 'guacharo-activo')->first();
+
+        // Comodín oficial del bundle: Guácharo (75) duplica el premio
+        // (60x → 120x).
+        $this->assertArrayHasKey('comodines', $juego->config);
+        $this->assertEquals(120, $juego->config['comodines']['guacharo-75']['premio_multiplo']);
+        $this->assertEquals(75, $juego->config['comodines']['guacharo-75']['numero']);
+        $this->assertEquals('Guácharo', $juego->config['comodines']['guacharo-75']['nombre']);
     }
 
     public function test_seeder_registra_limite_default_y_plugin_animalitos(): void
@@ -76,64 +89,89 @@ class GuacharoResultsTest extends TestCase
         );
     }
 
+    public function test_seeder_registra_las_77_opciones_del_zoo_propio(): void
+    {
+        $juego = Juego::where('slug', 'guacharo-activo')->first();
+
+        $opciones = JuegoOpcion::where('juego_id', $juego->id)
+            ->orderBy('sort_order')
+            ->get();
+
+        $this->assertCount(77, $opciones);
+
+        // Ballena y Delfín comparten numero 0; labels CON acentos (bundle oficial)
+        $this->assertEquals('Ballena', $opciones[0]->label);
+        $this->assertEquals(0, (int) $opciones[0]->numero);
+        $this->assertEquals('ballena', $opciones[0]->value);
+
+        $this->assertEquals('Delfín', $opciones[1]->label);
+        $this->assertEquals(0, (int) $opciones[1]->numero);
+        $this->assertEquals('delfin', $opciones[1]->value);
+
+        // El comodín 75 = Guacharo
+        $this->assertEquals('Guacharo', $opciones[76]->label);
+        $this->assertEquals(75, (int) $opciones[76]->numero);
+        $this->assertEquals('guacharo', $opciones[76]->value);
+    }
+
     public function test_seed_y_scrape_persisten_resultados(): void
     {
         $this->assertEquals(0, Resultado::count());
 
         $juego = Juego::where('slug', 'guacharo-activo')->first();
-        $scraper = new LoteriaDeHoyScraper($juego);
-        $html = file_get_contents(base_path('tests/Fixtures/loteriadehoy_guacharo.html'));
+        $scraper = new GuacharoActivoOficialScraper($juego);
+        $json = file_get_contents(base_path('tests/Fixtures/guacharoactivo_oficial_20260912.json'));
 
         $reflection = new \ReflectionClass($scraper);
         $parse = $reflection->getMethod('parse');
         $parse->setAccessible(true);
-        $resultados = $parse->invoke($scraper, $html);
+        $resultados = $parse->invoke($scraper, $json);
 
-        $guardados = $scraper->saveResults($resultados, '2026-09-01');
+        $guardados = $scraper->saveResults($resultados, '2026-09-12');
 
-        $this->assertEquals(5, count($resultados));
-        $this->assertEquals(5, $guardados);
-        $this->assertEquals(5, Resultado::count());
+        $this->assertEquals(12, count($resultados));
+        $this->assertEquals(12, $guardados);
+        $this->assertEquals(12, Resultado::count());
 
         $persistido = Resultado::where('juego_id', $juego->id)
-            ->whereDate('fecha_sorteo', '2026-09-01')
+            ->whereDate('fecha_sorteo', '2026-09-12')
             ->where('hora_sorteo', '08:00')
             ->first();
 
         $this->assertNotNull($persistido);
-        $this->assertEquals(62, $persistido->numeros_ganadores['numero']);
-        $this->assertEquals('Cachicamo', $persistido->numeros_ganadores['nombre_animal']);
+        $this->assertEquals(24, $persistido->numeros_ganadores['numero']);
+        $this->assertEquals('Iguana', $persistido->numeros_ganadores['nombre_animal']);
         $this->assertEquals('VE', $persistido->numeros_ganadores['pais']);
     }
 
     public function test_dedupe_al_rescrapear_el_mismo_dia(): void
     {
         $juego = Juego::where('slug', 'guacharo-activo')->first();
-        $scraper = new LoteriaDeHoyScraper($juego);
-        $html = file_get_contents(base_path('tests/Fixtures/loteriadehoy_guacharo.html'));
+        $scraper = new GuacharoActivoOficialScraper($juego);
+        $json = file_get_contents(base_path('tests/Fixtures/guacharoactivo_oficial_20260912.json'));
 
         $reflection = new \ReflectionClass($scraper);
         $parse = $reflection->getMethod('parse');
         $parse->setAccessible(true);
-        $resultados = $parse->invoke($scraper, $html);
+        $resultados = $parse->invoke($scraper, $json);
 
-        $scraper->saveResults($resultados, '2026-09-01');
-        $this->assertEquals(5, Resultado::count());
+        $scraper->saveResults($resultados, '2026-09-12');
+        $this->assertEquals(12, Resultado::count());
 
-        $scraper->saveResults($resultados, '2026-09-01');
-        $this->assertEquals(5, Resultado::count(), 'No debe duplicarse el resultado del mismo sorteo');
+        $scraper->saveResults($resultados, '2026-09-12');
+        $this->assertEquals(12, Resultado::count(), 'No debe duplicarse el resultado del mismo sorteo');
     }
 
     public function test_resolve_scraper_usa_scraper_class_registrado(): void
     {
         $juego = Juego::where('slug', 'guacharo-activo')->first();
 
-        $job = new ScrapeResultsJob($juego->id, '2026-09-01');
+        $job = new ScrapeResultsJob($juego->id, '2026-09-12');
 
         $reflection = new \ReflectionClass($job);
         $method = $reflection->getMethod('resolveScraper');
         $method->setAccessible(true);
 
-        $this->assertEquals(LoteriaDeHoyScraper::class, $method->invoke($job, $juego));
+        $this->assertEquals(GuacharoActivoOficialScraper::class, $method->invoke($job, $juego));
     }
 }
