@@ -1755,3 +1755,121 @@ limpio.
 - Pendientes de cliente: informar que **cazaloton.com no publica resultados** (se
   mantiene loteriadehoy); confirmar el reglamento escaneado de Triple Chance
   (afiche 100× vs informativa 150×); reglamentos de los triples (2, 8, 11).
+
+---
+
+# Apply Progress (WU f25) — Completar el zoológico de Monje Millonario con muestreo del histórico oficial
+
+**Rama**: `feat/integracion-juegos-scrapers-f25-monje-zoo` (base: `f24-verificacion-agregadores`)
+**Modo**: Strict TDD (backend: `composer test` vía `php artisan test`)
+**Estado**: ✅ COMPLETADO — 5/5 tareas
+
+## Resumen
+
+Cierre del **H14** por la vía aprobada por el cliente: muestrear el histórico oficial del feed
+`lottoactivo.com/resultados/animalitos/<fecha>/` (el mismo que consume `AnimalitosScraper`).
+Se recorrieron **75 días consecutivos (2026-07-02..09-14, 900 sorteos de Monje, 76 números
+distintos)** con 1 s entre fechas y se confirmaron los **7 nombres que faltaban**:
+**37 Tortuga, 39 Lechuza, 57 Pato, 65 Araña, 67 Avestruz, 68 Jaguar y 75 Patronus**. El
+`MonjeMillonarioSeeder` pasa de **70 a 77 figuras** (rango completo 0–75 + el 0 duplicado
+Delfín/Ballena) y queda **sin números pendientes**. Se regeneró `docs/juegos.json`.
+
+## Resultado del muestreo (WU f25)
+
+- **Días recorridos**: 75 consecutivos, `2026-07-02..2026-09-14` (73 días con 12 sorteos,
+  2026-09-14 parcial con 5 —día en curso—, 2026-07-16 con 10 —jornada incompleta—). **0 errores**
+  de fetch.
+- **Cobertura**: 76 números distintos, rango **0–75** sin huecos. El 0 lo comparten Delfín (10
+  apariciones) y Ballena (13) → **77 etiquetas**.
+- **Figuras nuevas confirmadas** (nombre oficial del feed → label con acentos del zoo):
+
+  | # | Feed | Label del zoo | Apariciones |
+  |---|------|---------------|------------:|
+  | 37 | Tortuga | Tortuga | 8 |
+  | 39 | Lechuza | Lechuza | 13 |
+  | 57 | Pato | Pato | 6 |
+  | 65 | Arana | **Araña** | 12 |
+  | 67 | Avestruz | Avestruz | 12 |
+  | 68 | Jaguar | Jaguar | 13 |
+  | 75 | Patronus | Patronus | 4 |
+
+- **Faltantes que persisten**: **ninguno**. El zoo queda completo (77 figuras, 0–75).
+- **Pistas externas verificadas**: 37 "Tortuga" ✓, 67 "Avestruz" ✓, 75 "Patronus" ✓ (las tres
+  coinciden con el feed oficial).
+- **Hallazgo H14 corregido — `special_result`**: la muestra corta de f22 (13 días) sugería
+  `special_result=1` en TODOS los resultados; el muestreo de 75 días demuestra que **NO es
+  siempre 1**: es un flag por resultado que varía **1/0 (~9/12 en 1 y 3/12 en 0 por día, horas
+  no fijas)** y solo Monje lo trae así — el resto de la familia (Lotto Activo, RD, Rep.Dom)
+  trae **0** siempre. La semántica sigue **sin documentar** (reglamento `Lotto_Activo_2.pdf` →
+  404) → pendiente para el operador.
+
+## TDD Cycle Evidence
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| f25.2 seeder monje | `tests/Feature/VerificacionOriginalesTest.php` | Feature | ✅ 6/6 (28) | ✅ 2 fallos (70 vs 77 + huecos 0..75) | ✅ 7/7 (43) | ✅ 2 casos (nombres exactos de los 7 + rango completo 0–75 sin huecos con 0 duplicado) | ✅ `$pendientes` eliminado; mensaje del seeder simplificado |
+| f25.3 regresión JSON | `tests/Feature/JuegosJsonTest.php` | Feature | ✅ previo | ✅ (JSON stale 70 + count) | ✅ 3/3 | ✅ 77 opciones + Patronus en labels + sin Cobra | ➖ Ninguno |
+| f25.4 contrato JSON | Harness real (`juegos:export`) | Runtime | — | — | ✅ monje 77 (min 0/max 75) | ✅ md5 `9a5e3da2` ×2 | — |
+
+**Test Summary (WU f25)**: +1 test neto (7 en `VerificacionOriginalesTest`) y +16 assertions.
+Suite completa **693/691/2** (3399 assertions) + `pint --test` limpio.
+
+## Work Unit Evidence
+
+| Evidence | Valor |
+|---|---|
+| Focused test command y resultado | `composer test -- --filter="JuegosJsonTest\|VerificacionOriginalesTest\|LimitesScopedApiTest"` → **40/40 (1014 assertions)**; `--filter=VerificacionOriginalesTest` → **7/7 (43)** |
+| Runtime harness command/scenario y resultado | **Muestreo real**: `php artisan tinker /tmp/opencode/monje_sample.php` → 75 días del feed oficial, 900 sorteos, 0 errores, 76 números. **Re-seed**: `php artisan db:seed --class=MonjeMillonarioSeeder` → 77 figuras. **Export**: `php artisan juegos:export` → `docs/juegos.json` determinista (md5 `9a5e3da2b292ce0fbc33686086fcbe58` ×2) |
+| Rollback boundary | Revertir `MonjeMillonarioSeeder` (77→70, restaurar `$pendientes`), `VerificacionOriginalesTest`/`JuegosJsonTest` y regenerar `docs/juegos.json`; sin tocar scrapers, motor ni otros juegos |
+
+## Archivos cambiados (WU f25)
+
+| Archivo | Acción | Qué se hizo |
+|---------|--------|-------------|
+| `backend/database/seeders/MonjeMillonarioSeeder.php` | Modify | +7 figuras (37/39/57/65/67/68/75) en orden numérico con labels acentuados; `$pendientes` eliminado; docblock y mensaje "zoo COMPLETO de 77 figuras" |
+| `backend/tests/Feature/VerificacionOriginalesTest.php` | Modify | `test_monje_millonario_tiene_zoo_propio_completo` (77 + 7 nombres) + `test_monje_millonario_zoo_cubre_todos_los_numeros_0_a_75` (rango sin huecos) |
+| `backend/tests/Feature/JuegosJsonTest.php` | Modify | monje 70→77 opciones + Patronus en labels |
+| `docs/juegos.json` | Modify | REGENERADO (21 juegos; monje 77 opciones, md5 `9a5e3da2` determinista) |
+| `docs/seguimiento-verificacion.md` | Modify | Fila 6 (Opciones ✅, zoo 77, H14 resuelto) + pendientes C + H14 + evidencia LOTE 1 item 6 (muestreo de 75 días) |
+| `docs/inconsistencias.md` | Modify | H2 (77 confirmadas) + H14 (zoo resuelto; pendiente premio Patronus + `special_result`) |
+| `docs/comparacion-juegos.md` | Modify | Nivel 1 Monje 70→77 + conclusión 2 + item 6 El Patronus CONFIRMADO + H2 + H14 + footer |
+| `backend/docs/juegos.md` | Modify | Fila 6 + nota del zoo de Monje (77, muestreo) + lista de tablas propias corregida (monje ya no es "sin tabla") |
+| `openspec/changes/integracion-juegos-scrapers/tasks.md` | Modify | Sección WU f25 con tareas `[x]` |
+| `openspec/changes/integracion-juegos-scrapers/apply-progress.md` | Modify | Sección WU f25 añadida (merge) |
+
+## Desviaciones del diseño (WU f25)
+
+1. **Sin cambios de scraper ni de motor**: el muestreo reutilizó `AnimalitosScraper::fetch` (el
+   mecanismo ya implementado) vía tinker; no se creó endpoint, clase ni lógica nueva de red.
+2. **Labels con acentos**: el feed viaja sin acentos ("Arana", "Delfin", "Ciempies") y el zoo
+   mantiene la ortografía acentuada del resto (patrón Loto Chaima) → 65 = "Araña". Documentado
+   en el docblock del seeder.
+3. **`special_result` NO se modela**: es un flag de semántica desconocida; por política (no
+   simular datos) solo se documenta como pendiente (H14), sin tocar `numeros_ganadores` ni el motor.
+
+## Problemas encontrados (WU f25)
+
+- **La muestra de 13 días de f22 era insuficiente**: con ~900 sorteos aparecen los 76 números;
+  con 66 resultados faltaban 7. Lección: para zoos de ~77 figuras, muestrear ≥2 meses (birthday
+  problem: P(faltar uno) ≈ (76/77)^900 ≈ 6e-6).
+- **`special_result` mal caracterizado en f22**: se documentó "siempre 1"; el muestreo largo
+  mostró que varía 1/0. Corregido en todas las docs (H14).
+- **`docs/juegos.json` stale**: el test de contrato falla si no se regenera tras cambiar el
+  seeder; se regeneró y verificó determinismo (md5 ×2).
+- **Cambios ajenos del checkout compartido**: `collections/*.yml`, `panel/.astro/settings.json`
+  (modificados) y `.atl/`, `.codegraph/`, `openspec/config.yaml` (sin seguimiento) quedan fuera
+  de los commits (NO se tocan ni se commitean).
+
+## Workload / PR Boundary (WU f25)
+
+- Modo: chained PR slice (feature-branch-chain, base = PR f24). NO se abren PRs.
+- Boundary: completar el zoo de Monje (muestreo → seeder → tests → regresión → contrato JSON →
+  docs) con verificación incluida (suite completa 693/691/2 + pint limpio).
+- Rollback boundary: revertir el seeder + los 2 tests + regenerar `docs/juegos.json`; sin tocar
+  scrapers, motor ni otros juegos.
+
+## Siguiente paso recomendado
+
+- `sdd-verify` del WU f25 cuando el orquestador lo dispare.
+- Pendientes de cliente (Monje): **premio especial de El Patronus** (reglamento 404) y
+  **semántica de `special_result`** (flag 1/0 sin documentar).
