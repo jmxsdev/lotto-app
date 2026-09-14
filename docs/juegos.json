@@ -2426,7 +2426,7 @@
             "slug": "triple-chance",
             "nombre": "Triple Chance",
             "tipo": "tripletas",
-            "premio_multiplo": 30,
+            "premio_multiplo": 600,
             "horarios": [
                 "09:00",
                 "10:00",
@@ -2584,7 +2584,7 @@
             "slug": "el-guacharito",
             "nombre": "El Guacharito Millonario",
             "tipo": "animalitos",
-            "premio_multiplo": 30,
+            "premio_multiplo": 70,
             "horarios": [
                 "08:30",
                 "09:30",
@@ -2707,8 +2707,8 @@
                 },
                 {
                     "numero": 20,
-                    "label": "Cochino",
-                    "value": "cochino"
+                    "label": "Cerdo",
+                    "value": "cerdo"
                 },
                 {
                     "numero": 21,
@@ -2789,6 +2789,321 @@
                     "numero": 36,
                     "label": "Culebra",
                     "value": "culebra"
+                },
+                {
+                    "numero": 37,
+                    "label": "Tortuga",
+                    "value": "tortuga"
+                },
+                {
+                    "numero": 38,
+                    "label": "Bufalo",
+                    "value": "bufalo"
+                },
+                {
+                    "numero": 39,
+                    "label": "Lechuza",
+                    "value": "lechuza"
+                },
+                {
+                    "numero": 40,
+                    "label": "Avispa",
+                    "value": "avispa"
+                },
+                {
+                    "numero": 41,
+                    "label": "Canguro",
+                    "value": "canguro"
+                },
+                {
+                    "numero": 42,
+                    "label": "Tucan",
+                    "value": "tucan"
+                },
+                {
+                    "numero": 43,
+                    "label": "Mariposa",
+                    "value": "mariposa"
+                },
+                {
+                    "numero": 44,
+                    "label": "Chiguire",
+                    "value": "chiguire"
+                },
+                {
+                    "numero": 45,
+                    "label": "Garza",
+                    "value": "garza"
+                },
+                {
+                    "numero": 46,
+                    "label": "Puma",
+                    "value": "puma"
+                },
+                {
+                    "numero": 47,
+                    "label": "Pavo Real",
+                    "value": "pavo-real"
+                },
+                {
+                    "numero": 48,
+                    "label": "Puercoespin",
+                    "value": "puercoespin"
+                },
+                {
+                    "numero": 49,
+                    "label": "Pereza",
+                    "value": "pereza"
+                },
+                {
+                    "numero": 50,
+                    "label": "Canario",
+                    "value": "canario"
+                },
+                {
+                    "numero": 51,
+                    "label": "Pelicano",
+                    "value": "pelicano"
+                },
+                {
+                    "numero": 52,
+                    "label": "Pulpo",
+                    "value": "pulpo"
+                },
+                {
+                    "numero": 53,
+                    "label": "Caracol",
+                    "value": "caracol"
+                },
+                {
+                    "numero": 54,
+                    "label": "Grillo",
+                    "value": "grillo"
+                },
+                {
+                    "numero": 55,
+                    "label": "Oso Hormiguero",
+                    "value": "oso-hormiguero"
+                },
+                {
+                    "numero": 56,
+                    "label": "Tiburon",
+                    "value": "tiburon"
+                },
+                {
+                    "numero": 57,
+                    "label": "Pato",
+                    "value": "pato"
+                },
+                {
+                    "numero": 58,
+                    "label": "Hormiga",
+                    "value": "hormiga"
+                },
+                {
+                    "numero": 59,
+                    "label": "Pantera",
+                    "value": "pantera"
+                },
+                {
+                    "numero": 60,
+                    "label": "Camaleon",
+                    "value": "camaleon"
+                },
+                {
+                    "numero": 61,
+                    "label": "Panda",
+                    "value": "panda"
+                },
+                {
+                    "numero": 62,
+                    "label": "Cachicamo",
+                    "value": "cachicamo"
+                },
+                {
+                    "numero": 63,
+                    "label": "Cangrejo",
+                    "value": "cangrejo"
+                },
+                {
+                    "numero": 64,
+                    "label": "Gavilan",
+                    "value": "gavilan"
+                },
+                {
+                    "numero": 65,
+                    "label": "Arana",
+                    "value": "arana"
+                },
+                {
+                    "numero": 66,
+                    "label": "Lobo",
+                    "value": "lobo"
+                },
+                {
+                    "numero": 67,
+                    "label": "Avestruz",
+                    "value": "avestruz"
+                },
+                {
+                    "numero": 68,
+                    "label": "Jaguar",
+                    "value": "jaguar"
+                },
+                {
+                    "numero": 69,
+                    "label": "Conejo",
+                    "value": "conejo"
+                },
+                {
+                    "numero": 70,
+                    "label": "Bisonte",
+                    "value": "bisonte"
+                },
+                {
+                    "numero": 71,
+                    "label": "Guacamaya",
+                    "value": "guacamaya"
+                },
+                {
+                    "numero": 72,
+                    "label": "Gorila",
+                    "value": "gorila"
+                },
+                {
+                    "numero": 73,
+                    "label": "Hipopotamo",
+                    "value": "hipopotamo"
+                },
+                {
+                    "numero": 74,
+                    "label": "Turpial",
+                    "value": "turpial"
+                },
+                {
+                    "numero": 75,
+                    "label": "Guacharo",
+                    "value": "guacharo"
+                },
+                {
+                    "numero": 76,
+                    "label": "Rinoceronte",
+                    "value": "rinoceronte"
+                },
+                {
+                    "numero": 77,
+                    "label": "Pinguino",
+                    "value": "pinguino"
+                },
+                {
+                    "numero": 78,
+                    "label": "Antilope",
+                    "value": "antilope"
+                },
+                {
+                    "numero": 79,
+                    "label": "Calamar",
+                    "value": "calamar"
+                },
+                {
+                    "numero": 80,
+                    "label": "Murcielago",
+                    "value": "murcielago"
+                },
+                {
+                    "numero": 81,
+                    "label": "Cuervo",
+                    "value": "cuervo"
+                },
+                {
+                    "numero": 82,
+                    "label": "Cucaracha",
+                    "value": "cucaracha"
+                },
+                {
+                    "numero": 83,
+                    "label": "Buho",
+                    "value": "buho"
+                },
+                {
+                    "numero": 84,
+                    "label": "Camaron",
+                    "value": "camaron"
+                },
+                {
+                    "numero": 85,
+                    "label": "Hamster",
+                    "value": "hamster"
+                },
+                {
+                    "numero": 86,
+                    "label": "Buey",
+                    "value": "buey"
+                },
+                {
+                    "numero": 87,
+                    "label": "Cabra",
+                    "value": "cabra"
+                },
+                {
+                    "numero": 88,
+                    "label": "Erizo de Mar",
+                    "value": "erizo-de-mar"
+                },
+                {
+                    "numero": 89,
+                    "label": "Anguila",
+                    "value": "anguila"
+                },
+                {
+                    "numero": 90,
+                    "label": "Huron",
+                    "value": "huron"
+                },
+                {
+                    "numero": 91,
+                    "label": "Morrocoy",
+                    "value": "morrocoy"
+                },
+                {
+                    "numero": 92,
+                    "label": "Cisne",
+                    "value": "cisne"
+                },
+                {
+                    "numero": 93,
+                    "label": "Gaviota",
+                    "value": "gaviota"
+                },
+                {
+                    "numero": 94,
+                    "label": "Paujil",
+                    "value": "paujil"
+                },
+                {
+                    "numero": 95,
+                    "label": "Escarabajo",
+                    "value": "escarabajo"
+                },
+                {
+                    "numero": 96,
+                    "label": "Caballito de Mar",
+                    "value": "caballito-de-mar"
+                },
+                {
+                    "numero": 97,
+                    "label": "Loro",
+                    "value": "loro"
+                },
+                {
+                    "numero": 98,
+                    "label": "Cocodrilo",
+                    "value": "cocodrilo"
+                },
+                {
+                    "numero": 99,
+                    "label": "Guacharito",
+                    "value": "guacharito"
                 }
             ]
         },
@@ -2797,7 +3112,7 @@
             "slug": "guacharo-activo",
             "nombre": "Guacharo Activo",
             "tipo": "animalitos",
-            "premio_multiplo": 30,
+            "premio_multiplo": 60,
             "horarios": [
                 "08:00",
                 "09:00",
@@ -2820,7 +3135,7 @@
                 },
                 {
                     "numero": 0,
-                    "label": "Delfin",
+                    "label": "Delfín",
                     "value": "delfin"
                 },
                 {
@@ -2835,17 +3150,17 @@
                 },
                 {
                     "numero": 3,
-                    "label": "Ciempies",
+                    "label": "Ciempiés",
                     "value": "ciempies"
                 },
                 {
                     "numero": 4,
-                    "label": "Alacran",
+                    "label": "Alacrán",
                     "value": "alacran"
                 },
                 {
                     "numero": 5,
-                    "label": "Leon",
+                    "label": "León",
                     "value": "leon"
                 },
                 {
@@ -2860,12 +3175,12 @@
                 },
                 {
                     "numero": 8,
-                    "label": "Raton",
+                    "label": "Ratón",
                     "value": "raton"
                 },
                 {
                     "numero": 9,
-                    "label": "Aguila",
+                    "label": "Águila",
                     "value": "aguila"
                 },
                 {
@@ -2970,7 +3285,7 @@
                 },
                 {
                     "numero": 30,
-                    "label": "Caiman",
+                    "label": "Caimán",
                     "value": "caiman"
                 },
                 {
@@ -3002,6 +3317,201 @@
                     "numero": 36,
                     "label": "Culebra",
                     "value": "culebra"
+                },
+                {
+                    "numero": 37,
+                    "label": "Tortuga",
+                    "value": "tortuga"
+                },
+                {
+                    "numero": 38,
+                    "label": "Búfalo",
+                    "value": "bufalo"
+                },
+                {
+                    "numero": 39,
+                    "label": "Lechuza",
+                    "value": "lechuza"
+                },
+                {
+                    "numero": 40,
+                    "label": "Avispa",
+                    "value": "avispa"
+                },
+                {
+                    "numero": 41,
+                    "label": "Canguro",
+                    "value": "canguro"
+                },
+                {
+                    "numero": 42,
+                    "label": "Tucán",
+                    "value": "tucan"
+                },
+                {
+                    "numero": 43,
+                    "label": "Mariposa",
+                    "value": "mariposa"
+                },
+                {
+                    "numero": 44,
+                    "label": "Chigüire",
+                    "value": "chiguire"
+                },
+                {
+                    "numero": 45,
+                    "label": "Garza",
+                    "value": "garza"
+                },
+                {
+                    "numero": 46,
+                    "label": "Puma",
+                    "value": "puma"
+                },
+                {
+                    "numero": 47,
+                    "label": "Pavo Real",
+                    "value": "pavo-real"
+                },
+                {
+                    "numero": 48,
+                    "label": "Puercoespín",
+                    "value": "puercoespin"
+                },
+                {
+                    "numero": 49,
+                    "label": "Pereza",
+                    "value": "pereza"
+                },
+                {
+                    "numero": 50,
+                    "label": "Canario",
+                    "value": "canario"
+                },
+                {
+                    "numero": 51,
+                    "label": "Pelícano",
+                    "value": "pelicano"
+                },
+                {
+                    "numero": 52,
+                    "label": "Pulpo",
+                    "value": "pulpo"
+                },
+                {
+                    "numero": 53,
+                    "label": "Caracol",
+                    "value": "caracol"
+                },
+                {
+                    "numero": 54,
+                    "label": "Grillo",
+                    "value": "grillo"
+                },
+                {
+                    "numero": 55,
+                    "label": "Oso Hormiguero",
+                    "value": "oso-hormiguero"
+                },
+                {
+                    "numero": 56,
+                    "label": "Tiburón",
+                    "value": "tiburon"
+                },
+                {
+                    "numero": 57,
+                    "label": "Pato",
+                    "value": "pato"
+                },
+                {
+                    "numero": 58,
+                    "label": "Hormiga",
+                    "value": "hormiga"
+                },
+                {
+                    "numero": 59,
+                    "label": "Pantera",
+                    "value": "pantera"
+                },
+                {
+                    "numero": 60,
+                    "label": "Camaleón",
+                    "value": "camaleon"
+                },
+                {
+                    "numero": 61,
+                    "label": "Panda",
+                    "value": "panda"
+                },
+                {
+                    "numero": 62,
+                    "label": "Cachicamo",
+                    "value": "cachicamo"
+                },
+                {
+                    "numero": 63,
+                    "label": "Cangrejo",
+                    "value": "cangrejo"
+                },
+                {
+                    "numero": 64,
+                    "label": "Gavilán",
+                    "value": "gavilan"
+                },
+                {
+                    "numero": 65,
+                    "label": "Araña",
+                    "value": "arana"
+                },
+                {
+                    "numero": 66,
+                    "label": "Lobo",
+                    "value": "lobo"
+                },
+                {
+                    "numero": 67,
+                    "label": "Avestruz",
+                    "value": "avestruz"
+                },
+                {
+                    "numero": 68,
+                    "label": "Jaguar",
+                    "value": "jaguar"
+                },
+                {
+                    "numero": 69,
+                    "label": "Conejo",
+                    "value": "conejo"
+                },
+                {
+                    "numero": 70,
+                    "label": "Bisonte",
+                    "value": "bisonte"
+                },
+                {
+                    "numero": 71,
+                    "label": "Guacamaya",
+                    "value": "guacamaya"
+                },
+                {
+                    "numero": 72,
+                    "label": "Gorila",
+                    "value": "gorila"
+                },
+                {
+                    "numero": 73,
+                    "label": "Hipopótamo",
+                    "value": "hipopotamo"
+                },
+                {
+                    "numero": 74,
+                    "label": "Turpial",
+                    "value": "turpial"
+                },
+                {
+                    "numero": 75,
+                    "label": "Guacharo",
+                    "value": "guacharo"
                 }
             ]
         },

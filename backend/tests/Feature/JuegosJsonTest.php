@@ -156,11 +156,16 @@ class JuegosJsonTest extends TestCase
             $this->assertCount(12, $porSlug[$slug]['opciones'], "[{$slug}] debe tener 12 opciones (tabla).");
         }
 
+        // triple-chance: premio OFICIAL 600 (TRIPLE A/B seco) según el afiche
+        // oficial de tuchance.com.ve ("Chance en línea"); fuente migrada al API
+        // oficial scalalot en el WU f24.
+        $this->assertSame(600, $porSlug['triple-chance']['premio_multiplo']);
+
         // animalitos sin tabla: 38 animales canónicos desde el plugin Animalitos
         // (el mapa del plugin tiene 38: ballena y delfin comparten numero 0;
         // 37 sería contar los números 0-36, pero son 38 etiquetas — evidencia:
         // JuegoAnimalitosSeeder y la BD local con 38 filas).
-        foreach (['lotto-activo-rd', 'lotto-activo-rep-dom', 'cazaloton', 'el-guacharito', 'guacharo-activo', 'la-granjita', 'mega-animal-40'] as $slug) {
+        foreach (['lotto-activo-rd', 'lotto-activo-rep-dom', 'cazaloton', 'la-granjita', 'mega-animal-40'] as $slug) {
             $this->assertCount(38, $porSlug[$slug]['opciones'], "[{$slug}] debe tener 38 opciones (plugin Animalitos).");
         }
 
@@ -200,6 +205,45 @@ class JuegosJsonTest extends TestCase
         $this->assertSame('ciempies', $porSlug['loto-chaima']['opciones'][4]['value'], 'value = slug sin acentos.');
         $this->assertSame('Oso Hormiguero', $porSlug['loto-chaima']['opciones'][56]['label']);
         $this->assertSame(55, $porSlug['loto-chaima']['opciones'][56]['numero']);
+
+        // el-guacharito: 101 figuras PROPIAS desde la tabla juego_opciones
+        // (zoológico 00 Ballena + 0 Delfin + 01..99 Guacharito; extraído del
+        // bundle oficial del sitio — labels SIN acentos como viajan en el bundle)
+        // y premio oficial 70x (figura especial Guacharito 99 → 150x).
+        // El catálogo ordena por `numero` (MySQL: NULLs y 0 primero), por lo que
+        // se valida por value/label, no por posición.
+        $this->assertCount(101, $porSlug['el-guacharito']['opciones']);
+        $this->assertSame(70, $porSlug['el-guacharito']['premio_multiplo']);
+
+        $labelsGuacharito = array_column($porSlug['el-guacharito']['opciones'], 'label');
+        $this->assertContains('Ballena', $labelsGuacharito);
+        $this->assertContains('Delfin', $labelsGuacharito);
+        $this->assertContains('Gavilan', $labelsGuacharito);
+        $this->assertContains('Guacharito', $labelsGuacharito);
+        $this->assertNotContains('Delfín', $labelsGuacharito, 'El bundle oficial no usa acentos.');
+
+        $gavilan = collect($porSlug['el-guacharito']['opciones'])->firstWhere('value', 'gavilan');
+        $this->assertSame(64, $gavilan['numero']);
+        $guacharito99 = collect($porSlug['el-guacharito']['opciones'])->firstWhere('value', 'guacharito');
+        $this->assertSame(99, $guacharito99['numero']);
+
+        // guacharo-activo: 77 figuras PROPIAS desde la tabla juego_opciones
+        // (zoológico 00 Ballena + 0 Delfín + 01..75 Guacharo; extraído del
+        // bundle oficial del sitio — labels CON acentos como viajan en el bundle)
+        // y premio oficial 60x (comodín Guácharo 75 → 120x).
+        $this->assertCount(77, $porSlug['guacharo-activo']['opciones']);
+        $this->assertSame(60, $porSlug['guacharo-activo']['premio_multiplo']);
+
+        $labelsGuacharo = array_column($porSlug['guacharo-activo']['opciones'], 'label');
+        $this->assertContains('Ballena', $labelsGuacharo);
+        $this->assertContains('Delfín', $labelsGuacharo);
+        $this->assertContains('Iguana', $labelsGuacharo);
+        $this->assertContains('Guacharo', $labelsGuacharo);
+
+        $iguana = collect($porSlug['guacharo-activo']['opciones'])->firstWhere('value', 'iguana');
+        $this->assertSame(24, $iguana['numero']);
+        $guacharo75 = collect($porSlug['guacharo-activo']['opciones'])->firstWhere('value', 'guacharo');
+        $this->assertSame(75, $guacharo75['numero']);
 
         // mega-animal-40 sin tabla: 38 animales canónicos desde el plugin Animalitos
         // (zoológico canónico del proveedor: Delfín/Ballena 0 ... Culebra 36; el comodín
