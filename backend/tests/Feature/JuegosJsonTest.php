@@ -139,7 +139,8 @@ class JuegosJsonTest extends TestCase
 
         // premio_multiplo desde config del juego
         $this->assertSame(30, $porSlug['lotto-activo']['premio_multiplo']);
-        $this->assertSame(20, $porSlug['terminal-activo']['premio_multiplo']);
+        $this->assertSame(60, $porSlug['terminal-activo']['premio_multiplo']);
+        $this->assertSame(600, $porSlug['trio-activo']['premio_multiplo']);
 
         // lotto-activo: 38 animales desde tabla juego_opciones
         $this->assertCount(38, $porSlug['lotto-activo']['opciones']);
@@ -159,15 +160,34 @@ class JuegosJsonTest extends TestCase
         // (el mapa del plugin tiene 38: ballena y delfin comparten numero 0;
         // 37 sería contar los números 0-36, pero son 38 etiquetas — evidencia:
         // JuegoAnimalitosSeeder y la BD local con 38 filas).
-        foreach (['lotto-activo-rd', 'lotto-activo-rep-dom', 'monje-millonario', 'cazaloton', 'el-guacharito', 'guacharo-activo', 'la-granjita', 'mega-animal-40'] as $slug) {
+        foreach (['lotto-activo-rd', 'lotto-activo-rep-dom', 'cazaloton', 'el-guacharito', 'guacharo-activo', 'la-granjita', 'mega-animal-40'] as $slug) {
             $this->assertCount(38, $porSlug[$slug]['opciones'], "[{$slug}] debe tener 38 opciones (plugin Animalitos).");
         }
 
-        // trio-activo / la-ricachona sin tabla: 12 signos desde el plugin Tripletas
-        foreach (['trio-activo', 'la-ricachona'] as $slug) {
+        // monje-millonario: zoológico PROPIO de 70 figuras confirmadas con la
+        // fuente oficial (feed lottoactivo.com 2026-09-02..14; H2 CONFIRMADO —
+        // números 0-74 con animales propios como Pereza 49/Tucán 42). Quedan
+        // pendientes sin nombre oficial: 37, 39, 57, 65, 67, 68 y 75 (Patronus).
+        $this->assertCount(70, $porSlug['monje-millonario']['opciones']);
+        $labelsMonje = array_column($porSlug['monje-millonario']['opciones'], 'label');
+        $this->assertContains('Pereza', $labelsMonje);
+        $this->assertContains('Tucán', $labelsMonje);
+        $this->assertContains('Turpial', $labelsMonje);
+        $this->assertContains('Cebra', $labelsMonje);
+        $this->assertNotContains('Cobra', $labelsMonje);
+
+        // trio-activo: 100 opciones de TERMINAL (00-99) propias desde la tabla
+        // (patrón Triple Fácil H10; el reglamento oficial define TRIPLE 600× /
+        // TERMINAL 60× / PUNTA 60× y NO hay zodiaco) y premio TRIPLE 600×.
+        $this->assertCount(100, $porSlug['trio-activo']['opciones']);
+        $this->assertSame('00', $porSlug['trio-activo']['opciones'][0]['label']);
+        $this->assertSame('99', $porSlug['trio-activo']['opciones'][99]['label']);
+
+        // la-ricachona sin tabla: 12 signos desde el plugin Tripletas
+        foreach (['la-ricachona'] as $slug) {
             $this->assertCount(12, $porSlug[$slug]['opciones'], "[{$slug}] debe tener 12 opciones (plugin Tripletas).");
         }
-        $this->assertSame('Géminis', $porSlug['trio-activo']['opciones'][2]['label'], 'Acentos correctos desde el plugin.');
+        $this->assertSame('Géminis', $porSlug['la-ricachona']['opciones'][2]['label'], 'Acentos correctos desde el plugin.');
 
         // loto-chaima: 57 animales PROPIOS desde la tabla juego_opciones
         // (zoológico de 0–55 distinto al canónico; ballena y delfín comparten

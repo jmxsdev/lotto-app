@@ -14,12 +14,17 @@ class TerminalesSeeder extends Seeder
 {
     public function run(): void
     {
-        $juego = Juego::firstOrCreate(
+        $juego = Juego::updateOrCreate(
             ['slug' => 'terminal-activo'],
             [
                 'name' => 'Terminal Activo',
                 'type' => 'terminales',
-                'config' => ['premio_multiplo' => 20],
+                'config' => [
+                    'premio_multiplo' => 60,
+                    'modalidades' => [
+                        'terminal' => 60,
+                    ],
+                ],
                 'requires_scraper' => true,
                 'scraper_url' => 'https://www.lottoactivo.com/resultados/terminal_activo/',
                 'active' => true,
