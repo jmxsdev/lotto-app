@@ -67,7 +67,7 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 | 15 | La Granjita | `la-granjita` | animalitos | 08:00–19:00 (12 horarios `:00`) | `https://www.lagranjita.com/api/results.json?productId=1` (API oficial) | `LaGranjitaScraper` | ✅ Verificado con datos reales (12-sep, API oficial sin anti-bot) |
 | 16 | La Ricachona | `la-ricachona` | tripletas | 08:05–19:05 (12 horarios `:05`) | `https://laricachona.com/` (HTML oficial por fecha) | `LaRicachonaScraper` | ✅ Verificado con datos reales (12-sep, HTML oficial) |
 | 17 | Loto Chaima | `loto-chaima` | animalitos | 08:00–19:00 (12 horarios `:00`) | `https://api.lotterly.co/v1/results/loto-chaima/` (API oficial) | `LotoChaimaScraper` | ✅ Verificado con datos reales (12-sep, API oficial sin auth) |
-| 18 | Mega Animal 40 | `mega-animal-40` | animalitos | 09:00–20:00 (12 horarios `:00`) | `https://resultadosvenezuela.com/lottery/mega-animal-40` (HTML agregador por fecha) | `MegaAnimal40Scraper` | ✅ Verificado con datos reales (12-sep: HOY 5 + AYER 12, dedupe) |
+| 18 | Mega Animal 40 | `mega-animal-40` | animalitos | 09:00–20:00 (12 horarios `:00`) | `https://megaanimal40.com/` (sitio OFICIAL — `POST /core/process.php` con token; WU f27) | `MegaAnimal40OficialScraper` | ✅ Verificado con datos reales (14-sep: HOY 8, dedupe; **comodín MEGA capturado** en `numeros_ganadores.comodin`; endpoint solo sirve el día actual) |
 | 19 | Selva Plus | `selva-plus` | animalitos | 08:15–20:15 (13 horarios `:15`) | `https://api.lotterly.co/v1/results/selva-plus/` (API oficial) | `SelvaPlusScraper` | ✅ Verificado con datos reales (12-sep: HOY 7 + AYER 13, dedupe) |
 | 20 | Triple Táchira | `triple-tachira` | tripletas | 13:15, 16:45, 22:10 (3 horarios) | `https://tripletachira.com/pruebah.php` (sitio oficial) | `TripleTachiraScraper` | ✅ Verificado con datos reales (12-sep: AYER 3 + HOY 1, dedupe) |
 | 21 | Triple Fácil | `triple-facil` | tripletas | 08:00–19:00 (12 horarios `:00`) | `https://api.lotterly.co/v1/results/triple-facil/` (API oficial lotterly.co) | `TripleFacilScraper` | ✅ Verificado con datos reales (12-sep: AYER 12 + HOY 10, dedupe) |
@@ -164,27 +164,28 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 > devuelven 400 "product_slug does not exist") — solo se integra
 > `loto-chaima`; documentada como Plataforma 3 en `docs/plataformas-juegos.md`.
 
-> `MegaAnimal40Scraper` consume el HTML server-rendered del agregador
-> resultadosvenezuela.com (sin API JSON pública): `GET /lottery/mega-animal-40`
-> renderiza el día en curso (parcial: SOLO horas ya sorteadas) y
-> `GET /lottery/mega-animal-40?date=YYYY-MM-DD` una fecha pasada (completo).
-> Cada resultado es una card `.result-card` con `card-time` (12h, → `normalizeHora`
-> a "H:i"), `card-number` y `card-name` (zoológico CANÓNICO de 38 animalitos,
-> Delfín/Ballena 0 ... Culebra 36 — coincide con el plugin Animalitos, por lo que
-> el juego NO registra `JuegoOpcion` propias y el catálogo cae al plugin por
-> fallback). Una fecha sin sorteos ocurridos renderiza la página completa SIN
-> cards (estado VÁLIDO → `parse` devuelve `[]`); solo el cuerpo vacío lanza
-> RuntimeException (fail-fast). Cards "Pendiente" (sin `card-number`, usadas por
-> los juegos de triples del proveedor) se saltan (defensivo). El proveedor es un
-> AGREGADOR (no la fuente oficial): la página documenta que el juego es operado
-> por Big Data Tecnology, C.A. bajo Lotería de Cojedes (Reglamento DIF-RGTO-033-00,
-> SENCAMER), con 12 sorteos diarios 09:00–20:00 en bloques Mañana/Tarde/Noche y
-> **premio 30x normal / 40x con comodín "MEGA" automático** (el comodín NO aparece
-> como marcador en las cards — hallazgo documentado en `docs/plataformas-juegos.md`
-> y `docs/comparacion-juegos.md`; `premio_multiplo` queda en 30, sin lógica de
-> comodín en este WU). Sin ID externo por sorteo → `sorteo_id_externo` null y
-> dedupe por juego+fecha+hora en `saveResults` heredado. Documentada como
-> Plataforma 4 en `docs/plataformas-juegos.md`.
+> `MegaAnimal40OficialScraper` consume el SITIO OFICIAL megaanimal40.com (CONALOT +
+> Big Data Tecnology + Lotería de Cojedes; WU f27, resuelve H1/H20): `POST
+> /core/process.php` con form-data `option=<token de resultados>` (sin auth ni
+> anti-bot) → JSON `{msg, status, datos:[{...,resultados:[...]}]}`. `resultados[]`
+> = sorteos del DÍA ACTUAL ordenados de más reciente a más antiguo; `time_s` en
+> 12h → `normalizeHora` a "H:i"; `number_animal` en 2 dígitos → int; `animalito`
+> conserva los acentos ("Águila"); **`mega` = "1" (sin comodín) o "2" (SALIÓ EL
+> COMODÍN MEGA, premio 40× — JS oficial del sitio)** → se mapea a
+> `numeros_ganadores.comodin` (bool). `execute` filtra por la fecha pedida
+> (patrón TripleCalienteOficialScraper); `findJuegoOrFail` fail-fast;
+> `saveResults` heredado (dedupe juego+fecha+hora). LIMITACIÓN: el endpoint
+> IGNORA los parámetros de fecha (probados fecha/date/dia → siempre hoy) y el
+> sitio no expone histórico funcional (la página `/historial/` usa el mismo
+> token) → el scraper solo sirve el día actual; una fecha distinta produce `[]`.
+> Respuesta JSON inválida o `status:false` → RuntimeException; respuesta VÁLIDA
+> sin datos → `[]`. Zoológico: canónico de 38 (plugin Animalitos, sin
+> `JuegoOpcion` propias). Premios oficiales en `config`: base 30× + comodín
+> MEGA 40× (`comodines.mega`); la LIQUIDACIÓN 40× es del ciclo futuro del motor
+> (aquí solo se captura el dato). El scraper del PROVEEDOR (`MegaAnimal40Scraper`,
+> HTML de resultadosvenezuela.com) quedó como **clase durmiente**: no se borra
+> (rollback/consulta), su parse legacy sigue cubierto por
+> `MegaAnimal40ScraperTest` y su nota histórica está abajo.
 
 > `SelvaPlusScraper` consume la API oficial de la plataforma lotterly.co (la
 > MISMA de Loto Chaima, con `product_slug` distinto): `GET
@@ -321,7 +322,11 @@ aquí en su mismo work unit:
 > `docs/juegos.json` (en la RAÍZ del repo, junto a `plugins.md`/`deploy.md`) es el contrato
 > para el front/taquilla: los juegos integrados + existentes con su **id real de BD**, slug,
 > nombre, tipo (animalitos/tripletas/terminales), `premio_multiplo`, horarios y las
-> opciones/animales que permite cada juego. Se regenera con:
+> opciones/animales que permite cada juego. **Desde el WU f27** exporta además `comodines` y
+> `modalidades` desde `config` cuando existen (campos ADITIVOS y OPCIONALES; `null` si el juego
+> no los define): p. ej. mega-animal-40 → `comodines.mega` (MEGA 40×), selva-plus → comodines
+> A/B (160×/200×), el-guacharito → `guacharito-99` (150×), guacharo-activo → `guacharo-75`
+> (120×); modalidades de los triples/trío/terminal/cazaloton/fácil. Se regenera con:
 >
 > ```bash
 > php artisan juegos:export          # escribe docs/juegos.json en la raíz del repo

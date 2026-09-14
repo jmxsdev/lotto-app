@@ -45,7 +45,7 @@ comodines, premiación y **reglamento oficial**. Complementa a:
 | 14 | `la-granjita` | ✅ | ✅ | — | ⏳ | ⚠️ | API oficial: 12 horarios, 38 opciones coinciden; premiación sin dato oficial. **Reglamento oficial DESCARGADO (WU f26)**: `docs/reglamentos/reglamento-la-granjita.pdf` (enlazado desde lagranjita.com, 17 págs, **escaneado** — el cliente extraerá los textos) |
 | 15 | `la-ricachona` | ✅ | ✅ | — | ⏳ | ⚠️ | HTML oficial: 12 horarios `:05`, signos coinciden; premiación sin dato oficial. **Reglamento oficial DESCARGADO (WU f26)**: `docs/reglamentos/reglamento-la-ricachona.pdf` (enlazado desde laricachona.com, 15 págs, **escaneado** — el cliente extraerá los textos) |
 | 16 | `loto-chaima` | ✅ | ✅ | — | ⏳ | ❌ | API oficial: 12 horarios, 57 figuras propias coinciden; premiación sin dato oficial. **Reglamento NO publicado (WU f26)**: bundle de lotochaima.com (`index-DKeh2UsF.js`) sin reglamento; "Operado bajo licencia de la Lotería de Oriente" |
-| 17 | `mega-animal-40` | ⚠️ | ✅ | ⚠️ | ⚠️ | ⚠️ | Fuente: proveedor (excepción autorizada, sin página oficial). 38 canónico ✓; **comodín MEGA 40× sin representación en los datos** (H1). **WU f26**: encontrado el **sitio oficial megaanimal40.com** (logos CONALOT + Big Data Tecnology + Lotería de Cojedes): confirma **12 sorteos 09:00–20:00**, 38 figuras y **premio 30× / 40× con el comodín MEGA** (texto oficial "Como jugar"). El **reglamento N° DIF-RGTO-033-00 (14-nov-2023) solo está referenciado** (RV + actas), no publicado en PDF accesible → pendiente de la Lotería de Cojedes |
+| 17 | `mega-animal-40` | ✅ | ✅ | ✅ | ✅ | ⚠️ | **MIGRADO a fuente OFICIAL (WU f27)**: `megaanimal40.com` (POST `/core/process.php` con token de resultados; CONALOT + Big Data Tecnology + Lotería de Cojedes). 12 sorteos 09:00–20:00 ✓, 38 figuras ✓, premio **30× base / 40× con el comodín MEGA** ✓. **Comodín CAPTURADO** en `numeros_ganadores.comodin` (`mega:"2"` = salió MEGA, según el JS oficial del sitio) → **H1 RESUELTO**. Carga real 14-sep: 8 sorteos persistidos (09:00–16:00), comodín NO salió hoy. **Limitación**: el endpoint oficial solo sirve el DÍA ACTUAL (ignora parámetros de fecha, sin histórico funcional) → los históricos del proveedor en BD quedan. El scraper del proveedor (`MegaAnimal40Scraper`) queda como clase durmiente (no borrado). Reglamento **DIF-RGTO-033-00 solo referenciado**, no publicado en PDF → pendiente de la Lotería de Cojedes |
 | 18 | `selva-plus` | ✅ | ✅ | ⚠️ | ✅ | ❌ | API oficial: 13 sorteos, 101 figuras + 2 comodines ✓; premiación base 80×/comodines 160×/200× documentada de fuente oficial; **representación de comodines en datos aún no observada** (H8). **Reglamento NO publicado (WU f26)**: bundle de selvaplus.com (`index-BI-rgou6.js`) sin reglamento; footer con logo "Lotería de Oriente" |
 | 19 | `triple-tachira` | ✅ | ✅ | — | ✅ | ✅ | **Reglamento oficial verificado** (PDF G-20004065-3): 500×/50×/5.000×, 3 sorteos 13:15/16:45/22:10; solo pendiente confirmar domingos (H9) |
 | 20 | `triple-facil` | ✅ | ✅ | — | ⚠️ | ❌ | API oficial: 12 sorteos, 100 opciones terminal; premiación INFORMATIVA (700×/60×/10×) sin reglamento publicado (H10). **WU f26**: confirmado NO publicado — el bundle de triplefacil.com (`index-CnppWFwM.js`) y la ruta `/reglamento` (SPA catch-all) no exponen reglamento; "Operado bajo licencia de la Lotería de Oriente" |
@@ -58,8 +58,8 @@ comodines, premiación y **reglamento oficial**. Complementa a:
   parseable, confirma 30×). **Escaneados (descargados, pendientes de extracción por el cliente)**:
   Triple Chance (2 PDFs), La Granjita, La Ricachona. **Imagen no parseable**: Lotto Activo.
   **Referenciado sin PDF**: Mega Animal 40 (DIF-RGTO-033-00; sitio oficial confirma 30×/40×).
-- **Verificación funcional con fuente oficial (horarios/opciones): 19/21** — los 7 originales (lote 1) + Táchira, Selva, Fácil, Zamorano, Granjita, Ricachona, Chaima, Caliente, Arrejuntado, Mega* (*Mega solo con el proveedor por excepción; el sitio oficial megaanimal40.com existe pero el scraper NO se migra en este WU) + **lote 2: Cazaloton (reglamento), Triple Chance, Guacharito, Guácharo Activo (API oficial)**.
-- **Premiación verificada con fuente oficial: 12/21** — Táchira (reglamento), Trío Activo (reglamento), Terminal Trío (reglamento), Lotto Activo/RD/Rep.Dom (FAQ oficial 30× + mislink Ruleta Royal), Selva (base 80×), **Cazaloton (reglamento 30×), Triple Chance (afiche oficial 600×), Guacharito (bundle 70×/150×), Guácharo Activo (bundle 60×/120×), Triple Zulia, Triple Caliente y Triple Zamorano (reglamentos, 600×)** + Mega Animal 40 (texto oficial del sitio: 30×/40× comodín).
+- **Verificación funcional con fuente oficial (horarios/opciones): 20/21** — los 7 originales (lote 1) + Táchira, Selva, Fácil, Zamorano, Granjita, Ricachona, Chaima, Caliente, Arrejuntado + **lote 2: Cazaloton (reglamento), Triple Chance, Guacharito, Guácharo Activo (API oficial)** + **Mega Animal 40 (WU f27: sitio oficial megaanimal40.com)**. Único pendiente de fuente: nada (todos tienen fuente oficial; el único juego sin resultados publicados es Cazaloton, que mantiene loteriadehoy por decisión documentada).
+- **Premiación verificada con fuente oficial: 12/21** — Táchira (reglamento), Trío Activo (reglamento), Terminal Trío (reglamento), Lotto Activo/RD/Rep.Dom (FAQ oficial 30× + mislink Ruleta Royal), Selva (base 80×), **Cazaloton (reglamento 30×), Triple Chance (afiche oficial 600×), Guacharito (bundle 70×/150×), Guácharo Activo (bundle 60×/120×), Triple Zulia, Triple Caliente y Triple Zamorano (reglamentos, 600×)** + Mega Animal 40 (sitio oficial: 30×/40× comodín MEGA; **comodín capturado en datos desde el WU f27**).
 - **Pendientes mayores: reglamentos NO publicados (7 juegos) y premiaciones sin fuente oficial (4: Arrejuntado, Granjita, Ricachona, Chaima — escaneados pendientes de extracción; Fácil 700× informativo).**
 
 ## Pendientes por tipo
@@ -70,7 +70,7 @@ comodines, premiación y **reglamento oficial**. Complementa a:
 |---|---|---|
 | `triple-facil`, `el-arrejuntado`, `el-guacharito`, `guacharo-activo`, `loto-chaima`, `selva-plus` | **No publicados** (verificado WU f26 en sitios/bundles oficiales) | Premiación real (Fácil hoy 700× informativo; Arrejuntado 30×; Granjita/Ricachona/Chaima escaneados pendientes de extracción) |
 | `monje-millonario` | Reglamento `Lotto_Activo_2.pdf` **404** en el sitio oficial (+6 variantes probadas) | Premio especial de El Patronus (H14) |
-| `mega-animal-40` | Reglamento N° **DIF-RGTO-033-00** solo referenciado, no publicado en PDF | Respaldo formal del 30×/40× (el sitio oficial ya lo confirma) |
+| `mega-animal-40` | Reglamento N° **DIF-RGTO-033-00** solo referenciado, no publicado en PDF | Respaldo formal del 30×/40× (el sitio oficial ya lo confirma y el comodín MEGA se captura en datos desde el WU f27) |
 | `lotto-activo` y familia | Reglamentos son imagen no parseable o mislink Ruleta Royal | Premios/modaliades (Dupleta 1.000×, etc.) |
 
 ### B. Fuentes: estado con las URLs oficiales recibidas (2026-09-14)
@@ -99,7 +99,7 @@ Pendientes que quedaron abiertos del lote:
 
 | Ref | Punto | Estado |
 |---|---|---|
-| H1 | Comodín MEGA 40× (mega-animal-40) | Sin representación en los datos de la fuente → sin soporte hasta fuente fiable (política: no simular datos) |
+| H1 | Comodín MEGA 40× (mega-animal-40) | ✅ **RESUELTO (WU f27)**: la fuente OFICIAL megaanimal40.com trae el campo `mega` por sorteo (`"1"` sin comodín / `"2"` Salió MEGA, según el JS oficial del sitio); se captura en `numeros_ganadores.comodin` (bool). Fixture sintético + documentación del campo; el primer comodín real se capturará cuando salga. La LIQUIDACIÓN 40× pertenece al ciclo futuro del motor de premios (aquí solo se captura el dato) |
 | H8 | Comodines Selva (A 160× / B 200×) | Reglas documentadas; representación en `result` aún no observada |
 | H9 | Domingos de Táchira | Comportamiento no uniforme en la muestra — confirmar |
 | H10 | Terminales derivadas de Fácil | Decisión de motor (derivar `n % 100` y modelar apuesta de terminal/aproximación) |
@@ -111,7 +111,7 @@ Pendientes que quedaron abiertos del lote:
 | H16 | **Textos oficiales de horarios desactualizados** | Las páginas `/informacion/` y el FAQ declaran "once (11) sorteos 09:00–19:00" para Lotto Activo/Trío/Terminal y "trece (14)" para Rep. Dominicana, pero el feed opera 12 (08:00–19:00) y 14 (08:00–21:00) respectivamente. El feed (dato operativo) manda |
 | H18 | **Triple Caliente: el reglamento declara 5 sorteos pero la operación real es de 3** (WU f26) | El reglamento oficial (Art. 10) declara 5 horarios 11:10/13:10/15:10/17:10/19:10 (domingos solo 19:10); la API oficial (timestamps, 234 respuestas) opera **3 sorteos 13:00/16:30/19:10** (domingos solo 19:10). Se prioriza la **operación real** (lo que consume el scraper), misma política H15/H16. Confirmar con el operador si el reglamento se reformó |
 | H19 | **Zamorano: el reglamento NOV2025 declara sorteos todos los días, pero la API muestra domingos solo 19:00** (WU f26) | El reglamento (Art. 10) no exime domingos (5 horarios L-D); la muestra de f20 (87 días) y el reglamento NOV2025 coexistían: se mantiene la operación real (domingos solo 19:00, consistente en toda la muestra). Confirmar con la Operadora 1923 |
-| H20 | **Sitios oficiales "nuevos" encontrados en la cacería (WU f26)** | `megaanimal40.com` (sitio oficial de Mega Animal 40 con premios 30×/40× y resultados) y los PDFs de reglamento en los bundles de triplecaliente/triplezamorano/resultadostriplezulia — **el scraper de Mega Animal 40 NO se migra** (fuera de alcance; decisión del cliente) |
+| H20 | **Sitios oficiales "nuevos" encontrados en la cacería (WU f26)** | ✅ **RESUELTO (WU f27)**: el scraper de Mega Animal 40 SE MIGRÓ al sitio oficial (`MegaAnimal40OficialScraper` → POST `megaanimal40.com/core/process.php`); `MegaAnimal40Scraper` (proveedor) queda como clase durmiente. Los PDFs de reglamento de triplecaliente/triplezamorano/resultadostriplezulia se aplicaron en f26 |
 
 ### F. Evidencia del LOTE 1 (7 juegos originales)
 
@@ -277,7 +277,7 @@ User-Agent de navegador, robots.txt respetado (los sitios no lo prohíben para e
    apostado... si el resultado sale con la palabra [MEGA] tu premio se aumenta **(40) veces**". El
    **reglamento N° DIF-RGTO-033-00 (14-nov-2023) solo está referenciado** (RV y el propio sitio);
    no hay PDF accesible (el sitio de la Lotería de Cojedes no resuelve; CONALOT no publica
-   reglamentos por juego). El scraper NO se migra a este sitio (fuera de alcance, H20).
+   reglamentos por juego). **El scraper SE MIGRÓ al sitio oficial en el WU f27** (ver sección I).
 9. **El Arrejuntado (11)** — serviciosintegradostriple7.com es una landing SPA (Astro) y el backend
    `backend.serviciosintegradostriple7.com` es API-only: revisadas `/reglamento`, `/docs`,
    `/api/v1/reglamentos/`, `/openapi.json` → todo 404. **No publicado**.
@@ -286,6 +286,40 @@ User-Agent de navegador, robots.txt respetado (los sitios no lo prohíben para e
     (solo footer de copyright); las rutas `/reglamento` devuelven el mismo index (SPA catch-all).
     Todos confirman "**Operado bajo licencia de la Lotería de Oriente**" (Selva Plus: logo ldo).
     → **No publicados**.
+
+### I. Evidencia del WU f27 — Migración de Mega Animal 40 al sitio oficial + captura del comodín (2026-09-14)
+
+1. **Endpoint oficial** verificado en vivo (14-sep-2026, sin auth ni anti-bot):
+   `POST https://megaanimal40.com/core/process.php` con form-data `option=<token de resultados>`
+   → `{"msg":"Datos recopilados","status":true,"datos":[{...,"resultados":[{"date_result","number_animal",
+   "animalito","color","time_s","mega"}, ...]}]}`. `resultados[]` = sorteos del DÍA ACTUAL ordenados de
+   más reciente a más antiguo; `time_s` en 12h; `number_animal` en 2 dígitos; `animalito` con acentos
+   ("Águila"); **`mega`: "1" sin comodín / "2" SALIÓ EL COMODÍN MEGA** (JS oficial del sitio:
+   `if (b.mega == "2") { ...muestra la palabra MEGA... }`).
+2. **Limitación documentada y probada**: el endpoint IGNORA los parámetros de fecha (probados
+   `fecha`/`date`/`dia` → siempre devuelve el día actual; prueba con `date=2026-09-10` → 8 sorteos del
+   14-sep) y el sitio no expone histórico funcional (la página `/historial/` usa el mismo token).
+   → `MegaAnimal40OficialScraper::execute` filtra por la fecha pedida; una fecha distinta produce `[]`.
+   Los históricos previos en BD (del proveedor) quedan tal cual.
+3. **Implementación (TDD estricto, RED→GREEN)**: `MegaAnimal40OficialScraper` (extiende BaseScraper,
+   POST form-data con el token, parse de `datos[].resultados[]`, `numeros_ganadores =
+   {"pais":"VE","numero":N,"nombre_animal":"Águila","comodin":(mega=="2")}`, hora `normalizeHora`,
+   filtro por fecha, `findJuegoOrFail`, `saveResults` heredado; respuesta inválida/`status:false` →
+   RuntimeException; sin datos → `[]`). Seeder `MegaAnimal40Seeder` → `updateOrCreate` con
+   `scraper_url = https://megaanimal40.com/`, `scraper_class = MegaAnimal40OficialScraper` y
+   `config = {premio_multiplo: 30, comodines: {mega: {nombre: MEGA, premio_multiplo: 40}}}` (premios
+   oficiales de la web). Fixtures: `megaanimal40_oficial.json` (real de hoy) +
+   `megaanimal40_comodin.json` (**SINTÉTICO** del campo documentado `mega:"2"`; el capturado real
+   llegará con el primer comodín). `--filter=MegaAnimal40` → **31/31 (119 assertions)**.
+4. **Contrato JSON enriquecido**: `JuegoCatalogoService` ahora exporta además `comodines` y
+   `modalidades` desde `config` cuando existen (campos aditivos y opcionales; null si no) — aplica a
+   mega (comodín MEGA), selva-plus (A/B), el-guacharito, guacharo-activo y a las `modalidades` de los
+   triples/trío/terminal/cazaloton/fácil. `JuegosJsonTest` 3/3 (618 assertions) + `docs/juegos.json`
+   REGENERADO y COMMITEADO (determinista: md5 `8879c514…` ×2).
+5. **CARGA REAL (14-sep-2026)**: HOY 8 sorteos persistidos (09:00 Ratón #8 … 16:00 Mono #13; el
+   comodín NO salió hoy — todos `comodin=false`); DEDUPE idempotente (2º rescrape: 8 filas, 0
+   duplicados); AYER 2026-09-13 → 0 sorteos (endpoint solo sirve hoy, limitación). BD local total
+   **281** resultados (273 previos + 8 nuevos netos; filas de mega: 25 = 17 del proveedor + 8 de hoy).
 
 ### E. Fuera del catálogo (candidatos — decisión del cliente)
 

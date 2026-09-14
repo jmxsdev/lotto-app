@@ -27,7 +27,7 @@
 | 14 | `la-granjita` | `/lottery/la-granjita` | ✅ |
 | 15 | `la-ricachona` | `/lottery/la-ricachona` (Triple y Terminal) + `/lottery/la-ricachona-animalito` | ✅ (2 páginas) |
 | 16 | `loto-chaima` | `/lottery/loto-chaima` | ✅ |
-| 17 | `mega-animal-40` | `/lottery/mega-animal-40` | ✅ (integrado en este WU) |
+| 17 | `mega-animal-40` | `/lottery/mega-animal-40` | ✅ (WU f27: **MIGRADO al sitio oficial megaanimal40.com**; el proveedor queda solo como informativo) |
 | 18 | `selva-plus` | `/lottery/selva-plus` | ✅ (integrado en este WU) — ⚠️ el proveedor declara datos EQUIVOCADOS, ver hallazgo H8 |
 | 19 | `triple-tachira` | `/lottery/triple-tachira` | ✅ (integrado en este WU) — ⚠️ el proveedor declara datos EQUIVOCADOS, ver hallazgo H9 |
 | 20 | `triple-facil` | `/lottery/triple-facil` | ✅ (integrado en este WU) — ⚠️ premiación INFORMATIVA (el sitio oficial no publica cifras) y terminales DERIVADAS, ver hallazgo H10 |
@@ -93,7 +93,7 @@ fallback) vs el zoológico/tabla que declara el proveedor:
 
 | Juego | Premio declarado por el proveedor |
 |---|---|
-| mega-animal-40 | **30x normal; 40x con comodín "MEGA" automático** (sin costo extra) |
+| mega-animal-40 | **30x normal; 40x con comodín "MEGA" automático** (sin costo extra) — **WU f27**: confirmado en el sitio oficial megaanimal40.com y el **comodín se captura en datos** (`mega:"2"` → `numeros_ganadores.comodin`) |
 | lotto-activo | 30x (animal sencillo); modalidad **Dupleta** (dos animalitos) con premio mayor |
 | lotto-activo-rd / rdominicana | 30x Tradicional; **Dupleta 1.000x** (dos animalitos en dos sorteos consecutivos en orden exacto) |
 | monje-millonario | Simple 30x; **El Patronus (75) premio especial superior** |
@@ -120,9 +120,10 @@ fallback) vs el zoológico/tabla que declara el proveedor:
    **un solo multiplicador por juego**. Nuestro `premio_multiplo: 30` NO refleja la riqueza de
    estos esquemas.
 2. **Comodín MEGA (40x)**: exclusivo de mega-animal-40. No aparece como marcador en las cards del
-   proveedor (~11 fechas escaneadas); el premio es automático cuando el sistema lo sortea. Nuestro
-   sistema no tiene concepto de comodín → el juego quedó con `premio_multiplo: 30` (documentado,
-   no implementado).
+   proveedor (~11 fechas escaneadas); el premio es automático cuando el sistema lo sortea. **WU f27**:
+   la fuente OFICIAL megaanimal40.com trae el campo `mega` por sorteo (`"2"` = salió MEGA, JS oficial
+   del sitio) → **capturado en `numeros_ganadores.comodin`** y documentado en `config` (`comodines.mega`
+   40×); la liquidación 40× queda para el ciclo del motor (aquí solo se captura el dato).
 3. **Dupleta 1.000x** (familia Lotto Activo) y **El Patronus** (Monje) son modalidades que nuestro
    modelo de apuesta (un animal por combinación) no soporta.
 4. Los premios de los TRIPLES (600x, Zodiaco 6.000x) están muy por encima de nuestro 30x: nuestro
@@ -133,7 +134,9 @@ fallback) vs el zoológico/tabla que declara el proveedor:
 ## Nivel 3 — Características únicas
 
 1. **Comodín "MEGA"** (mega-animal-40): multiplicador automático 30x→40x sin costo para el jugador.
-   Es el rasgo distintivo del juego y el motivo del "40" en su nombre.
+   Es el rasgo distintivo del juego y el motivo del "40" en su nombre. **WU f27**: el sitio oficial
+   megaanimal40.com trae el campo `mega` por sorteo (JS: `if (b.mega == "2")` → muestra MEGA) y el
+   scraper oficial lo captura en `numeros_ganadores.comodin` (bool).
 2. **Operador/regulador** (según el proveedor):
    - mega-animal-40 → **Big Data Tecnology, C.A.** / Lotería de Cojedes (Reglamento N°
      DIF-RGTO-033-00, 14-nov-2023, **solo referenciado — no publicado en PDF**), sistema
@@ -174,8 +177,10 @@ fallback) vs el zoológico/tabla que declara el proveedor:
       publicado en triplezamorano.com (`docs/reglamentos/reglamento-triple-zamorano.pdf`,
       600×/60×/5×/6.000×/600×/60×).
 3. **Bloques horarios reglamentarios**: mega-animal-40 divide sus 12 sorteos en **Mañana
-   (09-11) / Tarde (12-17) / Noche (18-20)**; el sitio permite filtrar por bloque y declara
-   historial de 90 días.
+   (09-11) / Tarde (12-17) / Noche (18-20)**. **WU f27**: el sitio oficial (12 sorteos 09:00–20:00)
+   NO expone histórico funcional (el endpoint `/core/process.php` ignora fechas y la página
+   `/historial/` usa el mismo token) → el scraper oficial solo sirve el día actual (limitación
+   documentada).
 4. **Modalidades multi-resultado**: triple-caliente canta A/B + Signo; triple-zulia A/B + Zodiaco;
    triple-chance A y B Millonario + C + Signo; la-ricachona produce 2 resultados por sesión
    (triple + terminal). Nuestro esquema tripletas (A/B/C+signo en `numeros_ganadores`) cubre
@@ -196,7 +201,7 @@ fallback) vs el zoológico/tabla que declara el proveedor:
 
 | # | Hallazgo | Decisión pendiente |
 |---|---|---|
-| H1 | **Comodín MEGA 40x** en mega-animal-40: no hay marcador en las cards; nuestro sistema no modela comodines. | ¿Modelar comodines en premios (p. ej. campo `comodin` en `numeros_ganadores` + multiplicador dinámico en `calcularPremio`)? ¿O mantener 30x estático y documentar la diferencia? |
+| H1 | **Comodín MEGA 40x** en mega-animal-40: no hay marcador en las cards del proveedor; nuestro sistema no modela comodines. | ✅ **RESUELTO (WU f27)**: la fuente OFICIAL megaanimal40.com trae el campo **`mega`** por sorteo (`"1"` sin comodín / `"2"` SALIÓ MEGA — JS oficial del sitio) → se captura en **`numeros_ganadores.comodin`** (bool) y `config.comodines.mega` (40×). **Liquidación 40×** (multiplicador dinámico en `calcularPremio`) → **ciclo del motor**. Fixture sintético del campo `mega:"2"` + primer comodín real pendiente de captura. |
 | H2 | Zoológicos mayores al canónico: **monje 77, guácharo 77, guacharito 101** (números > 36 reales en resultados). | **Monje Millonario CONFIRMADO con fuente oficial y CORREGIDO (WU f22) + ZOO COMPLETADO (WU f25)**: el feed oficial de lottoactivo.com muestra números 0–75 con zoo propio (49=Pereza, 42=Tucán, 74=Turpial, 75=Patronus). El **muestreo de 75 días (2026-07-02..09-14, ~900 sorteos)** confirmó los 7 nombres que faltaban (37 Tortuga, 39 Lechuza, 57 Pato, 65 Araña, 67 Avestruz, 68 Jaguar, 75 Patronus) → tabla propia **COMPLETA de 77 figuras** (76 números 0–75 + 0 duplicado Delfín/Ballena). **`guácharo-activo` y `el-guacharito` CONFIRMADOS con fuente oficial y CORREGIDOS (WU f24)**: el bundle oficial de guacharoactivo.com.ve muestra **77 figuras** (00 Ballena + 0 Delfín + 01..75 Guacharo) y el de elguacharitomillonario.com **101 figuras** (00 Ballena + 0 Delfin + 01..99 Guacharito) — la informativa tenía razón en ambos. Se crearon las tablas propias (77 y 101 opciones) y se migraron los scrapers al API oficial lotterly. |
 | H3 | `premio_multiplo` 30 en juegos cuyo reglamento paga 60x–6.000x (guácharo, guacharito, triples). | ¿Ajustar `premio_multiplo` por juego o migrar a esquemas de premios por modalidad? Requiere decisión de negocio del cliente. (WU f22 actualizó los 2 con reglamento oficial: Trío Activo 600× y Terminal Trío 60×.) |
 | H4 | **Dupleta 1.000x** (Lotto Activo) y **El Patronus** (Monje): modalidades no soportadas por nuestro modelo de apuesta. | ¿Ampliar el plugin Animalitos con modalidades de 2 animalitos / figura especial? (fuera de alcance actual). WU f22: la Dupleta solo aparece en la informativa, NO en el reglamento oficial disponible; El Patronus sin reglamento (PDF 404). |
@@ -215,7 +220,7 @@ fallback) vs el zoológico/tabla que declara el proveedor:
 | H17 | **La informativa está desactualizada para `triple-chance`** (WU f24): la página de RV declara "3 sorteos diarios 1:00/4:30/8:00 PM (domingos 8:00 PM)" y "Triple A o B solo: 150 Bs por 1 Bs"; la fuente OFICIAL (tuchance.com.ve → API scalalot) opera **11 horarios 09:00–19:00** (5 días muestreados) y el **afiche oficial** declara "SOLO el TRIPLE A o el TRIPLE B: **100×**". El reglamento oficial existe pero es un **PDF escaneado** (no parseable); se usó el afiche (PDF texto) como fuente de premios. | **MIGRADO (WU f24)**: `TripleChanceOficialScraper` contra el API oficial (AYB+ASTRAL → A/B/C+signo); config con premios del afiche (600×, 200.000×, 100×, 60×, 5.000×, 6×). La discrepancia 100× vs 150× (afiche vs informativa) queda documentada; si el cliente confirma el reglamento escaneado, contrastar. **WU f26**: los 2 PDFs de `/reglamentos/` (VIGENTE 8 págs + 2024 19 págs) descargados a `docs/reglamentos/` para que el cliente extraiga los textos. |
 | H18 | **`triple-caliente`: el reglamento declara 5 sorteos pero la operación real es de 3** (WU f26). El reglamento oficial (Art. 10, Lotería de Cojedes) declara **5 horarios 11:10/13:10/15:10/17:10/19:10** (domingos solo 19:10); la API oficial (timestamps, 234 respuestas) opera **3 sorteos 13:00/16:30/19:10** (domingos solo 19:10). | Se prioriza la **operación real** (13:00/16:30/19:10 — lo que consume el scraper), misma política que H15/H16. Confirmar con el operador si el reglamento se reformó. Los premios SÍ se aplican del reglamento: TRIPLE A/B/C **600×**, TERMINAL **60×**, SIGNO CALIENTE **6.000×**, TERMINAL SIGNO **600×** → `premio_multiplo` 30→**600** + modalidades. |
 | H19 | **`triple-zamorano`: el reglamento NOV2025 declara sorteos todos los días, la API muestra domingos solo 19:00** (WU f26). El reglamento (Art. 10) declara 5 horarios **L-D**; la muestra de la API (87 días, WU f20) muestra **domingos solo 19:00** (consistente). | Se mantiene la operación real (domingos solo 19:00). Confirmar con la Operadora 1923 C.A. / Lotería del Zulia. |
-| H20 | **`mega-animal-40`: encontrado el sitio oficial megaanimal40.com** (WU f26) — con logos CONALOT, Big Data Tecnology y Lotería de Cojedes; publica premios (**30× animal / 40× comodín MEGA**), horarios (12 sorteos 09:00–20:00), 38 figuras y resultados. El scraper actual usa resultadosvenezuela.com (excepción autorizada del WU f14: "sin página oficial"). El **reglamento N° DIF-RGTO-033-00 (14-nov-2023) solo está referenciado** (RV + actas), no publicado en PDF accesible. | **Decisión del cliente**: ¿migrar el scraper de Mega Animal 40 a su sitio oficial? NO se migra en este WU (solo cacería de reglamentos). La premiación 30×/40× queda respaldada por el texto oficial del sitio. |
+| H20 | **`mega-animal-40`: encontrado el sitio oficial megaanimal40.com** (WU f26) — con logos CONALOT, Big Data Tecnology y Lotería de Cojedes; publica premios (**30× animal / 40× comodín MEGA**), horarios (12 sorteos 09:00–20:00), 38 figuras y resultados. El scraper actual usa resultadosvenezuela.com (excepción autorizada del WU f14: "sin página oficial"). El **reglamento N° DIF-RGTO-033-00 (14-nov-2023) solo está referenciado** (RV + actas), no publicado en PDF accesible. | ✅ **RESUELTO (WU f27)**: scraper **MIGRADO al sitio oficial** (`MegaAnimal40OficialScraper` → `POST megaanimal40.com/core/process.php` con `option=<token>`; seeder `updateOrCreate` con `scraper_url`/`scraper_class` + comodín MEGA en config; contrato JSON enriquecido con `comodines`/`modalidades`). El scraper del proveedor queda como clase durmiente. **Limitación**: el endpoint solo sirve el DÍA ACTUAL (ignora fechas, sin histórico) → los históricos del proveedor en BD quedan. Reglamento DIF-RGTO-033-00 sigue sin PDF (pendiente de la Lotería de Cojedes). |
 
 > Nada de lo anterior se implementa en los WU de ANÁLISIS. El **WU f22 (verificación integral,
 > lote 1)** sí implementó las correcciones respaldadas con fuente oficial para los 7 juegos
@@ -223,3 +228,5 @@ fallback) vs el zoológico/tabla que declara el proveedor:
 > el WU f25** con el muestreo del histórico oficial), Trío Activo
 > (premio 600× + opciones terminal + modalidades), Terminal Trío (premio 60×). Los demás
 > juegos del proveedor quedan fuera de alcance (un work unit por juego, decisión del cliente).
+> El **WU f27** migró Mega Animal 40 a su sitio oficial (`MegaAnimal40OficialScraper`) y capturó
+> el comodín MEGA en datos (**H1 y H20 resueltos**); la liquidación 40× es del ciclo del motor.
