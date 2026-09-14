@@ -21,12 +21,25 @@ class TripleZuliaSeeder extends Seeder
 
     public function run(): void
     {
-        $juego = Juego::firstOrCreate(
+        // Premios OFICIALES del reglamento (WU f26): "REGLAMENTO TRIPLE ZULIA
+        // NOV2025" publicado en resultadostriplezulia.com (Lotería del Zulia,
+        // G-20007649-6, 17 págs parseable; copia en
+        // docs/reglamentos/reglamento-triple-zulia.pdf). Art. 19: TRIPLE A/B/C
+        // 600×, TERMINAL A/B/C 60×, ZODIACO DEL ZULIA (triple+signo) 6.000× y
+        // TERMINAL ZODIACO 600×. Antes quedaba el default 30× de los triples.
+        $juego = Juego::updateOrCreate(
             ['slug' => 'triple-zulia'],
             [
                 'name' => 'Triple Zulia',
                 'type' => 'tripletas',
-                'config' => ['premio_multiplo' => 30],
+                'config' => [
+                    'premio_multiplo' => 600,
+                    'modalidades' => [
+                        'cola' => 60,
+                        'zodiacal' => 6000,
+                        'terminal_zodiacal' => 600,
+                    ],
+                ],
                 'requires_scraper' => true,
                 'scraper_url' => 'https://resultadostriplezulia.com/',
                 'active' => true,

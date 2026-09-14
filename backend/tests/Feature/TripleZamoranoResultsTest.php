@@ -43,7 +43,18 @@ class TripleZamoranoResultsTest extends TestCase
         $this->assertTrue($juego->requires_scraper);
         $this->assertEquals('https://www.triplezamorano.com/api/gaming/results/product', $juego->scraper_url);
         $this->assertEquals(TripleZamoranoScraper::class, $juego->scraper_class);
-        $this->assertEquals(30, $juego->config['premio_multiplo']);
+        // Premios OFICIALES del reglamento (WU f26): "REGLAMENTO TP ZAMORANO
+        // NOV2025" publicado en el propio triplezamorano.com (Lotería del Zulia
+        // G-20007649-6, 18 págs parseable; copia en
+        // docs/reglamentos/reglamento-triple-zamorano.pdf). Art. 19: TRIPLE 600×,
+        // COLA 60×, UÑA 5×, ASTRO (triple+signo) 6.000×, COLA+SIGNO 600× y
+        // UÑA+SIGNO 60×. Resuelve H11: la informativa (600/60/6.000/600) era
+        // correcta pero sin fuente; ahora verificada con el reglamento.
+        $this->assertEquals(600, $juego->config['premio_multiplo']);
+        $this->assertEqualsCanonicalizing(
+            ['cola' => 60, 'uña' => 5, 'zodiacal' => 6000, 'cola_signo' => 600, 'uña_signo' => 60],
+            $juego->config['modalidades']
+        );
         $this->assertEquals('1', $juego->config['scraper']['product_id']);
     }
 

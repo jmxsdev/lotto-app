@@ -153,6 +153,23 @@ class VerificacionOriginalesTest extends TestCase
         $this->assertCount(12, $this->opcionesDe('triple-zulia'));
     }
 
+    public function test_triple_zulia_premios_oficiales_del_reglamento(): void
+    {
+        // Evidencia (WU f26): reglamento oficial descargado del propio sitio
+        // resultadostriplezulia.com ("REGLAMENTO TRIPLE ZULIA NOV2025", Lotería
+        // del Zulia G-20007649-6, 17 págs parseable; copia en
+        // docs/reglamentos/reglamento-triple-zulia.pdf). Art. 19: TRIPLE A/B/C
+        // 600×, TERMINAL A/B/C 60×, ZODIACO DEL ZULIA (triple+signo) 6.000× y
+        // TERMINAL ZODIACO 600×. Art. 10: 3 sorteos 12:45/16:45/19:05 (domingos
+        // solo 19:05) — coincide con la API (verificado en f22).
+        $juego = Juego::where('slug', 'triple-zulia')->firstOrFail();
+        $this->assertSame(600, $juego->config['premio_multiplo']);
+        $this->assertEqualsCanonicalizing(
+            ['cola' => 60, 'zodiacal' => 6000, 'terminal_zodiacal' => 600],
+            $juego->config['modalidades']
+        );
+    }
+
     public function test_familia_lotto_activo_horarios_oficiales(): void
     {
         // Evidencia: feed oficial 2026-09-10..14.

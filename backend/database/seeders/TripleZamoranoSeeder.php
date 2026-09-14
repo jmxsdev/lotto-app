@@ -22,17 +22,28 @@ class TripleZamoranoSeeder extends Seeder
 
     public function run(): void
     {
-        // Premios: la informativa (resultadosvenezuela.com) declara 600x/60x/6.000x/600x,
-        // pero NO hay fuente oficial verificada del premio (los mismos valores que RV
-        // declara para Triple Táchira resultaron EQUIVOCADOS — hallazgo H9), así que se
-        // usa el default de los triples (30x) y queda documentado como pendiente.
-        $juego = Juego::firstOrCreate(
+        // Premios OFICIALES del reglamento (WU f26): "REGLAMENTO TP ZAMORANO
+        // NOV2025" publicado en el propio triplezamorano.com (Lotería del Zulia
+        // G-20007649-6, 18 págs parseable; copia en
+        // docs/reglamentos/reglamento-triple-zamorano.pdf). Art. 19: TRIPLE 600×,
+        // COLA 60×, UÑA 5×, ASTRO (triple+signo) 6.000×, COLA+SIGNO 600× y
+        // UÑA+SIGNO 60×. Resuelve H11: la informativa (600/60/6.000/600) era
+        // correcta pero SIN fuente verificada; ahora respaldada por el reglamento.
+        // Antes quedaba el default 30× de los triples.
+        $juego = Juego::updateOrCreate(
             ['slug' => 'triple-zamorano'],
             [
                 'name' => 'Triple Zamorano',
                 'type' => 'tripletas',
                 'config' => [
-                    'premio_multiplo' => 30,
+                    'premio_multiplo' => 600,
+                    'modalidades' => [
+                        'cola' => 60,
+                        'uña' => 5,
+                        'zodiacal' => 6000,
+                        'cola_signo' => 600,
+                        'uña_signo' => 60,
+                    ],
                     'scraper' => ['product_id' => '1'],
                 ],
                 'requires_scraper' => true,

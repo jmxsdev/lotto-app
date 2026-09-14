@@ -219,7 +219,7 @@
             "slug": "triple-zulia",
             "nombre": "Triple Zulia",
             "tipo": "tripletas",
-            "premio_multiplo": 30,
+            "premio_multiplo": 600,
             "horarios": [
                 "12:45",
                 "16:45",
@@ -2175,7 +2175,7 @@
             "slug": "triple-caliente",
             "nombre": "Triple Caliente",
             "tipo": "tripletas",
-            "premio_multiplo": 30,
+            "premio_multiplo": 600,
             "horarios": [
                 "13:00",
                 "16:30",
@@ -5508,7 +5508,7 @@
             "slug": "triple-zamorano",
             "nombre": "Triple Zamorano",
             "tipo": "tripletas",
-            "premio_multiplo": 30,
+            "premio_multiplo": 600,
             "horarios": [
                 "10:00",
                 "12:00",

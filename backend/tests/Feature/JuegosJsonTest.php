@@ -156,6 +156,12 @@ class JuegosJsonTest extends TestCase
             $this->assertCount(12, $porSlug[$slug]['opciones'], "[{$slug}] debe tener 12 opciones (tabla).");
         }
 
+        // triple-zulia y triple-caliente: premios OFICIALES de sus reglamentos
+        // (WU f26; copias en docs/reglamentos/): TRIPLE 600×, cola/terminal 60×,
+        // zodiacal 6.000×, terminal zodiacal 600× (antes default 30×).
+        $this->assertSame(600, $porSlug['triple-zulia']['premio_multiplo']);
+        $this->assertSame(600, $porSlug['triple-caliente']['premio_multiplo']);
+
         // triple-chance: premio OFICIAL 600 (TRIPLE A/B seco) según el afiche
         // oficial de tuchance.com.ve ("Chance en línea"); fuente migrada al API
         // oficial scalalot en el WU f24.
@@ -318,11 +324,12 @@ class JuegosJsonTest extends TestCase
         $this->assertSame(99, $porSlug['triple-facil']['opciones'][99]['numero']);
 
         // triple-zamorano: 12 signos PROPIOS desde la tabla juego_opciones
-        // (patrón triple-caliente), premio_multiplo 30 (default de los triples;
-        // la informativa declara 600x/60x/6.000x SIN fuente oficial verificada,
-        // pendiente) y 5 horarios oficiales 10:00/12:00/14:00/16:00/19:00.
+        // (patrón triple-caliente) y premios OFICIALES del reglamento NOV2025
+        // (Lotería del Zulia; copia en docs/reglamentos/reglamento-triple-zamorano.pdf):
+        // TRIPLE 600×, COLA 60×, UÑA 5×, ASTRO 6.000×, COLA+SIGNO 600×, UÑA+SIGNO
+        // 60× (resuelve H11). 5 horarios oficiales 10:00/12:00/14:00/16:00/19:00.
         $this->assertCount(12, $porSlug['triple-zamorano']['opciones']);
-        $this->assertSame(30, $porSlug['triple-zamorano']['premio_multiplo']);
+        $this->assertSame(600, $porSlug['triple-zamorano']['premio_multiplo']);
         $this->assertSame(
             ['10:00', '12:00', '14:00', '16:00', '19:00'],
             $porSlug['triple-zamorano']['horarios']

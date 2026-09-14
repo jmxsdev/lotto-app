@@ -42,7 +42,16 @@ class TripleCalienteResultsTest extends TestCase
         $this->assertTrue($juego->requires_scraper);
         $this->assertEquals('https://triplecaliente.com/api/gaming/results/product', $juego->scraper_url);
         $this->assertEquals(TripleCalienteOficialScraper::class, $juego->scraper_class);
-        $this->assertEquals(30, $juego->config['premio_multiplo']);
+        // Premios OFICIALES del reglamento (WU f26): "Reglamento TRIPLE CALIENTE"
+        // publicado en triplecaliente.com (Lotería de Cojedes G-20008572-1, 17
+        // págs parseable; copia en docs/reglamentos/reglamento-triple-caliente.pdf).
+        // Art. 19: TRIPLE A/B/C 600×, TERMINAL A/B/C 60×, SIGNO CALIENTE
+        // (triple+signo) 6.000× y TERMINAL SIGNO 600×. Antes quedaba el default 30×.
+        $this->assertEquals(600, $juego->config['premio_multiplo']);
+        $this->assertEqualsCanonicalizing(
+            ['cola' => 60, 'zodiacal' => 6000, 'terminal_zodiacal' => 600],
+            $juego->config['modalidades']
+        );
         $this->assertEquals('4', $juego->config['scraper']['product_id']);
     }
 
