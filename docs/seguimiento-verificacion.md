@@ -65,10 +65,14 @@ comodines, premiación y **reglamento oficial**. Complementa a:
 | `triple-caliente`, `triple-zulia`, `triple-chance`, `el-arrejuntado` | Reglamentos | Premiación real (hoy 30× genérico) |
 | `lotto-activo` y familia | Reglamentos + verificación integral | Premios/modaliades (Dupleta 1000×, etc.) |
 
-### B. Fuentes no oficiales a migrar (esperando URL oficial del cliente)
+### B. Fuentes: estado con las URLs oficiales recibidas (2026-09-14)
 
-`cazaloton`, `triple-chance`, `el-guacharito`, `guacharo-activo` → hoy desde
-loteriadehoy.com (agregador). Migrar a página oficial cuando el cliente la proporcione.
+| Juego | URL oficial recibida | Hallazgo | Acción |
+|---|---|---|---|
+| `cazaloton` | `cazaloton.com` | **No publica resultados** — sus enlaces "Resultados" apuntan a loteriadehoy.com | **Se mantiene loteriadehoy** como fuente; informar al cliente |
+| `triple-chance` | `tuchance.com.ve` | Sitio oficial con página `/reglamentos` | Verificar resultados + reglamento → migrar si aplica (lote 2) |
+| `el-guacharito` | `elguacharitomillonario.com` | SPA → **API lotterly** (`el-guacharito-millonario`) | Migrar scraper a la API oficial (lote 2) |
+| `guacharo-activo` | `guacharoactivo.com.ve` | SPA → **API lotterly** (`guacharo-activo`) | Migrar scraper a la API oficial (lote 2) |
 
 ### C. Verificación oficial pendiente de los juegos originales (1–7)
 
