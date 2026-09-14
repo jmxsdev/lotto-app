@@ -122,11 +122,11 @@ Plantilla para los juegos restantes (#18–22):
 | # | Juego | slug | type (fuente) | Flag |
 |---|-------|------|---------------|------|
 | 9 | Triple Caliente | triple-caliente | tripletas (API oficial productId) | ✅ integrado (PR 2) + fuente oficial (PR 8) |
-| 10 | Cazaloton | cazaloton | animalitos | ✅ integrado (PR 3) |
-| 11 | Triple Chance | triple-chance | tripletas (API productId) | ✅ integrado (PR 4) |
+| 10 | Cazaloton | cazaloton | animalitos (loteriadehoy — oficial sin resultados) | ✅ integrado (PR 3) + reglamento verificado (f24) |
+| 11 | Triple Chance | triple-chance | tripletas (API oficial tuchance.com.ve/scalalot) | ✅ integrado (PR 4) + fuente oficial (f24) |
 | 12 | El Arrejuntado | el-arrejuntado | tripletas (API serviciosintegradostriple7) | ✅ integrado (PR 5) |
-| 13 | El Guacharito | el-guacharito | animalitos (loteriadehoy) | ✅ integrado (PR 6) |
-| 14 | Guacharo Activo | guacharo-activo | animalitos (loteriadehoy) | ✅ integrado (PR 7) |
+| 13 | El Guacharito | el-guacharito | animalitos (API oficial lotterly) | ✅ integrado (PR 6) + fuente oficial (f24) |
+| 14 | Guacharo Activo | guacharo-activo | animalitos (API oficial lotterly) | ✅ integrado (PR 7) + fuente oficial (f24) |
 | 15 | La Granjita | la-granjita | animalitos (API oficial lagranjita.com) | ✅ integrado (PR 11) |
 | 16 | La Ricachona | la-ricachona | tripletas (HTML oficial laricachona.com) | ✅ integrado (PR 12) |
 | 17 | Loto Chaima | loto-chaima | animalitos (API oficial lotterly.co) | ✅ integrado (PR 13) |
@@ -238,9 +238,18 @@ Plantilla para los juegos restantes (#18–22):
 - [x] f22.9 REGENERADO `docs/juegos.json` con `php artisan juegos:export` (21 juegos; lotto-activo 38 con Cebra, monje 70, trío 100 premio 600, terminal 100 premio 60) y COMMITEADO.
 - [x] f22.10 Docs: `docs/seguimiento-verificacion.md` (matriz 1–7 ✅/⚠️ + evidencia del lote + pendientes H12–H16), `docs/fuentes-oficiales.md` (filas 1–7 verificadas), `docs/comparacion-juegos.md` (H2 CONFIRMADO y H5 DESMENTIDO + H12–H16 + Nivel 1/2/3 actualizados). `pint --test` limpio. NO se abren PRs.
 
-## Phase 3: Verificación / cierre
+### WU f24 — Verificación integral, LOTE 2: los 4 juegos de fuente agregador (rama f24-verificacion-agregadores, base f23-docs-inconsistencias) — ✅ COMPLETADO
+- [x] f24.1 Rama `feat/integracion-juegos-scrapers-f24-verificacion-agregadores` creada desde f23. Auditoría de DATOS + MIGRACIÓN de fuentes de los 4 juegos agregador (9, 10, 12, 13) contra las URLs oficiales recibidas del cliente (muestreo en vivo 14-sep-2026, con sleep y User-Agent de navegador).
+- [x] f24.2 **`triple-chance` (10)**: tuchance.com.ve ("Chance en línea", WordPress) EXPONE resultados vía API pública `api.scalalot.com` (token base64 "CHANCE" + timestamp epoch). **MIGRADO**: nuevo `TripleChanceOficialScraper` (consume AYB → triple_a/triple_b + ASTRAL → triple_c/signo, ignora ANIMALITO, base64+trim, signo completo→sigla, horario 12h→H:i, ordena por hora). Seeder `updateOrCreate` con `scraper_url` del API y premios OFICIALES del afiche (PDF parseable): premio 30→**600** + modalidades (triple_a_b 200.000, triple_a_o_b 100, terminal 60, triple_c_signo 5.000, signo 6). 11 horarios y 12 signos CONFIRMADOS sin cambio. Reglamento publicado pero ESCANEADO (no parseable). Fixtures reales (día completo 12-sep 33 registros + parcial 14-sep + vacío 012). 15 unit + 8 feature → `--filter=TripleChance` 31/31. Carga real: 11 (12-sep) + 3 (14-sep) persistidos; dedupe OK (21 filas). **Hallazgo H17**: la informativa declara 3 sorteos 1:00/4:30/8:00 PM y "solo 150×" — la oficial opera 11 (09:00–19:00) y el afiche dice 100×.
+- [x] f24.3 **`el-guacharito` (12)**: elguacharitomillonario.com (SPA) → **API lotterly** (`el-guacharito-millonario`). **MIGRADO**: nuevo `ElGuacharitoOficialScraper` (patrón LotoChaima/Selva), **zoo propio de 101 figuras** extraído del bundle oficial (`index-EQw1Zdrz.js`; 00 Ballena + 0 Delfin + 01..99 Guacharito, labels SIN acentos como viajan en el bundle) → 101 JuegoOpcion. Seeder `updateOrCreate` con premios OFICIALES del bundle: 30→**70** + comodines {guacharito-99: 150×}. 12 horarios :30 CONFIRMADOS. Fixtures reales (día completo + parcial). 15 unit + 8 feature → `--filter=Guacharito` 30/30. Carga real: 12 (12-sep) + 4 (14-sep) persistidos; dedupe OK (24 filas). Sin reglamento (❌ no publicado).
+- [x] f24.4 **`guacharo-activo` (13)**: guacharoactivo.com.ve (SPA) → **API lotterly** (`guacharo-activo`). **MIGRADO**: nuevo `GuacharoActivoOficialScraper` (patrón LotoChaima/Selva), **zoo propio de 77 figuras** extraído del bundle oficial (`index-Dv-KFMIs.js`; 00 Ballena + 0 Delfín + 01..75 Guacharo, labels CON acentos) → 77 JuegoOpcion. Seeder `updateOrCreate` con premios OFICIALES del bundle: 30→**60** + comodines {guacharo-75: 120×} (el Guácharo duplica). 12 horarios :00 CONFIRMADOS. Fixtures reales (día completo + parcial). 16 unit + 8 feature → `--filter=Guacharo` 24/24. Carga real: 12 (12-sep) + 4 (14-sep) persistidos; dedupe OK (24 filas). Sin reglamento (❌ no publicado).
+- [x] f24.5 **`cazaloton` (9)**: cazaloton.com NO publica resultados (enlaces → loteriadehoy ✓). SÍ tiene **reglamento oficial** (`/Reglamento.pdf`, 17 págs parseable): 38 figuras (0/00/1–36 canónico ✓), 11 horarios 09:00–19:00 ✓, CAZALOTÓN **30×** (Art. 22) ✓ + modalidades DUPLETA **800×** (Art. 23) y TRIPLETA **200×** (Art. 24) → registradas en `config['modalidades']`. **SIN migración**: fuente se mantiene en loteriadehoy (decisión documentada; informar al cliente). Operador: Comercializadora PegaRifa C.A. / Lotería del Mar (Sucre). `--filter=Cazaloton` 14/14.
+- [x] f24.6 Regresión: `JuegosJsonTest` (el-guacharito 38→**101** opciones propias premio 70, guacharo-activo 38→**77** opciones propias premio 60, triple-chance premio 30→**600**; movidos del grupo "38 plugin" a tablas propias) y `LimitesScopedApiTest` SIN cambios (mismos 21 juegos). Focused 131/131 (1360 assertions).
+- [x] f24.7 REGENERADO `docs/juegos.json` con `php artisan juegos:export` (21 juegos; cazaloton 38/30, triple-chance 12/600, el-guacharito 101/70, guacharo-activo 77/60) y COMMITEADO; determinista (md5 `cd62b196...` ×2).
+- [x] f24.8 CARGA REAL + dedupe: triple-chance 11+3; el-guacharito 12+4; guacharo-activo 12+4 (rescrape idempotente; 0 errores). BD local total 273 (261 previos + 12 nuevos netos… ver nota).
+- [x] f24.9 Docs: `docs/seguimiento-verificacion.md` (filas 9–13 ✅/⚠️ + resumen + sección B + evidencia LOTE 2 sección G), `docs/fuentes-oficiales.md` (filas 9/10/12/13 verificadas con URLs oficiales), `docs/inconsistencias.md` (§4 acciones hechas + H6 resuelto + H17 nuevo), `docs/comparacion-juegos.md` (filas 9/10/12/13 + Nivel 1/2 + **H2 guacharito/guácharo CONFIRMADOS** + **H6 resuelto** + **H17 triple-chance**). `backend/docs/juegos.md` (filas 10–14 nuevas fuentes + nota LoteriaDeHoy solo para Cazaloton). `pint --test` limpio. Suite completa **692/690/2** (3383 assertions). tasks.md + apply-progress (merge). NO se abren PRs.
 
-- [ ] 3.1 Suite general completa al integrar 10 juegos (criterio cliente), documentado en `docs/juegos.md`.
+## Phase 3: Verificación / cierre
 - [ ] 3.2 `vendor/bin/pint --test` (CI) limpio.
 - [ ] 3.3 Confirmar `panel/` y contratos API intactos.
 

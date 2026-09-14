@@ -49,11 +49,11 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 | # | Nombre | slug | type | Horarios (juego_horarios) | Fuente scraper | Clase scraper | Estado |
 |---|--------|------|------|---------------------------|----------------|---------------|--------|
 | 9 | Triple Caliente | `triple-caliente` | tripletas | 13:00, 16:30, 19:10 | `https://triplecaliente.com/api/gaming/results/product` (API oficial) | `TripleCalienteOficialScraper` | ✅ Verificado con datos reales (API oficial, sin anti-bot) |
-| 10 | Cazaloton | `cazaloton` | animalitos | 09:00–19:00 (11 horarios `:00`) | `https://loteriadehoy.com/animalito/cazaloton/resultados/` | `LoteriaDeHoyScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
-| 11 | Triple Chance | `triple-chance` | tripletas | 09:00–19:00 (11 horarios `:00`) | `https://loteriadehoy.com/loteria/triplechance/resultados/` | `LoteriaDeHoyScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
+| 10 | Cazaloton | `cazaloton` | animalitos | 09:00–19:00 (11 horarios `:00`) | `https://loteriadehoy.com/animalito/cazaloton/resultados/` (SE MANTIENE — el sitio oficial cazaloton.com NO publica resultados; sus enlaces apuntan a loteriadehoy) | `LoteriaDeHoyScraper` | ✅ Verificado con datos reales (12-sep) + reglamento oficial (38 figuras, 30x, dupleta 800x, tripleta 200x) |
+| 11 | Triple Chance | `triple-chance` | tripletas | 09:00–19:00 (11 horarios `:00`) | `https://api.scalalot.com/servicelotteryresults/ServicioResultados.svc/ServicioResultados/ConsultarResultadoSorteo/Q0hBTkNF/` (API oficial tuchance.com.ve "Chance en línea") | `TripleChanceOficialScraper` | ✅ Verificado con datos reales (12-sep: 11 sorteos, API oficial sin anti-bot; premios oficiales 600x) |
 | 12 | El Arrejuntado | `el-arrejuntado` | tripletas | 10:00, 13:00, 16:00, 19:00, 23:00 (5 horarios) | `https://backend.serviciosintegradostriple7.com/api/v1/products/el-arrejuntao/results/` | `ElArrejuntaoScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
-| 13 | El Guacharito Millonario | `el-guacharito` | animalitos | 08:30–19:30 (12 horarios `:30`) | `https://loteriadehoy.com/animalito/elguacharitomillonario/resultados/` | `LoteriaDeHoyScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
-| 14 | Guacharo Activo | `guacharo-activo` | animalitos | 08:00–19:00 (12 horarios `:00`) | `https://loteriadehoy.com/animalito/guacharoactivo/resultados/` | `LoteriaDeHoyScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
+| 13 | El Guacharito Millonario | `el-guacharito` | animalitos | 08:30–19:30 (12 horarios `:30`) | `https://api.lotterly.co/v1/results/el-guacharito-millonario/` (API oficial lotterly.co) | `ElGuacharitoOficialScraper` | ✅ Verificado con datos reales (12-sep: 12 sorteos, API oficial; **101 figuras propias**, premio 70x + especial 99 150x) |
+| 14 | Guacharo Activo | `guacharo-activo` | animalitos | 08:00–19:00 (12 horarios `:00`) | `https://api.lotterly.co/v1/results/guacharo-activo/` (API oficial lotterly.co) | `GuacharoActivoOficialScraper` | ✅ Verificado con datos reales (12-sep: 12 sorteos, API oficial; **77 figuras propias**, premio 60x + comodín 75 120x) |
 | 15 | La Granjita | `la-granjita` | animalitos | 08:00–19:00 (12 horarios `:00`) | `https://www.lagranjita.com/api/results.json?productId=1` (API oficial) | `LaGranjitaScraper` | ✅ Verificado con datos reales (12-sep, API oficial sin anti-bot) |
 | 16 | La Ricachona | `la-ricachona` | tripletas | 08:05–19:05 (12 horarios `:05`) | `https://laricachona.com/` (HTML oficial por fecha) | `LaRicachonaScraper` | ✅ Verificado con datos reales (12-sep, HTML oficial) |
 | 17 | Loto Chaima | `loto-chaima` | animalitos | 08:00–19:00 (12 horarios `:00`) | `https://api.lotterly.co/v1/results/loto-chaima/` (API oficial) | `LotoChaimaScraper` | ✅ Verificado con datos reales (12-sep, API oficial sin auth) |
@@ -69,9 +69,7 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 > (`table.resultados`) para `tripletas`, y bloques de número + animal + hora (`div.js-con`) para
 > `animalitos`. En modo animalitos la página solo renderiza los sorteos ya ocurridos del día, por
 > lo que el scraper maneja resultados parciales (los bloques presentes, sin asumir el total).
-> En modo tripletas la página de algunos juegos (p. ej. Triple Chance) lista los bloques de horario
-> del día y solo los ya sorteados traen A/B/C; los horarios futuros aparecen como filas de hora sin
-> resultado, que el scraper ignora (no genera resultado vacío ni error).
+> Tras el WU f24 solo queda en uso para **Cazaloton** (y como respaldo).
 
 > `ElArrejuntaoScraper` consume la API JSON de serviciosintegradostriple7.com (endpoint por fecha).
 > Cada draw publicado (`is_published=true`) trae 6 modalidades: `animalito`, `el-arrimao`,
@@ -325,9 +323,11 @@ aquí en su mismo work unit:
 > `juego_opciones` si existen (lotto-activo 38 animales; triple-zulia/triple-caliente/
 > triple-chance/el-arrejuntado 12 signos; loto-chaima 57 animales propios; selva-plus
 > **103 opciones** — 101 figuras propias + 2 comodines con `numero` null, que por el
-> orden por `numero` de MySQL quedan al inicio del array), si no, fallback al
+> orden por `numero` de MySQL quedan al inicio del array; el-guacharito **101 figuras**
+> propias y guacharo-activo **77 figuras** propias — zoos oficiales lotterly, WU f24),
+> si no, fallback al
 > plugin vía `JuegoPluginManager` (terminal-activo 100 números 00-99 vía Terminales; trio-activo
-> 12 signos vía Tripletas; animalitos sin tabla — rd, rep-dom, monje, cazaloton, el-guacharito,
-> guacharo-activo, la-granjita, mega-animal-40 — 38 animales canónicos vía Animalitos). NO editar el archivo a mano:
+> 12 signos vía Tripletas; animalitos sin tabla — rd, rep-dom, monje, cazaloton,
+> la-granjita, mega-animal-40 — 38 animales canónicos vía Animalitos). NO editar el archivo a mano:
 > regenerarlo con el comando. La lógica vive en `App\Services\JuegoCatalogoService`
 > (compartida por el comando y el test de consistencia `JuegosJsonTest`).

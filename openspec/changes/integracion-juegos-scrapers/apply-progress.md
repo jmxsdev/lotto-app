@@ -1596,3 +1596,162 @@ reglamentos PDF) y el FAQ oficial. **H2 CONFIRMADO** (Monje zoo 0–74) y **H5 D
   el-guacharito 12, guacharo-activo 13) — requieren URL oficial del cliente.
 - Decisiones de negocio pendientes: H12 (premio Terminal Trío 60 vs 70), H13 (acentos en el motor),
   H14 (7 figuras de Monje + El Patronus), H15 (reglamento vs operación de Trío).
+
+---
+
+# Apply Progress (WU f24) — Verificación integral, LOTE 2: los 4 juegos de fuente agregador
+
+**Rama**: `feat/integracion-juegos-scrapers-f24-verificacion-agregadores`
+**Base**: `feat/integracion-juegos-scrapers-f23-docs-inconsistencias`
+**Estado**: COMPLETADO (f24.1–f24.9)
+**Modo**: Strict TDD (backend: `php artisan test`)
+
+> Nota de merge: secciones previas viven en este archivo y en Engram. El estado
+> acumulado completo está en el topic `sdd/integracion-juegos-scrapers/apply-progress`.
+
+## Resumen
+
+Auditoría de DATOS + MIGRACIÓN de fuentes de los 4 juegos que usaban el agregador
+loteriadehoy (9 cazaloton, 10 triple-chance, 12 el-guacharito, 13 guacharo-activo)
+contra las URLs oficiales recibidas del cliente (muestreo en vivo 14-sep-2026).
+Resultado: **3 migrados a fuente oficial** (triple-chance → API scalalot de
+tuchance.com.ve; el-guacharito y guacharo-activo → API lotterly) y **1 sin migración**
+(cazaloton: el sitio oficial NO publica resultados, se mantiene loteriadehoy; se
+verificó su reglamento oficial PDF). Se confirmaron los zoológicos propios de
+guacharito (101) y guácharo (77) — la informativa tenía razón (H2 CONFIRMADO) — y
+los premios oficiales se registraron en `config` (triple-chance 600×, guacharito
+70×/150×, guácharo 60×/120×, cazaloton 30× + modalidades dupleta/tripleta).
+
+## Hallazgos por juego
+
+| Juego | Horarios | Opciones | Premiación | Reglamento | Resultado |
+|---|---|---|---|---|---|
+| cazaloton (9) | ✅ 11@09:00–19:00 (reglamento) | ✅ 38 canónico | ✅ 30× (reglamento Art. 22) + dupleta 800× / tripleta 200× | ✅ **PDF 17 págs parseable** | sin migración (oficial sin resultados); config modalidades |
+| triple-chance (10) | ✅ 11@09:00–19:00 (API) | ✅ 12 signos | ✅ TRIPLE 600× + A+B 200.000× (afiche oficial) | ⚠️ publicado pero escaneado | **MIGRADO** (API scalalot) + config 600 |
+| el-guacharito (12) | ✅ 12@08:30–19:30 (API) | ✅ **101 figuras propias** (bundle) | ✅ 70× + Guacharito 99 150× (bundle) | ❌ no publicado | **MIGRADO** (API lotterly) + zoo 101 + config 70 |
+| guacharo-activo (13) | ✅ 12@08:00–19:00 (API) | ✅ **77 figuras propias** (bundle) | ✅ 60× + comodín Guácharo 75 120× (bundle) | ❌ no publicado | **MIGRADO** (API lotterly) + zoo 77 + config 60 |
+
+## Hallazgos nuevos (docs/comparacion-juegos.md)
+
+- **H2 CONFIRMADO para guacharito (101) y guácharo (77)**: los bundles oficiales de
+  las SPAs (elguacharitomillonario.com → index-EQw1Zdrz.js; guacharoactivo.com.ve →
+  index-Dv-KFMIs.js) contienen los zoos propios exactos (00 Ballena + 0 Delfin/Delfín
+  + 01..99 Guacharito / 01..75 Guacharo). La informativa tenía razón en ambos.
+  Nota: las labels del bundle de guacharito viajan SIN acentos ("Delfin") y las de
+  guácharo CON acentos ("Delfín") — se conservan tal cual (fuente oficial).
+- **H6 RESUELTO (cazaloton)**: el reglamento oficial (Reglamento.pdf, 17 págs,
+  parseable) confirma 38 figuras / 11 horarios / 30× + modalidades Dupleta 800× y
+  Tripleta 200×. Operador: Comercializadora PegaRifa C.A. / Lotería del Mar (Sucre).
+- **H17 (triple-chance)**: la informativa declara "3 sorteos 1:00/4:30/8:00 PM
+  (domingos 8:00 PM)" y "Triple A o B solo: 150×"; la fuente OFICIAL (tuchance.com.ve
+  → API scalalot) opera **11 horarios 09:00–19:00** (5 días muestreados) y el afiche
+  oficial declara **100×** para "SOLO TRIPLE A o B". El reglamento existe pero es un
+  PDF escaneado (no parseable); se usó el afiche (PDF texto) como fuente de premios.
+
+## TDD Cycle Evidence
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| f24.2 triple-chance | `tests/Unit/TripleChanceOficialScraperTest.php` | Unit | ✅ suite 653/651/2 | ✅ 4 fallos (orden horarios, defensivo) | ✅ 15/15 (89) | ✅ 15 casos (día completo 11, horas, A/B/C+signo, base64, signos, ANIMALITO ignorado, estructura, parcial, fail-fast, JSON inválido, vacío, 012, sin estructura, signo desconocido, horario sin AYB) | ✅ Pint clean |
+| f24.2 feature | `tests/Feature/TripleChanceResultsTest.php` | Feature | ✅ idem | ✅ 3 fallos (fuente vieja) | ✅ 8/8 | ✅ 8 casos (seeder nueva fuente, premios afiche, límite+plugin, 11 horarios, 12 signos, persistencia 11, dedupe, resolver) | ✅ Pint clean |
+| f24.3 guacharito | `tests/Unit/ElGuacharitoOficialScraperTest.php` | Unit | ✅ idem | ✅ 0 (clase nueva + fixture real) | ✅ 15/15 (42) | ✅ 15 casos (día completo 12, horas :30, zoo 101, "0"→Delfin, "00"→Ballena, padding, 99→Guacharito, parcial, estructura, sin resultado, fail-fast, JSON inválido, vacío, [], {}) | ✅ Pint clean |
+| f24.3 feature | `tests/Feature/ElGuacharitoResultsTest.php` | Feature | ✅ idem | ✅ 3 fallos (fuente vieja) | ✅ 8/8 | ✅ 8 casos (seeder nueva fuente, premio especial 99, límite+plugin, 12 horarios, 101 opciones, persistencia 12, dedupe, resolver) | ✅ Pint clean |
+| f24.4 guacharo | `tests/Unit/GuacharoActivoOficialScraperTest.php` | Unit | ✅ idem | ✅ 0 (clase nueva + fixture real) | ✅ 16/16 (44) | ✅ 16 casos (día completo 12, horas :00, zoo 77, acentos, "0"→Delfín, "00"→Ballena, padding, 75→Guacharo, parcial, estructura, sin resultado, fail-fast, JSON inválido, vacío, [], {}) | ✅ Pint clean |
+| f24.4 feature | `tests/Feature/GuacharoResultsTest.php` | Feature | ✅ idem | ✅ 3 fallos (fuente vieja) | ✅ 8/8 | ✅ 8 casos (seeder nueva fuente, comodín 75, límite+plugin, 12 horarios, 77 opciones, persistencia 12, dedupe, resolver) | ✅ Pint clean |
+| f24.5 cazaloton | `tests/Feature/CazalotonResultsTest.php` | Feature | ✅ idem | ✅ 1 fallo (modalidades) | ✅ 7/7 | ✅ 7 casos (seeder, modalidades reglamento, límite+plugin, 11 horarios, persistencia, dedupe, resolver) | ✅ Pint clean |
+| f24.6 regresión | `tests/Feature/JuegosJsonTest.php` | Feature | ✅ previo | ✅ 2 fallos (JSON stale, índice opciones) | ✅ 3/3 (553) | ✅ 101/77 opciones propias, premios 600/70/60, movidos del grupo plugin | ✅ |
+| f24.7 contrato JSON | Harness real | Runtime | — | juegos:export → 21 juegos | md5 `cd62b196` ×2 | — | OK |
+| f24.8 carga real | Harness real (scraper) | Runtime | N/A | — | triple-chance 11+3; guacharito 12+4; guacharo 12+4 | rescrape idempotente (0 errores) | — |
+
+**Test Summary (WU f24)**: +39 tests netos (se eliminaron 14 obsoletos de
+LoteriaDeHoy para los juegos migrados; se añadieron 53: 15+15+16 unit y
+8+8+8+1 feature). Suite completa **692/690/2** (3383 assertions) + `pint --test`
+limpio.
+
+## Work Unit Evidence
+
+| Work unit | Focused test command y resultado | Runtime harness y resultado | Rollback boundary |
+|-----------|----------------------------------|-----------------------------|-------------------|
+| WU1 triple-chance | `--filter=TripleChance` → 31/31 | fetch+parse contra API real (11 sorteos 12-sep); `db:seed` migra fuente; carga 11+3 persistidos; rescrape idempotente | Revertir `TripleChanceOficialScraper` + seeder a loteriadehoy + fixtures |
+| WU2 guacharito | `--filter=Guacharito` → 30/30 | API real: 12 (12-sep) + 4 (14-sep); rescrape 24 filas | Revertir `ElGuacharitoOficialScraper` + seeder + zoo 101 + fixtures |
+| WU3 guacharo | `--filter=Guacharo` → 24/24 | API real: 12 (12-sep) + 4 (14-sep); rescrape 24 filas | Revertir `GuacharoActivoOficialScraper` + seeder + zoo 77 + fixtures |
+| WU4 cazaloton | `--filter=Cazaloton` → 14/14 | Reglamento oficial PDF descargado y parseado (17 págs) | Revertir solo config modalidades del seeder |
+| WU5 regresión+JSON | `--filter="JuegosJsonTest\|LimitesScopedApiTest\|...focused"` → 131/131 | `juegos:export` determinista (md5 ×2) | Regenerar `docs/juegos.json` |
+| WU6 docs+persistencia | Suite completa 692/690/2 + pint limpio | N/A (docs) | Revertir los 5 .md + tasks + apply-progress |
+
+## Archivos cambiados (WU f24)
+
+| Archivo | Acción | Qué se hizo |
+|---------|--------|-------------|
+| `backend/app/Plugins/Scrapers/TripleChanceOficialScraper.php` | Create | API scalalot (tuchance): base64 token CHANCE + timestamp epoch Caracas; AYB→A/B + ASTRAL→C+signo (sigla), ignora ANIMALITO, base64+trim, orden por hora, fail-fast |
+| `backend/app/Plugins/Scrapers/ElGuacharitoOficialScraper.php` | Create | API lotterly; zoo propio **101** (bundle oficial, sin acentos); padding fallback; fail-fast |
+| `backend/app/Plugins/Scrapers/GuacharoActivoOficialScraper.php` | Create | API lotterly; zoo propio **77** (bundle oficial, con acentos); padding fallback; fail-fast |
+| `backend/database/seeders/TripleChanceSeeder.php` | Modify | `updateOrCreate` (migración de fuente): scraper_url API + scraper_class nueva + premios oficiales del afiche (600× + modalidades) |
+| `backend/database/seeders/ElGuacharitoSeeder.php` | Modify | `updateOrCreate`: fuente API lotterly + **101 JuegoOpcion** del zoo + premio 70 + comodines {guacharito-99: 150×} |
+| `backend/database/seeders/GuacharoActivoSeeder.php` | Modify | `updateOrCreate`: fuente API lotterly + **77 JuegoOpcion** del zoo + premio 60 + comodines {guacharo-75: 120×} |
+| `backend/database/seeders/CazalotonSeeder.php` | Modify | `updateOrCreate`: config + modalidades oficiales del reglamento (dupleta 800×, tripleta 200×); fuente SE MANTIENE loteriadehoy |
+| `backend/tests/Fixtures/tuchance_triplechance_*.json` (3) | Create | Snapshots reales del API scalalot (día completo 33 registros, parcial 6, vacío 012) |
+| `backend/tests/Fixtures/elguacharito_oficial_*.json` (2) | Create | Snapshots reales del API lotterly (día completo 12, parcial 3) |
+| `backend/tests/Fixtures/guacharoactivo_oficial_*.json` (2) | Create | Snapshots reales del API lotterly (día completo 12, parcial 3) |
+| `backend/tests/Unit/TripleChanceOficialScraperTest.php` | Create | 15 tests unit |
+| `backend/tests/Unit/ElGuacharitoOficialScraperTest.php` | Create | 15 tests unit |
+| `backend/tests/Unit/GuacharoActivoOficialScraperTest.php` | Create | 16 tests unit |
+| `backend/tests/Unit/ElGuacharitoScraperTest.php` + `GuacharoScraperTest.php` | Delete | Obsoletos: probaban el scraper ANTERIOR (LoteriaDeHoy) de juegos ya migrados |
+| `backend/tests/Fixtures/loteriadehoy_elguacharito.html` + `loteriadehoy_guacharo.html` | Delete | Fixtures de la fuente anterior (migrada) |
+| `backend/tests/Feature/TripleChanceResultsTest.php` | Modify | Nueva fuente, premios afiche, 8 tests |
+| `backend/tests/Feature/ElGuacharitoResultsTest.php` | Modify | Nueva fuente, 101 opciones, premio especial, 8 tests |
+| `backend/tests/Feature/GuacharoResultsTest.php` | Modify | Nueva fuente, 77 opciones, comodín, 8 tests |
+| `backend/tests/Feature/CazalotonResultsTest.php` | Modify | +1 test modalidades del reglamento |
+| `backend/tests/Feature/JuegosJsonTest.php` | Modify | el-guacharito/guacharo-activo a tablas propias (101/77, premios 70/60), triple-chance premio 600 |
+| `docs/juegos.json` | Modify | REGENERADO (21 juegos; md5 `cd62b196...` determinista) |
+| `backend/docs/juegos.md` | Modify | Filas 10–14 nuevas fuentes + nota LoteriaDeHoy solo para Cazaloton + contrato JSON |
+| `docs/seguimiento-verificacion.md` | Modify | Filas 9–13 verificadas + resumen + sección B + evidencia LOTE 2 (sección G) |
+| `docs/fuentes-oficiales.md` | Modify | Filas 9/10/12/13 con URLs oficiales + estados |
+| `docs/inconsistencias.md` | Modify | §4 acciones hechas + H6 resuelto + H17 nuevo |
+| `docs/comparacion-juegos.md` | Modify | Filas 9/10/12/13 + Nivel 1/2 + H2/H6/H17 |
+| `openspec/changes/integracion-juegos-scrapers/tasks.md` | Modify | WU f24 con tareas `[x]` |
+| `openspec/changes/integracion-juegos-scrapers/apply-progress.md` | Modify | Sección WU f24 añadida (merge) |
+
+## Desviaciones del diseño (WU f24)
+
+1. **Labels del zoo SIN acentos en guacharito** (vs patrón LotoChaima con acentos):
+   el bundle oficial de elguacharitomillonario.com trae "Delfin", "Ciempies",
+   "Gavilan"... y se conservan tal cual (fuente oficial = bundle; se documenta en el
+   docblock del scraper y en el test). GuacharoActivo SÍ trae acentos en su bundle.
+2. **TripleChanceOficialScraper no consume ANIMALITO**: la modalidad CHANCE
+   ANIMALITO pertenece a otro juego (chance-animalitos, candidato); el juego
+   triple-chance (type tripletas) consume AYB + ASTRAL.
+3. **Premios de triple-chance desde el afiche, no del reglamento**: el reglamento
+   publicado es un PDF escaneado (imágenes, no parseable); el afiche oficial del
+   sitio es PDF texto y se usó como fuente (documentado H17).
+4. **Cazaloton con `updateOrCreate`**: aplica las modalidades del reglamento sobre
+   el juego ya registrado sin cambiar la fuente (sigue loteriadehoy).
+
+## Problemas encontrados (WU f24)
+
+- **El API scalalot devuelve los horarios desordenados** (13:00 antes que 09:00):
+  el scraper ordena los resultados por hora para salida determinista.
+- **`JuegosJsonTest` con índices por posición**: el servicio ordena las opciones
+  por `numero` (MySQL), no por `sort_order`; las aserciones nuevas usan
+  `firstWhere('value')`/`array_column` en lugar de índices fijos.
+- **Suite completa 692/690/2** (+39 netos: +53 nuevos, −14 obsoletos de
+  LoteriaDeHoy para juegos migrados). Los 2 skips son pre-existentes.
+- **Cambios ajenos del checkout compartido**: `collections/*.yml`,
+  `panel/.astro/settings.json` (modificados) y `.atl/`, `.codegraph/`,
+  `openspec/config.yaml` (sin seguimiento) quedaron fuera de los commits (NO se
+  tocan ni se commitean).
+
+## Workload / PR Boundary (WU f24)
+
+- Modo: chained PR slice (feature-branch-chain, base = PR f23). NO se abren PRs.
+- Boundary: verificación de DATOS + migración de fuentes de los 4 juegos agregador
+  (scrapers → seeders → fixtures → tests → regresión → contrato JSON → docs →
+  carga real) con verificación incluida (suite completa 692/690/2 + pint limpio).
+- Rollback boundary por unidad: ver tabla Work Unit Evidence (WU f24).
+
+## Siguiente paso recomendado
+
+- `sdd-verify` del WU f24 cuando el orquestador lo dispare.
+- Pendientes de cliente: informar que **cazaloton.com no publica resultados** (se
+  mantiene loteriadehoy); confirmar el reglamento escaneado de Triple Chance
+  (afiche 100× vs informativa 150×); reglamentos de los triples (2, 8, 11).

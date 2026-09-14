@@ -5,9 +5,9 @@ comodines, premiación y **reglamento oficial**. Complementa a:
 - `docs/fuentes-oficiales.md` → URLs de cada fuente (registro).
 - `docs/comparacion-juegos.md` → hallazgos H1–H11 (desajustes oficial vs informativa).
 
-> Actualizado: 2026-09-14 (WU f22 — LOTE 1: los 7 juegos originales verificados contra fuente oficial).
-> La **verificación integral** continúa: faltan los 4 juegos de fuente agregador (9, 10, 12, 13)
-> y los pendientes de reglamento de los triples.
+> Actualizado: 2026-09-14 (WU f24 — LOTE 2: los 4 juegos de fuente agregador verificados contra
+> fuente oficial: cazaloton, triple-chance, el-guacharito y guacharo-activo).
+> La **verificación integral** continúa: quedan los pendientes de reglamento de los triples.
 >
 > Evidencia del LOTE 1 (2026-09-10..14): feed oficial `lottoactivo.com/resultados/animalitos/`
 > (4 juegos animalitos en un JSON), `/resultados/terminal_activo/`, `/resultados/trio_activo/`,
@@ -34,11 +34,11 @@ comodines, premiación y **reglamento oficial**. Complementa a:
 | 6 | `monje-millonario` | ✅ | ⚠️ | — | ⏳ | ❌ | **H2 CONFIRMADO**: feed oficial muestra 0–74 con zoo propio (49=Pereza, 42=Tucán…). Creadas **70 figuras confirmadas** (patrón Loto Chaima); **7 números sin nombre oficial pendientes: 37, 39, 57, 65, 67, 68, 75** (el 75 sería El Patronus). PDF del reglamento 404; Patronus sin premio oficial |
 | 7 | `trio-activo` | ✅ | ✅ | — | ✅ | ✅ | **H5 DESMENTIDO**: es un juego de **TRIPLE de 3 cifras** (000–999) con modalidades TRIPLE/TERMINAL/PUNTA, NO "terminales 3 cifras"; feed: 12 sorteos 08:00–19:00 (reglamento 2020 dice 3 → stale). Reglamento oficial: TRIPLE **600×** → **corregido 30→600** + modalidades terminal/punta 60×; opciones corregidas a terminal 00–99 (no hay zodiaco) |
 | 8 | `triple-caliente` | ✅ | ✅ | — | ⏳ | ❌ | API oficial verificada con datos reales (12 signos); premiación pendiente de reglamento |
-| 9 | `cazaloton` | ⏳ | ⏳ | — | ⏳ | ❌ | Fuente actual: agregador (loteriadehoy) — migrar a oficial; H6: zoo sin dato en informativa |
-| 10 | `triple-chance` | ⏳ | ⏳ | — | ⏳ | ❌ | Fuente actual: agregador (loteriadehoy) — migrar a oficial |
+| 9 | `cazaloton` | ✅ | ✅ | — | ✅ | ✅ | **Reglamento oficial verificado** (Reglamento.pdf de cazaloton.com, 17 págs, parseable): 38 figuras (0/00/1–36) ✓, 11 sorteos 09:00–19:00 ✓, CAZALOTÓN 30× ✓ → modalidades oficiales DUPLETA 800× / TRIPLETA 200× registradas en config. Fuente de resultados SE MANTIENE en loteriadehoy (cazaloton.com NO publica resultados; sus enlaces apuntan al agregador) |
+| 10 | `triple-chance` | ✅ | ✅ | — | ✅ | ⚠️ | **MIGRADO a fuente oficial** (WU f24): tuchance.com.ve "Chance en línea" → API scalalot (11 horarios 09:00–19:00 ✓, 12 signos ✓). Premios del **afiche oficial** (PDF parseable): TRIPLE A/B 600×, TRIPLE A+B 200.000×, SOLO A o B 100×, TERMINAL 60×, TRIPLE C+SIGNO 5.000×, SIGNO 6× → config 600. Reglamento publicado pero ESCANEADO (no parseable). Informativa desactualizada (3 sorteos vs 11 reales) |
 | 11 | `el-arrejuntado` | ✅ | ✅ | — | ⏳ | ❌ | API oficial verificada con datos reales (6 modalidades); premiación pendiente |
-| 12 | `el-guacharito` | ⏳ | ⚠️ | — | ⏳ | ❌ | H2: informativa declara 101 figuras vs nuestras 38 — verificar contra oficial; fuente actual agregador |
-| 13 | `guacharo-activo` | ⏳ | ⚠️ | — | ⏳ | ❌ | H2: informativa declara 77 figuras vs nuestras 38 — verificar contra oficial; fuente actual agregador |
+| 12 | `el-guacharito` | ✅ | ✅ | — | ✅ | ❌ | **MIGRADO a fuente oficial** (WU f24): API lotterly (12 horarios :30 ✓). **101 figuras propias** confirmadas (bundle oficial; la informativa tenía razón). Premios oficiales del bundle: animalito 70× + figura especial Guacharito (99) 150× → config 70. Sin reglamento publicado |
+| 13 | `guacharo-activo` | ✅ | ✅ | — | ✅ | ❌ | **MIGRADO a fuente oficial** (WU f24): API lotterly (12 horarios :00 ✓). **77 figuras propias** confirmadas (bundle oficial; la informativa tenía razón). Premios oficiales del bundle: 60× + comodín Guácharo (75) 120× → config 60. Sin reglamento publicado |
 | 14 | `la-granjita` | ✅ | ✅ | — | ⏳ | ❌ | API oficial: 12 horarios, 38 opciones coinciden; premiación sin dato oficial |
 | 15 | `la-ricachona` | ✅ | ✅ | — | ⏳ | ❌ | HTML oficial: 12 horarios `:05`, signos coinciden; premiación sin dato oficial |
 | 16 | `loto-chaima` | ✅ | ✅ | — | ⏳ | ❌ | API oficial: 12 horarios, 57 figuras propias coinciden; premiación sin dato oficial |
@@ -50,10 +50,10 @@ comodines, premiación y **reglamento oficial**. Complementa a:
 
 ## Resumen
 
-- **Con reglamento oficial verificado: 2/21** (Triple Táchira y Trío Activo — ambos PDF parseables).
-- **Verificación funcional con fuente oficial (horarios/opciones): 15/21** — los 7 originales (lote 1) + Táchira, Selva, Fácil, Zamorano, Granjita, Ricachona, Chaima, Caliente, Arrejuntado, Mega* (*Mega solo con el proveedor por excepción).
-- **Premiación verificada con fuente oficial: 6/21** — Táchira (reglamento), Trío Activo (reglamento), Terminal Trío (reglamento), Lotto Activo/RD/Rep.Dom (FAQ oficial 30×), Selva (base 80× de la web oficial).
-- **Pendientes mayores: los 4 juegos de fuente agregador (9, 10, 12, 13) + reglamentos de los triples (2, 8, 10).**
+- **Con reglamento oficial verificado: 3/21** (Triple Táchira, Trío Activo — PDF parseables — y **Cazaloton**, PDF parseable 17 págs).
+- **Verificación funcional con fuente oficial (horarios/opciones): 19/21** — los 7 originales (lote 1) + Táchira, Selva, Fácil, Zamorano, Granjita, Ricachona, Chaima, Caliente, Arrejuntado, Mega* (*Mega solo con el proveedor por excepción) + **lote 2: Cazaloton (reglamento), Triple Chance, Guacharito, Guácharo Activo (API oficial)**.
+- **Premiación verificada con fuente oficial: 9/21** — Táchira (reglamento), Trío Activo (reglamento), Terminal Trío (reglamento), Lotto Activo/RD/Rep.Dom (FAQ oficial 30×), Selva (base 80×), **Cazaloton (reglamento 30×), Triple Chance (afiche oficial 600×), Guacharito (bundle 70×/150×), Guácharo Activo (bundle 60×/120×)**.
+- **Pendientes mayores: reglamentos de los triples (2, 8, 11) y premiaciones sin fuente oficial (2, 8, 11, 14–17).**
 
 ## Pendientes por tipo
 
@@ -69,10 +69,10 @@ comodines, premiación y **reglamento oficial**. Complementa a:
 
 | Juego | URL oficial recibida | Hallazgo | Acción |
 |---|---|---|---|
-| `cazaloton` | `cazaloton.com` | **No publica resultados** — sus enlaces "Resultados" apuntan a loteriadehoy.com | **Se mantiene loteriadehoy** como fuente; informar al cliente |
-| `triple-chance` | `tuchance.com.ve` | Sitio oficial con página `/reglamentos` | Verificar resultados + reglamento → migrar si aplica (lote 2) |
-| `el-guacharito` | `elguacharitomillonario.com` | SPA → **API lotterly** (`el-guacharito-millonario`) | Migrar scraper a la API oficial (lote 2) |
-| `guacharo-activo` | `guacharoactivo.com.ve` | SPA → **API lotterly** (`guacharo-activo`) | Migrar scraper a la API oficial (lote 2) |
+| `cazaloton` | `cazaloton.com` | **No publica resultados** — sus enlaces "Resultados" apuntan a loteriadehoy.com | **Se mantiene loteriadehoy** como fuente; reglamento oficial verificado (WU f24) |
+| `triple-chance` | `tuchance.com.ve` | Sitio oficial "Chance en línea" expone resultados vía API scalalot + `/reglamentos` (PDF escaneado) + afiche oficial | **MIGRADO al API oficial** (WU f24): `TripleChanceOficialScraper` + premios del afiche en config |
+| `el-guacharito` | `elguacharitomillonario.com` | SPA → **API lotterly** (`el-guacharito-millonario`); 101 figuras propias en el bundle | **MIGRADO** (WU f24): `ElGuacharitoOficialScraper` + zoo propio 101 |
+| `guacharo-activo` | `guacharoactivo.com.ve` | SPA → **API lotterly** (`guacharo-activo`); 77 figuras propias en el bundle | **MIGRADO** (WU f24): `GuacharoActivoOficialScraper` + zoo propio 77 |
 
 ### C. Verificación oficial pendiente de los juegos originales (1–7)
 
@@ -146,6 +146,51 @@ Fuentes muestreadas el 2026-09-10..14 (con `sleep` entre peticiones, User-Agent 
    de terminal **00–99** (patrón Triple Fácil H10; el triple 000–999 es entrada libre). El FAQ
    oficial confirma "hasta **600 veces**". El reglamento (2020) declara 3 sorteos pero la
    operación real es de 12 (H15).
+
+### G. Evidencia del LOTE 2 (4 juegos de fuente agregador) — 2026-09-14
+
+Fuentes oficiales muestreadas el 14-sep-2026 (URLs recibidas del cliente; con `sleep` entre
+peticiones y User-Agent de navegador):
+
+1. **`cazaloton` (9)** — cazaloton.com NO publica resultados (sus enlaces "Resultados" apuntan a
+   loteriadehoy.com; verificado en la home). SÍ tiene **reglamento oficial**
+   (`/Reglamento.pdf`, 17 páginas, texto parseable con pdftotext): juego tipo Figuras de Animalitos
+   de la **Lotería del Mar (Sucre)** operado por Comercializadora PegaRifa C.A.; **38 figuras**
+   (0, 00, 1–36 — el canónico del plugin, Delfín 0/Ballena 00) ✓, **11 sorteos diarios 09:00–19:00**
+   (mañana/tarde/noche) ✓ y premios: CAZALOTÓN simple **30×** (Art. 22) ✓ (coincide con nuestro
+   `premio_multiplo` 30), **DUPLETA 800×** (Art. 23) y **TRIPLETA 200×** (Art. 24) → registradas en
+   `config['modalidades']`. FAQ del sitio: "30 veces tu apuesta por cada animalito acertado" ✓.
+   **Fuente de resultados se mantiene en loteriadehoy** (decisión documentada; informar al cliente).
+2. **`triple-chance` (10)** — tuchance.com.ve ("Chance en línea", WordPress) **expone resultados** vía
+   API pública `api.scalalot.com` (`ConsultarResultadoSorteo/Q0hBTkNF/{timestamp}`; Q0hBTkNF =
+   base64("CHANCE")) — consumida por el propio front del sitio. Verificado en vivo: **11 horarios
+   09:00–19:00** (5 días muestreados) y **12 signos zodiacales** (modalidad ASTRAL) → coinciden con
+   nuestro seeder. Cada horario trae 3 modalidades: CHANCE AYB (Triple A+B), CHANCE ASTRAL (Triple C
+   + signo) y CHANCE ANIMALITO (2 animalitos, juego aparte). **MIGRADO**: `TripleChanceOficialScraper`
+   consume AYB+ASTRAL (1 resultado por horario con A/B/C+signo). Premios del **afiche oficial**
+   (PDF "FINAL-OK-AFICHE-CHANCE-PARA-IMPRIMIR...", texto parseable): TRIPLE A/B 600×, TRIPLE A+B
+   200.000×, SOLO A o B 100× (la informativa declara 150× — discrepancia documentada), TERMINAL 60×,
+   TRIPLE C+SIGNO 5.000×, SIGNO 6× → `config` premio 600. El reglamento (`/wp-content/uploads/.../
+   REGLAMENTO-CHANCE-EN-LINEA-VIGENTE.pdf`) **existe pero es un PDF escaneado** (imágenes, no
+   parseable con pdftotext). **La informativa está DESACTUALIZADA**: declara "3 sorteos 1:00/4:30/8:00
+   PM" cuando la operación real es de 11 (09:00–19:00).
+3. **`el-guacharito` (12)** — elguacharitomillonario.com (SPA) → **API oficial lotterly**
+   (`/v1/results/el-guacharito-millonario/?exact_date=`), sin auth ni anti-bot; verificado en vivo
+   (12 resultados 08:30–19:30 `:30` ✓). Del bundle oficial del sitio (`index-EQw1Zdrz.js`) se extrajo
+   el **zoológico propio de 101 figuras** (00 Ballena + 0 Delfin + 01..99 Guacharito; labels SIN
+   acentos como viajan en el bundle) — la informativa tenía razón (101). **MIGRADO**:
+   `ElGuacharitoOficialScraper` + 101 opciones propias (patrón Loto Chaima). Premios OFICIALES del
+   bundle: animalito regular **70×** (1→70, 10→700, 100→7.000) y figura especial **Guacharito (99) =
+   150×** ("el número de la casa") → `config` premio 70 + comodines {guacharito-99: 150×}. Sin
+   reglamento publicado (❌ no existe en el bundle).
+4. **`guacharo-activo` (13)** — guacharoactivo.com.ve (SPA) → **API oficial lotterly**
+   (`/v1/results/guacharo-activo/?exact_date=`), verificado en vivo (12 resultados 08:00–19:00 `:00`
+   ✓). Del bundle oficial (`index-Dv-KFMIs.js`) se extrajo el **zoológico propio de 77 figuras**
+   (00 Ballena + 0 Delfín + 01..75 Guacharo; labels CON acentos como viajan en el bundle) — la
+   informativa tenía razón (77). **MIGRADO**: `GuacharoActivoOficialScraper` + 77 opciones propias.
+   Premios OFICIALES del bundle: animalito regular **60×** (1→60, 10→600, 100→6.000) y **comodín
+   Guácharo (75) = 120×** ("El Guácharo es el comodín especial... ¡duplicas tu premio!") → `config`
+   premio 60 + comodines {guacharo-75: 120×}. Sin reglamento publicado (❌ no existe en el bundle).
 
 ### E. Fuera del catálogo (candidatos — decisión del cliente)
 

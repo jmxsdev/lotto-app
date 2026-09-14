@@ -17,7 +17,7 @@ fuente oficial, **(3)** gaps de nuestro sistema. Evidencia detallada por juego e
 | H2 | `monje-millonario` | Informativa: 77 figuras (+Patronus 75). Oficial: **70 figuras confirmadas (0–74)** | Zoo propio corregido; 7 nombres pendientes (ver H14) |
 | H5 | `trio-activo` | Informativa: terminales 3 cifras / 3 sorteos. Reglamento oficial: **triple 000–999 + Terminal + Punta, 12 sorteos** | Corregido (Trío Activo es un TRIPLE) |
 | H10 | `triple-facil` | La web muestra "3 resultados" (prev/main/next). Oficial: main = triple; prev/next = **terminales DERIVADAS** (`n%100 ±1`); **no existe producto terminal aparte** | Aclarado y documentado (modelado como 1 juego) |
-| H6 | `cazaloton` | Informativa sin datos de zoo/premios | Pendiente de fuente (ver §4) |
+| H6 | `cazaloton` | Informativa sin datos de zoo/premios | **Resuelto (WU f24)**: el reglamento oficial de cazaloton.com (17 págs parseable) confirma 38 figuras / 30× / 11 horarios + modalidades Dupleta 800× y Tripleta 200× |
 
 ## 2. Contradicciones internas de fuentes oficiales
 
@@ -44,7 +44,7 @@ fuente oficial, **(3)** gaps de nuestro sistema. Evidencia detallada por juego e
 
 | Tema | Detalle | Acción |
 |---|---|---|
-| `cazaloton` | **cazaloton.com NO publica resultados**: sus enlaces "Resultados" apuntan a loteriadehoy.com | **Se mantiene loteriadehoy como fuente; informar al cliente** |
-| `triple-chance` | URL oficial: `tuchance.com.ve` — tiene página `/reglamentos` | Verificar si expone resultados → migrar si aplica |
-| `el-guacharito` | URL oficial: `elguacharitomillonario.com` → **API lotterly** (`el-guacharito-millonario`) | Migrar scraper a la API oficial |
-| `guacharo-activo` | URL oficial: `guacharoactivo.com.ve` → **API lotterly** (`guacharo-activo`) | Migrar scraper a la API oficial |
+| `cazaloton` | **cazaloton.com NO publica resultados**: sus enlaces "Resultados" apuntan a loteriadehoy.com | **Se mantiene loteriadehoy como fuente** ✅ (WU f24); reglamento oficial verificado (38 figs, 30×, dupleta 800×, tripleta 200×) |
+| `triple-chance` | URL oficial: `tuchance.com.ve` — "Chance en línea" expone resultados vía API scalalot; `/reglamentos` es PDF escaneado; afiche oficial parseable | ✅ **MIGRADO al API oficial** (WU f24): `TripleChanceOficialScraper` + premios del afiche (600×) en config. **Hallazgo nuevo**: la informativa declara 3 sorteos (1:00/4:30/8:00 PM) pero la operación real es de **11 (09:00–19:00)**; y declara "Triple A o B solo 150×" vs afiche oficial **100×** |
+| `el-guacharito` | URL oficial: `elguacharitomillonario.com` → **API lotterly** (`el-guacharito-millonario`) | ✅ **MIGRADO** (WU f24): `ElGuacharitoOficialScraper` + **zoo propio de 101 figuras** (bundle oficial; la informativa tenía razón) + premios 70×/150× en config |
+| `guacharo-activo` | URL oficial: `guacharoactivo.com.ve` → **API lotterly** (`guacharo-activo`) | ✅ **MIGRADO** (WU f24): `GuacharoActivoOficialScraper` + **zoo propio de 77 figuras** (bundle oficial; la informativa tenía razón) + premios 60×/120× en config |
