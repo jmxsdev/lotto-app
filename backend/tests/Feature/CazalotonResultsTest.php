@@ -45,6 +45,20 @@ class CazalotonResultsTest extends TestCase
         $this->assertEquals(30, $juego->config['premio_multiplo']);
     }
 
+    public function test_seeder_registra_las_modalidades_oficiales_del_reglamento(): void
+    {
+        $juego = Juego::where('slug', 'cazaloton')->first();
+
+        // Reglamento oficial de cazaloton.com (Reglamento.pdf, 17 páginas,
+        // parseable; verificado el 14-sep-2026): CAZALOTÓN simple 30x
+        // (Art. 22), DUPLETA 800x (Art. 23) y TRIPLETA 200x (Art. 24).
+        // La fuente de resultados se mantiene en loteriadehoy (el sitio
+        // oficial NO publica resultados — sus enlaces apuntan al agregador).
+        $this->assertEquals(30, $juego->config['premio_multiplo']);
+        $this->assertEquals(800, $juego->config['modalidades']['dupleta']);
+        $this->assertEquals(200, $juego->config['modalidades']['tripleta']);
+    }
+
     public function test_seeder_registra_limite_default_y_plugin_animalitos(): void
     {
         $juego = Juego::where('slug', 'cazaloton')->first();

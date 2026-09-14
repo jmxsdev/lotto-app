@@ -15,12 +15,25 @@ class CazalotonSeeder extends Seeder
 {
     public function run(): void
     {
-        $juego = Juego::firstOrCreate(
+        // Fuente: loteriadehoy.com (SE MANTIENE — verificado en el WU f24).
+        // cazaloton.com NO publica resultados: sus enlaces "Resultados" apuntan
+        // a loteriadehoy.com. El reglamento oficial de cazaloton.com
+        // (Reglamento.pdf, 17 páginas, parseable) confirma: 38 figuras (0/00/1-36),
+        // 11 sorteos 09:00–19:00 y premios CAZALOTÓN 30x (Art. 22), DUPLETA 800x
+        // (Art. 23), TRIPLETA 200x (Art. 24). `updateOrCreate` aplica las
+        // modalidades del reglamento sobre el juego ya registrado.
+        $juego = Juego::updateOrCreate(
             ['slug' => 'cazaloton'],
             [
                 'name' => 'Cazaloton',
                 'type' => 'animalitos',
-                'config' => ['premio_multiplo' => 30],
+                'config' => [
+                    'premio_multiplo' => 30,
+                    'modalidades' => [
+                        'dupleta' => 800,
+                        'tripleta' => 200,
+                    ],
+                ],
                 'requires_scraper' => true,
                 'scraper_url' => 'https://loteriadehoy.com/animalito/cazaloton/resultados/',
                 'scraper_class' => LoteriaDeHoyScraper::class,
@@ -59,6 +72,6 @@ class CazalotonSeeder extends Seeder
             );
         }
 
-        $this->command->info('Juego Cazaloton actualizado (type: animalitos, scraper: LoteriaDeHoyScraper).');
+        $this->command->info('Juego Cazaloton actualizado (type: animalitos, scraper: LoteriaDeHoyScraper, fuente: loteriadehoy — oficial sin resultados; reglamento verificado: 30x/dupleta 800x/tripleta 200x).');
     }
 }
