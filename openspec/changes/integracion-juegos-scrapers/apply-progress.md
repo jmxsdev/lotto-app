@@ -1998,3 +1998,110 @@ assertions) + `pint --test` limpio. Baseline previo 693/691/2 → **694/692/2**.
   hace OCR), (b) confirmar H12 (Terminal Trío 60× vs 70× FAQ), H18 (Caliente 5 vs 3 sorteos),
   H19 (Zamorano domingos), (c) decidir si migrar el scraper de Mega Animal 40 a su sitio
   oficial (H20) y modelar el comodín MEGA (H1), (d) premio de El Patronus (H14).
+
+# Apply Progress (WU f27) — Migrar Mega Animal 40 a su sitio oficial + captura del comodín MEGA
+
+**Rama**: `feat/integracion-juegos-scrapers-f27-mega-oficial` (base: `f26-caceria-reglamentos`)
+**Modo**: Strict TDD (backend: `composer test` vía `php artisan test`)
+**Estado**: ✅ COMPLETADO — 7/7 tareas
+
+## Resumen
+
+**Migración del scraper de `mega-animal-40` del agregador resultadosvenezuela.com al SITIO OFICIAL
+`https://megaanimal40.com/`** (CONALOT + Big Data Tecnology + Lotería de Cojedes) y **captura del
+comodín MEGA** que la data oficial SÍ trae — resuelve **H1 y H20** (pedido del cliente).
+
+**Endpoint oficial** (sin auth ni anti-bot): `POST https://megaanimal40.com/core/process.php` con
+form-data `option=<token de resultados>` → JSON con `datos[].resultados[]` del DÍA ACTUAL
+(`date_result`, `time_s` 12h, `number_animal` 2 dígitos, `animalito` con acentos, **`mega` "1"/"2"**).
+El JS oficial del sitio documenta el comodín: `if (b.mega == "2") { ...muestra la palabra MEGA... }`.
+
+**Limitación probada y documentada**: el endpoint IGNORA los parámetros de fecha (fecha/date/dia →
+siempre hoy; prueba con `date=2026-09-10` → 8 sorteos del 14-sep) y `/historial/` usa el mismo
+token → el scraper oficial solo sirve el DÍA ACTUAL (`execute` filtra por fecha; otra fecha → `[]`).
+Los históricos previos en BD (del proveedor) quedan.
+
+**Resultado**: `MegaAnimal40OficialScraper` + seeder `updateOrCreate` (fuente oficial + comodín
+MEGA 40× en config) + fixtures (real de hoy + **SINTÉTICO** del campo `mega:"2"`) + contrato JSON
+enriquecido (`comodines`/`modalidades` en `JuegoCatalogoService`) + `docs/juegos.json` regenerado
++ CARGA REAL de hoy (8 sorteos, dedupe OK, ayer 0 por limitación) + 5 docs actualizados.
+`MegaAnimal40Scraper` (proveedor) queda como **clase durmiente** (NO borrado, documentado).
+
+## TDD Cycle Evidence
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| f27.2 scraper oficial | `tests/Unit/MegaAnimal40OficialScraperTest.php` (nuevo) | Unit | N/A (nuevo) | ✅ 13/13 "Class not found" | ✅ 13/13 (54) | ✅ comodín true/false ×2, acentos ×2, filtro por fecha ×3, horas ×8 | ✅ pint (not_operator, unary spaces) |
+| f27.3 seeder | `tests/Feature/MegaAnimal40ResultsTest.php` (adaptado) | Feature | ✅ previo (6/6 viejo) | ✅ 2 fallos: scraper_url y scraper_class viejos | ✅ 8/8 (33) | ✅ persistencia con comodín true (sintético) + false | ✅ seeder `firstOrCreate`→`updateOrCreate` |
+| f27.4 contrato JSON | `tests/Feature/JuegosJsonTest.php` | Feature | ✅ previo (3/3) | ✅ "Falta el campo [comodines]" | ✅ 3/3 (618) | ✅ comodines mega/selva/guacharito/guacharo + modalidades ×10 juegos | ✅ orden real de claves JSON de MySQL (longitud de bytes, luego lexicográfico) |
+| f27.5 export | Harness real (`juegos:export`) | Runtime | — | — | ✅ md5 `8879c514…` ×2 (determinista) | ✅ verificado por script (python) | — |
+
+**Test Summary (WU f27)**: +23 tests netos (13 unit nuevos + 8 feature adaptados + 2 aserciones de
+esquema). Focused `--filter="MegaAnimal40|JuegosJson|LimitesScopedApi"` → **64/64 (1154 assertions)**.
+Suite completa **717/715/2** (≈3575 assertions; baseline 694/692/2) + `pint --test` limpio.
+
+## Work Unit Evidence
+
+| Evidence | Valor |
+|---|---|
+| Focused test command y resultado | `composer test -- --filter=MegaAnimal40Oficial` → **13/13 (54)**; `--filter=MegaAnimal40` → **31/31 (119)**; `--filter=JuegosJson` → **3/3 (618)**; regresión `--filter="MegaAnimal40\|JuegosJson\|LimitesScopedApi"` → **64/64 (1154)** |
+| Runtime harness command/scenario y resultado | **Endpoint real en vivo** (14-sep-2026): `curl -X POST https://megaanimal40.com/core/process.php -d option=<token>` → 200, 8 sorteos de hoy (09:00–16:00), todos `mega:"1"`; `date=2026-09-10` → misma respuesta (ignora fecha). **CARGA REAL** vía tinker (`MegaAnimal40OficialScraper->execute('2026-09-14')` + `saveResults`): 8 persistidos; 2º rescrape → 8 (dedupe, 0 duplicados); `execute('2026-09-13')` → 0 (limitación). BD local total **281** resultados (mega: 25 = 17 proveedor + 8 hoy) |
+| Rollback boundary | Revertir el seeder (scraper_url/class + config), borrar `MegaAnimal40OficialScraper` + sus 2 fixtures + el test nuevo, revertir `JuegoCatalogoService` (2 líneas) + `JuegosJsonTest` + `docs/juegos.json` regenerado; `MegaAnimal40Scraper` legacy queda intacto (durmiente). Sin tocar motor, panel, taquilla ni otros juegos |
+
+## Archivos cambiados (WU f27)
+
+| Archivo | Acción | Qué se hizo |
+|---------|--------|-------------|
+| `backend/app/Plugins/Scrapers/MegaAnimal40OficialScraper.php` | Created | Scraper oficial: POST `/core/process.php` con token, parse `datos[].resultados[]`, `comodin` (mega=="2"), hora `normalizeHora`, filtro por fecha, fail-fast, `saveResults` heredado |
+| `backend/database/seeders/MegaAnimal40Seeder.php` | Modify | `updateOrCreate`: `scraper_url` megaanimal40.com, `scraper_class` oficial, `config` + comodines {mega: MEGA 40×} |
+| `backend/app/Services/JuegoCatalogoService.php` | Modify | Exporta `comodines` y `modalidades` desde config (aditivos, null si no) |
+| `backend/tests/Unit/MegaAnimal40OficialScraperTest.php` | Created | 13 unit: parse, horas, acentos, comodín true/false, fecha, filtro ×3, estructura, fail-fast, inválido, status false, sin datos |
+| `backend/tests/Unit/MegaAnimal40ScraperTest.php` | Modify | Docblock: clase durmiente (cobertura legacy conservada) |
+| `backend/tests/Feature/MegaAnimal40ResultsTest.php` | Modify | Adaptado al seeder oficial: config comodines, persistencia con/sin comodín, dedupe, resolver |
+| `backend/tests/Feature/JuegosJsonTest.php` | Modify | Esquema + `comodines`/`modalidades` en el mínimo; asserts de mega/selva/guacharito/guacharo + modalidades (orden real MySQL) |
+| `backend/tests/Fixtures/megaanimal40_oficial.json` | Created | Snapshot REAL del endpoint (14-sep, 8 sorteos, mega:"1") |
+| `backend/tests/Fixtures/megaanimal40_comodin.json` | Created | **SINTÉTICO** del campo documentado `mega:"2"` (etiquetado; el real llegará con el primer comodín) |
+| `docs/juegos.json` | Modify | Regenerado: mega con `comodines.mega` (MEGA 40×), selva A/B, modalidades de triples/trío/terminal/cazaloton/fácil/chance |
+| `docs/seguimiento-verificacion.md` | Modify | Fila 17 ✅ oficial + comodín capturado; resumen 20/21; H1/H20 resueltos; **sección I evidencia WU f27** |
+| `docs/fuentes-oficiales.md` | Modify | Fila 17 → megaanimal40.com (endpoint + limitación) |
+| `docs/inconsistencias.md` | Modify | H1/H20 RESUELTOS + §4 fila mega |
+| `docs/comparacion-juegos.md` | Modify | Fila 17, Nivel 2 item 2, Nivel 3 items 1/3, H1/H20, footer |
+| `backend/docs/juegos.md` | Modify | Fila 18 nueva fuente + nota `MegaAnimal40OficialScraper` + clase durmiente + contrato JSON `comodines`/`modalidades` |
+| `openspec/changes/integracion-juegos-scrapers/tasks.md` | Modify | Sección WU f27 añadida (7/7 `[x]`) |
+| `openspec/changes/integracion-juegos-scrapers/apply-progress.md` | Modify | Sección WU f27 añadida (merge) |
+
+## Desviaciones del diseño
+
+- Ninguna estructural. Notas:
+  - El recon indicaba 7 sorteos de hoy; al momento de la carga real el endpoint ya traía **8**
+    (apareció el sorteo de 04:00 PM) — se cargaron los 8 reales.
+  - `JuegosJsonTest` requiere las claves de `modalidades` en el ORDEN que MySQL persiste en JSON
+    (por longitud de bytes, luego lexicográfico: p. ej. `punta` antes que `terminal`) — verificado
+    empíricamente contra la BD local, no asumido.
+  - El test legacy del proveedor (`MegaAnimal40ScraperTest`) se CONSERVA como cobertura de la clase
+    durmiente (no se borró ni se reemplazó).
+
+## Problemas encontrados (WU f27)
+
+- El endpoint oficial IGNORA los parámetros de fecha y el sitio no expone histórico funcional →
+  el scraper solo sirve el día actual (limitación documentada en scraper, docs y seeder); ayer
+  devuelve `[]` por diseño, no por error.
+- El comodín MEGA NO ha salido hoy (todos `mega:"1"`): la captura real del comodín se cubre con el
+  fixture SINTÉTICO `megaanimal40_comodin.json`; el primer comodín real llegará con la captura real.
+- MySQL reordena las claves de objetos JSON (longitud de bytes, luego lexicográfico) → las
+  aserciones de `modalidades`/`comodines` deben usar el orden persistido real (evidencia empírica).
+
+## Workload / PR Boundary (WU f27)
+
+- Modo: chained PR slice (feature-branch-chain, base = PR f26). NO se abren PRs.
+- Boundary: migración de Mega Animal 40 (scraper → seeder → fixtures → contrato JSON → catálogo →
+  carga real → docs) con verificación incluida (focused 64/64 + pint limpio).
+- Rollback boundary: descrito arriba; no toca motor, panel, taquilla ni otros juegos.
+
+## Siguiente paso recomendado
+
+- `sdd-verify` del WU f27 cuando el orquestador lo dispare.
+- Cliente: (a) la LIQUIDACIÓN del comodín MEGA (40×) en `calcularPremio` es del ciclo futuro del
+  motor (aquí solo se captura el dato en `numeros_ganadores.comodin`), (b) el reglamento
+  DIF-RGTO-033-00 sigue sin PDF (pendiente de la Lotería de Cojedes), (c) confirmar H12/H18/H19
+  (triples) y extraer los reglamentos escaneados.
