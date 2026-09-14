@@ -1497,3 +1497,102 @@ suite completa **647/645/2** (3158 assertions) + `pint --test` limpio.
 - Con el WU f20 se completaron los juegos 9–22 de la lista del cliente (catálogo 21 juegos).
 - Pendientes de cliente: reglamento oficial de Triple Zamorano (H11) y de Triple Fácil (H10,
   terminales derivadas / premios informativos).
+
+---
+
+# Apply Progress (WU f22) — Verificación integral, LOTE 1: los 7 juegos originales
+
+**Rama**: `feat/integracion-juegos-scrapers-f22-verificacion-originales`
+**Base**: `feat/integracion-juegos-scrapers-f21-docs-seguimiento`
+**Estado**: COMPLETADO (f22.1–f22.10)
+**Modo**: Strict TDD (backend: `php artisan test`)
+
+> Nota de merge: secciones previas viven en este archivo y en Engram
+> (`apply-progress-f14`/`f16`/`f18`/`f19`/`f20`). El estado acumulado completo está en el topic
+> `sdd/integracion-juegos-scrapers/apply-progress`.
+
+## Resumen
+
+Auditoría de DATOS (no scraper nuevo) de los 7 juegos originales contra sus fuentes oficiales.
+Se muestreó en vivo el feed de `lottoactivo.com` (4 juegos animalitos en un JSON + terminal +
+trío), la API de `resultadostriplezulia.com`, las páginas `/informacion/<juego>/` (metadata +
+reglamentos PDF) y el FAQ oficial. **H2 CONFIRMADO** (Monje zoo 0–74) y **H5 DESMENTIDO**
+(Trío Activo es un TRIPLE de 3 cifras, no terminales). Correcciones con evidencia:
+23=Cebra, zoo propio de Monje (70 figuras), Trío 600×/terminal 00–99, Terminal Trío 60×.
+
+## Hallazgos por juego
+
+| Juego | Horarios | Opciones | Premiación | Resultado |
+|---|---|---|---|---|
+| lotto-activo (1) | ✅ 12@08:00–19:00 | ✅ 38 (23=Cebra **corregido**) | ✅ 30× (FAQ oficial) | corregido (Cebra) |
+| triple-zulia (2) | ✅ 3@12:45/16:45/19:05 (API) | ✅ 12 signos (API) | ⏳ sin reglamento | sin cambios |
+| terminal-activo (3) | ✅ 12@08:00–19:00 | ✅ 100 (00–99) | ✅ TERMINAL 60× del reglamento | **corregido 20→60** |
+| lotto-activo-rd (4) | ✅ 12@08:30–19:30 | ✅ 38 | ✅ 30× | sin cambios |
+| lotto-activo-rep-dom (5) | ✅ 14@08:00–21:00 | ✅ 38 | ✅ 30× | sin cambios |
+| monje-millonario (6) | ✅ 12@08:05–19:05 | ⚠️ zoo propio 70 confirmadas (H2) | ⏳ Patronus sin fuente | **corregido (zoo propio)** |
+| trio-activo (7) | ✅ 12@08:00–19:00 (H15) | ✅ 100 terminal (H5 desmentido) | ✅ TRIPLE 600× del reglamento | **corregido 30→600 + opciones** |
+
+## Hallazgos nuevos (docs/comparacion-juegos.md)
+
+- **H2 CONFIRMADO** (Monje): el feed oficial muestra 0–74 con zoo propio (49=Pereza, 42=Tucán,
+  74=Turpial); 70 figuras confirmadas creadas; 7 números sin nombre oficial (37/39/57/65/67/68/75).
+- **H5 DESMENTIDO** (Trío): es un TRIPLE de 3 cifras con modalidades TRIPLE/TERMINAL/PUNTA (sin
+  zodiaco); 12 sorteos 08:00–19:00. Opciones corregidas de 12 signos → 100 terminal 00–99.
+- **H12**: Terminal Trío — reglamento 60× vs FAQ oficial 70×+5× aprox → decisión de negocio pendiente.
+- **H13**: `Animalitos::calcularPremio` no normaliza acentos (feed "Delfin" vs opción "Delfín")
+  → premio 0. Es del MOTOR (ciclo futuro), no se tocó.
+- **H14**: Monje — 7 números sin nombre oficial, El Patronus sin reglamento (PDF 404),
+  `special_result=1` en todos los resultados.
+- **H15**: Trío Activo — reglamento 2020 dice 3 sorteos, la operación real es de 12.
+- **H16**: textos oficiales de horarios desactualizados ("11 sorteos 09:00–19:00" vs feed 12@08:00–19:00).
+
+## TDD Cycle Evidence
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| f22.2/f22.6/f22.7 | tests/Feature/VerificacionOriginalesTest.php | Feature | ✅ focused previo | ✅ 4 fallos (Cebra, Monje 0 vs 70, Trío 30 vs 600, Terminal 20 vs 60) | ✅ 6/6 (28) | ✅ 6 casos (zoo canónico + migración, zoo Monje, Trío tipo/premio/opciones/horarios, Terminal premio, Zulia, familia horarios) | ✅ Pint clean |
+| f22.8 | JuegosJsonTest (regresión) | Feature | ✅ focused 49 | ✅ 2 fallos (JSON stale, Géminis en trío) | ✅ 48/48 focused (714, 1 skip) | ✅ monje 70, trío 100/600, terminal 60 | ✅ Pint clean |
+| f22.9 | Contrato JSON | Runtime | — | juegos:export → 21 juegos | md5 `737ab889daee831c774ee1fbc2c22036` | — | OK |
+
+## Work Unit Evidence
+
+| Work unit | Focused test | Runtime harness | Rollback boundary |
+|-----------|--------------|-----------------|-------------------|
+| WU1 Cebra 23 | --filter=VerificacionOriginalesTest → 6/6 | feed oficial (Cebra en los 4 juegos) + reglamento Ruleta Royal | Revertir `Animalitos.php` (map) + `JuegoAnimalitosSeeder` (array + migración) |
+| WU2 zoo Monje | idem | feed oficial 13 días (0–74) | Revertir `MonjeMillonarioSeeder` (volvería al plugin 38) |
+| WU3 Trío Activo | idem | feed oficial 12 sorteos + reglamento PDF | Revertir `TrioActivoSeeder` (config + opciones) |
+| WU4 Terminal Trío | idem | reglamento PDF (md5 idéntico) | Revertir `TerminalesSeeder` (config) |
+| WU5 docs + JSON | JuegosJsonTest 3/3 | `juegos:export` contra BD local; determinista | Regenerar `docs/juegos.json`; revertir los 3 .md |
+
+## Verificación en vivo (2026-09-10..14)
+
+- **lotto-activo**: 12 sorteos/día 08:00–19:00; zoo 0–36 con 23=Cebra; FAQ 30×.
+- **triple-zulia**: API 234 registros, SOLO 3 horarios 12:45/16:45/19:05 y 12 signos.
+- **terminal-activo**: 12 sorteos/día; terminal = 2 últimos dígitos del Trío (0 discrepancias).
+- **lotto-activo-rd**: 12 sorteos 08:30–19:30. **rep-dom**: 14 sorteos 08:00–21:00.
+- **monje-millonario**: 12 sorteos 08:05–19:05; números 0–74 con zoo propio.
+- **trio-activo**: 12 sorteos/día de un triple de 3 cifras.
+
+## Archivos
+
+- backend/app/Plugins/Juegos/Animalitos.php (modify: cobra→cebra)
+- backend/database/seeders/JuegoAnimalitosSeeder.php (modify: Cebra + migración de fila)
+- backend/database/seeders/MonjeMillonarioSeeder.php (modify: zoo propio 70 figuras)
+- backend/database/seeders/TrioActivoSeeder.php (modify: premio 600 + modalidades + 100 opciones)
+- backend/database/seeders/TerminalesSeeder.php (modify: premio 60 + modalidad + updateOrCreate)
+- backend/tests/Feature/VerificacionOriginalesTest.php (create) + JuegosJsonTest (modify)
+- docs/juegos.json (regenerado, md5 737ab889) + docs/seguimiento-verificacion.md +
+  docs/fuentes-oficiales.md + docs/comparacion-juegos.md (modify)
+- openspec/.../tasks.md + apply-progress.md (modify)
+
+## Commits (rama f22)
+
+- (se generan al cierre del WU, work-unit en español, NO se abren PRs)
+
+## Siguiente paso
+
+- sdd-verify del WU f22 cuando el orquestador lo dispare.
+- LOTE 2 pendiente: los 4 juegos de fuente agregador (cazaloton 9, triple-chance 10,
+  el-guacharito 12, guacharo-activo 13) — requieren URL oficial del cliente.
+- Decisiones de negocio pendientes: H12 (premio Terminal Trío 60 vs 70), H13 (acentos en el motor),
+  H14 (7 figuras de Monje + El Patronus), H15 (reglamento vs operación de Trío).
