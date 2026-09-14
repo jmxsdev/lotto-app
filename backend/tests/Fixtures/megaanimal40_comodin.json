@@ -1,0 +1,39 @@
+{
+    "msg": "Datos recopilados",
+    "status": true,
+    "datos": [
+        {
+            "id": "1",
+            "name": "Mega Animal 40",
+            "image": "Mega_Animal_40.png",
+            "link": "mega_animal40",
+            "pais": "1",
+            "resultados": [
+                {
+                    "date_result": "2026-09-14",
+                    "number_animal": "09",
+                    "animalito": "Águila",
+                    "color": "danger",
+                    "time_s": "03:00 PM",
+                    "mega": "2"
+                },
+                {
+                    "date_result": "2026-09-14",
+                    "number_animal": "11",
+                    "animalito": "Gato",
+                    "color": "dark",
+                    "time_s": "02:00 PM",
+                    "mega": "1"
+                },
+                {
+                    "date_result": "2026-09-14",
+                    "number_animal": "08",
+                    "animalito": "Ratón",
+                    "color": "dark",
+                    "time_s": "09:00 AM",
+                    "mega": "1"
+                }
+            ]
+        }
+    ]
+}

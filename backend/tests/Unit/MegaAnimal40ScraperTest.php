@@ -8,6 +8,11 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
+ * Scraper del PROVEEDOR agregador resultadosvenezuela.com — CLASE DURMIENTE
+ * desde el WU f27 (fuente migrada al sitio oficial megaanimal40.com vía
+ * `MegaAnimal40OficialScraper`). Se conserva por documentación del parse
+ * legacy y por rollback; NO se usa en producción (el seeder apunta al oficial).
+ *
  * Fixtures REALES del proveedor resultadosvenezuela.com (capturados el 12-sep-2026):
  *
  *   GET https://resultadosvenezuela.com/lottery/mega-animal-40            → día en curso (parcial)

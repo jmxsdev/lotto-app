@@ -8,24 +8,43 @@ use App\Models\JuegoHorario;
 use App\Models\JuegoLimite;
 use App\Models\PluginJuego;
 use App\Plugins\Juegos\Animalitos;
-use App\Plugins\Scrapers\MegaAnimal40Scraper;
+use App\Plugins\Scrapers\MegaAnimal40OficialScraper;
 use Illuminate\Database\Seeder;
 
 class MegaAnimal40Seeder extends Seeder
 {
     public function run(): void
     {
-        $juego = Juego::firstOrCreate(
+        // updateOrCreate (WU f27): MIGRA la fuente del agregador
+        // resultadosvenezuela.com (excepción autorizada de f14) al SITIO OFICIAL
+        // megaanimal40.com (CONALOT + Big Data Tecnology + Lotería de Cojedes).
+        // El scraper del proveedor (MegaAnimal40Scraper) queda como clase
+        // durmiente, NO se borra (documentado en backend/docs/juegos.md).
+        //
+        // Premios OFICIALES de la web (texto "Como jugar"): base 30× por animal
+        // y 40× cuando SALE el comodín MEGA (respaldo del reglamento N°
+        // DIF-RGTO-033-00, solo referenciado — ver docs/inconsistencias.md).
+        // El comodín se CAPTURA en `numeros_ganadores.comodin` (mega:"2"); la
+        // liquidación 40× pertenece al ciclo futuro del motor de premios.
+        //
+        // Horarios/opciones sin cambios: 12 sorteos 09:00–20:00 confirmados por
+        // el sitio oficial; zoológico canónico de 38 vía plugin Animalitos.
+        // LIMITACIÓN: el endpoint oficial solo sirve el DÍA ACTUAL (ignora
+        // fechas, sin histórico funcional) — documentada en el scraper.
+        $juego = Juego::updateOrCreate(
             ['slug' => 'mega-animal-40'],
             [
                 'name' => 'Mega Animal 40',
                 'type' => 'animalitos',
                 'config' => [
                     'premio_multiplo' => 30,
+                    'comodines' => [
+                        'mega' => ['nombre' => 'MEGA', 'premio_multiplo' => 40],
+                    ],
                 ],
                 'requires_scraper' => true,
-                'scraper_url' => 'https://resultadosvenezuela.com/lottery/mega-animal-40',
-                'scraper_class' => MegaAnimal40Scraper::class,
+                'scraper_url' => 'https://megaanimal40.com/',
+                'scraper_class' => MegaAnimal40OficialScraper::class,
                 'active' => true,
             ]
         );
@@ -67,6 +86,6 @@ class MegaAnimal40Seeder extends Seeder
             );
         }
 
-        $this->command->info('Juego Mega Animal 40 actualizado (type: animalitos, scraper: MegaAnimal40Scraper, fuente: resultadosvenezuela.com, 12 horarios 09:00–20:00).');
+        $this->command->info('Juego Mega Animal 40 actualizado (type: animalitos, scraper: MegaAnimal40OficialScraper, fuente: megaanimal40.com oficial, comodín MEGA 40× capturado, 12 horarios 09:00–20:00).');
     }
 }
