@@ -132,6 +132,7 @@ const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
         try {
           const data = await apiFetch('/dispositivo/verificar', {
             method: 'POST',
+            timeout: 5000,
             body: { device_fingerprint: fp },
           });
           if (data.status === 'active') {

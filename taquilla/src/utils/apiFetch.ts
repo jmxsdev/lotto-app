@@ -1,4 +1,5 @@
 import { API_BASE } from '../config/api';
+import { getFingerprint, getApiMac } from './device';
 
 export type ApiErrorKind =
   | 'network'
@@ -29,25 +30,12 @@ export interface ApiFetchOptions {
   headers?: Record<string, string>;
 }
 
-// Headers de dispositivo disponibles de forma sincrona (fingerprint persistido).
+// Headers de dispositivo disponibles de forma sincrona (fingerprint real).
 function deviceHeaders(): Record<string, string> {
   const headers: Record<string, string> = {};
-  if (typeof localStorage !== 'undefined') {
-    const fp = localStorage.getItem('device_fingerprint');
-    if (fp) headers['X-Device-Fingerprint'] = fp;
-  }
+  const fp = getFingerprint();
+  if (fp) headers['X-Device-Fingerprint'] = fp;
   return headers;
-}
-
-// MAC real via bridge Electron, o null sin bridge/error (nunca un valor demo).
-async function resolveMac(): Promise<string | null> {
-  if (typeof window === 'undefined' || !window.electron?.getMac) return null;
-  try {
-    const mac = await window.electron.getMac();
-    return mac && mac !== '00:00:00:00:00:00' ? mac : null;
-  } catch {
-    return null;
-  }
 }
 
 async function parsePayload(res: Response): Promise<unknown> {
@@ -96,7 +84,7 @@ export async function apiFetch<T = unknown>(
   }
 
   Object.assign(finalHeaders, deviceHeaders());
-  const mac = await resolveMac();
+  const mac = await getApiMac();
   if (mac) finalHeaders['X-Device-MAC'] = mac;
 
   const opts: RequestInit = {
