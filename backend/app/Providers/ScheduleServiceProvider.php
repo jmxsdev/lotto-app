@@ -4,7 +4,6 @@ namespace App\Providers;
 
 use App\Jobs\ScrapeResultsJob;
 use App\Models\Juego;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\Schema;
@@ -24,12 +23,12 @@ class ScheduleServiceProvider extends ServiceProvider
             foreach ($juego->horarios as $horario) {
                 $horaLocal = substr($horario->hora, 0, 5);
 
-                $horaUtc = Carbon::createFromFormat('H:i', $horaLocal, 'America/Caracas')
-                    ->setTimezone('UTC')
-                    ->format('H:i');
-
+                // Los horarios se registran EN HORA LOCAL (America/Caracas):
+                // Laravel interpreta dailyAt() en la zona horaria de la app
+                // (config/app.php), así que NO hay que convertir a UTC — hacerlo
+                // correría los jobs 4 horas tarde (doble conversión).
                 Schedule::job(new ScrapeResultsJob($juego->id))
-                    ->dailyAt($horaUtc)
+                    ->dailyAt($horaLocal)
                     ->name("scrape_{$juego->slug}_{$horaLocal}")
                     ->withoutOverlapping(5);
             }

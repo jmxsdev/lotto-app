@@ -42,6 +42,7 @@ fuente oficial, **(3)** gaps de nuestro sistema. Evidencia detallada por juego e
 | H3 | Motor | `premio_multiplo` estático vs reglas reales por modalidad | Ciclo del motor |
 | H4 / H9 | Motor | Modalidades fuera del modelo: Dupleta 1.000×, Par Millonario 200.000×, El Patronus, Punta/Aproximación | Ciclo del motor |
 | H10b | Motor | Terminales derivadas de Fácil (`n%100`) no modeladas | Ciclo del motor |
+| **H21** | Scheduler | El `ScheduleServiceProvider` convertía horarios Caracas→UTC y `dailyAt()` los interpretaba de nuevo en la zona de la app (Caracas) → **doble conversión: los jobs de scrape disparaban 4 horas tarde** (en producción no había resultados en la mañana) | ✅ Corregido (registro en hora local) + test de regresión `ScheduleTimeZoneTest` |
 
 ## 4. Fuentes (notas operativas)
 
