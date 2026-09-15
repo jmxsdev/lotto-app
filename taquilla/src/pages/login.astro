@@ -252,7 +252,8 @@
           } else if (error instanceof ApiError && error.kind === 'forbidden') {
             const message = error.payload?.message || 'Acceso denegado.';
             const msg = String(message).toLowerCase();
-            if (msg.includes('activado')) {
+            // Cubre "no ha sido activado" y "Complete la activación" (prod)
+            if (msg.includes('activ')) {
               showAlert(message, 'warning');
               setTimeout(() => { window.location.href = '/activacion'; }, 1500);
             } else {
