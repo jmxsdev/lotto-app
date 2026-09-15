@@ -1,8 +1,5 @@
 ---
 import { formatBs } from '../utils/currency';
-import { API_BASE } from '../config/api';
-
-const apiUrl = API_BASE;
 ---
 
 <!DOCTYPE html>
@@ -150,8 +147,10 @@ const apiUrl = API_BASE;
       </div>
     </div>
 
-    <script define:vars={{ apiUrl, demoMac: import.meta.env.PUBLIC_DEMO_MAC || '', isWeb: import.meta.env.PUBLIC_IS_WEB === 'true', demoFp: import.meta.env.PUBLIC_DEMO_FP || 'demo-device-001' }}>
-      const API_BASE = apiUrl;
+    <script>
+      import { apiFetch } from '../utils/apiFetch';
+      import { getFingerprint } from '../utils/device';
+
       let macAddress = '';
 
       async function getMac() {
@@ -163,9 +162,6 @@ const apiUrl = API_BASE;
           } catch (error) {
             document.getElementById('mac-address').textContent = 'Error al obtener MAC';
           }
-        } else if (isWeb && demoMac) {
-          macAddress = demoMac;
-          document.getElementById('mac-address').textContent = macAddress;
         } else {
           document.getElementById('mac-address').textContent = 'Sin Electron';
         }
@@ -197,32 +193,28 @@ const apiUrl = API_BASE;
         btn.textContent = 'Activando...';
 
         try {
-          const response = await fetch(API_BASE + '/activar', {
+          const data = await apiFetch('/activar', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
+            body: {
               activation_code: codigo,
               mac_address: macAddress,
-              device_fingerprint: localStorage.getItem('device_fingerprint') || demoFp,
-            }),
+              device_fingerprint: getFingerprint(),
+            },
           });
 
-          const data = await response.json();
-
-          if (response.ok && data.success) {
+          if (data && data.success === false) {
+            showAlert(data.message || 'Error al activar la taquilla.', 'error');
+            btn.disabled = false;
+            btn.textContent = 'Activar Taquilla';
+          } else {
             showAlert('¡Taquilla activada exitosamente! Redirigiendo...', 'success');
             setTimeout(() => {
               window.location.href = '/login';
             }, 1500);
-          } else {
-            showAlert(data.message || 'Error al activar la taquilla.', 'error');
-            btn.disabled = false;
-            btn.textContent = 'Activar Taquilla';
           }
         } catch (error) {
-          showAlert('Error: ' + (error.message || 'Error de conexión'), 'error');
+          const message = error?.payload?.message || error?.message || 'Error de conexión';
+          showAlert('Error: ' + message, 'error');
           console.error('Activation error:', error);
           btn.disabled = false;
           btn.textContent = 'Activar Taquilla';

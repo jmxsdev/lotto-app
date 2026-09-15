@@ -1,8 +1,5 @@
 ---
 import MainLayout from '../layouts/MainLayout.astro';
-import { API_BASE } from '../config/api';
-
-const apiUrl = API_BASE;
 ---
 
 <MainLayout currentPage="historial">
@@ -88,41 +85,8 @@ const apiUrl = API_BASE;
         .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
 
-    <script define:vars={{ apiUrl, demoMac: import.meta.env.PUBLIC_DEMO_MAC || '00:1A:2B:3C:4D:5E', demoFp: import.meta.env.PUBLIC_DEMO_FP || 'demo-device-001' }}>
-        const API_BASE = apiUrl;
-
-        const API_MAC = demoMac;
-        let _mac = API_MAC;
-        async function initMac() {
-          if (typeof window !== 'undefined' && window.electron?.getMac) {
-            try {
-              const mac = await window.electron.getMac();
-              if (mac && mac !== '00:00:00:00:00:00') _mac = mac;
-              else _mac = null;
-            } catch { _mac = null; }
-          }
-        }
-
-        async function apiFetch(method, url, body) {
-            const token = localStorage.getItem('auth_token');
-            const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
-            if (token) headers['Authorization'] = 'Bearer ' + token;
-            headers['X-Device-MAC'] = _mac;
-            headers['X-Device-Fingerprint'] = localStorage.getItem('device_fingerprint') || demoFp;
-            const opts = { method, headers, credentials: 'omit' };
-            if (body) opts.body = JSON.stringify(body);
-            const res = await fetch(API_BASE + url, opts);
-            if (res.status === 401) {
-                localStorage.removeItem('auth_token');
-                window.location.href = '/login';
-                throw new Error('No autorizado');
-            }
-            if (!res.ok) {
-                const text = await res.text();
-                throw new Error(text || res.statusText);
-            }
-            return res.json();
-        }
+    <script>
+        import { apiFetch } from '../utils/apiFetch';
 
         function getStatusClass(estado) {
             switch(estado) {
@@ -241,7 +205,7 @@ const apiUrl = API_BASE;
 
         async function deleteTicket(ticket) {
             try {
-                await apiFetch('DELETE', '/tickets/' + ticket.id);
+                await apiFetch('/tickets/' + ticket.id, { method: 'DELETE' });
                 loadTickets();
                 await window.showModal({ message: 'Ticket anulado', type: 'success' });
             } catch (e) {
@@ -260,11 +224,14 @@ const apiUrl = API_BASE;
             for (const apuesta of (ticket.apuestas || [])) {
                 if (apuesta.estado !== 'pendiente') continue;
                 try {
-                    await apiFetch('POST', '/pagos', {
-                        apuesta_id: apuesta.id,
-                        amount_bs: Number(apuesta.amount_bs || 0),
-                        amount_usd: Number(apuesta.amount_usd || 0),
-                        tipo: 'bs'
+                    await apiFetch('/pagos', {
+                        method: 'POST',
+                        body: {
+                            apuesta_id: apuesta.id,
+                            amount_bs: Number(apuesta.amount_bs || 0),
+                            amount_usd: Number(apuesta.amount_usd || 0),
+                            tipo: 'bs'
+                        }
                     });
                 } catch (e) {
                     success = false;
@@ -320,7 +287,7 @@ const apiUrl = API_BASE;
                 if (filterEstado) url += '&estado=' + filterEstado;
                 const searchVal = document.getElementById('search')?.value?.trim();
                 if (searchVal) url += '&ticket_code=' + encodeURIComponent(searchVal);
-                const response = await apiFetch('GET', url);
+                const response = await apiFetch(url);
                 ticketsCache = response.data?.data || [];
                 currentPage = response.data?.current_page || 1;
                 lastPage = response.data?.last_page || 1;
@@ -352,7 +319,6 @@ const apiUrl = API_BASE;
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
-            await initMac();
             loadTickets();
 
             document.querySelectorAll('.filter-btn').forEach(btn => {

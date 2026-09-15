@@ -1,6 +1,7 @@
 ---
-import api from '../utils/api';
-import { API_BASE } from '../config/api';
+
+
+
 ---
 
 <!DOCTYPE html>
@@ -180,10 +181,7 @@ import { API_BASE } from '../config/api';
     </div>
 
     <script>
-      import { API_BASE } from '../config/api';
-
-      const demoMac = import.meta.env.PUBLIC_DEMO_MAC || '';
-      const demoFp = import.meta.env.PUBLIC_DEMO_FP || 'demo-device-001';
+      import { apiFetch, ApiError } from '../utils/apiFetch';
 
       // Selector dev-only (tree-shaken en prod)
       if (import.meta.env.DEV) {
@@ -210,6 +208,11 @@ import { API_BASE } from '../config/api';
         alertEl.className = `alert ${type}`;
       }
 
+      function resetButton(btn) {
+        btn.disabled = false;
+        btn.textContent = 'Iniciar Sesión';
+      }
+
       async function handleLogin(e) {
         e.preventDefault();
         
@@ -226,70 +229,13 @@ import { API_BASE } from '../config/api';
         btn.innerHTML = '<span class="spinner"></span> Iniciando sesión...';
 
         try {
-          // Obtener MAC si está disponible
-          let mac = '';
-          if (window.electron?.getMac) {
-            try {
-              mac = await window.electron.getMac();
-            } catch (error) {
-              console.warn('No se pudo obtener MAC:', error);
-            }
-          }
-          if (!mac && demoMac) {
-            mac = demoMac;
-          }
-
-          const response = await fetch(API_BASE + '/login', {
+          const data = await apiFetch('/login', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-              'X-Device-MAC': mac || null,
-              'X-Device-Fingerprint': localStorage.getItem('device_fingerprint') || demoFp,
-            },
-            body: JSON.stringify({
+            body: {
               email: email,
               password: password,
-            }),
+            },
           });
-
-          if (response.status === 429) {
-            showAlert('Demasiados intentos. Espere un momento e intente nuevamente.', 'error');
-            btn.disabled = false;
-            btn.textContent = 'Iniciar Sesión';
-            return;
-          }
-
-          if (response.status === 403) {
-            const text = await response.text();
-            let message = '';
-            try { message = JSON.parse(text).message || ''; } catch (_) {}
-            const msg = (message || '').toLowerCase();
-            if (msg.includes('activado')) {
-              showAlert(message || 'Dispositivo no activado. Redirigiendo...', 'warning');
-              setTimeout(() => { window.location.href = '/activacion'; }, 1500);
-            } else {
-              showAlert(message || 'Acceso denegado.', 'error');
-              btn.disabled = false;
-              btn.textContent = 'Iniciar Sesión';
-            }
-            return;
-          }
-
-          if (!response.ok) {
-            const text = await response.text();
-            let message = 'Credenciales incorrectas.';
-            try {
-              const errData = JSON.parse(text);
-              message = errData.message || message;
-            } catch (_) {}
-            showAlert(message, 'error');
-            btn.disabled = false;
-            btn.textContent = 'Iniciar Sesión';
-            return;
-          }
-
-          const data = await response.json();
 
           localStorage.setItem('auth_token', data.token);
           if (data.user) {
@@ -300,10 +246,29 @@ import { API_BASE } from '../config/api';
             window.location.href = '/dashboard';
           }, 1000);
         } catch (error) {
-          showAlert('Error de conexión. Verifique su internet e intente nuevamente.', 'error');
-          btn.disabled = false;
-          console.log(error)
-          btn.textContent = 'Iniciar Sesión';
+          if (error instanceof ApiError && error.kind === 'rate-limited') {
+            showAlert('Demasiados intentos. Espere un momento e intente nuevamente.', 'error');
+            resetButton(btn);
+          } else if (error instanceof ApiError && error.kind === 'forbidden') {
+            const message = error.payload?.message || 'Acceso denegado.';
+            const msg = String(message).toLowerCase();
+            if (msg.includes('activado')) {
+              showAlert(message, 'warning');
+              setTimeout(() => { window.location.href = '/activacion'; }, 1500);
+            } else {
+              showAlert(message, 'error');
+              resetButton(btn);
+            }
+          } else if (error instanceof ApiError && error.kind === 'unauthorized') {
+            showAlert('Credenciales incorrectas.', 'error');
+            resetButton(btn);
+          } else if (error instanceof ApiError && error.kind === 'http') {
+            showAlert(error.payload?.message || 'Credenciales incorrectas.', 'error');
+            resetButton(btn);
+          } else {
+            showAlert('Error de conexión. Verifique su internet e intente nuevamente.', 'error');
+            resetButton(btn);
+          }
         }
       }
 

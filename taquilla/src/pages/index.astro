@@ -1,6 +1,5 @@
 ---
 // Splash screen que verifica autenticación y redirige
-import { API_BASE } from '../config/api';
 const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
 ---
 
@@ -95,11 +94,8 @@ const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
     </div>
 
     <script>
-      import { API_BASE } from '../config/api';
-
-      const apiUrl = API_BASE;
-      const demoMac = import.meta.env.PUBLIC_DEMO_MAC || '';
-      const demoFp = import.meta.env.PUBLIC_DEMO_FP || 'demo-device-001';
+      import { apiFetch } from '../utils/apiFetch';
+      import { getFingerprint } from '../utils/device';
 
       // Selector dev-only: solo existe en desarrollo (tree-shaken en prod).
       // Re-aplica el override persistido antes del verify y lo conmuta via IPC.
@@ -122,15 +118,7 @@ const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
       }
 
       async function init() {
-        let fp = localStorage.getItem('device_fingerprint');
-        if (!fp || (fp === demoFp && window.electron?.getVersion)) {
-          if (window.electron?.getVersion) {
-            fp = crypto.randomUUID();
-          } else {
-            fp = demoFp;
-          }
-          localStorage.setItem('device_fingerprint', fp);
-        }
+        const fp = getFingerprint();
 
         if (window.electron?.getMac) {
           try {
@@ -139,19 +127,13 @@ const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
           } catch (_) {
             document.getElementById('mac-info').textContent = 'MAC: Error al obtener';
           }
-        } else if (demoMac) {
-          document.getElementById('mac-info').textContent = 'MAC: ' + demoMac;
         }
 
-        const apiBase = apiUrl;
-
         try {
-          const res = await fetch(apiBase + '/dispositivo/verificar', {
+          const data = await apiFetch('/dispositivo/verificar', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ device_fingerprint: fp }),
+            body: { device_fingerprint: fp },
           });
-          const data = await res.json();
           if (data.status === 'active') {
             window.location.href = '/login';
           } else {

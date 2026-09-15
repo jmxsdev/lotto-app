@@ -1,9 +1,5 @@
 ---
 import MainLayout from '../layouts/MainLayout.astro';
-import { API_BASE } from '../config/api';
-
-const apiUrl = API_BASE;
-
 ---
 
 <MainLayout currentPage="ganadores">
@@ -65,41 +61,8 @@ const apiUrl = API_BASE;
         .btn-pagar-ticket:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
 
-    <script define:vars={{ apiUrl, demoMac: import.meta.env.PUBLIC_DEMO_MAC || '00:1A:2B:3C:4D:5E', demoFp: import.meta.env.PUBLIC_DEMO_FP || 'demo-device-001' }}>
-        const API_BASE = apiUrl;
-
-        const API_MAC = demoMac;
-        let _mac = API_MAC;
-        async function initMac() {
-          if (typeof window !== 'undefined' && window.electron?.getMac) {
-            try {
-              const mac = await window.electron.getMac();
-              if (mac && mac !== '00:00:00:00:00:00') _mac = mac;
-              else _mac = null;
-            } catch { _mac = null; }
-          }
-        }
-
-        async function apiFetch(method, url, body) {
-            const token = localStorage.getItem('auth_token');
-            const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
-            if (token) headers['Authorization'] = 'Bearer ' + token;
-            headers['X-Device-MAC'] = _mac;
-            headers['X-Device-Fingerprint'] = localStorage.getItem('device_fingerprint') || demoFp;
-            const opts = { method, headers, credentials: 'omit' };
-            if (body) opts.body = JSON.stringify(body);
-            const res = await fetch(API_BASE + url, opts);
-            if (res.status === 401) {
-                localStorage.removeItem('auth_token');
-                window.location.href = '/login';
-                throw new Error('No autorizado');
-            }
-            if (!res.ok) {
-                const text = await res.text();
-                throw new Error(text || res.statusText);
-            }
-            return res.json();
-        }
+    <script>
+        import { apiFetch } from '../utils/apiFetch';
 
         function formatHora(iso) {
             if (!iso) return '-';
@@ -185,16 +148,19 @@ const apiUrl = API_BASE;
             });
             if (!ok) return;
             try {
-                const tickets = await apiFetch('GET', '/tickets?ticket_code=' + ticketCode);
+                const tickets = await apiFetch('/tickets?ticket_code=' + ticketCode);
                 const ticket = tickets.data?.data?.[0];
                 if (!ticket) { await window.showModal({ message: 'Ticket no encontrado', type: 'error' }); return; }
                 for (const apuesta of ticket.apuestas) {
                     if (apuesta.estado === 'pendiente') {
-                        await apiFetch('POST', '/pagos', {
-                            apuesta_id: apuesta.id,
-                            amount_bs: Number(apuesta.amount_bs || 0),
-                            amount_usd: Number(apuesta.amount_usd || 0),
-                            tipo: 'bs'
+                        await apiFetch('/pagos', {
+                            method: 'POST',
+                            body: {
+                                apuesta_id: apuesta.id,
+                                amount_bs: Number(apuesta.amount_bs || 0),
+                                amount_usd: Number(apuesta.amount_usd || 0),
+                                tipo: 'bs'
+                            }
                         });
                     }
                 }
@@ -210,7 +176,7 @@ const apiUrl = API_BASE;
             if (!fecha) return;
             document.getElementById('ganadores-content').innerHTML = '<div class="loading">Buscando...</div>';
             try {
-                const data = await apiFetch('GET', '/tickets/ganadores?fecha=' + fecha);
+                const data = await apiFetch('/tickets/ganadores?fecha=' + fecha);
                 renderGanadores(data.data);
             } catch (e) {
                 document.getElementById('ganadores-content').innerHTML = '<div class="error-state">Error: ' + e.message + '</div>';
@@ -218,7 +184,6 @@ const apiUrl = API_BASE;
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
-            await initMac();
             const fechaInput = document.getElementById('fecha');
             const now = new Date();
             const params = new URLSearchParams(window.location.search);
