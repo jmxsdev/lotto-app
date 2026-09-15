@@ -46,7 +46,7 @@ en el PR 2 de la cadena (rama `feat/integracion-juegos-scrapers-f1-triple-calien
 - [x] 9c. Fixture real `backend/tests/Fixtures/loteriadehoy_triplecaliente.html`.
 - [x] 9d. RED→GREEN `TripleCalienteScraperTest.php` (unit, 8) + `TripleCalienteResultsTest.php` (feature, 6). Comando: `composer test -- --filter=TripleCaliente` → 14/14.
 - [x] 9e. Fila en `backend/docs/juegos.md` (mismo WU).
-- [ ] 9f. Verificación funcional con URL real (`php artisan tinker` → fetch+parse) pendiente del cliente (datos reales).
+- [x] 9f. Verificación funcional con URL real (`php artisan tinker` → fetch+parse) pendiente del cliente (datos reales) — SUPERADA por 9l (carga real en BD local, 2026-09-02).
 
 ### Juego 9 — Migración a fuente oficial (PR 8, rama f7-tc-oficial, base f6-guacharo-activo) — ✅ COMPLETADO
 - [x] 9g. Scraper `TripleCalienteOficialScraper.php` (extiende BaseScraper): POST al API oficial `https://triplecaliente.com/api/gaming/results/product` con `game_product_id` (constante `'4'` con override vía `config['scraper']['product_id']` del juego), parse de sorteos con fecha/hora local America/Caracas desde `event_timestamp.seconds`, A/B/C+signo al esquema tripletas, `sorteo_id_externo` = primer `event`, `findJuegoOrFail` fail-fast, y `execute` filtra el histórico por fecha (patrón `TripletasScraper`, misma familia de API).
@@ -64,7 +64,7 @@ Juego 10 (Cazaloton) completado en el PR 3 de la cadena (rama
 - [x] 10c. Fixture real `backend/tests/Fixtures/loteriadehoy_cazaloton.html` (snapshot con 2 bloques).
 - [x] 10d. RED→GREEN `CazalotonScraperTest.php` (unit, 7) + `CazalotonResultsTest.php` (feature, 6). Comando: `composer test -- --filter=Cazaloton` → 13/13. Conteos de `LimitesScopedApiTest` actualizados por el 9º juego.
 - [x] 10e. Fila en `backend/docs/juegos.md` (mismo WU).
-- [ ] 10f. Verificación funcional con URL real (`php artisan tinker` → fetch+parse) pendiente del cliente (datos reales).
+- [x] 10f. Verificación funcional con URL real (`php artisan tinker` → fetch+parse) pendiente del cliente (datos reales) — SUPERADA por verificación real posterior (f8.5).
 
 Juego 11 (Triple Chance) completado en el PR 4 de la cadena (rama
 `feat/integracion-juegos-scrapers-f3-triple-chance`, base f2-cazaloton):
@@ -74,7 +74,7 @@ Juego 11 (Triple Chance) completado en el PR 4 de la cadena (rama
 - [x] 11c. Fixture real `backend/tests/Fixtures/loteriadehoy_triplechance.html` (snapshot con 2 bloques con resultado y 9 bloques de hora sin resultado).
 - [x] 11d. RED→GREEN `TripleChanceScraperTest.php` (unit, 8) + `TripleChanceResultsTest.php` (feature, 6). Comando: `composer test -- --filter=TripleChance` → 14/14. Conteos de `LimitesScopedApiTest` actualizados por el 10º juego (9→10 juegos, 18→20, 36→40).
 - [x] 11e. Fila en `backend/docs/juegos.md` (mismo WU).
-- [ ] 11f. Verificación funcional con URL real (`php artisan tinker` → fetch+parse) pendiente del cliente (datos reales).
+- [x] 11f. Verificación funcional con URL real (`php artisan tinker` → fetch+parse) pendiente del cliente (datos reales) — SUPERADA por verificación real posterior (f24.8).
 
 ### Juego 12 (El Arrejuntado) — completado en PR 5 (rama f4-el-arrejuntado, base f3-triple-chance)
 - [x] 12a. Seeder `ElArrejuntadoSeeder.php`: slug `el-arrejuntado`, type `tripletas`, `premio_multiplo` 30, `scraper_url` https://backend.serviciosintegradostriple7.com/api/v1/products/el-arrejuntao/results/, `scraper_class` ElArrejuntaoScraper, `requires_scraper` true, `JuegoLimite` banca/bs/3600, `PluginJuego` Tripletas, `JuegoOpcion` 12 signos, `JuegoHorario` 10:00/13:00/16:00/19:00/23:00 (5); registrado en `DatabaseSeeder`.
@@ -82,7 +82,7 @@ Juego 11 (Triple Chance) completado en el PR 4 de la cadena (rama
 - [x] 12c. Fixture real `backend/tests/Fixtures/elarrejuntao_results.json` (snapshot del endpoint 2026-09-01: 1 draw publicado con 6 modalidades).
 - [x] 12d. RED→GREEN `ElArrejuntadoScraperTest.php` (unit, 7) + `ElArrejuntadoResultsTest.php` (feature, 6) → `composer test -- --filter=Arrejuntado` 13/13. `LimitesScopedApiTest` conteos 10→11 juegos/20→22 límites+origen/40→44 scope, mixto 20→22.
 - [x] 12e. Fila en `backend/docs/juegos.md` (juego 12, type tripletas, 5 horarios, fuente API) + nota de la estructura multi-modalidad.
-- [ ] 12f. Verificación funcional con URL real pendiente del cliente (datos reales).
+- [x] 12f. Verificación funcional con URL real pendiente del cliente (datos reales) — SUPERADA por verificación real posterior (f24.8).
 
 ### Juego 13 (El Guacharito Millonario) — completado en PR 6 (rama f5-el-guacharito, base f4-el-arrejuntado)
 - [x] 13a. Seeder `ElGuacharitoSeeder.php`: slug `el-guacharito`, type `animalitos`, `premio_multiplo` 30, `scraper_url` https://loteriadehoy.com/animalito/elguacharitomillonario/resultados/, `scraper_class` LoteriaDeHoyScraper, `requires_scraper` true, `JuegoLimite` banca/bs/3600, `PluginJuego` Animalitos, `JuegoHorario` 08:30–19:30 (:30 cada hora, 12); registrado en `DatabaseSeeder`.
@@ -90,7 +90,7 @@ Juego 11 (Triple Chance) completado en el PR 4 de la cadena (rama
 - [x] 13c. Fixture real `backend/tests/Fixtures/loteriadehoy_elguacharito.html` (snapshot del 2026-09-01 con 4 bloques: 08:30–11:30).
 - [x] 13d. RED→GREEN `ElGuacharitoScraperTest.php` (unit, 7) + `ElGuacharitoResultsTest.php` (feature, 6) → `composer test -- --filter=Guacharito` 13/13. `LimitesScopedApiTest` conteos 11→12 juegos/22→24 límites+origen/44→48 scope, mixto 22→24.
 - [x] 13e. Fila en `backend/docs/juegos.md` (juego 13, type animalitos, 12 horarios, fuente loteriadehoy) + removido de pendientes.
-- [ ] 13f. Verificación funcional con URL real pendiente del cliente (datos reales).
+- [x] 13f. Verificación funcional con URL real pendiente del cliente (datos reales) — SUPERADA por verificación real posterior (f24.8).
 
 ### Juego 14 (Guacharo Activo) — completado en PR 7 (rama f6-guacharo-activo, base f5-el-guacharito)
 - [x] 14a. Seeder `GuacharoActivoSeeder.php`: slug `guacharo-activo`, type `animalitos`, `premio_multiplo` 30, `scraper_url` https://loteriadehoy.com/animalito/guacharoactivo/resultados/, `scraper_class` LoteriaDeHoyScraper, `requires_scraper` true, `JuegoLimite` banca/bs/3600, `PluginJuego` Animalitos, `JuegoHorario` 08:00–19:00 (:00 cada hora, 12); registrado en `DatabaseSeeder`.
@@ -98,7 +98,7 @@ Juego 11 (Triple Chance) completado en el PR 4 de la cadena (rama
 - [x] 14c. Fixture real `backend/tests/Fixtures/loteriadehoy_guacharo.html` (snapshot del 2026-09-01 con 5 bloques: 08:00–12:00).
 - [x] 14d. RED→GREEN `GuacharoScraperTest.php` (unit, 7) + `GuacharoResultsTest.php` (feature, 6) → `composer test -- --filter=Guacharo` 13/13. `LimitesScopedApiTest` conteos 12→13 juegos/24→26 límites+origen/48→52 scope, mixto 24→26.
 - [x] 14e. Fila en `backend/docs/juegos.md` (juego 14, type animalitos, 12 horarios, fuente loteriadehoy) + removido de pendientes.
-- [ ] 14f. Verificación funcional con URL real pendiente del cliente (datos reales).
+- [x] 14f. Verificación funcional con URL real pendiente del cliente (datos reales) — SUPERADA por verificación real posterior (f27.6, carga real del scraper oficial).
 
 ### WU f10 — La Granjita con API oficial (PR 11, rama f10-la-granjita, base f9-catalogo-json) — ✅ COMPLETADO
 - [x] f10.1 Scraper `LaGranjitaScraper.php` (extiende BaseScraper): GET `https://www.lagranjita.com/api/results.json?date=YYYY-MM-DD&productId=1` (sin auth ni anti-bot; soporta fechas pasadas), parse con `product_id` constante '1' y override `config['scraper']['product_id']`, clave del objeto = nombre del producto tomando el PRIMER valor (no hardcodeada), skip de sorteos no ocurridos (`result_id: null`), numero/animal desde `result_value`/`result_name`, hora 12h→H:i (`normalizeHora`), `sorteo_id_externo = result_id`, `findJuegoOrFail` fail-fast, `saveResults` heredado (dedupe). `execute($fecha)` carga la fecha pedida (el API soporta fechas, sin filtrar). Maneja JSON inválido/vacío y respuesta sin la estructura esperada.
@@ -112,12 +112,12 @@ Juego 11 (Triple Chance) completado en el PR 4 de la cadena (rama
 
 Plantilla para los juegos restantes (#18–22):
 
-- [ ] a. Seeder `backend/database/seeders/<Xxx>Seeder.php`: `Juego::firstOrCreate(['slug'])` + `scraper_class` + `JuegoLimite` (banca/bs/3600) + `PluginJuego` (reusa clase por type) + `JuegoOpcion*` + `JuegoHorario` (`firstOrCreate(['juego_id','hora'])`); registrar en `DatabaseSeeder`.
-- [ ] b. Scraper `backend/app/Plugins/Scrapers/<Xxx>Scraper.php` (solo fetch+parse+constructor) según fuente.
-- [ ] c. Fixture real `backend/tests/Fixtures/<xxx>_*.{json,html}`.
-- [ ] d. RED→GREEN `tests/Unit/Juego<Xxx>ScraperTest.php` (Reflection sobre parse) + `tests/Feature/Juego<Xxx>ResultsTest.php` (RefreshDatabase, saveResults+dedupe). Comando: `composer test -- --filter=Juego<Xxx>`.
-- [ ] e. Fila en `backend/docs/juegos.md` (mismo WU).
-- [ ] f. Verificación funcional con URL real (`php artisan tinker` → fetch+parse) antes del siguiente juego.
+- [x] a. Seeder `backend/database/seeders/<Xxx>Seeder.php`: `Juego::firstOrCreate(['slug'])` + `scraper_class` + `JuegoLimite` (banca/bs/3600) + `PluginJuego` (reusa clase por type) + `JuegoOpcion*` + `JuegoHorario` (`firstOrCreate(['juego_id','hora'])`); registrar en `DatabaseSeeder` — plantilla muerta: juegos #18–22 integrados en WUs propios (f12–f27).
+- [x] b. Scraper `backend/app/Plugins/Scrapers/<Xxx>Scraper.php` (solo fetch+parse+constructor) según fuente — plantilla muerta: juegos #18–22 integrados en WUs propios (f12–f27).
+- [x] c. Fixture real `backend/tests/Fixtures/<xxx>_*.{json,html}` — plantilla muerta: juegos #18–22 integrados en WUs propios (f12–f27).
+- [x] d. RED→GREEN `tests/Unit/Juego<Xxx>ScraperTest.php` (Reflection sobre parse) + `tests/Feature/Juego<Xxx>ResultsTest.php` (RefreshDatabase, saveResults+dedupe). Comando: `composer test -- --filter=Juego<Xxx>` — plantilla muerta: juegos #18–22 integrados en WUs propios (f12–f27).
+- [x] e. Fila en `backend/docs/juegos.md` (mismo WU) — plantilla muerta: juegos #18–22 integrados en WUs propios (f12–f27).
+- [x] f. Verificación funcional con URL real (`php artisan tinker` → fetch+parse) antes del siguiente juego — plantilla muerta: juegos #18–22 integrados y verificados en WUs propios (f12–f27).
 
 | # | Juego | slug | type (fuente) | Flag |
 |---|-------|------|---------------|------|
@@ -273,8 +273,8 @@ Plantilla para los juegos restantes (#18–22):
 - [x] f27.7 Docs: `docs/seguimiento-verificacion.md` (fila 17 → ✅ fuente oficial + **comodín capturado** + H1/H20 RESUELTOS, resumen 20/21 funcional, pendientes, **sección I evidencia WU f27**), `docs/fuentes-oficiales.md` (fila 17 → megaanimal40.com oficial + limitación), `docs/inconsistencias.md` (H1/H20 RESUELTOS + §4 fila mega), `docs/comparacion-juegos.md` (fila 17, Nivel 2 item 2, Nivel 3 items 1/3, H1/H20 + footer), `backend/docs/juegos.md` (fila 18 nueva fuente + nota `MegaAnimal40OficialScraper` + clase durmiente + contrato JSON con `comodines`/`modalidades`). tasks.md + apply-progress (merge). Commits work-unit en español. NO se abren PRs.
 
 ## Phase 3: Verificación / cierre
-- [ ] 3.2 `vendor/bin/pint --test` (CI) limpio.
-- [ ] 3.3 Confirmar `panel/` y contratos API intactos.
+- [x] 3.2 `vendor/bin/pint --test` (CI) limpio — CERRADA por verify-report (build pint exit 0, hash 9fa3c401…).
+- [x] 3.3 Confirmar `panel/` y contratos API intactos — CERRADA por verify-report (git diff c64bf17..HEAD panel/ collections/ vacío).
 
 ## Rollback por unidad
 
