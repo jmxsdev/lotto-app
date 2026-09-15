@@ -153,7 +153,7 @@ class AnimalitosScraper extends BaseScraper
         return [
             'juego_id' => $juego->id,
             'fecha_sorteo' => now()->format('Y-m-d'),
-            'hora_sorteo' => $data['time_s'] ?? null,
+            'hora_sorteo' => $this->normalizeHora($data['time_s'] ?? null) ?? ($data['time_s'] ?? null),
             'numeros_ganadores' => [
                 'numero' => (int) ($data['number_animal'] ?? 0),
                 'nombre_animal' => $data['name_animal'] ?? null,
@@ -181,7 +181,7 @@ class AnimalitosScraper extends BaseScraper
         return [
             'juego_id' => $juego->id,
             'fecha_sorteo' => $data['fecha'] ?? now()->format('Y-m-d'),
-            'hora_sorteo' => $data['time_s'] ?? null,
+            'hora_sorteo' => $this->normalizeHora($data['time_s'] ?? null) ?? ($data['time_s'] ?? null),
             'numeros_ganadores' => $numeros,
             'sorteo_id_externo' => $data['id'] ?? null,
             'premios_detalle' => null,

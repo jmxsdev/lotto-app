@@ -118,7 +118,7 @@ class AnimalitosScraperTest extends TestCase
         $this->assertArrayHasKey('pais', $numeros);
 
         $this->assertEquals('Delfin', $numeros['nombre_animal']);
-        $this->assertEquals('10:00 AM', $first['hora_sorteo']);
+        $this->assertEquals('10:00', $first['hora_sorteo']);
         $this->assertEquals('Venezuela', $numeros['pais']);
     }
 
@@ -210,7 +210,7 @@ class AnimalitosScraperTest extends TestCase
 
         // Primer sorteo real del 2026-09-12: 41 a las 08:00 AM (id 5)
         $this->assertSame(41, $resultados[0]['numeros_ganadores']['numero']);
-        $this->assertSame('08:00 AM', $resultados[0]['hora_sorteo']);
+        $this->assertSame('08:00', $resultados[0]['hora_sorteo']);
         $this->assertSame('5', $resultados[0]['sorteo_id_externo']);
     }
 
@@ -240,7 +240,7 @@ class AnimalitosScraperTest extends TestCase
 
         // Primer sorteo real del 2026-09-12: 941 a las 08:00 AM (id 4)
         $this->assertSame('941', $resultados[0]['numeros_ganadores']['triple_a']);
-        $this->assertSame('08:00 AM', $resultados[0]['hora_sorteo']);
+        $this->assertSame('08:00', $resultados[0]['hora_sorteo']);
         $this->assertSame('4', $resultados[0]['sorteo_id_externo']);
     }
 

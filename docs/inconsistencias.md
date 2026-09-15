@@ -43,6 +43,7 @@ fuente oficial, **(3)** gaps de nuestro sistema. Evidencia detallada por juego e
 | H4 / H9 | Motor | Modalidades fuera del modelo: Dupleta 1.000×, Par Millonario 200.000×, El Patronus, Punta/Aproximación | Ciclo del motor |
 | H10b | Motor | Terminales derivadas de Fácil (`n%100`) no modeladas | Ciclo del motor |
 | **H21** | Scheduler | El `ScheduleServiceProvider` convertía horarios Caracas→UTC y `dailyAt()` los interpretaba de nuevo en la zona de la app (Caracas) → **doble conversión: los jobs de scrape disparaban 4 horas tarde** (en producción no había resultados en la mañana) | ✅ Corregido (registro en hora local) + test de regresión `ScheduleTimeZoneTest` |
+| **H22** | API/panel | **Formatos de hora mezclados** en `resultados.hora_sorteo`: la familia lottoactivo guardaba `"01:00 PM"` (12h) y el resto `"13:00"` (24h) → el `orderBy` de string del API barajaba los resultados y la paginación del panel (`per_page=100`) mostraba subconjuntos arbitrarios: **juegos "desaparecían" de la vista** aunque los datos estaban en BD | ✅ Corregido: scrapers normalizan a `H:i` + **migración** que convierte filas históricas + orden del API a `hora DESC` (últimos primero) |
 
 ## 4. Fuentes (notas operativas)
 
