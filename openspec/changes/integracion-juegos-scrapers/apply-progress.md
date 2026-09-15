@@ -1,0 +1,2107 @@
+# Apply Progress: integracion-juegos-scrapers — PR 1 (Fundación) + PR 2 (Juego 1: Triple Caliente)
+
+**Cambio**: integracion-juegos-scrapers
+**Modo**: Strict TDD (backend: `composer test` vía `php artisan test`)
+**Cadena**: feature-branch-chain (tracker `feature/integracion-juegos-scrapers` desde `main`)
+
+---
+
+# Sección PR 1 — Fundación (tareas 1.1–1.10)
+
+**Rama**: `feat/integracion-juegos-scrapers-f0` (base: tracker)
+**Estado**: ✅ 10/10 tareas de la fase 1 completadas
+
+## Resumen
+
+Fundación del cambio de integración incremental de juegos+scrapers: catálogo maestro
+`backend/docs/juegos.md`, registro explícito `juegos.scraper_class` (nullable, oculto en API),
+resolución de scraper con `scraper_class` autoritativo y fallback preservado (URL → convención),
+fail-fast `findJuegoOrFail` que prohíbe crear juegos en caliente, y unificación de `saveResults`
+en `BaseScraper` con `normalizeHora`. Comportamiento de los 7 juegos actuales preservado y
+cubierto por tests de regresión (especialmente `trio-activo`: type tripletas + URL lottoactivo →
+`AnimalitosScraper`).
+
+## Hallazgos del feed (tarea 4)
+
+- Los nombres del feed lottoactivo (`Lotto Activo`, `Lotto Activo RD`, `Lotto Activo RD Internacional`,
+  `Lotto Activo República Dominicana`, `Lotto Activo 2 Monje Millonario`, `Terminal Trío`, `Trío Activo`,
+  `Terminal Activo`) están registrados en los seeders actuales vía el mapa canónico de slugs de
+  `AnimalitosScraper` → **no fue necesario ajustar seeders**; el flujo legacy no se rompe.
+- **Hallazgo**: los tests unit legacy (`AnimalitosScraperTest`, `TripletasScraperTest`) dependían de la
+  creación en caliente porque NO sembraban los juegos. Con fail-fast pasan a sembrar los juegos del feed
+  en `setUp`. Sin este ajuste la suite fallaba (7 errores); con él, 367/365/2.
+
+## TDD Cycle Evidence (PR 1)
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| 1.1+1.2 | `tests/Unit/JuegoScraperClassTest.php` | Unit | ✅ 343/341/2 | ✅ (2 fallos) | ✅ 3/3 | ✅ 3 casos | ➖ Ninguno |
+| 1.3 | N/A (docs) | Docs | N/A | ➖ | ➖ | ➖ Omitida: documentación | ✅ |
+| 1.4+1.5 | `tests/Unit/ScraperResolverTest.php` | Unit | ✅ 4/4+1skip | ✅ (3 fallos) | ✅ 10/10 | ✅ 8+2 casos | ✅ Clean |
+| 1.6 | `tests/Unit/BaseScraperHelpersTest.php` | Unit | ✅ idem | ✅ (6 errores) | ✅ 7/7 | ✅ 7 casos | ✅ Clean |
+| 1.7+1.8 | `tests/Unit/ScraperResolverTest.php` | Unit | ✅ aprobación scrapers | ✅ (2 fallos) | ✅ 14/14 | ✅ 4 casos fail-fast | ✅ Clean |
+| 1.9 | `tests/Unit/ScraperResolverTest.php` | Unit | ✅ suite 343 | ✅ | ✅ 10/10 | ✅ 8 casos | ✅ Clean |
+| 1.10 | `tests/Unit/ScraperResolverTest.php` | Unit | ✅ | ✅ | ✅ 14/14 | ✅ 4 casos | ✅ Clean |
+
+**Test Summary (PR 1)**: +24 tests (367 vs 343 baseline), todos pasando; aprobación de refactor:
+26 tests de scrapers/jobs existentes; funciones puras: `normalizeHora`, `findJuegoOrFail` base.
+
+## Work Unit Evidence (PR 1)
+
+| Work unit | Focused test command y resultado | Runtime harness y resultado | Rollback boundary |
+|-----------|----------------------------------|-----------------------------|-------------------|
+| WU1 catálogo | N/A (docs) | `git diff` + revisión de seeders | `backend/docs/juegos.md` — eliminar archivo |
+| WU2 migración+modelo | `composer test -- --filter=JuegoScraperClassTest` → 3/3 | `php artisan migrate:rollback --step=1` + `php artisan migrate` → up/down OK | `migrate:rollback` (drop column) + revertir Juego.php |
+| WU3 resolver | `composer test -- --filter=ScraperResolverTest` → 10/10 + `--filter=ScrapeResultsJobTest` → 4/4+1skip | `php artisan tinker` → `trio-activo`→AnimalitosScraper, `lotto-activo`→AnimalitosScraper con 7 juegos seedeados | Revertir `ScrapeResultsJob::resolveScraper/instantiateScraper` |
+| WU4 helpers base | `composer test -- --filter=BaseScraperHelpersTest` → 7/7 | N/A (helpers puros; sin borde runtime propio; cubiertos por suite feature) | Revertir `BaseScraper` (quitar 3 métodos) |
+| WU5 fail-fast scrapers | `composer test -- --filter=ScraperResolverTest` → 14/14 + aprobación scrapers/jobs → 26/26+1skip | `php artisan db:seed` → 7 juegos registrados; tinker verifica resolución real | Revertir AnimalitosScraper/TripletasScraper |
+
+## Desviaciones del diseño (PR 1)
+
+1. **Tarea 1.5**: "rama Animalitos pasa `$juego`" se interpretó como *rama Animalitos conserva el
+   slug derivado de `$juego->scraper_url`* (constructor AnimalitosScraper es `string $slug`; D6 solo
+   migra el constructor de TripletasScraper). El resto pasa `new $class($juego)`.
+2. **Tests unit legacy**: se sembraron los juegos en `setUp` (antes dependían de la creación en
+   caliente). Los juegos ya estaban registrados en los seeders; no se tocaron seeders.
+3. **`config('scraper.product_id', '2')`**: no existe `config/scraper.php`; el default '2' preserva
+   el valor hardcodeado previo. No se creó el archivo de config.
+
+---
+
+# Sección Juego 1 — Triple Caliente (PR 2, tareas 9a–9f)
+
+**Rama**: `feat/integracion-juegos-scrapers-f1-triple-caliente` (base: `feat/integracion-juegos-scrapers-f0`)
+**Estado**: ✅ 9a–9e completadas; ⏳ 9f (verificación con URL real) pendiente del cliente
+
+## Resumen
+
+Integración del juego 9 (Triple Caliente): seeder completo (slug `triple-caliente`, type `tripletas`,
+`premio_multiplo` 30, límite default banca/bs/3600, plugin Tripletas, opciones de 12 signos zodiacales,
+horarios 13:00/16:30/19:10, `scraper_url` de loteriadehoy.com y `scraper_class` LoteriaDeHoyScraper),
+scraper parametrizado `LoteriaDeHoyScraper` (reutilizable por cualquier juego de loteriadehoy.com vía
+`scraper_url` + slug/name del juego, fail-fast `findJuegoOrFail`, `normalizeHora` 12h→H:i, números
+A/B/C de 3 cifras y signo zodiacal), fixture real de la página de resultados, y tests unit + feature.
+El parseo se verifica contra el fixture real (3 sorteos: 13:00/16:30/19:10 con números y signos).
+
+## Hallazgo: conteos de juegos en LimitesScopedApiTest
+
+Al registrar el octavo juego en `DatabaseSeeder`, la matriz juego×moneda de `/api/v1/limites` pasa de
+7 a 8 juegos. Se actualizaron las aserciones de conteo en `LimitesScopedApiTest` (juegos 7→8,
+límites/origen 14→16, scope de entidades 28→32) — comportamiento probado sin cambios. Sin esta
+actualización la suite completa fallaba (6 errores).
+
+## TDD Cycle Evidence (Juego 1)
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| 9a (seeder) | `tests/Feature/TripleCalienteResultsTest.php` | Feature | ✅ suite 367/365/2 | ✅ (3 fallos: juego/limite/horarios) | ✅ 6/6 | ✅ 6 casos (juego+scraper_class, límite+plugin, horarios, persistencia, dedupe, resolver) | ✅ Clean |
+| 9b+9c (scraper+fixture) | `tests/Unit/TripleCalienteScraperTest.php` | Unit | ✅ idem | ✅ (5 fallos: parseo/horas/números/signo/estructura) | ✅ 8/8 | ✅ 8 casos (3 bloques, horas H:i, A/B/C con cero inicial, signo, estructura, fail-fast, sin resultados, filas malformadas) | ✅ Clean |
+| 9d (tests) | idem | Unit+Feature | ✅ `--filter=TripleCaliente` 14/14 | ✅ | ✅ 14/14 | ✅ 14 casos | ✅ Clean |
+| 9e (docs) | N/A (docs) | Docs | N/A | ➖ | ➖ | ➖ Omitida: documentación | ✅ fila en catálogo |
+| 9f (URL real) | N/A | Runtime | N/A | ➖ | ➖ | ➖ Pendiente del cliente | ➖ |
+
+**Test Summary (Juego 1)**: +14 tests (381 vs 367 baseline = 14 nuevos); suite completa 381/379/2
+(2 skips pre-existentes) + pint limpio.
+
+## Work Unit Evidence (Juego 1)
+
+| Work unit | Focused test command y resultado | Runtime harness y resultado | Rollback boundary |
+|-----------|----------------------------------|-----------------------------|-------------------|
+| WU1 seeder+scraper+fixture | `composer test -- --filter=TripleCaliente` → 14/14 (56 assertions) | N/A — parseo verificado contra fixture real; fetch con URL real pendiente del cliente (9f) | Eliminar `TripleCalienteSeeder` + `LoteriaDeHoyScraper` + fixture + revertir `DatabaseSeeder` |
+| WU2 feature persistencia | `composer test -- --filter=TripleCalienteResultsTest` → 6/6 | `php artisan tinker` → `new LoteriaDeHoyScraper($juego)` + parse/saveResults contra fixture (reproducible) | Idem WU1 + filas `resultados` de triple-caliente |
+| WU3 conteos LimitesScopedApiTest | `vendor/bin/phpunit --filter=LimitesScopedApiTest` → 30/30 (235 assertions) | N/A (regresión de API cubierta por suite feature) | Revertir solo las aserciones de conteo (8→7, 16→14, 32→28) |
+
+## Archivos cambiados (Juego 1)
+
+| Archivo | Acción | Qué se hizo |
+|---------|--------|-------------|
+| `backend/app/Plugins/Scrapers/LoteriaDeHoyScraper.php` | Create | Scraper parametrizado: constructor `?Juego`, `fetch` (scraper_url + fecha), `parse` (tabla `table.resultados`, hora 12h→H:i, A/B/C 3 cifras, signo, `findJuegoOrFail`) |
+| `backend/database/seeders/TripleCalienteSeeder.php` | Create | Juego `triple-caliente` + JuegoLimite banca/bs/3600 + PluginJuego Tripletas + JuegoOpcion signos + JuegoHorario 13:00/16:30/19:10 + `scraper_class` |
+| `backend/database/seeders/DatabaseSeeder.php` | Modify | Registra `TripleCalienteSeeder` |
+| `backend/tests/Unit/TripleCalienteScraperTest.php` | Create | 8 tests unit (parseo con fixture real, horas, números, signo, estructura, fail-fast, sin resultados, filas malformadas) |
+| `backend/tests/Feature/TripleCalienteResultsTest.php` | Create | 6 tests feature (seeder, límite+plugin, horarios, persistencia, dedupe, resolver) |
+| `backend/tests/Fixtures/loteriadehoy_triplecaliente.html` | Create | Snapshot real de `https://loteriadehoy.com/loteria/triplecaliente/resultados/` (3 sorteos) |
+| `backend/tests/Feature/LimitesScopedApiTest.php` | Modify | Conteos de la matriz juego×moneda: 7→8 juegos, 14→16 límites/origen, 28→32 scope |
+| `backend/docs/juegos.md` | Modify | Triple Caliente movido de pendientes a "Juegos integrados" con horarios, fuente, clase scraper y estado |
+| `openspec/changes/integracion-juegos-scrapers/tasks.md` | Modify | 9a–9e marcadas `[x]`; 9f pendiente; fila 9 ✅ integrado (PR 2) |
+
+## Desviaciones del diseño (Juego 1)
+
+1. **LoteriaDeHoyScraper sin `baseUrl`**: el scraper usa `$this->juego->scraper_url` como base
+   (parametrización por juego, alineado con D6). No declara `baseUrl` propia porque la fuente se
+   registra por juego; el fetch construye `{scraper_url}/{fecha}/`.
+2. **Config `premio_multiplo` en `config['premio_multiplo']`**: el seeder guarda `premio_multiplo` 30
+   dentro de la columna `config` (patrón de los 7 juegos existentes), no como columna dedicada.
+3. **Horarios 13:00/16:30/19:10**: confirmados con el cliente según el alcance (no 12:45/16:45/19:05
+   como Triple Zulia); el fixture real muestra 01:00 PM/04:30 PM/07:10 PM → 13:00/16:30/19:10.
+
+## Problemas encontrados (Juego 1)
+
+- **Suite completa roja tras integrar el 8º juego**: `LimitesScopedApiTest` asumía 7 juegos
+  sembrados. Resuelto actualizando los conteos (ver hallazgo). Es un ajuste legítimo de regresión,
+  no un cambio de comportamiento.
+- **Seeders demo descartados**: `ResultadosHoySeeder`, `CierresCajaDemoSeeder`, `PagosDemoSeeder`,
+  `TicketsHoySeeder` quedaron de una corrida anterior sin referencia; el feature test no los necesita
+  (usa `TripleCalienteSeeder` + su propia Banca). Se descartaron del work unit.
+- **`docs/deploy.md` revertido**: tenía un cambio ajeno (config de mysql_exporter) que no pertenece
+  a este work unit; se restauró a HEAD.
+
+## Workload / PR Boundary (Juego 1)
+
+- Modo: chained PR slice (feature-branch-chain, PR 2 de la cadena; base = PR 1 `feat/integracion-juegos-scrapers-f0`).
+- Boundary: integración completa del juego 9 (seeder → scraper → fixture → tests → docs) con
+  verificación incluida (suite completa 381/379/2 + pint limpio).
+- Budget: 4 commits, ~950 líneas (927 insertions del feat + 14/14 del test de conteos + 11/2 docs
+  + 10/2 tasks) — coherente con el forecast de ~400 líneas por juego (el fixture HTML real aporta
+  ~440 líneas de snapshot).
+- Rollback boundary por unidad: ver tabla Work Unit Evidence (Juego 1).
+
+## Siguiente paso recomendado
+
+- Juego 10 (Cazaloton): requiere URL y estructura de la fuente del cliente antes de aplicar.
+- `9f` — verificación funcional con URL real (`php artisan tinker` → fetch+parse) pendiente del
+  cliente; no bloquea los siguientes juegos pero debe cerrarse antes de marcar Triple Caliente
+  como verificado con datos reales.
+- `sdd-verify` del PR 2 cuando el orquestador lo dispare (o del PR 1 si aún no se verificó).
+
+---
+
+# Sección Juego 2 — Cazaloton (PR 3, tareas 10a–10f)
+
+**Rama**: `feat/integracion-juegos-scrapers-f2-cazaloton` (base: `feat/integracion-juegos-scrapers-f1-triple-caliente`)
+**Estado**: ✅ 10a–10e completadas; ⏳ 10f (verificación con URL real) pendiente del cliente
+
+## Resumen
+
+Integración del juego 10 (Cazaloton): seeder (slug `cazaloton`, type `animalitos`, `premio_multiplo`
+30, límite default banca/bs/3600, plugin Animalitos, horarios 09:00–19:00 (11), `scraper_url` y
+`scraper_class` LoteriaDeHoyScraper), extensión de `LoteriaDeHoyScraper` con modo animalitos
+(`parseAnimalitos`: `div.js-con`, bloques número+animal+hora 12h), fixture real, y tests unit+feature.
+
+## TDD Cycle Evidence (Juego 2)
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| 10a/10d | `tests/Feature/CazalotonResultsTest.php` | Feature | ✅ TripleCaliente 14/14 | ✅ | ✅ 6/6 | ✅ 6 casos (juego+scraper_class, límite+plugin, 11 horarios, persistencia, dedupe, resolver) | ✅ Clean |
+| 10b/10c/10d | `tests/Unit/CazalotonScraperTest.php` | Unit | ✅ idem | ✅ | ✅ 7/7 | ✅ 7 casos (parcial, numero/animal, horas, estructura, fail-fast, sin bloques, malformado) | ✅ Clean |
+| 10d | `tests/Feature/LimitesScopedApiTest.php` | Feature | ✅ previo | N/A (ajuste conteos) | ✅ 30/30 | ✅ conteos 9/18/36 | ✅ |
+
+**Test Summary (Juego 2)**: +13 tests (394 vs 381 baseline); suite completa 394/392/2 + pint limpio.
+
+## Work Unit Evidence (Juego 2)
+
+| Work unit | Focused test command y resultado | Runtime harness y resultado | Rollback boundary |
+|-----------|----------------------------------|-----------------------------|-------------------|
+| WU1 seeder+scraper+fixture | `composer test -- --filter=Cazaloton` → 13/13 | N/A — parseo contra fixture real; fetch con URL real pendiente (10f) | Eliminar `CazalotonSeeder` + modo animalitos + fixture + revertir `DatabaseSeeder` |
+| WU2 feature persistencia | `composer test -- --filter=CazalotonResultsTest` → 6/6 | `php artisan tinker` → `new LoteriaDeHoyScraper($juego)` + parse/saveResults contra fixture | Idem WU1 + filas `resultados` de cazaloton |
+| WU3 conteos LimitesScopedApiTest | `--filter=LimitesScopedApiTest` → 30/30 | N/A (regresión de API) | Revertir solo las aserciones de conteo (9→8, 18→16, 36→32) |
+
+---
+
+# Sección Juego 3 — Triple Chance (PR 4, tareas 11a–11f)
+
+**Rama**: `feat/integracion-juegos-scrapers-f3-triple-chance` (base: `feat/integracion-juegos-scrapers-f2-cazaloton`)
+**Estado**: ✅ 11a–11e completadas; ⏳ 11f (verificación con URL real) pendiente del cliente
+
+## Resumen
+
+Integración del juego 11 (Triple Chance): seeder (slug `triple-chance`, type `tripletas`,
+`premio_multiplo` 30, límite default banca/bs/3600, plugin Tripletas, opciones de 12 signos,
+horarios 09:00–19:00 (11), `scraper_url` y `scraper_class` LoteriaDeHoyScraper), fixture real de la
+página de resultados, y tests unit+feature. NO requirió cambio de código en el scraper: se confirmó
+que `parseTripletas` ya ignora los bloques de hora sin resultado.
+
+## Hallazgo: bloques de hora sin resultado en el modo tripletas
+
+La página de Triple Chance lista los 11 bloques de horario del día (09:00–19:00) como filas de
+`table.resultados tbody tr`, pero solo los ya sorteados traen las celdas A/B/C + signo; los horarios
+futuros (11:00 AM – 07:00 PM) aparecen como filas con un único `<td>` de hora. El `parseTripletas`
+actual descarta esas filas por `count($celdas) < 5` (y por la guarda `! $hora || ! $tripleA ||
+! $tripleB || ! $tripleC`), por lo que no genera resultado vacío ni error — se confirmó con un test
+sin cambiar el código. El fixture real del snapshot captura ambos casos (2 bloques con resultado y 9
+sin resultado).
+
+## Hallazgo: conteos de juegos en LimitesScopedApiTest
+
+Al registrar el décimo juego en `DatabaseSeeder`, la matriz juego×moneda de `/api/v1/limites` pasa
+de 9 a 10 juegos. Se actualizaron las aserciones de conteo (juegos 9→10, límites/origen 18→20,
+scope de entidades 36→40, `mixto` 18→20) — comportamiento probado sin cambios.
+
+## TDD Cycle Evidence (Juego 3)
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| 11b/11c/11d | `tests/Unit/TripleChanceScraperTest.php` | Unit | ✅ TripleCaliente+Cazaloton 27/27 | ✅ | ✅ 8/8 | ✅ 8 casos (solo bloques con resultado, ignora hora sin resultado, horas H:i, A/B/C, signo, estructura, fail-fast, malformado) | ✅ Clean |
+| 11a/11d | `tests/Feature/TripleChanceResultsTest.php` | Feature | ✅ idem | ✅ | ✅ 6/6 | ✅ 6 casos (juego+scraper_class, límite+plugin, 11 horarios, persistencia, dedupe, resolver) | ✅ Clean |
+| 11d | `tests/Feature/LimitesScopedApiTest.php` | Feature | ✅ previo | N/A (ajuste conteos) | ✅ 30/30 | ✅ conteos 10/20/40 | ✅ |
+
+**Test Summary (Juego 3)**: +14 tests (408 vs 394 baseline); suite completa 408/406/2 + pint limpio.
+
+## Work Unit Evidence (Juego 3)
+
+| Work unit | Focused test command y resultado | Runtime harness y resultado | Rollback boundary |
+|-----------|----------------------------------|-----------------------------|-------------------|
+| WU1 seeder+fixture | `composer test -- --filter=TripleChance` → 14/14 (54 assertions) | N/A — parseo contra fixture real (snapshot del 2026-09-01); fetch con URL real pendiente (11f) | Eliminar `TripleChanceSeeder` + fixture + revertir `DatabaseSeeder` |
+| WU2 feature persistencia | `composer test -- --filter=TripleChanceResultsTest` → 6/6 | `php artisan tinker` → `new LoteriaDeHoyScraper($juego)` + parse/saveResults contra fixture | Idem WU1 + filas `resultados` de triple-chance |
+| WU3 conteos LimitesScopedApiTest | `--filter=LimitesScopedApiTest` → 30/30 | N/A (regresión de API) | Revertir solo las aserciones de conteo (10→9, 20→18, 40→36) |
+
+## Archivos cambiados (Juego 3)
+
+| Archivo | Acción | Qué se hizo |
+|---------|--------|-------------|
+| `backend/database/seeders/TripleChanceSeeder.php` | Create | Juego `triple-chance` + JuegoLimite banca/bs/3600 + PluginJuego Tripletas + JuegoOpcion signos + JuegoHorario 09:00–19:00 (11) + `scraper_class` |
+| `backend/database/seeders/DatabaseSeeder.php` | Modify | Registra `TripleChanceSeeder` |
+| `backend/tests/Fixtures/loteriadehoy_triplechance.html` | Create | Snapshot real de `https://loteriadehoy.com/loteria/triplechance/resultados/` (2 bloques con resultado + 9 bloques de hora sin resultado) |
+| `backend/tests/Unit/TripleChanceScraperTest.php` | Create | 8 tests unit (parseo, ignora bloques sin resultado, horas, números, signo, estructura, fail-fast, malformado) |
+| `backend/tests/Feature/TripleChanceResultsTest.php` | Create | 6 tests feature (seeder, límite+plugin, horarios, persistencia, dedupe, resolver) |
+| `backend/tests/Feature/LimitesScopedApiTest.php` | Modify | Conteos de la matriz juego×moneda: 9→10 juegos, 18→20 límites/origen, 36→40 scope, mixto 18→20 |
+| `backend/docs/juegos.md` | Modify | Triple Chance movido de pendientes a "Juegos integrados" + nota del formato tripletas con bloques sin resultado |
+| `openspec/changes/integracion-juegos-scrapers/tasks.md` | Modify | 11a–11e marcadas `[x]`; 11f pendiente; fila 11 ✅ integrado (PR 4) |
+
+## Desviaciones del diseño (Juego 3)
+
+None — implementation matches design. Triple Chance usa el tipo `tripletas` existente: seeder con
+plugin Tripletas + opciones de signos (patrón TripleCaliente) y horarios 09:00–19:00 (11, patrón
+Cazaloton). El scraper no cambió porque `parseTripletas` ya manejaba los bloques sin resultado.
+
+## Problemas encontrados (Juego 3)
+
+- **Suite completa roja tras integrar el 10º juego**: `LimitesScopedApiTest` asumía 9 juegos
+  sembrados. Resuelto actualizando los conteos (ver hallazgo). Es un ajuste legítimo de regresión.
+- **Cambios ajenos del checkout compartido**: `backend/.env.example` y `panel/.astro/settings.json`
+  (modificados) y `.atl/`, `.codegraph/`, `openspec/config.yaml` (sin seguimiento) no pertenecen al
+  work unit; se dejaron fuera de los commits.
+
+## Workload / PR Boundary (Juego 3)
+
+- Modo: chained PR slice (feature-branch-chain, PR 4 de la cadena; base = PR 3 `feat/integracion-juegos-scrapers-f2-cazaloton`).
+- Boundary: integración completa del juego 11 (seeder → fixture → tests → docs) con verificación
+  incluida (suite completa 408/406/2 + pint limpio).
+- Rollback boundary por unidad: ver tabla Work Unit Evidence (Juego 3).
+
+## Siguiente paso recomendado
+
+- Juego 12 (El Arrejuntado): requiere URL y estructura de la fuente del cliente antes de aplicar.
+- `11f` — verificación funcional con URL real (`php artisan tinker` → fetch+parse) pendiente del
+  cliente; no bloquea los siguientes juegos pero debe cerrarse antes de marcar Triple Chance como
+  verificado con datos reales.
+- `sdd-verify` del PR 4 cuando el orquestador lo dispare.
+
+---
+
+# Sección Juego 4 — El Arrejuntado (PR 5, tareas 12a–12f)
+
+**Rama**: `feat/integracion-juegos-scrapers-f4-el-arrejuntado` (base: `feat/integracion-juegos-scrapers-f3-triple-chance`)
+**Estado**: ✅ 12a–12e completadas; ⏳ 12f (verificación con URL real) pendiente del cliente
+
+## Resumen
+
+Integración del juego 12 (El Arrejuntado): seeder (slug `el-arrejuntado`, type `tripletas`,
+`premio_multiplo` 30, límite default banca/bs/3600, plugin Tripletas, opciones de 12 signos,
+horarios 10:00/13:00/16:00/19:00/23:00 (5), `scraper_url` de la API JSON de
+serviciosintegradostriple7.com y `scraper_class` ElArrejuntaoScraper), scraper dedicado
+`ElArrejuntaoScraper` (fetch del endpoint por fecha, parsea draws publicados, mapea las 6
+modalidades a `numeros_ganadores`, fail-fast `findJuegoOrFail`, `normalizeHora` 12h→H:i,
+`saveResults` heredado con dedupe), fixture real (snapshot del endpoint 2026-09-01) y tests
+unit + feature.
+
+## Decisión de mapeo (multi-modalidad)
+
+La tabla del cliente registra El Arrejuntado con type `tripletas`; la fuente API expone 6
+modalidades por draw (`animalito`, `el-arrimao`, `el-pegadito`, `triple-a`, `triple-b`,
+`triple-signo`). El modelo `Resultado.numeros_ganadores` es un **array JSON flexible** (cast
+`array`), por lo que se persiste CADA draw como UN resultado cuya `numeros_ganadores` conserva
+**las 6 modalidades**:
+
+- `triple-a` → `triple_a` ("894")
+- `triple-b` → `triple_b` ("082")
+- `triple-signo` "259 LEO" → `triple_c` ("259") + `signo` ("LEO") — se divide para ser
+  compatible con el esquema tripletas que renderiza el panel (A/B/C + signo).
+- `animalito` → `animalito` ("73"), `el-arrimao` → `arrimao` ("1825"), `el-pegadito` →
+  `pegadito` ("10503") — modalidades adicionales conservadas en el mismo array (no consumidas
+  por la renderización tripletas en esta iteración, pero persisten).
+
+Esta decisión agota lo que el modelo actual soporta (array JSON flexible) SIN inventar tablas
+nuevas. Si más adelante el sistema consume `animalito`/`arrimao`/`pegadito`, ya están
+persistidos en `numeros_ganadores`.
+
+## Hallazgo: conteos de juegos en LimitesScopedApiTest
+
+Al registrar el undécimo juego en `DatabaseSeeder`, la matriz juego×moneda de `/api/v1/limites`
+pasa de 10 a 11 juegos. Se actualizaron las aserciones de conteo (juegos 10→11,
+límites/origen 20→22, scope de entidades 40→44, `mixto` 20→22) — comportamiento probado sin cambios.
+
+## TDD Cycle Evidence (Juego 4)
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| 12b/12c/12d | `tests/Unit/ElArrejuntadoScraperTest.php` | Unit | ✅ TripleChance 14/14 | ✅ 7 errores (clase inexistente) | ✅ 7/7 | ✅ 7 casos (draws publicados, ignora no publicados, hora H:i, 6 modalidades, estructura, fail-fast, draw sin modalidades) | ✅ Pint clean |
+| 12a/12d | `tests/Feature/ElArrejuntadoResultsTest.php` | Feature | ✅ idem | ✅ 6 errores (seeder inexistente) | ✅ 6/6 | ✅ 6 casos (juego+scraper_class, límite+plugin, 5 horarios, persistencia, dedupe, resolver) | ✅ Pint clean |
+| 12d | `tests/Feature/LimitesScopedApiTest.php` | Feature | ✅ previo | N/A (ajuste conteos) | ✅ 30/30 | ✅ conteos 11/22/44 | ✅ |
+
+**Test Summary (Juego 4)**: +13 tests (421 vs 408 baseline); suite completa 421/419/2 + pint limpio.
+
+## Work Unit Evidence (Juego 4)
+
+| Work unit | Focused test command y resultado | Runtime harness y resultado | Rollback boundary |
+|-----------|----------------------------------|-----------------------------|-------------------|
+| WU1 seeder+scraper+fixture | `composer test -- --filter=Arrejuntado` → 13/13 (51 assertions) | N/A — parseo contra fixture real (snapshot del endpoint 2026-09-01); fetch con URL real verificado (el endpoint respondió el snapshot); persisten 12f para datos reales del día | Eliminar `ElArrejuntadoSeeder` + `ElArrejuntaoScraper` + fixture + revertir `DatabaseSeeder` |
+| WU2 feature persistencia | `composer test -- --filter=ElArrejuntadoResultsTest` → 6/6 | `php artisan tinker` → `new ElArrejuntaoScraper($juego)` + parse/saveResults contra fixture | Idem WU1 + filas `resultados` de el-arrejuntado |
+| WU3 conteos LimitesScopedApiTest | `--filter=LimitesScopedApiTest` → 30/30 | N/A (regresión de API) | Revertir solo las aserciones de conteo (11→10, 22→20, 44→40) |
+
+## Archivos cambiados (Juego 4)
+
+| Archivo | Acción | Qué se hizo |
+|---------|--------|-------------|
+| `backend/database/seeders/ElArrejuntadoSeeder.php` | Create | Juego `el-arrejuntado` + JuegoLimite banca/bs/3600 + PluginJuego Tripletas + JuegoOpcion signos + JuegoHorario 10:00/13:00/16:00/19:00/23:00 (5) + `scraper_class` |
+| `backend/app/Plugins/Scrapers/ElArrejuntaoScraper.php` | Create | Scraper dedicado (API JSON por fecha, draws publicados, 6 modalidades a `numeros_ganadores`, fail-fast, normalizeHora) |
+| `backend/database/seeders/DatabaseSeeder.php` | Modify | Registra `ElArrejuntadoSeeder` |
+| `backend/tests/Fixtures/elarrejuntao_results.json` | Create | Snapshot real del endpoint (2026-09-01: 1 draw publicado con 6 modalidades) |
+| `backend/tests/Unit/ElArrejuntadoScraperTest.php` | Create | 7 tests unit (parseo, ignora no publicados, hora, 6 modalidades, estructura, fail-fast, draw sin modalidades) |
+| `backend/tests/Feature/ElArrejuntadoResultsTest.php` | Create | 6 tests feature (seeder, límite+plugin, horarios, persistencia, dedupe, resolver) |
+| `backend/tests/Feature/LimitesScopedApiTest.php` | Modify | Conteos de la matriz juego×moneda: 10→11 juegos, 20→22 límites/origen, 40→44 scope, mixto 20→22 |
+| `backend/docs/juegos.md` | Modify | El Arrejuntado movido de pendientes a "Juegos integrados" + nota de la estructura multi-modalidad |
+| `openspec/changes/integracion-juegos-scrapers/tasks.md` | Modify | 12a–12e marcadas `[x]`; 12f pendiente; fila 12 ✅ integrado (PR 5) |
+
+## Desviaciones del diseño (Juego 4)
+
+None — implementation matches design. El Arrejuntado usa el tipo `tripletas` existente (según la
+tabla del cliente) con un scraper dedicado para su API JSON multi-modalidad; el modelo
+`numeros_ganadores` (array JSON flexible) permite conservar las 6 modalidades sin tablas nuevas.
+
+## Problemas encontrados (Juego 4)
+
+- **Suite completa roja tras integrar el 11º juego**: `LimitesScopedApiTest` asumía 10 juegos
+  sembrados. Resuelto actualizando los conteos (ver hallazgo). Es un ajuste legítimo de regresión.
+- **Cambios ajenos del checkout compartido**: `backend/.env.example` y `panel/.astro/settings.json`
+  (modificados) y `.atl/`, `.codegraph/`, `openspec/config.yaml` (sin seguimiento) no pertenecen al
+  work unit; se dejaron fuera de los commits.
+- **`ReflectionMethod::setAccessible()` deprecado en PHP 8.5**: warning pre-existente en el patrón de
+  tests (sin efecto desde 8.1); no introducido por este WU.
+
+## Workload / PR Boundary (Juego 4)
+
+- Modo: chained PR slice (feature-branch-chain, PR 5 de la cadena; base = PR 4 `feat/integracion-juegos-scrapers-f3-triple-chance`).
+- Boundary: integración completa del juego 12 (seeder → scraper → fixture → tests → docs) con
+  verificación incluida (suite completa 421/419/2 + pint limpio). NO se abrieron PRs.
+- Rollback boundary por unidad: ver tabla Work Unit Evidence (Juego 4).
+
+## Siguiente paso recomendado
+
+- Juego 13 (El Guacharito): requiere URL y estructura de la fuente del cliente antes de aplicar.
+- `12f` — verificación funcional con URL real (`php artisan tinker` → fetch+parse) pendiente del
+  cliente; no bloquea los siguientes juegos pero debe cerrarse antes de marcar El Arrejuntado como
+  verificado con datos reales.
+- `sdd-verify` del PR 5 cuando el orquestador lo dispare.
+
+---
+
+# Sección Juego 5 — El Guacharito Millonario (PR 6, tareas 13a–13f)
+
+**Rama**: `feat/integracion-juegos-scrapers-f5-el-guacharito` (base: `feat/integracion-juegos-scrapers-f4-el-arrejuntado`)
+**Estado**: ✅ 13a–13e completadas; ⏳ 13f (verificación con URL real) pendiente del cliente
+
+## Resumen
+
+Integración del juego 13 (El Guacharito Millonario): seeder (slug `el-guacharito`, type
+`animalitos`, `premio_multiplo` 30, límite default banca/bs/3600, plugin Animalitos, horarios
+08:30–19:30 (:30 cada hora, 12 sorteos/día), `scraper_url` de loteriadehoy.com y `scraper_class`
+LoteriaDeHoyScraper), fixture real de la página de resultados, y tests unit+feature. NO requirió
+cambio de código en el scraper: el juego usa el MISMO patrón que Cazaloton (type `animalitos`,
+misma fuente loteriadehoy.com), por lo que `LoteriaDeHoyScraper::parseAnimalitos` lo cubre tal cual.
+
+## Hallazgo: mismo patrón animalitos que Cazaloton
+
+La página `https://loteriadehoy.com/animalito/elguacharitomillonario/resultados/` tiene la misma
+estructura que Cazaloton: bloques de `div.js-con div.mb-5` con número + animal + hora (12h), y solo
+renderiza los sorteos ya ocurridos del día (resultados parciales). El snapshot real del 2026-09-01
+muestra 4 bloques (08:30, 09:30, 10:30 y 11:30) de los 12 horarios del día. Se verificó con el
+snapshot real descargado que `parseAnimalitos` los parsea sin cambios de código.
+
+## Hallazgo: conteos de juegos en LimitesScopedApiTest
+
+Al registrar el duodécimo juego en `DatabaseSeeder`, la matriz juego×moneda de `/api/v1/limites`
+pasa de 11 a 12 juegos. Se actualizaron las aserciones de conteo (juegos 11→12, límites/origen
+22→24, scope de entidades 44→48, `mixto` 22→24) — comportamiento probado sin cambios.
+
+## TDD Cycle Evidence (Juego 5)
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| 13b/13c/13d | `tests/Unit/ElGuacharitoScraperTest.php` | Unit | ✅ suite 421/419/2 | ✅ 0 fallos (parse ya cubierto; se verificó el fixture) | ✅ 7/7 | ✅ 7 casos (parcial, numero/animal, horas H:i, estructura, fail-fast, sin bloques, malformado) | ✅ Pint clean |
+| 13a/13d | `tests/Feature/ElGuacharitoResultsTest.php` | Feature | ✅ idem | ✅ 6 errores (seeder inexistente) | ✅ 6/6 | ✅ 6 casos (juego+scraper_class, límite+plugin, 12 horarios, persistencia, dedupe, resolver) | ✅ Pint clean |
+| 13d | `tests/Feature/LimitesScopedApiTest.php` | Feature | ✅ previo | N/A (ajuste conteos) | ✅ 30/30 | ✅ conteos 12/24/48 | ✅ |
+
+**Test Summary (Juego 5)**: +13 tests (434 vs 421 baseline); suite completa 434/432/2 + pint limpio.
+
+## Work Unit Evidence (Juego 5)
+
+| Work unit | Focused test command y resultado | Runtime harness y resultado | Rollback boundary |
+|-----------|----------------------------------|-----------------------------|-------------------|
+| WU1 seeder+fixture | `composer test -- --filter=Guacharito` → 13/13 (45 assertions) | N/A — parseo contra fixture real (snapshot descargado del 2026-09-01, 4 bloques); fetch con URL real verificado (la URL respondió el snapshot); persisten 13f para datos reales del día | Eliminar `ElGuacharitoSeeder` + fixture + revertir `DatabaseSeeder` |
+| WU2 feature persistencia | `composer test -- --filter=ElGuacharitoResultsTest` → 6/6 | `php artisan tinker` → `new LoteriaDeHoyScraper($juego)` + parse/saveResults contra fixture | Idem WU1 + filas `resultados` de el-guacharito |
+| WU3 conteos LimitesScopedApiTest | `--filter=LimitesScopedApiTest` → 30/30 | N/A (regresión de API) | Revertir solo las aserciones de conteo (12→11, 24→22, 48→44) |
+
+## Archivos cambiados (Juego 5)
+
+| Archivo | Acción | Qué se hizo |
+|---------|--------|-------------|
+| `backend/database/seeders/ElGuacharitoSeeder.php` | Create | Juego `el-guacharito` + JuegoLimite banca/bs/3600 + PluginJuego Animalitos + JuegoHorario 08:30–19:30 (:30, 12) + `scraper_class` |
+| `backend/database/seeders/DatabaseSeeder.php` | Modify | Registra `ElGuacharitoSeeder` |
+| `backend/tests/Fixtures/loteriadehoy_elguacharito.html` | Create | Snapshot real de `https://loteriadehoy.com/animalito/elguacharitomillonario/resultados/` (2026-09-01: 4 bloques 08:30–11:30) |
+| `backend/tests/Unit/ElGuacharitoScraperTest.php` | Create | 7 tests unit (parseo, horas, números/animales, estructura, fail-fast, sin bloques, malformado) |
+| `backend/tests/Feature/ElGuacharitoResultsTest.php` | Create | 6 tests feature (seeder, límite+plugin, 12 horarios, persistencia, dedupe, resolver) |
+| `backend/tests/Feature/LimitesScopedApiTest.php` | Modify | Conteos de la matriz juego×moneda: 11→12 juegos, 22→24 límites/origen, 44→48 scope, mixto 22→24 |
+| `backend/docs/juegos.md` | Modify | El Guacharito Millonario movido de pendientes a "Juegos integrados" + removido de la tabla de pendientes |
+| `openspec/changes/integracion-juegos-scrapers/tasks.md` | Modify | 13a–13e marcadas `[x]`; 13f pendiente; fila 13 ✅ integrado (PR 6) |
+
+## Desviaciones del diseño (Juego 5)
+
+None — implementation matches design. El Guacharito Millonario usa el tipo `animalitos` existente
+(según la tabla del cliente y la URL de la fuente) con el `LoteriaDeHoyScraper::parseAnimalitos`
+reutilizado (patrón Cazaloton). El slug `el-guacharito` sigue el patrón de slugs del sistema (nombre
+del juego en kebab-case, sin el sufijo "millonario").
+
+## Problemas encontrados (Juego 5)
+
+- **Suite completa roja tras integrar el 12º juego**: `LimitesScopedApiTest` asumía 11 juegos
+  sembrados. Resuelto actualizando los conteos (ver hallazgo). Es un ajuste legítimo de regresión.
+- **Cambios ajenos del checkout compartido**: `backend/.env.example` y `panel/.astro/settings.json`
+  (modificados) y `.atl/`, `.codegraph/`, `openspec/config.yaml` (sin seguimiento) no pertenecen al
+  work unit; se dejaron fuera de los commits.
+
+## Workload / PR Boundary (Juego 5)
+
+- Modo: chained PR slice (feature-branch-chain, PR 6 de la cadena; base = PR 5 `feat/integracion-juegos-scrapers-f4-el-arrejuntado`).
+- Boundary: integración completa del juego 13 (seeder → fixture → tests → docs) con verificación
+  incluida (suite completa 434/432/2 + pint limpio). NO se abrieron PRs.
+- Rollback boundary por unidad: ver tabla Work Unit Evidence (Juego 5).
+
+## Siguiente paso recomendado
+
+- Juego 14 (Guacharo Activo): requiere URL y estructura de la fuente del cliente antes de aplicar.
+- `13f` — verificación funcional con URL real (`php artisan tinker` → fetch+parse) pendiente del
+  cliente; no bloquea los siguientes juegos pero debe cerrarse antes de marcar El Guacharito
+  Millonario como verificado con datos reales.
+- `sdd-verify` del PR 6 cuando el orquestador lo dispare.
+---
+
+# Sección Juego 6 — Guacharo Activo (PR 7, tareas 14a–14f)
+
+**Rama**: `feat/integracion-juegos-scrapers-f6-guacharo-activo` (base: `feat/integracion-juegos-scrapers-f5-el-guacharito`)
+**Estado**: ✅ 14a–14e completadas; ⏳ 14f (verificación con URL real) pendiente del cliente
+
+## Resumen
+
+Integración del juego 14 (Guacharo Activo): seeder (slug `guacharo-activo`, type `animalitos`,
+`premio_multiplo` 30, límite default banca/bs/3600, plugin Animalitos, horarios 08:00–19:00
+(`:00` cada hora, 12 sorteos/día), `scraper_url` de loteriadehoy.com y `scraper_class`
+LoteriaDeHoyScraper), fixture real de la página de resultados, y tests unit+feature. NO requirió
+cambio de código en el scraper: el juego usa el MISMO patrón que Cazaloton y El Guacharito
+(type `animalitos`, misma fuente loteriadehoy.com), por lo que
+`LoteriaDeHoyScraper::parseAnimalitos` lo cubre tal cual.
+
+## Hallazgo: mismo patrón animalitos que Cazaloton/El Guacharito
+
+La página `https://loteriadehoy.com/animalito/guacharoactivo/resultados/` tiene la misma
+estructura que Cazaloton y El Guacharito: bloques de `div.js-con div.mb-5` con número + animal +
+hora (12h), y solo renderiza los sorteos ya ocurridos del día (resultados parciales). El snapshot
+real descargado del 2026-09-01 muestra 5 bloques (08:00, 09:00, 10:00, 11:00 y 12:00) de los 12
+horarios del día. Se verificó con el snapshot real descargado que `parseAnimalitos` los parsea
+sin cambios de código.
+
+## Hallazgo: conteos de juegos en LimitesScopedApiTest
+
+Al registrar el decimotercer juego en `DatabaseSeeder`, la matriz juego×moneda de `/api/v1/limites`
+pasa de 12 a 13 juegos. Se actualizaron las aserciones de conteo (juegos 12→13, límites/origen
+24→26, scope de entidades 48→52, `mixto` 24→26) — comportamiento probado sin cambios.
+
+## TDD Cycle Evidence (Juego 6)
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| 14b/14c/14d | `tests/Unit/GuacharoScraperTest.php` | Unit | ✅ suite 434/432/2 | ✅ 5 errores (fixture inexistente) | ✅ 7/7 | ✅ 7 casos (parcial, numero/animal, horas H:i, estructura, fail-fast, sin bloques, malformado) | ✅ Pint clean |
+| 14a/14d | `tests/Feature/GuacharoResultsTest.php` | Feature | ✅ idem | ✅ 6 errores (seeder inexistente) | ✅ 6/6 | ✅ 6 casos (juego+scraper_class, límite+plugin, 12 horarios, persistencia, dedupe, resolver) | ✅ Pint clean |
+| 14d | `tests/Feature/LimitesScopedApiTest.php` | Feature | ✅ previo | N/A (ajuste conteos) | ✅ 30/30 | ✅ conteos 13/26/52 | ✅ |
+
+**Test Summary (Juego 6)**: +13 tests (447 vs 434 baseline); suite completa 447/445/2 + pint limpio.
+Comando focused: `composer test -- --filter=Guacharo` → 13/13 (45 assertions).
+
+## Work Unit Evidence (Juego 6)
+
+| Work unit | Focused test command y resultado | Runtime harness y resultado | Rollback boundary |
+|-----------|----------------------------------|-----------------------------|-------------------|
+| WU1 seeder+fixture | `composer test -- --filter=Guacharo` → 13/13 (45 assertions) | N/A — parseo contra fixture real (snapshot descargado del 2026-09-01, 5 bloques); fetch con URL real verificado (la URL respondió el snapshot); persisten 14f para datos reales del día | Eliminar `GuacharoActivoSeeder` + fixture + revertir `DatabaseSeeder` |
+| WU2 feature persistencia | `composer test -- --filter=GuacharoResultsTest` → 6/6 | `php artisan tinker` → `new LoteriaDeHoyScraper($juego)` + parse/saveResults contra fixture | Idem WU1 + filas `resultados` de guacharo-activo |
+| WU3 conteos LimitesScopedApiTest | `--filter=LimitesScopedApiTest` → 30/30 (305 assertions) | N/A (regresión de API) | Revertir solo las aserciones de conteo (13→12, 26→24, 52→48) |
+
+## Archivos cambiados (Juego 6)
+
+| Archivo | Acción | Qué se hizo |
+|---------|--------|-------------|
+| `backend/database/seeders/GuacharoActivoSeeder.php` | Create | Juego `guacharo-activo` + JuegoLimite banca/bs/3600 + PluginJuego Animalitos + JuegoHorario 08:00–19:00 (`:00`, 12) + `scraper_class` |
+| `backend/database/seeders/DatabaseSeeder.php` | Modify | Registra `GuacharoActivoSeeder` |
+| `backend/tests/Fixtures/loteriadehoy_guacharo.html` | Create | Snapshot real de `https://loteriadehoy.com/animalito/guacharoactivo/resultados/` (2026-09-01: 5 bloques 08:00–12:00) |
+| `backend/tests/Unit/GuacharoScraperTest.php` | Create | 7 tests unit (parseo, horas, números/animales, estructura, fail-fast, sin bloques, malformado) |
+| `backend/tests/Feature/GuacharoResultsTest.php` | Create | 6 tests feature (seeder, límite+plugin, 12 horarios, persistencia, dedupe, resolver) |
+| `backend/tests/Feature/LimitesScopedApiTest.php` | Modify | Conteos de la matriz juego×moneda: 12→13 juegos, 24→26 límites/origen, 48→52 scope, mixto 24→26 |
+| `backend/docs/juegos.md` | Modify | Guacharo Activo movido de pendientes a "Juegos integrados" + removido de la tabla de pendientes |
+| `openspec/changes/integracion-juegos-scrapers/tasks.md` | Modify | 14a–14e marcadas `[x]`; 14f pendiente; fila 14 ✅ integrado (PR 7) |
+| `openspec/changes/integracion-juegos-scrapers/apply-progress.md` | Modify | Sección Juego 6 (este bloque) |
+
+## Desviaciones del diseño (Juego 6)
+
+None — implementation matches design. Guacharo Activo usa el tipo `animalitos` existente (según la
+tabla del cliente y la URL de la fuente) con el `LoteriaDeHoyScraper::parseAnimalitos` reutilizado
+(patrón Cazaloton/El Guacharito). El slug `guacharo-activo` sigue el patrón de slugs del sistema
+(kebab-case del nombre).
+
+## Problemas encontrados (Juego 6)
+
+- **Suite completa roja tras integrar el 13º juego**: `LimitesScopedApiTest` asumía 12 juegos
+  sembrados. Resuelto actualizando los conteos (ver hallazgo). Es un ajuste legítimo de regresión.
+- **Cambios ajenos del checkout compartido**: `backend/.env.example` y `panel/.astro/settings.json`
+  (modificados) y `.atl/`, `.codegraph/`, `openspec/config.yaml` (sin seguimiento) no pertenecen al
+  work unit; se dejaron fuera de los commits.
+
+## Workload / PR Boundary (Juego 6)
+
+- Modo: chained PR slice (feature-branch-chain, PR 7 de la cadena; base = PR 6 `feat/integracion-juegos-scrapers-f5-el-guacharito`).
+- Boundary: integración completa del juego 14 (seeder → fixture → tests → docs) con verificación
+  incluida (suite completa 447/445/2 + pint limpio). NO se abrieron PRs.
+- Rollback boundary por unidad: ver tabla Work Unit Evidence (Juego 6).
+
+## Siguiente paso recomendado
+
+- Juego 15 (La Granjita): requiere URL y estructura de la fuente del cliente antes de aplicar.
+- `14f` — verificación funcional con URL real (`php artisan tinker` → fetch+parse) pendiente del
+  cliente; no bloquea los siguientes juegos pero debe cerrarse antes de marcar Guacharo Activo
+  como verificado con datos reales.
+- `sdd-verify` del PR 7 cuando el orquestador lo dispare.
+
+---
+
+# Sección Triple Caliente — fuente oficial (PR 8, tareas 9g–9l) — ✅ COMPLETADO
+
+**Rama**: `feat/integracion-juegos-scrapers-f7-tc-oficial` (base: `feat/integracion-juegos-scrapers-f6-guacharo-activo`)
+**Estado**: ✅ 9g–9l completadas (migración de fuente de Triple Caliente al API oficial)
+
+## Resumen
+
+El scraper de Triple Caliente usaba `LoteriaDeHoyScraper` (HTML de loteriadehoy.com), BLOQUEADO por
+el challenge de Cloudflare (verificado en local y VPS). Se descubrió el API oficial de
+triplecaliente.com (`POST /api/gaming/results/product`, body `{"game_product_id":"4"}`, sin auth ni
+anti-bot) y se migró el juego a la nueva fuente: nuevo `TripleCalienteOficialScraper`, seeder
+actualizado, fixture real, tests RED→GREEN y docs. `LoteriaDeHoyScraper` NO se borra (sigue para
+Cazaloton, Triple Chance, El Guacharito y Guacharo Activo, y como respaldo).
+
+## Decisión: game_product_id
+
+Convención documentada en el docblock de la clase y en `docs/juegos.md`: el `game_product_id` se lee
+de `config['scraper']['product_id']` del juego registrado, con default la constante del scraper
+`GAME_PRODUCT_ID = '4'`. El seeder registra `config => ['premio_multiplo' => 30, 'scraper' =>
+['product_id' => '4']]`. Alternativas descartadas: config global `config('scraper.product_id')`
+(no existe `config/scraper.php` en el proyecto; TripletasScraper usa fallback '2') y hardcodear '4'
+en el scraper (menos configurable).
+
+## Hallazgo: misma familia de API que Triple Zulia
+
+`TripletasScraper` (legacy) ya consume el MISMO endpoint (`/api/gaming/results/product` con
+`game_product_id`) contra resultadostriplezulia.com. Por eso el nuevo scraper sigue su patrón:
+`execute` filtra el histórico devuelto por la API (los últimos N sorteos) a la fecha solicitada
+antes de `saveResults`, y `sorteo_id_externo` usa el primer id del array `events` (ids únicos por
+sorteo). Timestamps verificados: `1788304200` → 2026-09-01 19:10 America/Caracas (UTC-4), que
+coincide con los horarios oficiales 13:00/16:30/19:10.
+
+## Hallazgo: C incluye el signo (formato "589-ESC")
+
+El campo C de la API oficial viene como `"589-ESC"` (número + guión + signo de 3 letras), igual que
+el `triple-signo "259 LEO"` de ElArrejuntao pero con guión. El scraper divide en `triple_c` ("589")
++ `signo` ("ESC") con `splitTripleSigno` (regex `^(\d+)-([A-Za-z]+)$`), compatible con el esquema
+tripletas que renderiza el panel.
+
+## Hallazgo: seeder con updateOrCreate para migrar fuente
+
+El juego ya existía en BD (integración PR 2). `firstOrCreate` no aplicaría el cambio de fuente sobre
+la fila existente, así que el seeder pasa a `updateOrCreate(['slug'], [...])` — única diferencia
+frente al patrón de los otros seeders, necesaria para que la migración de fuente sea idempotente y
+aplique sobre el juego ya registrado (verificado en BD local: id=8, fuente oficial).
+
+## TDD Cycle Evidence (Juego 9 fuente oficial)
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| 9g/9i/9j | `tests/Unit/TripleCalienteOficialScraperTest.php` | Unit | ✅ suite 475/473/2 + TripleCaliente 14/14 | ✅ 11 errores (clase no existe) | ✅ 11/11 (35 assertions) | ✅ 11 casos (parse 6, epoch→Caracas, A/B/C+signo×2, events, estructura, fail-fast, filtrarPorFecha×2 fechas, product_id config, JSON inválido, vacío) | ✅ Pint clean |
+| 9h/9j | `tests/Feature/TripleCalienteResultsTest.php` | Feature | ✅ idem | ✅ 3 errores (URL/clase vieja) | ✅ 6/6 | ✅ 6 casos (seeder nueva fuente, límite+plugin, 3 horarios, persistencia 3 sorteos, dedupe, resolver) | ✅ Pint clean |
+| 9k | N/A (docs) | Docs | ✅ | ➖ | ➖ | Omitida | ✅ |
+| 9l | Runtime real | Harness | ✅ | ➖ | ✅ 3 sorteos persistidos | ✅ dedupe rescrape (sigue 3) | ➖ |
+
+**Test Summary (Juego 9 fuente oficial)**: +11 tests (486 vs 475 baseline); suite completa 486/484/2
++ pint limpio. Comando focused: `composer test -- --filter=TripleCaliente` → 25/25 (92 assertions).
+
+## Work Unit Evidence (Juego 9 fuente oficial)
+
+| Work unit | Focused test command y resultado | Runtime harness y resultado | Rollback boundary |
+|-----------|----------------------------------|-----------------------------|-------------------|
+| WU1 scraper+fixture | `composer test -- --filter=TripleCalienteOficialScraperTest` → 11/11 (35 assertions) | `php artisan tinker` → `new TripleCalienteOficialScraper($juego)` + `execute('2026-09-01')` contra el API real → 3 resultados (13:00/16:30/19:10, eventos 132355/132396/132401) | Eliminar `TripleCalienteOficialScraper.php` + fixture + test unit |
+| WU2 seeder+feature | `composer test -- --filter=TripleCalienteResultsTest` → 6/6 | `php artisan db:seed --class=TripleCalienteSeeder --force` → juego actualizado (fuente oficial); scraper real → `saveResults` persiste **3 sorteos** en `resultados`; rescrape mantiene 3 (dedupe upsert) | Revertir seeder a fuente loteriadehoy + revertir feature test |
+| WU3 docs | N/A | N/A (docs) | Revertir solo la fila 9 y la nota en `docs/juegos.md` |
+
+## Archivos cambiados (Juego 9 fuente oficial)
+
+| Archivo | Acción | Qué se hizo |
+|---------|--------|-------------|
+| `backend/app/Plugins/Scrapers/TripleCalienteOficialScraper.php` | Create | Scraper del API oficial: POST `/api/gaming/results/product` con `game_product_id`, parse epoch→Caracas (fecha+hora), A/B/C+signo, `sorteo_id_externo`=events[0], `filtrarPorFecha`, fail-fast |
+| `backend/database/seeders/TripleCalienteSeeder.php` | Modify | `updateOrCreate` + `scraper_url` API oficial + `scraper_class` TripleCalienteOficialScraper + `config['scraper']['product_id']='4'`; horarios intactos |
+| `backend/tests/Fixtures/triplecaliente_oficial.json` | Create | Snapshot real del API oficial (2026-09-01/08-31, 6 sorteos: 013/511/589-ESC, 779/646/237-LIB, 758/073/439-ACU, 319/076/408-LEO, 514/634/062-ARI, 465/764/946-VIR) |
+| `backend/tests/Unit/TripleCalienteOficialScraperTest.php` | Create | 11 tests unit (parse, horas/fechas Caracas desde epoch, A/B/C+signo con cero inicial, events, estructura, fail-fast, filtro por fecha, product_id config, JSON inválido/vacío) |
+| `backend/tests/Feature/TripleCalienteResultsTest.php` | Modify | Nueva fuente en aserciones del seeder, persistencia con fixture JSON (3 sorteos), dedupe, resolver → TripleCalienteOficialScraper |
+| `backend/tests/Feature/ResultadoAparicionesTest.php` | Modify | Newline final (pint --test, tarea 3.2); formateo puro pre-existente, sin lógica |
+| `backend/docs/juegos.md` | Modify | Fila 9 → fuente API oficial + estado "verificado con datos reales" + nota del scraper y convención product_id |
+| `openspec/changes/integracion-juegos-scrapers/tasks.md` | Modify | 9g–9l marcadas `[x]`; fila 9 "✅ integrado (PR 2) + fuente oficial (PR 8)" |
+| `openspec/changes/integracion-juegos-scrapers/apply-progress.md` | Modify | Sección Triple Caliente fuente oficial añadida (merge) |
+
+## Desviaciones del diseño (Juego 9 fuente oficial)
+
+- Seeder `TripleCalienteSeeder` usa `updateOrCreate` en lugar de `firstOrCreate` (patrón de los
+  demás seeders): necesario para que la migración de fuente aplique sobre el juego ya registrado.
+  Única desviación; el resto del patrón (JuegoLimite, PluginJuego, JuegoOpcion, JuegoHorario) intacto.
+- `TripleCalienteOficialScraper::execute` sobrescribe el `execute` de `BaseScraper` para filtrar el
+  histórico por fecha (patrón `TripletasScraper`, misma familia de API): la API devuelve los últimos
+  N sorteos, no solo los del día; sin el filtro, `saveResults` perseguiría fechas pasadas con la
+  fecha del job (upsert incorrecto). Documentado en el docblock.
+
+## Problemas encontrados (Juego 9 fuente oficial)
+
+- **HOY (02-09) sin sorteos al momento de la carga real**: la ejecución fue a las 12:16 Caracas y el
+  primer sorteo del día es 13:00; la API solo devuelve sorteos ya ocurridos. `execute('2026-09-02')`
+  → 0 resultados (comportamiento correcto de resultados parciales, mismo patrón que loteriadehoy
+  modo animalitos). La carga real se verificó con el último día completo disponible (2026-09-01).
+- **pint tocó `ResultadoAparicionesTest.php`** (newline final pre-existente): se incluyó en un commit
+  de estilo separado y documentado para mantener `pint --test` limpio (tarea 3.2).
+- **Cambios ajenos del checkout compartido**: `backend/.env.example` y `panel/.astro/settings.json`
+  (modificados) y `.atl/`, `.codegraph/`, `openspec/config.yaml` (sin seguimiento) quedaron fuera de
+  los commits.
+
+## Workload / PR Boundary (Juego 9 fuente oficial)
+
+- Modo: chained PR slice (feature-branch-chain, PR 8 de la cadena; base = PR 7 `feat/integracion-juegos-scrapers-f6-guacharo-activo`).
+- Boundary: migración completa de la fuente de Triple Caliente (scraper → seeder → fixture → tests →
+  docs → carga real en BD local) con verificación incluida (suite completa 486/484/2 + pint limpio).
+  NO se abrieron PRs.
+- Rollback boundary por unidad: ver tabla Work Unit Evidence (Juego 9 fuente oficial).
+
+## Siguiente paso recomendado
+
+- Juego 15 (La Granjita): requiere URL y estructura de la fuente del cliente antes de aplicar.
+- `9f` original (verificación con URL real de la fuente ANTERIOR) queda cerrado por sustitución:
+  la nueva fuente se verificó con datos reales en este PR (3 sorteos persistidos en BD local).
+- `sdd-verify` del PR 8 cuando el orquestador lo dispare.
+
+---
+
+# Sección Familia Lotto Activo — estabilización y datos reales (PR 9, WU f8) — ✅ COMPLETADO
+
+**Rama**: `feat/integracion-juegos-scrapers-f8-lottoactivo` (base: `feat/integracion-juegos-scrapers-f7-tc-oficial`)
+**Estado**: ✅ COMPLETADO — auditoría/limpieza de BD local, recarga real 12-sep (13 juegos), cobertura de tests terminal/trio/monje/RD con fixtures reales y docs.
+
+## Resumen
+
+Requisito del cliente: sin datos de seeder/tests en `resultados`. Se auditaron las 117 filas de la BD local (MySQL `lotto_db`), se identificaron y eliminaron las **32 filas DEMO** (creadas 2026-09-02 10:06:38/39, previas al batch real de scrape) y se verificó que las 85 filas restantes son 100 % de origen scraper (batch 2-sep 15:36–15:38 + 3 sorteos oficiales de Triple Caliente del 1-sep). Se ejecutó el batch en vivo del 12-sep-2026 (mismo mecanismo: `ScrapeResultsJob` por juego, secuencial): los 13 juegos corrieron SIN errores y se cargaron 27 resultados reales del día (parciales, 10:26 Caracas). La familia lottoactivo quedó **verificada con datos reales** y se amplió la cobertura de tests con fixtures reales de las rutas `terminal_activo`, `trio_activo` y el mapeo canónico monje/RD.
+
+## Auditoría y limpieza de BD local (tarea 2)
+
+### Evidencia pre-borrado (imprimida antes de eliminar; copia local en `backend/storage/app/auditoria_demo_antes_borrado.txt`, gitignored)
+
+| Rango IDs | Juego | Filas | created_at | Firma |
+|-----------|-------|-------|------------|-------|
+| 1–18 | lotto-activo | 18 | 2026-09-02 10:06:38/39 | Valores repetidos (Tigre=23 a las 14:00 en 6 días; Ratón=7; León=15; Elefante=19; Halcón=31; Venado=42; Perico=5), patrón de 3 sorteos/día 10:00/12:00/14:00 vs. reales por hora 08:00–19:00 |
+| 19–29 | triple-zulia | 11 | 2026-09-02 10:06:39 | 05/12/34 LEO y 21/08/34 TAU repetidos diariamente, 2 sorteos/día |
+| 30–32 | terminal-activo | 3 | 2026-09-02 10:06:39 | `nombre_animal` presente (formato INCORRECTO para terminales; las reales solo traen `numero`), valores 42/7 copiados de los demos de lotto-activo |
+
+**Eliminadas: 32 filas** (criterio: rango id 1–32 ∩ created_at 10:06:38/39). Sin otras filas sospechosas: el resto (85) proviene del batch real (12:33:55 triple-caliente oficial + 15:36:58–15:37:06 los 13 juegos).
+
+### Re-auditoría post-limpieza (85 filas, 100 % scraper)
+
+| slug | total | origen |
+|------|-------|--------|
+| lotto-activo / lotto-activo-rd / lotto-activo-rep-dom / monje-millonario | 8 c/u | batch 2-sep 15:36:58 |
+| terminal-activo | 8 | batch 2-sep 15:36:59–15:37:00 |
+| trio-activo | 8 | batch 2-sep 15:37:03 |
+| triple-caliente | 4 | 3× 12:33:55 (1-sep, API oficial) + 1× 15:37:04 (2-sep 13:00) |
+| cazaloton / triple-chance | 7 c/u | batch 2-sep 15:37:04 |
+| el-arrejuntado | 2 | batch 2-sep 15:37:05 |
+| el-guacharito / guacharo-activo | 8 c/u | batch 2-sep 15:37:05/06 |
+| triple-zulia | 1 | batch 2-sep 15:36:59 (12:45) |
+| **TOTAL** | **85** | Residuales 10:06: **0** |
+
+### Seeders que generan filas demo en `resultados` (documentación, NO se borran)
+
+- `ResultadoTestSeeder` — ÚNICO seeder que CREA filas en `resultados` (updateOrCreate de un resultado "perro" para slug `animalitos` y "123/456/789 LEO" para `triple-zulia`, fechados ayer). **NO está registrado en `DatabaseSeeder`** (uso manual/de test). Referencia el slug `animalitos`, que NO existe en la BD (el juego real es `lotto-activo`): el bloque se salta silenciosamente por el guard `if ($animalitos)`; el bloque de `triple-zulia` SÍ crearía una fila demo si alguien ejecuta el seeder a mano. Riesgo documentado.
+- `TicketsGanadoresDemoSeeder` — SOLO LEE `resultados` (toma 10 con hora para crear tickets demo). No registrado en `DatabaseSeeder`. No contamina `resultados`.
+- `ApuestaGanadoraSeeder` — SOLO LEE `Resultado` (para asociar apuestas). No registrado en `DatabaseSeeder`. No contamina `resultados`.
+- Conclusión: `php artisan db:seed` (DatabaseSeeder) NO re-contamina `resultados`; el único riesgo es ejecutar `ResultadoTestSeeder` a mano.
+
+## Verificación en vivo + recarga real 12-sep-2026 (tarea 3)
+
+Mecanismo idéntico al batch del 2-sep: `new ScrapeResultsJob($juegoId, '2026-09-12')` → `handle()` por juego, secuencial (10:26 Caracas). Los 13 juegos corrieron SIN excepciones; log `laravel.log` sin `ERROR ScrapeResultsJob`.
+
+| slug | resultados HOY (fecha 2026-09-12) | horas cargadas | notas |
+|------|-----------------------------------|----------------|-------|
+| lotto-activo | 3 | 08:00, 09:00, 10:00 AM | feed anidado trae los 4 juegos (11 guardados totales en el job) |
+| lotto-activo-rd | 2 | 08:30, 09:30 AM | idem |
+| lotto-activo-rep-dom | 3 | 08:00, 09:00, 10:00 AM | idem |
+| monje-millonario | 3 | 08:05, 09:05, 10:05 AM | idem |
+| terminal-activo | 3 | 08:00, 09:00, 10:00 AM | formato plano, solo `numero` |
+| trio-activo | 3 | 08:00, 09:00, 10:00 AM | formato plano, solo `triple_a` |
+| cazaloton | 2 | 09:00, 10:00 | |
+| triple-chance | 2 | 09:00, 10:00 | |
+| el-guacharito | 2 | 08:30, 09:30 | |
+| guacharo-activo | 3 | 08:00, 09:00, 10:00 | |
+| el-arrejuntado | 1 | 10:00 | |
+| triple-zulia | 0 | — | "sin resultados" correcto: 1er sorteo del día aún no ocurre (parcial) |
+| triple-caliente | 0 | — | idem: primer sorteo 13:00 (parcial) |
+| **TOTAL HOY** | **27** | | TOTAL BD: 112 (85 previas + 27) |
+
+Dedupe verificado: re-ejecución de lotto-activo y terminal-activo mantiene conteos (3/3) y total 112 (idempotente).
+
+## TDD Cycle Evidence (tarea 4 — cobertura terminal/trio/monje/RD)
+
+Cobertura previa: `AnimalitosScraperTest` solo cubría el formato ANIDADO (Lotto Activo/RD) y el token de la página `animalitos`. Las rutas `terminal_activo`/`trio_activo` (formato plano + rama de token con `fecha`) y el mapeo canónico de slugs (monje/RD) NO estaban cubiertas. Se capturaron fixtures REALES del 12-sep-2026 y se añadieron 5 tests.
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| token terminal/trio | `tests/Unit/AnimalitosScraperTest.php` | Unit | ✅ suite 486/484/2 | ✅ 2 errores (fixture inexistente) | ✅ 2/2 (tokens 148 chars reales) | ✅ 2 páginas reales | ➖ None needed |
+| parse plano terminal | `tests/Unit/AnimalitosScraperTest.php` | Unit | ✅ idem | ✅ 1 error (fixture inexistente) | ✅ 1/1 | ✅ 3 sorteos + valores exactos (41/08:00 AM/id 5) | ➖ None needed |
+| parse plano trio (tripletas) | `tests/Unit/AnimalitosScraperTest.php` | Unit | ✅ idem | ✅ 1 error (fixture inexistente) | ✅ 1/1 | ✅ 3 sorteos + valores exactos (941/08:00 AM/id 4) | ➖ None needed |
+| feed anidado real monje/RD | `tests/Unit/AnimalitosScraperTest.php` | Unit | ✅ idem | ✅ 1 error (fixture inexistente) | ✅ 1/1 | ✅ 11 resultados × 4 juegos + paises + monje (Tiburon) | ➖ None needed |
+
+**Test Summary (WU f8)**: +5 tests (491 vs 486 baseline); focused `composer test -- --filter=AnimalitosScraperTest` → 10/10 (69 assertions); suite completa **491/489/2** + pint limpio. Los tests son de cobertura/regresión sobre código EXISTENTE ya probado en vivo (el RED fue por fixtures inexistentes, no por código faltante).
+
+## Work Unit Evidence (WU f8)
+
+| Work unit | Focused test command y resultado | Runtime harness y resultado | Rollback boundary |
+|-----------|----------------------------------|-----------------------------|-------------------|
+| WU1 limpieza BD | N/A (datos, no código) | Query tinker: 117 filas → evidencia → delete 32 demo → re-auditoría 85 filas / 0 residuales | No aplica a código; datos locales no versionados |
+| WU2 recarga real 12-sep | N/A (runtime) | `ScrapeResultsJob` × 13 juegos (10:26 Caracas): 27 resultados reales, 0 errores; dedupe verificado (112 total) | No aplica a código; filas `resultados` de 12-sep |
+| WU3 tests+fixtures | `composer test -- --filter=AnimalitosScraperTest` → 10/10 (69 assertions) | Parse de fixtures reales capturados del sitio (12-sep) vía `AnimalitosScraper::fetch` (token real + POST process.php OK) | Eliminar los 5 fixtures `lottoactivo_*` + revertir `AnimalitosScraperTest` |
+| WU4 docs | Suite completa 491/489/2 + `vendor/bin/pint --test` → passed | N/A (docs) | Revertir solo la sección familia en `docs/juegos.md` |
+
+## Archivos cambiados (WU f8)
+
+| Archivo | Acción | Qué se hizo |
+|---------|--------|-------------|
+| `backend/tests/Unit/AnimalitosScraperTest.php` | Modify | +5 tests (token terminal/trio, parse plano terminal, parse plano trio, feed anidado real monje/RD) y siembra de los 6 juegos de la familia en `setUp` |
+| `backend/tests/Fixtures/lottoactivo_terminal_activo_page.html` | Create | Página real `https://www.lottoactivo.com/resultados/terminal_activo/2026-09-12/` (29.781 B) |
+| `backend/tests/Fixtures/lottoactivo_terminal_activo_response.json` | Create | Respuesta real process.php formato plano (3 sorteos: 41/54/58) |
+| `backend/tests/Fixtures/lottoactivo_trio_activo_page.html` | Create | Página real `https://www.lottoactivo.com/resultados/trio_activo/2026-09-12/` (29.757 B) |
+| `backend/tests/Fixtures/lottoactivo_trio_activo_response.json` | Create | Respuesta real process.php formato plano (3 sorteos: 941/554/258) |
+| `backend/tests/Fixtures/lottoactivo_animalitos_response.json` | Create | Feed real anidado (4 juegos: Lotto Activo/RD Internacional/República Dominicana/Monje, 11 sorteos) |
+| `backend/docs/juegos.md` | Modify | Familia lottoactivo → estado "✅ Verificado con datos reales (12-sep)" + nota del feed anidado, formato plano y mapeo canónico de slugs |
+| `openspec/changes/integracion-juegos-scrapers/tasks.md` | Modify | Sección WU f8 añadida con tareas `[x]` |
+| `openspec/changes/integracion-juegos-scrapers/apply-progress.md` | Modify | Sección Familia Lotto Activo añadida (merge) |
+
+## Desviaciones del diseño (WU f8)
+
+None — implementation matches design. La limpieza de datos (requisito del cliente) es un work unit de DATOS, no de código: no altera seeders, migraciones ni clases; solo se documentó el riesgo de `ResultadoTestSeeder`.
+
+## Problemas encontrados (WU f8)
+
+- **Filas demo en BD local** (32): origen desconocido pero firma inequívoca (created_at 10:06:38/39 + valores repetidos + formato incorrecto en terminales). Eliminadas con evidencia; el mecanismo de scraper no las genera (los jobs escriben con la hora real del sorteo y formato correcto).
+- **`ResultadoTestSeeder` referencia slug inexistente `animalitos`**: el bloque se salta silenciosamente; el bloque `triple-zulia` crearía una fila demo si se ejecuta a mano. No registrado en `DatabaseSeeder`; riesgo documentado, seeder NO borrado (regla del WU).
+- **Warning pre-existente `ReflectionMethod::setAccessible()` deprecado (PHP 8.5)**: patrón heredado de los tests existentes; se conservó por consistencia (no es un fallo).
+- **Cambios ajenos del checkout compartido**: `collections/*.yml`, `panel/.astro/settings.json` (modificados) y `.atl/`, `.codegraph/`, `openspec/config.yaml` (sin seguimiento) quedaron fuera de los commits.
+
+## Workload / PR Boundary (WU f8)
+
+- Modo: chained PR slice (feature-branch-chain, PR 9 de la cadena; base = PR 8 `feat/integracion-juegos-scrapers-f7-tc-oficial`).
+- Boundary: estabilización de la familia Lotto Activo (limpieza BD local + recarga real 12-sep + cobertura terminal/trio/monje/RD + docs) con verificación incluida (suite completa 491/489/2 + pint limpio). NO se abrieron PRs.
+- Rollback boundary por unidad: ver tabla Work Unit Evidence (WU f8).
+
+## Siguiente paso recomendado
+
+- `sdd-verify` del PR 9 cuando el orquestador lo dispare.
+- Catálogo JSON de juegos (WU f9 siguiente, NO incluido en este WU por regla).
+- Juego 15 (La Granjita): requiere URL y estructura de la fuente del cliente antes de aplicar.
+
+---
+
+# Sección WU f9 — Catálogo JSON para el front/taquilla (PR 10)
+
+**Rama**: `feat/integracion-juegos-scrapers-f9-catalogo-json` (base: `feat/integracion-juegos-scrapers-f8-lottoactivo`)
+**Estado**: ✅ COMPLETADO (f9.1–f9.6)
+
+## Resumen
+
+Entregable para el front/taquilla: `docs/juegos.json` (carpeta `docs/` RAÍZ del repo, junto a
+`plugins.md`/`deploy.md`) con los 13 juegos (ids reales 1–13 de la BD local en orden del
+`DatabaseSeeder`): id, slug, nombre, tipo, `premio_multiplo`, horarios (`H:i`, ordenados) y las
+opciones/animales de cada juego. Se implementó el comando `php artisan juegos:export`
+(`JuegosExportCommand`) con la lógica extraída a `App\Services\JuegoCatalogoService` (compartida
+por comando y test). La resolución de opciones replica EXACTAMENTE `JuegoController::opciones`
+(filas de `juego_opciones` → fallback al plugin vía `JuegoPluginManager`). Salida determinista e
+idempotente (2 ejecuciones = mismo md5), pretty-print con acentos UTF-8 sin escapar
+(`JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT` + newline final).
+El archivo `docs/juegos.json` se generó contra la BD local real y se commiteó.
+
+**Contenido del archivo**: 13 juegos, **426 opciones** totales (animalitos 266, tripletas 60,
+terminales 100): lotto-activo 38 (tabla, acentos correctos: "Delfín"); triple-zulia/
+triple-caliente/triple-chance/el-arrejuntado 12 (tabla de signos); terminal-activo 100 (plugin
+Terminales 00–99); trio-activo 12 (plugin Tripletas, "Géminis"); animalitos sin tabla (rd,
+rep-dom, monje, cazaloton, el-guacharito, guacharo-activo) 38 c/u (plugin Animalitos).
+
+## TDD Cycle Evidence (WU f9)
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| f9.1+f9.2 | `tests/Feature/JuegosJsonTest.php` | Feature (RefreshDatabase + DatabaseSeeder) | ✅ baseline 491/489/2 (orquestador) | ✅ 3 fallos (clase inexistente + archivo ausente) | ✅ 3/3 (309 assertions) | ✅ 3 tests: consistencia por slug, esquema/conteos (38/12/100/12), ids seeder | ✅ Pint aplicado y re-verde |
+| f9.3+f9.4 | Harness real | Runtime | N/A (nuevo) | — | ✅ `php artisan juegos:export` → `docs/juegos.json` 68.788 B | ✅ `--path` alternativo = mismo contenido; idempotencia (md5 idéntico) | ✅ |
+
+**Test Summary (WU f9)**: +3 tests (494 vs 491 baseline); focused
+`composer test -- --filter=JuegosJsonTest` → **3/3 (309 assertions)**; suite completa
+**494/492/2**; `vendor/bin/pint --test` → passed. Triangulación: rutas de opciones desde tabla
+(lotto-activo/tripletas con tabla), desde plugin (terminales/trio/animalitos sin tabla),
+normalización de hora (columna TIME `H:i:s` → `H:i`), orden y consecutividad de ids.
+
+## Work Unit Evidence (WU f9)
+
+| Work unit | Focused test command y resultado | Runtime harness y resultado | Rollback boundary |
+|-----------|----------------------------------|-----------------------------|-------------------|
+| WU1 servicio+comando | `composer test -- --filter=JuegosJsonTest` → RED 0/3 → GREEN 3/3 (309 assertions) | `php artisan juegos:export` → exit 0, archivo generado; `--path=/tmp/...` idéntico | Eliminar `JuegoCatalogoService.php` + `JuegosExportCommand.php` + `JuegosJsonTest.php` |
+| WU2 contrato JSON | Suite completa 494/492/2 + pint limpio | Export contra BD local real (13 juegos ids 1-13) → `docs/juegos.json` 68.788 B; 2ª ejecución md5 idéntico | Eliminar `docs/juegos.json` (se regenera con el comando) |
+| WU3 docs+persistencia | Suite completa 494/492/2 | N/A (docs) | Revertir nota en `docs/juegos.md` + secciones tasks/apply-progress |
+
+## Archivos cambiados (WU f9)
+
+| Archivo | Acción | Qué se hizo |
+|---------|--------|-------------|
+| `backend/app/Services/JuegoCatalogoService.php` | Create | Genera el catálogo (versión + juegos): opciones con semántica de `JuegoController::opciones` (tabla → plugin), horarios normalizados `H:i` y ordenados, `premio_multiplo` desde `config` |
+| `backend/app/Console/Commands/JuegosExportCommand.php` | Create | `php artisan juegos:export` (default `base_path('../docs/juegos.json')`, `--path` opcional); JSON pretty-print + newline final |
+| `backend/tests/Feature/JuegosJsonTest.php` | Create | 3 tests de consistencia (309 assertions): igualdad por slug con el archivo commiteado (id excluido), esquema mínimo + conteos por tipo (38/12/100/12), ids del archivo 1-13 + orden relativo/consecutividad del generado |
+| `docs/juegos.json` (raíz repo) | Create | Entregable front/taquilla: 13 juegos, ids 1-13, 400 opciones, horarios, premio_multiplo |
+| `backend/docs/juegos.md` | Modify | Sección "Contrato JSON para el front/taquilla" (regeneración con `php artisan juegos:export`, semántica de opciones, no editar a mano) |
+| `openspec/changes/integracion-juegos-scrapers/tasks.md` | Modify | Sección WU f9 añadida con tareas `[x]` |
+| `openspec/changes/integracion-juegos-scrapers/apply-progress.md` | Modify | Sección WU f9 añadida (merge) |
+
+## Desviaciones del diseño (WU f9)
+
+1. **El controller NO reutiliza el servicio** (decisión documentada): `JuegoController::opciones`
+   devuelve el modelo `JuegoOpcion` completo (id, juego_id, imagen_url, color, metadata, active,
+   timestamps) y cambiarlo al mapeo `{numero,label,value}` rompería el contrato API actual de
+   panel/taquilla. El servicio se comparte entre comando y test (requisito del WU cumplido).
+2. **Conteo de animales del plugin**: el prompt estimaba 37 animales canónicos, pero el plugin
+   `Animalitos` tiene **38** (ballena y delfin comparten numero 0; 38 etiquetas). Evidencia:
+   `JuegoAnimalitosSeeder` (38 filas), mapa del plugin (38 entradas), BD local (38). El archivo
+   y el test usan 38 (semántica exacta del plugin, prioritaria según el WU).
+3. **Ids del archivo vs ids del test**: el archivo mantiene los ids reales 1-13 (contrato); el
+   test compara por slug excluyendo el id (ver Problemas, punto 1).
+
+## Problemas encontrados (WU f9)
+
+1. **Ids corridos en la BD de tests (evidencia: corrida 27-39)**: `RefreshDatabase` envuelve cada
+   test en una transacción que se revierte, PERO el auto-increment de MySQL/InnoDB NO retrocede
+   con el rollback (evidencia directa: tras 2 corridas filtradas el contador quedó en 40 con 0
+   filas commiteadas). En una suite compartida, los 13 juegos sembrados por `DatabaseSeeder`
+   reciben ids desplazados según cuántos juegos hayan creado antes otros tests (1-13, 14-26,
+   27-39...). RESUELTO sin romper el contrato: la comparación de consistencia es estable por
+   slug y valores (id excluido), el archivo conserva ids 1-13 (contrato front), y el test
+   verifica que el generado sigue el MISMO orden relativo del seeder con ids estrictamente
+   consecutivos (sin huecos ni juegos extra). El test es independiente del orden de ejecución
+   (verificado dentro de la suite completa 494/492/2).
+2. **Cambios ajenos del checkout compartido**: `collections/*.yml`, `panel/.astro/settings.json`
+   (modificados) y `.atl/`, `.codegraph/`, `openspec/config.yaml` (sin seguimiento) quedaron
+   fuera de los commits (NO se tocan ni se commitean).
+
+## Workload / PR Boundary (WU f9)
+
+- Modo: chained PR slice (feature-branch-chain, PR 10 de la cadena; base = PR 9 `feat/integracion-juegos-scrapers-f8-lottoactivo`). NO se abrieron PRs.
+- Boundary: catálogo JSON para el front (servicio + comando + contrato `docs/juegos.json` + test de consistencia + docs) con verificación incluida (suite completa 494/492/2 + pint limpio).
+- Rollback boundary por unidad: ver tabla Work Unit Evidence (WU f9).
+
+## Siguiente paso recomendado
+
+- `sdd-verify` del PR 10 cuando el orquestador lo dispare.
+- Juego 15 (La Granjita): requiere URL y estructura de la fuente del cliente antes de aplicar.
+
+---
+
+# Sección WU f10 — La Granjita con API oficial (PR 11)
+
+**Rama**: `feat/integracion-juegos-scrapers-f10-la-granjita` (base: `feat/integracion-juegos-scrapers-f9-catalogo-json`)
+**Estado**: ✅ COMPLETADO (f10.1–f10.8) — integración del juego 15 con datos reales verificados
+
+## Resumen
+
+Integración del juego 15 (La Granjita) usando la API OFICIAL de lagranjita.com
+(`GET /api/results.json?date=YYYY-MM-DD&productId=1`, sin auth ni anti-bot;
+soporta fechas actuales y pasadas — verificada para 2026-09-12 y 2026-09-11 con
+datos distintos). Seeder completo (slug `la-granjita`, type `animalitos`,
+`premio_multiplo` 30, límite banca/bs/3600, plugin Animalitos, 12 horarios
+08:00–19:00 `:00`, `scraper_class` LaGranjitaScraper), scraper dedicado que
+toma el PRIMER valor del objeto JSON (la clave es el nombre del producto, no se
+hardcodea), salta sorteos no ocurridos (`result_id: null`), usa `result_id`
+como `sorteo_id_externo`, normaliza hora 12h→H:i y mapea numero/animal al
+esquema animalitos (zoológico canónico del plugin: GALLINA=25, RATON=8, MONO=13,
+LAPA=31...). Fixtures reales (día completo 2026-09-11 + parcial 2026-09-12),
+tests unit+feature RED→GREEN, regresión de conteos (JuegosJson 14 juegos,
+LimitesScoped 14/28/56), `docs/juegos.json` regenerado y commiteado (14 juegos),
+y carga real en BD local verificada con dedupe.
+
+## Hallazgo: formato de la API de lagranjita.com
+
+La API devuelve UN objeto con el nombre del producto como clave y un array de
+sorteos como valor: `{"LA GRANJITA":[{result_id, result_value, result_name,
+lotery_hour, ...}, ...]}`. Detalles clave del contrato:
+
+- **12 entradas por día** (08:00 AM – 07:00 PM, `:00` cada hora), una por horario.
+- **Sorteos NO ocurridos**: entradas con `result_id: null` (y resto de campos
+  null) → el scraper las salta (resultados parciales del día, mismo patrón
+  loteriadehoy modo animalitos). El parcial del 12-sep traía 4 reales + 8 nulls.
+- **`result_id` único por sorteo** (414878, 414902...) → ideal para
+  `sorteo_id_externo` (dedupe por juego+fecha+hora en `saveResults` heredado).
+- **Clave del objeto = nombre del producto**: se toma el primer valor, sin
+  hardcodear ("LA GRANJITA").
+- **Zoológico canónico**: el API usa los MISMOS nombres/números del plugin
+  Animalitos (GALLINA=25, RATON=8, MONO=13, LAPA=31, CABALLO=12, CAIMAN=30,
+  DELFIN=0...) → sin mapeo adicional.
+- **El API soporta fechas**: `execute($fecha)` carga la fecha pedida, sin
+  necesidad de filtrar (a diferencia del histórico de Triple Caliente).
+- **scraper_url documental con query**: el seeder registra
+  `https://www.lagranjita.com/api/results.json?productId=1`; el fetch
+  reconstruye la query real (`date` + `productId` de config) con `parse_url` +
+  `http_build_query`, ignorando la query documental (evita `?productId=1?date=`).
+
+## Hallazgo: otros productos del portal (documentados, FUERA DE ALCANCE)
+
+lagranjita.com aloja más productos accesibles por `productId`: pid=2 ZOOLOGICO
+ACTIVO (ANIMALES77), pid=3 RULETA ACTIVA, pid=4 LOTTOMAX, pid=5 LOTTO ACTIVO,
+pid=6 GRANJA MILLONARIA, pid=7 JUNGLA MILLONARIA, pid=8 LOTTO REY; y páginas
+`/granjitaplus` (GRANJITA PLUS) y `/terminalgranjita` (TERMINAL LA GRANJITA).
+No integrados en este WU (regla: solo La Granjita); documentados en
+`docs/juegos.md` para WUs futuros.
+
+## Hallazgo: conteos de juegos en LimitesScopedApiTest y JuegosJsonTest
+
+Al registrar el 14º juego en `DatabaseSeeder`, la matriz juego×moneda de
+`/api/v1/limites` pasa de 13 a 14 juegos: se actualizaron las aserciones de
+conteo (juegos 13→14, límites/origen 26→28, scope de entidades 52→56, `mixto`
+26→28). `JuegosJsonTest` pasó de 13 a 14 juegos: `SLUGS_POR_ID` + `la-granjita`,
+conteo de juegos 13→14, `la-granjita` en el grupo de animalitos sin tabla (38
+opciones vía plugin Animalitos) y `assertSame(13→14)`. Comportamiento probado
+sin cambios (ajuste legítimo de regresión, patrón de WUs anteriores).
+
+## TDD Cycle Evidence (WU f10)
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| f10.1+f10.3+f10.4 | `tests/Unit/LaGranjitaScraperTest.php` | Unit (RefreshDatabase) | ✅ suite 494/492/2 + focused 58/58 | ✅ 12 errores (clase inexistente) | ✅ 12/12 (31 assertions) | ✅ 12 casos (día completo, horas H:i, numero/animal DELFIN=0, skip nulls, result_id, estructura, fail-fast, product_id config, JSON inválido, vacío, sin estructura, clave distinta) | ✅ Pint clean |
+| f10.2+f10.4 | `tests/Feature/LaGranjitaResultsTest.php` | Feature (RefreshDatabase + seeder) | ✅ idem | ✅ 6 errores (seeder inexistente) | ✅ 6/6 | ✅ 6 casos (juego+scraper_class+config, límite+plugin, 12 horarios, persistencia 12, dedupe, resolver) | ✅ Pint clean |
+| f10.5 | `tests/Feature/JuegosJsonTest.php` + `LimitesScopedApiTest.php` | Feature | ✅ previo | ✅ 2 fallos (contrato JSON 13 vs 14) | ✅ 51/51 (708 assertions) | ✅ conteos 14/28/56 + 38 opciones | ✅ |
+| f10.6 | Harness real | Runtime | N/A (nuevo) | — | ✅ `juegos:export` → 14 juegos, id 14 la-granjita | ✅ idempotencia (md5 idéntico ×2) | ✅ |
+| f10.7 | Harness real (job) | Runtime | N/A | — | ✅ HOY 4 + AYER 12 persistidos | ✅ rescrape dedupe (4/12, 16 únicos) | ➖ |
+| f10.8 | N/A (docs) | Docs | ✅ | ➖ | ➖ | ➖ Omitida: documentación | ✅ |
+
+**Test Summary (WU f10)**: +18 tests (512 vs 494 baseline); focused
+`composer test -- --filter=LaGranjita` → **18/18 (56 assertions)**;
+`--filter='LaGranjita|JuegosJsonTest|LimitesScopedApiTest'` → 51/51 (708);
+suite completa **512/510/2** (2368 assertions); `vendor/bin/pint --test` → passed.
+
+## Work Unit Evidence (WU f10)
+
+| Work unit | Focused test command y resultado | Runtime harness y resultado | Rollback boundary |
+|-----------|----------------------------------|-----------------------------|-------------------|
+| WU1 scraper+fixtures | `composer test -- --filter=LaGranjitaScraperTest` → RED 0/12 → GREEN 12/12 (31 assertions) | Parse de fixtures reales del API (12-sep) vía Reflection sobre `parse`; fetch real verificado en el harness | Eliminar `LaGranjitaScraper.php` + 2 fixtures + test unit |
+| WU2 seeder+feature | `composer test -- --filter=LaGranjitaResultsTest` → RED 0/6 → GREEN 6/6 | `php artisan db:seed --class=LaGranjitaSeeder --force` → juego id=14 en BD local; `juegos:export` → 14 juegos | Eliminar `LaGranjitaSeeder` + revertir `DatabaseSeeder` + revertir feature test |
+| WU3 regresión conteos | `composer test -- --filter=JuegosJsonTest` → 3/3 (309→323 assertions) + `--filter=LimitesScopedApiTest` → 30/30 | N/A (regresión de API) | Revertir solo aserciones de conteo (14→13, 28→26, 56→52) |
+| WU4 contrato JSON | Suite completa 512/510/2 | `php artisan juegos:export` contra BD local (14 juegos, ids 1-14) → `docs/juegos.json`; 2ª ejecución md5 idéntico | Regenerar el archivo (se produce con el comando) |
+| WU5 carga real | `--filter=LaGranjita` 18/18 | `ScrapeResultsJob` ×2 fechas: HOY 4 (08:00–11:00 parcial), AYER 12 (día completo); rescrape 4/12 (dedupe), 16 `sorteo_id_externo` únicos, 0 errores en log | Filas `resultados` de la-granjita (16) — borrables sin tocar código |
+
+## Archivos cambiados (WU f10)
+
+| Archivo | Acción | Qué se hizo |
+|---------|--------|-------------|
+| `backend/app/Plugins/Scrapers/LaGranjitaScraper.php` | Create | Scraper del API oficial: GET por fecha+productId, primer valor del objeto, skip `result_id: null`, numero/animal, `normalizeHora`, `sorteo_id_externo=result_id`, fail-fast, JSON inválido/vacío/sin estructura |
+| `backend/database/seeders/LaGranjitaSeeder.php` | Create | Juego `la-granjita` + JuegoLimite banca/bs/3600 + PluginJuego Animalitos + JuegoHorario 08:00–19:00 (12) + `scraper_class` + `config['scraper']['product_id']='1'` |
+| `backend/database/seeders/DatabaseSeeder.php` | Modify | Registra `LaGranjitaSeeder` (14º juego) |
+| `backend/tests/Fixtures/lagranjita_results.json` | Create | Snapshot real del API (2026-09-11, día completo: 12 sorteos, ids 414469–414813) |
+| `backend/tests/Fixtures/lagranjita_parcial.json` | Create | Snapshot real del API (2026-09-12, parcial: 4 sorteos + 8 entradas `result_id: null`) |
+| `backend/tests/Unit/LaGranjitaScraperTest.php` | Create | 12 tests unit (parse día completo, horas H:i, numero/animal, skip nulls, result_id, estructura, fail-fast, product_id config, JSON inválido, vacío, sin estructura, clave distinta) |
+| `backend/tests/Feature/LaGranjitaResultsTest.php` | Create | 6 tests feature (seeder, límite+plugin, 12 horarios, persistencia, dedupe, resolver) |
+| `backend/tests/Feature/JuegosJsonTest.php` | Modify | 13→14 juegos: SLUGS_POR_ID + `la-granjita`, assertCount 14, animalitos sin tabla + `la-granjita` (38 opciones), assertSame 14 |
+| `backend/tests/Feature/LimitesScopedApiTest.php` | Modify | Conteos matriz juego×moneda: 13→14 juegos, 26→28 límites/origen, 52→56 scope, mixto 26→28 |
+| `docs/juegos.json` (raíz repo) | Modify | REGENERADO con `php artisan juegos:export`: 14 juegos (id 14 = la-granjita, 38 opciones vía plugin, horarios 08:00–19:00) |
+| `backend/docs/juegos.md` | Modify | Fila 15 → "Juegos integrados" + estado "✅ Verificado con datos reales (12-sep)" + nota del scraper y la plataforma (productId, otros productos del portal) |
+| `openspec/changes/integracion-juegos-scrapers/tasks.md` | Modify | Sección WU f10 añadida con tareas `[x]`; fila 15 ✅ integrado (PR 11) |
+| `openspec/changes/integracion-juegos-scrapers/apply-progress.md` | Modify | Sección WU f10 añadida (merge) |
+
+## Desviaciones del diseño (WU f10)
+
+None — implementation matches design. La Granjita usa el tipo `animalitos`
+existente (según la URL del cliente y el contrato del API: `lotery_type:
+ANIMALES`, zoológico canónico del plugin) con un scraper dedicado para su API
+oficial JSON. Detalle de implementación documentado: la `scraper_url` del
+seeder incluye la query documental `?productId=1` (tal como la documenta el
+orquestador) y el fetch la reconstruye con `parse_url` + `http_build_query`
+para construir la query real `date` + `productId` sin duplicar parámetros.
+
+## Problemas encontrados (WU f10)
+
+- **Contrato JSON 13 vs 14 al regenerar**: `JuegosJsonTest` fallaba (2 tests)
+  hasta regenerar `docs/juegos.json` con el comando contra la BD local (14
+  juegos). Resuelto: export regenerado y commiteado; test de consistencia verde.
+- **Pint tocó espacios en el scraper** (`unary_operator_spaces`,
+  `not_operator_with_successor_space`): ajuste de estilo aplicado y re-verde.
+- **Cambios ajenos del checkout compartido**: `collections/*.yml`,
+  `panel/.astro/settings.json` (modificados) y `.atl/`, `.codegraph/`,
+  `openspec/config.yaml` (sin seguimiento) quedaron fuera de los commits (NO se
+  tocan ni se commitean).
+
+## Workload / PR Boundary (WU f10)
+
+- Modo: chained PR slice (feature-branch-chain, PR 11 de la cadena; base = PR 10
+  `feat/integracion-juegos-scrapers-f9-catalogo-json`). NO se abrieron PRs.
+- Boundary: integración completa del juego 15 (scraper → seeder → fixtures →
+  tests → regresión de conteos → contrato JSON regenerado → docs → carga real en
+  BD local) con verificación incluida (suite completa 512/510/2 + pint limpio).
+- Rollback boundary por unidad: ver tabla Work Unit Evidence (WU f10).
+
+## Siguiente paso recomendado
+
+- `sdd-verify` del PR 11 cuando el orquestador lo dispare.
+- Juego 16 (La Ricachona): requiere URL y estructura de la fuente del cliente
+  antes de aplicar.
+
+---
+
+# Apply Progress (WU f12) — PR 12 (La Ricachona versión triples)
+
+**Cambio**: integracion-juegos-scrapers
+**Modo**: Strict TDD (backend: `composer test`)
+**Cadena**: feature-branch-chain (PR 12; base = PR 11 `feat/integracion-juegos-scrapers-f11-docs-plataformas`)
+**Rama**: `feat/integracion-juegos-scrapers-f12-la-ricachona`
+**Estado**: COMPLETADO (f12.1–f12.7)
+
+## Resumen
+Integración del juego 16 (La Ricachona) con el HTML server-rendered por fecha de
+laricachona.com (sin API pública): `GET https://laricachona.com/` = hoy,
+`GET https://laricachona.com/?date=YYYY-MM-DD` = fecha pasada. Seeder `la-ricachona`
+(tripletas, premio_multiplo 30, modalidades `["triple_a"]`, límite banca/bs/3600,
+plugin Tripletas, 12 horarios 08:05–19:05 cada hora `:05`, scraper_class
+LaRicachonaScraper), scraper dedicado (artículos `tripleResultArticle`: hora del
+`<h1>` normalizada, número del `<p>` del MEDIO como STRING con ceros a la izquierda,
+saltar `--`/`---`, laterales decorativos NO guardados, fail-fast, HTML vacío/de
+error/sin artículos → RuntimeException), 2 fixtures reales, tests unit+feature,
+regresión de conteos, docs/juegos.json regenerado (15 juegos) y carga real.
+
+## Hallazgos
+- HTML por fecha sin API: `?date=` renderiza fechas pasadas; el día actual se sirve
+  sin parámetro. 12 sorteos de triples (08:05 AM–07:05 PM, cada hora `:05`).
+- Artículo: `<article class='tripleResultArticle'><h1>08:05 AM</h1><p>29</p><p>030</p>
+  <p>31</p></article>` — el `<p>` del MEDIO es el número de 3 dígitos ("030", cero
+  inicial conservado como STRING); los laterales son decorativos (-1/+1 del último
+  par, NO se guardan). Sin signo.
+- Sorteos no ocurridos: los 3 `<p>` vienen como `--`/`---` → se saltan (parcial).
+- El portal también renderiza `animalsResultArticle` (La Ricachona animalitos, cada
+  hora `:10`) — FUERA DE ALCANCE; el selector filtra SOLO `tripleResultArticle`.
+- Sin ID externo por sorteo → `sorteo_id_externo` null; dedupe por juego+fecha+hora
+  (saveResults heredado), como el resto.
+- Modelado tipo Trío Activo (tripletas sin signo, una modalidad): config
+  `{"premio_multiplo":30,"modalidades_permitidas":["triple_a"]}` y
+  `numeros_ganadores = {"triple_a":"030"}`.
+
+## TDD Cycle Evidence
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| f12.1/f12.3 | tests/Unit/LaRicachonaScraperTest.php | Unit | N/A (nuevo) | 9 errores (clase inexistente) | 9/9 (24 assertions) | 9 casos (completo, parcial, ceros, horas, fail-fast, sin artículos, error, vacío) | Pint clean |
+| f12.2 | tests/Feature/LaRicachonaResultsTest.php | Feature | N/A (nuevo) | 6 errores (seeder inexistente) | 6/6 (23 assertions) | 6 casos | Pint clean |
+| f12.4 | JuegosJsonTest + LimitesScopedApiTest | Feature | previo 3/3, 30/30 | 2+6 fallos (contrato 14 vs 15) | 3/3 (357) + 30/30 (333) | conteos 15/30/60, mixto 30 | OK |
+| f12.5 | Contrato JSON | Runtime | — | juegos:export → 15 juegos | md5 idéntico ×2 (4cb93cd6) | — | OK |
+| f12.6 | Harness real (job) | Runtime | N/A | — | HOY 5 + AYER 12 | rescrape 5/12, 17 total | — |
+
+**Test Summary**: +15 tests (15 unit+feature Ricachona); focused `--filter=Ricachona` → 15/15 (47 assertions);
+`--filter=JuegosJson` 3/3; `--filter=LimitesScopedApi` 30/30; suite completa pendiente de correr al cierre.
+
+## Work Unit Evidence
+| Work unit | Focused test | Runtime harness | Rollback boundary |
+|-----------|--------------|-----------------|-------------------|
+| WU1 scraper+fixtures | --filter=LaRicachonaScraperTest → 9/9 | parse fixtures reales; fetch real en harness | Eliminar LaRicachonaScraper + 2 fixtures + test |
+| WU2 seeder+feature | --filter=LaRicachonaResultsTest → 6/6 | db:seed LaRicachonaSeeder → juego id=15; export 15 juegos | Eliminar LaRicachonaSeeder + revertir DatabaseSeeder + feature test |
+| WU3 regresión conteos | JuegosJsonTest 3/3 + LimitesScopedApiTest 30/30 | N/A (regresión API) | Revertir aserciones (15→14, 30→28, 60→56) |
+| WU4 contrato JSON | Suite (consistencia verde) | juegos:export contra BD local → docs/juegos.json; md5 idéntico ×2 | Regenerar el archivo con el comando |
+| WU5 carga real | --filter=Ricachona 15/15 | ScrapeResultsJob ×2 fechas: HOY 5 (parcial 08:05–12:05), AYER 12 (día completo); rescrape 5/12, 17 únicos, 0 errores | Filas resultados de la-ricachona (17) |
+
+## Carga real (BD local)
+- HOY 2026-09-12: 5 resultados (08:05→900, 09:05→962, 10:05→204, 11:05→370, 12:05→418) — parcial correcto.
+- AYER 2026-09-11: 12 resultados (día completo).
+- Dedupe: rescrape mantiene 5/12 (17 total, 0 errores en log). BD local total 145 (128 previos + 17).
+
+## Archivos
+- backend/app/Plugins/Scrapers/LaRicachonaScraper.php (create)
+- backend/database/seeders/LaRicachonaSeeder.php (create) + DatabaseSeeder (modify)
+- backend/tests/Fixtures/laricachona_results.html + laricachona_parcial.html (create, reales)
+- backend/tests/Unit/LaRicachonaScraperTest.php + Feature/LaRicachonaResultsTest.php (create)
+- backend/tests/Feature/JuegosJsonTest.php + LimitesScopedApiTest.php (modify: 14→15)
+- docs/juegos.json (regenerado, 15 juegos) + backend/docs/juegos.md (fila 16) + docs/plataformas-juegos.md (estado)
+- openspec/.../tasks.md + apply-progress.md (modify)
+
+## Commits (rama f12)
+- (se generan al cierre del WU, work-unit en español, NO se abren PRs)
+
+## Siguiente paso
+- sdd-verify del PR 12 cuando el orquestador lo dispare.
+- Juego 17 (Loto Chaima): requiere URL/estructura del cliente.
+
+---
+
+# Apply Progress (WU f13) — PR 13 (Loto Chaima con API oficial de lotterly.co)
+
+**Cambio**: integracion-juegos-scrapers
+**Modo**: Strict TDD (backend: `composer test`)
+**Cadena**: feature-branch-chain (PR 13; base = PR 12 `feat/integracion-juegos-scrapers-f12-la-ricachona`)
+**Rama**: `feat/integracion-juegos-scrapers-f13-loto-chaima`
+**Estado**: COMPLETADO (f13.1–f13.8)
+
+## Resumen
+Integración del juego 17 (Loto Chaima) con la API OFICIAL de la plataforma lotterly.co:
+`GET https://api.lotterly.co/v1/results/loto-chaima/?exact_date=YYYY-MM-DD` (sin auth ni anti-bot;
+soporta fechas actuales y pasadas — verificada para 2026-09-12 y 2026-09-11 con datos distintos).
+Seeder `loto-chaima` (animalitos, premio_multiplo 30, límite banca/bs/3600, plugin Animalitos, 12
+horarios 08:00–19:00, scraper_class LotoChaimaScraper), scraper dedicado (parse del array: numero
+int desde `result`, `nombre_animal` por lookup del mapa propio de 57 animales con fallback de
+padding, hora `HH:MM:SS`→`H:i` con `normalizeHora`, `sorteo_id_externo` null, fail-fast,
+respuesta vacía/inválida/sin entradas → RuntimeException), 2 fixtures reales, tests unit+feature,
+regresión de conteos, `docs/juegos.json` regenerado (16 juegos, 57 opciones novas) y carga real.
+
+## Hallazgos
+- API oficial multi-producto por `product_slug`: la plataforma lotterly.co expone
+  `GET https://api.lotterly.co/v1/results/{product_slug}/?exact_date=YYYY-MM-DD`; otros slugs
+  devuelven 400 `"product_slug does not exist"`. Solo se integra `loto-chaima`; documentada como
+  Plataforma 3 en `docs/plataformas-juegos.md`.
+- Contrato: array de 12 sorteos/día (08:00–19:00, cada hora `:00`), `time` en 24h `HH:MM:SS`,
+  `result` STRING con padding de 2 dígitos salvo el cero (`"0"`, `"04"`, `"46"`). El API ya filtra
+  por fecha (`exact_date`): `execute` carga la fecha pedida sin filtrar (patrón LaGranjita).
+- **Zoológico PROPIO de 57 animales (0–55)**, distinto al canónico del plugin Animalitos
+  (37→Tortuga, 38→Búfalo, 23→Cebra, 46→Puma...). Extraído del bundle oficial del sitio y definido
+  como `LotoChaimaScraper::ZOOLOGICO` (fuente única: el scraper resuelve `nombre_animal` y el seeder
+  genera las 57 `JuegoOpcion` con `value = Str::slug(label)`).
+- Lookup del nombre: primero con el string tal cual (`"0"`→Delfín, `"04"`→Alacrán, `"00"`→Ballena);
+  si no está, fallback de padding (`"4"`→`"04"`→Alacrán). El cero sin padding del 13:00 del
+  11-sep se verificó contra datos reales (`0`→Delfín).
+- Ballena y Delfín comparten `numero` 0 (57 etiquetas para 56 números); `sort_order` determinista
+  según el orden del mapa.
+- Sin ID externo por sorteo → `sorteo_id_externo` null; dedupe por juego+fecha+hora (`saveResults`
+  heredado), como el resto.
+
+## TDD Cycle Evidence
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| f13.1/f13.3 | tests/Unit/LotoChaimaScraperTest.php | Unit | N/A (nuevo) | 15 errores (clase inexistente) | 15/15 | 15 casos (completo, parcial, horas, `"0"`/`"00"`/padding, acentos, entradas sin resultado, fail-fast, JSON inválido, vacío, `[]`, `{}`, estructura) | Pint clean |
+| f13.2/f13.4 | tests/Feature/LotoChaimaResultsTest.php | Feature | N/A (nuevo) | 7 errores (seeder inexistente) | 7/7 | 7 casos (juego+scraper_class, límite+plugin, 12 horarios, 57 opciones, persistencia 12, dedupe, resolver) | Pint clean |
+| f13.5 | JuegosJsonTest + LimitesScopedApiTest | Feature | previo 3/3, 30/30 | 2 fallos (contrato JSON 15 vs 16) | 3/3 (388) + 30/30 (347) | conteos 16/32/64, mixto 32, 57 opciones propias | OK |
+| f13.6 | Contrato JSON | Runtime | — | juegos:export → 16 juegos | md5 idéntico ×2 (c9ed8e26) | — | OK |
+| f13.7 | Harness real (job) | Runtime | N/A | — | HOY 5 + AYER 12 | rescrape 5/12, 17 total, 0 errores | — |
+
+**Test Summary**: +22 tests (15 unit + 7 feature Chaima); focused `--filter=Chaima` → 22/22 (77 assertions);
+`--filter=JuegosJsonTest` 3/3 (388 assertions); `--filter=LimitesScopedApiTest` 30/30 (347 assertions);
+suite completa pendiente de correr al cierre.
+
+## Work Unit Evidence
+| Work unit | Focused test | Runtime harness | Rollback boundary |
+|-----------|--------------|-----------------|-------------------|
+| WU1 scraper+fixtures | --filter=LotoChaimaScraperTest → 15/15 | parse fixtures reales; fetch real en harness | Eliminar LotoChaimaScraper + 2 fixtures + test unit |
+| WU2 seeder+feature | --filter=LotoChaimaResultsTest → 7/7 | db:seed LotoChaimaSeeder → juego id=16; export 16 juegos | Eliminar LotoChaimaSeeder + revertir DatabaseSeeder + feature test |
+| WU3 regresión conteos | JuegosJsonTest 3/3 + LimitesScopedApiTest 30/30 | N/A (regresión API) | Revertir aserciones (16→15, 32→30, 64→60) |
+| WU4 contrato JSON | Suite (consistencia verde) | juegos:export contra BD local → docs/juegos.json; md5 idéntico ×2 | Regenerar el archivo con el comando |
+| WU5 carga real | --filter=Chaima 22/22 | ScrapeResultsJob ×2 fechas: HOY 5 (parcial 08:00–12:00), AYER 12 (día completo); rescrape 5/12, 17 únicos, 0 errores | Filas resultados de loto-chaima (17) |
+
+## Carga real (BD local)
+- HOY 2026-09-12: 5 resultados (08:00→31 Lapa, 09:00→46 Puma, 10:00→33 Pescado, 11:00→4 Alacrán, 12:00→39 Lechuza) — parcial correcto.
+- AYER 2026-09-11: 12 resultados (día completo: 37 Tortuga, 18 Burro, 43 Mariposa, 3 Ciempiés, 36 Culebra, 0 Delfín, 44 Chigüire, 5 León, 38 Búfalo, 13 Mono, 2 Toro, 23 Cebra).
+- Dedupe: rescrape mantiene 5/12 (17 total, 0 errores en log). BD local total 162 (145 previos + 17).
+
+## Archivos
+- backend/app/Plugins/Scrapers/LotoChaimaScraper.php (create)
+- backend/database/seeders/LotoChaimaSeeder.php (create) + DatabaseSeeder (modify)
+- backend/tests/Fixtures/lotochaima_results.json + lotochaima_parcial.json (create, reales)
+- backend/tests/Unit/LotoChaimaScraperTest.php + Feature/LotoChaimaResultsTest.php (create)
+- backend/tests/Feature/JuegosJsonTest.php + LimitesScopedApiTest.php (modify: 15→16)
+- docs/juegos.json (regenerado, 16 juegos) + backend/docs/juegos.md (fila 17) + docs/plataformas-juegos.md (Plataforma 3)
+- openspec/.../tasks.md + apply-progress.md (modify)
+
+## Commits (rama f13)
+- (se generan al cierre del WU, work-unit en español, NO se abren PRs)
+
+## Siguiente paso
+- sdd-verify del PR 13 cuando el orquestador lo dispare.
+- Juego 18 (Mega Animal 40): requiere URL/estructura del cliente.
+
+---
+
+# Apply Progress (WU f18) — PR 18 (Triple Táchira con el sitio oficial tripletachira.com)
+
+**Cambio**: integracion-juegos-scrapers
+**Modo**: Strict TDD (backend: `composer test`)
+**Cadena**: feature-branch-chain (PR 18; base = PR 17 `feat/integracion-juegos-scrapers-f17-docs-fuentes`)
+**Rama**: `feat/integracion-juegos-scrapers-f18-triple-tachira`
+**Estado**: COMPLETADO (f18.1–f18.8)
+
+> Nota de merge: las secciones f14 (Mega Animal 40), f16 (Selva Plus) y f17 (docs fuentes)
+> viven en Engram (`apply-progress-f14`/`f16`); este archivo de filesystem se actualiza con la
+> sección f18. El estado acumulado completo está en el topic `sdd/integracion-juegos-scrapers/apply-progress`.
+
+## Resumen
+Integración del juego 20 (Triple Táchira) con el sitio OFICIAL tripletachira.com (HTML
+server-rendered, sin anti-bot): `GET /pruebah.php?bt=DD/MM/YYYY&bt2=DD/MM/YYYY` → tabla semanal
+de 7 columnas. Scraper dedicado que localiza la columna por su FECHA en el header (el nombre del
+día es FIJO Lunes..Domingo, no el día real — nunca se usa), parsea filas A/B/ZODI agrupadas por
+hora, convierte horas 12h sin AM/PM a 24h (01:15→13:15, 04:45→16:45, 10:10→22:10 — todos PM),
+mapea signos (PIC→PIS) y salta `--------`. Seeder con **premios OFICIALES del reglamento
+G-20004065-3** (Lotería del Táchira; PDF descargado y texto extraído con pdftotext): A/B 500×,
+cola 50×, zodiacal 5.000× (la informativa declara 600/60/6.000 — desajuste H9). 3 fixtures reales,
+tests unit+feature, regresión de conteos (18→19 juegos), `docs/juegos.json` regenerado y carga real.
+
+## Hallazgos
+- **El sitio etiqueta los días con nombres FIJOS**: "Lunes 01/09/2026" cuando el 01-09 es martes.
+  La columna se localiza por su FECHA, nunca por el nombre del día. La estrategia `bt=fecha&bt2=fecha`
+  (una sola columna) + localización por fecha es robusta.
+- **Horas 12h sin AM/PM, todos PM**: la home etiqueta "1:15PM"; el reglamento lista 1:15/4:45/10:10.
+  Conversión: h<12 → +12; 12 → 12. Verificado contra datos reales (01:15→13:15 con los 3 dígitos
+  correctos del 11-sep).
+- **Reglamento oficial PARSEABLE** (`docs/reglamento.pdf`, 15 páginas, pdftotext OK): premios A/B
+  **500×**, Terminal/Cola **50×**, Triple+Zodiacal **5.000×**, Par Millonario 200.000×, aproximación
+  10×, Terminal+Zodiacal 500×... → **H9: la informativa (RV) está EQUIVOCADA** en premios
+  (600/60/6.000) y en el 3er sorteo (19:20 vs 22:10 oficial). El seeder registra los valores OFICIALES.
+- **Comportamiento dominical NO uniforme**: 06-sep (domingo) solo sorteo de 22:10 (829/232/926-PIC);
+  13-sep (domingo) NINGUNO. La informativa dice 17:10 — pendiente de confirmar con más muestras.
+- **Vista semanal con estado transitorio**: una captura de la semana 11-17 mostró la columna 11/09
+  con datos del 12/09 (cache del sitio); recapturada, coincidió con la vista diaria. Por eso el
+  scraper SIEMPRE pide `bt=fecha&bt2=fecha` (nunca rangos).
+- **Dedupe**: sin ID externo en la tabla → `sorteo_id_externo` null, upsert por juego+fecha+hora
+  (saveResults heredado); rescrape real mantiene 4 filas (3 ayer + 1 hoy parcial), 0 errores.
+
+## TDD Cycle Evidence
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| f18.1/f18.3 | tests/Unit/TripleTachiraScraperTest.php | Unit | N/A (nuevo) | 15 errores (clase inexistente) | 15/15 (63) | 15 casos (completo 11/09, parcial 12/09, domingo vacío 13/09, domingo solo 22:10 06/09, primera columna, sin datos 2020, horas ×6, signos ×12, estructura, fail-fast, vacío, sin tabla, fecha no encontrada) | Pint clean |
+| f18.2/f18.4 | tests/Feature/TripleTachiraResultsTest.php | Feature | N/A (nuevo) | 7 errores (seeder inexistente) | 7/7 (30) | 7 casos (juego+premios oficiales, límite+plugin, 3 horarios, 12 opciones, persistencia, dedupe, resolver) | Pint clean |
+| f18.5 | JuegosJsonTest + LimitesScopedApiTest | Feature | previo 33/33 | 2 fallos (archivo stale 18 vs 19) | 3/3 + 30/30 | conteos 19/38/76 mixto 38; 12 opciones triple-tachira | OK |
+| f18.6 | Contrato JSON | Runtime | — | juegos:export → 19 juegos | md5 idéntico ×2 (23894802) | — | OK |
+| f18.7 | Harness real (job) | Runtime | N/A | — | AYER 3 + HOY 1 | rescrape 4 filas, 0 errores | — |
+
+**Test Summary**: +22 tests (15 unit + 7 feature Tachira); focused `--filter=Tachira` → 22/22 (93 assertions);
+`--filter=JuegosJsonTest|LimitesScopedApiTest|TripleTachira` → 55/55 (958); suite completa **610/608/2**
+(2947 assertions) + `pint --test` limpio (pendiente de correr al cierre).
+
+## Work Unit Evidence
+| Work unit | Focused test | Runtime harness | Rollback boundary |
+|-----------|--------------|-----------------|-------------------|
+| WU1 scraper+fixtures | --filter=TripleTachiraScraperTest → 15/15 | parse fixtures reales; fetch real en harness | Eliminar TripleTachiraScraper + 3 fixtures + test unit |
+| WU2 seeder+feature | --filter=TripleTachiraResultsTest → 7/7 | db:seed TripleTachiraSeeder → juego id 19; export 19 juegos | Eliminar TripleTachiraSeeder + revertir DatabaseSeeder + feature test |
+| WU3 regresión conteos | JuegosJsonTest 3/3 + LimitesScopedApiTest 30/30 | N/A (regresión API) | Revertir aserciones (18→19, 36→38, 72→76) |
+| WU4 contrato JSON | Suite (consistencia verde) | juegos:export contra BD local → docs/juegos.json; md5 idéntico ×2 | Regenerar el archivo con el comando |
+| WU5 carga real | --filter=Tachira 22/22 | ScrapeResultsJob ×2 fechas: AYER 3 (día completo), HOY 1 (parcial 13:15); rescrape 4 filas, 0 errores | Filas resultados de triple-tachira (4) |
+
+## Carga real (BD local)
+- AYER 2026-09-11: 3 resultados (13:15 → 245/998/160-PIS, 16:45 → 572/033/981-GEM, 22:10 → 623/539/998-ACU) — día completo.
+- HOY 2026-09-12: 1 resultado parcial (13:15 → 203/894/094-SAG) — parcial correcto.
+- Dedupe: rescrape mantiene 4 filas (0 errores en log). BD local total **203** (199 previos + 4).
+
+## Archivos
+- backend/app/Plugins/Scrapers/TripleTachiraScraper.php (create)
+- backend/database/seeders/TripleTachiraSeeder.php (create) + DatabaseSeeder (modify)
+- backend/tests/Fixtures/tripletachira_semana.html + tripletachira_domingo.html + tripletachira_sin_datos.html (create, reales)
+- backend/tests/Unit/TripleTachiraScraperTest.php + Feature/TripleTachiraResultsTest.php (create)
+- backend/tests/Feature/JuegosJsonTest.php + LimitesScopedApiTest.php (modify: 18→19)
+- docs/juegos.json (regenerado, 19 juegos) + backend/docs/juegos.md (fila 20) + docs/fuentes-oficiales.md (fila 19 verificada) + docs/comparacion-juegos.md (fila + H9)
+- openspec/.../tasks.md + apply-progress.md (modify)
+
+## Commits (rama f18)
+- (se generan al cierre del WU, work-unit en español, NO se abren PRs)
+
+## Siguiente paso
+- sdd-verify del PR 18 cuando el orquestador lo dispare.
+- Juego 21 (Triple Facil): CONDICIONAL — decisión del cliente (dos juegos `triple-facil`/`triple-facil-terminal` vs uno con dos plugins).
+
+---
+
+# Apply Progress (WU f19) — PR 19 (Triple Fácil con API oficial de lotterly.co)
+
+**Rama**: `feat/integracion-juegos-scrapers-f19-triple-facil`
+**Base**: `feat/integracion-juegos-scrapers-f18-triple-tachira`
+**Estado**: COMPLETADO (f19.1–f19.8)
+
+> Nota de merge: secciones previas viven en este archivo y en Engram (`apply-progress-f14`/`f16`/`f18`).
+> El estado acumulado completo está en el topic `sdd/integracion-juegos-scrapers/apply-progress`.
+
+## Resumen
+
+Integración del juego 21 (Triple Fácil) con la API oficial de lotterly.co (la MISMA plataforma de
+Loto Chaima y Selva Plus): el sitio oficial triplefacil.com es una SPA que consume
+`GET /v1/results/triple-facil/?exact_date=YYYY-MM-DD`. El scraper parsea los 12 sorteos diarios
+(08:00–19:00, cada hora `:00`) y guarda el TRIPLE (3 cifras, STRING con ceros a la izquierda) como
+`triple_a` en `numeros_ganadores`. El seeder registra el juego con 100 opciones de TERMINAL (00-99)
+y premios INFORMATIVOS (el sitio oficial no publica cifras).
+
+## HALLAZGO H10 — los "3 resultados" de la web son terminales DERIVADAS (respuesta a la duda del cliente)
+
+La web oficial muestra por cada sorteo `prev / main / next`: `main` es el TRIPLE (3 cifras) y
+`prev`/`next` son los **2 últimos dígitos ±1** (cálculo del front: `r = n % 100`, prev = r-1,
+next = r+1). NO son resultados independientes ni existe un juego/producto terminal aparte:
+probados los slugs `triple-facil-terminal`, `terminal-facil`, `triple-facil-terminales` y
+`terminales-facil` en lotterly → TODOS devuelven **400 "product_slug does not exist"** (verificado
+en vivo el 12-sep-2026). Se documenta en `docs/fuentes-oficiales.md` y `docs/comparacion-juegos.md`
+(hallazgo H10). El juego se modela como UN juego: el scraper persiste el triple; el seeder registra
+las 100 opciones del terminal real (label "00".."99", value "0".."99", numero 0..99) y documenta en
+config las modalidades (terminal 60×, aproximación 10×) + `premio_multiplo` 700 informativo.
+
+## TDD Cycle Evidence
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| f19.1/f19.3 | tests/Unit/TripleFacilScraperTest.php | Unit | N/A (nuevo) | 12 errores (clase inexistente) | 12/12 (30) | 12 casos (día completo 12, horas 08:00–19:00, triple_a "489"/"939" string, padding "73"→"073" y "7"→"007", parcial 9 con "073", estructura+sin id externo, entradas sin resultado, fail-fast, JSON inválido, vacío, `[]`, sin estructura) | Pint clean |
+| f19.2/f19.4 | tests/Feature/TripleFacilResultsTest.php | Feature | N/A (nuevo) | 7 errores (seeder inexistente) | 7/7 (35) | 7 casos (juego+config informativo, límite+plugin Tripletas, 12 horarios, 100 opciones de terminal, persistencia 12, dedupe, resolver) | Pint clean |
+| f19.5 | JuegosJsonTest + LimitesScopedApiTest | Feature | previo 33/33 | 3+2 fallos (archivo stale 19 vs 20; conteos 19) | 3/3 (506) + 30/30 (403) | conteos 20/40/80 mixto 40; 100 opciones triple-facil | OK |
+| f19.6 | Contrato JSON | Runtime | — | juegos:export → 20 juegos | md5 idéntico ×2 (fa69555a) | — | OK |
+| f19.7 | Harness real (scraper) | Runtime | N/A | — | AYER 12 + HOY 10 | rescrape 22 filas, 0 errores | — |
+
+**Test Summary**: +19 tests (12 unit + 7 feature Facil); focused `--filter=Facil` → 19/19 (65 assertions);
+suite completa **629/627/2** (3056 assertions) + `pint --test` limpio.
+
+## Work Unit Evidence
+
+| Work unit | Focused test | Runtime harness | Rollback boundary |
+|-----------|--------------|-----------------|-------------------|
+| WU1 scraper+fixtures | --filter=TripleFacilScraperTest → 12/12 | parse fixtures reales; fetch real verificado en vivo (12-sep) | Eliminar TripleFacilScraper + 3 fixtures + test unit |
+| WU2 seeder+feature | --filter=TripleFacilResultsTest → 7/7 | db:seed TripleFacilSeeder → juego id 20; export 20 juegos | Eliminar TripleFacilSeeder + revertir DatabaseSeeder + feature test |
+| WU3 regresión conteos | JuegosJsonTest 3/3 + LimitesScopedApiTest 30/30 | N/A (regresión API) | Revertir aserciones (19→20, 38→40, 76→80, mixto 38→40) |
+| WU4 contrato JSON | Suite (consistencia verde) | juegos:export contra BD local → docs/juegos.json; md5 idéntico ×2 | Regenerar el archivo con el comando |
+| WU5 carga real | --filter=Facil 19/19 | TripleFacilScraper ×2 fechas: AYER 12 (día completo), HOY 10 (parcial 08:00–17:00); rescrape 22 filas, 0 errores | Filas resultados de triple-facil (22) |
+
+## Carga real (BD local)
+
+- AYER 2026-09-11: 12 resultados (08:00 489 … 19:00 939) — día completo.
+- HOY 2026-09-12: 10 resultados parciales (08:00 964, 09:00 570, 10:00 **073**, 11:00 558, 12:00 767,
+  13:00 759, 14:00 **049**, 15:00 346, 16:00 992, 17:00 193) — parcial correcto, ceros a la izquierda ✓.
+- Dedupe: rescrape mantiene 22 filas (0 errores). BD local total **225** (203 previos + 22, 20 juegos).
+
+## Archivos
+
+- backend/app/Plugins/Scrapers/TripleFacilScraper.php (create)
+- backend/database/seeders/TripleFacilSeeder.php (create) + DatabaseSeeder (modify: 20º juego)
+- backend/tests/Fixtures/triplefacil_results.json + triplefacil_parcial.json + triplefacil_vacio.json (create, reales)
+- backend/tests/Unit/TripleFacilScraperTest.php + Feature/TripleFacilResultsTest.php (create)
+- backend/tests/Feature/JuegosJsonTest.php + LimitesScopedApiTest.php (modify: 19→20)
+- docs/juegos.json (regenerado, 20 juegos, md5 fa69555a) + backend/docs/juegos.md (fila 21 + nota H10) + docs/fuentes-oficiales.md (fila 20 verificada) + docs/comparacion-juegos.md (fila + H10)
+- openspec/.../tasks.md + apply-progress.md (modify)
+
+## Commits (rama f19)
+
+- (se generan al cierre del WU, work-unit en español, NO se abren PRs)
+
+## Siguiente paso
+
+- sdd-verify del PR 19 cuando el orquestador lo dispare.
+- Juego 22 (Triple Zamorano): requiere URL y estructura de la fuente del cliente antes de aplicar.
+- Pendientes de cliente: decidir si el motor debe derivar el terminal (n % 100) del triple para
+  validar apuestas de terminal/aproximación de Triple Fácil (H10 — el motor no usa premio_multiplo aún).
+
+---
+
+# Apply Progress (WU f20) — PR 20 (Triple Zamorano con API oficial de triplezamorano.com)
+
+**Rama**: `feat/integracion-juegos-scrapers-f20-triple-zamorano`
+**Base**: `feat/integracion-juegos-scrapers-f19-triple-facil`
+**Estado**: COMPLETADO (f20.1–f20.8)
+
+> Nota de merge: secciones previas viven en este archivo y en Engram (`apply-progress-f14`/`f16`/`f18`).
+> El estado acumulado completo está en el topic `sdd/integracion-juegos-scrapers/apply-progress`.
+
+## Resumen
+
+Integración del juego 22 (Triple Zamorano) con la API oficial de triplezamorano.com (la MISMA
+casa/plataforma que Triple Caliente, `game_product_id` distinto): `POST /api/gaming/results/product`
+con body `{"game_product_id":"1"}` (sin auth ni anti-bot). El scraper parsea el histórico (~386
+entradas) y persiste SOLO A y C (NO hay B): A = triple de 3 cifras (`triple_a`), C = triple de 3
+cifras + signo (`triple_c` + `signo`, regex `^(\d+)-([A-Za-z]+)$`). Fecha/hora local en
+America/Caracas desde `event_timestamp.seconds`; `sorteo_id_externo` = `events[0]` (2 ids por
+sorteo, dedupe); `execute` filtra el histórico por fecha (patrón Caliente/Tripletas). El seeder
+registra el juego con 12 signos y **5 horarios oficiales 10:00/12:00/14:00/16:00/19:00**
+(verificados con los timestamps: 87 días de histórico; domingos solo 19:00).
+
+## HALLAZGO H11 — la informativa declara 3 sorteos y premios SIN verificar (verificación oficial vs informativa)
+
+- **Horarios**: la informativa (RV `/lottery/triple-zamorano`, y lotoven con texto idéntico) declara
+  **3 sorteos** 12:00/16:00/19:00 (claramente STALE). La API oficial prueba **5 sorteos diarios
+  10:00/12:00/14:00/16:00/19:00** (87 días de histórico; los domingos solo 19:00 — consistente en
+  TODA la muestra, a diferencia del domingo no-uniforme de Táchira H9). → desajuste de horario H11.
+- **Premios**: la informativa declara 600× (Triple), 60× (Cola), 6.000× (Astro), 600× (Cola+Signo).
+  La API oficial NO publica cifras ni reglamento → SIN fuente oficial verificada. Los mismos valores
+  (600/60/6.000) que RV declaró para Triple Táchira resultaron EQUIVOCADOS contra su reglamento
+  (H9) → parecen un TEMPLATE del agregador, no datos verificados. Se usa `premio_multiplo` **30**
+  (default de los triples, instrucción del orquestador) y queda pendiente de verificación con el
+  reglamento oficial de la Operadora 1923, C.A. / Lotería del Zulia.
+- **Resultados oficiales**: SOLO A y C (NO hay B) — `results: [{"A":"683"},{"C":"452-ARI"}]`.
+- **Operador** (informativa): Operadora 1923, C.A. / Lotería del Zulia (IOBPAS).
+
+## TDD Cycle Evidence
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| f20.1/f20.3 | tests/Unit/TripleZamoranoScraperTest.php | Unit | ✅ 58/58 (TripleCaliente+JuegosJson+Limites) | ✅ 11 errores (clase inexistente) | ✅ 11/11 (34) | ✅ 11 casos (parse 9, horas Caracas desde epoch, fechas, A+C+signo SIN B, events[0], estructura, fail-fast, filtro ×2 fechas, product_id config, JSON inválido, sin sorteos) | ✅ Pint clean |
+| f20.2/f20.4 | tests/Feature/TripleZamoranoResultsTest.php | Feature | ✅ idem | ✅ 7 errores (seeder inexistente) | ✅ 7/7 (31) | ✅ 7 casos (juego+scraper_class+config, límite+plugin, 5 horarios, 12 opciones, persistencia 5, dedupe, resolver) | ✅ Pint clean |
+| f20.5 | JuegosJsonTest + LimitesScopedApiTest | Feature | ✅ previo | ✅ 2 fallos (archivo stale 20 vs 21) | ✅ 3/3 + 30/30 (focused 51/51, 1011) | ✅ conteos 21/42/84 mixto 42; 12 opciones triple-zamorano | OK |
+| f20.6 | Contrato JSON | Runtime | — | juegos:export → 21 juegos | md5 idéntico ×2 (ea647a57) | — | OK |
+| f20.7 | Harness real (scraper) | Runtime | N/A | — | AYER 5 + HOY 4 | rescrape 9 filas, 9 `sorteo_id_externo` únicos, 0 errores | — |
+
+**Test Summary**: +18 tests (11 unit + 7 feature Zamorano); focused `--filter=Zamorano` → 18/18 (65 assertions);
+suite completa **647/645/2** (3158 assertions) + `pint --test` limpio.
+
+## Work Unit Evidence
+
+| Work unit | Focused test | Runtime harness | Rollback boundary |
+|-----------|--------------|-----------------|-------------------|
+| WU1 scraper+fixture | --filter=TripleZamoranoScraperTest → 11/11 | parse fixture real; fetch real verificado en vivo (12-sep) | Eliminar TripleZamoranoScraper + fixture + test unit |
+| WU2 seeder+feature | --filter=TripleZamoranoResultsTest → 7/7 | db:seed TripleZamoranoSeeder → juego id 21; export 21 juegos | Eliminar TripleZamoranoSeeder + revertir DatabaseSeeder + feature test |
+| WU3 regresión conteos | JuegosJsonTest 3/3 + LimitesScopedApiTest 30/30 | N/A (regresión API) | Revertir aserciones (20→21, 40→42, 80→84, mixto 40→42) |
+| WU4 contrato JSON | Suite (consistencia verde) | juegos:export contra BD local → docs/juegos.json; md5 idéntico ×2 | Regenerar el archivo con el comando |
+| WU5 carga real | --filter=Zamorano 18/18 | TripleZamoranoScraper ×2 fechas: AYER 5 (día completo), HOY 4 (parcial 10:00–16:00); rescrape 9 filas, 9 únicos, 0 errores | Filas resultados de triple-zamorano (9) |
+
+## Carga real (BD local)
+
+- AYER 2026-09-11: 5 resultados (10:00 634/778-VIR, 12:00 295/733-PIS, 14:00 196/782-LIB, 16:00
+  769/549-GEM, 19:00 902/047-VIR) — día completo.
+- HOY 2026-09-12: 4 resultados parciales (10:00 561/805-LEO, 12:00 197/731-SAG, 14:00 274/384-SAG,
+  16:00 683/452-ARI) — parcial correcto (el sorteo de 19:00 aún no ocurre).
+- Dedupe: rescrape mantiene 9 filas (9 `sorteo_id_externo` únicos, 0 errores). BD local total
+  **234** (225 previos + 9, 21 juegos).
+
+## Archivos
+
+- backend/app/Plugins/Scrapers/TripleZamoranoScraper.php (create)
+- backend/database/seeders/TripleZamoranoSeeder.php (create) + DatabaseSeeder (modify: 21º juego)
+- backend/tests/Fixtures/triplezamorano_results.json (create, real — recortado 386→9, documentado)
+- backend/tests/Unit/TripleZamoranoScraperTest.php + Feature/TripleZamoranoResultsTest.php (create)
+- backend/tests/Feature/JuegosJsonTest.php + LimitesScopedApiTest.php (modify: 20→21)
+- docs/juegos.json (regenerado, 21 juegos, md5 ea647a57) + backend/docs/juegos.md (fila 22 + nota
+  scraper + pendientes vacío) + docs/fuentes-oficiales.md (fila 21 verificada) +
+  docs/comparacion-juegos.md (fila + H11)
+- openspec/.../tasks.md + apply-progress.md (modify)
+
+## Commits (rama f20)
+
+- (se generan al cierre del WU, work-unit en español, NO se abren PRs)
+
+## Siguiente paso
+
+- sdd-verify del PR 20 cuando el orquestador lo dispare.
+- Con el WU f20 se completaron los juegos 9–22 de la lista del cliente (catálogo 21 juegos).
+- Pendientes de cliente: reglamento oficial de Triple Zamorano (H11) y de Triple Fácil (H10,
+  terminales derivadas / premios informativos).
+
+---
+
+# Apply Progress (WU f22) — Verificación integral, LOTE 1: los 7 juegos originales
+
+**Rama**: `feat/integracion-juegos-scrapers-f22-verificacion-originales`
+**Base**: `feat/integracion-juegos-scrapers-f21-docs-seguimiento`
+**Estado**: COMPLETADO (f22.1–f22.10)
+**Modo**: Strict TDD (backend: `php artisan test`)
+
+> Nota de merge: secciones previas viven en este archivo y en Engram
+> (`apply-progress-f14`/`f16`/`f18`/`f19`/`f20`). El estado acumulado completo está en el topic
+> `sdd/integracion-juegos-scrapers/apply-progress`.
+
+## Resumen
+
+Auditoría de DATOS (no scraper nuevo) de los 7 juegos originales contra sus fuentes oficiales.
+Se muestreó en vivo el feed de `lottoactivo.com` (4 juegos animalitos en un JSON + terminal +
+trío), la API de `resultadostriplezulia.com`, las páginas `/informacion/<juego>/` (metadata +
+reglamentos PDF) y el FAQ oficial. **H2 CONFIRMADO** (Monje zoo 0–74) y **H5 DESMENTIDO**
+(Trío Activo es un TRIPLE de 3 cifras, no terminales). Correcciones con evidencia:
+23=Cebra, zoo propio de Monje (70 figuras), Trío 600×/terminal 00–99, Terminal Trío 60×.
+
+## Hallazgos por juego
+
+| Juego | Horarios | Opciones | Premiación | Resultado |
+|---|---|---|---|---|
+| lotto-activo (1) | ✅ 12@08:00–19:00 | ✅ 38 (23=Cebra **corregido**) | ✅ 30× (FAQ oficial) | corregido (Cebra) |
+| triple-zulia (2) | ✅ 3@12:45/16:45/19:05 (API) | ✅ 12 signos (API) | ⏳ sin reglamento | sin cambios |
+| terminal-activo (3) | ✅ 12@08:00–19:00 | ✅ 100 (00–99) | ✅ TERMINAL 60× del reglamento | **corregido 20→60** |
+| lotto-activo-rd (4) | ✅ 12@08:30–19:30 | ✅ 38 | ✅ 30× | sin cambios |
+| lotto-activo-rep-dom (5) | ✅ 14@08:00–21:00 | ✅ 38 | ✅ 30× | sin cambios |
+| monje-millonario (6) | ✅ 12@08:05–19:05 | ⚠️ zoo propio 70 confirmadas (H2) | ⏳ Patronus sin fuente | **corregido (zoo propio)** |
+| trio-activo (7) | ✅ 12@08:00–19:00 (H15) | ✅ 100 terminal (H5 desmentido) | ✅ TRIPLE 600× del reglamento | **corregido 30→600 + opciones** |
+
+## Hallazgos nuevos (docs/comparacion-juegos.md)
+
+- **H2 CONFIRMADO** (Monje): el feed oficial muestra 0–74 con zoo propio (49=Pereza, 42=Tucán,
+  74=Turpial); 70 figuras confirmadas creadas; 7 números sin nombre oficial (37/39/57/65/67/68/75).
+- **H5 DESMENTIDO** (Trío): es un TRIPLE de 3 cifras con modalidades TRIPLE/TERMINAL/PUNTA (sin
+  zodiaco); 12 sorteos 08:00–19:00. Opciones corregidas de 12 signos → 100 terminal 00–99.
+- **H12**: Terminal Trío — reglamento 60× vs FAQ oficial 70×+5× aprox → decisión de negocio pendiente.
+- **H13**: `Animalitos::calcularPremio` no normaliza acentos (feed "Delfin" vs opción "Delfín")
+  → premio 0. Es del MOTOR (ciclo futuro), no se tocó.
+- **H14**: Monje — 7 números sin nombre oficial, El Patronus sin reglamento (PDF 404),
+  `special_result=1` en todos los resultados.
+- **H15**: Trío Activo — reglamento 2020 dice 3 sorteos, la operación real es de 12.
+- **H16**: textos oficiales de horarios desactualizados ("11 sorteos 09:00–19:00" vs feed 12@08:00–19:00).
+
+## TDD Cycle Evidence
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| f22.2/f22.6/f22.7 | tests/Feature/VerificacionOriginalesTest.php | Feature | ✅ focused previo | ✅ 4 fallos (Cebra, Monje 0 vs 70, Trío 30 vs 600, Terminal 20 vs 60) | ✅ 6/6 (28) | ✅ 6 casos (zoo canónico + migración, zoo Monje, Trío tipo/premio/opciones/horarios, Terminal premio, Zulia, familia horarios) | ✅ Pint clean |
+| f22.8 | JuegosJsonTest (regresión) | Feature | ✅ focused 49 | ✅ 2 fallos (JSON stale, Géminis en trío) | ✅ 48/48 focused (714, 1 skip) | ✅ monje 70, trío 100/600, terminal 60 | ✅ Pint clean |
+| f22.9 | Contrato JSON | Runtime | — | juegos:export → 21 juegos | md5 `737ab889daee831c774ee1fbc2c22036` | — | OK |
+
+## Work Unit Evidence
+
+| Work unit | Focused test | Runtime harness | Rollback boundary |
+|-----------|--------------|-----------------|-------------------|
+| WU1 Cebra 23 | --filter=VerificacionOriginalesTest → 6/6 | feed oficial (Cebra en los 4 juegos) + reglamento Ruleta Royal | Revertir `Animalitos.php` (map) + `JuegoAnimalitosSeeder` (array + migración) |
+| WU2 zoo Monje | idem | feed oficial 13 días (0–74) | Revertir `MonjeMillonarioSeeder` (volvería al plugin 38) |
+| WU3 Trío Activo | idem | feed oficial 12 sorteos + reglamento PDF | Revertir `TrioActivoSeeder` (config + opciones) |
+| WU4 Terminal Trío | idem | reglamento PDF (md5 idéntico) | Revertir `TerminalesSeeder` (config) |
+| WU5 docs + JSON | JuegosJsonTest 3/3 | `juegos:export` contra BD local; determinista | Regenerar `docs/juegos.json`; revertir los 3 .md |
+
+## Verificación en vivo (2026-09-10..14)
+
+- **lotto-activo**: 12 sorteos/día 08:00–19:00; zoo 0–36 con 23=Cebra; FAQ 30×.
+- **triple-zulia**: API 234 registros, SOLO 3 horarios 12:45/16:45/19:05 y 12 signos.
+- **terminal-activo**: 12 sorteos/día; terminal = 2 últimos dígitos del Trío (0 discrepancias).
+- **lotto-activo-rd**: 12 sorteos 08:30–19:30. **rep-dom**: 14 sorteos 08:00–21:00.
+- **monje-millonario**: 12 sorteos 08:05–19:05; números 0–74 con zoo propio.
+- **trio-activo**: 12 sorteos/día de un triple de 3 cifras.
+
+## Archivos
+
+- backend/app/Plugins/Juegos/Animalitos.php (modify: cobra→cebra)
+- backend/database/seeders/JuegoAnimalitosSeeder.php (modify: Cebra + migración de fila)
+- backend/database/seeders/MonjeMillonarioSeeder.php (modify: zoo propio 70 figuras)
+- backend/database/seeders/TrioActivoSeeder.php (modify: premio 600 + modalidades + 100 opciones)
+- backend/database/seeders/TerminalesSeeder.php (modify: premio 60 + modalidad + updateOrCreate)
+- backend/tests/Feature/VerificacionOriginalesTest.php (create) + JuegosJsonTest (modify)
+- docs/juegos.json (regenerado, md5 737ab889) + docs/seguimiento-verificacion.md +
+  docs/fuentes-oficiales.md + docs/comparacion-juegos.md (modify)
+- openspec/.../tasks.md + apply-progress.md (modify)
+
+## Commits (rama f22)
+
+- (se generan al cierre del WU, work-unit en español, NO se abren PRs)
+
+## Siguiente paso
+
+- sdd-verify del WU f22 cuando el orquestador lo dispare.
+- LOTE 2 pendiente: los 4 juegos de fuente agregador (cazaloton 9, triple-chance 10,
+  el-guacharito 12, guacharo-activo 13) — requieren URL oficial del cliente.
+- Decisiones de negocio pendientes: H12 (premio Terminal Trío 60 vs 70), H13 (acentos en el motor),
+  H14 (7 figuras de Monje + El Patronus), H15 (reglamento vs operación de Trío).
+
+---
+
+# Apply Progress (WU f24) — Verificación integral, LOTE 2: los 4 juegos de fuente agregador
+
+**Rama**: `feat/integracion-juegos-scrapers-f24-verificacion-agregadores`
+**Base**: `feat/integracion-juegos-scrapers-f23-docs-inconsistencias`
+**Estado**: COMPLETADO (f24.1–f24.9)
+**Modo**: Strict TDD (backend: `php artisan test`)
+
+> Nota de merge: secciones previas viven en este archivo y en Engram. El estado
+> acumulado completo está en el topic `sdd/integracion-juegos-scrapers/apply-progress`.
+
+## Resumen
+
+Auditoría de DATOS + MIGRACIÓN de fuentes de los 4 juegos que usaban el agregador
+loteriadehoy (9 cazaloton, 10 triple-chance, 12 el-guacharito, 13 guacharo-activo)
+contra las URLs oficiales recibidas del cliente (muestreo en vivo 14-sep-2026).
+Resultado: **3 migrados a fuente oficial** (triple-chance → API scalalot de
+tuchance.com.ve; el-guacharito y guacharo-activo → API lotterly) y **1 sin migración**
+(cazaloton: el sitio oficial NO publica resultados, se mantiene loteriadehoy; se
+verificó su reglamento oficial PDF). Se confirmaron los zoológicos propios de
+guacharito (101) y guácharo (77) — la informativa tenía razón (H2 CONFIRMADO) — y
+los premios oficiales se registraron en `config` (triple-chance 600×, guacharito
+70×/150×, guácharo 60×/120×, cazaloton 30× + modalidades dupleta/tripleta).
+
+## Hallazgos por juego
+
+| Juego | Horarios | Opciones | Premiación | Reglamento | Resultado |
+|---|---|---|---|---|---|
+| cazaloton (9) | ✅ 11@09:00–19:00 (reglamento) | ✅ 38 canónico | ✅ 30× (reglamento Art. 22) + dupleta 800× / tripleta 200× | ✅ **PDF 17 págs parseable** | sin migración (oficial sin resultados); config modalidades |
+| triple-chance (10) | ✅ 11@09:00–19:00 (API) | ✅ 12 signos | ✅ TRIPLE 600× + A+B 200.000× (afiche oficial) | ⚠️ publicado pero escaneado | **MIGRADO** (API scalalot) + config 600 |
+| el-guacharito (12) | ✅ 12@08:30–19:30 (API) | ✅ **101 figuras propias** (bundle) | ✅ 70× + Guacharito 99 150× (bundle) | ❌ no publicado | **MIGRADO** (API lotterly) + zoo 101 + config 70 |
+| guacharo-activo (13) | ✅ 12@08:00–19:00 (API) | ✅ **77 figuras propias** (bundle) | ✅ 60× + comodín Guácharo 75 120× (bundle) | ❌ no publicado | **MIGRADO** (API lotterly) + zoo 77 + config 60 |
+
+## Hallazgos nuevos (docs/comparacion-juegos.md)
+
+- **H2 CONFIRMADO para guacharito (101) y guácharo (77)**: los bundles oficiales de
+  las SPAs (elguacharitomillonario.com → index-EQw1Zdrz.js; guacharoactivo.com.ve →
+  index-Dv-KFMIs.js) contienen los zoos propios exactos (00 Ballena + 0 Delfin/Delfín
+  + 01..99 Guacharito / 01..75 Guacharo). La informativa tenía razón en ambos.
+  Nota: las labels del bundle de guacharito viajan SIN acentos ("Delfin") y las de
+  guácharo CON acentos ("Delfín") — se conservan tal cual (fuente oficial).
+- **H6 RESUELTO (cazaloton)**: el reglamento oficial (Reglamento.pdf, 17 págs,
+  parseable) confirma 38 figuras / 11 horarios / 30× + modalidades Dupleta 800× y
+  Tripleta 200×. Operador: Comercializadora PegaRifa C.A. / Lotería del Mar (Sucre).
+- **H17 (triple-chance)**: la informativa declara "3 sorteos 1:00/4:30/8:00 PM
+  (domingos 8:00 PM)" y "Triple A o B solo: 150×"; la fuente OFICIAL (tuchance.com.ve
+  → API scalalot) opera **11 horarios 09:00–19:00** (5 días muestreados) y el afiche
+  oficial declara **100×** para "SOLO TRIPLE A o B". El reglamento existe pero es un
+  PDF escaneado (no parseable); se usó el afiche (PDF texto) como fuente de premios.
+
+## TDD Cycle Evidence
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| f24.2 triple-chance | `tests/Unit/TripleChanceOficialScraperTest.php` | Unit | ✅ suite 653/651/2 | ✅ 4 fallos (orden horarios, defensivo) | ✅ 15/15 (89) | ✅ 15 casos (día completo 11, horas, A/B/C+signo, base64, signos, ANIMALITO ignorado, estructura, parcial, fail-fast, JSON inválido, vacío, 012, sin estructura, signo desconocido, horario sin AYB) | ✅ Pint clean |
+| f24.2 feature | `tests/Feature/TripleChanceResultsTest.php` | Feature | ✅ idem | ✅ 3 fallos (fuente vieja) | ✅ 8/8 | ✅ 8 casos (seeder nueva fuente, premios afiche, límite+plugin, 11 horarios, 12 signos, persistencia 11, dedupe, resolver) | ✅ Pint clean |
+| f24.3 guacharito | `tests/Unit/ElGuacharitoOficialScraperTest.php` | Unit | ✅ idem | ✅ 0 (clase nueva + fixture real) | ✅ 15/15 (42) | ✅ 15 casos (día completo 12, horas :30, zoo 101, "0"→Delfin, "00"→Ballena, padding, 99→Guacharito, parcial, estructura, sin resultado, fail-fast, JSON inválido, vacío, [], {}) | ✅ Pint clean |
+| f24.3 feature | `tests/Feature/ElGuacharitoResultsTest.php` | Feature | ✅ idem | ✅ 3 fallos (fuente vieja) | ✅ 8/8 | ✅ 8 casos (seeder nueva fuente, premio especial 99, límite+plugin, 12 horarios, 101 opciones, persistencia 12, dedupe, resolver) | ✅ Pint clean |
+| f24.4 guacharo | `tests/Unit/GuacharoActivoOficialScraperTest.php` | Unit | ✅ idem | ✅ 0 (clase nueva + fixture real) | ✅ 16/16 (44) | ✅ 16 casos (día completo 12, horas :00, zoo 77, acentos, "0"→Delfín, "00"→Ballena, padding, 75→Guacharo, parcial, estructura, sin resultado, fail-fast, JSON inválido, vacío, [], {}) | ✅ Pint clean |
+| f24.4 feature | `tests/Feature/GuacharoResultsTest.php` | Feature | ✅ idem | ✅ 3 fallos (fuente vieja) | ✅ 8/8 | ✅ 8 casos (seeder nueva fuente, comodín 75, límite+plugin, 12 horarios, 77 opciones, persistencia 12, dedupe, resolver) | ✅ Pint clean |
+| f24.5 cazaloton | `tests/Feature/CazalotonResultsTest.php` | Feature | ✅ idem | ✅ 1 fallo (modalidades) | ✅ 7/7 | ✅ 7 casos (seeder, modalidades reglamento, límite+plugin, 11 horarios, persistencia, dedupe, resolver) | ✅ Pint clean |
+| f24.6 regresión | `tests/Feature/JuegosJsonTest.php` | Feature | ✅ previo | ✅ 2 fallos (JSON stale, índice opciones) | ✅ 3/3 (553) | ✅ 101/77 opciones propias, premios 600/70/60, movidos del grupo plugin | ✅ |
+| f24.7 contrato JSON | Harness real | Runtime | — | juegos:export → 21 juegos | md5 `cd62b196` ×2 | — | OK |
+| f24.8 carga real | Harness real (scraper) | Runtime | N/A | — | triple-chance 11+3; guacharito 12+4; guacharo 12+4 | rescrape idempotente (0 errores) | — |
+
+**Test Summary (WU f24)**: +39 tests netos (se eliminaron 14 obsoletos de
+LoteriaDeHoy para los juegos migrados; se añadieron 53: 15+15+16 unit y
+8+8+8+1 feature). Suite completa **692/690/2** (3383 assertions) + `pint --test`
+limpio.
+
+## Work Unit Evidence
+
+| Work unit | Focused test command y resultado | Runtime harness y resultado | Rollback boundary |
+|-----------|----------------------------------|-----------------------------|-------------------|
+| WU1 triple-chance | `--filter=TripleChance` → 31/31 | fetch+parse contra API real (11 sorteos 12-sep); `db:seed` migra fuente; carga 11+3 persistidos; rescrape idempotente | Revertir `TripleChanceOficialScraper` + seeder a loteriadehoy + fixtures |
+| WU2 guacharito | `--filter=Guacharito` → 30/30 | API real: 12 (12-sep) + 4 (14-sep); rescrape 24 filas | Revertir `ElGuacharitoOficialScraper` + seeder + zoo 101 + fixtures |
+| WU3 guacharo | `--filter=Guacharo` → 24/24 | API real: 12 (12-sep) + 4 (14-sep); rescrape 24 filas | Revertir `GuacharoActivoOficialScraper` + seeder + zoo 77 + fixtures |
+| WU4 cazaloton | `--filter=Cazaloton` → 14/14 | Reglamento oficial PDF descargado y parseado (17 págs) | Revertir solo config modalidades del seeder |
+| WU5 regresión+JSON | `--filter="JuegosJsonTest\|LimitesScopedApiTest\|...focused"` → 131/131 | `juegos:export` determinista (md5 ×2) | Regenerar `docs/juegos.json` |
+| WU6 docs+persistencia | Suite completa 692/690/2 + pint limpio | N/A (docs) | Revertir los 5 .md + tasks + apply-progress |
+
+## Archivos cambiados (WU f24)
+
+| Archivo | Acción | Qué se hizo |
+|---------|--------|-------------|
+| `backend/app/Plugins/Scrapers/TripleChanceOficialScraper.php` | Create | API scalalot (tuchance): base64 token CHANCE + timestamp epoch Caracas; AYB→A/B + ASTRAL→C+signo (sigla), ignora ANIMALITO, base64+trim, orden por hora, fail-fast |
+| `backend/app/Plugins/Scrapers/ElGuacharitoOficialScraper.php` | Create | API lotterly; zoo propio **101** (bundle oficial, sin acentos); padding fallback; fail-fast |
+| `backend/app/Plugins/Scrapers/GuacharoActivoOficialScraper.php` | Create | API lotterly; zoo propio **77** (bundle oficial, con acentos); padding fallback; fail-fast |
+| `backend/database/seeders/TripleChanceSeeder.php` | Modify | `updateOrCreate` (migración de fuente): scraper_url API + scraper_class nueva + premios oficiales del afiche (600× + modalidades) |
+| `backend/database/seeders/ElGuacharitoSeeder.php` | Modify | `updateOrCreate`: fuente API lotterly + **101 JuegoOpcion** del zoo + premio 70 + comodines {guacharito-99: 150×} |
+| `backend/database/seeders/GuacharoActivoSeeder.php` | Modify | `updateOrCreate`: fuente API lotterly + **77 JuegoOpcion** del zoo + premio 60 + comodines {guacharo-75: 120×} |
+| `backend/database/seeders/CazalotonSeeder.php` | Modify | `updateOrCreate`: config + modalidades oficiales del reglamento (dupleta 800×, tripleta 200×); fuente SE MANTIENE loteriadehoy |
+| `backend/tests/Fixtures/tuchance_triplechance_*.json` (3) | Create | Snapshots reales del API scalalot (día completo 33 registros, parcial 6, vacío 012) |
+| `backend/tests/Fixtures/elguacharito_oficial_*.json` (2) | Create | Snapshots reales del API lotterly (día completo 12, parcial 3) |
+| `backend/tests/Fixtures/guacharoactivo_oficial_*.json` (2) | Create | Snapshots reales del API lotterly (día completo 12, parcial 3) |
+| `backend/tests/Unit/TripleChanceOficialScraperTest.php` | Create | 15 tests unit |
+| `backend/tests/Unit/ElGuacharitoOficialScraperTest.php` | Create | 15 tests unit |
+| `backend/tests/Unit/GuacharoActivoOficialScraperTest.php` | Create | 16 tests unit |
+| `backend/tests/Unit/ElGuacharitoScraperTest.php` + `GuacharoScraperTest.php` | Delete | Obsoletos: probaban el scraper ANTERIOR (LoteriaDeHoy) de juegos ya migrados |
+| `backend/tests/Fixtures/loteriadehoy_elguacharito.html` + `loteriadehoy_guacharo.html` | Delete | Fixtures de la fuente anterior (migrada) |
+| `backend/tests/Feature/TripleChanceResultsTest.php` | Modify | Nueva fuente, premios afiche, 8 tests |
+| `backend/tests/Feature/ElGuacharitoResultsTest.php` | Modify | Nueva fuente, 101 opciones, premio especial, 8 tests |
+| `backend/tests/Feature/GuacharoResultsTest.php` | Modify | Nueva fuente, 77 opciones, comodín, 8 tests |
+| `backend/tests/Feature/CazalotonResultsTest.php` | Modify | +1 test modalidades del reglamento |
+| `backend/tests/Feature/JuegosJsonTest.php` | Modify | el-guacharito/guacharo-activo a tablas propias (101/77, premios 70/60), triple-chance premio 600 |
+| `docs/juegos.json` | Modify | REGENERADO (21 juegos; md5 `cd62b196...` determinista) |
+| `backend/docs/juegos.md` | Modify | Filas 10–14 nuevas fuentes + nota LoteriaDeHoy solo para Cazaloton + contrato JSON |
+| `docs/seguimiento-verificacion.md` | Modify | Filas 9–13 verificadas + resumen + sección B + evidencia LOTE 2 (sección G) |
+| `docs/fuentes-oficiales.md` | Modify | Filas 9/10/12/13 con URLs oficiales + estados |
+| `docs/inconsistencias.md` | Modify | §4 acciones hechas + H6 resuelto + H17 nuevo |
+| `docs/comparacion-juegos.md` | Modify | Filas 9/10/12/13 + Nivel 1/2 + H2/H6/H17 |
+| `openspec/changes/integracion-juegos-scrapers/tasks.md` | Modify | WU f24 con tareas `[x]` |
+| `openspec/changes/integracion-juegos-scrapers/apply-progress.md` | Modify | Sección WU f24 añadida (merge) |
+
+## Desviaciones del diseño (WU f24)
+
+1. **Labels del zoo SIN acentos en guacharito** (vs patrón LotoChaima con acentos):
+   el bundle oficial de elguacharitomillonario.com trae "Delfin", "Ciempies",
+   "Gavilan"... y se conservan tal cual (fuente oficial = bundle; se documenta en el
+   docblock del scraper y en el test). GuacharoActivo SÍ trae acentos en su bundle.
+2. **TripleChanceOficialScraper no consume ANIMALITO**: la modalidad CHANCE
+   ANIMALITO pertenece a otro juego (chance-animalitos, candidato); el juego
+   triple-chance (type tripletas) consume AYB + ASTRAL.
+3. **Premios de triple-chance desde el afiche, no del reglamento**: el reglamento
+   publicado es un PDF escaneado (imágenes, no parseable); el afiche oficial del
+   sitio es PDF texto y se usó como fuente (documentado H17).
+4. **Cazaloton con `updateOrCreate`**: aplica las modalidades del reglamento sobre
+   el juego ya registrado sin cambiar la fuente (sigue loteriadehoy).
+
+## Problemas encontrados (WU f24)
+
+- **El API scalalot devuelve los horarios desordenados** (13:00 antes que 09:00):
+  el scraper ordena los resultados por hora para salida determinista.
+- **`JuegosJsonTest` con índices por posición**: el servicio ordena las opciones
+  por `numero` (MySQL), no por `sort_order`; las aserciones nuevas usan
+  `firstWhere('value')`/`array_column` en lugar de índices fijos.
+- **Suite completa 692/690/2** (+39 netos: +53 nuevos, −14 obsoletos de
+  LoteriaDeHoy para juegos migrados). Los 2 skips son pre-existentes.
+- **Cambios ajenos del checkout compartido**: `collections/*.yml`,
+  `panel/.astro/settings.json` (modificados) y `.atl/`, `.codegraph/`,
+  `openspec/config.yaml` (sin seguimiento) quedaron fuera de los commits (NO se
+  tocan ni se commitean).
+
+## Workload / PR Boundary (WU f24)
+
+- Modo: chained PR slice (feature-branch-chain, base = PR f23). NO se abren PRs.
+- Boundary: verificación de DATOS + migración de fuentes de los 4 juegos agregador
+  (scrapers → seeders → fixtures → tests → regresión → contrato JSON → docs →
+  carga real) con verificación incluida (suite completa 692/690/2 + pint limpio).
+- Rollback boundary por unidad: ver tabla Work Unit Evidence (WU f24).
+
+## Siguiente paso recomendado
+
+- `sdd-verify` del WU f24 cuando el orquestador lo dispare.
+- Pendientes de cliente: informar que **cazaloton.com no publica resultados** (se
+  mantiene loteriadehoy); confirmar el reglamento escaneado de Triple Chance
+  (afiche 100× vs informativa 150×); reglamentos de los triples (2, 8, 11).
+
+---
+
+# Apply Progress (WU f25) — Completar el zoológico de Monje Millonario con muestreo del histórico oficial
+
+**Rama**: `feat/integracion-juegos-scrapers-f25-monje-zoo` (base: `f24-verificacion-agregadores`)
+**Modo**: Strict TDD (backend: `composer test` vía `php artisan test`)
+**Estado**: ✅ COMPLETADO — 5/5 tareas
+
+## Resumen
+
+Cierre del **H14** por la vía aprobada por el cliente: muestrear el histórico oficial del feed
+`lottoactivo.com/resultados/animalitos/<fecha>/` (el mismo que consume `AnimalitosScraper`).
+Se recorrieron **75 días consecutivos (2026-07-02..09-14, 900 sorteos de Monje, 76 números
+distintos)** con 1 s entre fechas y se confirmaron los **7 nombres que faltaban**:
+**37 Tortuga, 39 Lechuza, 57 Pato, 65 Araña, 67 Avestruz, 68 Jaguar y 75 Patronus**. El
+`MonjeMillonarioSeeder` pasa de **70 a 77 figuras** (rango completo 0–75 + el 0 duplicado
+Delfín/Ballena) y queda **sin números pendientes**. Se regeneró `docs/juegos.json`.
+
+## Resultado del muestreo (WU f25)
+
+- **Días recorridos**: 75 consecutivos, `2026-07-02..2026-09-14` (73 días con 12 sorteos,
+  2026-09-14 parcial con 5 —día en curso—, 2026-07-16 con 10 —jornada incompleta—). **0 errores**
+  de fetch.
+- **Cobertura**: 76 números distintos, rango **0–75** sin huecos. El 0 lo comparten Delfín (10
+  apariciones) y Ballena (13) → **77 etiquetas**.
+- **Figuras nuevas confirmadas** (nombre oficial del feed → label con acentos del zoo):
+
+  | # | Feed | Label del zoo | Apariciones |
+  |---|------|---------------|------------:|
+  | 37 | Tortuga | Tortuga | 8 |
+  | 39 | Lechuza | Lechuza | 13 |
+  | 57 | Pato | Pato | 6 |
+  | 65 | Arana | **Araña** | 12 |
+  | 67 | Avestruz | Avestruz | 12 |
+  | 68 | Jaguar | Jaguar | 13 |
+  | 75 | Patronus | Patronus | 4 |
+
+- **Faltantes que persisten**: **ninguno**. El zoo queda completo (77 figuras, 0–75).
+- **Pistas externas verificadas**: 37 "Tortuga" ✓, 67 "Avestruz" ✓, 75 "Patronus" ✓ (las tres
+  coinciden con el feed oficial).
+- **Hallazgo H14 corregido — `special_result`**: la muestra corta de f22 (13 días) sugería
+  `special_result=1` en TODOS los resultados; el muestreo de 75 días demuestra que **NO es
+  siempre 1**: es un flag por resultado que varía **1/0 (~9/12 en 1 y 3/12 en 0 por día, horas
+  no fijas)** y solo Monje lo trae así — el resto de la familia (Lotto Activo, RD, Rep.Dom)
+  trae **0** siempre. La semántica sigue **sin documentar** (reglamento `Lotto_Activo_2.pdf` →
+  404) → pendiente para el operador.
+
+## TDD Cycle Evidence
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| f25.2 seeder monje | `tests/Feature/VerificacionOriginalesTest.php` | Feature | ✅ 6/6 (28) | ✅ 2 fallos (70 vs 77 + huecos 0..75) | ✅ 7/7 (43) | ✅ 2 casos (nombres exactos de los 7 + rango completo 0–75 sin huecos con 0 duplicado) | ✅ `$pendientes` eliminado; mensaje del seeder simplificado |
+| f25.3 regresión JSON | `tests/Feature/JuegosJsonTest.php` | Feature | ✅ previo | ✅ (JSON stale 70 + count) | ✅ 3/3 | ✅ 77 opciones + Patronus en labels + sin Cobra | ➖ Ninguno |
+| f25.4 contrato JSON | Harness real (`juegos:export`) | Runtime | — | — | ✅ monje 77 (min 0/max 75) | ✅ md5 `9a5e3da2` ×2 | — |
+
+**Test Summary (WU f25)**: +1 test neto (7 en `VerificacionOriginalesTest`) y +16 assertions.
+Suite completa **693/691/2** (3399 assertions) + `pint --test` limpio.
+
+## Work Unit Evidence
+
+| Evidence | Valor |
+|---|---|
+| Focused test command y resultado | `composer test -- --filter="JuegosJsonTest\|VerificacionOriginalesTest\|LimitesScopedApiTest"` → **40/40 (1014 assertions)**; `--filter=VerificacionOriginalesTest` → **7/7 (43)** |
+| Runtime harness command/scenario y resultado | **Muestreo real**: `php artisan tinker /tmp/opencode/monje_sample.php` → 75 días del feed oficial, 900 sorteos, 0 errores, 76 números. **Re-seed**: `php artisan db:seed --class=MonjeMillonarioSeeder` → 77 figuras. **Export**: `php artisan juegos:export` → `docs/juegos.json` determinista (md5 `9a5e3da2b292ce0fbc33686086fcbe58` ×2) |
+| Rollback boundary | Revertir `MonjeMillonarioSeeder` (77→70, restaurar `$pendientes`), `VerificacionOriginalesTest`/`JuegosJsonTest` y regenerar `docs/juegos.json`; sin tocar scrapers, motor ni otros juegos |
+
+## Archivos cambiados (WU f25)
+
+| Archivo | Acción | Qué se hizo |
+|---------|--------|-------------|
+| `backend/database/seeders/MonjeMillonarioSeeder.php` | Modify | +7 figuras (37/39/57/65/67/68/75) en orden numérico con labels acentuados; `$pendientes` eliminado; docblock y mensaje "zoo COMPLETO de 77 figuras" |
+| `backend/tests/Feature/VerificacionOriginalesTest.php` | Modify | `test_monje_millonario_tiene_zoo_propio_completo` (77 + 7 nombres) + `test_monje_millonario_zoo_cubre_todos_los_numeros_0_a_75` (rango sin huecos) |
+| `backend/tests/Feature/JuegosJsonTest.php` | Modify | monje 70→77 opciones + Patronus en labels |
+| `docs/juegos.json` | Modify | REGENERADO (21 juegos; monje 77 opciones, md5 `9a5e3da2` determinista) |
+| `docs/seguimiento-verificacion.md` | Modify | Fila 6 (Opciones ✅, zoo 77, H14 resuelto) + pendientes C + H14 + evidencia LOTE 1 item 6 (muestreo de 75 días) |
+| `docs/inconsistencias.md` | Modify | H2 (77 confirmadas) + H14 (zoo resuelto; pendiente premio Patronus + `special_result`) |
+| `docs/comparacion-juegos.md` | Modify | Nivel 1 Monje 70→77 + conclusión 2 + item 6 El Patronus CONFIRMADO + H2 + H14 + footer |
+| `backend/docs/juegos.md` | Modify | Fila 6 + nota del zoo de Monje (77, muestreo) + lista de tablas propias corregida (monje ya no es "sin tabla") |
+| `openspec/changes/integracion-juegos-scrapers/tasks.md` | Modify | Sección WU f25 con tareas `[x]` |
+| `openspec/changes/integracion-juegos-scrapers/apply-progress.md` | Modify | Sección WU f25 añadida (merge) |
+
+## Desviaciones del diseño (WU f25)
+
+1. **Sin cambios de scraper ni de motor**: el muestreo reutilizó `AnimalitosScraper::fetch` (el
+   mecanismo ya implementado) vía tinker; no se creó endpoint, clase ni lógica nueva de red.
+2. **Labels con acentos**: el feed viaja sin acentos ("Arana", "Delfin", "Ciempies") y el zoo
+   mantiene la ortografía acentuada del resto (patrón Loto Chaima) → 65 = "Araña". Documentado
+   en el docblock del seeder.
+3. **`special_result` NO se modela**: es un flag de semántica desconocida; por política (no
+   simular datos) solo se documenta como pendiente (H14), sin tocar `numeros_ganadores` ni el motor.
+
+## Problemas encontrados (WU f25)
+
+- **La muestra de 13 días de f22 era insuficiente**: con ~900 sorteos aparecen los 76 números;
+  con 66 resultados faltaban 7. Lección: para zoos de ~77 figuras, muestrear ≥2 meses (birthday
+  problem: P(faltar uno) ≈ (76/77)^900 ≈ 6e-6).
+- **`special_result` mal caracterizado en f22**: se documentó "siempre 1"; el muestreo largo
+  mostró que varía 1/0. Corregido en todas las docs (H14).
+- **`docs/juegos.json` stale**: el test de contrato falla si no se regenera tras cambiar el
+  seeder; se regeneró y verificó determinismo (md5 ×2).
+- **Cambios ajenos del checkout compartido**: `collections/*.yml`, `panel/.astro/settings.json`
+  (modificados) y `.atl/`, `.codegraph/`, `openspec/config.yaml` (sin seguimiento) quedan fuera
+  de los commits (NO se tocan ni se commitean).
+
+## Workload / PR Boundary (WU f25)
+
+- Modo: chained PR slice (feature-branch-chain, base = PR f24). NO se abren PRs.
+- Boundary: completar el zoo de Monje (muestreo → seeder → tests → regresión → contrato JSON →
+  docs) con verificación incluida (suite completa 693/691/2 + pint limpio).
+- Rollback boundary: revertir el seeder + los 2 tests + regenerar `docs/juegos.json`; sin tocar
+  scrapers, motor ni otros juegos.
+
+## Siguiente paso recomendado
+
+- `sdd-verify` del WU f25 cuando el orquestador lo dispare.
+- Pendientes de cliente (Monje): **premio especial de El Patronus** (reglamento 404) y
+  **semántica de `special_result`** (flag 1/0 sin documentar).
+
+# Apply Progress (WU f26) — Cacería de reglamentos: fase final de consistencia
+
+**Rama**: `feat/integracion-juegos-scrapers-f26-caceria-reglamentos` (base: `f25-monje-zoo`)
+**Modo**: Strict TDD (backend: `composer test` vía `php artisan test`)
+**Estado**: ✅ COMPLETADO — 5/5 tareas
+
+## Resumen
+
+Cacería del **reglamento oficial (o afiche/reglas oficiales)** de los **18 juegos** sin reglamento
+verificado (los ya verificados —cazaloton 9, triple-tachira 19, trio-activo 7— no se repitieron).
+Método por juego: (1) barrido del sitio oficial (menú/footer/rutas típicas/PDFs; las SPAs se
+revisaron en sus bundles JS), (2) operador/lotería reguladora, (3) búsqueda web acotada
+(buscadores bloqueados → evidencia por rutas revisadas), (4) **descarga de TODO artefacto
+encontrado** a `docs/reglamentos/`, (5) extracción y aplicación con TDD (patrón Táchira),
+(6) documentación.
+
+**Resultado**: 11 PDFs de reglamento (6 **parseables** + 5 **escaneados**), 3 licencias RUNLOT,
+7 afiches oficiales de la familia Lotto Activo, índice README. **3 reglamentos parseables
+aplicados**: Triple Zulia, Triple Caliente y Triple Zamorano → `premio_multiplo` 30→**600** +
+`modalidades` (los 3 en `docs/juegos.json`). **Hallazgos**: H18 (Caliente: reglamento 5 sorteos
+vs API 3), H19 (Zamorano: reglamento L-D vs API domingos solo 19:00), H20 (sitio oficial
+megaanimal40.com; scraper NO migrado), **H11 RESUELTO** (premios de Zamorano con fuente).
+
+## Reporte por juego (reglamento: encontrado-parseable / encontrado-imagen / no publicado)
+
+| Juego | Reglamento | Dónde se encontró | Ruta guardada | Cambios aplicados |
+|---|---|---|---|---|
+| 1 `lotto-activo` | encontrado-imagen (1 pág, no parseable) | admin.lottoactivo.com (licencia vía POST `/core/process.php`) | `docs/reglamentos/reglamento-lotto-activo.pdf` | Ninguno (FAQ 30× ya aplicado en f22) |
+| 2 `triple-zulia` | **encontrado-parseable** (17 págs) | resultadostriplezulia.com (bundle JS → `/images/REGLAMENTO TRIPLE ZULIA NOV2025_.pdf`) | `docs/reglamentos/reglamento-triple-zulia.pdf` + `licencia-triple-zulia-runlot.pdf` | **premio 30→600×** + modalidades {cola:60, zodiacal:6000, terminal_zodiacal:600} |
+| 3 `terminal-activo` | encontrado-parseable (1 pág) | admin.lottoactivo.com (`Terminal_Trio.pdf`, md5 = Trio_Activo.pdf) | `docs/reglamentos/reglamento-terminal-activo.pdf` | Ninguno (60× ya aplicado en f22) |
+| 4 `lotto-activo-rd` | encontrado-parseable (mislink "Ruleta Royal", 4 págs) | admin.lottoactivo.com (`Lotto_Activo_Rd_Ve.pdf`) | `docs/reglamentos/reglamento-lotto-activo-rd.pdf` | Ninguno (confirma 30× y 23=Cebra ya aplicados) |
+| 5 `lotto-activo-rep-dom` | encontrado-parseable (mismo mislink, md5 idéntico) | admin.lottoactivo.com (`Lotto_Activo_RD.pdf`) | `docs/reglamentos/reglamento-lotto-activo-rep-dom.pdf` | Ninguno |
+| 6 `monje-millonario` | **no publicado** | `Lotto_Activo_2.pdf` → 404 (+6 variantes probadas) | — | Ninguno (premio Patronus sigue pendiente, H14) |
+| 8 `triple-caliente` | **encontrado-parseable** (17 págs) | triplecaliente.com (bundle JS → `/images/Reglamento TRIPLE CALIENTE.pdf`) | `docs/reglamentos/reglamento-triple-caliente.pdf` + `licencia-triple-caliente-runlot.pdf` | **premio 30→600×** + modalidades; horarios se mantienen 13:00/16:30/19:10 (operación, H18) |
+| 10 `triple-chance` | encontrado-escaneado (2 PDFs) | tuchance.com.ve `/reglamentos/` | `docs/reglamentos/reglamento-triple-chance.pdf` (VIGENTE) + `reglamento-triple-chance-2024.pdf` | Ninguno (premios ya del afiche, f24; el cliente extraerá los textos) |
+| 11 `el-arrejuntado` | **no publicado** | landing SPA (Astro) + backend API-only; rutas `/reglamento`, `/docs`, `/api/v1/reglamentos/`, `/openapi.json` → 404 | — | Ninguno |
+| 12 `el-guacharito` | **no publicado** | bundle oficial (`index-EQw1Zdrz.js`) sin reglamento; "Operado bajo licencia de la Lotería de Oriente" | — | Ninguno |
+| 13 `guacharo-activo` | **no publicado** | bundle oficial (`index-Dv-KFMIs.js`) sin reglamento | — | Ninguno |
+| 14 `la-granjita` | encontrado-escaneado (17 págs) | lagranjita.com → cdns2.premierpluss.com | `docs/reglamentos/reglamento-la-granjita.pdf` | Ninguno (el cliente extraerá los textos) |
+| 15 `la-ricachona` | encontrado-escaneado (15 págs) | laricachona.com `assets/files/` | `docs/reglamentos/reglamento-la-ricachona.pdf` | Ninguno |
+| 16 `loto-chaima` | **no publicado** | bundle de lotochaima.com (`index-DKeh2UsF.js`) sin reglamento | — | Ninguno |
+| 17 `mega-animal-40` | **no publicado (solo referenciado)** | reglamento N° DIF-RGTO-033-00 (14-nov-2023) citado por RV y el sitio; **sitio oficial encontrado**: megaanimal40.com (CONALOT/Big Data/Lotería de Cojedes) confirma premios 30×/40× MEGA, 12 sorteos 09:00–20:00 | — | Ninguno (premio 30 ya en config; comodín MEGA sigue sin modelar, H1) |
+| 18 `selva-plus` | **no publicado** | bundle de selvaplus.com (`index-BI-rgou6.js`) sin reglamento | — | Ninguno |
+| 20 `triple-facil` | **no publicado** | bundle de triplefacil.com (`index-CnppWFwM.js`) + ruta `/reglamento` (SPA catch-all) sin PDF | — | Ninguno (700× informativo sigue pendiente, H10) |
+| 21 `triple-zamorano` | **encontrado-parseable** (18 págs) | triplezamorano.com (bundle JS → `/images/REGLAMENTO TP ZAMORANO NOV2025.pdf`) | `docs/reglamentos/reglamento-triple-zamorano.pdf` + `licencia-triple-zamorano-runlot.pdf` | **premio 30→600×** + modalidades {cola:60, uña:5, zodiacal:6000, cola_signo:600, uña_signo:60} (**H11 RESUELTO**) |
+
+Afiches oficiales descargados (familia Lotto Activo, `/descargas/`): `afiche-lotto-activo-animalitos.jpg`,
+`afiche-lotto-activo-triple-terminal-v1.jpg`, `afiche-lotto-activo-triple-terminal-v2.jpg`,
+`afiche-lotto-activo-ganar-divertido.jpg`, `afiche-lotto-activo-pendon-resultados.jpg`,
+`afiche-lotto-activo-ruleta-animales-grupos.jpg`, `afiche-lotto-activo-terminal.jpg`.
+
+## TDD Cycle Evidence
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| f26.3 zulia | `tests/Feature/VerificacionOriginalesTest.php` (+1 test) | Feature | ✅ previo | ✅ "30 is identical to 600" | ✅ 5/5 (15) | ✅ premio 600 + modalidades exactas {cola:60, zodiacal:6000, terminal_zodiacal:600} | ✅ seeder `firstOrCreate`→`updateOrCreate` (aplica en BD existentes) |
+| f26.3 caliente | `tests/Feature/TripleCalienteResultsTest.php` | Feature | ✅ previo | ✅ "30 matches expected 600" | ✅ 6/6 (27) | ✅ premio + modalidades + `product_id` intacto | ✅ comentarios de evidencia del reglamento |
+| f26.3 zamorano | `tests/Feature/TripleZamoranoResultsTest.php` | Feature | ✅ previo | ✅ "30 matches expected 600" | ✅ 7/7 (32) | ✅ premio + 5 modalidades (cola/uña/zodiacal/cola_signo/uña_signo) | ✅ seeder `firstOrCreate`→`updateOrCreate` |
+| f26.4 regresión JSON | `tests/Feature/JuegosJsonTest.php` | Feature | ✅ previo | ✅ archivo commiteado 30 vs generado 600 (3 juegos) | ✅ 3/3 (556) | ✅ asserts 600× para zulia/caliente/zamorano | ✅ juegos.json regenerado |
+| f26.4 contrato JSON | Harness real (`juegos:export`) | Runtime | — | — | ✅ 3 juegos con `premio_multiplo` 600 | ✅ verificado por script (jq/python) | — |
+
+**Test Summary (WU f26)**: +1 test neto y +6 assertions. Suite completa **694/692/2** (3405
+assertions) + `pint --test` limpio. Baseline previo 693/691/2 → **694/692/2**.
+
+## Work Unit Evidence
+
+| Evidence | Valor |
+|---|---|
+| Focused test command y resultado | `composer test -- --filter='VerificacionOriginalesTest\|TripleCalienteResultsTest\|TripleZamoranoResultsTest\|JuegosJsonTest'` → **24/24 (660 assertions)**; cada ciclo RED→GREEN verificado por separado (5/5, 6/6, 7/7, 3/3) |
+| Runtime harness command/scenario y resultado | **Cacería en vivo** (14-sep-2026, sleeps ~1-2s, UA navegador): 15 sitios oficiales barridos + 21 artefactos descargados a `docs/reglamentos/`. **Extracción**: `pdftotext` sobre los 3 reglamentos de los triples → premios Art. 19 (600×/60×/6.000×/600×...). **Re-seed**: `db:seed --class=Triple{Zulia,Caliente,Zamorano}Seeder` → config 600× verificada por tinker. **Export**: `php artisan juegos:export` → `docs/juegos.json` con 600× en los 3 |
+| Rollback boundary | Revertir los 3 seeders (config 30×/sin modalidades) + los 4 tests tocados + regenerar `docs/juegos.json`; los PDFs/afiches descargados en `docs/reglamentos/` se pueden borrar sin tocar código. Sin tocar scrapers, motor ni otros juegos |
+
+## Archivos cambiados (WU f26)
+
+| Archivo | Acción | Qué se hizo |
+|---------|--------|-------------|
+| `docs/reglamentos/*` (21 artefactos + README) | Created | Reglamentos (11 PDFs), licencias RUNLOT (3) y afiches oficiales (7 JPG) + índice |
+| `backend/database/seeders/TripleZuliaSeeder.php` | Modify | `premio_multiplo` 30→600 + modalidades (reglamento Lotería del Zulia); `updateOrCreate` |
+| `backend/database/seeders/TripleCalienteSeeder.php` | Modify | `premio_multiplo` 30→600 + modalidades (reglamento Lotería de Cojedes); nota H18 |
+| `backend/database/seeders/TripleZamoranoSeeder.php` | Modify | `premio_multiplo` 30→600 + modalidades (reglamento NOV2025); `updateOrCreate` |
+| `backend/tests/Feature/VerificacionOriginalesTest.php` | Modify | +`test_triple_zulia_premios_oficiales_del_reglamento` |
+| `backend/tests/Feature/TripleCalienteResultsTest.php` | Modify | Aserciones de premio 600 + modalidades |
+| `backend/tests/Feature/TripleZamoranoResultsTest.php` | Modify | Aserciones de premio 600 + 5 modalidades |
+| `backend/tests/Feature/JuegosJsonTest.php` | Modify | 600× para zulia/caliente/zamorano |
+| `docs/juegos.json` | Modify | Regenerado: premio_multiplo 600 en los 3 triples |
+| `docs/seguimiento-verificacion.md` | Modify | Matriz + resumen + pendientes + evidencia LOTE 3 (sección H) + H18–H20 |
+| `docs/fuentes-oficiales.md` | Modify | Filas con reglamentos obtenidos y rutas |
+| `docs/inconsistencias.md` | Modify | H11 resuelto, H1 respaldado, H18/H19/H20 nuevos |
+| `docs/comparacion-juegos.md` | Modify | Nivel 2/3 operadores + H11 resuelto + H18–H20 |
+| `backend/docs/juegos.md` | Modify | Filas 2/9/22 + nota de premios de Zamorano |
+
+## Desviaciones del diseño (WU f26)
+
+- Ninguna estructural. Nota: los buscadores web (websearch MCP, DDG, Bing, Startpage) estaban
+  bloqueados (403/consent/challenge) → la búsqueda web acotada se sustituyó por barrido directo
+  de sitios oficiales + bundles JS + rutas típicas, documentado como evidencia por juego.
+- Los seeders de Zulia y Zamorano pasaron de `firstOrCreate` a `updateOrCreate` para que la
+  corrección de premios aplique en BD existentes (mismo patrón que TripleCalienteSeeder).
+
+## Problemas encontrados (WU f26)
+
+- `Lotto_Activo_2.pdf` (Monje) → 404; 6 variantes de nombre probadas → 404. Reglamento de
+  Monje **no publicado** (premio de El Patronus sigue pendiente, H14).
+- La API de Triple Caliente opera **3 horarios** (13:00/16:30/19:10) pero el reglamento declara
+  **5** (11:10–19:10) → H18, se prioriza la operación.
+- El reglamento de Zamorano declara sorteos L-D; la API muestra domingos solo 19:00 → H19.
+- Sitios de loterías reguladoras (Cojedes, Zulia, Oriente, Caracas) no resuelven desde este
+  entorno; CONALOT no publica reglamentos por juego.
+
+## Workload / PR Boundary (WU f26)
+
+- Modo: chained PR slice (feature-branch-chain, base = PR f25). NO se abren PRs.
+- Boundary: cacería de reglamentos (barrido → descarga → extracción TDD → catálogo → docs)
+  con verificación incluida (suite completa 694/692/2 + pint limpio).
+- Rollback boundary: revertir los 3 seeders + 4 tests + `docs/juegos.json`; borrar
+  `docs/reglamentos/` (artefactos); sin tocar scrapers, motor ni otros juegos.
+
+## Siguiente paso recomendado
+
+- `sdd-verify` del WU f26 cuando el orquestador lo dispare.
+- Decisiones de cliente: (a) extraer los textos de los 5 reglamentos escaneados (el agente no
+  hace OCR), (b) confirmar H12 (Terminal Trío 60× vs 70× FAQ), H18 (Caliente 5 vs 3 sorteos),
+  H19 (Zamorano domingos), (c) decidir si migrar el scraper de Mega Animal 40 a su sitio
+  oficial (H20) y modelar el comodín MEGA (H1), (d) premio de El Patronus (H14).
+
+# Apply Progress (WU f27) — Migrar Mega Animal 40 a su sitio oficial + captura del comodín MEGA
+
+**Rama**: `feat/integracion-juegos-scrapers-f27-mega-oficial` (base: `f26-caceria-reglamentos`)
+**Modo**: Strict TDD (backend: `composer test` vía `php artisan test`)
+**Estado**: ✅ COMPLETADO — 7/7 tareas
+
+## Resumen
+
+**Migración del scraper de `mega-animal-40` del agregador resultadosvenezuela.com al SITIO OFICIAL
+`https://megaanimal40.com/`** (CONALOT + Big Data Tecnology + Lotería de Cojedes) y **captura del
+comodín MEGA** que la data oficial SÍ trae — resuelve **H1 y H20** (pedido del cliente).
+
+**Endpoint oficial** (sin auth ni anti-bot): `POST https://megaanimal40.com/core/process.php` con
+form-data `option=<token de resultados>` → JSON con `datos[].resultados[]` del DÍA ACTUAL
+(`date_result`, `time_s` 12h, `number_animal` 2 dígitos, `animalito` con acentos, **`mega` "1"/"2"**).
+El JS oficial del sitio documenta el comodín: `if (b.mega == "2") { ...muestra la palabra MEGA... }`.
+
+**Limitación probada y documentada**: el endpoint IGNORA los parámetros de fecha (fecha/date/dia →
+siempre hoy; prueba con `date=2026-09-10` → 8 sorteos del 14-sep) y `/historial/` usa el mismo
+token → el scraper oficial solo sirve el DÍA ACTUAL (`execute` filtra por fecha; otra fecha → `[]`).
+Los históricos previos en BD (del proveedor) quedan.
+
+**Resultado**: `MegaAnimal40OficialScraper` + seeder `updateOrCreate` (fuente oficial + comodín
+MEGA 40× en config) + fixtures (real de hoy + **SINTÉTICO** del campo `mega:"2"`) + contrato JSON
+enriquecido (`comodines`/`modalidades` en `JuegoCatalogoService`) + `docs/juegos.json` regenerado
++ CARGA REAL de hoy (8 sorteos, dedupe OK, ayer 0 por limitación) + 5 docs actualizados.
+`MegaAnimal40Scraper` (proveedor) queda como **clase durmiente** (NO borrado, documentado).
+
+## TDD Cycle Evidence
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| f27.2 scraper oficial | `tests/Unit/MegaAnimal40OficialScraperTest.php` (nuevo) | Unit | N/A (nuevo) | ✅ 13/13 "Class not found" | ✅ 13/13 (54) | ✅ comodín true/false ×2, acentos ×2, filtro por fecha ×3, horas ×8 | ✅ pint (not_operator, unary spaces) |
+| f27.3 seeder | `tests/Feature/MegaAnimal40ResultsTest.php` (adaptado) | Feature | ✅ previo (6/6 viejo) | ✅ 2 fallos: scraper_url y scraper_class viejos | ✅ 8/8 (33) | ✅ persistencia con comodín true (sintético) + false | ✅ seeder `firstOrCreate`→`updateOrCreate` |
+| f27.4 contrato JSON | `tests/Feature/JuegosJsonTest.php` | Feature | ✅ previo (3/3) | ✅ "Falta el campo [comodines]" | ✅ 3/3 (618) | ✅ comodines mega/selva/guacharito/guacharo + modalidades ×10 juegos | ✅ orden real de claves JSON de MySQL (longitud de bytes, luego lexicográfico) |
+| f27.5 export | Harness real (`juegos:export`) | Runtime | — | — | ✅ md5 `8879c514…` ×2 (determinista) | ✅ verificado por script (python) | — |
+
+**Test Summary (WU f27)**: +23 tests netos (13 unit nuevos + 8 feature adaptados + 2 aserciones de
+esquema). Focused `--filter="MegaAnimal40|JuegosJson|LimitesScopedApi"` → **64/64 (1154 assertions)**.
+Suite completa **717/715/2** (≈3575 assertions; baseline 694/692/2) + `pint --test` limpio.
+
+## Work Unit Evidence
+
+| Evidence | Valor |
+|---|---|
+| Focused test command y resultado | `composer test -- --filter=MegaAnimal40Oficial` → **13/13 (54)**; `--filter=MegaAnimal40` → **31/31 (119)**; `--filter=JuegosJson` → **3/3 (618)**; regresión `--filter="MegaAnimal40\|JuegosJson\|LimitesScopedApi"` → **64/64 (1154)** |
+| Runtime harness command/scenario y resultado | **Endpoint real en vivo** (14-sep-2026): `curl -X POST https://megaanimal40.com/core/process.php -d option=<token>` → 200, 8 sorteos de hoy (09:00–16:00), todos `mega:"1"`; `date=2026-09-10` → misma respuesta (ignora fecha). **CARGA REAL** vía tinker (`MegaAnimal40OficialScraper->execute('2026-09-14')` + `saveResults`): 8 persistidos; 2º rescrape → 8 (dedupe, 0 duplicados); `execute('2026-09-13')` → 0 (limitación). BD local total **281** resultados (mega: 25 = 17 proveedor + 8 hoy) |
+| Rollback boundary | Revertir el seeder (scraper_url/class + config), borrar `MegaAnimal40OficialScraper` + sus 2 fixtures + el test nuevo, revertir `JuegoCatalogoService` (2 líneas) + `JuegosJsonTest` + `docs/juegos.json` regenerado; `MegaAnimal40Scraper` legacy queda intacto (durmiente). Sin tocar motor, panel, taquilla ni otros juegos |
+
+## Archivos cambiados (WU f27)
+
+| Archivo | Acción | Qué se hizo |
+|---------|--------|-------------|
+| `backend/app/Plugins/Scrapers/MegaAnimal40OficialScraper.php` | Created | Scraper oficial: POST `/core/process.php` con token, parse `datos[].resultados[]`, `comodin` (mega=="2"), hora `normalizeHora`, filtro por fecha, fail-fast, `saveResults` heredado |
+| `backend/database/seeders/MegaAnimal40Seeder.php` | Modify | `updateOrCreate`: `scraper_url` megaanimal40.com, `scraper_class` oficial, `config` + comodines {mega: MEGA 40×} |
+| `backend/app/Services/JuegoCatalogoService.php` | Modify | Exporta `comodines` y `modalidades` desde config (aditivos, null si no) |
+| `backend/tests/Unit/MegaAnimal40OficialScraperTest.php` | Created | 13 unit: parse, horas, acentos, comodín true/false, fecha, filtro ×3, estructura, fail-fast, inválido, status false, sin datos |
+| `backend/tests/Unit/MegaAnimal40ScraperTest.php` | Modify | Docblock: clase durmiente (cobertura legacy conservada) |
+| `backend/tests/Feature/MegaAnimal40ResultsTest.php` | Modify | Adaptado al seeder oficial: config comodines, persistencia con/sin comodín, dedupe, resolver |
+| `backend/tests/Feature/JuegosJsonTest.php` | Modify | Esquema + `comodines`/`modalidades` en el mínimo; asserts de mega/selva/guacharito/guacharo + modalidades (orden real MySQL) |
+| `backend/tests/Fixtures/megaanimal40_oficial.json` | Created | Snapshot REAL del endpoint (14-sep, 8 sorteos, mega:"1") |
+| `backend/tests/Fixtures/megaanimal40_comodin.json` | Created | **SINTÉTICO** del campo documentado `mega:"2"` (etiquetado; el real llegará con el primer comodín) |
+| `docs/juegos.json` | Modify | Regenerado: mega con `comodines.mega` (MEGA 40×), selva A/B, modalidades de triples/trío/terminal/cazaloton/fácil/chance |
+| `docs/seguimiento-verificacion.md` | Modify | Fila 17 ✅ oficial + comodín capturado; resumen 20/21; H1/H20 resueltos; **sección I evidencia WU f27** |
+| `docs/fuentes-oficiales.md` | Modify | Fila 17 → megaanimal40.com (endpoint + limitación) |
+| `docs/inconsistencias.md` | Modify | H1/H20 RESUELTOS + §4 fila mega |
+| `docs/comparacion-juegos.md` | Modify | Fila 17, Nivel 2 item 2, Nivel 3 items 1/3, H1/H20, footer |
+| `backend/docs/juegos.md` | Modify | Fila 18 nueva fuente + nota `MegaAnimal40OficialScraper` + clase durmiente + contrato JSON `comodines`/`modalidades` |
+| `openspec/changes/integracion-juegos-scrapers/tasks.md` | Modify | Sección WU f27 añadida (7/7 `[x]`) |
+| `openspec/changes/integracion-juegos-scrapers/apply-progress.md` | Modify | Sección WU f27 añadida (merge) |
+
+## Desviaciones del diseño
+
+- Ninguna estructural. Notas:
+  - El recon indicaba 7 sorteos de hoy; al momento de la carga real el endpoint ya traía **8**
+    (apareció el sorteo de 04:00 PM) — se cargaron los 8 reales.
+  - `JuegosJsonTest` requiere las claves de `modalidades` en el ORDEN que MySQL persiste en JSON
+    (por longitud de bytes, luego lexicográfico: p. ej. `punta` antes que `terminal`) — verificado
+    empíricamente contra la BD local, no asumido.
+  - El test legacy del proveedor (`MegaAnimal40ScraperTest`) se CONSERVA como cobertura de la clase
+    durmiente (no se borró ni se reemplazó).
+
+## Problemas encontrados (WU f27)
+
+- El endpoint oficial IGNORA los parámetros de fecha y el sitio no expone histórico funcional →
+  el scraper solo sirve el día actual (limitación documentada en scraper, docs y seeder); ayer
+  devuelve `[]` por diseño, no por error.
+- El comodín MEGA NO ha salido hoy (todos `mega:"1"`): la captura real del comodín se cubre con el
+  fixture SINTÉTICO `megaanimal40_comodin.json`; el primer comodín real llegará con la captura real.
+- MySQL reordena las claves de objetos JSON (longitud de bytes, luego lexicográfico) → las
+  aserciones de `modalidades`/`comodines` deben usar el orden persistido real (evidencia empírica).
+
+## Workload / PR Boundary (WU f27)
+
+- Modo: chained PR slice (feature-branch-chain, base = PR f26). NO se abren PRs.
+- Boundary: migración de Mega Animal 40 (scraper → seeder → fixtures → contrato JSON → catálogo →
+  carga real → docs) con verificación incluida (focused 64/64 + pint limpio).
+- Rollback boundary: descrito arriba; no toca motor, panel, taquilla ni otros juegos.
+
+## Siguiente paso recomendado
+
+- `sdd-verify` del WU f27 cuando el orquestador lo dispare.
+- Cliente: (a) la LIQUIDACIÓN del comodín MEGA (40×) en `calcularPremio` es del ciclo futuro del
+  motor (aquí solo se captura el dato en `numeros_ganadores.comodin`), (b) el reglamento
+  DIF-RGTO-033-00 sigue sin PDF (pendiente de la Lotería de Cojedes), (c) confirmar H12/H18/H19
+  (triples) y extraer los reglamentos escaneados.

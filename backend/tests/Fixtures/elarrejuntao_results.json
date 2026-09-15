@@ -1,0 +1,92 @@
+{
+    "id": "e30ad531-3b25-40fb-bb07-b7ec46f98d54",
+    "name": "El Arrejuntao",
+    "slug": "el-arrejuntao",
+    "logo": "https://nyc3.digitaloceanspaces.com/triple7-media/products/logos/el-arrejuntao-logo.png",
+    "organization_name": "Loter\u00eda de Cojedes",
+    "draws": [
+        {
+            "id": "f4241e49-aa78-4589-bcfd-c4764914bb50",
+            "schedule_id": "1f530cf3-4fde-4c5c-a53c-5d04a228fc20",
+            "draw_number": "0885",
+            "draw_date": "2026-09-01",
+            "draw_time": "10:00 AM",
+            "is_published": true,
+            "results": [
+                {
+                    "game": {
+                        "id": "ebe34483-6021-4643-bfee-c3ee58ee3672",
+                        "name": "Animalito",
+                        "slug": "animalito",
+                        "has_symbols": true
+                    },
+                    "result_value": "73",
+                    "symbol": {
+                        "value": "73",
+                        "name": "Hipop\u00f3tamo",
+                        "image": "https://nyc3.digitaloceanspaces.com/triple7-media/game_symbols/animalitos/el-arrejuntao/73.png"
+                    }
+                },
+                {
+                    "game": {
+                        "id": "4b03f8a4-09fd-4ffd-96ac-fca85a658fef",
+                        "name": "El Arrimao",
+                        "slug": "el-arrimao",
+                        "has_symbols": false
+                    },
+                    "result_value": "1825",
+                    "symbol": null
+                },
+                {
+                    "game": {
+                        "id": "44c8299e-7d8b-4678-b66d-2a2e85b3b538",
+                        "name": "El Pegadito",
+                        "slug": "el-pegadito",
+                        "has_symbols": false
+                    },
+                    "result_value": "10503",
+                    "symbol": null
+                },
+                {
+                    "game": {
+                        "id": "af55c77e-7cc5-45c2-b79f-b8a0ceeb4e0d",
+                        "name": "Triple A",
+                        "slug": "triple-a",
+                        "has_symbols": false
+                    },
+                    "result_value": "894",
+                    "symbol": null
+                },
+                {
+                    "game": {
+                        "id": "ac026868-d5d2-4d2c-b9ed-ee5fd962ed36",
+                        "name": "Triple B",
+                        "slug": "triple-b",
+                        "has_symbols": false
+                    },
+                    "result_value": "082",
+                    "symbol": null
+                },
+                {
+                    "game": {
+                        "id": "83858e53-9ea2-4ee3-a423-4d112713ae34",
+                        "name": "Triple + Signo",
+                        "slug": "triple-signo",
+                        "has_symbols": false
+                    },
+                    "result_value": "259 LEO",
+                    "symbol": null
+                }
+            ],
+            "twitter_status": {
+                "id": "551eaabb-f099-4b88-9fe7-a9034ab9e1b5",
+                "status": "published",
+                "tweet_id": "2094788214338793555",
+                "tweet_url": "https://x.com/i/status/2094788214338793555",
+                "image": "https://nyc3.digitaloceanspaces.com/triple7-media/twitter_posts/draw_0885_2026-09-01.png",
+                "published_at": "2026-09-01T10:03:24.464772-04:00",
+                "error_message": ""
+            }
+        }
+    ]
+}

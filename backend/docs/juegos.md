@@ -1,0 +1,351 @@
+# Catálogo de juegos (backend)
+
+Lista maestra de juegos del backend. Es la fuente de referencia única: cada juego integrado
+debe reflejarse aquí en el MISMO work unit en que se implementa (seeder, scraper, tests),
+y los seeders materializan los datos que esta lista documenta (slug, type, fuente).
+
+## Juegos actuales (7)
+
+| # | Nombre | slug | type | Horarios (juego_horarios) | Fuente scraper | Clase scraper | Estado |
+|---|--------|------|------|---------------------------|----------------|---------------|--------|
+| 1 | Lotto Activo | `lotto-activo` | animalitos | 08:00–19:00 (cada hora `:00`) | `https://www.lottoactivo.com/resultados/animalitos/` | `AnimalitosScraper` | ✅ Verificado con datos reales (12-sep) |
+| 2 | Triple Zulia | `triple-zulia` | tripletas | 12:45, 16:45, 19:05 | `https://resultadostriplezulia.com/` | `TripletasScraper` | ✅ Verificado con datos reales (12-sep) + reglamento oficial (WU f26: 600×/60×/6.000×/600×) |
+| 3 | Terminal Activo | `terminal-activo` | terminales | 08:00–19:00 (cada hora `:00`) | `https://www.lottoactivo.com/resultados/terminal_activo/` | `AnimalitosScraper` (vía URL, formato plano) | ✅ Verificado con datos reales (12-sep) |
+| 4 | Lotto Activo RD Internacional | `lotto-activo-rd` | animalitos | 08:30–19:30 (cada hora `:30`) | `https://www.lottoactivo.com/resultados/animalitos/` | `AnimalitosScraper` | ✅ Verificado con datos reales (12-sep) |
+| 5 | Lotto Activo República Dominicana | `lotto-activo-rep-dom` | animalitos | 08:00–21:00 (cada hora `:00`) | `https://www.lottoactivo.com/resultados/animalitos/` | `AnimalitosScraper` | ✅ Verificado con datos reales (12-sep) |
+| 6 | Monje Millonario | `monje-millonario` | animalitos | 08:05–19:05 (cada hora `:05`) | `https://www.lottoactivo.com/resultados/animalitos/` | `AnimalitosScraper` | ✅ Verificado con datos reales (12-sep) — **zoo propio COMPLETO de 77 figuras** (WU f25) |
+| 7 | Trío Activo | `trio-activo` | tripletas | 08:00–19:00 (cada hora `:00`) | `https://www.lottoactivo.com/resultados/trio_activo/` | `AnimalitosScraper` (vía URL, formato plano) | ✅ Verificado con datos reales (12-sep) |
+
+> Nota de resolución de scraper: la clase se resuelve en orden `juegos.scraper_class` →
+> match de URL (`lottoactivo.com` / `triplezulia`) → convención `{Studly(type)}Scraper`.
+> Los juegos 3 y 7 (type `terminales`/`tripletas`) usan `AnimalitosScraper` porque su fuente
+> es lottoactivo; el match de URL prevalece sobre la convención por type.
+
+> Familia lottoactivo — verificación con datos reales (12-sep-2026): los 7 juegos se verificaron
+> en vivo contra `lottoactivo.com` (batch `ScrapeResultsJob` por juego, 13 juegos en total, sin
+> errores). El feed de `/resultados/animalitos/<fecha>/` es un JSON anidado que incluye LOS CUATRO
+> juegos animalitos (Lotto Activo, Lotto Activo RD Internacional, Lotto Activo República Dominicana
+> y "Lotto Activo 2 (Monje Millonario)") en una sola respuesta: `AnimalitosScraper` mapea el nombre
+> de cada juego a su slug canónico (`lotto-activo-rd-internacional` → `lotto-activo-rd`,
+> `lotto-activo-republica-dominicana` → `lotto-activo-rep-dom`,
+> `lotto-activo-2-monje-millonario` → `monje-millonario`) y persiste cada uno en su fila con dedupe
+> por juego+fecha+hora. `/resultados/terminal_activo/` y `/resultados/trio_activo/` devuelven un
+> formato PLANO (`resultado1..resultado4`, `time_s`, `fecha`, `id`) que se mapea a `numero` (terminales)
+> o `triple_a` (tripletas); las etiquetas `[TerminalActivoScraper]`/`[TrioActivoScraper]` de los logs
+> son dinámicas del mismo `AnimalitosScraper` (nombre derivado del slug), no clases aparte. Los
+> fixtures reales `tests/Fixtures/lottoactivo_*` (capturados el 12-sep-2026) cubren ambas rutas y el
+> mapeo de slugs en `AnimalitosScraperTest`.
+
+> Zoológico de Monje Millonario (WU f22 + f25): el juego usa un zoológico PROPIO distinto al
+> canónico de 38 — números 0–75 con animales propios (49=Pereza, 42=Tucán, 74=Turpial,
+> 75=Patronus). Las **77 figuras** (76 números 0–75 + el 0 duplicado Delfín/Ballena) quedaron
+> **confirmadas con el feed oficial** muestreando el histórico de 75 días consecutivos
+> (2026-07-02..09-14, ~900 sorteos): los 7 nombres que faltaban tras la muestra corta del WU f22
+> (37 Tortuga, 39 Lechuza, 57 Pato, 65 Araña, 67 Avestruz, 68 Jaguar, 75 Patronus) salieron en la
+> muestra y quedaron registrados en `MonjeMillonarioSeeder`. El feed marca `special_result` como
+> flag 1/0 variable (~9/12 por día, horas no fijas) — semántica sin documentar (H14); el premio
+> especial de El Patronus sigue pendiente (reglamento `Lotto_Activo_2.pdf` → 404).
+
+## Hueco #8
+
+| # | Nombre | slug | type | Horarios | Fuente | Clase scraper | Estado |
+|---|--------|------|------|----------|--------|---------------|--------|
+| 8 | *(por confirmar con el cliente)* | — | — | — | — | — | — |
+
+La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (decisión del cliente).
+
+## Juegos integrados (nuevos)
+
+| # | Nombre | slug | type | Horarios (juego_horarios) | Fuente scraper | Clase scraper | Estado |
+|---|--------|------|------|---------------------------|----------------|---------------|--------|
+| 9 | Triple Caliente | `triple-caliente` | tripletas | 13:00, 16:30, 19:10 | `https://triplecaliente.com/api/gaming/results/product` (API oficial) | `TripleCalienteOficialScraper` | ✅ Verificado con datos reales (API oficial, sin anti-bot) + reglamento oficial (WU f26: 600×/60×/6.000×/600×; reglamento declara 5 sorteos, la API opera 3 — H18) |
+| 10 | Cazaloton | `cazaloton` | animalitos | 09:00–19:00 (11 horarios `:00`) | `https://loteriadehoy.com/animalito/cazaloton/resultados/` (SE MANTIENE — el sitio oficial cazaloton.com NO publica resultados; sus enlaces apuntan a loteriadehoy) | `LoteriaDeHoyScraper` | ✅ Verificado con datos reales (12-sep) + reglamento oficial (38 figuras, 30x, dupleta 800x, tripleta 200x) |
+| 11 | Triple Chance | `triple-chance` | tripletas | 09:00–19:00 (11 horarios `:00`) | `https://api.scalalot.com/servicelotteryresults/ServicioResultados.svc/ServicioResultados/ConsultarResultadoSorteo/Q0hBTkNF/` (API oficial tuchance.com.ve "Chance en línea") | `TripleChanceOficialScraper` | ✅ Verificado con datos reales (12-sep: 11 sorteos, API oficial sin anti-bot; premios oficiales 600x) |
+| 12 | El Arrejuntado | `el-arrejuntado` | tripletas | 10:00, 13:00, 16:00, 19:00, 23:00 (5 horarios) | `https://backend.serviciosintegradostriple7.com/api/v1/products/el-arrejuntao/results/` | `ElArrejuntaoScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
+| 13 | El Guacharito Millonario | `el-guacharito` | animalitos | 08:30–19:30 (12 horarios `:30`) | `https://api.lotterly.co/v1/results/el-guacharito-millonario/` (API oficial lotterly.co) | `ElGuacharitoOficialScraper` | ✅ Verificado con datos reales (12-sep: 12 sorteos, API oficial; **101 figuras propias**, premio 70x + especial 99 150x) |
+| 14 | Guacharo Activo | `guacharo-activo` | animalitos | 08:00–19:00 (12 horarios `:00`) | `https://api.lotterly.co/v1/results/guacharo-activo/` (API oficial lotterly.co) | `GuacharoActivoOficialScraper` | ✅ Verificado con datos reales (12-sep: 12 sorteos, API oficial; **77 figuras propias**, premio 60x + comodín 75 120x) |
+| 15 | La Granjita | `la-granjita` | animalitos | 08:00–19:00 (12 horarios `:00`) | `https://www.lagranjita.com/api/results.json?productId=1` (API oficial) | `LaGranjitaScraper` | ✅ Verificado con datos reales (12-sep, API oficial sin anti-bot) |
+| 16 | La Ricachona | `la-ricachona` | tripletas | 08:05–19:05 (12 horarios `:05`) | `https://laricachona.com/` (HTML oficial por fecha) | `LaRicachonaScraper` | ✅ Verificado con datos reales (12-sep, HTML oficial) |
+| 17 | Loto Chaima | `loto-chaima` | animalitos | 08:00–19:00 (12 horarios `:00`) | `https://api.lotterly.co/v1/results/loto-chaima/` (API oficial) | `LotoChaimaScraper` | ✅ Verificado con datos reales (12-sep, API oficial sin auth) |
+| 18 | Mega Animal 40 | `mega-animal-40` | animalitos | 09:00–20:00 (12 horarios `:00`) | `https://megaanimal40.com/` (sitio OFICIAL — `POST /core/process.php` con token; WU f27) | `MegaAnimal40OficialScraper` | ✅ Verificado con datos reales (14-sep: HOY 8, dedupe; **comodín MEGA capturado** en `numeros_ganadores.comodin`; endpoint solo sirve el día actual) |
+| 19 | Selva Plus | `selva-plus` | animalitos | 08:15–20:15 (13 horarios `:15`) | `https://api.lotterly.co/v1/results/selva-plus/` (API oficial) | `SelvaPlusScraper` | ✅ Verificado con datos reales (12-sep: HOY 7 + AYER 13, dedupe) |
+| 20 | Triple Táchira | `triple-tachira` | tripletas | 13:15, 16:45, 22:10 (3 horarios) | `https://tripletachira.com/pruebah.php` (sitio oficial) | `TripleTachiraScraper` | ✅ Verificado con datos reales (12-sep: AYER 3 + HOY 1, dedupe) |
+| 21 | Triple Fácil | `triple-facil` | tripletas | 08:00–19:00 (12 horarios `:00`) | `https://api.lotterly.co/v1/results/triple-facil/` (API oficial lotterly.co) | `TripleFacilScraper` | ✅ Verificado con datos reales (12-sep: AYER 12 + HOY 10, dedupe) |
+| 22 | Triple Zamorano | `triple-zamorano` | tripletas | 10:00, 12:00, 14:00, 16:00, 19:00 (5 horarios) | `https://www.triplezamorano.com/api/gaming/results/product` (API oficial) | `TripleZamoranoScraper` | ✅ Verificado con datos reales (12-sep: AYER 5 + HOY 4, dedupe) + reglamento oficial NOV2025 (WU f26: 600×/60×/5×/6.000×/600×/60×) |
+
+> `LoteriaDeHoyScraper` es parametrizado: reutiliza el mismo `scraper_class` para los juegos de
+> loteriadehoy.com registrando la `scraper_url` de cada juego (se usa su slug/name para fail-fast
+> y su URL para fetch). Formato soportado según type: tabla de resultados de triples
+> (`table.resultados`) para `tripletas`, y bloques de número + animal + hora (`div.js-con`) para
+> `animalitos`. En modo animalitos la página solo renderiza los sorteos ya ocurridos del día, por
+> lo que el scraper maneja resultados parciales (los bloques presentes, sin asumir el total).
+> Tras el WU f24 solo queda en uso para **Cazaloton** (y como respaldo).
+
+> `ElArrejuntaoScraper` consume la API JSON de serviciosintegradostriple7.com (endpoint por fecha).
+> Cada draw publicado (`is_published=true`) trae 6 modalidades: `animalito`, `el-arrimao`,
+> `el-pegadito`, `triple-a`, `triple-b` y `triple-signo`. El juego se registra con type `tripletas`
+> (según la tabla del cliente) y cada draw se persiste como UN resultado cuya `numeros_ganadores`
+> (array JSON flexible) conserva las 6 modalidades: `triple-a` → `triple_a`, `triple-b` → `triple_b`,
+> y `triple-signo` ("259 LEO") se divide en `triple_c` ("259") + `signo` ("LEO") para ser compatible
+> con el esquema tripletas que renderiza el panel; `animalito`, `arrimao` y `pegadito` se conservan
+> en el mismo array (modalidades adicionales no consumidas por la renderización tripletas en esta
+> iteración).
+
+> `TripleCalienteOficialScraper` consume la API oficial de triplecaliente.com (POST
+> `/api/gaming/results/product`, body `{"game_product_id":"4"}`, sin auth ni anti-bot). Sustituye a
+> `LoteriaDeHoyScraper` para Triple Caliente porque loteriadehoy.com quedó bloqueado por el challenge
+> de Cloudflare. La API devuelve el histórico de sorteos (los últimos N), cada uno con 3 `events`
+> (ids únicos), `results` A/B/C (C incluye signo, p. ej. `589-ESC`) y `event_timestamp.seconds`
+> (epoch). El scraper deriva `fecha_sorteo`/`hora_sorteo` locales en America/Caracas (UTC-4) desde el
+> timestamp, mapea A/B/C+signo al esquema tripletas, usa el primer `event` como `sorteo_id_externo`,
+> y `execute` filtra el histórico a la fecha solicitada (patrón `TripletasScraper`, misma familia de
+> API). El `game_product_id` se lee de `config['scraper']['product_id']` del juego (default `'4'`,
+> constante del scraper) — documentado en el docblock de la clase. `LoteriaDeHoyScraper` se conserva
+> para los demás juegos de loteriadehoy.com (Cazaloton, Triple Chance, El Guacharito, Guacharo Activo)
+> y como respaldo.
+
+> `LaGranjitaScraper` consume la API oficial de lagranjita.com (GET
+> `/api/results.json?date=YYYY-MM-DD&productId=1`, sin auth ni anti-bot; soporta
+> fechas actuales y pasadas). La respuesta es un objeto cuya clave es el nombre
+> del producto (`"LA GRANJITA"`) con un array de sorteos por valor (uno por
+> horario del día, 12 en total): el scraper toma el PRIMER valor del objeto sin
+> hardcodear la clave. Los sorteos NO ocurridos llegan con `result_id: null`
+> (resto de campos null) y se saltan (resultados parciales del día, patrón
+> loteriadehoy modo animalitos); `result_id` es único por sorteo y se usa como
+> `sorteo_id_externo` (dedupe por juego+fecha+hora en `saveResults`).
+> `result_value` es el número del animal y `result_name` su nombre (GALLINA=25,
+> RATON=8, MONO=13, LAPA=31...), coincidiendo con el zoológico canónico del
+> plugin Animalitos; `lotery_hour` ("08:00 AM") se normaliza a `H:i` con
+> `normalizeHora`. El `product_id` se lee de `config['scraper']['product_id']`
+> del juego (default `'1'`, constante del scraper). El portal lagranjita.com
+> aloja OTROS productos fuera de alcance (documentación): pid=2 ZOOLOGICO
+> ACTIVO, pid=3 RULETA ACTIVA, pid=4 LOTTOMAX, pid=5 LOTTO ACTIVO, pid=6 GRANJA
+> MILLONARIA, pid=7 JUNGLA MILLONARIA, pid=8 LOTTO REY; y las páginas
+> `/granjitaplus` (GRANJITA PLUS) y `/terminalgranjita` (TERMINAL LA GRANJITA).
+> El seeder registra la `scraper_url` documental con `?productId=1`; el fetch
+> reconstruye la query real (`date` + `productId` de config) ignorando la query
+> documental.
+
+> `LaRicachonaScraper` consume el HTML server-rendered por fecha del portal
+> laricachona.com (sin API pública): `GET https://laricachona.com/` renderiza
+> los sorteos de HOY y `GET https://laricachona.com/?date=YYYY-MM-DD` los de
+> esa fecha. Los sorteos de triples están en artículos `tripleResultArticle`
+> con la hora en el `<h1>` (formato 12h, p. ej. "08:05 AM") y 3 `<p>`: el del
+> MEDIO es el número de 3 dígitos del sorteo ("030", cero inicial conservado
+> como STRING → `numeros_ganadores.triple_a`); los laterales son decorativos
+> (derivados `-1`/`+1` del último par) y NO se guardan. Sorteos no ocurridos:
+> los 3 `<p>` vienen como `--`/`---` → se saltan (resultados parciales del
+> día, patrón loteriadehoy/lagranjita). Sin signo en los resultados. El portal
+> también renderiza la sección `animalsResultArticle` (La Ricachona animalitos,
+> cada hora `:10`) — FUERA DE ALCANCE, documentada como candidato en
+> `docs/plataformas-juegos.md`; el selector del scraper filtra SOLO
+> `tripleResultArticle`. Sin ID externo por sorteo → `sorteo_id_externo` null
+> y dedupe por juego+fecha+hora en `saveResults` heredado.
+
+> `LotoChaimaScraper` consume la API oficial de la plataforma lotterly.co
+> (GET `https://api.lotterly.co/v1/results/loto-chaima/?exact_date=YYYY-MM-DD`,
+> sin auth ni anti-bot; soporta fechas actuales y pasadas — verificada para
+> 2026-09-12 y 2026-09-11 con datos distintos). La respuesta es un array de
+> sorteos (uno por horario del día, 12 en total) con `time` en 24h `HH:MM:SS`
+> (→ `normalizeHora` a "H:i") y `result` como STRING con padding de 2 dígitos
+> salvo el cero (`"0"`, `"04"`, `"46"`): el sitio resuelve el nombre del
+> animal con el string tal cual (`"0"`→Delfín, `"04"`→Alacrán); por robustez
+> el scraper maneja también `"00"` (Ballena) y el fallback de padding
+> (`"4"`→"04"→Alacrán). El zoológico es PROPIO de **57 animales (0–55)**,
+> distinto al canónico del plugin Animalitos (37→Tortuga, 38→Búfalo, 23→Cebra,
+> 46→Puma...), y es la fuente de los nombres y de las opciones del juego
+> (el mapa `LotoChaimaScraper::ZOOLOGICO` lo comparte el seeder; `value` =
+> slug sin acentos vía `Str::slug`). El API ya filtra por fecha (`exact_date`):
+> `execute` carga la fecha solicitada sin filtrar (patrón LaGranjita). Sin ID
+> externo por sorteo → `sorteo_id_externo` null y dedupe por juego+fecha+hora
+> en `saveResults` heredado. Sorteos sin `result` se saltan (resultados
+> parciales del día); respuesta vacía/inválida/sin entradas → RuntimeException.
+> La plataforma lotterly.co es multi-producto por `product_slug` (otros slugs
+> devuelven 400 "product_slug does not exist") — solo se integra
+> `loto-chaima`; documentada como Plataforma 3 en `docs/plataformas-juegos.md`.
+
+> `MegaAnimal40OficialScraper` consume el SITIO OFICIAL megaanimal40.com (CONALOT +
+> Big Data Tecnology + Lotería de Cojedes; WU f27, resuelve H1/H20): `POST
+> /core/process.php` con form-data `option=<token de resultados>` (sin auth ni
+> anti-bot) → JSON `{msg, status, datos:[{...,resultados:[...]}]}`. `resultados[]`
+> = sorteos del DÍA ACTUAL ordenados de más reciente a más antiguo; `time_s` en
+> 12h → `normalizeHora` a "H:i"; `number_animal` en 2 dígitos → int; `animalito`
+> conserva los acentos ("Águila"); **`mega` = "1" (sin comodín) o "2" (SALIÓ EL
+> COMODÍN MEGA, premio 40× — JS oficial del sitio)** → se mapea a
+> `numeros_ganadores.comodin` (bool). `execute` filtra por la fecha pedida
+> (patrón TripleCalienteOficialScraper); `findJuegoOrFail` fail-fast;
+> `saveResults` heredado (dedupe juego+fecha+hora). LIMITACIÓN: el endpoint
+> IGNORA los parámetros de fecha (probados fecha/date/dia → siempre hoy) y el
+> sitio no expone histórico funcional (la página `/historial/` usa el mismo
+> token) → el scraper solo sirve el día actual; una fecha distinta produce `[]`.
+> Respuesta JSON inválida o `status:false` → RuntimeException; respuesta VÁLIDA
+> sin datos → `[]`. Zoológico: canónico de 38 (plugin Animalitos, sin
+> `JuegoOpcion` propias). Premios oficiales en `config`: base 30× + comodín
+> MEGA 40× (`comodines.mega`); la LIQUIDACIÓN 40× es del ciclo futuro del motor
+> (aquí solo se captura el dato). El scraper del PROVEEDOR (`MegaAnimal40Scraper`,
+> HTML de resultadosvenezuela.com) quedó como **clase durmiente**: no se borra
+> (rollback/consulta), su parse legacy sigue cubierto por
+> `MegaAnimal40ScraperTest` y su nota histórica está abajo.
+
+> `SelvaPlusScraper` consume la API oficial de la plataforma lotterly.co (la
+> MISMA de Loto Chaima, con `product_slug` distinto): `GET
+> https://api.lotterly.co/v1/results/selva-plus/?exact_date=YYYY-MM-DD`, sin
+> auth ni anti-bot; soporta fechas actuales y pasadas (verificada para
+> 2026-09-12 y 2026-09-11 con datos distintos). La respuesta es un array de
+> sorteos (uno por horario del día, **13 en total, 08:15–20:15 cada hora
+> `:15`**) con `time` en 24h `HH:MM:SS` (→ `normalizeHora` a "H:i") y `result`
+> como STRING numérico 00-99 con padding de 2 dígitos salvo el cero (`"0"`,
+> `"04"`, `"87"`): el sitio resuelve la figura con el string tal cual
+> (`"0"`→Delfín, `"04"`→Alacrán); por robustez el scraper maneja también
+> `"00"` (Ballena) y el fallback de padding (`"8"`→"08"→Ratón). El zoológico
+> es PROPIO de **101 figuras (0–99, Ballena y Delfín comparten el 0)**, distinto
+> al canónico del plugin Animalitos, y es la fuente de los nombres y de las
+> opciones del juego (el mapa `SelvaPlusScraper::ZOOLOGICO` lo comparte el
+> seeder; `value` = slug sin acentos vía `Str::slug`). **Premios oficiales**:
+> base **80×** (tabla: 1→80, 5→400, 10→800, 50→4.000, 100→8.000) + **2
+> comodines**: Comodín A "Leoncito" (160×) y Comodín B "Selva Plus" (200×),
+> registrados en `config.comodines` del juego (valor REAL para el JSON del
+> front y futuro motor; el motor actual NO usa `premio_multiplo` al liquidar —
+> gap conocido, ver `docs/estrategia-scrapers-premios.md`). El juego lanzó el
+> **2026-09-07**: fechas anteriores devuelven `[]` (estado válido del
+> proveedor). La representación de los comodines en `result` NO se ha observado
+> aún (65 sorteos del 07-11 sep, todos numéricos) → parser DEFENSIVO: si
+> `result` no es numérico se guarda el valor crudo en `numeros_ganadores`
+> (`resultado_crudo`) + log de advertencia, sin mapeos inventados. Sin ID
+> externo por sorteo → `sorteo_id_externo` null y dedupe por juego+fecha+hora
+> en `saveResults` heredado. Sorteos sin `result` se saltan (resultados
+> parciales del día); respuesta vacía/inválida/sin entradas → RuntimeException.
+> `TripleTachiraScraper` consume el sitio OFICIAL tripletachira.com (HTML
+> server-rendered, sin anti-bot): `GET /pruebah.php?bt=DD/MM/YYYY&bt2=DD/MM/YYYY`
+> devuelve una tabla semanal (7 columnas desde `bt`, fecha en el header
+> `<th>Lunes<br>11/09/2026</th>`; filas por horario/modalidad `01:15 A`,
+> `01:15 B`, `01:15 ZODI`, luego `04:45` y `10:10`). El scraper pide SIEMPRE
+> `bt=fecha&bt2=fecha` y localiza la columna por su FECHA en el header (robusto:
+> el nombre del día del header es FIJO Lunes..Domingo, no el día real de la
+> fecha — 01-09-2026 es martes y el sitio lo etiqueta "Lunes"). Las horas vienen
+> en 12h SIN AM/PM y TODOS los sorteos son PM (home "1:15PM"; reglamento
+> oficial 1:15/4:45/10:10) → 24h: **13:15, 16:45, 22:10**. Celdas `--------` =
+> sin sorteo (se saltan); una fecha cuya columna está toda `--------` devuelve
+> `[]` (estado válido). ZODI = triple + signo de 3 letras + punto (`160 <br>PIC.`)
+> → `triple_c` + `signo` (PIC→PIS, resto igual). **Premios OFICIALES del
+> reglamento G-20004065-3 (Lotería del Táchira, PDF parseable)**: A/B **500×**,
+> Terminal/Cola **50×**, Triple+Zodiacal **5.000×** — la informativa
+> (resultadosvenezuela.com) declara 600/60/6.000 y un 3er sorteo 19:20:
+> desajuste H9 documentado en `docs/comparacion-juegos.md` (el seeder registra
+> los valores OFICIALES del reglamento). Sin ID externo → `sorteo_id_externo`
+> null y dedupe por juego+fecha+hora en `saveResults` heredado. Comportamiento
+> dominical NO uniforme en la muestra (06-sep solo 22:10; 13-sep ninguno) —
+> pendiente de confirmar con más muestras (la informativa dice 17:10).
+
+> `TripleFacilScraper` consume la API oficial de la plataforma lotterly.co (la
+> MISMA de Loto Chaima y Selva Plus, con `product_slug` distinto): el sitio
+> oficial triplefacil.com es una SPA que llama a
+> `GET /v1/results/triple-facil/?exact_date=YYYY-MM-DD` (sin auth ni anti-bot).
+> La respuesta es un array de **12 sorteos diarios (08:00–19:00, cada hora
+> `:00`)**, `result` = triple de 3 cifras como STRING con ceros a la izquierda
+> ("073", "049") → se normaliza con padding a 3 dígitos y se guarda como
+> `triple_a` en `numeros_ganadores` (`{"pais":"VE","triple_a":"346"}`, patrón
+> Trio Activo / La Ricachona). **HALLAZGO — los "3 resultados" de la web**:
+> la web oficial muestra por sorteo `prev / main / next` donde `main` es el
+> TRIPLE (3 cifras) y `prev`/`next` son **terminales DERIVADAS** (los 2 últimos
+> dígitos ±1, calculados matemáticamente en el front — función oficial
+> `r = n % 100`, prev = r-1, next = r+1): NO son resultados independientes ni
+> existe un juego/producto terminal aparte (probados los slugs
+> `triple-facil-terminal`, `terminal-facil`, etc. en lotterly → 400
+> "product_slug does not exist"). El juego se registra con las **100 opciones
+> del terminal real (00-99)**: label "00".."99", value "0".."99", numero
+> 0..99 (mismo patrón que el plugin Terminales); el triple es entrada libre
+> (000-999) y queda documentado en `config`. **Premios INFORMATIVOS** (el sitio
+> oficial NO publica cifras ni tiene reglamento visible; fuente RV
+> `/lottery/triple-facil`): Triple completo **700×**, Terminal **60×**,
+> Aproximación (terminal ±1) **10×** — el motor no usa `premio_multiplo` aún
+> (gap conocido). Operador: First Success Online C.A. / Lotería de Oriente
+> (Monagas). Sin ID externo → `sorteo_id_externo` null y dedupe por
+> juego+fecha+hora en `saveResults` heredado. Sorteos sin `result` se saltan;
+> respuesta vacía/inválida/sin entradas → RuntimeException (fail-fast).
+
+> `TripleZamoranoScraper` consume la API OFICIAL de triplezamorano.com (la
+> MISMA casa/plataforma que Triple Caliente, con `game_product_id` distinto):
+> `POST /api/gaming/results/product` con body `{"game_product_id":"1"}` (sin
+> auth ni anti-bot). La respuesta trae el histórico de sorteos (~386 entradas,
+> más recientes primero): cada una con `events` (2 ids por sorteo), `results`
+> **SOLO A y C (NO hay B)** — `A` es el triple de 3 cifras y `C` el triple de
+> 3 cifras + signo (sufijo tras el guion, p. ej. `452-ARI`) — y
+> `event_timestamp.seconds` (epoch). El scraper deriva `fecha_sorteo`/
+> `hora_sorteo` locales en America/Caracas (UTC-4), mapea A → `triple_a` y
+> C → `triple_c` + `signo` (regex `^(\d+)-([A-Za-z]+)$`, mismo patrón
+> TripleCalienteOficialScraper), usa `events[0]` como `sorteo_id_externo`
+> (dedupe) y `execute` filtra el histórico a la fecha solicitada. El
+> `game_product_id` se lee de `config['scraper']['product_id']` del juego
+> (default `'1'`, constante del scraper). **Horarios oficiales verificados con
+> los timestamps**: **5 sorteos diarios 10:00/12:00/14:00/16:00/19:00** (87 días
+> de histórico; los domingos solo 19:00 — mismo patrón no-uniforme documentado
+> en H9/Táchira, aquí consistente en toda la muestra). **Premios OFICIALES del
+> reglamento (WU f26)**: `REGLAMENTO TP ZAMORANO NOV2025` publicado en el
+> propio triplezamorano.com (Lotería del Zulia G-20007649-6, PDF parseable en
+> `docs/reglamentos/reglamento-triple-zamorano.pdf`): TRIPLE **600×**, COLA
+> **60×**, UÑA **5×**, ASTRO **6.000×**, COLA+SIGNO **600×**, UÑA+SIGNO **60×**
+> → `premio_multiplo` 30→**600** + `modalidades` (resuelve H11: la informativa
+> 600/60/6.000/600 era correcta, ahora con fuente). Operador (informativa):
+> Operadora 1923, C.A. / Lotería del Zulia. Reglamento declara sorteos L-D,
+> la API muestra domingos solo 19:00 (H19). Respuesta inválida/vacía/sin eventos
+> → RuntimeException (fail-fast); histórico filtrado por fecha en `execute`.
+
+## Juegos pendientes
+
+Pendientes de integración (un work unit por juego, orden de URLs del cliente). Se agregarán
+aquí en su mismo work unit:
+
+| # | Nombre | slug | type (fuente) | Notas |
+|---|--------|------|---------------|-------|
+
+> Con el WU f20 (Triple Zamorano) se completaron los juegos 9–22 de la lista original del cliente.
+
+## Estrategia de tests
+
+- Por juego: `JuegoXxxScraperTest` (unit, parse con fixture real) + `JuegoXxxResultsTest`
+  (feature, `saveResults` + dedupe). Ejecución aislada: `composer test -- --filter=Xxx`.
+- Suite general completa: se ejecuta al completar **10 juegos integrados** (criterio del cliente).
+- Regresión del resolutor y fail-fast: `ScraperResolverTest` (scraper_class autoritativo,
+  fallback URL → convención, clase inexistente → null, juego no registrado → excepción sin crear filas).
+
+## Reglas de integración
+
+- Cada juego nuevo se registra con su seeder (`Juego` + `JuegoLimite` + `PluginJuego` +
+  `JuegoOpcion` + `JuegoHorario`), su clase scraper (solo `fetch` + `parse` + constructor),
+  fixture real y tests, y su fila en esta lista — todo en el mismo work unit.
+- Ningún scraper crea juegos en caliente: `findJuegoOrFail` lanza si el juego no está registrado.
+- Los scrapers nuevos normalizan `hora_sorteo` a `H:i` (America/Caracas) vía `normalizeHora`.
+
+## Contrato JSON para el front/taquilla (`docs/juegos.json`)
+
+> `docs/juegos.json` (en la RAÍZ del repo, junto a `plugins.md`/`deploy.md`) es el contrato
+> para el front/taquilla: los juegos integrados + existentes con su **id real de BD**, slug,
+> nombre, tipo (animalitos/tripletas/terminales), `premio_multiplo`, horarios y las
+> opciones/animales que permite cada juego. **Desde el WU f27** exporta además `comodines` y
+> `modalidades` desde `config` cuando existen (campos ADITIVOS y OPCIONALES; `null` si el juego
+> no los define): p. ej. mega-animal-40 → `comodines.mega` (MEGA 40×), selva-plus → comodines
+> A/B (160×/200×), el-guacharito → `guacharito-99` (150×), guacharo-activo → `guacharo-75`
+> (120×); modalidades de los triples/trío/terminal/cazaloton/fácil. Se regenera con:
+>
+> ```bash
+> php artisan juegos:export          # escribe docs/juegos.json en la raíz del repo
+> php artisan juegos:export --path=/ruta/alternativa.json
+> ```
+>
+> La salida es determinista e idempotente (correr dos veces = mismo archivo): orden por id
+> ascendente, horarios normalizados a `H:i` y ordenados, pretty-print con acentos UTF-8 sin
+> escapar (`JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT`).
+> La resolución de opciones replica EXACTAMENTE `JuegoController::opciones`: filas de
+> `juego_opciones` si existen (lotto-activo 38 animales; triple-zulia/triple-caliente/
+> triple-chance/el-arrejuntado 12 signos; loto-chaima 57 animales propios; selva-plus
+> **103 opciones** — 101 figuras propias + 2 comodines con `numero` null, que por el
+> orden por `numero` de MySQL quedan al inicio del array; el-guacharito **101 figuras**
+> propias y guacharo-activo **77 figuras** propias — zoos oficiales lotterly, WU f24;
+> monje-millonario **77 figuras** propias confirmadas con el feed oficial — WU f22+f25),
+> si no, fallback al
+> plugin vía `JuegoPluginManager` (terminal-activo 100 números 00-99 vía Terminales; trio-activo
+> 12 signos vía Tripletas; animalitos sin tabla — rd, rep-dom, cazaloton,
+> la-granjita, mega-animal-40 — 38 animales canónicos vía Animalitos). NO editar el archivo a mano:
+> regenerarlo con el comando. La lógica vive en `App\Services\JuegoCatalogoService`
+> (compartida por el comando y el test de consistencia `JuegosJsonTest`).

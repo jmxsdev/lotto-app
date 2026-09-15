@@ -2,16 +2,30 @@
 
 namespace Tests\Unit;
 
+use App\Models\Juego;
 use App\Plugins\Scrapers\TripletasScraper;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class TripletasScraperTest extends TestCase
 {
+    use RefreshDatabase;
+
     protected TripletasScraper $scraper;
 
     protected function setUp(): void
     {
         parent::setUp();
+
+        // Registro explícito del juego (fail-fast: el scraper ya no crea juegos)
+        Juego::create([
+            'name' => 'Triple Zulia',
+            'slug' => 'triple-zulia',
+            'type' => 'tripletas',
+            'requires_scraper' => true,
+            'active' => true,
+        ]);
+
         $this->scraper = new TripletasScraper;
     }
 

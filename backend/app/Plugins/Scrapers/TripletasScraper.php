@@ -3,7 +3,6 @@
 namespace App\Plugins\Scrapers;
 
 use App\Models\Juego;
-use App\Models\Resultado;
 use Illuminate\Support\Carbon;
 
 class TripletasScraper extends BaseScraper
@@ -13,6 +12,12 @@ class TripletasScraper extends BaseScraper
     protected string $scraperName = 'TripletasScraper';
 
     protected string $productId = '2';
+
+    public function __construct(?Juego $juego = null)
+    {
+        parent::__construct();
+        $this->productId = config('scraper.product_id', '2');
+    }
 
     public function execute(?string $fecha = null): array
     {
@@ -59,7 +64,7 @@ class TripletasScraper extends BaseScraper
             throw new \RuntimeException('Error al decodificar JSON: '.json_last_error_msg());
         }
 
-        $juego = $this->findOrCreateJuego();
+        $juego = $this->findJuegoOrFail(['slug' => 'triple-zulia', 'name' => 'Triple Zulia']);
 
         $resultados = [];
 
@@ -97,46 +102,5 @@ class TripletasScraper extends BaseScraper
         }
 
         return $resultados;
-    }
-
-    public function saveResults(array $resultados, string $fecha): int
-    {
-        $guardados = 0;
-
-        foreach ($resultados as $data) {
-            $data['fecha_sorteo'] = $fecha;
-
-            $existing = Resultado::where('juego_id', $data['juego_id'])
-                ->whereDate('fecha_sorteo', $fecha)
-                ->where('hora_sorteo', $data['hora_sorteo'])
-                ->first();
-
-            if ($existing) {
-                $existing->update($data);
-                $this->logInfo("Resultado actualizado: {$data['hora_sorteo']}");
-            } else {
-                Resultado::create($data);
-                $this->logInfo("Resultado creado: {$data['hora_sorteo']}");
-            }
-
-            $guardados++;
-        }
-
-        return $guardados;
-    }
-
-    protected function findOrCreateJuego(): Juego
-    {
-        return Juego::firstOrCreate(
-            ['slug' => 'triple-zulia'],
-            [
-                'name' => 'Triple Zulia',
-                'type' => 'tripletas',
-                'config' => ['premio_multiplo' => 30],
-                'requires_scraper' => true,
-                'scraper_url' => $this->baseUrl.'/',
-                'active' => true,
-            ]
-        );
     }
 }

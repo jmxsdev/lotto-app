@@ -25,6 +25,20 @@ class DatabaseSeeder extends Seeder
             LottoActivoRDSDSeeder::class,
             MonjeMillonarioSeeder::class,
             TrioActivoSeeder::class,
+            TripleCalienteSeeder::class,
+            CazalotonSeeder::class,
+            TripleChanceSeeder::class,
+            ElArrejuntadoSeeder::class,
+            ElGuacharitoSeeder::class,
+            GuacharoActivoSeeder::class,
+            LaGranjitaSeeder::class,
+            LaRicachonaSeeder::class,
+            LotoChaimaSeeder::class,
+            MegaAnimal40Seeder::class,
+            SelvaPlusSeeder::class,
+            TripleTachiraSeeder::class,
+            TripleFacilSeeder::class,
+            TripleZamoranoSeeder::class,
         ]);
     }
 }

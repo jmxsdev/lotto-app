@@ -115,10 +115,10 @@ class LimitesScopedApiTest extends TestCase
 
         $data = $response->json('data');
 
-        // 7 juegos sembrados × 2 monedas, en una sola llamada
-        $this->assertCount(7, $data['juegos']);
-        $this->assertCount(14, $data['limites']);
-        $this->assertCount(14, $data['origen']);
+        // 19 juegos sembrados × 2 monedas, en una sola llamada
+        $this->assertCount(21, $data['juegos']);
+        $this->assertCount(42, $data['limites']);
+        $this->assertCount(42, $data['origen']);
 
         // La fila sembrada a nivel banca (lotto-activo/bs) aparece en el mapa
         $this->assertNotNull($data['limites'][$clave]);
@@ -311,9 +311,9 @@ class LimitesScopedApiTest extends TestCase
         $data = $response->json('data');
 
         // Matriz completa de juegos activos para su taquilla
-        $this->assertCount(7, $data['juegos']);
-        $this->assertCount(14, $data['limites']);
-        $this->assertCount(14, $data['origen']);
+        $this->assertCount(21, $data['juegos']);
+        $this->assertCount(42, $data['limites']);
+        $this->assertCount(42, $data['origen']);
     }
 
     public function test_limites_agencia_taquilla_ajena_matriz_vacia()
@@ -360,9 +360,9 @@ class LimitesScopedApiTest extends TestCase
 
         $data = $response->json('data');
 
-        // Solo los 7 juegos activos sembrados, sin el inactivo
-        $this->assertCount(7, $data['juegos']);
-        $this->assertCount(14, $data['limites']);
+        // Solo los 19 juegos activos sembrados, sin el inactivo
+        $this->assertCount(21, $data['juegos']);
+        $this->assertCount(42, $data['limites']);
 
         $slugs = collect($data['juegos'])->pluck('slug')->all();
         $this->assertNotContains($inactivo->slug, $slugs);
@@ -411,8 +411,8 @@ class LimitesScopedApiTest extends TestCase
 
         // Sin origen en modo scope; juegos completos
         $this->assertArrayNotHasKey('origen', $data);
-        $this->assertCount(7, $data['juegos']);
-        $this->assertCount(28, $data['limites']); // 2 entidades × 7 juegos × 2 monedas
+        $this->assertCount(21, $data['juegos']);
+        $this->assertCount(84, $data['limites']); // 2 entidades × 21 juegos × 2 monedas
 
         // Fila sembrada a nivel banca: solo en la banca con límite
         $claveConFila = $banca->id.':'.$lotto->id.':bs';
@@ -472,7 +472,7 @@ class LimitesScopedApiTest extends TestCase
         $this->assertNull($data['limites'][$clave]);
 
         // Todas las entidades sin fila propia: mixto false
-        $this->assertCount(14, $data['mixto']);
+        $this->assertCount(42, $data['mixto']);
         foreach ($data['mixto'] as $valor) {
             $this->assertFalse($valor);
         }
@@ -575,7 +575,7 @@ class LimitesScopedApiTest extends TestCase
 
         // Sin filas propias: todas coinciden → mixto false en todo
         $data = $consultar();
-        $this->assertCount(14, $data['mixto']);
+        $this->assertCount(42, $data['mixto']);
         foreach ($data['mixto'] as $valor) {
             $this->assertFalse($valor);
         }
