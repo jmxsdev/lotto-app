@@ -83,9 +83,44 @@ const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
         <p>Versión: 0.1.0</p>
         <p id="mac-info">MAC: Cargando...</p>
       </div>
+      {import.meta.env.DEV && (
+        <div id="env-selector" style="margin-top:1rem;font-size:0.85rem;opacity:0.9">
+          <label for="env-select" style="margin-right:0.5rem">Entorno API:</label>
+          <select id="env-select" style="padding:0.3rem 0.6rem;border-radius:6px;border:none">
+            <option value="local">Local (localhost:8000)</option>
+            <option value="prod">Producción (lotto.gzuz.dev)</option>
+          </select>
+        </div>
+      )}
     </div>
 
-<script define:vars={{ apiUrl: API_BASE, demoMac: import.meta.env.PUBLIC_DEMO_MAC || '', demoFp: import.meta.env.PUBLIC_DEMO_FP || 'demo-device-001' }}>
+    <script>
+      import { API_BASE } from '../config/api';
+
+      const apiUrl = API_BASE;
+      const demoMac = import.meta.env.PUBLIC_DEMO_MAC || '';
+      const demoFp = import.meta.env.PUBLIC_DEMO_FP || 'demo-device-001';
+
+      // Selector dev-only: solo existe en desarrollo (tree-shaken en prod).
+      // Re-aplica el override persistido antes del verify y lo conmuta via IPC.
+      if (import.meta.env.DEV) {
+        const stored = localStorage.getItem('taquilla_api_upstream_override') || 'local';
+        const select = document.getElementById('env-select');
+        if (select) select.value = stored;
+        if (window.electron?.setApiUpstream) {
+          window.electron.setApiUpstream(stored).catch(() => {});
+        }
+        if (select) {
+          select.addEventListener('change', () => {
+            const key = select.value;
+            localStorage.setItem('taquilla_api_upstream_override', key);
+            if (window.electron?.setApiUpstream) {
+              window.electron.setApiUpstream(key).catch(() => {});
+            }
+          });
+        }
+      }
+
       async function init() {
         let fp = localStorage.getItem('device_fingerprint');
         if (!fp || (fp === demoFp && window.electron?.getVersion)) {

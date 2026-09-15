@@ -167,10 +167,42 @@ import { API_BASE } from '../config/api';
         <strong>ℹ️ Información:</strong><br/>
         Use las credenciales proporcionadas por su administrador para acceder al sistema. La taquilla debe estar activada previamente.
       </div>
+
+      {import.meta.env.DEV && (
+        <div id="env-selector" style="margin-top:1rem;font-size:0.85rem;color:#666">
+          <label for="env-select" style="margin-right:0.5rem">Entorno API:</label>
+          <select id="env-select" style="padding:0.3rem 0.6rem;border-radius:6px;border:1px solid #ddd">
+            <option value="local">Local (localhost:8000)</option>
+            <option value="prod">Producción (lotto.gzuz.dev)</option>
+          </select>
+        </div>
+      )}
     </div>
 
-<script define:vars={{ apiUrl: API_BASE, demoMac: import.meta.env.PUBLIC_DEMO_MAC || '', demoFp: import.meta.env.PUBLIC_DEMO_FP || 'demo-device-001' }}>
-      const API_BASE = apiUrl;
+    <script>
+      import { API_BASE } from '../config/api';
+
+      const demoMac = import.meta.env.PUBLIC_DEMO_MAC || '';
+      const demoFp = import.meta.env.PUBLIC_DEMO_FP || 'demo-device-001';
+
+      // Selector dev-only (tree-shaken en prod)
+      if (import.meta.env.DEV) {
+        const stored = localStorage.getItem('taquilla_api_upstream_override') || 'local';
+        const select = document.getElementById('env-select');
+        if (select) select.value = stored;
+        if (window.electron?.setApiUpstream) {
+          window.electron.setApiUpstream(stored).catch(() => {});
+        }
+        if (select) {
+          select.addEventListener('change', () => {
+            const key = select.value;
+            localStorage.setItem('taquilla_api_upstream_override', key);
+            if (window.electron?.setApiUpstream) {
+              window.electron.setApiUpstream(key).catch(() => {});
+            }
+          });
+        }
+      }
 
       function showAlert(message, type) {
         const alertEl = document.getElementById('alert');

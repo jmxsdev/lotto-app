@@ -85,9 +85,14 @@ async function printWithSystemDialog(win, html) {
     });
 }
 
-function registerIpcHandlers() {
+function registerIpcHandlers(upstream) {
     ipcMain.handle('get-mac', () => {
         return getMacAddress();
+    });
+
+    // Selector dev-only de entorno: whitelist fija; empaquetado siempre rechaza.
+    ipcMain.handle('set-api-upstream', (event, key) => {
+        return upstream.setOverride(key);
     });
 
     ipcMain.handle('print-ticket', async (event, data) => {

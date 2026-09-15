@@ -16,6 +16,7 @@ release/
 .env.local
 .env.*.local
 !.env.example
+!.env.development
 # .env.production se commitea (solo PUBLIC_API_URL, valor público; D5)
 !.env.production
 

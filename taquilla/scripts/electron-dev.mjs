@@ -1,11 +1,25 @@
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import { dirname, join } from 'path';
+import { readFileSync } from 'fs';
+import { parseEnvFile } from '../electron/main/upstream.cjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+const projectRoot = join(__dirname, '..');
 
 console.log('🚀 Iniciando Lotto Taquilla en modo desarrollo...\n');
+
+// Cargar .env.development (parser puro de upstream.cjs) e inyectarlo en el
+// env del proceso Electron. Precedencia en main: override IPC > env > prod;
+// aqui el env del hijo combina shell (gana) con archivo (relleno).
+let fileEnv = {};
+try {
+  fileEnv = parseEnvFile(readFileSync(join(projectRoot, '.env.development'), 'utf8'));
+  console.log('🌐 Entorno dev cargado:', fileEnv.API_UPSTREAM || '(sin API_UPSTREAM, default prod)');
+} catch (err) {
+  console.warn('⚠️ No se pudo leer .env.development:', err.message);
+}
 
 // Iniciar servidor de Astro
 console.log('📡 Iniciando servidor Astro (http://localhost:3000)...');
@@ -26,6 +40,7 @@ setTimeout(() => {
             cwd: process.cwd(),
             shell: true,
             env: {
+                ...fileEnv,
                 ...process.env,
                 NODE_ENV: 'development',
                 ELECTRON_DEV_URL: 'http://localhost:3000'
