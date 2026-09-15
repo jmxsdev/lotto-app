@@ -170,21 +170,47 @@ class SelvaPlusScraperTest extends TestCase
         $this->assertEquals('Camaleón', $resultados[1]['numeros_ganadores']['nombre_animal']);
     }
 
-    public function test_defensivo_result_no_numerico_guarda_valor_crudo(): void
+    public function test_captura_comodines_a_y_b_con_su_nombre(): void
     {
-        // Comodín (representación NO observada aún): sin mapeo inventado, se
-        // guarda el valor crudo y se continúa con los sorteos numéricos.
-        $json = '[{"date":"2026-09-12","time":"08:15:00","result":"COMODIN_A"},{"date":"2026-09-12","time":"09:15:00","result":"27"}]';
+        // Representación OBSERVADA en producción (2026-09-15 09:15): el comodín
+        // viaja como LETRA en `result` → se captura estructurado con su nombre.
+        $json = '[{"date":"2026-09-15","time":"08:15:00","result":"86"},{"date":"2026-09-15","time":"09:15:00","result":"A"},{"date":"2026-09-15","time":"10:15:00","result":"B"}]';
+
+        $resultados = $this->invocar('parse', $json);
+
+        $this->assertCount(3, $resultados);
+
+        // Numérico normal
+        $this->assertEquals(86, $resultados[0]['numeros_ganadores']['numero']);
+
+        // Comodín A → Leoncito (160×)
+        $comodinA = $resultados[1]['numeros_ganadores'];
+        $this->assertSame('A', $comodinA['comodin']);
+        $this->assertSame('Leoncito', $comodinA['comodin_nombre']);
+        $this->assertArrayNotHasKey('numero', $comodinA);
+
+        // Comodín B → Selva Plus (200×)
+        $comodinB = $resultados[2]['numeros_ganadores'];
+        $this->assertSame('B', $comodinB['comodin']);
+        $this->assertSame('Selva Plus', $comodinB['comodin_nombre']);
+    }
+
+    public function test_defensivo_result_desconocido_guarda_valor_crudo(): void
+    {
+        // Valor no numérico que NO es un comodín conocido: sin mapeo inventado,
+        // se guarda el valor crudo y se continúa con los sorteos numéricos.
+        $json = '[{"date":"2026-09-12","time":"08:15:00","result":"COMODIN_X"},{"date":"2026-09-12","time":"09:15:00","result":"27"}]';
 
         $resultados = $this->invocar('parse', $json);
 
         $this->assertCount(2, $resultados);
 
-        $comodin = $resultados[0]['numeros_ganadores'];
-        $this->assertArrayNotHasKey('numero', $comodin);
-        $this->assertArrayNotHasKey('nombre_animal', $comodin);
-        $this->assertEquals('COMODIN_A', $comodin['resultado_crudo']);
-        $this->assertEquals('VE', $comodin['pais']);
+        $desconocido = $resultados[0]['numeros_ganadores'];
+        $this->assertArrayNotHasKey('numero', $desconocido);
+        $this->assertArrayNotHasKey('nombre_animal', $desconocido);
+        $this->assertArrayNotHasKey('comodin', $desconocido);
+        $this->assertSame('COMODIN_X', $desconocido['resultado_crudo']);
+        $this->assertSame('VE', $desconocido['pais']);
 
         // El sorteo numérico siguiente sigue mapeándose normal
         $this->assertEquals(27, $resultados[1]['numeros_ganadores']['numero']);

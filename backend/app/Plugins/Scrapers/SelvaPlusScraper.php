@@ -227,18 +227,37 @@ class SelvaPlusScraper extends BaseScraper
      * Construye `numeros_ganadores` desde el string del API.
      *
      * Caso normal (numérico 00-99): `{pais, numero, nombre_animal}`.
-     * Caso DEFENSIVO (no numérico — posible representación de un comodín, NO
-     * observada aún): `{pais, resultado_crudo}` + log de advertencia. Nunca se
-     * inventa un mapeo para valores desconocidos.
+     * Caso COMODÍN (observado el 2026-09-15: `result` = "A"/"B"): el API
+     * representa el comodín con la LETRA en el campo `result` →
+     * `{pais, comodin: "A"|"B", comodin_nombre: "Leoncito"|"Selva Plus"}`.
+     * Caso DEFENSIVO (cualquier otro valor desconocido): `{pais, resultado_crudo}`
+     * + log de advertencia. Nunca se inventa un mapeo.
      *
-     * @return array{pais: string, numero?: int, nombre_animal?: string, resultado_crudo?: string}
+     * @return array{pais: string, numero?: int, nombre_animal?: string, comodin?: string, comodin_nombre?: string, resultado_crudo?: string}
      */
     protected function numerosGanadores(string $resultado): array
     {
         $base = ['pais' => 'VE'];
 
         if (! is_numeric($resultado)) {
-            $this->logWarning("result no numérico: '{$resultado}' — guardando valor crudo (¿comodín?)", [
+            $letra = strtoupper(trim($resultado));
+            $comodines = [
+                'A' => 'Leoncito',
+                'B' => 'Selva Plus',
+            ];
+
+            if (isset($comodines[$letra])) {
+                $this->logInfo("comodín capturado: '{$letra}' → {$comodines[$letra]}", [
+                    'juego' => $this->juego?->slug,
+                ]);
+
+                return $base + [
+                    'comodin' => $letra,
+                    'comodin_nombre' => $comodines[$letra],
+                ];
+            }
+
+            $this->logWarning("result no numérico desconocido: '{$resultado}' — guardando valor crudo", [
                 'juego' => $this->juego?->slug,
             ]);
 
