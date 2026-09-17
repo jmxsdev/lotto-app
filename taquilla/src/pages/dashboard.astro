@@ -60,6 +60,7 @@ import MainLayout from '../layouts/MainLayout.astro';
           <div id="horario-mode" class="horario-mode-inner" style="display:none">
             <button id="back-to-juegos" class="back-btn" tabindex="-1">← Volver</button>
             <div class="game-chips" id="game-chips"></div>
+            <div id="qt-horario-aviso" class="qt-horario-aviso" role="alert" style="display:none"></div>
             <div class="horarios-grid" id="horarios-grid" data-zona="horarios"></div>
           </div>
         </div>
@@ -546,6 +547,23 @@ import MainLayout from '../layouts/MainLayout.astro';
       color: #1e40af;
     }
 
+    .horario-item.expirado {
+      border-color: #dc2626;
+      background: #fef2f2;
+      color: #dc2626;
+    }
+
+    .qt-horario-aviso {
+      color: #dc2626;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
     .animal-num {
       font-weight: 700;
       color: #667eea;
@@ -767,7 +785,7 @@ import MainLayout from '../layouts/MainLayout.astro';
     import { getFingerprint } from '../utils/device';
     import { cargarCatalogo } from '../utils/catalogo';
     import { buildZoneGraph, routeKey, KEYMAP } from '../utils/keyboard';
-    import { alternarHorario, marcarTodosVisibles, expandirLineas } from '../utils/horarios';
+    import { alternarHorario, marcarTodosVisibles, expandirLineas, horarioExpirado, filtrarHorariosFuturos, seleccionadosExpirados } from '../utils/horarios';
     import juegosRaw from '../data/juegos.json';
 
     // Catálogo local bundled (REQ-CL-01): reemplaza GAMES_CONFIG. Los juegos,
@@ -1109,16 +1127,44 @@ import MainLayout from '../layouts/MainLayout.astro';
       container.innerHTML = selectedGames.map(g => '<span class="game-chip">' + g.nombre + '</span>').join('');
     }
 
+    // Filtro dinámico de sorteos futuros (REQ-MH-04, A4): solo HH:MM > ahora en
+    // America/Caracas; se refresca cada 15 s (interval en DOMContentLoaded).
+    function horariosVisibles() {
+      return filtrarHorariosFuturos(horariosCache.map(h => h.hora));
+    }
+
     function renderHorariosGrid() {
       const container = document.getElementById('horarios-grid');
-      if (!horariosCache || horariosCache.length === 0) {
+      const visibles = horariosVisibles();
+      // Los seleccionados que expiraron siguen visibles (en rojo) para poder
+      // desmarcarlos (REQ-MH-04, A4): se muestran al final de la lista.
+      const extras = seleccionadosExpirados(selectedHorarios).filter(h => !visibles.includes(h));
+      const items = [...visibles, ...extras];
+      if (items.length === 0) {
         container.innerHTML = '<div style="font-size:12px;color:#999;padding:8px">Sin horarios disponibles</div>';
+        renderHorarioAviso();
         return;
       }
-      container.innerHTML = horariosCache.map(h => {
-        const sel = selectedHorarios.includes(h.hora) ? ' selected' : '';
-        return '<div class="horario-item' + sel + '" data-hora="' + h.hora + '" tabindex="-1">' + h.hora + '</div>';
+      container.innerHTML = items.map(hora => {
+        const sel = selectedHorarios.includes(hora) ? ' selected' : '';
+        const exp = horarioExpirado(hora) ? ' expirado' : '';
+        return '<div class="horario-item' + sel + exp + '" data-hora="' + hora + '" tabindex="-1">' + hora + '</div>';
       }).join('');
+      renderHorarioAviso();
+    }
+
+    // Aviso de expiración (A4, REQ-MH-04): rojo mientras haya un horario
+    // seleccionado que ya pasó; addLine bloquea (guarda) hasta desmarcarlo.
+    function renderHorarioAviso() {
+      const aviso = document.getElementById('qt-horario-aviso');
+      if (!aviso) return;
+      const expirados = seleccionadosExpirados(selectedHorarios);
+      if (expirados.length > 0) {
+        aviso.textContent = 'El horario ' + expirados.join(', ') + ' ya pasó. Desmárquelo para continuar.';
+        aviso.style.display = 'block';
+      } else {
+        aviso.style.display = 'none';
+      }
     }
 
     // Identidad de grupo por jugada (A3): cada Añadir crea un groupId nuevo,
@@ -1130,17 +1176,26 @@ import MainLayout from '../layouts/MainLayout.astro';
     }
 
     function toggleHorario(hora) {
+      const eraSeleccionado = selectedHorarios.includes(hora);
       selectedHorarios = alternarHorario(selectedHorarios, hora);
+      if (eraSeleccionado && horarioExpirado(hora)) {
+        // Se desmarcó un horario expirado: desaparece de la lista (filtro A4)
+        // y el aviso se actualiza; sin auto-salto (D3).
+        renderHorariosGrid();
+        enfocarZona('horarios');
+        return;
+      }
       // Actualiza la clase del ítem sin re-renderizar (preserva el foco del
       // roving focus al alternar con Space/Enter/click).
       const item = document.querySelector('#horarios-grid .horario-item[data-hora="' + hora + '"]');
       item?.classList.toggle('selected', selectedHorarios.includes(hora));
+      renderHorarioAviso();
     }
 
     function marcarTodosHorarios() {
       if (columnMode !== 'horarios') return;
       const prevHora = document.activeElement?.dataset?.hora;
-      selectedHorarios = marcarTodosVisibles(horariosCache.map(h => h.hora));
+      selectedHorarios = marcarTodosVisibles(horariosVisibles());
       renderHorariosGrid();
       if (prevHora) {
         const nuevo = document.querySelector('#horarios-grid .horario-item[data-hora="' + prevHora + '"]');
@@ -1265,6 +1320,15 @@ import MainLayout from '../layouts/MainLayout.astro';
       if (!juego) { window.showModal({ message: 'Seleccione al menos un juego', type: 'error' }); return; }
       if (!monto || Number(monto) <= 0) { window.showModal({ message: 'Ingrese un monto válido', type: 'error' }); return; }
       if (!selectedHorarios.length) { window.showModal({ message: 'Seleccione un horario para el sorteo', type: 'error' }); return; }
+
+      // Bloqueo por expiración (REQ-MH-04, A4): si algún horario seleccionado
+      // ya pasó no se añade nada; se avisa y queda desmarcable (sin auto-salto).
+      const expirados = seleccionadosExpirados(selectedHorarios);
+      if (expirados.length > 0) {
+        window.showModal({ message: 'El horario ' + expirados.join(', ') + ' ya pasó. Desmárquelo y seleccione un horario futuro.', type: 'error' });
+        renderHorariosGrid();
+        return;
+      }
 
       const familia = juego.familia;
       if (familia === 'zodiacal') {
@@ -1589,6 +1653,13 @@ import MainLayout from '../layouts/MainLayout.astro';
       renderJuegosTabs();
 
       setInterval(loadTicket, 2000);
+
+      // Refresco del filtro de sorteos futuros (REQ-MH-04, A4): cada 15 s se
+      // re-renderiza la lista; los seleccionados que expiran pasan a rojo y
+      // el aviso #qt-horario-aviso se actualiza.
+      setInterval(() => {
+        if (columnMode === 'horarios') renderHorariosGrid();
+      }, 15000);
 
       document.getElementById('juegos-list').addEventListener('click', (e) => {
         const card = e.target.closest('.juego-card');

@@ -14,6 +14,36 @@
  * izquierda; la comparación lexicográfica es equivalente a la temporal.
  */
 
+/** Zona horaria del sorteo (A4): reloj del cliente = backend (config/app.php). */
+export const ZONA_HORARIA = 'America/Caracas';
+
+/** HH:MM actual en la zona del sorteo (America/Caracas, A4). */
+export function ahoraHHMM(ahora: Date = new Date()): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: ZONA_HORARIA,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(ahora);
+}
+
+/** ¿El horario HH:MM ya pasó en la zona del sorteo? (A4: bloquea añadir). */
+export function horarioExpirado(hora: string, ahora: Date = new Date()): boolean {
+  return hora <= ahoraHHMM(ahora);
+}
+
+/** Solo horarios futuros del día: HH:MM > ahora (REQ-MH-04, A4). */
+export function filtrarHorariosFuturos(horarios: readonly string[], ahora: Date = new Date()): string[] {
+  const ahoraStr = ahoraHHMM(ahora);
+  return horarios.filter((h) => h > ahoraStr);
+}
+
+/** Seleccionados que ya expiraron (A4: rojo, bloquean añadir, desmarcables). */
+export function seleccionadosExpirados(seleccion: readonly string[], ahora: Date = new Date()): string[] {
+  const ahoraStr = ahoraHHMM(ahora);
+  return seleccion.filter((h) => h <= ahoraStr);
+}
+
 /** Alterna (toggle) un horario en la selección multiselect (KB-05, A3). */
 export function alternarHorario(seleccion: readonly string[], hora: string): string[] {
   return seleccion.includes(hora)

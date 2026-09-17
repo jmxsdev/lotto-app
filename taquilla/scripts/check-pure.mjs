@@ -23,6 +23,10 @@ import {
   alternarHorario,
   marcarTodosVisibles,
   expandirLineas,
+  ahoraHHMM,
+  horarioExpirado,
+  filtrarHorariosFuturos,
+  seleccionadosExpirados,
 } from '../src/utils/horarios.ts';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
@@ -374,6 +378,19 @@ ok(expandidas[0].horario === '14:00' && expandidas[1].horario === '17:00', 'lín
 ok(expandidas.every((l) => l.groupId === 'g1'), 'todas las líneas del grupo con el mismo groupId');
 ok(expandidas[0].animal === 'Perro' && expandidas[0].juegoId === 1, 'la base se copia por línea');
 ok(expandirLineas(baseLinea, [], 'g2').length === 0, '0 horarios ⇒ 0 líneas');
+
+console.log('\n== PR3a: filtrado dinámico y expiración (REQ-MH-04, A4) ==');
+// 2026-09-17T18:30:00Z = 14:30 en America/Caracas (UTC-4, sin DST).
+const AHORA_CARACAS = new Date('2026-09-17T18:30:00Z');
+ok(ahoraHHMM(AHORA_CARACAS) === '14:30', `ahoraHHMM(18:30Z) → 14:30 Caracas (${ahoraHHMM(AHORA_CARACAS)})`);
+ok(horarioExpirado('14:00', AHORA_CARACAS), '14:00 < 14:30 → expirado');
+ok(!horarioExpirado('15:00', AHORA_CARACAS), '15:00 > 14:30 → futuro');
+ok(horarioExpirado('14:30', AHORA_CARACAS), '14:30 == ahora → expirado (límite)');
+const futuros = filtrarHorariosFuturos(['08:00', '14:00', '14:30', '17:00', '22:00'], AHORA_CARACAS);
+ok(JSON.stringify(futuros) === JSON.stringify(['17:00', '22:00']), `filtro: solo HH:MM > ahora (${futuros.join(',')})`);
+const expiradosSel = seleccionadosExpirados(['14:00', '17:00'], AHORA_CARACAS);
+ok(JSON.stringify(expiradosSel) === JSON.stringify(['14:00']), `seleccionadosExpirados → ['14:00'] (${expiradosSel.join(',')})`);
+ok(seleccionadosExpirados([], AHORA_CARACAS).length === 0, 'sin selección → sin expirados');
 
 console.log('\n== REQ-KB-07: KEYMAP F1–F12 ==');
 ok(KEYMAP.length === 12, `KEYMAP: 12 teclas (${KEYMAP.length})`);
