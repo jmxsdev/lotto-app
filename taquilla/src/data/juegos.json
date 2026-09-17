@@ -1,0 +1,5689 @@
+{
+    "version": 1,
+    "juegos": [
+        {
+            "id": 1,
+            "slug": "lotto-activo",
+            "nombre": "Lotto Activo",
+            "tipo": "animalitos",
+            "premio_multiplo": 30,
+            "comodines": null,
+            "modalidades": null,
+            "horarios": [
+                "08:00",
+                "09:00",
+                "10:00",
+                "11:00",
+                "12:00",
+                "13:00",
+                "14:00",
+                "15:00",
+                "16:00",
+                "17:00",
+                "18:00",
+                "19:00"
+            ],
+            "opciones": [
+                {
+                    "numero": 0,
+                    "label": "Ballena",
+                    "value": "ballena"
+                },
+                {
+                    "numero": 0,
+                    "label": "Delfín",
+                    "value": "delfin"
+                },
+                {
+                    "numero": 1,
+                    "label": "Carnero",
+                    "value": "carnero"
+                },
+                {
+                    "numero": 2,
+                    "label": "Toro",
+                    "value": "toro"
+                },
+                {
+                    "numero": 3,
+                    "label": "Ciempiés",
+                    "value": "ciempies"
+                },
+                {
+                    "numero": 4,
+                    "label": "Alacrán",
+                    "value": "alacran"
+                },
+                {
+                    "numero": 5,
+                    "label": "León",
+                    "value": "leon"
+                },
+                {
+                    "numero": 6,
+                    "label": "Rana",
+                    "value": "rana"
+                },
+                {
+                    "numero": 7,
+                    "label": "Perico",
+                    "value": "perico"
+                },
+                {
+                    "numero": 8,
+                    "label": "Ratón",
+                    "value": "raton"
+                },
+                {
+                    "numero": 9,
+                    "label": "Águila",
+                    "value": "aguila"
+                },
+                {
+                    "numero": 10,
+                    "label": "Tigre",
+                    "value": "tigre"
+                },
+                {
+                    "numero": 11,
+                    "label": "Gato",
+                    "value": "gato"
+                },
+                {
+                    "numero": 12,
+                    "label": "Caballo",
+                    "value": "caballo"
+                },
+                {
+                    "numero": 13,
+                    "label": "Mono",
+                    "value": "mono"
+                },
+                {
+                    "numero": 14,
+                    "label": "Paloma",
+                    "value": "paloma"
+                },
+                {
+                    "numero": 15,
+                    "label": "Zorro",
+                    "value": "zorro"
+                },
+                {
+                    "numero": 16,
+                    "label": "Oso",
+                    "value": "oso"
+                },
+                {
+                    "numero": 17,
+                    "label": "Pavo",
+                    "value": "pavo"
+                },
+                {
+                    "numero": 18,
+                    "label": "Burro",
+                    "value": "burro"
+                },
+                {
+                    "numero": 19,
+                    "label": "Chivo",
+                    "value": "chivo"
+                },
+                {
+                    "numero": 20,
+                    "label": "Cochino",
+                    "value": "cochino"
+                },
+                {
+                    "numero": 21,
+                    "label": "Gallo",
+                    "value": "gallo"
+                },
+                {
+                    "numero": 22,
+                    "label": "Camello",
+                    "value": "camello"
+                },
+                {
+                    "numero": 23,
+                    "label": "Cebra",
+                    "value": "cebra"
+                },
+                {
+                    "numero": 24,
+                    "label": "Iguana",
+                    "value": "iguana"
+                },
+                {
+                    "numero": 25,
+                    "label": "Gallina",
+                    "value": "gallina"
+                },
+                {
+                    "numero": 26,
+                    "label": "Vaca",
+                    "value": "vaca"
+                },
+                {
+                    "numero": 27,
+                    "label": "Perro",
+                    "value": "perro"
+                },
+                {
+                    "numero": 28,
+                    "label": "Zamuro",
+                    "value": "zamuro"
+                },
+                {
+                    "numero": 29,
+                    "label": "Elefante",
+                    "value": "elefante"
+                },
+                {
+                    "numero": 30,
+                    "label": "Caimán",
+                    "value": "caiman"
+                },
+                {
+                    "numero": 31,
+                    "label": "Lapa",
+                    "value": "lapa"
+                },
+                {
+                    "numero": 32,
+                    "label": "Ardilla",
+                    "value": "ardilla"
+                },
+                {
+                    "numero": 33,
+                    "label": "Pescado",
+                    "value": "pescado"
+                },
+                {
+                    "numero": 34,
+                    "label": "Venado",
+                    "value": "venado"
+                },
+                {
+                    "numero": 35,
+                    "label": "Jirafa",
+                    "value": "jirafa"
+                },
+                {
+                    "numero": 36,
+                    "label": "Culebra",
+                    "value": "culebra"
+                }
+            ]
+        },
+        {
+            "id": 2,
+            "slug": "triple-zulia",
+            "nombre": "Triple Zulia",
+            "tipo": "tripletas",
+            "premio_multiplo": 600,
+            "comodines": null,
+            "modalidades": {
+                "cola": 60,
+                "zodiacal": 6000,
+                "terminal_zodiacal": 600
+            },
+            "horarios": [
+                "12:45",
+                "16:45",
+                "19:05"
+            ],
+            "opciones": [
+                {
+                    "numero": null,
+                    "label": "Aries",
+                    "value": "ARI"
+                },
+                {
+                    "numero": null,
+                    "label": "Tauro",
+                    "value": "TAU"
+                },
+                {
+                    "numero": null,
+                    "label": "Géminis",
+                    "value": "GEM"
+                },
+                {
+                    "numero": null,
+                    "label": "Cáncer",
+                    "value": "CAN"
+                },
+                {
+                    "numero": null,
+                    "label": "Leo",
+                    "value": "LEO"
+                },
+                {
+                    "numero": null,
+                    "label": "Virgo",
+                    "value": "VIR"
+                },
+                {
+                    "numero": null,
+                    "label": "Libra",
+                    "value": "LIB"
+                },
+                {
+                    "numero": null,
+                    "label": "Escorpio",
+                    "value": "ESC"
+                },
+                {
+                    "numero": null,
+                    "label": "Sagitario",
+                    "value": "SAG"
+                },
+                {
+                    "numero": null,
+                    "label": "Capricornio",
+                    "value": "CAP"
+                },
+                {
+                    "numero": null,
+                    "label": "Acuario",
+                    "value": "ACU"
+                },
+                {
+                    "numero": null,
+                    "label": "Piscis",
+                    "value": "PIS"
+                }
+            ]
+        },
+        {
+            "id": 3,
+            "slug": "terminal-activo",
+            "nombre": "Terminal Activo",
+            "tipo": "terminales",
+            "premio_multiplo": 60,
+            "comodines": null,
+            "modalidades": {
+                "terminal": 60
+            },
+            "horarios": [
+                "08:00",
+                "09:00",
+                "10:00",
+                "11:00",
+                "12:00",
+                "13:00",
+                "14:00",
+                "15:00",
+                "16:00",
+                "17:00",
+                "18:00",
+                "19:00"
+            ],
+            "opciones": [
+                {
+                    "numero": 0,
+                    "label": "00",
+                    "value": "0"
+                },
+                {
+                    "numero": 1,
+                    "label": "01",
+                    "value": "1"
+                },
+                {
+                    "numero": 2,
+                    "label": "02",
+                    "value": "2"
+                },
+                {
+                    "numero": 3,
+                    "label": "03",
+                    "value": "3"
+                },
+                {
+                    "numero": 4,
+                    "label": "04",
+                    "value": "4"
+                },
+                {
+                    "numero": 5,
+                    "label": "05",
+                    "value": "5"
+                },
+                {
+                    "numero": 6,
+                    "label": "06",
+                    "value": "6"
+                },
+                {
+                    "numero": 7,
+                    "label": "07",
+                    "value": "7"
+                },
+                {
+                    "numero": 8,
+                    "label": "08",
+                    "value": "8"
+                },
+                {
+                    "numero": 9,
+                    "label": "09",
+                    "value": "9"
+                },
+                {
+                    "numero": 10,
+                    "label": "10",
+                    "value": "10"
+                },
+                {
+                    "numero": 11,
+                    "label": "11",
+                    "value": "11"
+                },
+                {
+                    "numero": 12,
+                    "label": "12",
+                    "value": "12"
+                },
+                {
+                    "numero": 13,
+                    "label": "13",
+                    "value": "13"
+                },
+                {
+                    "numero": 14,
+                    "label": "14",
+                    "value": "14"
+                },
+                {
+                    "numero": 15,
+                    "label": "15",
+                    "value": "15"
+                },
+                {
+                    "numero": 16,
+                    "label": "16",
+                    "value": "16"
+                },
+                {
+                    "numero": 17,
+                    "label": "17",
+                    "value": "17"
+                },
+                {
+                    "numero": 18,
+                    "label": "18",
+                    "value": "18"
+                },
+                {
+                    "numero": 19,
+                    "label": "19",
+                    "value": "19"
+                },
+                {
+                    "numero": 20,
+                    "label": "20",
+                    "value": "20"
+                },
+                {
+                    "numero": 21,
+                    "label": "21",
+                    "value": "21"
+                },
+                {
+                    "numero": 22,
+                    "label": "22",
+                    "value": "22"
+                },
+                {
+                    "numero": 23,
+                    "label": "23",
+                    "value": "23"
+                },
+                {
+                    "numero": 24,
+                    "label": "24",
+                    "value": "24"
+                },
+                {
+                    "numero": 25,
+                    "label": "25",
+                    "value": "25"
+                },
+                {
+                    "numero": 26,
+                    "label": "26",
+                    "value": "26"
+                },
+                {
+                    "numero": 27,
+                    "label": "27",
+                    "value": "27"
+                },
+                {
+                    "numero": 28,
+                    "label": "28",
+                    "value": "28"
+                },
+                {
+                    "numero": 29,
+                    "label": "29",
+                    "value": "29"
+                },
+                {
+                    "numero": 30,
+                    "label": "30",
+                    "value": "30"
+                },
+                {
+                    "numero": 31,
+                    "label": "31",
+                    "value": "31"
+                },
+                {
+                    "numero": 32,
+                    "label": "32",
+                    "value": "32"
+                },
+                {
+                    "numero": 33,
+                    "label": "33",
+                    "value": "33"
+                },
+                {
+                    "numero": 34,
+                    "label": "34",
+                    "value": "34"
+                },
+                {
+                    "numero": 35,
+                    "label": "35",
+                    "value": "35"
+                },
+                {
+                    "numero": 36,
+                    "label": "36",
+                    "value": "36"
+                },
+                {
+                    "numero": 37,
+                    "label": "37",
+                    "value": "37"
+                },
+                {
+                    "numero": 38,
+                    "label": "38",
+                    "value": "38"
+                },
+                {
+                    "numero": 39,
+                    "label": "39",
+                    "value": "39"
+                },
+                {
+                    "numero": 40,
+                    "label": "40",
+                    "value": "40"
+                },
+                {
+                    "numero": 41,
+                    "label": "41",
+                    "value": "41"
+                },
+                {
+                    "numero": 42,
+                    "label": "42",
+                    "value": "42"
+                },
+                {
+                    "numero": 43,
+                    "label": "43",
+                    "value": "43"
+                },
+                {
+                    "numero": 44,
+                    "label": "44",
+                    "value": "44"
+                },
+                {
+                    "numero": 45,
+                    "label": "45",
+                    "value": "45"
+                },
+                {
+                    "numero": 46,
+                    "label": "46",
+                    "value": "46"
+                },
+                {
+                    "numero": 47,
+                    "label": "47",
+                    "value": "47"
+                },
+                {
+                    "numero": 48,
+                    "label": "48",
+                    "value": "48"
+                },
+                {
+                    "numero": 49,
+                    "label": "49",
+                    "value": "49"
+                },
+                {
+                    "numero": 50,
+                    "label": "50",
+                    "value": "50"
+                },
+                {
+                    "numero": 51,
+                    "label": "51",
+                    "value": "51"
+                },
+                {
+                    "numero": 52,
+                    "label": "52",
+                    "value": "52"
+                },
+                {
+                    "numero": 53,
+                    "label": "53",
+                    "value": "53"
+                },
+                {
+                    "numero": 54,
+                    "label": "54",
+                    "value": "54"
+                },
+                {
+                    "numero": 55,
+                    "label": "55",
+                    "value": "55"
+                },
+                {
+                    "numero": 56,
+                    "label": "56",
+                    "value": "56"
+                },
+                {
+                    "numero": 57,
+                    "label": "57",
+                    "value": "57"
+                },
+                {
+                    "numero": 58,
+                    "label": "58",
+                    "value": "58"
+                },
+                {
+                    "numero": 59,
+                    "label": "59",
+                    "value": "59"
+                },
+                {
+                    "numero": 60,
+                    "label": "60",
+                    "value": "60"
+                },
+                {
+                    "numero": 61,
+                    "label": "61",
+                    "value": "61"
+                },
+                {
+                    "numero": 62,
+                    "label": "62",
+                    "value": "62"
+                },
+                {
+                    "numero": 63,
+                    "label": "63",
+                    "value": "63"
+                },
+                {
+                    "numero": 64,
+                    "label": "64",
+                    "value": "64"
+                },
+                {
+                    "numero": 65,
+                    "label": "65",
+                    "value": "65"
+                },
+                {
+                    "numero": 66,
+                    "label": "66",
+                    "value": "66"
+                },
+                {
+                    "numero": 67,
+                    "label": "67",
+                    "value": "67"
+                },
+                {
+                    "numero": 68,
+                    "label": "68",
+                    "value": "68"
+                },
+                {
+                    "numero": 69,
+                    "label": "69",
+                    "value": "69"
+                },
+                {
+                    "numero": 70,
+                    "label": "70",
+                    "value": "70"
+                },
+                {
+                    "numero": 71,
+                    "label": "71",
+                    "value": "71"
+                },
+                {
+                    "numero": 72,
+                    "label": "72",
+                    "value": "72"
+                },
+                {
+                    "numero": 73,
+                    "label": "73",
+                    "value": "73"
+                },
+                {
+                    "numero": 74,
+                    "label": "74",
+                    "value": "74"
+                },
+                {
+                    "numero": 75,
+                    "label": "75",
+                    "value": "75"
+                },
+                {
+                    "numero": 76,
+                    "label": "76",
+                    "value": "76"
+                },
+                {
+                    "numero": 77,
+                    "label": "77",
+                    "value": "77"
+                },
+                {
+                    "numero": 78,
+                    "label": "78",
+                    "value": "78"
+                },
+                {
+                    "numero": 79,
+                    "label": "79",
+                    "value": "79"
+                },
+                {
+                    "numero": 80,
+                    "label": "80",
+                    "value": "80"
+                },
+                {
+                    "numero": 81,
+                    "label": "81",
+                    "value": "81"
+                },
+                {
+                    "numero": 82,
+                    "label": "82",
+                    "value": "82"
+                },
+                {
+                    "numero": 83,
+                    "label": "83",
+                    "value": "83"
+                },
+                {
+                    "numero": 84,
+                    "label": "84",
+                    "value": "84"
+                },
+                {
+                    "numero": 85,
+                    "label": "85",
+                    "value": "85"
+                },
+                {
+                    "numero": 86,
+                    "label": "86",
+                    "value": "86"
+                },
+                {
+                    "numero": 87,
+                    "label": "87",
+                    "value": "87"
+                },
+                {
+                    "numero": 88,
+                    "label": "88",
+                    "value": "88"
+                },
+                {
+                    "numero": 89,
+                    "label": "89",
+                    "value": "89"
+                },
+                {
+                    "numero": 90,
+                    "label": "90",
+                    "value": "90"
+                },
+                {
+                    "numero": 91,
+                    "label": "91",
+                    "value": "91"
+                },
+                {
+                    "numero": 92,
+                    "label": "92",
+                    "value": "92"
+                },
+                {
+                    "numero": 93,
+                    "label": "93",
+                    "value": "93"
+                },
+                {
+                    "numero": 94,
+                    "label": "94",
+                    "value": "94"
+                },
+                {
+                    "numero": 95,
+                    "label": "95",
+                    "value": "95"
+                },
+                {
+                    "numero": 96,
+                    "label": "96",
+                    "value": "96"
+                },
+                {
+                    "numero": 97,
+                    "label": "97",
+                    "value": "97"
+                },
+                {
+                    "numero": 98,
+                    "label": "98",
+                    "value": "98"
+                },
+                {
+                    "numero": 99,
+                    "label": "99",
+                    "value": "99"
+                }
+            ]
+        },
+        {
+            "id": 4,
+            "slug": "lotto-activo-rd",
+            "nombre": "Lotto Activo RD Internacional",
+            "tipo": "animalitos",
+            "premio_multiplo": 30,
+            "comodines": null,
+            "modalidades": null,
+            "horarios": [
+                "08:30",
+                "09:30",
+                "10:30",
+                "11:30",
+                "12:30",
+                "13:30",
+                "14:30",
+                "15:30",
+                "16:30",
+                "17:30",
+                "18:30",
+                "19:30"
+            ],
+            "opciones": [
+                {
+                    "numero": 0,
+                    "label": "Ballena",
+                    "value": "ballena"
+                },
+                {
+                    "numero": 0,
+                    "label": "Delfin",
+                    "value": "delfin"
+                },
+                {
+                    "numero": 1,
+                    "label": "Carnero",
+                    "value": "carnero"
+                },
+                {
+                    "numero": 2,
+                    "label": "Toro",
+                    "value": "toro"
+                },
+                {
+                    "numero": 3,
+                    "label": "Ciempies",
+                    "value": "ciempies"
+                },
+                {
+                    "numero": 4,
+                    "label": "Alacran",
+                    "value": "alacran"
+                },
+                {
+                    "numero": 5,
+                    "label": "Leon",
+                    "value": "leon"
+                },
+                {
+                    "numero": 6,
+                    "label": "Rana",
+                    "value": "rana"
+                },
+                {
+                    "numero": 7,
+                    "label": "Perico",
+                    "value": "perico"
+                },
+                {
+                    "numero": 8,
+                    "label": "Raton",
+                    "value": "raton"
+                },
+                {
+                    "numero": 9,
+                    "label": "Aguila",
+                    "value": "aguila"
+                },
+                {
+                    "numero": 10,
+                    "label": "Tigre",
+                    "value": "tigre"
+                },
+                {
+                    "numero": 11,
+                    "label": "Gato",
+                    "value": "gato"
+                },
+                {
+                    "numero": 12,
+                    "label": "Caballo",
+                    "value": "caballo"
+                },
+                {
+                    "numero": 13,
+                    "label": "Mono",
+                    "value": "mono"
+                },
+                {
+                    "numero": 14,
+                    "label": "Paloma",
+                    "value": "paloma"
+                },
+                {
+                    "numero": 15,
+                    "label": "Zorro",
+                    "value": "zorro"
+                },
+                {
+                    "numero": 16,
+                    "label": "Oso",
+                    "value": "oso"
+                },
+                {
+                    "numero": 17,
+                    "label": "Pavo",
+                    "value": "pavo"
+                },
+                {
+                    "numero": 18,
+                    "label": "Burro",
+                    "value": "burro"
+                },
+                {
+                    "numero": 19,
+                    "label": "Chivo",
+                    "value": "chivo"
+                },
+                {
+                    "numero": 20,
+                    "label": "Cochino",
+                    "value": "cochino"
+                },
+                {
+                    "numero": 21,
+                    "label": "Gallo",
+                    "value": "gallo"
+                },
+                {
+                    "numero": 22,
+                    "label": "Camello",
+                    "value": "camello"
+                },
+                {
+                    "numero": 23,
+                    "label": "Cebra",
+                    "value": "cebra"
+                },
+                {
+                    "numero": 24,
+                    "label": "Iguana",
+                    "value": "iguana"
+                },
+                {
+                    "numero": 25,
+                    "label": "Gallina",
+                    "value": "gallina"
+                },
+                {
+                    "numero": 26,
+                    "label": "Vaca",
+                    "value": "vaca"
+                },
+                {
+                    "numero": 27,
+                    "label": "Perro",
+                    "value": "perro"
+                },
+                {
+                    "numero": 28,
+                    "label": "Zamuro",
+                    "value": "zamuro"
+                },
+                {
+                    "numero": 29,
+                    "label": "Elefante",
+                    "value": "elefante"
+                },
+                {
+                    "numero": 30,
+                    "label": "Caiman",
+                    "value": "caiman"
+                },
+                {
+                    "numero": 31,
+                    "label": "Lapa",
+                    "value": "lapa"
+                },
+                {
+                    "numero": 32,
+                    "label": "Ardilla",
+                    "value": "ardilla"
+                },
+                {
+                    "numero": 33,
+                    "label": "Pescado",
+                    "value": "pescado"
+                },
+                {
+                    "numero": 34,
+                    "label": "Venado",
+                    "value": "venado"
+                },
+                {
+                    "numero": 35,
+                    "label": "Jirafa",
+                    "value": "jirafa"
+                },
+                {
+                    "numero": 36,
+                    "label": "Culebra",
+                    "value": "culebra"
+                }
+            ]
+        },
+        {
+            "id": 5,
+            "slug": "lotto-activo-rep-dom",
+            "nombre": "Lotto Activo República Dominicana",
+            "tipo": "animalitos",
+            "premio_multiplo": 30,
+            "comodines": null,
+            "modalidades": null,
+            "horarios": [
+                "08:00",
+                "09:00",
+                "10:00",
+                "11:00",
+                "12:00",
+                "13:00",
+                "14:00",
+                "15:00",
+                "16:00",
+                "17:00",
+                "18:00",
+                "19:00",
+                "20:00",
+                "21:00"
+            ],
+            "opciones": [
+                {
+                    "numero": 0,
+                    "label": "Ballena",
+                    "value": "ballena"
+                },
+                {
+                    "numero": 0,
+                    "label": "Delfin",
+                    "value": "delfin"
+                },
+                {
+                    "numero": 1,
+                    "label": "Carnero",
+                    "value": "carnero"
+                },
+                {
+                    "numero": 2,
+                    "label": "Toro",
+                    "value": "toro"
+                },
+                {
+                    "numero": 3,
+                    "label": "Ciempies",
+                    "value": "ciempies"
+                },
+                {
+                    "numero": 4,
+                    "label": "Alacran",
+                    "value": "alacran"
+                },
+                {
+                    "numero": 5,
+                    "label": "Leon",
+                    "value": "leon"
+                },
+                {
+                    "numero": 6,
+                    "label": "Rana",
+                    "value": "rana"
+                },
+                {
+                    "numero": 7,
+                    "label": "Perico",
+                    "value": "perico"
+                },
+                {
+                    "numero": 8,
+                    "label": "Raton",
+                    "value": "raton"
+                },
+                {
+                    "numero": 9,
+                    "label": "Aguila",
+                    "value": "aguila"
+                },
+                {
+                    "numero": 10,
+                    "label": "Tigre",
+                    "value": "tigre"
+                },
+                {
+                    "numero": 11,
+                    "label": "Gato",
+                    "value": "gato"
+                },
+                {
+                    "numero": 12,
+                    "label": "Caballo",
+                    "value": "caballo"
+                },
+                {
+                    "numero": 13,
+                    "label": "Mono",
+                    "value": "mono"
+                },
+                {
+                    "numero": 14,
+                    "label": "Paloma",
+                    "value": "paloma"
+                },
+                {
+                    "numero": 15,
+                    "label": "Zorro",
+                    "value": "zorro"
+                },
+                {
+                    "numero": 16,
+                    "label": "Oso",
+                    "value": "oso"
+                },
+                {
+                    "numero": 17,
+                    "label": "Pavo",
+                    "value": "pavo"
+                },
+                {
+                    "numero": 18,
+                    "label": "Burro",
+                    "value": "burro"
+                },
+                {
+                    "numero": 19,
+                    "label": "Chivo",
+                    "value": "chivo"
+                },
+                {
+                    "numero": 20,
+                    "label": "Cochino",
+                    "value": "cochino"
+                },
+                {
+                    "numero": 21,
+                    "label": "Gallo",
+                    "value": "gallo"
+                },
+                {
+                    "numero": 22,
+                    "label": "Camello",
+                    "value": "camello"
+                },
+                {
+                    "numero": 23,
+                    "label": "Cebra",
+                    "value": "cebra"
+                },
+                {
+                    "numero": 24,
+                    "label": "Iguana",
+                    "value": "iguana"
+                },
+                {
+                    "numero": 25,
+                    "label": "Gallina",
+                    "value": "gallina"
+                },
+                {
+                    "numero": 26,
+                    "label": "Vaca",
+                    "value": "vaca"
+                },
+                {
+                    "numero": 27,
+                    "label": "Perro",
+                    "value": "perro"
+                },
+                {
+                    "numero": 28,
+                    "label": "Zamuro",
+                    "value": "zamuro"
+                },
+                {
+                    "numero": 29,
+                    "label": "Elefante",
+                    "value": "elefante"
+                },
+                {
+                    "numero": 30,
+                    "label": "Caiman",
+                    "value": "caiman"
+                },
+                {
+                    "numero": 31,
+                    "label": "Lapa",
+                    "value": "lapa"
+                },
+                {
+                    "numero": 32,
+                    "label": "Ardilla",
+                    "value": "ardilla"
+                },
+                {
+                    "numero": 33,
+                    "label": "Pescado",
+                    "value": "pescado"
+                },
+                {
+                    "numero": 34,
+                    "label": "Venado",
+                    "value": "venado"
+                },
+                {
+                    "numero": 35,
+                    "label": "Jirafa",
+                    "value": "jirafa"
+                },
+                {
+                    "numero": 36,
+                    "label": "Culebra",
+                    "value": "culebra"
+                }
+            ]
+        },
+        {
+            "id": 6,
+            "slug": "monje-millonario",
+            "nombre": "Monje Millonario",
+            "tipo": "animalitos",
+            "premio_multiplo": 30,
+            "comodines": null,
+            "modalidades": null,
+            "horarios": [
+                "08:05",
+                "09:05",
+                "10:05",
+                "11:05",
+                "12:05",
+                "13:05",
+                "14:05",
+                "15:05",
+                "16:05",
+                "17:05",
+                "18:05",
+                "19:05"
+            ],
+            "opciones": [
+                {
+                    "numero": 0,
+                    "label": "Delfín",
+                    "value": "delfin"
+                },
+                {
+                    "numero": 0,
+                    "label": "Ballena",
+                    "value": "ballena"
+                },
+                {
+                    "numero": 1,
+                    "label": "Carnero",
+                    "value": "carnero"
+                },
+                {
+                    "numero": 2,
+                    "label": "Toro",
+                    "value": "toro"
+                },
+                {
+                    "numero": 3,
+                    "label": "Ciempiés",
+                    "value": "ciempies"
+                },
+                {
+                    "numero": 4,
+                    "label": "Alacrán",
+                    "value": "alacran"
+                },
+                {
+                    "numero": 5,
+                    "label": "León",
+                    "value": "leon"
+                },
+                {
+                    "numero": 6,
+                    "label": "Rana",
+                    "value": "rana"
+                },
+                {
+                    "numero": 7,
+                    "label": "Perico",
+                    "value": "perico"
+                },
+                {
+                    "numero": 8,
+                    "label": "Ratón",
+                    "value": "raton"
+                },
+                {
+                    "numero": 9,
+                    "label": "Águila",
+                    "value": "aguila"
+                },
+                {
+                    "numero": 10,
+                    "label": "Tigre",
+                    "value": "tigre"
+                },
+                {
+                    "numero": 11,
+                    "label": "Gato",
+                    "value": "gato"
+                },
+                {
+                    "numero": 12,
+                    "label": "Caballo",
+                    "value": "caballo"
+                },
+                {
+                    "numero": 13,
+                    "label": "Mono",
+                    "value": "mono"
+                },
+                {
+                    "numero": 14,
+                    "label": "Paloma",
+                    "value": "paloma"
+                },
+                {
+                    "numero": 15,
+                    "label": "Zorro",
+                    "value": "zorro"
+                },
+                {
+                    "numero": 16,
+                    "label": "Oso",
+                    "value": "oso"
+                },
+                {
+                    "numero": 17,
+                    "label": "Pavo",
+                    "value": "pavo"
+                },
+                {
+                    "numero": 18,
+                    "label": "Burro",
+                    "value": "burro"
+                },
+                {
+                    "numero": 19,
+                    "label": "Chivo",
+                    "value": "chivo"
+                },
+                {
+                    "numero": 20,
+                    "label": "Cochino",
+                    "value": "cochino"
+                },
+                {
+                    "numero": 21,
+                    "label": "Gallo",
+                    "value": "gallo"
+                },
+                {
+                    "numero": 22,
+                    "label": "Camello",
+                    "value": "camello"
+                },
+                {
+                    "numero": 23,
+                    "label": "Cebra",
+                    "value": "cebra"
+                },
+                {
+                    "numero": 24,
+                    "label": "Iguana",
+                    "value": "iguana"
+                },
+                {
+                    "numero": 25,
+                    "label": "Gallina",
+                    "value": "gallina"
+                },
+                {
+                    "numero": 26,
+                    "label": "Vaca",
+                    "value": "vaca"
+                },
+                {
+                    "numero": 27,
+                    "label": "Perro",
+                    "value": "perro"
+                },
+                {
+                    "numero": 28,
+                    "label": "Zamuro",
+                    "value": "zamuro"
+                },
+                {
+                    "numero": 29,
+                    "label": "Elefante",
+                    "value": "elefante"
+                },
+                {
+                    "numero": 30,
+                    "label": "Caimán",
+                    "value": "caiman"
+                },
+                {
+                    "numero": 31,
+                    "label": "Lapa",
+                    "value": "lapa"
+                },
+                {
+                    "numero": 32,
+                    "label": "Ardilla",
+                    "value": "ardilla"
+                },
+                {
+                    "numero": 33,
+                    "label": "Pescado",
+                    "value": "pescado"
+                },
+                {
+                    "numero": 34,
+                    "label": "Venado",
+                    "value": "venado"
+                },
+                {
+                    "numero": 35,
+                    "label": "Jirafa",
+                    "value": "jirafa"
+                },
+                {
+                    "numero": 36,
+                    "label": "Culebra",
+                    "value": "culebra"
+                },
+                {
+                    "numero": 37,
+                    "label": "Tortuga",
+                    "value": "tortuga"
+                },
+                {
+                    "numero": 38,
+                    "label": "Búfalo",
+                    "value": "bufalo"
+                },
+                {
+                    "numero": 39,
+                    "label": "Lechuza",
+                    "value": "lechuza"
+                },
+                {
+                    "numero": 40,
+                    "label": "Avispa",
+                    "value": "avispa"
+                },
+                {
+                    "numero": 41,
+                    "label": "Canguro",
+                    "value": "canguro"
+                },
+                {
+                    "numero": 42,
+                    "label": "Tucán",
+                    "value": "tucan"
+                },
+                {
+                    "numero": 43,
+                    "label": "Mariposa",
+                    "value": "mariposa"
+                },
+                {
+                    "numero": 44,
+                    "label": "Chigüire",
+                    "value": "chiguire"
+                },
+                {
+                    "numero": 45,
+                    "label": "Garza",
+                    "value": "garza"
+                },
+                {
+                    "numero": 46,
+                    "label": "Puma",
+                    "value": "puma"
+                },
+                {
+                    "numero": 47,
+                    "label": "Pavo Real",
+                    "value": "pavo-real"
+                },
+                {
+                    "numero": 48,
+                    "label": "Puercoespín",
+                    "value": "puercoespin"
+                },
+                {
+                    "numero": 49,
+                    "label": "Pereza",
+                    "value": "pereza"
+                },
+                {
+                    "numero": 50,
+                    "label": "Canario",
+                    "value": "canario"
+                },
+                {
+                    "numero": 51,
+                    "label": "Pelícano",
+                    "value": "pelicano"
+                },
+                {
+                    "numero": 52,
+                    "label": "Pulpo",
+                    "value": "pulpo"
+                },
+                {
+                    "numero": 53,
+                    "label": "Caracol",
+                    "value": "caracol"
+                },
+                {
+                    "numero": 54,
+                    "label": "Grillo",
+                    "value": "grillo"
+                },
+                {
+                    "numero": 55,
+                    "label": "Oso Hormiguero",
+                    "value": "oso-hormiguero"
+                },
+                {
+                    "numero": 56,
+                    "label": "Tiburón",
+                    "value": "tiburon"
+                },
+                {
+                    "numero": 57,
+                    "label": "Pato",
+                    "value": "pato"
+                },
+                {
+                    "numero": 58,
+                    "label": "Hormiga",
+                    "value": "hormiga"
+                },
+                {
+                    "numero": 59,
+                    "label": "Pantera",
+                    "value": "pantera"
+                },
+                {
+                    "numero": 60,
+                    "label": "Camaleón",
+                    "value": "camaleon"
+                },
+                {
+                    "numero": 61,
+                    "label": "Panda",
+                    "value": "panda"
+                },
+                {
+                    "numero": 62,
+                    "label": "Cachicamo",
+                    "value": "cachicamo"
+                },
+                {
+                    "numero": 63,
+                    "label": "Cangrejo",
+                    "value": "cangrejo"
+                },
+                {
+                    "numero": 64,
+                    "label": "Gavilán",
+                    "value": "gavilan"
+                },
+                {
+                    "numero": 65,
+                    "label": "Araña",
+                    "value": "arana"
+                },
+                {
+                    "numero": 66,
+                    "label": "Lobo",
+                    "value": "lobo"
+                },
+                {
+                    "numero": 67,
+                    "label": "Avestruz",
+                    "value": "avestruz"
+                },
+                {
+                    "numero": 68,
+                    "label": "Jaguar",
+                    "value": "jaguar"
+                },
+                {
+                    "numero": 69,
+                    "label": "Conejo",
+                    "value": "conejo"
+                },
+                {
+                    "numero": 70,
+                    "label": "Bisonte",
+                    "value": "bisonte"
+                },
+                {
+                    "numero": 71,
+                    "label": "Guacamaya",
+                    "value": "guacamaya"
+                },
+                {
+                    "numero": 72,
+                    "label": "Gorila",
+                    "value": "gorila"
+                },
+                {
+                    "numero": 73,
+                    "label": "Hipopótamo",
+                    "value": "hipopotamo"
+                },
+                {
+                    "numero": 74,
+                    "label": "Turpial",
+                    "value": "turpial"
+                },
+                {
+                    "numero": 75,
+                    "label": "Patronus",
+                    "value": "patronus"
+                }
+            ]
+        },
+        {
+            "id": 7,
+            "slug": "trio-activo",
+            "nombre": "Trío Activo",
+            "tipo": "tripletas",
+            "premio_multiplo": 600,
+            "comodines": null,
+            "modalidades": {
+                "punta": 60,
+                "terminal": 60
+            },
+            "horarios": [
+                "08:00",
+                "09:00",
+                "10:00",
+                "11:00",
+                "12:00",
+                "13:00",
+                "14:00",
+                "15:00",
+                "16:00",
+                "17:00",
+                "18:00",
+                "19:00"
+            ],
+            "opciones": [
+                {
+                    "numero": 0,
+                    "label": "00",
+                    "value": "0"
+                },
+                {
+                    "numero": 1,
+                    "label": "01",
+                    "value": "1"
+                },
+                {
+                    "numero": 2,
+                    "label": "02",
+                    "value": "2"
+                },
+                {
+                    "numero": 3,
+                    "label": "03",
+                    "value": "3"
+                },
+                {
+                    "numero": 4,
+                    "label": "04",
+                    "value": "4"
+                },
+                {
+                    "numero": 5,
+                    "label": "05",
+                    "value": "5"
+                },
+                {
+                    "numero": 6,
+                    "label": "06",
+                    "value": "6"
+                },
+                {
+                    "numero": 7,
+                    "label": "07",
+                    "value": "7"
+                },
+                {
+                    "numero": 8,
+                    "label": "08",
+                    "value": "8"
+                },
+                {
+                    "numero": 9,
+                    "label": "09",
+                    "value": "9"
+                },
+                {
+                    "numero": 10,
+                    "label": "10",
+                    "value": "10"
+                },
+                {
+                    "numero": 11,
+                    "label": "11",
+                    "value": "11"
+                },
+                {
+                    "numero": 12,
+                    "label": "12",
+                    "value": "12"
+                },
+                {
+                    "numero": 13,
+                    "label": "13",
+                    "value": "13"
+                },
+                {
+                    "numero": 14,
+                    "label": "14",
+                    "value": "14"
+                },
+                {
+                    "numero": 15,
+                    "label": "15",
+                    "value": "15"
+                },
+                {
+                    "numero": 16,
+                    "label": "16",
+                    "value": "16"
+                },
+                {
+                    "numero": 17,
+                    "label": "17",
+                    "value": "17"
+                },
+                {
+                    "numero": 18,
+                    "label": "18",
+                    "value": "18"
+                },
+                {
+                    "numero": 19,
+                    "label": "19",
+                    "value": "19"
+                },
+                {
+                    "numero": 20,
+                    "label": "20",
+                    "value": "20"
+                },
+                {
+                    "numero": 21,
+                    "label": "21",
+                    "value": "21"
+                },
+                {
+                    "numero": 22,
+                    "label": "22",
+                    "value": "22"
+                },
+                {
+                    "numero": 23,
+                    "label": "23",
+                    "value": "23"
+                },
+                {
+                    "numero": 24,
+                    "label": "24",
+                    "value": "24"
+                },
+                {
+                    "numero": 25,
+                    "label": "25",
+                    "value": "25"
+                },
+                {
+                    "numero": 26,
+                    "label": "26",
+                    "value": "26"
+                },
+                {
+                    "numero": 27,
+                    "label": "27",
+                    "value": "27"
+                },
+                {
+                    "numero": 28,
+                    "label": "28",
+                    "value": "28"
+                },
+                {
+                    "numero": 29,
+                    "label": "29",
+                    "value": "29"
+                },
+                {
+                    "numero": 30,
+                    "label": "30",
+                    "value": "30"
+                },
+                {
+                    "numero": 31,
+                    "label": "31",
+                    "value": "31"
+                },
+                {
+                    "numero": 32,
+                    "label": "32",
+                    "value": "32"
+                },
+                {
+                    "numero": 33,
+                    "label": "33",
+                    "value": "33"
+                },
+                {
+                    "numero": 34,
+                    "label": "34",
+                    "value": "34"
+                },
+                {
+                    "numero": 35,
+                    "label": "35",
+                    "value": "35"
+                },
+                {
+                    "numero": 36,
+                    "label": "36",
+                    "value": "36"
+                },
+                {
+                    "numero": 37,
+                    "label": "37",
+                    "value": "37"
+                },
+                {
+                    "numero": 38,
+                    "label": "38",
+                    "value": "38"
+                },
+                {
+                    "numero": 39,
+                    "label": "39",
+                    "value": "39"
+                },
+                {
+                    "numero": 40,
+                    "label": "40",
+                    "value": "40"
+                },
+                {
+                    "numero": 41,
+                    "label": "41",
+                    "value": "41"
+                },
+                {
+                    "numero": 42,
+                    "label": "42",
+                    "value": "42"
+                },
+                {
+                    "numero": 43,
+                    "label": "43",
+                    "value": "43"
+                },
+                {
+                    "numero": 44,
+                    "label": "44",
+                    "value": "44"
+                },
+                {
+                    "numero": 45,
+                    "label": "45",
+                    "value": "45"
+                },
+                {
+                    "numero": 46,
+                    "label": "46",
+                    "value": "46"
+                },
+                {
+                    "numero": 47,
+                    "label": "47",
+                    "value": "47"
+                },
+                {
+                    "numero": 48,
+                    "label": "48",
+                    "value": "48"
+                },
+                {
+                    "numero": 49,
+                    "label": "49",
+                    "value": "49"
+                },
+                {
+                    "numero": 50,
+                    "label": "50",
+                    "value": "50"
+                },
+                {
+                    "numero": 51,
+                    "label": "51",
+                    "value": "51"
+                },
+                {
+                    "numero": 52,
+                    "label": "52",
+                    "value": "52"
+                },
+                {
+                    "numero": 53,
+                    "label": "53",
+                    "value": "53"
+                },
+                {
+                    "numero": 54,
+                    "label": "54",
+                    "value": "54"
+                },
+                {
+                    "numero": 55,
+                    "label": "55",
+                    "value": "55"
+                },
+                {
+                    "numero": 56,
+                    "label": "56",
+                    "value": "56"
+                },
+                {
+                    "numero": 57,
+                    "label": "57",
+                    "value": "57"
+                },
+                {
+                    "numero": 58,
+                    "label": "58",
+                    "value": "58"
+                },
+                {
+                    "numero": 59,
+                    "label": "59",
+                    "value": "59"
+                },
+                {
+                    "numero": 60,
+                    "label": "60",
+                    "value": "60"
+                },
+                {
+                    "numero": 61,
+                    "label": "61",
+                    "value": "61"
+                },
+                {
+                    "numero": 62,
+                    "label": "62",
+                    "value": "62"
+                },
+                {
+                    "numero": 63,
+                    "label": "63",
+                    "value": "63"
+                },
+                {
+                    "numero": 64,
+                    "label": "64",
+                    "value": "64"
+                },
+                {
+                    "numero": 65,
+                    "label": "65",
+                    "value": "65"
+                },
+                {
+                    "numero": 66,
+                    "label": "66",
+                    "value": "66"
+                },
+                {
+                    "numero": 67,
+                    "label": "67",
+                    "value": "67"
+                },
+                {
+                    "numero": 68,
+                    "label": "68",
+                    "value": "68"
+                },
+                {
+                    "numero": 69,
+                    "label": "69",
+                    "value": "69"
+                },
+                {
+                    "numero": 70,
+                    "label": "70",
+                    "value": "70"
+                },
+                {
+                    "numero": 71,
+                    "label": "71",
+                    "value": "71"
+                },
+                {
+                    "numero": 72,
+                    "label": "72",
+                    "value": "72"
+                },
+                {
+                    "numero": 73,
+                    "label": "73",
+                    "value": "73"
+                },
+                {
+                    "numero": 74,
+                    "label": "74",
+                    "value": "74"
+                },
+                {
+                    "numero": 75,
+                    "label": "75",
+                    "value": "75"
+                },
+                {
+                    "numero": 76,
+                    "label": "76",
+                    "value": "76"
+                },
+                {
+                    "numero": 77,
+                    "label": "77",
+                    "value": "77"
+                },
+                {
+                    "numero": 78,
+                    "label": "78",
+                    "value": "78"
+                },
+                {
+                    "numero": 79,
+                    "label": "79",
+                    "value": "79"
+                },
+                {
+                    "numero": 80,
+                    "label": "80",
+                    "value": "80"
+                },
+                {
+                    "numero": 81,
+                    "label": "81",
+                    "value": "81"
+                },
+                {
+                    "numero": 82,
+                    "label": "82",
+                    "value": "82"
+                },
+                {
+                    "numero": 83,
+                    "label": "83",
+                    "value": "83"
+                },
+                {
+                    "numero": 84,
+                    "label": "84",
+                    "value": "84"
+                },
+                {
+                    "numero": 85,
+                    "label": "85",
+                    "value": "85"
+                },
+                {
+                    "numero": 86,
+                    "label": "86",
+                    "value": "86"
+                },
+                {
+                    "numero": 87,
+                    "label": "87",
+                    "value": "87"
+                },
+                {
+                    "numero": 88,
+                    "label": "88",
+                    "value": "88"
+                },
+                {
+                    "numero": 89,
+                    "label": "89",
+                    "value": "89"
+                },
+                {
+                    "numero": 90,
+                    "label": "90",
+                    "value": "90"
+                },
+                {
+                    "numero": 91,
+                    "label": "91",
+                    "value": "91"
+                },
+                {
+                    "numero": 92,
+                    "label": "92",
+                    "value": "92"
+                },
+                {
+                    "numero": 93,
+                    "label": "93",
+                    "value": "93"
+                },
+                {
+                    "numero": 94,
+                    "label": "94",
+                    "value": "94"
+                },
+                {
+                    "numero": 95,
+                    "label": "95",
+                    "value": "95"
+                },
+                {
+                    "numero": 96,
+                    "label": "96",
+                    "value": "96"
+                },
+                {
+                    "numero": 97,
+                    "label": "97",
+                    "value": "97"
+                },
+                {
+                    "numero": 98,
+                    "label": "98",
+                    "value": "98"
+                },
+                {
+                    "numero": 99,
+                    "label": "99",
+                    "value": "99"
+                }
+            ]
+        },
+        {
+            "id": 8,
+            "slug": "triple-caliente",
+            "nombre": "Triple Caliente",
+            "tipo": "tripletas",
+            "premio_multiplo": 600,
+            "comodines": null,
+            "modalidades": {
+                "cola": 60,
+                "zodiacal": 6000,
+                "terminal_zodiacal": 600
+            },
+            "horarios": [
+                "13:00",
+                "16:30",
+                "19:10"
+            ],
+            "opciones": [
+                {
+                    "numero": null,
+                    "label": "Aries",
+                    "value": "ARI"
+                },
+                {
+                    "numero": null,
+                    "label": "Tauro",
+                    "value": "TAU"
+                },
+                {
+                    "numero": null,
+                    "label": "Géminis",
+                    "value": "GEM"
+                },
+                {
+                    "numero": null,
+                    "label": "Cáncer",
+                    "value": "CAN"
+                },
+                {
+                    "numero": null,
+                    "label": "Leo",
+                    "value": "LEO"
+                },
+                {
+                    "numero": null,
+                    "label": "Virgo",
+                    "value": "VIR"
+                },
+                {
+                    "numero": null,
+                    "label": "Libra",
+                    "value": "LIB"
+                },
+                {
+                    "numero": null,
+                    "label": "Escorpio",
+                    "value": "ESC"
+                },
+                {
+                    "numero": null,
+                    "label": "Sagitario",
+                    "value": "SAG"
+                },
+                {
+                    "numero": null,
+                    "label": "Capricornio",
+                    "value": "CAP"
+                },
+                {
+                    "numero": null,
+                    "label": "Acuario",
+                    "value": "ACU"
+                },
+                {
+                    "numero": null,
+                    "label": "Piscis",
+                    "value": "PIS"
+                }
+            ]
+        },
+        {
+            "id": 9,
+            "slug": "cazaloton",
+            "nombre": "Cazaloton",
+            "tipo": "animalitos",
+            "premio_multiplo": 30,
+            "comodines": null,
+            "modalidades": {
+                "dupleta": 800,
+                "tripleta": 200
+            },
+            "horarios": [
+                "09:00",
+                "10:00",
+                "11:00",
+                "12:00",
+                "13:00",
+                "14:00",
+                "15:00",
+                "16:00",
+                "17:00",
+                "18:00",
+                "19:00"
+            ],
+            "opciones": [
+                {
+                    "numero": 0,
+                    "label": "Ballena",
+                    "value": "ballena"
+                },
+                {
+                    "numero": 0,
+                    "label": "Delfin",
+                    "value": "delfin"
+                },
+                {
+                    "numero": 1,
+                    "label": "Carnero",
+                    "value": "carnero"
+                },
+                {
+                    "numero": 2,
+                    "label": "Toro",
+                    "value": "toro"
+                },
+                {
+                    "numero": 3,
+                    "label": "Ciempies",
+                    "value": "ciempies"
+                },
+                {
+                    "numero": 4,
+                    "label": "Alacran",
+                    "value": "alacran"
+                },
+                {
+                    "numero": 5,
+                    "label": "Leon",
+                    "value": "leon"
+                },
+                {
+                    "numero": 6,
+                    "label": "Rana",
+                    "value": "rana"
+                },
+                {
+                    "numero": 7,
+                    "label": "Perico",
+                    "value": "perico"
+                },
+                {
+                    "numero": 8,
+                    "label": "Raton",
+                    "value": "raton"
+                },
+                {
+                    "numero": 9,
+                    "label": "Aguila",
+                    "value": "aguila"
+                },
+                {
+                    "numero": 10,
+                    "label": "Tigre",
+                    "value": "tigre"
+                },
+                {
+                    "numero": 11,
+                    "label": "Gato",
+                    "value": "gato"
+                },
+                {
+                    "numero": 12,
+                    "label": "Caballo",
+                    "value": "caballo"
+                },
+                {
+                    "numero": 13,
+                    "label": "Mono",
+                    "value": "mono"
+                },
+                {
+                    "numero": 14,
+                    "label": "Paloma",
+                    "value": "paloma"
+                },
+                {
+                    "numero": 15,
+                    "label": "Zorro",
+                    "value": "zorro"
+                },
+                {
+                    "numero": 16,
+                    "label": "Oso",
+                    "value": "oso"
+                },
+                {
+                    "numero": 17,
+                    "label": "Pavo",
+                    "value": "pavo"
+                },
+                {
+                    "numero": 18,
+                    "label": "Burro",
+                    "value": "burro"
+                },
+                {
+                    "numero": 19,
+                    "label": "Chivo",
+                    "value": "chivo"
+                },
+                {
+                    "numero": 20,
+                    "label": "Cochino",
+                    "value": "cochino"
+                },
+                {
+                    "numero": 21,
+                    "label": "Gallo",
+                    "value": "gallo"
+                },
+                {
+                    "numero": 22,
+                    "label": "Camello",
+                    "value": "camello"
+                },
+                {
+                    "numero": 23,
+                    "label": "Cebra",
+                    "value": "cebra"
+                },
+                {
+                    "numero": 24,
+                    "label": "Iguana",
+                    "value": "iguana"
+                },
+                {
+                    "numero": 25,
+                    "label": "Gallina",
+                    "value": "gallina"
+                },
+                {
+                    "numero": 26,
+                    "label": "Vaca",
+                    "value": "vaca"
+                },
+                {
+                    "numero": 27,
+                    "label": "Perro",
+                    "value": "perro"
+                },
+                {
+                    "numero": 28,
+                    "label": "Zamuro",
+                    "value": "zamuro"
+                },
+                {
+                    "numero": 29,
+                    "label": "Elefante",
+                    "value": "elefante"
+                },
+                {
+                    "numero": 30,
+                    "label": "Caiman",
+                    "value": "caiman"
+                },
+                {
+                    "numero": 31,
+                    "label": "Lapa",
+                    "value": "lapa"
+                },
+                {
+                    "numero": 32,
+                    "label": "Ardilla",
+                    "value": "ardilla"
+                },
+                {
+                    "numero": 33,
+                    "label": "Pescado",
+                    "value": "pescado"
+                },
+                {
+                    "numero": 34,
+                    "label": "Venado",
+                    "value": "venado"
+                },
+                {
+                    "numero": 35,
+                    "label": "Jirafa",
+                    "value": "jirafa"
+                },
+                {
+                    "numero": 36,
+                    "label": "Culebra",
+                    "value": "culebra"
+                }
+            ]
+        },
+        {
+            "id": 10,
+            "slug": "triple-chance",
+            "nombre": "Triple Chance",
+            "tipo": "tripletas",
+            "premio_multiplo": 600,
+            "comodines": null,
+            "modalidades": {
+                "signo": 6,
+                "triple": 600,
+                "terminal": 60,
+                "triple_a_b": 200000,
+                "aproximacion": 10,
+                "terminal_a_b": 5000,
+                "triple_a_o_b": 100,
+                "terminal_a_o_b": 5,
+                "triple_c_signo": 5000
+            },
+            "horarios": [
+                "09:00",
+                "10:00",
+                "11:00",
+                "12:00",
+                "13:00",
+                "14:00",
+                "15:00",
+                "16:00",
+                "17:00",
+                "18:00",
+                "19:00"
+            ],
+            "opciones": [
+                {
+                    "numero": null,
+                    "label": "Aries",
+                    "value": "ARI"
+                },
+                {
+                    "numero": null,
+                    "label": "Tauro",
+                    "value": "TAU"
+                },
+                {
+                    "numero": null,
+                    "label": "Géminis",
+                    "value": "GEM"
+                },
+                {
+                    "numero": null,
+                    "label": "Cáncer",
+                    "value": "CAN"
+                },
+                {
+                    "numero": null,
+                    "label": "Leo",
+                    "value": "LEO"
+                },
+                {
+                    "numero": null,
+                    "label": "Virgo",
+                    "value": "VIR"
+                },
+                {
+                    "numero": null,
+                    "label": "Libra",
+                    "value": "LIB"
+                },
+                {
+                    "numero": null,
+                    "label": "Escorpio",
+                    "value": "ESC"
+                },
+                {
+                    "numero": null,
+                    "label": "Sagitario",
+                    "value": "SAG"
+                },
+                {
+                    "numero": null,
+                    "label": "Capricornio",
+                    "value": "CAP"
+                },
+                {
+                    "numero": null,
+                    "label": "Acuario",
+                    "value": "ACU"
+                },
+                {
+                    "numero": null,
+                    "label": "Piscis",
+                    "value": "PIS"
+                }
+            ]
+        },
+        {
+            "id": 11,
+            "slug": "el-arrejuntado",
+            "nombre": "El Arrejuntado",
+            "tipo": "tripletas",
+            "premio_multiplo": 30,
+            "comodines": null,
+            "modalidades": null,
+            "horarios": [
+                "10:00",
+                "13:00",
+                "16:00",
+                "19:00",
+                "23:00"
+            ],
+            "opciones": [
+                {
+                    "numero": null,
+                    "label": "Aries",
+                    "value": "ARI"
+                },
+                {
+                    "numero": null,
+                    "label": "Tauro",
+                    "value": "TAU"
+                },
+                {
+                    "numero": null,
+                    "label": "Géminis",
+                    "value": "GEM"
+                },
+                {
+                    "numero": null,
+                    "label": "Cáncer",
+                    "value": "CAN"
+                },
+                {
+                    "numero": null,
+                    "label": "Leo",
+                    "value": "LEO"
+                },
+                {
+                    "numero": null,
+                    "label": "Virgo",
+                    "value": "VIR"
+                },
+                {
+                    "numero": null,
+                    "label": "Libra",
+                    "value": "LIB"
+                },
+                {
+                    "numero": null,
+                    "label": "Escorpio",
+                    "value": "ESC"
+                },
+                {
+                    "numero": null,
+                    "label": "Sagitario",
+                    "value": "SAG"
+                },
+                {
+                    "numero": null,
+                    "label": "Capricornio",
+                    "value": "CAP"
+                },
+                {
+                    "numero": null,
+                    "label": "Acuario",
+                    "value": "ACU"
+                },
+                {
+                    "numero": null,
+                    "label": "Piscis",
+                    "value": "PIS"
+                }
+            ]
+        },
+        {
+            "id": 12,
+            "slug": "el-guacharito",
+            "nombre": "El Guacharito Millonario",
+            "tipo": "animalitos",
+            "premio_multiplo": 70,
+            "comodines": {
+                "guacharito-99": {
+                    "nombre": "Guacharito",
+                    "numero": 99,
+                    "premio_multiplo": 150
+                }
+            },
+            "modalidades": null,
+            "horarios": [
+                "08:30",
+                "09:30",
+                "10:30",
+                "11:30",
+                "12:30",
+                "13:30",
+                "14:30",
+                "15:30",
+                "16:30",
+                "17:30",
+                "18:30",
+                "19:30"
+            ],
+            "opciones": [
+                {
+                    "numero": 0,
+                    "label": "Ballena",
+                    "value": "ballena"
+                },
+                {
+                    "numero": 0,
+                    "label": "Delfin",
+                    "value": "delfin"
+                },
+                {
+                    "numero": 1,
+                    "label": "Carnero",
+                    "value": "carnero"
+                },
+                {
+                    "numero": 2,
+                    "label": "Toro",
+                    "value": "toro"
+                },
+                {
+                    "numero": 3,
+                    "label": "Ciempies",
+                    "value": "ciempies"
+                },
+                {
+                    "numero": 4,
+                    "label": "Alacran",
+                    "value": "alacran"
+                },
+                {
+                    "numero": 5,
+                    "label": "Leon",
+                    "value": "leon"
+                },
+                {
+                    "numero": 6,
+                    "label": "Rana",
+                    "value": "rana"
+                },
+                {
+                    "numero": 7,
+                    "label": "Perico",
+                    "value": "perico"
+                },
+                {
+                    "numero": 8,
+                    "label": "Raton",
+                    "value": "raton"
+                },
+                {
+                    "numero": 9,
+                    "label": "Aguila",
+                    "value": "aguila"
+                },
+                {
+                    "numero": 10,
+                    "label": "Tigre",
+                    "value": "tigre"
+                },
+                {
+                    "numero": 11,
+                    "label": "Gato",
+                    "value": "gato"
+                },
+                {
+                    "numero": 12,
+                    "label": "Caballo",
+                    "value": "caballo"
+                },
+                {
+                    "numero": 13,
+                    "label": "Mono",
+                    "value": "mono"
+                },
+                {
+                    "numero": 14,
+                    "label": "Paloma",
+                    "value": "paloma"
+                },
+                {
+                    "numero": 15,
+                    "label": "Zorro",
+                    "value": "zorro"
+                },
+                {
+                    "numero": 16,
+                    "label": "Oso",
+                    "value": "oso"
+                },
+                {
+                    "numero": 17,
+                    "label": "Pavo",
+                    "value": "pavo"
+                },
+                {
+                    "numero": 18,
+                    "label": "Burro",
+                    "value": "burro"
+                },
+                {
+                    "numero": 19,
+                    "label": "Chivo",
+                    "value": "chivo"
+                },
+                {
+                    "numero": 20,
+                    "label": "Cerdo",
+                    "value": "cerdo"
+                },
+                {
+                    "numero": 21,
+                    "label": "Gallo",
+                    "value": "gallo"
+                },
+                {
+                    "numero": 22,
+                    "label": "Camello",
+                    "value": "camello"
+                },
+                {
+                    "numero": 23,
+                    "label": "Cebra",
+                    "value": "cebra"
+                },
+                {
+                    "numero": 24,
+                    "label": "Iguana",
+                    "value": "iguana"
+                },
+                {
+                    "numero": 25,
+                    "label": "Gallina",
+                    "value": "gallina"
+                },
+                {
+                    "numero": 26,
+                    "label": "Vaca",
+                    "value": "vaca"
+                },
+                {
+                    "numero": 27,
+                    "label": "Perro",
+                    "value": "perro"
+                },
+                {
+                    "numero": 28,
+                    "label": "Zamuro",
+                    "value": "zamuro"
+                },
+                {
+                    "numero": 29,
+                    "label": "Elefante",
+                    "value": "elefante"
+                },
+                {
+                    "numero": 30,
+                    "label": "Caiman",
+                    "value": "caiman"
+                },
+                {
+                    "numero": 31,
+                    "label": "Lapa",
+                    "value": "lapa"
+                },
+                {
+                    "numero": 32,
+                    "label": "Ardilla",
+                    "value": "ardilla"
+                },
+                {
+                    "numero": 33,
+                    "label": "Pescado",
+                    "value": "pescado"
+                },
+                {
+                    "numero": 34,
+                    "label": "Venado",
+                    "value": "venado"
+                },
+                {
+                    "numero": 35,
+                    "label": "Jirafa",
+                    "value": "jirafa"
+                },
+                {
+                    "numero": 36,
+                    "label": "Culebra",
+                    "value": "culebra"
+                },
+                {
+                    "numero": 37,
+                    "label": "Tortuga",
+                    "value": "tortuga"
+                },
+                {
+                    "numero": 38,
+                    "label": "Bufalo",
+                    "value": "bufalo"
+                },
+                {
+                    "numero": 39,
+                    "label": "Lechuza",
+                    "value": "lechuza"
+                },
+                {
+                    "numero": 40,
+                    "label": "Avispa",
+                    "value": "avispa"
+                },
+                {
+                    "numero": 41,
+                    "label": "Canguro",
+                    "value": "canguro"
+                },
+                {
+                    "numero": 42,
+                    "label": "Tucan",
+                    "value": "tucan"
+                },
+                {
+                    "numero": 43,
+                    "label": "Mariposa",
+                    "value": "mariposa"
+                },
+                {
+                    "numero": 44,
+                    "label": "Chiguire",
+                    "value": "chiguire"
+                },
+                {
+                    "numero": 45,
+                    "label": "Garza",
+                    "value": "garza"
+                },
+                {
+                    "numero": 46,
+                    "label": "Puma",
+                    "value": "puma"
+                },
+                {
+                    "numero": 47,
+                    "label": "Pavo Real",
+                    "value": "pavo-real"
+                },
+                {
+                    "numero": 48,
+                    "label": "Puercoespin",
+                    "value": "puercoespin"
+                },
+                {
+                    "numero": 49,
+                    "label": "Pereza",
+                    "value": "pereza"
+                },
+                {
+                    "numero": 50,
+                    "label": "Canario",
+                    "value": "canario"
+                },
+                {
+                    "numero": 51,
+                    "label": "Pelicano",
+                    "value": "pelicano"
+                },
+                {
+                    "numero": 52,
+                    "label": "Pulpo",
+                    "value": "pulpo"
+                },
+                {
+                    "numero": 53,
+                    "label": "Caracol",
+                    "value": "caracol"
+                },
+                {
+                    "numero": 54,
+                    "label": "Grillo",
+                    "value": "grillo"
+                },
+                {
+                    "numero": 55,
+                    "label": "Oso Hormiguero",
+                    "value": "oso-hormiguero"
+                },
+                {
+                    "numero": 56,
+                    "label": "Tiburon",
+                    "value": "tiburon"
+                },
+                {
+                    "numero": 57,
+                    "label": "Pato",
+                    "value": "pato"
+                },
+                {
+                    "numero": 58,
+                    "label": "Hormiga",
+                    "value": "hormiga"
+                },
+                {
+                    "numero": 59,
+                    "label": "Pantera",
+                    "value": "pantera"
+                },
+                {
+                    "numero": 60,
+                    "label": "Camaleon",
+                    "value": "camaleon"
+                },
+                {
+                    "numero": 61,
+                    "label": "Panda",
+                    "value": "panda"
+                },
+                {
+                    "numero": 62,
+                    "label": "Cachicamo",
+                    "value": "cachicamo"
+                },
+                {
+                    "numero": 63,
+                    "label": "Cangrejo",
+                    "value": "cangrejo"
+                },
+                {
+                    "numero": 64,
+                    "label": "Gavilan",
+                    "value": "gavilan"
+                },
+                {
+                    "numero": 65,
+                    "label": "Arana",
+                    "value": "arana"
+                },
+                {
+                    "numero": 66,
+                    "label": "Lobo",
+                    "value": "lobo"
+                },
+                {
+                    "numero": 67,
+                    "label": "Avestruz",
+                    "value": "avestruz"
+                },
+                {
+                    "numero": 68,
+                    "label": "Jaguar",
+                    "value": "jaguar"
+                },
+                {
+                    "numero": 69,
+                    "label": "Conejo",
+                    "value": "conejo"
+                },
+                {
+                    "numero": 70,
+                    "label": "Bisonte",
+                    "value": "bisonte"
+                },
+                {
+                    "numero": 71,
+                    "label": "Guacamaya",
+                    "value": "guacamaya"
+                },
+                {
+                    "numero": 72,
+                    "label": "Gorila",
+                    "value": "gorila"
+                },
+                {
+                    "numero": 73,
+                    "label": "Hipopotamo",
+                    "value": "hipopotamo"
+                },
+                {
+                    "numero": 74,
+                    "label": "Turpial",
+                    "value": "turpial"
+                },
+                {
+                    "numero": 75,
+                    "label": "Guacharo",
+                    "value": "guacharo"
+                },
+                {
+                    "numero": 76,
+                    "label": "Rinoceronte",
+                    "value": "rinoceronte"
+                },
+                {
+                    "numero": 77,
+                    "label": "Pinguino",
+                    "value": "pinguino"
+                },
+                {
+                    "numero": 78,
+                    "label": "Antilope",
+                    "value": "antilope"
+                },
+                {
+                    "numero": 79,
+                    "label": "Calamar",
+                    "value": "calamar"
+                },
+                {
+                    "numero": 80,
+                    "label": "Murcielago",
+                    "value": "murcielago"
+                },
+                {
+                    "numero": 81,
+                    "label": "Cuervo",
+                    "value": "cuervo"
+                },
+                {
+                    "numero": 82,
+                    "label": "Cucaracha",
+                    "value": "cucaracha"
+                },
+                {
+                    "numero": 83,
+                    "label": "Buho",
+                    "value": "buho"
+                },
+                {
+                    "numero": 84,
+                    "label": "Camaron",
+                    "value": "camaron"
+                },
+                {
+                    "numero": 85,
+                    "label": "Hamster",
+                    "value": "hamster"
+                },
+                {
+                    "numero": 86,
+                    "label": "Buey",
+                    "value": "buey"
+                },
+                {
+                    "numero": 87,
+                    "label": "Cabra",
+                    "value": "cabra"
+                },
+                {
+                    "numero": 88,
+                    "label": "Erizo de Mar",
+                    "value": "erizo-de-mar"
+                },
+                {
+                    "numero": 89,
+                    "label": "Anguila",
+                    "value": "anguila"
+                },
+                {
+                    "numero": 90,
+                    "label": "Huron",
+                    "value": "huron"
+                },
+                {
+                    "numero": 91,
+                    "label": "Morrocoy",
+                    "value": "morrocoy"
+                },
+                {
+                    "numero": 92,
+                    "label": "Cisne",
+                    "value": "cisne"
+                },
+                {
+                    "numero": 93,
+                    "label": "Gaviota",
+                    "value": "gaviota"
+                },
+                {
+                    "numero": 94,
+                    "label": "Paujil",
+                    "value": "paujil"
+                },
+                {
+                    "numero": 95,
+                    "label": "Escarabajo",
+                    "value": "escarabajo"
+                },
+                {
+                    "numero": 96,
+                    "label": "Caballito de Mar",
+                    "value": "caballito-de-mar"
+                },
+                {
+                    "numero": 97,
+                    "label": "Loro",
+                    "value": "loro"
+                },
+                {
+                    "numero": 98,
+                    "label": "Cocodrilo",
+                    "value": "cocodrilo"
+                },
+                {
+                    "numero": 99,
+                    "label": "Guacharito",
+                    "value": "guacharito"
+                }
+            ]
+        },
+        {
+            "id": 13,
+            "slug": "guacharo-activo",
+            "nombre": "Guacharo Activo",
+            "tipo": "animalitos",
+            "premio_multiplo": 60,
+            "comodines": {
+                "guacharo-75": {
+                    "nombre": "Guácharo",
+                    "numero": 75,
+                    "premio_multiplo": 120
+                }
+            },
+            "modalidades": null,
+            "horarios": [
+                "08:00",
+                "09:00",
+                "10:00",
+                "11:00",
+                "12:00",
+                "13:00",
+                "14:00",
+                "15:00",
+                "16:00",
+                "17:00",
+                "18:00",
+                "19:00"
+            ],
+            "opciones": [
+                {
+                    "numero": 0,
+                    "label": "Ballena",
+                    "value": "ballena"
+                },
+                {
+                    "numero": 0,
+                    "label": "Delfín",
+                    "value": "delfin"
+                },
+                {
+                    "numero": 1,
+                    "label": "Carnero",
+                    "value": "carnero"
+                },
+                {
+                    "numero": 2,
+                    "label": "Toro",
+                    "value": "toro"
+                },
+                {
+                    "numero": 3,
+                    "label": "Ciempiés",
+                    "value": "ciempies"
+                },
+                {
+                    "numero": 4,
+                    "label": "Alacrán",
+                    "value": "alacran"
+                },
+                {
+                    "numero": 5,
+                    "label": "León",
+                    "value": "leon"
+                },
+                {
+                    "numero": 6,
+                    "label": "Rana",
+                    "value": "rana"
+                },
+                {
+                    "numero": 7,
+                    "label": "Perico",
+                    "value": "perico"
+                },
+                {
+                    "numero": 8,
+                    "label": "Ratón",
+                    "value": "raton"
+                },
+                {
+                    "numero": 9,
+                    "label": "Águila",
+                    "value": "aguila"
+                },
+                {
+                    "numero": 10,
+                    "label": "Tigre",
+                    "value": "tigre"
+                },
+                {
+                    "numero": 11,
+                    "label": "Gato",
+                    "value": "gato"
+                },
+                {
+                    "numero": 12,
+                    "label": "Caballo",
+                    "value": "caballo"
+                },
+                {
+                    "numero": 13,
+                    "label": "Mono",
+                    "value": "mono"
+                },
+                {
+                    "numero": 14,
+                    "label": "Paloma",
+                    "value": "paloma"
+                },
+                {
+                    "numero": 15,
+                    "label": "Zorro",
+                    "value": "zorro"
+                },
+                {
+                    "numero": 16,
+                    "label": "Oso",
+                    "value": "oso"
+                },
+                {
+                    "numero": 17,
+                    "label": "Pavo",
+                    "value": "pavo"
+                },
+                {
+                    "numero": 18,
+                    "label": "Burro",
+                    "value": "burro"
+                },
+                {
+                    "numero": 19,
+                    "label": "Chivo",
+                    "value": "chivo"
+                },
+                {
+                    "numero": 20,
+                    "label": "Cochino",
+                    "value": "cochino"
+                },
+                {
+                    "numero": 21,
+                    "label": "Gallo",
+                    "value": "gallo"
+                },
+                {
+                    "numero": 22,
+                    "label": "Camello",
+                    "value": "camello"
+                },
+                {
+                    "numero": 23,
+                    "label": "Cebra",
+                    "value": "cebra"
+                },
+                {
+                    "numero": 24,
+                    "label": "Iguana",
+                    "value": "iguana"
+                },
+                {
+                    "numero": 25,
+                    "label": "Gallina",
+                    "value": "gallina"
+                },
+                {
+                    "numero": 26,
+                    "label": "Vaca",
+                    "value": "vaca"
+                },
+                {
+                    "numero": 27,
+                    "label": "Perro",
+                    "value": "perro"
+                },
+                {
+                    "numero": 28,
+                    "label": "Zamuro",
+                    "value": "zamuro"
+                },
+                {
+                    "numero": 29,
+                    "label": "Elefante",
+                    "value": "elefante"
+                },
+                {
+                    "numero": 30,
+                    "label": "Caimán",
+                    "value": "caiman"
+                },
+                {
+                    "numero": 31,
+                    "label": "Lapa",
+                    "value": "lapa"
+                },
+                {
+                    "numero": 32,
+                    "label": "Ardilla",
+                    "value": "ardilla"
+                },
+                {
+                    "numero": 33,
+                    "label": "Pescado",
+                    "value": "pescado"
+                },
+                {
+                    "numero": 34,
+                    "label": "Venado",
+                    "value": "venado"
+                },
+                {
+                    "numero": 35,
+                    "label": "Jirafa",
+                    "value": "jirafa"
+                },
+                {
+                    "numero": 36,
+                    "label": "Culebra",
+                    "value": "culebra"
+                },
+                {
+                    "numero": 37,
+                    "label": "Tortuga",
+                    "value": "tortuga"
+                },
+                {
+                    "numero": 38,
+                    "label": "Búfalo",
+                    "value": "bufalo"
+                },
+                {
+                    "numero": 39,
+                    "label": "Lechuza",
+                    "value": "lechuza"
+                },
+                {
+                    "numero": 40,
+                    "label": "Avispa",
+                    "value": "avispa"
+                },
+                {
+                    "numero": 41,
+                    "label": "Canguro",
+                    "value": "canguro"
+                },
+                {
+                    "numero": 42,
+                    "label": "Tucán",
+                    "value": "tucan"
+                },
+                {
+                    "numero": 43,
+                    "label": "Mariposa",
+                    "value": "mariposa"
+                },
+                {
+                    "numero": 44,
+                    "label": "Chigüire",
+                    "value": "chiguire"
+                },
+                {
+                    "numero": 45,
+                    "label": "Garza",
+                    "value": "garza"
+                },
+                {
+                    "numero": 46,
+                    "label": "Puma",
+                    "value": "puma"
+                },
+                {
+                    "numero": 47,
+                    "label": "Pavo Real",
+                    "value": "pavo-real"
+                },
+                {
+                    "numero": 48,
+                    "label": "Puercoespín",
+                    "value": "puercoespin"
+                },
+                {
+                    "numero": 49,
+                    "label": "Pereza",
+                    "value": "pereza"
+                },
+                {
+                    "numero": 50,
+                    "label": "Canario",
+                    "value": "canario"
+                },
+                {
+                    "numero": 51,
+                    "label": "Pelícano",
+                    "value": "pelicano"
+                },
+                {
+                    "numero": 52,
+                    "label": "Pulpo",
+                    "value": "pulpo"
+                },
+                {
+                    "numero": 53,
+                    "label": "Caracol",
+                    "value": "caracol"
+                },
+                {
+                    "numero": 54,
+                    "label": "Grillo",
+                    "value": "grillo"
+                },
+                {
+                    "numero": 55,
+                    "label": "Oso Hormiguero",
+                    "value": "oso-hormiguero"
+                },
+                {
+                    "numero": 56,
+                    "label": "Tiburón",
+                    "value": "tiburon"
+                },
+                {
+                    "numero": 57,
+                    "label": "Pato",
+                    "value": "pato"
+                },
+                {
+                    "numero": 58,
+                    "label": "Hormiga",
+                    "value": "hormiga"
+                },
+                {
+                    "numero": 59,
+                    "label": "Pantera",
+                    "value": "pantera"
+                },
+                {
+                    "numero": 60,
+                    "label": "Camaleón",
+                    "value": "camaleon"
+                },
+                {
+                    "numero": 61,
+                    "label": "Panda",
+                    "value": "panda"
+                },
+                {
+                    "numero": 62,
+                    "label": "Cachicamo",
+                    "value": "cachicamo"
+                },
+                {
+                    "numero": 63,
+                    "label": "Cangrejo",
+                    "value": "cangrejo"
+                },
+                {
+                    "numero": 64,
+                    "label": "Gavilán",
+                    "value": "gavilan"
+                },
+                {
+                    "numero": 65,
+                    "label": "Araña",
+                    "value": "arana"
+                },
+                {
+                    "numero": 66,
+                    "label": "Lobo",
+                    "value": "lobo"
+                },
+                {
+                    "numero": 67,
+                    "label": "Avestruz",
+                    "value": "avestruz"
+                },
+                {
+                    "numero": 68,
+                    "label": "Jaguar",
+                    "value": "jaguar"
+                },
+                {
+                    "numero": 69,
+                    "label": "Conejo",
+                    "value": "conejo"
+                },
+                {
+                    "numero": 70,
+                    "label": "Bisonte",
+                    "value": "bisonte"
+                },
+                {
+                    "numero": 71,
+                    "label": "Guacamaya",
+                    "value": "guacamaya"
+                },
+                {
+                    "numero": 72,
+                    "label": "Gorila",
+                    "value": "gorila"
+                },
+                {
+                    "numero": 73,
+                    "label": "Hipopótamo",
+                    "value": "hipopotamo"
+                },
+                {
+                    "numero": 74,
+                    "label": "Turpial",
+                    "value": "turpial"
+                },
+                {
+                    "numero": 75,
+                    "label": "Guacharo",
+                    "value": "guacharo"
+                }
+            ]
+        },
+        {
+            "id": 14,
+            "slug": "la-granjita",
+            "nombre": "La Granjita",
+            "tipo": "animalitos",
+            "premio_multiplo": 30,
+            "comodines": null,
+            "modalidades": null,
+            "horarios": [
+                "08:00",
+                "09:00",
+                "10:00",
+                "11:00",
+                "12:00",
+                "13:00",
+                "14:00",
+                "15:00",
+                "16:00",
+                "17:00",
+                "18:00",
+                "19:00"
+            ],
+            "opciones": [
+                {
+                    "numero": 0,
+                    "label": "Ballena",
+                    "value": "ballena"
+                },
+                {
+                    "numero": 0,
+                    "label": "Delfin",
+                    "value": "delfin"
+                },
+                {
+                    "numero": 1,
+                    "label": "Carnero",
+                    "value": "carnero"
+                },
+                {
+                    "numero": 2,
+                    "label": "Toro",
+                    "value": "toro"
+                },
+                {
+                    "numero": 3,
+                    "label": "Ciempies",
+                    "value": "ciempies"
+                },
+                {
+                    "numero": 4,
+                    "label": "Alacran",
+                    "value": "alacran"
+                },
+                {
+                    "numero": 5,
+                    "label": "Leon",
+                    "value": "leon"
+                },
+                {
+                    "numero": 6,
+                    "label": "Rana",
+                    "value": "rana"
+                },
+                {
+                    "numero": 7,
+                    "label": "Perico",
+                    "value": "perico"
+                },
+                {
+                    "numero": 8,
+                    "label": "Raton",
+                    "value": "raton"
+                },
+                {
+                    "numero": 9,
+                    "label": "Aguila",
+                    "value": "aguila"
+                },
+                {
+                    "numero": 10,
+                    "label": "Tigre",
+                    "value": "tigre"
+                },
+                {
+                    "numero": 11,
+                    "label": "Gato",
+                    "value": "gato"
+                },
+                {
+                    "numero": 12,
+                    "label": "Caballo",
+                    "value": "caballo"
+                },
+                {
+                    "numero": 13,
+                    "label": "Mono",
+                    "value": "mono"
+                },
+                {
+                    "numero": 14,
+                    "label": "Paloma",
+                    "value": "paloma"
+                },
+                {
+                    "numero": 15,
+                    "label": "Zorro",
+                    "value": "zorro"
+                },
+                {
+                    "numero": 16,
+                    "label": "Oso",
+                    "value": "oso"
+                },
+                {
+                    "numero": 17,
+                    "label": "Pavo",
+                    "value": "pavo"
+                },
+                {
+                    "numero": 18,
+                    "label": "Burro",
+                    "value": "burro"
+                },
+                {
+                    "numero": 19,
+                    "label": "Chivo",
+                    "value": "chivo"
+                },
+                {
+                    "numero": 20,
+                    "label": "Cochino",
+                    "value": "cochino"
+                },
+                {
+                    "numero": 21,
+                    "label": "Gallo",
+                    "value": "gallo"
+                },
+                {
+                    "numero": 22,
+                    "label": "Camello",
+                    "value": "camello"
+                },
+                {
+                    "numero": 23,
+                    "label": "Cebra",
+                    "value": "cebra"
+                },
+                {
+                    "numero": 24,
+                    "label": "Iguana",
+                    "value": "iguana"
+                },
+                {
+                    "numero": 25,
+                    "label": "Gallina",
+                    "value": "gallina"
+                },
+                {
+                    "numero": 26,
+                    "label": "Vaca",
+                    "value": "vaca"
+                },
+                {
+                    "numero": 27,
+                    "label": "Perro",
+                    "value": "perro"
+                },
+                {
+                    "numero": 28,
+                    "label": "Zamuro",
+                    "value": "zamuro"
+                },
+                {
+                    "numero": 29,
+                    "label": "Elefante",
+                    "value": "elefante"
+                },
+                {
+                    "numero": 30,
+                    "label": "Caiman",
+                    "value": "caiman"
+                },
+                {
+                    "numero": 31,
+                    "label": "Lapa",
+                    "value": "lapa"
+                },
+                {
+                    "numero": 32,
+                    "label": "Ardilla",
+                    "value": "ardilla"
+                },
+                {
+                    "numero": 33,
+                    "label": "Pescado",
+                    "value": "pescado"
+                },
+                {
+                    "numero": 34,
+                    "label": "Venado",
+                    "value": "venado"
+                },
+                {
+                    "numero": 35,
+                    "label": "Jirafa",
+                    "value": "jirafa"
+                },
+                {
+                    "numero": 36,
+                    "label": "Culebra",
+                    "value": "culebra"
+                }
+            ]
+        },
+        {
+            "id": 15,
+            "slug": "la-ricachona",
+            "nombre": "La Ricachona",
+            "tipo": "tripletas",
+            "premio_multiplo": 30,
+            "comodines": null,
+            "modalidades": null,
+            "horarios": [
+                "08:05",
+                "09:05",
+                "10:05",
+                "11:05",
+                "12:05",
+                "13:05",
+                "14:05",
+                "15:05",
+                "16:05",
+                "17:05",
+                "18:05",
+                "19:05"
+            ],
+            "opciones": [
+                {
+                    "numero": null,
+                    "label": "Aries",
+                    "value": "ARI"
+                },
+                {
+                    "numero": null,
+                    "label": "Tauro",
+                    "value": "TAU"
+                },
+                {
+                    "numero": null,
+                    "label": "Géminis",
+                    "value": "GEM"
+                },
+                {
+                    "numero": null,
+                    "label": "Cáncer",
+                    "value": "CAN"
+                },
+                {
+                    "numero": null,
+                    "label": "Leo",
+                    "value": "LEO"
+                },
+                {
+                    "numero": null,
+                    "label": "Virgo",
+                    "value": "VIR"
+                },
+                {
+                    "numero": null,
+                    "label": "Libra",
+                    "value": "LIB"
+                },
+                {
+                    "numero": null,
+                    "label": "Escorpio",
+                    "value": "ESC"
+                },
+                {
+                    "numero": null,
+                    "label": "Sagitario",
+                    "value": "SAG"
+                },
+                {
+                    "numero": null,
+                    "label": "Capricornio",
+                    "value": "CAP"
+                },
+                {
+                    "numero": null,
+                    "label": "Acuario",
+                    "value": "ACU"
+                },
+                {
+                    "numero": null,
+                    "label": "Piscis",
+                    "value": "PIS"
+                }
+            ]
+        },
+        {
+            "id": 16,
+            "slug": "loto-chaima",
+            "nombre": "Loto Chaima",
+            "tipo": "animalitos",
+            "premio_multiplo": 30,
+            "comodines": null,
+            "modalidades": null,
+            "horarios": [
+                "08:00",
+                "09:00",
+                "10:00",
+                "11:00",
+                "12:00",
+                "13:00",
+                "14:00",
+                "15:00",
+                "16:00",
+                "17:00",
+                "18:00",
+                "19:00"
+            ],
+            "opciones": [
+                {
+                    "numero": 0,
+                    "label": "Ballena",
+                    "value": "ballena"
+                },
+                {
+                    "numero": 0,
+                    "label": "Delfín",
+                    "value": "delfin"
+                },
+                {
+                    "numero": 1,
+                    "label": "Carnero",
+                    "value": "carnero"
+                },
+                {
+                    "numero": 2,
+                    "label": "Toro",
+                    "value": "toro"
+                },
+                {
+                    "numero": 3,
+                    "label": "Ciempiés",
+                    "value": "ciempies"
+                },
+                {
+                    "numero": 4,
+                    "label": "Alacrán",
+                    "value": "alacran"
+                },
+                {
+                    "numero": 5,
+                    "label": "León",
+                    "value": "leon"
+                },
+                {
+                    "numero": 6,
+                    "label": "Rana",
+                    "value": "rana"
+                },
+                {
+                    "numero": 7,
+                    "label": "Perico",
+                    "value": "perico"
+                },
+                {
+                    "numero": 8,
+                    "label": "Ratón",
+                    "value": "raton"
+                },
+                {
+                    "numero": 9,
+                    "label": "Águila",
+                    "value": "aguila"
+                },
+                {
+                    "numero": 10,
+                    "label": "Tigre",
+                    "value": "tigre"
+                },
+                {
+                    "numero": 11,
+                    "label": "Gato",
+                    "value": "gato"
+                },
+                {
+                    "numero": 12,
+                    "label": "Caballo",
+                    "value": "caballo"
+                },
+                {
+                    "numero": 13,
+                    "label": "Mono",
+                    "value": "mono"
+                },
+                {
+                    "numero": 14,
+                    "label": "Paloma",
+                    "value": "paloma"
+                },
+                {
+                    "numero": 15,
+                    "label": "Zorro",
+                    "value": "zorro"
+                },
+                {
+                    "numero": 16,
+                    "label": "Oso",
+                    "value": "oso"
+                },
+                {
+                    "numero": 17,
+                    "label": "Pavo",
+                    "value": "pavo"
+                },
+                {
+                    "numero": 18,
+                    "label": "Burro",
+                    "value": "burro"
+                },
+                {
+                    "numero": 19,
+                    "label": "Chivo",
+                    "value": "chivo"
+                },
+                {
+                    "numero": 20,
+                    "label": "Cochino",
+                    "value": "cochino"
+                },
+                {
+                    "numero": 21,
+                    "label": "Gallo",
+                    "value": "gallo"
+                },
+                {
+                    "numero": 22,
+                    "label": "Camello",
+                    "value": "camello"
+                },
+                {
+                    "numero": 23,
+                    "label": "Cebra",
+                    "value": "cebra"
+                },
+                {
+                    "numero": 24,
+                    "label": "Iguana",
+                    "value": "iguana"
+                },
+                {
+                    "numero": 25,
+                    "label": "Gallina",
+                    "value": "gallina"
+                },
+                {
+                    "numero": 26,
+                    "label": "Vaca",
+                    "value": "vaca"
+                },
+                {
+                    "numero": 27,
+                    "label": "Perro",
+                    "value": "perro"
+                },
+                {
+                    "numero": 28,
+                    "label": "Zamuro",
+                    "value": "zamuro"
+                },
+                {
+                    "numero": 29,
+                    "label": "Elefante",
+                    "value": "elefante"
+                },
+                {
+                    "numero": 30,
+                    "label": "Caimán",
+                    "value": "caiman"
+                },
+                {
+                    "numero": 31,
+                    "label": "Lapa",
+                    "value": "lapa"
+                },
+                {
+                    "numero": 32,
+                    "label": "Ardilla",
+                    "value": "ardilla"
+                },
+                {
+                    "numero": 33,
+                    "label": "Pescado",
+                    "value": "pescado"
+                },
+                {
+                    "numero": 34,
+                    "label": "Venado",
+                    "value": "venado"
+                },
+                {
+                    "numero": 35,
+                    "label": "Jirafa",
+                    "value": "jirafa"
+                },
+                {
+                    "numero": 36,
+                    "label": "Culebra",
+                    "value": "culebra"
+                },
+                {
+                    "numero": 37,
+                    "label": "Tortuga",
+                    "value": "tortuga"
+                },
+                {
+                    "numero": 38,
+                    "label": "Búfalo",
+                    "value": "bufalo"
+                },
+                {
+                    "numero": 39,
+                    "label": "Lechuza",
+                    "value": "lechuza"
+                },
+                {
+                    "numero": 40,
+                    "label": "Avispa",
+                    "value": "avispa"
+                },
+                {
+                    "numero": 41,
+                    "label": "Canguro",
+                    "value": "canguro"
+                },
+                {
+                    "numero": 42,
+                    "label": "Tucán",
+                    "value": "tucan"
+                },
+                {
+                    "numero": 43,
+                    "label": "Mariposa",
+                    "value": "mariposa"
+                },
+                {
+                    "numero": 44,
+                    "label": "Chigüire",
+                    "value": "chiguire"
+                },
+                {
+                    "numero": 45,
+                    "label": "Garza",
+                    "value": "garza"
+                },
+                {
+                    "numero": 46,
+                    "label": "Puma",
+                    "value": "puma"
+                },
+                {
+                    "numero": 47,
+                    "label": "Pavo Real",
+                    "value": "pavo-real"
+                },
+                {
+                    "numero": 48,
+                    "label": "Puercoespín",
+                    "value": "puercoespin"
+                },
+                {
+                    "numero": 49,
+                    "label": "Pereza",
+                    "value": "pereza"
+                },
+                {
+                    "numero": 50,
+                    "label": "Canario",
+                    "value": "canario"
+                },
+                {
+                    "numero": 51,
+                    "label": "Pelícano",
+                    "value": "pelicano"
+                },
+                {
+                    "numero": 52,
+                    "label": "Pulpo",
+                    "value": "pulpo"
+                },
+                {
+                    "numero": 53,
+                    "label": "Caracol",
+                    "value": "caracol"
+                },
+                {
+                    "numero": 54,
+                    "label": "Grillo",
+                    "value": "grillo"
+                },
+                {
+                    "numero": 55,
+                    "label": "Oso Hormiguero",
+                    "value": "oso-hormiguero"
+                }
+            ]
+        },
+        {
+            "id": 17,
+            "slug": "mega-animal-40",
+            "nombre": "Mega Animal 40",
+            "tipo": "animalitos",
+            "premio_multiplo": 30,
+            "comodines": {
+                "mega": {
+                    "nombre": "MEGA",
+                    "premio_multiplo": 40
+                }
+            },
+            "modalidades": null,
+            "horarios": [
+                "09:00",
+                "10:00",
+                "11:00",
+                "12:00",
+                "13:00",
+                "14:00",
+                "15:00",
+                "16:00",
+                "17:00",
+                "18:00",
+                "19:00",
+                "20:00"
+            ],
+            "opciones": [
+                {
+                    "numero": 0,
+                    "label": "Ballena",
+                    "value": "ballena"
+                },
+                {
+                    "numero": 0,
+                    "label": "Delfin",
+                    "value": "delfin"
+                },
+                {
+                    "numero": 1,
+                    "label": "Carnero",
+                    "value": "carnero"
+                },
+                {
+                    "numero": 2,
+                    "label": "Toro",
+                    "value": "toro"
+                },
+                {
+                    "numero": 3,
+                    "label": "Ciempies",
+                    "value": "ciempies"
+                },
+                {
+                    "numero": 4,
+                    "label": "Alacran",
+                    "value": "alacran"
+                },
+                {
+                    "numero": 5,
+                    "label": "Leon",
+                    "value": "leon"
+                },
+                {
+                    "numero": 6,
+                    "label": "Rana",
+                    "value": "rana"
+                },
+                {
+                    "numero": 7,
+                    "label": "Perico",
+                    "value": "perico"
+                },
+                {
+                    "numero": 8,
+                    "label": "Raton",
+                    "value": "raton"
+                },
+                {
+                    "numero": 9,
+                    "label": "Aguila",
+                    "value": "aguila"
+                },
+                {
+                    "numero": 10,
+                    "label": "Tigre",
+                    "value": "tigre"
+                },
+                {
+                    "numero": 11,
+                    "label": "Gato",
+                    "value": "gato"
+                },
+                {
+                    "numero": 12,
+                    "label": "Caballo",
+                    "value": "caballo"
+                },
+                {
+                    "numero": 13,
+                    "label": "Mono",
+                    "value": "mono"
+                },
+                {
+                    "numero": 14,
+                    "label": "Paloma",
+                    "value": "paloma"
+                },
+                {
+                    "numero": 15,
+                    "label": "Zorro",
+                    "value": "zorro"
+                },
+                {
+                    "numero": 16,
+                    "label": "Oso",
+                    "value": "oso"
+                },
+                {
+                    "numero": 17,
+                    "label": "Pavo",
+                    "value": "pavo"
+                },
+                {
+                    "numero": 18,
+                    "label": "Burro",
+                    "value": "burro"
+                },
+                {
+                    "numero": 19,
+                    "label": "Chivo",
+                    "value": "chivo"
+                },
+                {
+                    "numero": 20,
+                    "label": "Cochino",
+                    "value": "cochino"
+                },
+                {
+                    "numero": 21,
+                    "label": "Gallo",
+                    "value": "gallo"
+                },
+                {
+                    "numero": 22,
+                    "label": "Camello",
+                    "value": "camello"
+                },
+                {
+                    "numero": 23,
+                    "label": "Cebra",
+                    "value": "cebra"
+                },
+                {
+                    "numero": 24,
+                    "label": "Iguana",
+                    "value": "iguana"
+                },
+                {
+                    "numero": 25,
+                    "label": "Gallina",
+                    "value": "gallina"
+                },
+                {
+                    "numero": 26,
+                    "label": "Vaca",
+                    "value": "vaca"
+                },
+                {
+                    "numero": 27,
+                    "label": "Perro",
+                    "value": "perro"
+                },
+                {
+                    "numero": 28,
+                    "label": "Zamuro",
+                    "value": "zamuro"
+                },
+                {
+                    "numero": 29,
+                    "label": "Elefante",
+                    "value": "elefante"
+                },
+                {
+                    "numero": 30,
+                    "label": "Caiman",
+                    "value": "caiman"
+                },
+                {
+                    "numero": 31,
+                    "label": "Lapa",
+                    "value": "lapa"
+                },
+                {
+                    "numero": 32,
+                    "label": "Ardilla",
+                    "value": "ardilla"
+                },
+                {
+                    "numero": 33,
+                    "label": "Pescado",
+                    "value": "pescado"
+                },
+                {
+                    "numero": 34,
+                    "label": "Venado",
+                    "value": "venado"
+                },
+                {
+                    "numero": 35,
+                    "label": "Jirafa",
+                    "value": "jirafa"
+                },
+                {
+                    "numero": 36,
+                    "label": "Culebra",
+                    "value": "culebra"
+                }
+            ]
+        },
+        {
+            "id": 18,
+            "slug": "selva-plus",
+            "nombre": "Selva Plus",
+            "tipo": "animalitos",
+            "premio_multiplo": 80,
+            "comodines": {
+                "comodin-a": {
+                    "nombre": "Leoncito",
+                    "premio_multiplo": 160
+                },
+                "comodin-b": {
+                    "nombre": "Selva Plus",
+                    "premio_multiplo": 200
+                }
+            },
+            "modalidades": null,
+            "horarios": [
+                "08:15",
+                "09:15",
+                "10:15",
+                "11:15",
+                "12:15",
+                "13:15",
+                "14:15",
+                "15:15",
+                "16:15",
+                "17:15",
+                "18:15",
+                "19:15",
+                "20:15"
+            ],
+            "opciones": [
+                {
+                    "numero": 0,
+                    "label": "Ballena",
+                    "value": "ballena"
+                },
+                {
+                    "numero": 0,
+                    "label": "Delfín",
+                    "value": "delfin"
+                },
+                {
+                    "numero": 1,
+                    "label": "Carnero",
+                    "value": "carnero"
+                },
+                {
+                    "numero": 2,
+                    "label": "Toro",
+                    "value": "toro"
+                },
+                {
+                    "numero": 3,
+                    "label": "Ciempiés",
+                    "value": "ciempies"
+                },
+                {
+                    "numero": 4,
+                    "label": "Alacrán",
+                    "value": "alacran"
+                },
+                {
+                    "numero": 5,
+                    "label": "León",
+                    "value": "leon"
+                },
+                {
+                    "numero": 6,
+                    "label": "Rana",
+                    "value": "rana"
+                },
+                {
+                    "numero": 7,
+                    "label": "Perico",
+                    "value": "perico"
+                },
+                {
+                    "numero": 8,
+                    "label": "Ratón",
+                    "value": "raton"
+                },
+                {
+                    "numero": 9,
+                    "label": "Águila",
+                    "value": "aguila"
+                },
+                {
+                    "numero": 10,
+                    "label": "Tigre",
+                    "value": "tigre"
+                },
+                {
+                    "numero": 11,
+                    "label": "Gato",
+                    "value": "gato"
+                },
+                {
+                    "numero": 12,
+                    "label": "Caballo",
+                    "value": "caballo"
+                },
+                {
+                    "numero": 13,
+                    "label": "Mono",
+                    "value": "mono"
+                },
+                {
+                    "numero": 14,
+                    "label": "Paloma",
+                    "value": "paloma"
+                },
+                {
+                    "numero": 15,
+                    "label": "Zorro",
+                    "value": "zorro"
+                },
+                {
+                    "numero": 16,
+                    "label": "Oso",
+                    "value": "oso"
+                },
+                {
+                    "numero": 17,
+                    "label": "Pavo",
+                    "value": "pavo"
+                },
+                {
+                    "numero": 18,
+                    "label": "Burro",
+                    "value": "burro"
+                },
+                {
+                    "numero": 19,
+                    "label": "Chivo",
+                    "value": "chivo"
+                },
+                {
+                    "numero": 20,
+                    "label": "Cochino",
+                    "value": "cochino"
+                },
+                {
+                    "numero": 21,
+                    "label": "Gallo",
+                    "value": "gallo"
+                },
+                {
+                    "numero": 22,
+                    "label": "Camello",
+                    "value": "camello"
+                },
+                {
+                    "numero": 23,
+                    "label": "Cebra",
+                    "value": "cebra"
+                },
+                {
+                    "numero": 24,
+                    "label": "Iguana",
+                    "value": "iguana"
+                },
+                {
+                    "numero": 25,
+                    "label": "Gallina",
+                    "value": "gallina"
+                },
+                {
+                    "numero": 26,
+                    "label": "Vaca",
+                    "value": "vaca"
+                },
+                {
+                    "numero": 27,
+                    "label": "Perro",
+                    "value": "perro"
+                },
+                {
+                    "numero": 28,
+                    "label": "Zamuro",
+                    "value": "zamuro"
+                },
+                {
+                    "numero": 29,
+                    "label": "Elefante",
+                    "value": "elefante"
+                },
+                {
+                    "numero": 30,
+                    "label": "Caimán",
+                    "value": "caiman"
+                },
+                {
+                    "numero": 31,
+                    "label": "Lapa",
+                    "value": "lapa"
+                },
+                {
+                    "numero": 32,
+                    "label": "Ardilla",
+                    "value": "ardilla"
+                },
+                {
+                    "numero": 33,
+                    "label": "Pescado",
+                    "value": "pescado"
+                },
+                {
+                    "numero": 34,
+                    "label": "Venado",
+                    "value": "venado"
+                },
+                {
+                    "numero": 35,
+                    "label": "Jirafa",
+                    "value": "jirafa"
+                },
+                {
+                    "numero": 36,
+                    "label": "Culebra",
+                    "value": "culebra"
+                },
+                {
+                    "numero": 37,
+                    "label": "Tortuga",
+                    "value": "tortuga"
+                },
+                {
+                    "numero": 38,
+                    "label": "Búfalo",
+                    "value": "bufalo"
+                },
+                {
+                    "numero": 39,
+                    "label": "Lechuza",
+                    "value": "lechuza"
+                },
+                {
+                    "numero": 40,
+                    "label": "Avispa",
+                    "value": "avispa"
+                },
+                {
+                    "numero": 41,
+                    "label": "Canguro",
+                    "value": "canguro"
+                },
+                {
+                    "numero": 42,
+                    "label": "Tucán",
+                    "value": "tucan"
+                },
+                {
+                    "numero": 43,
+                    "label": "Mariposa",
+                    "value": "mariposa"
+                },
+                {
+                    "numero": 44,
+                    "label": "Chigüire",
+                    "value": "chiguire"
+                },
+                {
+                    "numero": 45,
+                    "label": "Garza",
+                    "value": "garza"
+                },
+                {
+                    "numero": 46,
+                    "label": "Puma",
+                    "value": "puma"
+                },
+                {
+                    "numero": 47,
+                    "label": "Pavo Real",
+                    "value": "pavo-real"
+                },
+                {
+                    "numero": 48,
+                    "label": "Puercoespín",
+                    "value": "puercoespin"
+                },
+                {
+                    "numero": 49,
+                    "label": "Pereza",
+                    "value": "pereza"
+                },
+                {
+                    "numero": 50,
+                    "label": "Canario",
+                    "value": "canario"
+                },
+                {
+                    "numero": 51,
+                    "label": "Pelícano",
+                    "value": "pelicano"
+                },
+                {
+                    "numero": 52,
+                    "label": "Pulpo",
+                    "value": "pulpo"
+                },
+                {
+                    "numero": 53,
+                    "label": "Caracol",
+                    "value": "caracol"
+                },
+                {
+                    "numero": 54,
+                    "label": "Grillo",
+                    "value": "grillo"
+                },
+                {
+                    "numero": 55,
+                    "label": "Oso Hormiguero",
+                    "value": "oso-hormiguero"
+                },
+                {
+                    "numero": 56,
+                    "label": "Tiburón",
+                    "value": "tiburon"
+                },
+                {
+                    "numero": 57,
+                    "label": "Pato",
+                    "value": "pato"
+                },
+                {
+                    "numero": 58,
+                    "label": "Hormiga",
+                    "value": "hormiga"
+                },
+                {
+                    "numero": 59,
+                    "label": "Pantera",
+                    "value": "pantera"
+                },
+                {
+                    "numero": 60,
+                    "label": "Camaleón",
+                    "value": "camaleon"
+                },
+                {
+                    "numero": 61,
+                    "label": "Panda",
+                    "value": "panda"
+                },
+                {
+                    "numero": 62,
+                    "label": "Cachicamo",
+                    "value": "cachicamo"
+                },
+                {
+                    "numero": 63,
+                    "label": "Cangrejo",
+                    "value": "cangrejo"
+                },
+                {
+                    "numero": 64,
+                    "label": "Gavilán",
+                    "value": "gavilan"
+                },
+                {
+                    "numero": 65,
+                    "label": "Araña",
+                    "value": "arana"
+                },
+                {
+                    "numero": 66,
+                    "label": "Lobo",
+                    "value": "lobo"
+                },
+                {
+                    "numero": 67,
+                    "label": "Avestruz",
+                    "value": "avestruz"
+                },
+                {
+                    "numero": 68,
+                    "label": "Jaguar",
+                    "value": "jaguar"
+                },
+                {
+                    "numero": 69,
+                    "label": "Conejo",
+                    "value": "conejo"
+                },
+                {
+                    "numero": 70,
+                    "label": "Bisonte",
+                    "value": "bisonte"
+                },
+                {
+                    "numero": 71,
+                    "label": "Guacamaya",
+                    "value": "guacamaya"
+                },
+                {
+                    "numero": 72,
+                    "label": "Gorila",
+                    "value": "gorila"
+                },
+                {
+                    "numero": 73,
+                    "label": "Hipopótamo",
+                    "value": "hipopotamo"
+                },
+                {
+                    "numero": 74,
+                    "label": "Turpial",
+                    "value": "turpial"
+                },
+                {
+                    "numero": 75,
+                    "label": "Guácharo",
+                    "value": "guacharo"
+                },
+                {
+                    "numero": 76,
+                    "label": "Rinoceronte",
+                    "value": "rinoceronte"
+                },
+                {
+                    "numero": 77,
+                    "label": "Pingüino",
+                    "value": "pinguino"
+                },
+                {
+                    "numero": 78,
+                    "label": "Antílope",
+                    "value": "antilope"
+                },
+                {
+                    "numero": 79,
+                    "label": "Calamar",
+                    "value": "calamar"
+                },
+                {
+                    "numero": 80,
+                    "label": "Murciélago",
+                    "value": "murcielago"
+                },
+                {
+                    "numero": 81,
+                    "label": "Cuervo",
+                    "value": "cuervo"
+                },
+                {
+                    "numero": 82,
+                    "label": "Cucaracha",
+                    "value": "cucaracha"
+                },
+                {
+                    "numero": 83,
+                    "label": "Búho",
+                    "value": "buho"
+                },
+                {
+                    "numero": 84,
+                    "label": "Camarón",
+                    "value": "camaron"
+                },
+                {
+                    "numero": 85,
+                    "label": "Hámster",
+                    "value": "hamster"
+                },
+                {
+                    "numero": 86,
+                    "label": "Buey",
+                    "value": "buey"
+                },
+                {
+                    "numero": 87,
+                    "label": "Cabra",
+                    "value": "cabra"
+                },
+                {
+                    "numero": 88,
+                    "label": "Erizo de Mar",
+                    "value": "erizo-de-mar"
+                },
+                {
+                    "numero": 89,
+                    "label": "Anguila",
+                    "value": "anguila"
+                },
+                {
+                    "numero": 90,
+                    "label": "Hurón",
+                    "value": "huron"
+                },
+                {
+                    "numero": 91,
+                    "label": "Morrocoy",
+                    "value": "morrocoy"
+                },
+                {
+                    "numero": 92,
+                    "label": "Cisne",
+                    "value": "cisne"
+                },
+                {
+                    "numero": 93,
+                    "label": "Gaviota",
+                    "value": "gaviota"
+                },
+                {
+                    "numero": 94,
+                    "label": "Paujil",
+                    "value": "paujil"
+                },
+                {
+                    "numero": 95,
+                    "label": "Escarabajo",
+                    "value": "escarabajo"
+                },
+                {
+                    "numero": 96,
+                    "label": "Caballito de Mar",
+                    "value": "caballito-de-mar"
+                },
+                {
+                    "numero": 97,
+                    "label": "Loro",
+                    "value": "loro"
+                },
+                {
+                    "numero": 98,
+                    "label": "Cocodrilo",
+                    "value": "cocodrilo"
+                },
+                {
+                    "numero": 99,
+                    "label": "Halcón",
+                    "value": "halcon"
+                },
+                {
+                    "numero": null,
+                    "label": "Leoncito (comodín A)",
+                    "value": "comodin-a"
+                },
+                {
+                    "numero": null,
+                    "label": "Selva Plus (comodín B)",
+                    "value": "comodin-b"
+                }
+            ]
+        },
+        {
+            "id": 19,
+            "slug": "triple-tachira",
+            "nombre": "Triple Táchira",
+            "tipo": "tripletas",
+            "premio_multiplo": 500,
+            "comodines": null,
+            "modalidades": {
+                "cola": 50,
+                "zodiacal": 5000
+            },
+            "horarios": [
+                "13:15",
+                "16:45",
+                "22:10"
+            ],
+            "opciones": [
+                {
+                    "numero": null,
+                    "label": "Aries",
+                    "value": "ARI"
+                },
+                {
+                    "numero": null,
+                    "label": "Tauro",
+                    "value": "TAU"
+                },
+                {
+                    "numero": null,
+                    "label": "Géminis",
+                    "value": "GEM"
+                },
+                {
+                    "numero": null,
+                    "label": "Cáncer",
+                    "value": "CAN"
+                },
+                {
+                    "numero": null,
+                    "label": "Leo",
+                    "value": "LEO"
+                },
+                {
+                    "numero": null,
+                    "label": "Virgo",
+                    "value": "VIR"
+                },
+                {
+                    "numero": null,
+                    "label": "Libra",
+                    "value": "LIB"
+                },
+                {
+                    "numero": null,
+                    "label": "Escorpio",
+                    "value": "ESC"
+                },
+                {
+                    "numero": null,
+                    "label": "Sagitario",
+                    "value": "SAG"
+                },
+                {
+                    "numero": null,
+                    "label": "Capricornio",
+                    "value": "CAP"
+                },
+                {
+                    "numero": null,
+                    "label": "Acuario",
+                    "value": "ACU"
+                },
+                {
+                    "numero": null,
+                    "label": "Piscis",
+                    "value": "PIS"
+                }
+            ]
+        },
+        {
+            "id": 20,
+            "slug": "triple-facil",
+            "nombre": "Triple Fácil",
+            "tipo": "tripletas",
+            "premio_multiplo": 700,
+            "comodines": null,
+            "modalidades": {
+                "terminal": 60,
+                "aproximacion": 10
+            },
+            "horarios": [
+                "08:00",
+                "09:00",
+                "10:00",
+                "11:00",
+                "12:00",
+                "13:00",
+                "14:00",
+                "15:00",
+                "16:00",
+                "17:00",
+                "18:00",
+                "19:00"
+            ],
+            "opciones": [
+                {
+                    "numero": 0,
+                    "label": "00",
+                    "value": "0"
+                },
+                {
+                    "numero": 1,
+                    "label": "01",
+                    "value": "1"
+                },
+                {
+                    "numero": 2,
+                    "label": "02",
+                    "value": "2"
+                },
+                {
+                    "numero": 3,
+                    "label": "03",
+                    "value": "3"
+                },
+                {
+                    "numero": 4,
+                    "label": "04",
+                    "value": "4"
+                },
+                {
+                    "numero": 5,
+                    "label": "05",
+                    "value": "5"
+                },
+                {
+                    "numero": 6,
+                    "label": "06",
+                    "value": "6"
+                },
+                {
+                    "numero": 7,
+                    "label": "07",
+                    "value": "7"
+                },
+                {
+                    "numero": 8,
+                    "label": "08",
+                    "value": "8"
+                },
+                {
+                    "numero": 9,
+                    "label": "09",
+                    "value": "9"
+                },
+                {
+                    "numero": 10,
+                    "label": "10",
+                    "value": "10"
+                },
+                {
+                    "numero": 11,
+                    "label": "11",
+                    "value": "11"
+                },
+                {
+                    "numero": 12,
+                    "label": "12",
+                    "value": "12"
+                },
+                {
+                    "numero": 13,
+                    "label": "13",
+                    "value": "13"
+                },
+                {
+                    "numero": 14,
+                    "label": "14",
+                    "value": "14"
+                },
+                {
+                    "numero": 15,
+                    "label": "15",
+                    "value": "15"
+                },
+                {
+                    "numero": 16,
+                    "label": "16",
+                    "value": "16"
+                },
+                {
+                    "numero": 17,
+                    "label": "17",
+                    "value": "17"
+                },
+                {
+                    "numero": 18,
+                    "label": "18",
+                    "value": "18"
+                },
+                {
+                    "numero": 19,
+                    "label": "19",
+                    "value": "19"
+                },
+                {
+                    "numero": 20,
+                    "label": "20",
+                    "value": "20"
+                },
+                {
+                    "numero": 21,
+                    "label": "21",
+                    "value": "21"
+                },
+                {
+                    "numero": 22,
+                    "label": "22",
+                    "value": "22"
+                },
+                {
+                    "numero": 23,
+                    "label": "23",
+                    "value": "23"
+                },
+                {
+                    "numero": 24,
+                    "label": "24",
+                    "value": "24"
+                },
+                {
+                    "numero": 25,
+                    "label": "25",
+                    "value": "25"
+                },
+                {
+                    "numero": 26,
+                    "label": "26",
+                    "value": "26"
+                },
+                {
+                    "numero": 27,
+                    "label": "27",
+                    "value": "27"
+                },
+                {
+                    "numero": 28,
+                    "label": "28",
+                    "value": "28"
+                },
+                {
+                    "numero": 29,
+                    "label": "29",
+                    "value": "29"
+                },
+                {
+                    "numero": 30,
+                    "label": "30",
+                    "value": "30"
+                },
+                {
+                    "numero": 31,
+                    "label": "31",
+                    "value": "31"
+                },
+                {
+                    "numero": 32,
+                    "label": "32",
+                    "value": "32"
+                },
+                {
+                    "numero": 33,
+                    "label": "33",
+                    "value": "33"
+                },
+                {
+                    "numero": 34,
+                    "label": "34",
+                    "value": "34"
+                },
+                {
+                    "numero": 35,
+                    "label": "35",
+                    "value": "35"
+                },
+                {
+                    "numero": 36,
+                    "label": "36",
+                    "value": "36"
+                },
+                {
+                    "numero": 37,
+                    "label": "37",
+                    "value": "37"
+                },
+                {
+                    "numero": 38,
+                    "label": "38",
+                    "value": "38"
+                },
+                {
+                    "numero": 39,
+                    "label": "39",
+                    "value": "39"
+                },
+                {
+                    "numero": 40,
+                    "label": "40",
+                    "value": "40"
+                },
+                {
+                    "numero": 41,
+                    "label": "41",
+                    "value": "41"
+                },
+                {
+                    "numero": 42,
+                    "label": "42",
+                    "value": "42"
+                },
+                {
+                    "numero": 43,
+                    "label": "43",
+                    "value": "43"
+                },
+                {
+                    "numero": 44,
+                    "label": "44",
+                    "value": "44"
+                },
+                {
+                    "numero": 45,
+                    "label": "45",
+                    "value": "45"
+                },
+                {
+                    "numero": 46,
+                    "label": "46",
+                    "value": "46"
+                },
+                {
+                    "numero": 47,
+                    "label": "47",
+                    "value": "47"
+                },
+                {
+                    "numero": 48,
+                    "label": "48",
+                    "value": "48"
+                },
+                {
+                    "numero": 49,
+                    "label": "49",
+                    "value": "49"
+                },
+                {
+                    "numero": 50,
+                    "label": "50",
+                    "value": "50"
+                },
+                {
+                    "numero": 51,
+                    "label": "51",
+                    "value": "51"
+                },
+                {
+                    "numero": 52,
+                    "label": "52",
+                    "value": "52"
+                },
+                {
+                    "numero": 53,
+                    "label": "53",
+                    "value": "53"
+                },
+                {
+                    "numero": 54,
+                    "label": "54",
+                    "value": "54"
+                },
+                {
+                    "numero": 55,
+                    "label": "55",
+                    "value": "55"
+                },
+                {
+                    "numero": 56,
+                    "label": "56",
+                    "value": "56"
+                },
+                {
+                    "numero": 57,
+                    "label": "57",
+                    "value": "57"
+                },
+                {
+                    "numero": 58,
+                    "label": "58",
+                    "value": "58"
+                },
+                {
+                    "numero": 59,
+                    "label": "59",
+                    "value": "59"
+                },
+                {
+                    "numero": 60,
+                    "label": "60",
+                    "value": "60"
+                },
+                {
+                    "numero": 61,
+                    "label": "61",
+                    "value": "61"
+                },
+                {
+                    "numero": 62,
+                    "label": "62",
+                    "value": "62"
+                },
+                {
+                    "numero": 63,
+                    "label": "63",
+                    "value": "63"
+                },
+                {
+                    "numero": 64,
+                    "label": "64",
+                    "value": "64"
+                },
+                {
+                    "numero": 65,
+                    "label": "65",
+                    "value": "65"
+                },
+                {
+                    "numero": 66,
+                    "label": "66",
+                    "value": "66"
+                },
+                {
+                    "numero": 67,
+                    "label": "67",
+                    "value": "67"
+                },
+                {
+                    "numero": 68,
+                    "label": "68",
+                    "value": "68"
+                },
+                {
+                    "numero": 69,
+                    "label": "69",
+                    "value": "69"
+                },
+                {
+                    "numero": 70,
+                    "label": "70",
+                    "value": "70"
+                },
+                {
+                    "numero": 71,
+                    "label": "71",
+                    "value": "71"
+                },
+                {
+                    "numero": 72,
+                    "label": "72",
+                    "value": "72"
+                },
+                {
+                    "numero": 73,
+                    "label": "73",
+                    "value": "73"
+                },
+                {
+                    "numero": 74,
+                    "label": "74",
+                    "value": "74"
+                },
+                {
+                    "numero": 75,
+                    "label": "75",
+                    "value": "75"
+                },
+                {
+                    "numero": 76,
+                    "label": "76",
+                    "value": "76"
+                },
+                {
+                    "numero": 77,
+                    "label": "77",
+                    "value": "77"
+                },
+                {
+                    "numero": 78,
+                    "label": "78",
+                    "value": "78"
+                },
+                {
+                    "numero": 79,
+                    "label": "79",
+                    "value": "79"
+                },
+                {
+                    "numero": 80,
+                    "label": "80",
+                    "value": "80"
+                },
+                {
+                    "numero": 81,
+                    "label": "81",
+                    "value": "81"
+                },
+                {
+                    "numero": 82,
+                    "label": "82",
+                    "value": "82"
+                },
+                {
+                    "numero": 83,
+                    "label": "83",
+                    "value": "83"
+                },
+                {
+                    "numero": 84,
+                    "label": "84",
+                    "value": "84"
+                },
+                {
+                    "numero": 85,
+                    "label": "85",
+                    "value": "85"
+                },
+                {
+                    "numero": 86,
+                    "label": "86",
+                    "value": "86"
+                },
+                {
+                    "numero": 87,
+                    "label": "87",
+                    "value": "87"
+                },
+                {
+                    "numero": 88,
+                    "label": "88",
+                    "value": "88"
+                },
+                {
+                    "numero": 89,
+                    "label": "89",
+                    "value": "89"
+                },
+                {
+                    "numero": 90,
+                    "label": "90",
+                    "value": "90"
+                },
+                {
+                    "numero": 91,
+                    "label": "91",
+                    "value": "91"
+                },
+                {
+                    "numero": 92,
+                    "label": "92",
+                    "value": "92"
+                },
+                {
+                    "numero": 93,
+                    "label": "93",
+                    "value": "93"
+                },
+                {
+                    "numero": 94,
+                    "label": "94",
+                    "value": "94"
+                },
+                {
+                    "numero": 95,
+                    "label": "95",
+                    "value": "95"
+                },
+                {
+                    "numero": 96,
+                    "label": "96",
+                    "value": "96"
+                },
+                {
+                    "numero": 97,
+                    "label": "97",
+                    "value": "97"
+                },
+                {
+                    "numero": 98,
+                    "label": "98",
+                    "value": "98"
+                },
+                {
+                    "numero": 99,
+                    "label": "99",
+                    "value": "99"
+                }
+            ]
+        },
+        {
+            "id": 21,
+            "slug": "triple-zamorano",
+            "nombre": "Triple Zamorano",
+            "tipo": "tripletas",
+            "premio_multiplo": 600,
+            "comodines": null,
+            "modalidades": {
+                "cola": 60,
+                "uña": 5,
+                "zodiacal": 6000,
+                "cola_signo": 600,
+                "uña_signo": 60
+            },
+            "horarios": [
+                "10:00",
+                "12:00",
+                "14:00",
+                "16:00",
+                "19:00"
+            ],
+            "opciones": [
+                {
+                    "numero": null,
+                    "label": "Aries",
+                    "value": "ARI"
+                },
+                {
+                    "numero": null,
+                    "label": "Tauro",
+                    "value": "TAU"
+                },
+                {
+                    "numero": null,
+                    "label": "Géminis",
+                    "value": "GEM"
+                },
+                {
+                    "numero": null,
+                    "label": "Cáncer",
+                    "value": "CAN"
+                },
+                {
+                    "numero": null,
+                    "label": "Leo",
+                    "value": "LEO"
+                },
+                {
+                    "numero": null,
+                    "label": "Virgo",
+                    "value": "VIR"
+                },
+                {
+                    "numero": null,
+                    "label": "Libra",
+                    "value": "LIB"
+                },
+                {
+                    "numero": null,
+                    "label": "Escorpio",
+                    "value": "ESC"
+                },
+                {
+                    "numero": null,
+                    "label": "Sagitario",
+                    "value": "SAG"
+                },
+                {
+                    "numero": null,
+                    "label": "Capricornio",
+                    "value": "CAP"
+                },
+                {
+                    "numero": null,
+                    "label": "Acuario",
+                    "value": "ACU"
+                },
+                {
+                    "numero": null,
+                    "label": "Piscis",
+                    "value": "PIS"
+                }
+            ]
+        }
+    ]
+}
