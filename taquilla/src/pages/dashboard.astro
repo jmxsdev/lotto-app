@@ -785,7 +785,7 @@ import MainLayout from '../layouts/MainLayout.astro';
     import { getFingerprint } from '../utils/device';
     import { cargarCatalogo } from '../utils/catalogo';
     import { buildZoneGraph, routeKey, KEYMAP } from '../utils/keyboard';
-    import { alternarHorario, marcarTodosVisibles, expandirLineas, horarioExpirado, filtrarHorariosFuturos, seleccionadosExpirados } from '../utils/horarios';
+    import { alternarHorario, marcarTodosVisibles, expandirLineas, horarioExpirado, filtrarHorariosFuturos, seleccionadosExpirados, agruparPorGroupId } from '../utils/horarios';
     import juegosRaw from '../data/juegos.json';
 
     // Catálogo local bundled (REQ-CL-01): reemplaza GAMES_CONFIG. Los juegos,
@@ -1278,28 +1278,32 @@ import MainLayout from '../layouts/MainLayout.astro';
         return;
       }
 
+      // Resumen agrupado por jugada (REQ-MH-03, TF-04, A3): una fila por groupId
+      // ("Perro → 14:00, 17:00") con monto ×N; el POST sigue enviando N líneas.
+      const grupos = agruparPorGroupId(ticketLines);
       let html = `<table class="resumen-table">
         <thead><tr>
           <th>Sorteo</th><th>Animal / N°</th><th>Monto</th><th></th>
         </tr></thead><tbody>`;
-      ticketLines.forEach((line, i) => {
-        const montoClass = line.moneda === 'bs' ? 'monto-bs' : 'monto-usd';
-        const montoStr = line.moneda === 'bs'
-          ? `Bs. ${Number(line.monto).toLocaleString('es-VE', { minimumFractionDigits: 2 })}`
-          : `$ ${Number(line.monto).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
-        const sorteoDisplay = line.horario
-          ? (line.juegoName || '-') + ' - ' + line.horario
-          : (line.juegoName || '-');
-        const animalDisplay = line.juegoType === 'tripletas'
-          ? (line.tripleModalidadLabel
-              ? line.tripleModalidadLabel + ' ' + (line.numero || '-') + (line.animal ? ' - ' + line.animal : '')
-              : (line.numero ?? '-'))
-          : (line.animal ? line.animal + ' ' + (line.numero || '-') : (line.numero ?? '-'));
+      grupos.forEach(grupo => {
+        const primera = grupo.lines[0];
+        const montoClass = primera.moneda === 'bs' ? 'monto-bs' : 'monto-usd';
+        const horariosStr = grupo.lines.map(l => l.horario).join(', ');
+        const sorteoDisplay = (primera.juegoName || '-') + ' → ' + horariosStr;
+        const animalDisplay = primera.juegoType === 'tripletas'
+          ? (primera.tripleModalidadLabel
+              ? primera.tripleModalidadLabel + ' ' + (primera.numero || '-') + (primera.animal ? ' - ' + primera.animal : '')
+              : (primera.numero ?? '-'))
+          : (primera.animal ? primera.animal + ' ' + (primera.numero || '-') : (primera.numero ?? '-'));
+        const montoGrupo = Number(primera.monto) * grupo.lines.length;
+        const montoStr = primera.moneda === 'bs'
+          ? `Bs. ${montoGrupo.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`
+          : `$ ${montoGrupo.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
         html += `<tr>
           <td>${sorteoDisplay}</td>
           <td>${animalDisplay}</td>
           <td class="${montoClass}">${montoStr}</td>
-          <td><button class="btn-rm" data-index="${i}" title="Eliminar">✕</button></td>
+          <td><button class="btn-rm" data-grupo="${grupo.groupId}" title="Eliminar grupo">✕</button></td>
         </tr>`;
       });
       html += '</tbody></table>';
@@ -1319,7 +1323,7 @@ import MainLayout from '../layouts/MainLayout.astro';
       const juego = juegoActivo();
       if (!juego) { window.showModal({ message: 'Seleccione al menos un juego', type: 'error' }); return; }
       if (!monto || Number(monto) <= 0) { window.showModal({ message: 'Ingrese un monto válido', type: 'error' }); return; }
-      if (!selectedHorarios.length) { window.showModal({ message: 'Seleccione un horario para el sorteo', type: 'error' }); return; }
+      if (!selectedHorarios.length) { window.showModal({ message: 'Por favor, seleccione al menos un horario', type: 'error' }); return; }
 
       // Bloqueo por expiración (REQ-MH-04, A4): si algún horario seleccionado
       // ya pasó no se añade nada; se avisa y queda desmarcable (sin auto-salto).
@@ -1403,8 +1407,10 @@ import MainLayout from '../layouts/MainLayout.astro';
       renderResumen();
     }
 
-    function removeLine(index) {
-      ticketLines.splice(index, 1);
+    // El ✕ de la fila agrupada borra el grupo completo (A3): todas las líneas
+    // del groupId, no una línea suelta (criterio que F3 reutilizará en PR3b).
+    function removeGroup(groupId) {
+      ticketLines = ticketLines.filter(l => l.groupId !== groupId);
       if (ticketLines.length === 0) {
         selectedAnimal = null;
         selectedSigno = null;
@@ -1711,7 +1717,7 @@ import MainLayout from '../layouts/MainLayout.astro';
 
       document.getElementById('resumen-content').addEventListener('click', (e) => {
         const btn = e.target.closest('.btn-rm');
-        if (btn) removeLine(parseInt(btn.dataset.index));
+        if (btn) removeGroup(btn.dataset.grupo);
       });
 
       document.getElementById('qt-clear').addEventListener('click', clearTicket);

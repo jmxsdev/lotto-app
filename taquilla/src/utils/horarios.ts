@@ -83,3 +83,23 @@ export interface LineaExpandida extends LineaBase {
 export function expandirLineas(base: LineaBase, horarios: readonly string[], groupId: string): LineaExpandida[] {
   return horarios.map((horario) => ({ ...base, horario, groupId }));
 }
+
+/**
+ * Agrupa líneas por groupId preservando el orden de inserción (REQ-MH-03,
+ * REQ-TF-04, A3): el resumen muestra un grupo por jugada ("Perro → 14:00,
+ * 17:00") aunque el POST envíe N líneas.
+ */
+export function agruparPorGroupId(lineas: readonly LineaExpandida[]): Array<{ groupId: string; lines: LineaExpandida[] }> {
+  const grupos: Array<{ groupId: string; lines: LineaExpandida[] }> = [];
+  const indice = new Map<string, number>();
+  for (const l of lineas) {
+    let i = indice.get(l.groupId);
+    if (i === undefined) {
+      i = grupos.length;
+      indice.set(l.groupId, i);
+      grupos.push({ groupId: l.groupId, lines: [] });
+    }
+    grupos[i].lines.push(l);
+  }
+  return grupos;
+}

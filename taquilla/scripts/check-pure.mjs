@@ -27,6 +27,7 @@ import {
   horarioExpirado,
   filtrarHorariosFuturos,
   seleccionadosExpirados,
+  agruparPorGroupId,
 } from '../src/utils/horarios.ts';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
@@ -391,6 +392,21 @@ ok(JSON.stringify(futuros) === JSON.stringify(['17:00', '22:00']), `filtro: solo
 const expiradosSel = seleccionadosExpirados(['14:00', '17:00'], AHORA_CARACAS);
 ok(JSON.stringify(expiradosSel) === JSON.stringify(['14:00']), `seleccionadosExpirados → ['14:00'] (${expiradosSel.join(',')})`);
 ok(seleccionadosExpirados([], AHORA_CARACAS).length === 0, 'sin selección → sin expirados');
+
+console.log('\n== PR3a: resumen agrupado por jugada (REQ-MH-03, TF-04, A3) ==');
+const conGrupos = [
+  ...expandirLineas(baseLinea, ['14:00', '17:00'], 'g1'),
+  ...expandirLineas(baseLinea, ['18:00'], 'g2'),
+];
+const grupos = agruparPorGroupId(conGrupos);
+ok(grupos.length === 2, `2 grupos (${grupos.length})`);
+ok(grupos[0].groupId === 'g1' && grupos[0].lines.length === 2, 'g1 con 2 líneas (14:00, 17:00)');
+ok(grupos[1].groupId === 'g2' && grupos[1].lines.length === 1, 'g2 con 1 línea (18:00)');
+ok(
+  JSON.stringify(grupos[0].lines.map((l) => l.horario)) === JSON.stringify(['14:00', '17:00']),
+  'orden de horarios preservado en el grupo',
+);
+ok(JSON.stringify(agruparPorGroupId([])) === JSON.stringify([]), 'sin líneas → sin grupos');
 
 console.log('\n== REQ-KB-07: KEYMAP F1–F12 ==');
 ok(KEYMAP.length === 12, `KEYMAP: 12 teclas (${KEYMAP.length})`);
