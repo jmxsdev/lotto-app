@@ -164,6 +164,10 @@ Route::prefix('v1')->group(function () {
         Route::middleware(['role:super_master|master|banca|grupo|taquilla|agencia'])->group(function () {
             Route::post('/cierre', [CierreController::class, 'store']);
             Route::get('/cierre', [CierreController::class, 'index']);
+            // AD-11: actual y semanal ANTES de /cierre/{cierre} para que el
+            // route-model binding no capture "actual"/"semanal" (404).
+            Route::get('/cierre/actual', [CierreController::class, 'actual']);
+            Route::get('/cierre/semanal', [CierreController::class, 'semanal']);
             Route::get('/cierre/{cierre}', [CierreController::class, 'show']);
         });
 

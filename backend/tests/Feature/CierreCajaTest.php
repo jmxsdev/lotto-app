@@ -813,4 +813,334 @@ class CierreCajaTest extends TestCase
 
         $response->assertStatus(404);
     }
+
+    // ==================================================
+    // GET /api/v1/cierre/semanal — rollup semanal (AD-5)
+    // ==================================================
+
+    /**
+     * Desglose diario mínimo reutilizable: un solo método con actividad.
+     */
+    private function desgloseDiaEfectivo(float $ventasBs, float $egresosBs, float $ventasUsd): array
+    {
+        return [
+            'bs' => [
+                'efectivo' => ['ventas' => $ventasBs, 'egresos' => $egresosBs, 'efectivo' => $ventasBs - $egresosBs],
+                'transferencia' => ['ventas' => 0, 'egresos' => 0, 'efectivo' => 0],
+                'pago_movil' => ['ventas' => 0, 'egresos' => 0, 'efectivo' => 0],
+                'punto_venta' => ['ventas' => 0, 'egresos' => 0, 'efectivo' => 0],
+            ],
+            'usd' => [
+                'efectivo' => ['ventas' => $ventasUsd, 'egresos' => 0, 'efectivo' => $ventasUsd],
+                'transferencia' => ['ventas' => 0, 'egresos' => 0, 'efectivo' => 0],
+                'pago_movil' => ['ventas' => 0, 'egresos' => 0, 'efectivo' => 0],
+                'punto_venta' => ['ventas' => 0, 'egresos' => 0, 'efectivo' => 0],
+            ],
+        ];
+    }
+
+    public function test_semanal_rollup_semana_completa()
+    {
+        $taquilla = $this->taquillaSeeded();
+
+        // 7 diarios: lunes 10 → domingo 16 de agosto 2026 (fecha=2026-08-12 ancla miércoles)
+        for ($i = 0; $i < 7; $i++) {
+            $fechaFin = Carbon::create(2026, 8, 10)->addDays($i)->setTime(20, 0, 0);
+            $this->crearCierre($taquilla, [
+                'fecha_inicio' => $fechaFin->copy()->subDay(),
+                'fecha_fin' => $fechaFin,
+                'total_ventas_bs' => 100,
+                'total_ventas_usd' => 10,
+                'total_ventas_bs_equivalent' => 465,
+                'total_egresos_bs' => 10,
+                'total_egresos_usd' => 0,
+                'total_efectivo_bs' => 90,
+                'total_efectivo_usd' => 10,
+                'desglose_metodos' => $this->desgloseDiaEfectivo(100, 10, 10),
+            ]);
+        }
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->getJson('/api/v1/cierre/semanal?fecha=2026-08-12');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('fecha_desde', '2026-08-10')
+            ->assertJsonPath('fecha_hasta', '2026-08-16')
+            ->assertJsonPath('ventana_cubierta.cierres_incluidos', 7);
+
+        $this->assertEquals(700.0, (float) $response->json('total_ventas_bs'));
+        $this->assertEquals(70.0, (float) $response->json('total_ventas_usd'));
+        $this->assertEquals(3255.0, (float) $response->json('total_ventas_bs_equivalent'));
+        $this->assertEquals(70.0, (float) $response->json('total_egresos_bs'));
+        $this->assertEquals(0.0, (float) $response->json('total_egresos_usd'));
+        $this->assertEquals(630.0, (float) $response->json('total_efectivo_bs'));
+        $this->assertEquals(70.0, (float) $response->json('total_efectivo_usd'));
+
+        // Desglose fusionado de los 7 diarios
+        $this->assertEquals(700.0, (float) $response->json('desglose_metodos.bs.efectivo.ventas'));
+        $this->assertEquals(70.0, (float) $response->json('desglose_metodos.bs.efectivo.egresos'));
+        $this->assertEquals(630.0, (float) $response->json('desglose_metodos.bs.efectivo.efectivo'));
+        $this->assertEquals(70.0, (float) $response->json('desglose_metodos.usd.efectivo.ventas'));
+        $this->assertEquals(70.0, (float) $response->json('desglose_metodos.usd.efectivo.efectivo'));
+
+        // Ventana cubierta: min/max fecha_fin de los diarios incluidos
+        $ventana = $response->json('ventana_cubierta');
+        $this->assertEquals('2026-08-10 20:00', $this->fechaJson($ventana['desde'])->format('Y-m-d H:i'));
+        $this->assertEquals('2026-08-16 20:00', $this->fechaJson($ventana['hasta'])->format('Y-m-d H:i'));
+
+        // cierres[] ordenados por fecha_fin asc
+        $cierres = $response->json('cierres');
+        $this->assertCount(7, $cierres);
+        $this->assertEquals('2026-08-10 20:00', $this->fechaJson($cierres[0]['fecha_fin'])->format('Y-m-d H:i'));
+        $this->assertEquals('2026-08-16 20:00', $this->fechaJson($cierres[6]['fecha_fin'])->format('Y-m-d H:i'));
+        $this->assertEquals($taquilla->id, $cierres[0]['taquilla_id']);
+        $this->assertEquals(100.0, (float) $cierres[0]['total_ventas_bs']);
+    }
+
+    public function test_semanal_semana_vacia_devuelve_ceros()
+    {
+        $taquilla = $this->taquillaSeeded();
+
+        // Un cierre FUERA de la semana consultada: la semana queda vacía
+        $this->crearCierre($taquilla, [
+            'fecha_fin' => Carbon::create(2026, 8, 20, 12, 0, 0),
+        ]);
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->getJson('/api/v1/cierre/semanal?fecha=2026-08-12');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('fecha_desde', '2026-08-10')
+            ->assertJsonPath('fecha_hasta', '2026-08-16')
+            ->assertJsonPath('ventana_cubierta.desde', null)
+            ->assertJsonPath('ventana_cubierta.hasta', null)
+            ->assertJsonPath('ventana_cubierta.cierres_incluidos', 0)
+            ->assertJsonPath('arqueo_efectivo_bs', null)
+            ->assertJsonPath('arqueo_efectivo_usd', null)
+            ->assertJsonPath('faltante_sobrante_bs', null)
+            ->assertJsonPath('faltante_sobrante_usd', null);
+
+        $this->assertEquals(0.0, (float) $response->json('total_ventas_bs'));
+        $this->assertEquals(0.0, (float) $response->json('total_ventas_usd'));
+        $this->assertEquals(0.0, (float) $response->json('total_ventas_bs_equivalent'));
+        $this->assertEquals(0.0, (float) $response->json('total_egresos_bs'));
+        $this->assertEquals(0.0, (float) $response->json('total_egresos_usd'));
+        $this->assertEquals(0.0, (float) $response->json('total_efectivo_bs'));
+        $this->assertEquals(0.0, (float) $response->json('total_efectivo_usd'));
+
+        $this->assertEquals([], $response->json('cierres'));
+    }
+
+    public function test_semanal_semana_incompleta_expone_ventana_real()
+    {
+        $taquilla = $this->taquillaSeeded();
+
+        // Solo lunes y miércoles tienen diario: ventana cubierta = esos 2 días
+        $this->crearCierre($taquilla, [
+            'fecha_fin' => Carbon::create(2026, 8, 10, 20, 0, 0),
+            'total_ventas_bs' => 150,
+            'total_efectivo_bs' => 150,
+        ]);
+        $this->crearCierre($taquilla, [
+            'fecha_fin' => Carbon::create(2026, 8, 12, 20, 0, 0),
+            'total_ventas_bs' => 250,
+            'total_efectivo_bs' => 250,
+        ]);
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->getJson('/api/v1/cierre/semanal?fecha=2026-08-12');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('ventana_cubierta.cierres_incluidos', 2);
+
+        $ventana = $response->json('ventana_cubierta');
+        $this->assertEquals('2026-08-10 20:00', $this->fechaJson($ventana['desde'])->format('Y-m-d H:i'));
+        $this->assertEquals('2026-08-12 20:00', $this->fechaJson($ventana['hasta'])->format('Y-m-d H:i'));
+
+        $this->assertEquals(400.0, (float) $response->json('total_ventas_bs'));
+        $this->assertEquals(400.0, (float) $response->json('total_efectivo_bs'));
+        $this->assertCount(2, $response->json('cierres'));
+    }
+
+    public function test_semanal_alcance_taquilla_y_403()
+    {
+        $taquilla = $this->taquillaSeeded();
+        $otraTaquilla = $this->crearTaquilla('TTC20', $this->grupoSeeded()->id);
+
+        $this->crearCierre($taquilla, [
+            'fecha_fin' => Carbon::create(2026, 8, 11, 20, 0, 0),
+            'total_ventas_bs' => 100,
+        ]);
+        $this->crearCierre($otraTaquilla, [
+            'fecha_fin' => Carbon::create(2026, 8, 12, 20, 0, 0),
+            'total_ventas_bs' => 999,
+        ]);
+
+        $taquilla->update(['mac_address' => 'AA:BB:CC:DD:EE:FF', 'active' => true]);
+        $taquillaUser = $this->taquillaUser();
+
+        // Rol taquilla sin taquilla_id: solo agrega su propia taquilla
+        $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
+            ->actingAs($taquillaUser, 'sanctum')
+            ->getJson('/api/v1/cierre/semanal?fecha=2026-08-12');
+
+        $response->assertStatus(200);
+        $this->assertEquals(1, $response->json('ventana_cubierta.cierres_incluidos'));
+        $this->assertEquals(100.0, (float) $response->json('total_ventas_bs'));
+
+        // Rol taquilla pidiendo OTRA taquilla → 403
+        $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
+            ->actingAs($taquillaUser, 'sanctum')
+            ->getJson('/api/v1/cierre/semanal?fecha=2026-08-12&taquilla_id='.$otraTaquilla->id);
+
+        $response->assertStatus(403);
+
+        // Admin (banca) con taquilla de otra banca → 403
+        $otraBanca = Banca::create(['name' => 'Banca Ajena W', 'code' => 'BAW01', 'created_by' => $this->superUser()->id]);
+        $otroGrupo = Grupo::create(['name' => 'Grupo Ajeno W', 'code' => 'OGAW01', 'banca_id' => $otraBanca->id, 'created_by' => $this->superUser()->id]);
+        $taquillaFuera = $this->crearTaquilla('TTC21', $otroGrupo->id);
+
+        $response = $this->actingAs($this->bancaUser(), 'sanctum')
+            ->getJson('/api/v1/cierre/semanal?fecha=2026-08-12&taquilla_id='.$taquillaFuera->id);
+
+        $response->assertStatus(403);
+    }
+
+    public function test_semanal_respeta_fecha_desde_hasta()
+    {
+        $taquilla = $this->taquillaSeeded();
+
+        $this->crearCierre($taquilla, [
+            'fecha_fin' => Carbon::create(2026, 8, 10, 20, 0, 0),
+            'total_ventas_bs' => 100,
+        ]);
+        $this->crearCierre($taquilla, [
+            'fecha_fin' => Carbon::create(2026, 8, 12, 9, 0, 0),
+            'total_ventas_bs' => 50,
+        ]);
+        // En 2026-08-13 00:00 (fecha_hasta + 1 día): excluido del rango interno [desde, hasta+1d)
+        $this->crearCierre($taquilla, [
+            'fecha_fin' => Carbon::create(2026, 8, 13, 0, 0, 0),
+            'total_ventas_bs' => 777,
+        ]);
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->getJson('/api/v1/cierre/semanal?fecha_desde=2026-08-10&fecha_hasta=2026-08-12');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('fecha_desde', '2026-08-10')
+            ->assertJsonPath('fecha_hasta', '2026-08-12')
+            ->assertJsonPath('ventana_cubierta.cierres_incluidos', 2);
+
+        $this->assertEquals(150.0, (float) $response->json('total_ventas_bs'));
+    }
+
+    public function test_semanal_fecha_y_rango_son_mutuamente_excluyentes()
+    {
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->getJson('/api/v1/cierre/semanal?fecha=2026-08-12&fecha_desde=2026-08-10&fecha_hasta=2026-08-12');
+
+        $response->assertStatus(422);
+
+        // Solo un extremo del rango también es inválido (XOR)
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->getJson('/api/v1/cierre/semanal?fecha_desde=2026-08-10');
+
+        $response->assertStatus(422);
+    }
+
+    // ==================================================
+    // GET /api/v1/cierre/actual — preview read-only (AD-8)
+    // ==================================================
+
+    public function test_actual_devuelve_preview_sin_persistir()
+    {
+        $taquilla = $this->crearTaquilla('TTC22', $this->grupoSeeded()->id);
+
+        $this->crearApuesta($taquilla, ['amount_bs' => 500, 'total_bs_equivalent' => 500, 'fecha_hora' => now()->subHour()]);
+        $this->crearPago($taquilla, ['tipo' => 'ingreso', 'apuesta_id' => Apuesta::where('taquilla_id', $taquilla->id)->first()->id, 'amount_bs' => 500, 'metodo_pago' => 'efectivo']);
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->getJson('/api/v1/cierre/actual?taquilla_id='.$taquilla->id);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('taquilla_id', $taquilla->id)
+            ->assertJsonPath('exchange_rate', 36.5);
+
+        $this->assertEquals(500.0, (float) $response->json('total_ventas_bs'));
+        $this->assertEquals(500.0, (float) $response->json('total_efectivo_bs'));
+        $this->assertEquals(500.0, (float) $response->json('desglose_metodos.bs.efectivo.ventas'));
+
+        // Preview sin persistencia: no existe ningún cierre
+        $this->assertDatabaseMissing('cierres_caja', ['taquilla_id' => $taquilla->id]);
+    }
+
+    public function test_actual_preview_respeta_alcance_y_autorizacion()
+    {
+        $taquilla = $this->taquillaSeeded();
+        $otraTaquilla = $this->crearTaquilla('TTC23', $this->grupoSeeded()->id);
+
+        $taquilla->update(['mac_address' => 'AA:BB:CC:DD:EE:FF', 'active' => true]);
+        $taquillaUser = $this->taquillaUser();
+
+        // Rol taquilla: preview de su propia taquilla (200)
+        $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
+            ->actingAs($taquillaUser, 'sanctum')
+            ->getJson('/api/v1/cierre/actual');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('taquilla_id', $taquilla->id);
+
+        // Rol taquilla pidiendo otra taquilla → 403
+        $response = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
+            ->actingAs($taquillaUser, 'sanctum')
+            ->getJson('/api/v1/cierre/actual?taquilla_id='.$otraTaquilla->id);
+
+        $response->assertStatus(403);
+
+        // Admin sin taquilla_id → 422 (misma validación que store)
+        $response = $this->actingAs($this->masterUser(), 'sanctum')
+            ->getJson('/api/v1/cierre/actual');
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors('taquilla_id');
+    }
+
+    // ==================================================
+    // Orden de rutas: actual y semanal ANTES de {cierre} (AD-11)
+    // ==================================================
+
+    public function test_rutas_actual_y_semanal_no_caen_en_binding_de_cierre()
+    {
+        $taquilla = $this->taquillaSeeded();
+
+        $ap = $this->crearApuesta($taquilla, ['amount_bs' => 500, 'total_bs_equivalent' => 500, 'fecha_hora' => now()->subHour()]);
+        $this->crearPago($taquilla, ['tipo' => 'ingreso', 'apuesta_id' => $ap->id, 'amount_bs' => 500, 'metodo_pago' => 'efectivo']);
+
+        // Semanal responde el reporte (200), no un 404 del binding {cierre}
+        $semanal = $this->actingAs($this->superUser(), 'sanctum')
+            ->getJson('/api/v1/cierre/semanal?fecha=2026-08-12');
+        $semanal->assertStatus(200)
+            ->assertJsonPath('fecha_desde', '2026-08-10');
+
+        // Actual responde el preview (200), no un 404 del binding {cierre}
+        $actual = $this->actingAs($this->superUser(), 'sanctum')
+            ->getJson('/api/v1/cierre/actual?taquilla_id='.$taquilla->id);
+        $actual->assertStatus(200)
+            ->assertJsonPath('taquilla_id', $taquilla->id);
+        $this->assertEquals(500.0, (float) $actual->json('total_ventas_bs'));
+
+        // Orden de registro en el router: actual y semanal antes de {cierre}
+        $uris = collect(app('router')->getRoutes())->map(fn ($r) => $r->uri())->values()->all();
+
+        $posActual = array_search('api/v1/cierre/actual', $uris);
+        $posSemanal = array_search('api/v1/cierre/semanal', $uris);
+        $posCierre = array_search('api/v1/cierre/{cierre}', $uris);
+
+        $this->assertNotFalse($posActual, 'Ruta actual no registrada');
+        $this->assertNotFalse($posSemanal, 'Ruta semanal no registrada');
+        $this->assertNotFalse($posCierre, 'Ruta {cierre} no registrada');
+        $this->assertLessThan($posCierre, $posActual);
+        $this->assertLessThan($posCierre, $posSemanal);
+    }
 }

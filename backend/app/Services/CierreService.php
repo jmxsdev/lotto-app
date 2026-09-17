@@ -208,6 +208,123 @@ class CierreService
     }
 
     /**
+     * Rollup semanal de los cierres diarios persistidos (AD-5, solo lectura).
+     *
+     * La consulta llega pre-escalada por jerarquía (controller); aquí solo se
+     * acota al rango [desde, hasta), donde `hasta` ya es exclusivo
+     * (fecha_hasta + 1 día), y se agregan totales por moneda, desglose
+     * fusionado, ventana cubierta (min/max fecha_fin) y los diarios incluidos
+     * ordenados por fecha_fin asc.
+     *
+     * Semana sin diarios: totales en 0, arqueo/faltante null, ventana cubierta
+     * {null, null, 0} y cierres [].
+     *
+     * @return array<string, mixed>
+     */
+    public function reporteSemanal($query, $desde, $hasta): array
+    {
+        $cierres = (clone $query)
+            ->where('fecha_fin', '>=', $desde)
+            ->where('fecha_fin', '<', $hasta)
+            ->orderBy('fecha_fin')
+            ->get();
+
+        $totales = [
+            'total_ventas_bs' => 0.0,
+            'total_ventas_usd' => 0.0,
+            'total_ventas_bs_equivalent' => 0.0,
+            'total_egresos_bs' => 0.0,
+            'total_egresos_usd' => 0.0,
+            'total_efectivo_bs' => 0.0,
+            'total_efectivo_usd' => 0.0,
+            'arqueo_efectivo_bs' => null,
+            'arqueo_efectivo_usd' => null,
+            'faltante_sobrante_bs' => null,
+            'faltante_sobrante_usd' => null,
+        ];
+
+        // Shape fijo (AD-3) con ceros: mismo esqueleto que armarDesglose([], [])
+        $desglose = $this->armarDesglose([], []);
+
+        foreach ($cierres as $cierre) {
+            $totales['total_ventas_bs'] += (float) $cierre->total_ventas_bs;
+            $totales['total_ventas_usd'] += (float) $cierre->total_ventas_usd;
+            $totales['total_ventas_bs_equivalent'] += (float) $cierre->total_ventas_bs_equivalent;
+            $totales['total_egresos_bs'] += (float) $cierre->total_egresos_bs;
+            $totales['total_egresos_usd'] += (float) $cierre->total_egresos_usd;
+            $totales['total_efectivo_bs'] += (float) $cierre->total_efectivo_bs;
+            $totales['total_efectivo_usd'] += (float) $cierre->total_efectivo_usd;
+
+            foreach (['arqueo_efectivo_bs', 'arqueo_efectivo_usd', 'faltante_sobrante_bs', 'faltante_sobrante_usd'] as $campo) {
+                if ($cierre->{$campo} !== null) {
+                    $totales[$campo] = ($totales[$campo] ?? 0) + (float) $cierre->{$campo};
+                }
+            }
+
+            $desgloseCierre = $cierre->desglose_metodos ?? [];
+            foreach (['bs', 'usd'] as $moneda) {
+                foreach (Pago::METODOS_PAGO as $metodo) {
+                    foreach (['ventas', 'egresos', 'efectivo'] as $clave) {
+                        $desglose[$moneda][$metodo][$clave] += (float) ($desgloseCierre[$moneda][$metodo][$clave] ?? 0);
+                    }
+                }
+            }
+        }
+
+        return [
+            'ventana_cubierta' => [
+                'desde' => $cierres->min('fecha_fin'),
+                'hasta' => $cierres->max('fecha_fin'),
+                'cierres_incluidos' => $cierres->count(),
+            ],
+            'total_ventas_bs' => round($totales['total_ventas_bs'], 2),
+            'total_ventas_usd' => round($totales['total_ventas_usd'], 2),
+            'total_ventas_bs_equivalent' => round($totales['total_ventas_bs_equivalent'], 2),
+            'total_egresos_bs' => round($totales['total_egresos_bs'], 2),
+            'total_egresos_usd' => round($totales['total_egresos_usd'], 2),
+            'total_efectivo_bs' => round($totales['total_efectivo_bs'], 2),
+            'total_efectivo_usd' => round($totales['total_efectivo_usd'], 2),
+            'arqueo_efectivo_bs' => $totales['arqueo_efectivo_bs'] !== null ? round($totales['arqueo_efectivo_bs'], 2) : null,
+            'arqueo_efectivo_usd' => $totales['arqueo_efectivo_usd'] !== null ? round($totales['arqueo_efectivo_usd'], 2) : null,
+            'faltante_sobrante_bs' => $totales['faltante_sobrante_bs'] !== null ? round($totales['faltante_sobrante_bs'], 2) : null,
+            'faltante_sobrante_usd' => $totales['faltante_sobrante_usd'] !== null ? round($totales['faltante_sobrante_usd'], 2) : null,
+            'desglose_metodos' => $desglose,
+            'cierres' => $cierres->map(fn (CierreCaja $cierre) => [
+                'id' => $cierre->id,
+                'taquilla_id' => $cierre->taquilla_id,
+                'fecha_inicio' => $cierre->fecha_inicio,
+                'fecha_fin' => $cierre->fecha_fin,
+                'total_ventas_bs' => $cierre->total_ventas_bs,
+                'total_efectivo_bs' => $cierre->total_efectivo_bs,
+            ])->all(),
+        ];
+    }
+
+    /**
+     * Preview read-only del período actual (AD-8): mismos cálculos que
+     * crearCierre pero sin persistir. Usado por GET /cierre/actual.
+     *
+     *
+     * @return array<string, mixed>
+     *
+     * @throws \RuntimeException si no existe ninguna tasa de cambio
+     */
+    public function previsualizar(int $taquillaId): array
+    {
+        $tasa = $this->resolverTasa();
+        $fechaFin = now();
+        $fechaInicio = $this->resolveFechaInicio($taquillaId, $fechaFin);
+        $totales = $this->calcularTotales($taquillaId, $fechaInicio, $fechaFin);
+
+        return [
+            'taquilla_id' => $taquillaId,
+            'fecha_inicio' => $fechaInicio,
+            'fecha_fin' => $fechaFin,
+            'exchange_rate' => $tasa->rate,
+        ] + $totales;
+    }
+
+    /**
      * Resolver el inicio del período: último cierre → primera apuesta → ahora.
      */
     private function resolveFechaInicio(int $taquillaId, $fechaFin)
