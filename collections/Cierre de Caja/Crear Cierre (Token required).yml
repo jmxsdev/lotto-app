@@ -18,9 +18,56 @@ http:
     type: json
     data: |-
       {
-        "taquilla_id": 1
+        "taquilla_id": 1,
+        "arqueo_efectivo_bs": 1450.00,
+        "arqueo_efectivo_usd": 30.00
       }
   auth: inherit
+
+docs:
+  - |
+    # Respuesta esperada: 201 Created
+    Ejecuta el cierre de caja del período actual de la taquilla.
+    - `arqueo_efectivo_bs` / `arqueo_efectivo_usd`: opcionales (`nullable|numeric|min:0`).
+      Si se omiten, el arqueo y `faltante_sobrante_*` quedan en `null`.
+    - Diferencia: `faltante_sobrante_X = arqueo_X - total_efectivo_X`
+      (negativo = faltante, positivo = sobrante).
+    - Roles administrativos: `taquilla_id` requerido (422 si falta); rol taquilla:
+      se omite o usa su propia taquilla (403 si envía otra).
+    ```json
+    {
+      "id": 12,
+      "taquilla_id": 1,
+      "fecha_inicio": "2026-09-17T08:00:00-04:00",
+      "fecha_fin": "2026-09-17T18:30:00-04:00",
+      "total_ventas_bs": 1500.00,
+      "total_ventas_usd": 30.00,
+      "total_ventas_bs_equivalent": 2595.00,
+      "total_egresos_bs": 40.00,
+      "total_egresos_usd": 3.00,
+      "total_efectivo_bs": 1460.00,
+      "total_efectivo_usd": 27.00,
+      "arqueo_efectivo_bs": 1450.00,
+      "arqueo_efectivo_usd": 30.00,
+      "faltante_sobrante_bs": -10.00,
+      "faltante_sobrante_usd": 3.00,
+      "desglose_metodos": {
+        "bs": {
+          "efectivo": { "ventas": 1000.00, "egresos": 30.00, "efectivo": 970.00 },
+          "transferencia": { "ventas": 300.00, "egresos": 10.00, "efectivo": 290.00 },
+          "pago_movil": { "ventas": 150.00, "egresos": 0.00, "efectivo": 150.00 },
+          "punto_venta": { "ventas": 50.00, "egresos": 0.00, "efectivo": 50.00 }
+        },
+        "usd": {
+          "efectivo": { "ventas": 30.00, "egresos": 3.00, "efectivo": 27.00 }
+        }
+      },
+      "exchange_rate_cierre": 36.5000,
+      "created_by": 3
+    }
+    ```
+    Sin ninguna tasa de cambio registrada (activa ni histórica) responde 422:
+    `{"message": "No hay tasa de cambio activa para realizar el cierre."}`
 
 settings:
   encodeUrl: true
