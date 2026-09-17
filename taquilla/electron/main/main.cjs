@@ -2,8 +2,12 @@ const { app, BrowserWindow, protocol, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { registerIpcHandlers } = require('./ipcHandlers.cjs');
+const { createUpstreamResolver } = require('./upstream.cjs');
 
 let mainWindow;
+
+// Resolver de upstream: dev lee env con fallback prod; empaquetado siempre prod.
+const upstream = createUpstreamResolver({ isPackaged: app.isPackaged, env: process.env });
 
 // Determinar la ruta de la carpeta dist (estáticos)
 function getDistPath() {
@@ -116,8 +120,7 @@ function registerCustomProtocol() {
 }
 // Registrar protocolo api:// como proxy a la API real
 function registerApiProtocol() {
-    const API_UPSTREAM = 'https://lotto.gzuz.dev';
-    console.log('🔄 Proxy API configurado:', API_UPSTREAM);
+    console.log('🔄 Proxy API configurado:', upstream.get());
     // ... (código anterior)
 
 // Protocolo proxy para la API (normaliza el path: garantiza <upstream>/api/v1/*)
@@ -154,8 +157,8 @@ protocol.handle('api', async (request) => {
             pathname = '/api' + pathname;
         }
 
-        // Construir la URL de destino
-        const targetUrl = `${API_UPSTREAM}${pathname}${url.search}`;
+        // Construir la URL de destino (upstream resuelto por request)
+        const targetUrl = `${upstream.get()}${pathname}${url.search}`;
         console.log('🔀 Reenviando a:', targetUrl);
 
         // Preparar las opciones para fetch
@@ -249,7 +252,7 @@ async function createWindow() {
 }
 
 app.whenReady().then(async () => {
-    registerIpcHandlers();
+    registerIpcHandlers(upstream);
     registerCustomProtocol();  // app://
     registerApiProtocol();     // api://
 

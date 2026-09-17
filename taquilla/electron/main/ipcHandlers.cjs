@@ -1,4 +1,4 @@
-const { ipcMain, BrowserWindow } = require('electron');
+const { ipcMain, BrowserWindow, app } = require('electron');
 const os = require('os');
 
 function getMacAddress() {
@@ -85,9 +85,14 @@ async function printWithSystemDialog(win, html) {
     });
 }
 
-function registerIpcHandlers() {
+function registerIpcHandlers(upstream) {
     ipcMain.handle('get-mac', () => {
         return getMacAddress();
+    });
+
+    // Selector dev-only de entorno: whitelist fija; empaquetado siempre rechaza.
+    ipcMain.handle('set-api-upstream', (event, key) => {
+        return upstream.setOverride(key);
     });
 
     ipcMain.handle('print-ticket', async (event, data) => {
@@ -145,7 +150,7 @@ function registerIpcHandlers() {
     });
 
     ipcMain.handle('get-version', () => {
-        return process.env.npm_package_version || '0.1.0';
+        return app.getVersion();
     });
 }
 

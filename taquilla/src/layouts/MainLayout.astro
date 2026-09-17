@@ -115,7 +115,9 @@ try {
       </div>
     </div>
     
-    <script define:vars={{ apiUrl }}>
+    <script>
+      import { apiFetch } from '../utils/apiFetch';
+
       let connected = navigator.onLine;
 
       function updateConnectionStatus(status) {
@@ -151,11 +153,8 @@ try {
 
       async function refreshTasa() {
         try {
-          const res = await fetch(apiUrl + '/exchange-rate/active');
-          if (res.ok) {
-            const data = await res.json();
-            document.getElementById('header-tasa').textContent = Number(data.rate).toLocaleString('es-VE', { minimumFractionDigits: 2 });
-          }
+          const data = await apiFetch('/exchange-rate/active');
+          document.getElementById('header-tasa').textContent = Number(data.rate).toLocaleString('es-VE', { minimumFractionDigits: 2 });
         } catch (error) {
           console.warn('No se pudo refrescar la tasa:', error);
         }
@@ -196,13 +195,9 @@ try {
         const ok = await showModal({ message: '¿Está seguro que desea cerrar sesión?', type: 'confirm' });
         if (!ok) return;
         try {
-          const token = localStorage.getItem('auth_token');
-          await fetch(apiUrl + '/logout', {
+          await apiFetch('/logout', {
             method: 'POST',
-            headers: {
-              'Authorization': 'Bearer ' + token,
-              'Content-Type': 'application/json',
-            }
+            headers: { 'Content-Type': 'application/json' },
           });
         } catch (error) {
           console.error('Error al cerrar sesión en el servidor:', error);

@@ -42,6 +42,54 @@ docker logs -f lotto_horizon_prod         # logs colas
 docker compose --env-file .env.production -f docker-compose.prod.yml up -d <imagen-anterior>
 ```
 
+## Taquilla Windows release (build + re-publicación)
+
+La taquilla es una app Electron (Astro) en `taquilla/`. Las releases se publican
+como instalador NSIS `Taquilla-Setup-<version>.exe` y la API las sirve vía
+`GET /api/v1/update-check` (aviso notify-only en el splash; la taquilla NUNCA
+auto-instala). El build empaquetado SIEMPRE apunta a prod (`lotto.gzuz.dev`),
+ignora `.env.development` y cualquier override persistido del selector dev.
+
+1. **Build local (Linux/WSL o CI)** — en `taquilla/`:
+   ```bash
+   pnpm electron:build:win
+   ```
+   Genera `taquilla/release/Taquilla-Setup-<version>.exe` (versión de
+   `package.json`). Verificar que el bundle no contenga literales demo ni el
+   selector de entorno:
+   ```bash
+   grep -rE "demo-device-001|00:1A:2B:3C:4D:5E|env-selector" dist/ || echo "limpio"
+   ```
+
+2. **Subir el instalador al VPS** (como `deploy`):
+   ```bash
+   scp -i ~/.ssh/lotto-vps-deploy taquilla/release/Taquilla-Setup-<version>.exe deploy@166.1.88.100:/tmp/
+   ```
+
+3. **Copiar al contenedor de la API** (en el VPS, `cd /home/deploy/lotto-app`):
+   ```bash
+   docker cp /tmp/Taquilla-Setup-<version>.exe lotto_api_prod:/tmp/
+   ```
+
+4. **Publicar la release** (mueve el .exe a `storage/app/releases`, calcula
+   SHA-256 y reemplaza la fila única — sin historial):
+   ```bash
+   docker exec lotto_api_prod php artisan releases:publish /tmp/Taquilla-Setup-<version>.exe --release-version=<version>
+   ```
+
+5. **Verificar**:
+   ```bash
+   curl -s http://127.0.0.1:10000/api/v1/update-check
+   # → {"version":"<version>","sha256":"...","file_size":...}
+   ```
+
+6. **Validación en Windows** (el operador, no automatizable desde Linux):
+   instalar `Taquilla-Setup-<version>.exe` en una PC de taquilla → arrancar →
+   sin selector de entorno → splash→login→dashboard contra prod; login con
+   dispositivo registrado (headers `X-Device-MAC`/`X-Device-Fingerprint`
+   reales); con versión remota > local aparece el aviso "nueva versión" con
+   Continuar, y con la red desactivada no se muestra ningún error.
+
 ## Checklist — PC nueva
 
 ### Accesos y claves

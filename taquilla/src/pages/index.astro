@@ -1,6 +1,5 @@
 ---
 // Splash screen que verifica autenticación y redirige
-import { API_BASE } from '../config/api';
 const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
 ---
 
@@ -79,23 +78,74 @@ const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
       <div class="spinner"></div>
       <p id="splash-status">Iniciando taquilla...</p>
       <button id="splash-retry" type="button">Reintentar</button>
+      <div id="update-banner" style="display:none;margin-top:1rem;padding:0.6rem 1rem;background:rgba(255,255,255,0.15);border-radius:8px;font-size:0.9rem">
+        <span>Hay una nueva versión disponible.</span>
+        <button id="update-continue" type="button" style="margin-left:0.75rem;padding:0.3rem 0.9rem;border:none;border-radius:6px;background:white;color:#1a2a6c;cursor:pointer">Continuar</button>
+      </div>
       <div class="footer">
         <p>Versión: 0.1.0</p>
         <p id="mac-info">MAC: Cargando...</p>
       </div>
+      {import.meta.env.DEV && (
+        <div id="env-selector" style="margin-top:1rem;font-size:0.85rem;opacity:0.9">
+          <label for="env-select" style="margin-right:0.5rem">Entorno API:</label>
+          <select id="env-select" style="padding:0.3rem 0.6rem;border-radius:6px;border:none">
+            <option value="local">Local (localhost:8000)</option>
+            <option value="prod">Producción (lotto.gzuz.dev)</option>
+          </select>
+        </div>
+      )}
     </div>
 
-<script define:vars={{ apiUrl: API_BASE, demoMac: import.meta.env.PUBLIC_DEMO_MAC || '', demoFp: import.meta.env.PUBLIC_DEMO_FP || 'demo-device-001' }}>
-      async function init() {
-        let fp = localStorage.getItem('device_fingerprint');
-        if (!fp || (fp === demoFp && window.electron?.getVersion)) {
-          if (window.electron?.getVersion) {
-            fp = crypto.randomUUID();
-          } else {
-            fp = demoFp;
-          }
-          localStorage.setItem('device_fingerprint', fp);
+    <script>
+      import { apiFetch } from '../utils/apiFetch';
+      import { getFingerprint } from '../utils/device';
+
+      // Selector dev-only: solo existe en desarrollo (tree-shaken en prod).
+      // Re-aplica el override persistido antes del verify y lo conmuta via IPC.
+      if (import.meta.env.DEV) {
+        const stored = localStorage.getItem('taquilla_api_upstream_override') || 'local';
+        const select = document.getElementById('env-select');
+        if (select) select.value = stored;
+        if (window.electron?.setApiUpstream) {
+          window.electron.setApiUpstream(stored).catch(() => {});
         }
+        if (select) {
+          select.addEventListener('change', () => {
+            const key = select.value;
+            localStorage.setItem('taquilla_api_upstream_override', key);
+            if (window.electron?.setApiUpstream) {
+              window.electron.setApiUpstream(key).catch(() => {});
+            }
+          });
+        }
+      }
+
+      // Update-check notify-only al arranque: sin URL, sin auto-install.
+      // Silencio absoluto ante error/timeout/404 (sin UI de error).
+      (async () => {
+        if (!window.electron?.getVersion) return;
+        try {
+          const local = await window.electron.getVersion();
+          const remote = await apiFetch('/update-check', { timeout: 1500 });
+          if (!remote || !remote.version) return;
+          if (local !== remote.version) {
+            const banner = document.getElementById('update-banner');
+            const cont = document.getElementById('update-continue');
+            if (banner) banner.style.display = 'block';
+            if (cont) {
+              cont.addEventListener('click', () => {
+                if (banner) banner.style.display = 'none';
+              });
+            }
+          }
+        } catch (_) {
+          // Silencio: fallo de red/timeout/404 no muestran nada.
+        }
+      })();
+
+      async function init() {
+        const fp = getFingerprint();
 
         if (window.electron?.getMac) {
           try {
@@ -104,19 +154,14 @@ const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
           } catch (_) {
             document.getElementById('mac-info').textContent = 'MAC: Error al obtener';
           }
-        } else if (demoMac) {
-          document.getElementById('mac-info').textContent = 'MAC: ' + demoMac;
         }
 
-        const apiBase = apiUrl;
-
         try {
-          const res = await fetch(apiBase + '/dispositivo/verificar', {
+          const data = await apiFetch('/dispositivo/verificar', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ device_fingerprint: fp }),
+            timeout: 5000,
+            body: { device_fingerprint: fp },
           });
-          const data = await res.json();
           if (data.status === 'active') {
             window.location.href = '/login';
           } else {

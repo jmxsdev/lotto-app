@@ -1,8 +1,5 @@
 ---
 import MainLayout from '../layouts/MainLayout.astro';
-import { API_BASE } from '../config/api';
-
-const apiUrl = API_BASE;
 ---
 
 <MainLayout currentPage="dashboard">
@@ -712,8 +709,10 @@ const apiUrl = API_BASE;
     }
   </style>
   
-  <script define:vars={{ apiUrl, demoMac: import.meta.env.PUBLIC_DEMO_MAC || '00:1A:2B:3C:4D:5E', demoFp: import.meta.env.PUBLIC_DEMO_FP || 'demo-device-001' }}>
-    const API_BASE = apiUrl;
+  <script>
+    import { apiFetch } from '../utils/apiFetch';
+    import { getFingerprint } from '../utils/device';
+
     let tasaActiva = 36.50;
 
     let selectedGames = [];
@@ -722,18 +721,6 @@ const apiUrl = API_BASE;
     let animalesCache = [];
     let selectedAnimal = null;
     let columnMode = 'juegos';
-
-    let API_MAC = demoMac;
-    let DEVICE_FP = demoFp;
-    async function initMac() {
-      if (typeof window !== 'undefined' && window.electron?.getMac) {
-        try {
-          const mac = await window.electron.getMac();
-          if (mac && mac !== '00:00:00:00:00:00') API_MAC = mac;
-          else API_MAC = null;
-        } catch { API_MAC = null; }
-      }
-    }
 
     const ANIMAL_EMOJIS = ['🐬','🐏','🐂','🐆','🐸','🐕','🐈','🕊️','🦜','🐿️','🐅','🦁','🐄','🦅','🦊','🐒','🦚','🐎','🐻','🫏','🐓','🐪','🐈‍⬛','🐍','🦌','🐐','🐘','🐖','🦆','🐊','🦚','🐟','🦀','🦔','🐇','🐦','🐔'];
 
@@ -815,27 +802,6 @@ const apiUrl = API_BASE;
     let tripleModalidad = null;
     let tripleModalidadLabel = null;
 
-    async function apiFetch(method, url, body) {
-      const token = localStorage.getItem('auth_token');
-      const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
-      if (token) headers['Authorization'] = 'Bearer ' + token;
-      headers['X-Device-MAC'] = API_MAC;
-      if (DEVICE_FP) headers['X-Device-Fingerprint'] = DEVICE_FP;
-      const opts = { method, headers, credentials: 'omit' };
-      if (body) opts.body = JSON.stringify(body);
-      const res = await fetch(API_BASE + url, opts);
-      if (res.status === 401) {
-        localStorage.removeItem('auth_token');
-        window.location.href = '/login';
-        throw new Error('No autorizado');
-      }
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || res.statusText);
-      }
-      return res.json();
-    }
-
     function initClock() {
       function updateClock() {
         const now = new Date();
@@ -857,9 +823,7 @@ const apiUrl = API_BASE;
 
     async function loadTasa() {
       try {
-        const res = await fetch(API_BASE + '/exchange-rate/active');
-        if (!res.ok) throw new Error('No disponible');
-        const data = await res.json();
+        const data = await apiFetch('/exchange-rate/active');
         tasaActiva = data.rate;
         document.getElementById('tasa-dolar').textContent = `Bs. ${Number(data.rate).toLocaleString('es-VE', { minimumFractionDigits: 2 })}`;
         const fecha = data.updated_at ? new Date(data.updated_at).toLocaleDateString('es-VE') : 'hoy';
@@ -1311,7 +1275,7 @@ const apiUrl = API_BASE;
           sorteo_hora: line.horario ? formatDateWithHorario(line.horario) : new Date().toISOString(),
         }));
 
-        const result = await apiFetch('POST', '/tickets', { lines });
+        const result = await apiFetch('/tickets', { method: 'POST', body: { lines } });
 
         const ticketData = {
           ticketCode: result.data.ticket_code,
@@ -1336,17 +1300,12 @@ const apiUrl = API_BASE;
     }
 
     document.addEventListener('DOMContentLoaded', async () => {
-      DEVICE_FP = typeof window !== 'undefined' ? (localStorage.getItem('device_fingerprint') || demoFp) : demoFp;
-      await initMac();
-
       if (typeof window !== 'undefined' && window.electron?.getVersion) {
         try {
-          const check = await fetch(API_BASE + '/dispositivo/verificar', {
+          const checkData = await apiFetch('/dispositivo/verificar', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ device_fingerprint: DEVICE_FP }),
+            body: { device_fingerprint: getFingerprint() },
           });
-          const checkData = await check.json();
           if (checkData.status === 'pending') {
             window.location.href = '/activacion';
             return;
