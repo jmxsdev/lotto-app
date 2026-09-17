@@ -65,18 +65,33 @@ actualizan; varios seeders no están en `DatabaseSeeder` de forma garantizada).
 **Rationale**: las migraciones son el mecanismo determinista y auditable de cambio de datos en este repo
 (precedente: `2026_09_15_120000_normalize_hora_sorteo_to_24h`).
 
-### D5. Estados de apuesta (REQ13)
+### D5. Estados de apuesta y vencimiento sin resultado (REQ13)
 
 **Choice**: agregar `ganadora` al ENUM de `apuestas` (migración). Transiciones:
 `pendiente → ganadora` (premio > 0, con `resultado_id`) `→ pagada` (pago manual);
-`pendiente → perdida` (premio 0); `pendiente → vencido` (resultado nunca llega, job nuevo).
+`pendiente → perdida` (premio 0); `pendiente → vencido` (resultado nunca llega).
+La ventana de vencimiento es de **24 h por defecto y configurable**. Se usa el patrón de settings ya
+presente pero **dormido** en el sistema (tabla `configuraciones` con `key` único + `value` JSON +
+`banca_id` nullable, y modelo `Configuracion`): clave `apuestas.vencimiento_sin_resultado` con
+`{"horas": 24}` y `banca_id = null` (global). Solo los roles **super_master y master** pueden leerla y
+editarla (`GET/PUT /api/configuraciones/apuestas-vencimiento` con `middleware('role:super_master|master')`);
+el job la lee con fallback 24 h si la fila no existe (no requiere migración de datos).
+**Garantía de búsqueda antes de vencer**: `MarcarApuestasVencidasJob` (diario) agrupa las apuestas
+candidatas por `(juego_id, fecha_sorteo)` y **relanza `ScrapeResultsJob` para cada par** (catch-up por
+fecha; el job existente reintenta 3× con backoff 300 s y hace upsert idempotente) antes de resolver: si el
+resultado apareció, la cadena existente liquida (`verificarGanadores`); solo las apuestas que siguen
+`pendiente` sin `resultado_id` tras la ventana y el reintento pasan a `vencido`. Limitación documentada:
+los scrapers que solo sirven el día actual (p. ej. `mega-animal-40`) no recuperan fechas pasadas; esas
+apuestas vencen al cumplirse la ventana.
 `PagoController` acepta `ganadora` y también `pendiente` con `resultado_id` (compatibilidad con premios
 ya liquidados antes del cambio). La cascada de ticket suma `vencido` a "resuelta" y **no** considera
 resuelta a `ganadora` (impaga).
 **Alternatives considered**: dejar ganadoras en `pendiente` (es el bug N5 y provoca re-liquidación);
-marcar `perdida` por ausencia de resultado (semánticamente falso; `vencido` ya existe en el ENUM).
-**Rationale**: separar "ganó y no cobró" de "pendiente de sorteo" es lo que hace idempotente la
-liquidación y correcta la caja.
+marcar `perdida` por ausencia de resultado (semánticamente falso; `vencido` ya existe en el ENUM);
+ventana fija de 48 h (el cliente define 24 h configurables).
+**Rationale**: separar "ganó y no cobró" de "pendiente de sorteo" hace idempotente la liquidación y
+correcta la caja; reintentar la búsqueda antes de vencer evita expirar apuestas ganadoras por un fallo
+transitorio del scraper.
 
 ### D6. Deduplicación pre-H22 (REQ14)
 
@@ -98,13 +113,22 @@ positivos). Se persiste en columnas `decimal(12,2)` existentes.
 **Rationale**: un solo punto elimina la clase de bugs "cada plugin redondea distinto"; el pago compara
 contra ese mismo valor (±0.01, tolerancia ya existente en `PagoController`).
 
-### D8. Fase 2: modelo multi-combinación retrocompatible (REQ11)
+### D8. Fase 2: modalidades de un solo sorteo; Dupleta fuera de alcance (REQ11)
 
-**Choice**: `combinacion` JSON evoluciona por discriminante: si existe `lineas[]`, es multi-combinación;
-si no, el shape plano actual sigue siendo válido. Se agrega `modalidad` opcional (clave canónica); si falta,
-el plugin la deriva con `modalidadDe()`. No hay migración de tablas.
-**Rationale**: `combinacion` ya es JSON flexible; un discriminante aditivo no rompe apuestas existentes ni
-los endpoints que lo devuelven tal cual.
+**Choice**: **la Dupleta no se implementa** (decisión del cliente): cada jugada es una apuesta
+independiente con su propio monto y su propio sorteo; no existe un monto que cubra dos selecciones, y el
+front ya crea apuestas separadas. Por eso **no** se introduce multi-línea ni multi-sorteo. Las modalidades
+de Fase 2 que quedan (Cruzado, Arrimao, Pegadito, Punta/Terminal/Aproximación, Terminal+Zodiacal, Par
+Millonario A+B, Tripleta) son de **un solo sorteo** y se liquidan como apuestas individuales. Si una
+modalidad requiere 2+ selecciones del MISMO sorteo (Cruzado Punta A + Punta B, Par Millonario A+B,
+Tripleta), se representan dentro del JSON flexible `combinacion` existente agregando `selecciones[]` (cada
+una con los campos de su tipo), **sin** `sorteo_hora` por selección, **sin** tablas nuevas y **sin** paso
+de liquidación multi-sorteo; el único sorteo es `apuestas.sorteo_hora`. Se agrega `modalidad` opcional
+(clave canónica); si falta, el plugin la deriva con `modalidadDe()`.
+**Alternatives considered**: `lineas[]` con `sorteo_hora` por línea (diseño previo a la decisión del
+cliente: solo la Dupleta lo necesitaba y quedó fuera); tabla de combinaciones (capa innecesaria).
+**Rationale**: mantener el modelo actual (1 apuesta = 1 monto = 1 sorteo) preserva los contratos del front
+y elimina complejidad de liquidación que el negocio no usa.
 
 ### D9. `premio_posible` (REQ12)
 
@@ -146,7 +170,7 @@ legacy conserva a la taquilla actual (que igual hardcodea su catálogo, N8 fuera
 | Clave canónica | Significado | Nombres del reglamento |
 |---|---|---|
 | `base` | acierto simple (animalito, triple seco, terminal 2 cifras) | Base |
-| `dupleta` / `tripleta` | 2 animalitos 2 sorteos / 3 animalitos | Dupleta / Tripleta |
+| `tripleta` | 3 animalitos del mismo sorteo | Tripleta |
 | `terminal` / `punta` / `uña` | 2 últimas / 2 primeras / última cifra del triple | Terminal, Cola / Punta / Uña |
 | `signo_triple` | triple + signo | Zodiacal, Astro, Triple+Signo |
 | `signo_terminal` | terminal + signo | Terminal+Zodiacal, Terminal+Signo, Cola+Signo |
@@ -157,17 +181,19 @@ legacy conserva a la taquilla actual (que igual hardcodea su catálogo, N8 fuera
 | `arrimao` / `pegadito` | número exacto 4 / 5 cifras | El Arrimao / El Pegadito |
 | `aproximacion` | terminal ±1 | Aproximación |
 
-Los **espejos legacy** (`config.modalidades`) conservan sus claves históricas (`cola`, `zodiacal`,
-`triple_c_signo`, `uña`, …) para no romper el export ni los tests; `premios.modalidades` habla el
-vocabulario canónico. El seeder/test que los escriba garantiza que ambos representen el mismo valor.
+`dupleta` queda **fuera de alcance** (decisión del cliente): no se configura ni se liquida, porque cada
+jugada es una apuesta independiente con su propio monto. Los **espejos legacy** (`config.modalidades`)
+conservan sus claves históricas (`cola`, `zodiacal`, `triple_c_signo`, `uña`, …) para no romper el export
+ni los tests; `premios.modalidades` habla el vocabulario canónico. El seeder/test que los escriba garantiza
+que ambos representen el mismo valor.
 
 ### 3.2 Valores oficiales → claves canónicas (autoritativos: spec)
 
 | Juego | `base` | `premios.modalidades` | `premios.comodines` | Cambio vs hoy |
 |---|---|---|---|---|
-| lotto-activo, lotto-activo-rd, lotto-activo-rep-dom | 30 | `dupleta:1000` | — | +dupleta (familia, según spec) |
+| lotto-activo, lotto-activo-rd, lotto-activo-rep-dom | 30 | — (Dupleta fuera de alcance) | — | — |
 | terminal-activo | 60 | — | — | fix N1 |
-| monje-millonario | **50** | — | `patronus-75` (numero 75, 120) · `patronus-palabra` (palabra, +20 acumulativo) | 30→50, +comodines y captura de `patronus` |
+| monje-millonario | **50** | — | `patronus-75` (numero 75, 120) · `patronus-palabra` (palabra, +20 acumulativo; 75+palabra = **140**) | 30→50, +comodines y captura de `patronus` |
 | trio-activo | 600 | `terminal:60, punta:60` | — | — |
 | triple-zulia | 600 | `terminal:60, signo_triple:6000, signo_terminal:600` | — | +payload ya existía |
 | triple-caliente | 600 | `terminal:60, signo_triple:6000, signo_terminal:600` | — | — |
@@ -176,7 +202,7 @@ vocabulario canónico. El seeder/test que los escriba garantiza que ambos repres
 | triple-facil | 700 | `terminal:60, aproximacion:10` | — | — |
 | triple-zamorano | 600 | `terminal:60, uña:5, signo_triple:6000, signo_terminal:600, signo_uña:60` | — | — |
 | el-arrejuntado | **40** | `triple_a:600, triple_b:600, signo_triple:6000, arrimao:6000, pegadito:60000` | — | 30→40 + modalidades |
-| cazaloton | 30 | `dupleta:800, tripleta:200` | — | — |
+| cazaloton | 30 | `tripleta:200` | — | sin dupleta (fuera de alcance) |
 | loto-chaima | **40** | `tripleta:50` | — | 30→40 + tripleta |
 | el-guacharito | 70 | — | `guacharito-99` (numero 99, 150) | +tipo |
 | guacharo-activo | 60 | — | `guacharo-75` (numero 75, 120) | +tipo |
@@ -205,28 +231,29 @@ public function reglas(Juego $juego): array; // {base, modalidades, comodines} p
 plugin. `PremiosEngine::calcular`: (1) juego inactivo o sin plugin → 0; (2) `evaluarAcierto` no coincide →
 0; (3) multiplicador = `modalidades[clave] ?? base` (fallback transicional `premio_multiplo` solo para
 `base`); (4) overlay de comodines (los `flag`/`letra`/`numero` **reemplazan** el multiplicador vigente, el
-mayor gana; `palabra` **suma** +20); (5) `round(monto × mult, 2)`.
+mayor gana; `palabra` **suma** +20 acumulativo: normal 50+20=70, Patronus 120+20=**140**); (5)
+`round(monto × mult, 2)`.
 
-### 3.4 `combinacion` v2 (Fase 2, retrocompatible)
+### 3.4 `combinacion` en Fase 2 (sin cambios de tabla)
 
 ```json
+// Modalidades multi-selección del MISMO sorteo (Cruzado Punta A+B, Par Millonario A+B, Tripleta)
 {
-  "modalidad": "dupleta",
-  "lineas": [
-    {"tipo": "animal", "animal": "Zorro", "sorteo_hora": "2026-09-17 10:00:00"},
-    {"tipo": "animal", "animal": "Tigre", "sorteo_hora": "2026-09-17 11:00:00"}
+  "modalidad": "triple_a_b",
+  "selecciones": [
+    {"tipo": "triple_a", "numero": "452"},
+    {"tipo": "triple_b", "numero": "310"}
   ]
 }
 ```
 
-Sin `lineas`, el shape actual (`{animal}`, `{tipo, numero, signo}`, `{numero}`) sigue vigente. Reglas:
-multi-línea paga solo si **todas** las líneas coinciden (Dupleta respeta el orden de sorteos; Chance A+B
-tiene los tiers `triple_a_b`/`solo_a_b`); `apuestas.sorteo_hora` guarda el primer sorteo (compat) y las
-líneas llevan su propio `sorteo_hora`; la liquidación multi-sorteo se dispara cuando **todos** los
-resultados referenciados existen (paso nuevo en `ScrapeResultsJob`, agrupado por juego+fecha). Contratos
-API afectados: `POST /apuestas` y `POST /tickets` (`lines[].combinacion` acepta el shape aditivo),
-`GET /apuestas/{id}` y `GET /tickets/ganadores` (devuelven el JSON tal cual). Queda para el front: enviar
-`modalidad`+`lineas` y renderizar multi-línea.
+Sin `selecciones`, el shape actual (`{animal}`, `{tipo, numero, signo}`, `{numero}`) sigue vigente; la
+apuesta sigue siendo **1 monto + 1 sorteo** (`apuestas.sorteo_hora`) y se liquida contra el resultado de
+ese único sorteo, sin paso multi-sorteo. `modalidad` es opcional y, si falta, el plugin la deriva con
+`modalidadDe()`. La **Dupleta no se implementa** (multi-sorteo con un solo monto: el front ya la modela
+como apuestas independientes). Contratos API: `POST /apuestas`/`POST /tickets` (`lines[].combinacion`
+acepta el shape aditivo) y `GET /apuestas/{id}`/`GET /tickets/ganadores` (devuelven el JSON tal cual).
+Queda para el front enviar `modalidad`/`selecciones` para las modalidades nuevas.
 
 ## 4. Flujo de datos
 
@@ -258,7 +285,7 @@ ScrapeResultsJob ── dedupe del día (juego+fecha+hora) ──→ verificarGa
 | N11 | Validar el monto contra el engine (no plugin directo); aceptar `ganadora` y `pendiente` legacy | `Http/Controllers/Api/PagoController.php` |
 | N12 | Pasar opciones reales del juego | `Services/JuegoPluginManager.php::validarApuesta` |
 | N4 | `premio_posible` con `premioPosible()` (sin resultados vacíos) | `Services/ApuestaService.php::createApuesta`, `DetalleApuesta` |
-| N5 | Estados + job de vencimiento | migración ENUM, `Jobs/MarcarApuestasVencidasJob.php`, `routes/console.php` |
+| N5 | Estados + job de vencimiento (24 h configurable) con catch-up de búsqueda previa | migración ENUM, `Jobs/MarcarApuestasVencidasJob.php`, `Services/ConfiguracionService.php`, `Http/Controllers/Api/ConfiguracionController.php`, `routes/console.php`, `routes/api.php` |
 | N6 | Dedupe migración + guard en job | migración `dedupe_resultados…`, `Jobs/ScrapeResultsJob.php` |
 | N9 | `str_pad` a 3/2 cifras en comparaciones de triples y terminales | `Tripletas`, `Terminales` |
 | H1/H8b/N13 | Comodines `flag`/`letra`/`numero` desde `config.premios.comodines` | `PremiosEngine` |
@@ -281,7 +308,9 @@ asserta campos legacy que se conservan.
 | `backend/app/Support/Texto.php` | Crear | Normalización de acentos/case compartida |
 | `backend/app/Support/PremiosOficiales.php` | Crear | Catálogo único de los 21 juegos (base/modalidades/comodines) desde la tabla del spec |
 | `backend/app/Services/PremiosEngine.php` | Crear | Reglas, comodines, redondeo, `premio_posible` |
-| `backend/app/Jobs/MarcarApuestasVencidasJob.php` | Crear | `pendiente` sin resultado tras gracia (48 h) → `vencido` |
+| `backend/app/Jobs/MarcarApuestasVencidasJob.php` | Crear | Catch-up de resultados por `(juego, fecha)` reutilizando `ScrapeResultsJob` + `pendiente` sin resultado tras ventana (24 h config.) → `vencido` |
+| `backend/app/Services/ConfiguracionService.php` | Crear | Lee/escribe settings en `configuraciones` (default 24 h para `apuestas.vencimiento_sin_resultado`) |
+| `backend/app/Http/Controllers/Api/ConfiguracionController.php` | Crear | `GET/PUT` de la ventana de vencimiento, restringido a `super_master`/`master` |
 | `backend/app/Plugins/Contracts/JuegoInterface.php` | Modificar | `evaluarAcierto`, `modalidadDe`, firma de `validarApuesta` |
 | `backend/app/Plugins/Juegos/{Animalitos,Tripletas,Terminales}.php` | Modificar | Acentos, tipo estricto, signo label/sigla, terminal `numero`, claves canónicas |
 | `backend/app/Services/JuegoPluginManager.php` | Modificar | Fachada al engine, opciones en `validarApuesta`, `getMultiplicador` desde config |
@@ -291,9 +320,10 @@ asserta campos legacy que se conservan.
 | `backend/app/Http/Controllers/Api/JuegoController.php` | Modificar | `reglas` incluye `premios` (informativo, aditivo) |
 | `backend/app/Plugins/Scrapers/AnimalitosScraper.php` | Modificar | Persistir `patronus` (Monje) |
 | `backend/app/Plugins/Scrapers/BaseScraper.php` | Modificar | `saveResults` normaliza hora y usa upsert |
-| `backend/app/Jobs/ScrapeResultsJob.php` | Modificar | Dedupe defensivo antes de liquidar; paso multi-sorteo (Fase 2) |
+| `backend/app/Jobs/ScrapeResultsJob.php` | Modificar | Dedupe defensivo antes de liquidar |
 | `backend/app/Services/JuegoCatalogoService.php` | Modificar | Export `premios`, `active`, `vendible` (aditivo) |
-| `backend/routes/console.php` | Modificar | Agendar `MarcarApuestasVencidasJob` |
+| `backend/routes/console.php` | Modificar | Agendar `MarcarApuestasVencidasJob` (diario) |
+| `backend/routes/api.php` | Modificar | Endpoints de configuración de la ventana de vencimiento (`role:super_master\|master`) |
 | `backend/database/seeders/*` (21) | Modificar | `premios` + espejos desde `PremiosOficiales`; `la-ricachona` inactiva |
 | `docs/juegos.json` | Modificar | Regenerado por `php artisan juegos:export` |
 | `backend/database/migrations/*` (3) | Crear | Ver §7 |
@@ -315,9 +345,9 @@ portabilidad con `lotto_test`. El orden importa: la normalización de hora prece
 
 | Capa | Qué se prueba | Enfoque |
 |---|---|---|
-| Unit | `Texto` (acentos, case), `PremiosEngine` (base, modalidad, comodines flag/letra/numero/palabra, override vs suma, redondeo 1.23456→1.23, inactivo, `premioPosible`) | Datos en memoria, sin BD |
-| Unit plugins | `evaluarAcierto`/`modalidadDe` por plugin: acentos, tipo estricto, signo label/sigla, terminal `numero` con padding | `PremiosOficiales` como config de entrada |
-| Feature | Regresión por juego (tabla abajo), `verificarGanadores` (estados), `PagoController` (ganadora/legacy), `TicketController::ganadores` (hora), dedupe (dos filas → una evaluación), job de vencimiento, `JuegosJsonTest` | `RefreshDatabase` + seeders |
+| Unit | `Texto` (acentos, case), `PremiosEngine` (base, modalidad, comodines flag/letra/numero/palabra —incluido 120+20=140—, override vs suma, redondeo 1.23456→1.23, inactivo, `premioPosible`), `ConfiguracionService` (default 24 h, override) | Datos en memoria, sin BD |
+| Unit plugins | `evaluarAcierto`/`modalidadDe` por plugin: acentos, tipo estricto, signo label/sigla, terminal `numero` con padding, `selecciones[]` same-draw | `PremiosOficiales` como config de entrada |
+| Feature | Regresión por juego (tabla abajo), `verificarGanadores` (estados), `PagoController` (ganadora/legacy), `TicketController::ganadores` (hora), dedupe (dos filas → una evaluación), vencimiento (24 h, catch-up con/sin resultado, role-gating 403), `JuegosJsonTest` | `RefreshDatabase` + seeders |
 | Contrato | `docs/juegos.json` == export con `premios`/`active` | Test existente extendido |
 
 **Tabla de regresión por juego (mínimo un caso por juego + comodines):**
@@ -327,7 +357,7 @@ portabilidad con `lotto_test`. El orden importa: la normalización de hora prece
 | lotto-activo | "Delfín" vs "Delfin" | 30× |
 | lotto-activo-rd / rep-dom | base | 30× |
 | terminal-activo | `numero=37` | 60× |
-| monje-millonario | figura 42 / 42+palabra / 75 | 50× / 70× / 120× |
+| monje-millonario | figura 42 / 42+palabra / 75 / 75+palabra | 50× / 70× / 120× / **140×** |
 | trio-activo | triple_a | 600× |
 | triple-zulia | acierto en `triple_b` con apuesta `triple_a` | 0 (REQ5) |
 | triple-caliente | triple_c + signo label | 6.000× |
@@ -349,7 +379,7 @@ portabilidad con `lotto_test`. El orden importa: la normalización de hora prece
 
 ```bash
 php artisan test --filter='PremiosEngineTest|TextoTest|AnimalitosPluginTest|TerminalesPluginTest|TripletasPluginTest'
-php artisan test --filter='MotorPremiosRegresionTest|JuegosJsonTest|ScrapeResultsJobTest'
+php artisan test --filter='MotorPremiosRegresionTest|JuegosJsonTest|ScrapeResultsJobTest|VencimientoApuestasTest|ConfiguracionVencimientoTest'
 php artisan test                                   # suite completa (CI)
 php artisan juegos:export && git diff --exit-code docs/juegos.json   # contrato regenerado
 ```
@@ -358,7 +388,8 @@ php artisan juegos:export && git diff --exit-code docs/juegos.json   # contrato 
 
 **N/A** — este cambio no introduce routing, shell, subprocesos, automatización VCS/PR, clasificación de
 ejecutables ni integración de procesos nuevos. El único proceso afectado es el scheduler interno de
-Laravel, ya existente (se agrega un job diario idempotente).
+Laravel, ya existente: se agrega un job diario idempotente que **reutiliza** `ScrapeResultsJob` y el
+mecanismo de cola actual, sin shell ni subprocesos nuevos.
 
 ## 10. Riesgos y mitigaciones
 
@@ -367,18 +398,29 @@ Laravel, ya existente (se agrega un job diario idempotente).
 | Valores mal migrados → pagar de más/menos | Media | `PremiosOficiales` único + test que compara contra la tabla del spec + migración revisable |
 | Ruptura de contrato del front (`panel`/`taquilla`) | Baja | Campos aditivos; `premio_multiplo`/`modalidades`/`comodines` intactos; `ganadora` es un valor más del mismo campo |
 | Doble liquidación / sobreescritura | Baja | `whereNull(resultado_id)` + transición de estado + dedupe en job y datos |
-| `premio_total_*` del ticket se sobreescribe entre sorteos | Media | Acumular con `increment` por jugada ganadora (test multi-sorteo) |
-| Semántica de `special_result` sin confirmar | Media | Se mapea como `patronus` (mismo criterio que el front oficial `id_game==7`); pregunta abierta |
+| `premio_total_*` del ticket se sobreescribe entre sorteos | Media | Acumular con `increment` por jugada ganadora (test de ticket con jugadas en varios sorteos) |
+| Semántica de `special_result` por confirmar | Media | Se mapea como `patronus` (mismo criterio que el front oficial `id_game==7`); validar con una captura real antes de confiar ciegamente en el flag (H14) |
+| Vencimiento prematuro por scraper caído | Baja | El job reintenta la búsqueda (catch-up) antes de vencer; limitación documentada para juegos sin histórico (mega) |
+| Ventana mal configurada | Baja | Endpoints `role:super_master\|master` + default 24 h si no existe la fila |
 | Migración de dedupe sobre datos sucios | Baja | Idempotente, fusiona claves y conserva `premios_detalle`; `down` documentado |
 | `la-ricachona` deja tickets/ventas previas | Baja | `active=false` sin borrar; apuestas previas no se reliquidan (decisión de propuesta) |
 
-## 11. Preguntas abiertas
+## 11. Decisiones del cliente aplicadas (resueltas)
 
-- [ ] ¿Patronus figura 75 **con** palabra paga 120× o 120+20=140×? (se implementa la suma acumulativa por regla general; confirmar)
-- [ ] ¿La Dupleta 1.000× aplica a toda la familia Lotto Activo o solo a `lotto-activo`? (spec autoritativa dice familia; docs solo la listan en `lotto-activo`)
-- [ ] ¿La palabra PATRONUS aplica solo sobre figura normal (reglamento) o también sobre la figura 75?
-- [ ] Ventana de vencimiento por ausencia de resultado: ¿48 h fijas o configurable por banca/grupo?
-- [ ] ¿El front (taquilla/panel) agregará `ganadora` a sus filtros y consumirá `premios`/`active`? (fuera de alcance, contrato listo)
+- ✅ **Patronus 75 + palabra PATRONUS = 140× (acumula)**: figura normal 50× → 70× con palabra; Patronus 75
+  → 120×; **75 + palabra = 140×** (120+20). La regla `+20×` aplica sobre cualquier multiplicador vigente.
+- ✅ **Dupleta FUERA DE ALCANCE**: cada jugada es una apuesta independiente con su propio monto; no hay
+  multi-línea ni multi-sorteo. El resto de Fase 2 es de un solo sorteo y la multi-selección same-draw va
+  dentro del JSON `combinacion` existente (`selecciones[]`).
+- ✅ **Vencimiento 24 h por defecto y configurable** (solo `super_master`/`master`) con **garantía de
+  búsqueda** previa (catch-up `ScrapeResultsJob`) antes de marcar `vencido`.
+
+Residuales (no bloquean el diseño):
+
+- [ ] Validar con una captura real la semántica de `special_result` (H14); el diseño lo mapea como
+  `patronus` según el criterio del front oficial (`id_game==7`).
+- [ ] ¿El front (taquilla/panel) agregará `ganadora` a sus filtros y consumirá `premios`/`active`?
+  (fuera de alcance; contrato listo).
 
 ## 12. Mapa REQ → diseño
 
@@ -389,14 +431,14 @@ Laravel, ya existente (se agrega un job diario idempotente).
 | REQ3 terminales | §5 (N1), `Terminales::evaluarAcierto`, base 60 config |
 | REQ4 signos label/sigla | D3, §5 (N2), `Tripletas` |
 | REQ5 tipo estricto | §5 (N3), `Tripletas::evaluarAcierto` |
-| REQ6 comodines | §3.2, §5 (H1/H8b/N13/H14), `PremiosEngine` + mapper `patronus` |
+| REQ6 comodines | §3.2, §5 (H1/H8b/N13/H14), `PremiosEngine` + mapper `patronus`; palabra +20 acumulativa (75+palabra = 140×) |
 | REQ7 juegos sin fuente | D4/§3.2 (`la-ricachona`), guard en `createApuesta`, D10 export |
 | REQ8 redondeo | D7, `PremiosEngine` |
 | REQ9 ganadores por sorteo | §5 (N7), `TicketController::ganadores` |
 | REQ10 pago vs motor corregido | §5 (N11), `PagoController` vía manager |
-| REQ11 modalidades complejas | D8, §3.4 |
+| REQ11 modalidades complejas | D8, §3.4 (un solo sorteo; Dupleta fuera de alcance; `selecciones[]` same-draw) |
 | REQ12 `premio_posible` | D9, `premioPosible` + `modalidadDe` |
-| REQ13 estados | D5, migración ENUM + job + transiciones |
+| REQ13 estados | D5, migración ENUM + job de vencimiento (24 h configurable, super_master/master) + catch-up de búsqueda |
 | REQ14 dedupe pre-H22 | D6, migración + guard en `ScrapeResultsJob` |
 | REQ15 validación con opciones | §5 (N12), `JuegoPluginManager::validarApuesta` |
 | REQ16 tests de regresión | §8 |

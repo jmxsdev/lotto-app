@@ -13,7 +13,7 @@ deduplicación pre-H22, redondeo y deshabilitación de juegos sin fuente.
 
 | Juego | Base | Modalidades | Comodines |
 |---|---|---|---|
-| Lotto Activo (familia) | 30× | Dupleta 1.000× | — |
+| Lotto Activo (familia) | 30× | — (Dupleta 1.000× **fuera de alcance**) | — |
 | Terminal Trío | 60× | — | — |
 | Trío Activo | 600× | Terminal 60× · Punta 60× | — |
 | Triple Zulia | 600× | Cola 60× · Zodiacal 6.000× · Terminal+Zodiacal 600× | — |
@@ -22,8 +22,8 @@ deduplicación pre-H22, redondeo y deshabilitación de juegos sin fuente.
 | Triple Táchira | 500× | Terminal/Cola 50× · Zodiacal 5.000× | — |
 | Triple Chance | 600× | A+B 200.000× · solo A/B 150× · Punta 60× · Terminal 60× · Cruzado 3.000×/10× · C+Signo 6.000× · Terminal+Signo 600× | — |
 | Triple Fácil | 700× | Terminal 60× · Aproximación 10× | — |
-| Cazalotón | 30× | Dupleta 800× · Tripleta 200× | — |
-| Monje Millonario | 50× | — | Patronus (75) 120× · palabra PATRONUS +20× |
+| Cazalotón | 30× | Tripleta 200× (Dupleta 800× **fuera de alcance**) | — |
+| Monje Millonario | 50× | — | Patronus (75) 120× · palabra PATRONUS +20× acumulativa (normal 70×; **75+palabra = 140×**) |
 | El Arrejuntado | 40× | Triple A/B 600× · Triple+Signo 6.000× · Arrimao 6.000× · Pegadito 60.000× | — |
 | El Guacharito | 70× | — | Guacharito (99) 150× |
 | Guácharo Activo | 60× | — | Guácharo (75) 120× |
@@ -100,7 +100,8 @@ apostado (`triple_a` contra `a`, `triple_b` contra `b`, `triple_c` contra `c`).
 
 El sistema SHALL aplicar el comodín cuando el resultado lo trae: MEGA (`comodin===true` → 40×), Selva
 (`comodin` "A" → 160×, "B" → 200×), Guacharito (figura 99 → 150×), Guácharo (figura 75 → 120×), Monje
-(Patronus figura 75 → 120×; palabra PATRONUS → +20× acumulado = 70× con figura).
+(Patronus figura 75 → 120×; palabra PATRONUS → +20× **acumulativo sobre el multiplicador vigente**:
+figura normal 50+20=70×; **Patronus 75 + palabra = 120+20 = 140×**).
 
 #### Scenario: Comodín MEGA
 
@@ -113,6 +114,12 @@ El sistema SHALL aplicar el comodín cuando el resultado lo trae: MEGA (`comodin
 - GIVEN una apuesta a `monje-millonario` figura 42 y el resultado trae la palabra PATRONUS
 - WHEN sale la figura 42
 - THEN el premio es `10 × 70 = Bs. 700`
+
+#### Scenario: Patronus 75 con palabra acumula 140×
+
+- GIVEN una apuesta a `monje-millonario` a la figura 75 (Patronus) por Bs. 10 y el resultado trae la palabra PATRONUS
+- WHEN sale la figura 75
+- THEN el premio es `10 × 140 = Bs. 1.400` (120 del Patronus + 20 de la palabra)
 
 ### Requirement: Juegos sin fuente deshabilitados
 
@@ -158,18 +165,29 @@ juego/fecha/estado) para no declarar ganador contra un sorteo distinto al aposta
 - WHEN el cajero paga el premio del reglamento
 - THEN el pago se acepta (coincide con `calcularPremio`)
 
-### Requirement: Modalidades complejas y ampliación del modelo
+### Requirement: Modalidades complejas de un solo sorteo
 
-El sistema SHALL soportar las modalidades complejas de Fase 2: Dupleta (Lotto Activo 1.000×, Cazalotón
-800×), Tripleta Cazalotón 200×, Cruzado Chance 3.000×/10×, El Arrimao (4 cifras, 6.000×) y El Pegadito
-(5 cifras, 60.000×) del Arrejuntado, Punta/Terminal/Aproximación por juego y Terminal+Zodiacal Táchira.
-La apuesta `combinacion` de una línea SHALL ampliarse para representar multi-combinación/sorteos.
+El sistema SHALL soportar las modalidades complejas de Fase 2 que corresponden a **un solo sorteo** y se
+liquidan como apuestas individuales con su propio monto: Tripleta Cazalotón 200× / Loto Chaima 50×,
+Cruzado Chance 3.000×/10×, Par Millonario 200.000×, El Arrimao (4 cifras, 6.000×) y El Pegadito (5 cifras,
+60.000×) del Arrejuntado, Punta/Terminal/Aproximación por juego y Terminal+Zodiacal Táchira. La **Dupleta
+MUST NOT implementarse**: cada jugada es una apuesta independiente con su propio monto y su propio sorteo
+(el front ya crea apuestas separadas), de modo que el sistema nunca combina dos sorteos en una sola
+apuesta. Las modalidades de 2 o más selecciones del MISMO sorteo (Cruzado Punta A+B, Par Millonario A+B,
+Tripleta) SHALL representarse dentro del JSON `combinacion` existente (`selecciones[]`), sin tablas nuevas
+y sin liquidación multi-sorteo.
 
-#### Scenario: Dupleta requiere ampliar el modelo
+#### Scenario: Dupleta fuera de alcance
 
-- GIVEN una apuesta Dupleta (2 animalitos, 2 sorteos)
-- WHEN se modela
-- THEN la apuesta representa las dos combinaciones y sorteos (no una sola línea)
+- GIVEN un intento de modelar una Dupleta (2 animalitos, 2 sorteos) con un solo monto
+- WHEN el sistema valida la apuesta
+- THEN la modalidad es rechazada (no soportada) y el front la modela como dos apuestas independientes
+
+#### Scenario: Cruzado con dos selecciones del mismo sorteo
+
+- GIVEN una apuesta Cruzado con Punta A y Punta B del mismo sorteo por Bs. 10
+- WHEN se liquida contra el resultado de ese único sorteo
+- THEN se representa en `combinacion.selecciones[]` (un solo `sorteo_hora`) y paga el multiplicador del Cruzado
 
 ### Requirement: premio_posible calculado
 
@@ -182,17 +200,39 @@ El sistema SHALL calcular `premio_posible` como `monto × multiplicador` de la m
 - WHEN se crea la apuesta
 - THEN `premio_posible` refleja `10 × 50 = Bs. 500`
 
-### Requirement: Estados de apuesta
+### Requirement: Estados de apuesta y vencimiento sin resultado
 
 El sistema SHALL transicionar la apuesta ganadora de `pendiente` a `ganadora` (con `resultado_id`) y
-luego a `pagada` al pagarse; la perdedora a `perdida`; y SHALL marcar como `perdida`/vencida la apuesta
-cuyo resultado nunca llega.
+luego a `pagada` al pagarse; la perdedora a `perdida`; y SHALL marcar como `vencido` la apuesta cuyo
+resultado nunca llega, con una ventana por defecto de **24 horas** configurable. La ventana SHALL ser
+editable únicamente por los roles `super_master` y `master`. Antes de vencer una apuesta, el sistema SHALL
+garantizar un reintento de búsqueda del resultado (catch-up por juego+fecha reutilizando
+`ScrapeResultsJob`); solo las apuestas que siguen sin resultado tras la ventana y el reintento pasan a
+`vencido`.
 
 #### Scenario: Transición ganadora → pagada
 
 - GIVEN una apuesta `ganadora` liquidada
 - WHEN se paga el premio
 - THEN pasa a `pagada`
+
+#### Scenario: Vencimiento tras la ventana configurable
+
+- GIVEN una apuesta `pendiente` sin `resultado_id` cuyo sorteo ocurrió hace más de la ventana configurada y cuyo reintento de búsqueda no encontró resultado
+- WHEN se ejecuta el job de vencimiento
+- THEN la apuesta pasa a `vencido`
+
+#### Scenario: El reintento de búsqueda evita el vencimiento
+
+- GIVEN una apuesta `pendiente` sin resultado cuyo sorteo ocurrió hace más de la ventana configurada
+- WHEN el job relanza la búsqueda por juego+fecha y el resultado aparece
+- THEN la apuesta se liquida (ganadora o perdida) y NO pasa a `vencido`
+
+#### Scenario: Solo super_master y master configuran la ventana
+
+- GIVEN un usuario con un rol distinto de `super_master` o `master`
+- WHEN intenta modificar la ventana de vencimiento
+- THEN la petición es rechazada (403)
 
 ### Requirement: Deduplicación de resultados pre-H22
 
@@ -219,7 +259,8 @@ igual que `createApuesta`, para validar contra el zoológico del juego y no cont
 ### Requirement: Tests de regresión por juego
 
 El sistema SHALL incluir tests de regresión con al menos un caso por plugin y por comodín, cubriendo
-acentos, terminales, signos, comodines y premio base.
+acentos, terminales, signos, comodines (incluido Patronus 75 + palabra = 140×), modalidades de un solo
+sorteo y premio base.
 
 #### Scenario: Regresión por juego en verde
 
