@@ -24,9 +24,9 @@ Chain strategy: feature-branch-chain
 
 ## Fase 1 — Núcleo (config-driven, acentos, comodines)
 
-- [ ] 1.1 RED `tests/Unit/TextoTest.php` → GREEN `app/Support/Texto.php::normalizar()`. Done: "Delfín"≡"Delfin".
-- [ ] 1.2 RED `tests/Unit/PremiosOficialesTest.php` → GREEN `app/Support/PremiosOficiales.php` (21 juegos). Done: catálogo == spec.
-- [ ] 1.3 RED `tests/Unit/PremiosEngineTest.php` → GREEN `app/Services/PremiosEngine.php` (`calcular`,`premioPosible`,`reglas`). Done: 75+palabra=140×; 1.23456→1.23; inactivo→0.
+- [x] 1.1 RED `tests/Unit/TextoTest.php` → GREEN `app/Support/Texto.php::normalizar()`. Done: "Delfín"≡"Delfin".
+- [x] 1.2 RED `tests/Unit/PremiosOficialesTest.php` → GREEN `app/Support/PremiosOficiales.php` (21 juegos). Done: catálogo == spec.
+- [x] 1.3 RED `tests/Unit/PremiosEngineTest.php` → GREEN `app/Services/PremiosEngine.php` (`calcular`,`premioPosible`,`reglas`). Done: 75+palabra=140×; 1.23456→1.23; inactivo→0.
 - [ ] 1.4 `app/Plugins/Contracts/JuegoInterface.php`: +`evaluarAcierto()`,`modalidadDe()`,`validarApuesta(data,?opciones)`. Done: 3 plugins implementan.
 - [ ] 1.5 RED `tests/Unit/AnimalitosPluginTest.php` → GREEN `app/Plugins/Juegos/Animalitos.php` (acentos). Done: H13/N10.
 - [ ] 1.6 RED `tests/Unit/TerminalesPluginTest.php` → GREEN `app/Plugins/Juegos/Terminales.php` (clave `numero`, padding). Done: 37→60× (N1).
