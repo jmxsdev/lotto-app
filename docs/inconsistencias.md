@@ -29,7 +29,9 @@ fuente oficial, **(3)** gaps de nuestro sistema. Evidencia detallada por juego e
 | H18 | `triple-caliente` | Reglamento oficial (Art. 10): **5 sorteos 11:10/13:10/15:10/17:10/19:10** (domingos solo 19:10). API oficial: **3 sorteos 13:00/16:30/19:10** (234 respuestas, timestamps) | Se prioriza la **operación real** (13:00/16:30/19:10, lo que consume el scraper); desajuste documentado, confirmar con el operador (WU f26) |
 | H19 | `triple-zamorano` | Reglamento NOV2025: sorteos **todos los días** (5 horarios). API oficial: **domingos solo 19:00** (consistente en 87 días de muestra) | Se mantiene la operación real (domingos solo 19:00); confirmar con la Operadora 1923 (WU f26) |
 | H20 | `mega-animal-40` | **Sitio oficial encontrado**: megaanimal40.com (CONALOT + Big Data Tecnology + Lotería de Cojedes) publica premios (30×/40×), horarios (12, 09:00–20:00) y resultados; el scraper actual usa resultadosvenezuela.com (excepción autorizada de f14) | ✅ **RESUELTO (WU f27)**: scraper **MIGRADO al sitio oficial** (`MegaAnimal40OficialScraper` → `POST megaanimal40.com/core/process.php` con token; seeder `updateOrCreate` con `scraper_url`/`scraper_class`/comodín MEGA en config). El scraper del proveedor (`MegaAnimal40Scraper`) queda como clase durmiente (no borrado) |
-| — | `lotto-activo` | Reglamento PDF es imagen no parseable; la modalidad Dupleta 1.000× no tiene respaldo | Pendiente de reglamento legible |
+| — | `lotto-activo` | Reglamento PDF es imagen no parseable; la modalidad Dupleta 1.000× no tiene respaldo | Pendiente de reglamento legible (la Dupleta 1.000× sí aparece en el reglamento de la familia "Lotto Activo") |
+| **H23** | `triple-chance` | **Reglamento oficial vs afiche oficial**: solo A/B **150×** (reglamento) vs 100× (afiche); C+Signo **6.000×** vs 5.000×; Cruzado 3.000×/10× | Pendiente decisión (se prioriza reglamento; ver `docs/multiplicadores-juegos.md`) |
+| **H24** | `selva-plus` | **Reglamento oficial (30×) vs operación/web oficial (80× base + comodines 160×/200×)** | Se prioriza la operación (80× + comodines); discrepancia documentada |
 
 ## 3. Gaps de nuestro sistema
 
