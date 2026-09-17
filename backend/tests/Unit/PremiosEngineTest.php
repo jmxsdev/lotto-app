@@ -34,8 +34,8 @@ class PremiosEngineTest extends TestCase
     }
 
     /**
-     * Stub de plugin con `evaluarAcierto` (y `modalidadDe`), como los
-     * adaptadores que implementarán los plugins en F1b (design §3.3).
+     * Plugin stub con `evaluarAcierto` (y `modalidadDe`), como los
+     * adaptadores que implementan los plugins desde F1b (design §3.3).
      */
     private function pluginConAcierto(array $acierto, string $modalidadDe = 'base'): JuegoInterface
     {
@@ -99,61 +99,6 @@ class PremiosEngineTest extends TestCase
             public function modalidadDe(array $combinacion): string
             {
                 return $this->modalidadDe;
-            }
-        };
-    }
-
-    /**
-     * Plugin legacy sin `evaluarAcierto` (estado pre-F1b): el motor no puede
-     * conocer la forma del acierto y debe devolver 0 sin romper.
-     */
-    private function pluginLegacy(): JuegoInterface
-    {
-        return new class implements JuegoInterface
-        {
-            public function validarApuesta(array $data, ?array $opciones = null): bool
-            {
-                return true;
-            }
-
-            public function calcularPremio(array $apuesta, array $resultados): array
-            {
-                return ['premio_bs' => 0, 'premio_usd' => 0];
-            }
-
-            public function obtenerReglas(): array
-            {
-                return [];
-            }
-
-            public function obtenerOpciones(): array
-            {
-                return [];
-            }
-
-            public function obtenerHorarios(): array
-            {
-                return [];
-            }
-
-            public function obtenerModalidades(): array
-            {
-                return [];
-            }
-
-            public function obtenerMultiplicador(): float
-            {
-                return 1.0;
-            }
-
-            public function getValidationRules(): array
-            {
-                return [];
-            }
-
-            public function getValidationMessages(): array
-            {
-                return [];
             }
         };
     }
@@ -258,16 +203,16 @@ class PremiosEngineTest extends TestCase
         $this->assertEquals(['premio_bs' => 0.0, 'premio_usd' => 0.0], $premio);
     }
 
-    public function test_plugin_sin_evaluar_acierto_transicional_no_liquida()
+    public function test_motor_activa_el_adaptador_evaluar_acierto_del_plugin()
     {
-        // F1a: los plugins aún no implementan evaluarAcierto (F1b). El motor
-        // devuelve 0 en lugar de romper o de hardcodear la forma del acierto.
+        // F1b: el guard transicional method_exists desaparece; el motor usa el
+        // adaptador del plugin directo (JuegoInterface lo garantiza, D1/C).
         $juego = $this->juego('lotto-activo', ['base' => 30, 'modalidades' => [], 'comodines' => []]);
-        $engine = $this->motorCon($this->pluginLegacy());
+        $engine = $this->motorCon($this->pluginConAcierto(['coincide' => true, 'clave' => 'base', 'meta' => []]));
 
         $premio = $engine->calcular($juego, ['amount_bs' => 10, 'amount_usd' => 0], []);
 
-        $this->assertEquals(['premio_bs' => 0.0, 'premio_usd' => 0.0], $premio);
+        $this->assertEquals(['premio_bs' => 300.0, 'premio_usd' => 0.0], $premio);
     }
 
     // ---------------- calcular(): comodines ----------------

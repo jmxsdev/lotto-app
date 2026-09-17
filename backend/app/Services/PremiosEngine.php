@@ -19,9 +19,8 @@ use App\Plugins\Contracts\JuegoInterface;
  *   - palabra (acumulativa): SUMA +premio_multiplo sobre el multiplicador vigente
  *     (figura normal 50+20=70×; Patronus 75 120+20=140× → 10 × 140 = Bs. 1.400)
  *
- * Transición F1a: los plugins aún no implementan `evaluarAcierto` (llega en
- * F1b). Mientras no exista el adaptador, el motor no puede conocer la forma
- * del acierto y devuelve 0 en lugar de hardcodear la interpretación.
+ * Activado en F1b: los plugins implementan `evaluarAcierto`/`modalidadDe`
+ * (JuegoInterface, design §3.3); el motor usa el adaptador directamente.
  */
 class PremiosEngine
 {
@@ -142,24 +141,20 @@ class PremiosEngine
     }
 
     /**
-     * Forma del acierto vía el adaptador del plugin. Sin `evaluarAcierto`
-     * (transición F1a) el motor devuelve "no coincide": no hardcodea la forma.
+     * Forma del acierto vía el adaptador del plugin (F1b: todos los plugins
+     * implementan JuegoInterface con `evaluarAcierto`).
      *
      * @return array{coincide: bool, clave: string, meta: array<string, mixed>}
      */
     private function evaluarAcierto(JuegoInterface $plugin, array $apuesta, array $resultados): array
     {
-        if (method_exists($plugin, 'evaluarAcierto')) {
-            $acierto = $plugin->evaluarAcierto($apuesta, $resultados);
+        $acierto = $plugin->evaluarAcierto($apuesta, $resultados);
 
-            return [
-                'coincide' => (bool) ($acierto['coincide'] ?? false),
-                'clave' => (string) ($acierto['clave'] ?? 'base'),
-                'meta' => $acierto['meta'] ?? [],
-            ];
-        }
-
-        return ['coincide' => false, 'clave' => 'base', 'meta' => []];
+        return [
+            'coincide' => (bool) ($acierto['coincide'] ?? false),
+            'clave' => (string) ($acierto['clave'] ?? 'base'),
+            'meta' => $acierto['meta'] ?? [],
+        ];
     }
 
     /**
@@ -169,7 +164,7 @@ class PremiosEngine
     private function modalidadDe(Juego $juego, array $combinacion): string
     {
         $plugin = $this->manager->getPlugin($juego);
-        if ($plugin && method_exists($plugin, 'modalidadDe')) {
+        if ($plugin) {
             return (string) $plugin->modalidadDe($combinacion);
         }
 
