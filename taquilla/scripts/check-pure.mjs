@@ -18,6 +18,7 @@ import {
   buscarPorDigito,
   crearBuscadorDigitos,
 } from '../src/utils/catalogo.ts';
+import { buildZoneGraph, routeKey, KEYMAP, esFKey } from '../src/utils/keyboard.ts';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const rutaJson = join(AQUI, '..', 'src', 'data', 'juegos.json');
@@ -194,6 +195,153 @@ buscador2.limpiar();
 ok(buscador2.buffer() === '', 'limpiar() vacía el buffer');
 buscador.teclear('x');
 ok(buscador.buffer() === '05', 'teclear no numérico se ignora');
+
+console.log('\n== A2: grafo de zonas por familia ==');
+const baseEsperada = ['juegos', 'seleccion', 'horarios', 'numero', 'monto', 'anadir', 'resumen'];
+const gNumerica = buildZoneGraph('numerica', {});
+ok(
+  JSON.stringify(gNumerica.zonas) === JSON.stringify(baseEsperada),
+  `numérica usa la base (${gNumerica.zonas.join('→')})`,
+);
+const gTerminal = buildZoneGraph('terminal', {});
+ok(
+  JSON.stringify(gTerminal.zonas) === JSON.stringify(baseEsperada),
+  `terminal usa la base (${gTerminal.zonas.join('→')})`,
+);
+const gAnimal = buildZoneGraph('animalitos', {});
+ok(!gAnimal.incluye('numero'), 'animalitos omite la zona numero (dígitos en seleccion)');
+ok(!gAnimal.incluye('signo'), 'animalitos sin zona signo');
+ok(
+  JSON.stringify(gAnimal.zonas) === JSON.stringify(['juegos', 'seleccion', 'horarios', 'monto', 'anadir', 'resumen']),
+  `animalitos: ${gAnimal.zonas.join('→')}`,
+);
+const gZodSin = buildZoneGraph('zodiacal', {});
+ok(
+  JSON.stringify(gZodSin.zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'horarios', 'numero', 'monto', 'anadir', 'resumen']),
+  `zodiacal sin triple_c: modalidad tras juegos, sin signo (${gZodSin.zonas.join('→')})`,
+);
+const gZodCon = buildZoneGraph('zodiacal', { triple_c: true });
+ok(
+  JSON.stringify(gZodCon.zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'signo', 'horarios', 'numero', 'monto', 'anadir', 'resumen']),
+  `zodiacal con triple_c: zona signo antes de horarios (${gZodCon.zonas.join('→')})`,
+);
+ok(gZodCon.incluye('signo') && !gZodSin.incluye('signo'), 'signo solo si ctx.triple_c (D1)');
+ok(gNumerica.siguiente('resumen') === 'juegos', 'wrap Tab: resumen → juegos');
+ok(gNumerica.anterior('juegos') === 'resumen', 'wrap Shift+Tab: juegos → resumen');
+ok(gNumerica.siguiente(null) === 'juegos', 'foco inicial: siguiente(null) → juegos');
+ok(gAnimal.siguiente('horarios') === 'monto', 'animalitos: horarios → monto (sin numero)');
+ok(gZodCon.siguiente('seleccion') === 'signo', 'zodiacal triple_c: seleccion → signo');
+
+// Coherencia con el catálogo bundled: las familias derivadas generan los
+// grafos correctos para los juegos reales (KB-02).
+const trioActivo = catalogo.porSlug.get('trio-activo');
+ok(trioActivo.familia === 'numerica', 'trio-activo → familia numerica');
+ok(trioActivo.opciones.length === 100, 'trio-activo → 100 opciones 00-99 (KB-02)');
+ok(buildZoneGraph(trioActivo.familia, {}).incluye('numero'), 'numérica 100: incluye zona numero');
+const zulia2 = catalogo.porSlug.get('triple-zulia');
+ok(zulia2.familia === 'zodiacal' && zulia2.opciones.length === 12, 'triple-zulia → zodiacal 12 signos');
+
+console.log('\n== A1: routeKey — F-keys, guards y repeat ==');
+const est = (parcial) => ({
+  tecla: 'F5',
+  repeat: false,
+  ctrlKey: false,
+  shiftKey: false,
+  focoEditable: false,
+  zonaActual: 'juegos',
+  modalAbierto: false,
+  modalPropio: null,
+  columnMode: 'juegos',
+  tieneLineas: false,
+  tieneHistorial: false,
+  ...parcial,
+});
+let r = routeKey(est({ tecla: 'F5', tieneLineas: true }));
+ok(r.consume && r.tipo === 'f-key' && r.ejecutable === true, 'F5 con líneas → consume, ejecutable');
+r = routeKey(est({ tecla: 'F5', tieneLineas: false }));
+ok(r.consume && r.tipo === 'f-key' && r.ejecutable === false, 'F5 sin líneas → consume (preventDefault) pero NO ejecuta');
+r = routeKey(est({ tecla: 'F2', tieneLineas: false }));
+ok(r.consume && r.ejecutable === false, 'F2 sin líneas → guarda bloquea (no-op, A11)');
+r = routeKey(est({ tecla: 'F6', tieneLineas: false }));
+ok(r.consume && r.ejecutable === false, 'F6 sin líneas → guarda bloquea');
+r = routeKey(est({ tecla: 'F3', tieneHistorial: false }));
+ok(r.consume && r.ejecutable === false, 'F3 sin historial → guarda bloquea');
+r = routeKey(est({ tecla: 'F4', tieneHistorial: true }));
+ok(r.consume && r.ejecutable === true, 'F4 con historial → ejecutable');
+r = routeKey(est({ tecla: 'F11' }));
+ok(!r.consume, 'F11 libre → no consume (REQ-KB-07)');
+r = routeKey(est({ tecla: 'F5', repeat: true, tieneLineas: true }));
+ok(!r.consume, 'F5 con e.repeat → se ignora (A1)');
+r = routeKey(est({ tecla: 'F5', focoEditable: true, tieneLineas: true }));
+ok(r.consume && r.tipo === 'f-key' && r.ejecutable, 'F5 en INPUT → sí se intercepta (única excepción F-key)');
+
+console.log('\n== A1: routeKey — guarda de modal (REQ-KB-08) ==');
+r = routeKey(est({ modalAbierto: true, tecla: 'F2', tieneLineas: true }));
+ok(!r.consume, 'modal abierto + F2 → pasa (no ejecuta, KB-08)');
+r = routeKey(est({ modalAbierto: true, tecla: 'F5', tieneLineas: true }));
+ok(!r.consume, 'modal abierto + F5 → pasa');
+r = routeKey(est({ modalAbierto: true, tecla: 'Escape' }));
+ok(r.consume && r.tipo === 'escape' && r.nivel === 'modal', 'modal abierto + Esc → cierra modal');
+r = routeKey(est({ modalAbierto: true, modalPropio: 'f1', tecla: 'F1' }));
+ok(r.consume && r.tipo === 'toggle-modal' && r.modal === 'f1', 'modal ayuda + F1 → toggle propio');
+r = routeKey(est({ modalAbierto: true, modalPropio: 'f9', tecla: 'F9' }));
+ok(r.consume && r.tipo === 'toggle-modal' && r.modal === 'f9', 'modal vuelto + F9 → toggle propio');
+r = routeKey(est({ modalAbierto: true, modalPropio: null, tecla: 'F1' }));
+ok(!r.consume, 'modal genérico + F1 → pasa (sin toggle propio)');
+r = routeKey(est({ modalAbierto: true, tecla: 'Tab' }));
+ok(!r.consume, 'modal abierto + Tab → pasa');
+
+console.log('\n== A1: routeKey — inputs no se secuestran, navegación ==');
+r = routeKey(est({ focoEditable: true, tecla: 'a' }));
+ok(!r.consume, 'typing en INPUT → pasa (no intercepta)');
+r = routeKey(est({ focoEditable: true, tecla: 'Tab' }));
+ok(!r.consume, 'Tab en INPUT → pasa (comportamiento nativo)');
+r = routeKey(est({ focoEditable: true, tecla: 'Escape' }));
+ok(r.consume && r.tipo === 'escape' && r.nivel === 'input', 'Esc en INPUT → blur (consumido)');
+r = routeKey(est({ tecla: 'Tab' }));
+ok(r.consume && r.tipo === 'tab-siguiente', 'Tab en zona → siguiente zona');
+r = routeKey(est({ tecla: 'Tab', shiftKey: true }));
+ok(r.consume && r.tipo === 'tab-anterior', 'Shift+Tab → zona anterior');
+r = routeKey(est({ zonaActual: 'juegos', tecla: 'ArrowRight' }));
+ok(r.consume && r.tipo === 'pestana-siguiente', '→ en zona Juegos → siguiente pestaña');
+r = routeKey(est({ zonaActual: 'juegos', tecla: 'ArrowLeft' }));
+ok(r.consume && r.tipo === 'pestana-anterior', '← en zona Juegos → pestaña anterior');
+r = routeKey(est({ zonaActual: 'seleccion', tecla: 'ArrowRight' }));
+ok(!r.consume, '→ fuera de Juegos → pasa (KB-03)');
+r = routeKey(est({ zonaActual: 'seleccion', tecla: 'ArrowDown' }));
+ok(r.consume && r.tipo === 'fila-siguiente', '↓ en lista → fila siguiente (contextual)');
+r = routeKey(est({ zonaActual: 'horarios', tecla: 'ArrowUp' }));
+ok(r.consume && r.tipo === 'fila-anterior', '↑ en horarios → fila anterior');
+r = routeKey(est({ focoEditable: true, tecla: 'ArrowDown' }));
+ok(!r.consume, '↓ en INPUT → pasa (spinner nativo, A1)');
+r = routeKey(est({ columnMode: 'horarios', zonaActual: 'horarios', tecla: 'Escape' }));
+ok(r.consume && r.tipo === 'escape' && r.nivel === 'juegos', 'Esc en modo horarios → vuelve a Juegos (KB-04)');
+r = routeKey(est({ columnMode: 'juegos', zonaActual: 'monto', tecla: 'Escape' }));
+ok(r.consume && r.tipo === 'escape' && r.nivel === 'zona-anterior', 'Esc fuera de horarios → zona previa');
+r = routeKey(est({ tecla: 'Enter' }));
+ok(!r.consume, 'Enter en zona → pasa (semántica de toggle en PR3a)');
+r = routeKey(est({ tecla: 'x' }));
+ok(!r.consume, 'tecla no mapeada → pasa');
+
+console.log('\n== REQ-KB-07: KEYMAP F1–F12 ==');
+ok(KEYMAP.length === 12, `KEYMAP: 12 teclas (${KEYMAP.length})`);
+ok(esFKey('F1') && esFKey('F12') && esFKey('F9'), 'esFKey F1/F12/F9 → true');
+ok(!esFKey('F13') && !esFKey('f1') && !esFKey('Enter'), 'esFKey no-F → false');
+ok(KEYMAP.find((k) => k.tecla === 'F11').accion === null, 'F11 sin asignar (libre)');
+const acciones = KEYMAP.map((k) => k.accion).filter(Boolean);
+ok(acciones.length === 11, `11 acciones mapeadas (${acciones.length})`);
+ok(
+  KEYMAP.every((k) => k.accion === null || k.implementadaEn === 'PR3b'),
+  'todas las acciones de F-keys quedan ancladas a PR3b (stubs en PR2)',
+);
+ok(
+  KEYMAP.filter((k) => k.guarda === 'lineas').map((k) => k.tecla).join(',') === 'F2,F5,F6',
+  'guardas de estado: F2/F5/F6 requieren líneas (A11)',
+);
+ok(
+  KEYMAP.filter((k) => k.guarda === 'historial').map((k) => k.tecla).join(',') === 'F3,F4',
+  'guardas de estado: F3/F4 requieren historial (A11)',
+);
 
 console.log(`\n${checks} checks, ${fallos} fallos`);
 process.exit(fallos === 0 ? 0 : 1);
