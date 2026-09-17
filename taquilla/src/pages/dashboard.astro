@@ -39,47 +39,48 @@ import MainLayout from '../layouts/MainLayout.astro';
       </div>
     </div>
 
+    <div id="qt-legend" class="qt-legend" role="status" aria-label="Atajos de teclado"></div>
+
     <div class="quick-ticket">
       <div class="qt-bar">
-        <input type="number" id="qt-numero" class="qt-input" placeholder="Número" min="0" step="1">
-        <input type="number" id="qt-monto" class="qt-input" placeholder="Monto" min="0" step="0.01">
-        <select id="qt-moneda" class="qt-select">
+        <input type="number" id="qt-numero" class="qt-input" placeholder="Número" min="0" step="1" data-zona="numero">
+        <input type="number" id="qt-monto" class="qt-input" placeholder="Monto" min="0" step="0.01" data-zona="monto">
+        <select id="qt-moneda" class="qt-select" tabindex="-1">
           <option value="bs">Bs</option>
           <option value="usd">$</option>
         </select>
-        <button id="qt-edit" class="qt-btn" title="Editar línea">✏️</button>
-        <button id="qt-add" class="qt-btn qt-btn-primary" title="Agregar línea">➕</button>
+        <button id="qt-add" class="qt-btn qt-btn-primary" title="Agregar línea" data-zona="anadir">➕</button>
       </div>
 
       <div class="qt-body">
         <div class="qt-column juegos-col">
           <h4 class="qt-col-title" id="juegos-col-title">Juegos</h4>
-          <div class="juegos-tabs" id="juegos-tabs"></div>
-          <div id="juegos-list" class="juegos-list"></div>
+          <div class="juegos-tabs" id="juegos-tabs" data-zona="juegos"></div>
+          <div id="juegos-list" class="juegos-list" data-zona="juegos"></div>
           <div id="horario-mode" class="horario-mode-inner" style="display:none">
-            <button id="back-to-juegos" class="back-btn">← Volver</button>
+            <button id="back-to-juegos" class="back-btn" tabindex="-1">← Volver</button>
             <div class="game-chips" id="game-chips"></div>
-            <div class="horarios-grid" id="horarios-grid"></div>
+            <div class="horarios-grid" id="horarios-grid" data-zona="horarios"></div>
           </div>
         </div>
 
         <div class="qt-column animales-col" id="animales-col">
           <h4 class="qt-col-title">Selección</h4>
-          <div id="seleccion-content" class="seleccion-content">
+          <div id="seleccion-content" class="seleccion-content" data-zona="seleccion">
             <div class="seleccion-placeholder">Seleccione un juego</div>
           </div>
         </div>
 
         <div class="qt-column resumen-col">
           <h4 class="qt-col-title">Resumen del Ticket</h4>
-          <div id="resumen-content" class="resumen-content"></div>
+          <div id="resumen-content" class="resumen-content" data-zona="resumen"></div>
           <div class="qt-total" id="qt-total-row">
             <span class="total-label">Total:</span>
             <span class="total-amount" id="qt-total-amount">Bs. 0,00</span>
           </div>
           <div class="qt-actions">
-            <button id="qt-clear" class="btn btn-clear" disabled>🗑️ Limpiar</button>
-            <button id="qt-print" class="btn btn-primary" disabled>🖨️ Imprimir</button>
+            <button id="qt-clear" class="btn btn-clear" disabled tabindex="-1">🗑️ Limpiar</button>
+            <button id="qt-print" class="btn btn-primary" disabled tabindex="-1">🖨️ Imprimir</button>
           </div>
         </div>
       </div>
@@ -147,6 +148,50 @@ import MainLayout from '../layouts/MainLayout.astro';
       font-size: 10px;
       color: #999;
       margin-top: 0;
+    }
+
+    .qt-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 18px;
+      align-items: center;
+      padding: 6px 14px;
+      background: #f1f3f5;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      font-size: 12px;
+      color: #555;
+      line-height: 1.6;
+    }
+
+    .qt-legend .leg-grupo {
+      display: inline-flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .qt-legend .leg-label {
+      font-weight: 700;
+      color: #333;
+      margin-right: 2px;
+    }
+
+    .qt-legend .kbd {
+      display: inline-block;
+      padding: 0 5px;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      background: white;
+      font-weight: 700;
+      color: #1e40af;
+      font-size: 11px;
+      margin-right: 2px;
+    }
+
+    .qt-legend .leg-arrow {
+      color: #94a3b8;
+      font-weight: 700;
     }
 
     .quick-ticket {
@@ -379,6 +424,14 @@ import MainLayout from '../layouts/MainLayout.astro';
 
     .seleccion-content {
       max-height: 440px;
+      overflow-y: auto;
+    }
+
+    .opciones-lista {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      max-height: 400px;
       overflow-y: auto;
     }
 
@@ -712,92 +765,46 @@ import MainLayout from '../layouts/MainLayout.astro';
   <script>
     import { apiFetch } from '../utils/apiFetch';
     import { getFingerprint } from '../utils/device';
+    import { cargarCatalogo } from '../utils/catalogo';
+    import juegosRaw from '../data/juegos.json';
+
+    // Catálogo local bundled (REQ-CL-01): reemplaza GAMES_CONFIG. Los juegos,
+    // horarios y opciones vienen del JSON; la familia de opciones (A5) define
+    // la búsqueda/selección por juego activo (REQ-CL-02, REQ-KB-02).
+    const catalogo = cargarCatalogo(juegosRaw);
 
     let tasaActiva = 36.50;
 
     let selectedGames = [];
     let ticketLines = [];
-    let editIndex = -1;
     let animalesCache = [];
     let selectedAnimal = null;
+    let selectedSigno = null;
+    let selectedOpcion = null; // numérica/terminal: opción resaltada en la lista
     let columnMode = 'juegos';
 
     const ANIMAL_EMOJIS = ['🐬','🐏','🐂','🐆','🐸','🐕','🐈','🕊️','🦜','🐿️','🐅','🦁','🐄','🦅','🦊','🐒','🦚','🐎','🐻','🫏','🐓','🐪','🐈‍⬛','🐍','🦌','🐐','🐘','🐖','🦆','🐊','🦚','🐟','🦀','🦔','🐇','🐦','🐔'];
 
-    const GAMES_CONFIG = {
-      animalitos: {
-        defaultAnimales: [
-          { numero:0, label:'Delfín' },{ numero:1, label:'Carnero' },{ numero:2, label:'Toro' },{ numero:3, label:'Ciempiés' },
-          { numero:4, label:'Alacrán' },{ numero:5, label:'León' },{ numero:6, label:'Rana' },{ numero:7, label:'Perico' },
-          { numero:8, label:'Ratón' },{ numero:9, label:'Águila' },{ numero:10, label:'Tigre' },{ numero:11, label:'Gato' },
-          { numero:12, label:'Caballo' },{ numero:13, label:'Mono' },{ numero:14, label:'Paloma' },{ numero:15, label:'Zorro' },
-          { numero:16, label:'Oso' },{ numero:17, label:'Pavo' },{ numero:18, label:'Burro' },{ numero:19, label:'Chivo' },
-          { numero:20, label:'Cochino' },{ numero:21, label:'Gallo' },{ numero:22, label:'Camello' },{ numero:23, label:'Cobra' },
-          { numero:24, label:'Iguana' },{ numero:25, label:'Gallina' },{ numero:26, label:'Vaca' },{ numero:27, label:'Perro' },
-          { numero:28, label:'Zamuro' },{ numero:29, label:'Elefante' },{ numero:30, label:'Caimán' },{ numero:31, label:'Lapa' },
-          { numero:32, label:'Ardilla' },{ numero:33, label:'Pescado' },{ numero:34, label:'Venado' },{ numero:35, label:'Jirafa' },
-          { numero:36, label:'Culebra' }
-        ],
-        games: [
-          { id:1, type:'animalitos', name:'Lotto Activo', slug:'lotto-activo', multiplicador:30, horarios:['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00'] },
-          { id:4, type:'animalitos', name:'Lotto Activo RD Internacional', slug:'lotto-activo-rd', multiplicador:30, horarios:['08:30','09:30','10:30','11:30','12:30','13:30','14:30','15:30','16:30','17:30','18:30','19:30'] },
-          { id:5, type:'animalitos', name:'Lotto Activo Rep. Dominicana', slug:'lotto-activo-rep-dom', multiplicador:30, horarios:['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00'] },
-          { id:6, type:'animalitos', name:'Monje Millonario', slug:'monje-millonario', multiplicador:30, horarios:['08:05','09:05','10:05','11:05','12:05','13:05','14:05','15:05','16:05','17:05','18:05','19:05'] },
-        ],
-      },
-      tripletas: {
-        games: [
-          { id:2, type:'tripletas', name:'Triple Zulia', slug:'triple-zulia', multiplicador:30, horarios:['12:45','16:45','19:05'] },
-          { id:7, type:'tripletas', name:'Trío Activo', slug:'trio-activo', multiplicador:30, horarios:['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00'], soloTripleA:true },
-        ],
-        signos: [
-          { value:'ARI', label:'Aries', numero:1 },
-          { value:'TAU', label:'Tauro', numero:2 },
-          { value:'GEM', label:'Géminis', numero:3 },
-          { value:'CAN', label:'Cáncer', numero:4 },
-          { value:'LEO', label:'Leo', numero:5 },
-          { value:'VIR', label:'Virgo', numero:6 },
-          { value:'LIB', label:'Libra', numero:7 },
-          { value:'ESC', label:'Escorpio', numero:8 },
-          { value:'SAG', label:'Sagitario', numero:9 },
-          { value:'CAP', label:'Capricornio', numero:10 },
-          { value:'ACU', label:'Acuario', numero:11 },
-          { value:'PIS', label:'Piscis', numero:12 },
-        ],
-        modalidades: [
-          { code:'triple_a', label:'Triple A', digitos:3, requiere_signo:false, descripcion:'Acierte el número de 3 cifras exacto' },
-          { code:'triple_b', label:'Triple B', digitos:3, requiere_signo:false, descripcion:'Acierte el número de 3 cifras exacto' },
-          { code:'triple_c', label:'Triple C', digitos:3, requiere_signo:true, descripcion:'Acierte el número de 3 cifras y el signo zodiacal' },
-        ],
-      },
-      terminales: {
-        games: [
-          { id:3, type:'terminales', name:'Terminal Activo', slug:'terminal-activo', multiplicador:20, horarios:['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00'] },
-        ],
-      },
-    };
+    // Apostado types de tripletas (A2): el JSON bundled NO trae apostado types
+    // (sus "modalidades" son premios informativos: cola, zodiacal, punta…).
+    // zodiacal → triple_a/b/c (con zona signo solo para triple_c, D1);
+    // triple-numérico → solo triple_a, implícito al seleccionar el juego.
+    const APOSTADOS_TRIPLETAS = [
+      { code: 'triple_a', label: 'Triple A', digitos: 3, requiere_signo: false },
+      { code: 'triple_b', label: 'Triple B', digitos: 3, requiere_signo: false },
+      { code: 'triple_c', label: 'Triple C', digitos: 3, requiere_signo: true },
+    ];
 
     function getGameById(id) {
-      for (const type of Object.values(GAMES_CONFIG)) {
-        if (type.games) {
-          const found = type.games.find(g => g.id === id);
-          if (found) return found;
-        }
-      }
-      return null;
+      return catalogo.porId.get(id) ?? null;
     }
 
     function getGameType(juegoId) {
-      if (GAMES_CONFIG.animalitos.games.some(g => g.id === juegoId)) return 'animalitos';
-      if (GAMES_CONFIG.tripletas.games.some(g => g.id === juegoId)) return 'tripletas';
-      if (GAMES_CONFIG.terminales.games.some(g => g.id === juegoId)) return 'terminales';
-      return null;
+      return catalogo.porId.get(juegoId)?.tipo ?? null;
     }
 
     let selectedHorario = null;
     let horariosCache = [];
-    let signosCache = [];
-    let selectedSigno = null;
     let activeTab = 'animalitos';
     let tripleModalidad = null;
     let tripleModalidadLabel = null;
@@ -838,135 +845,102 @@ import MainLayout from '../layouts/MainLayout.astro';
       renderJuegos();
     }
 
+    function activarTab(tipo) {
+      if (activeTab === tipo) return;
+      activeTab = tipo;
+      selectedGames = [];
+      selectedAnimal = null;
+      selectedSigno = null;
+      selectedOpcion = null;
+      tripleModalidad = null;
+      tripleModalidadLabel = null;
+      document.getElementById('seleccion-content').innerHTML = '<div class="seleccion-placeholder">Seleccione un juego</div>';
+      horariosCache = [];
+      selectedHorario = null;
+      renderJuegosTabs();
+      renderJuegos();
+      switchToJuegos();
+      document.getElementById('juegos-col-title').textContent = 'Juegos';
+    }
+
+    function ordenTabs() {
+      return ['animalitos', 'tripletas', 'terminales'].filter(t => catalogo.juegos.some(j => j.tipo === t));
+    }
+
     function renderJuegosTabs() {
       const container = document.getElementById('juegos-tabs');
       container.innerHTML = '';
-      const tipos = ['animalitos', 'tripletas', 'terminales'];
       const labels = { animalitos: 'Animalitos', tripletas: 'Tripletas', terminales: 'Terminales' };
-      tipos.forEach(t => {
+      ordenTabs().forEach(t => {
         const btn = document.createElement('button');
         btn.className = 'juego-tab' + (activeTab === t ? ' active' : '');
         btn.dataset.tab = t;
+        btn.tabIndex = -1; // las pestañas se cambian con ←/→ (KB-03)
         btn.textContent = labels[t] || t;
-        btn.addEventListener('click', () => {
-          if (activeTab === t) return;
-          activeTab = t;
-          selectedGames = [];
-          selectedAnimal = null;
-          selectedSigno = null;
-          tripleModalidad = null;
-          tripleModalidadLabel = null;
-          document.getElementById('seleccion-content').innerHTML = '<div class="seleccion-placeholder">Seleccione un juego</div>';
-          horariosCache = [];
-          selectedHorario = null;
-          renderJuegosTabs();
-          renderJuegos();
-          switchToJuegos();
-          document.getElementById('juegos-col-title').textContent = 'Juegos';
-        });
+        btn.addEventListener('click', () => activarTab(t));
         container.appendChild(btn);
       });
     }
 
     function renderJuegos() {
       const container = document.getElementById('juegos-list');
-      const config = GAMES_CONFIG[activeTab];
-      if (!config || !config.games) {
+      const juegos = catalogo.juegos.filter(j => j.tipo === activeTab);
+      if (juegos.length === 0) {
         container.innerHTML = '<div class="empty-state">Sin juegos disponibles</div>';
         return;
       }
-      container.innerHTML = config.games.map(j => {
+      container.innerHTML = juegos.map(j => {
         let icon = activeTab === 'animalitos' ? '🎰' : activeTab === 'tripletas' ? '🎯' : '🔢';
         const selected = selectedGames.some(g => g.id === j.id) ? ' selected' : '';
         return `<div class="juego-card${selected}" data-id="${j.id}">
           <span class="juego-icon">${icon}</span>
-          <span class="juego-name">${j.name}</span>
+          <span class="juego-name">${j.nombre}</span>
         </div>`;
       }).join('');
     }
 
-    function renderSignosForModalidad() {
-      const container = document.getElementById('signos-triple-container');
-      if (tripleModalidad !== 'triple_c') {
-        container.style.display = 'none';
-        selectedSigno = null;
-        return;
-      }
-      container.style.display = 'block';
-      const signos = GAMES_CONFIG.tripletas.signos;
-      if (!signos || signos.length === 0) return;
-      let html = '<div class="signo-label">Seleccione signo (opcional):</div>';
-      html += '<div class="signos-grid">';
-      signos.forEach(s => {
-        const sel = selectedSigno && selectedSigno.value === s.value ? ' selected' : '';
-        html += '<button class="signo-btn' + sel + '" data-value="' + s.value + '" data-label="' + s.label + '">' + s.label + '</button>';
-      });
-      html += '</div>';
-      container.innerHTML = html;
-      container.querySelectorAll('.signo-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          container.querySelectorAll('.signo-btn').forEach(b => b.classList.remove('selected'));
-          btn.classList.add('selected');
-          selectedSigno = { value: btn.dataset.value, label: btn.dataset.label };
-          updateColumnMode();
-        });
-      });
-    }
-
-    function loadAnimalesConfig() {
-      const game = selectedGames[0];
-      if (!game) return;
-      animalesCache = game.animales || GAMES_CONFIG.animalitos.defaultAnimales || [];
-      renderAnimales();
+    function juegoActivo() {
+      return selectedGames.length === 1 ? selectedGames[0] : null;
     }
 
     function loadHorariosConfig() {
-      const game = selectedGames[0];
-      if (!game) return;
-      const cfg = getGameById(game.id);
-      if (!cfg || !cfg.horarios) { horariosCache = []; }
-      else { horariosCache = cfg.horarios.map(h => ({ hora: h })); }
+      const juego = juegoActivo();
+      if (!juego) return;
+      horariosCache = juego.horarios.map(h => ({ hora: h }));
       selectedHorario = null;
       renderHorariosGrid();
     }
 
-    function loadTripleConfig() {
-      const game = selectedGames[0];
-      if (!game) return;
-      const cfg = getGameById(game.id);
-      let modalidades = GAMES_CONFIG.tripletas.modalidades || [];
-      if (cfg && cfg.soloTripleA) {
-        modalidades = modalidades.filter(m => m.code === 'triple_a');
+    // Selección por FAMILIA DE OPCIONES del juego activo (REQ-CL-02, KB-02).
+    function renderSeleccion() {
+      const juego = juegoActivo();
+      const container = document.getElementById('seleccion-content');
+      if (!juego) {
+        container.innerHTML = '<div class="seleccion-placeholder">Seleccione un juego</div>';
+        return;
       }
-      if (modalidades.length === 1) {
-        tripleModalidad = modalidades[0].code;
-        tripleModalidadLabel = null;
-        const container = document.getElementById('seleccion-content');
-        container.innerHTML = '<div class="modalidad-label">' + modalidades[0].label + ' — ' + modalidades[0].descripcion + '</div>' +
-          '<div class="triple-info">Ingrese número de ' + modalidades[0].digitos + ' cifras en el campo superior</div>' +
-          '<div id="signos-triple-container" style="display:none"></div>';
-        if (modalidades[0].requiere_signo) {
-          loadSignosConfig();
-        }
-        updateColumnMode();
+      if (juego.familia === 'animalitos') {
+        animalesCache = juego.opciones;
+        renderAnimales();
+      } else if (juego.familia === 'zodiacal') {
+        renderTripleModalidades();
+      } else if (juego.familia === 'numerica') {
+        tripleModalidad = 'triple_a'; // A2: triple-numérico → solo triple_a
+        tripleModalidadLabel = 'Triple A';
+        renderOpcionesLista(juego);
       } else {
-        renderTripleModalidades(modalidades);
-      }
-    }
-
-    function loadSignosConfig() {
-      signosCache = GAMES_CONFIG.tripletas.signos || [];
-      if (signosCache.length > 0) {
-        renderSignosForModalidad();
+        renderOpcionesLista(juego); // terminal: 2 cifras
       }
     }
 
     function renderAnimales() {
       const container = document.getElementById('seleccion-content');
-      container.innerHTML = animalesCache.map(a => {
+      const juego = juegoActivo();
+      const lista = juego ? juego.opciones : animalesCache;
+      container.innerHTML = lista.map(a => {
         const emoji = ANIMAL_EMOJIS[a.numero] || '🐾';
         const sel = selectedAnimal && selectedAnimal.label === a.label ? ' selected' : '';
-        return `<div class="animal-check${sel}" data-numero="${a.numero}" data-label="${a.label}">
+        return `<div class="animal-check${sel}" data-numero="${a.numero}" data-label="${a.label}" tabindex="-1">
           <span class="animal-num">${a.numero}</span>
           <span class="animal-emoji">${emoji}</span>
           <span class="animal-label">${a.label}</span>
@@ -987,15 +961,78 @@ import MainLayout from '../layouts/MainLayout.astro';
       });
     }
 
+    // Numérica (100 opciones 00-99) y terminal (00-99): lista de 2 dígitos.
+    // Deferral aceptado: sin padding 05→005 (ver design/PR2).
+    function renderOpcionesLista(juego) {
+      const container = document.getElementById('seleccion-content');
+      let html = '<div class="modalidad-label">Seleccione el número (00-99):</div>';
+      html += '<div class="opciones-lista">';
+      juego.opciones.forEach(op => {
+        const sel = selectedOpcion && selectedOpcion.numero === op.numero ? ' selected' : '';
+        html += '<div class="animal-check opcion-item' + sel + '" data-numero="' + op.numero + '" data-label="' + op.label + '" tabindex="-1">' +
+          '<span class="animal-num">' + op.label + '</span>' +
+          '<span class="animal-label">' + op.label + '</span>' +
+          '</div>';
+      });
+      html += '</div>';
+      container.innerHTML = html;
+      container.querySelectorAll('.opcion-item').forEach(el => {
+        el.addEventListener('click', () => {
+          selectedOpcion = { numero: parseInt(el.dataset.numero), label: el.dataset.label };
+          document.getElementById('qt-numero').value = el.dataset.label;
+          container.querySelectorAll('.opcion-item').forEach(o => o.classList.remove('selected'));
+          el.classList.add('selected');
+          updateColumnMode();
+        });
+      });
+    }
+
+    function renderSignosForModalidad() {
+      const juego = juegoActivo();
+      const container = document.getElementById('signos-triple-container');
+      if (!juego || tripleModalidad !== 'triple_c') {
+        container.style.display = 'none';
+        selectedSigno = null;
+        return;
+      }
+      container.style.display = 'block';
+      const signos = juego.opciones; // familia zodiacal: 12 signos (numero null)
+      if (!signos || signos.length === 0) return;
+      let html = '<div class="signo-label">Seleccione signo (obligatorio):</div>';
+      html += '<div class="signos-grid">';
+      signos.forEach(s => {
+        const sel = selectedSigno && selectedSigno.value === s.value ? ' selected' : '';
+        html += '<button class="signo-btn' + sel + '" data-value="' + s.value + '" data-label="' + s.label + '" tabindex="-1">' + s.label + '</button>';
+      });
+      html += '</div>';
+      container.innerHTML = html;
+      container.querySelectorAll('.signo-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          container.querySelectorAll('.signo-btn').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          selectedSigno = { value: btn.dataset.value, label: btn.dataset.label };
+          updateColumnMode();
+        });
+      });
+    }
+
     function updateColumnMode() {
-      const hasGames = selectedGames.length > 0;
-      const hasAnimal = selectedAnimal !== null;
-      const isTriple = selectedGames.length === 1 && selectedGames[0]?.type === 'tripletas';
-      const hasModalidad = tripleModalidad !== null;
-      const hasSigno = selectedSigno !== null;
-      const tripleReady = isTriple && hasModalidad && (tripleModalidad !== 'triple_c' || hasSigno);
-      const isTerminales = selectedGames.length === 1 && selectedGames[0]?.type === 'terminales';
-      if (hasGames && (hasAnimal || tripleReady || isTerminales)) {
+      const juego = juegoActivo();
+      if (!juego) {
+        switchToJuegos();
+        return;
+      }
+      let listo = false;
+      if (juego.familia === 'animalitos') {
+        listo = selectedAnimal !== null;
+      } else if (juego.familia === 'zodiacal') {
+        listo = tripleModalidad !== null && (tripleModalidad !== 'triple_c' || selectedSigno !== null);
+      } else if (juego.familia === 'numerica') {
+        listo = tripleModalidad === 'triple_a';
+      } else {
+        listo = true; // terminal
+      }
+      if (listo) {
         switchToHorarios();
       } else {
         switchToJuegos();
@@ -1024,25 +1061,7 @@ import MainLayout from '../layouts/MainLayout.astro';
 
     function renderGameChips() {
       const container = document.getElementById('game-chips');
-      container.innerHTML = selectedGames.map(g => '<span class="game-chip">' + g.name + '</span>').join('');
-    }
-
-    function renderTerminalesInfo() {
-      const container = document.getElementById('seleccion-content');
-      container.innerHTML = '<div class="logo-placeholder">' +
-        '<div class="logo-box">🔢</div>' +
-        '<div class="logo-name">Terminales</div>' +
-        '<div style="font-size:12px;color:#999;margin-top:4px">Ingrese 2 dígitos (00-99) en el campo superior</div>' +
-        '</div>';
-    }
-
-    function renderLogo() {
-      const container = document.getElementById('seleccion-content');
-      const name = selectedGames.length > 0 ? selectedGames[0].name : 'Juego';
-      container.innerHTML = `<div class="logo-placeholder">
-        <div class="logo-box">🎲</div>
-        <div class="logo-name">${name}</div>
-      </div>`;
+      container.innerHTML = selectedGames.map(g => '<span class="game-chip">' + g.nombre + '</span>').join('');
     }
 
     function renderHorariosGrid() {
@@ -1057,17 +1076,17 @@ import MainLayout from '../layouts/MainLayout.astro';
       }).join('');
     }
 
-    function renderTripleModalidades(modalidades) {
+    function renderTripleModalidades() {
       const container = document.getElementById('seleccion-content');
       let html = '<div class="modalidad-label">Seleccione modalidad:</div>';
-      html += '<div class="modalidad-grid">';
-      modalidades.forEach(m => {
+      html += '<div class="modalidad-grid" id="modalidad-grid" data-zona="modalidad">';
+      APOSTADOS_TRIPLETAS.forEach(m => {
         const sel = tripleModalidad === m.code ? ' selected' : '';
-        html += '<button class="modalidad-btn' + sel + '" data-modalidad="' + m.code + '">' + m.label + '</button>';
+        html += '<button class="modalidad-btn' + sel + '" data-modalidad="' + m.code + '" tabindex="-1">' + m.label + '</button>';
       });
       html += '</div>';
       html += '<div class="triple-info">Ingrese número de 3 cifras en el campo superior</div>';
-      html += '<div id="signos-triple-container" style="display:none"></div>';
+      html += '<div id="signos-triple-container" style="display:none" data-zona="signo"></div>';
       container.innerHTML = html;
       container.querySelectorAll('.modalidad-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -1169,16 +1188,18 @@ import MainLayout from '../layouts/MainLayout.astro';
       const monto = document.getElementById('qt-monto').value.trim();
       const moneda = document.getElementById('qt-moneda').value;
 
-      if (selectedGames.length === 0) { window.showModal({ message: 'Seleccione al menos un juego', type: 'error' }); return; }
+      const juego = juegoActivo();
+      if (!juego) { window.showModal({ message: 'Seleccione al menos un juego', type: 'error' }); return; }
       if (!monto || Number(monto) <= 0) { window.showModal({ message: 'Ingrese un monto válido', type: 'error' }); return; }
       if (!selectedHorario) { window.showModal({ message: 'Seleccione un horario para el sorteo', type: 'error' }); return; }
 
-      const isTriple = selectedGames.length === 1 && selectedGames[0]?.type === 'tripletas';
-      const isTerminales = selectedGames.length === 1 && selectedGames[0]?.type === 'terminales';
-      if (isTriple) {
+      const familia = juego.familia;
+      if (familia === 'zodiacal') {
         if (!tripleModalidad) { window.showModal({ message: 'Seleccione una modalidad (Triple A/B/C)', type: 'error' }); return; }
+        if (tripleModalidad === 'triple_c' && !selectedSigno) { window.showModal({ message: 'Seleccione un signo (obligatorio para Triple C)', type: 'error' }); return; }
         if (!numero || numero.length !== 3) { window.showModal({ message: 'Ingrese un número de exactamente 3 cifras', type: 'error' }); return; }
-      } else if (isTerminales) {
+      } else if (familia === 'numerica' || familia === 'terminal') {
+        // Deferral aceptado: numérica sin padding 05→005; 2 cifras como terminal.
         if (!numero || numero.length !== 2) { window.showModal({ message: 'Ingrese un número de exactamente 2 cifras', type: 'error' }); return; }
       } else {
         if (!selectedAnimal) { window.showModal({ message: 'Seleccione un animal', type: 'error' }); return; }
@@ -1186,32 +1207,33 @@ import MainLayout from '../layouts/MainLayout.astro';
       }
 
       selectedGames.forEach(game => {
-        const animal = isTriple
+        const animal = familia === 'zodiacal'
           ? (selectedSigno ? selectedSigno.label : null)
-          : (isTerminales ? null : selectedAnimal.label);
+          : (selectedAnimal ? selectedAnimal.label : null);
         ticketLines.push({
           juegoId: game.id,
-          juegoName: game.name,
-          juegoType: game.type,
+          juegoName: game.nombre,
+          juegoType: game.tipo,
           horario: selectedHorario,
           numero: numero,
           animal: animal,
           monto: Number(monto),
           moneda: moneda,
-          tripleModalidad: isTriple ? tripleModalidad : null,
-          tripleModalidadLabel: isTriple ? tripleModalidadLabel : null,
+          tripleModalidad: familia === 'zodiacal' ? tripleModalidad : null,
+          tripleModalidadLabel: familia === 'zodiacal' ? tripleModalidadLabel : null,
         });
       });
 
       document.getElementById('qt-numero').value = '';
       document.getElementById('qt-monto').value = '';
-      if (isTriple) {
+      if (familia === 'zodiacal') {
         tripleModalidad = null;
         tripleModalidadLabel = null;
         selectedSigno = null;
-        loadTripleConfig();
-      } else if (isTerminales) {
-        renderTerminalesInfo();
+        renderSeleccion();
+      } else if (familia === 'numerica' || familia === 'terminal') {
+        selectedOpcion = null;
+        renderSeleccion();
       } else {
         selectedAnimal = null;
         renderAnimales();
@@ -1224,13 +1246,14 @@ import MainLayout from '../layouts/MainLayout.astro';
       ticketLines = [];
       selectedAnimal = null;
       selectedSigno = null;
+      selectedOpcion = null;
       tripleModalidad = null;
       tripleModalidadLabel = null;
       selectedHorario = null;
       document.getElementById('qt-numero').value = '';
       document.getElementById('qt-monto').value = '';
-      if (activeTab === 'animalitos' && animalesCache.length > 0) {
-        renderAnimales();
+      if (juegoActivo()) {
+        renderSeleccion();
       } else {
         document.getElementById('seleccion-content').innerHTML = '<div class="seleccion-placeholder">Seleccione un juego</div>';
       }
@@ -1244,12 +1267,13 @@ import MainLayout from '../layouts/MainLayout.astro';
       if (ticketLines.length === 0) {
         selectedAnimal = null;
         selectedSigno = null;
+        selectedOpcion = null;
         tripleModalidad = null;
         tripleModalidadLabel = null;
         selectedHorario = null;
         document.getElementById('qt-numero').value = '';
-        if (activeTab === 'animalitos' && animalesCache.length > 0) {
-          renderAnimales();
+        if (juegoActivo()) {
+          renderSeleccion();
         } else {
           document.getElementById('seleccion-content').innerHTML = '<div class="seleccion-placeholder">Seleccione un juego</div>';
         }
@@ -1281,7 +1305,7 @@ import MainLayout from '../layouts/MainLayout.astro';
           ticketCode: result.data.ticket_code,
           date: new Date().toLocaleDateString('es-VE'),
           time: new Date().toLocaleTimeString('es-VE'),
-          game: selectedGames.length > 0 ? selectedGames.map(g => g.name).join(', ') : 'Apuesta',
+          game: selectedGames.length > 0 ? selectedGames.map(g => g.nombre).join(', ') : 'Apuesta',
           lines: ticketLines.map(l => ({ animal: l.animal || l.numero, number: l.numero, amountBs: l.moneda === 'bs' ? l.monto : 0, amountUsd: l.moneda === 'usd' ? l.monto : 0 })),
         };
         if (window.electron?.printTicket) {
@@ -1343,21 +1367,13 @@ import MainLayout from '../layouts/MainLayout.astro';
         }
         selectedSigno = null;
         selectedAnimal = null;
+        selectedOpcion = null;
         tripleModalidad = null;
         tripleModalidadLabel = null;
 
         renderJuegos();
         if (selectedGames.length > 0) {
-          const type = getGameType(juego.id);
-          if (type === 'animalitos') {
-            loadAnimalesConfig();
-          } else if (type === 'tripletas') {
-            loadTripleConfig();
-          } else if (type === 'terminales') {
-            renderTerminalesInfo();
-          } else {
-            renderLogo();
-          }
+          renderSeleccion();
           loadHorariosConfig();
         } else {
           document.getElementById('seleccion-content').innerHTML = '<div class="seleccion-placeholder">Seleccione un juego</div>';
@@ -1393,7 +1409,7 @@ import MainLayout from '../layouts/MainLayout.astro';
       document.getElementById('qt-print').addEventListener('click', handlePrint);
 
       document.getElementById('qt-numero').addEventListener('input', (e) => {
-        if (!selectedGames[0] || selectedGames[0].type !== 'animalitos') return;
+        if (!selectedGames[0] || selectedGames[0].tipo !== 'animalitos') return;
         if (animalesCache.length === 0) return;
         const val = parseInt(e.target.value);
         if (isNaN(val)) { selectedAnimal = null; renderAnimales(); updateColumnMode(); return; }
