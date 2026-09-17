@@ -87,6 +87,20 @@ import MainLayout from '../layouts/MainLayout.astro';
       </div>
     </div>
 
+    <!-- Modal de ayuda F1 (REQ-KB-07/08, A12 refined): reutiliza los estilos
+         globales .modal-overlay/.modal-dialog; la clase .abierto controla la
+         visibilidad. Su toggle (F1) y Esc/Cerrar/click lo cierran; con él
+         abierto ninguna otra F-key ejecuta (guarda estricta A12). -->
+    <div id="help-overlay" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Ayuda de teclado">
+      <div class="modal-dialog help-dialog">
+        <h3 class="help-title">Ayuda de teclado</h3>
+        <div id="help-content"></div>
+        <div class="modal-buttons">
+          <button class="modal-btn modal-btn-primary" id="help-cerrar">Cerrar</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal de vuelto F9 (A12, REQ-KB-07): reutiliza los estilos globales
          .modal-overlay/.modal-dialog de MainLayout; la clase .abierto controla
          la visibilidad. Guarda estricta A12: con un modal abierto ninguna otra
@@ -803,6 +817,57 @@ import MainLayout from '../layouts/MainLayout.astro';
       color: #999;
       font-style: italic;
       font-size: 13px;
+    }
+
+    /* Modal de ayuda F1 (A12 refined): mismo patrón de visibilidad que el de
+       vuelto; el ID gana especificidad sobre .modal-overlay. */
+    #help-overlay {
+      display: none;
+    }
+
+    #help-overlay.abierto {
+      display: flex;
+    }
+
+    .help-dialog {
+      max-width: 440px;
+      text-align: left;
+    }
+
+    .help-title {
+      font-size: 16px;
+      margin-bottom: 12px;
+      color: #333;
+    }
+
+    .help-zonas {
+      font-size: 13px;
+      color: #444;
+      line-height: 1.7;
+      margin-bottom: 8px;
+    }
+
+    .help-fkeys {
+      list-style: none;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 14px;
+      font-size: 13px;
+      color: #333;
+      margin-bottom: 14px;
+      padding: 0;
+    }
+
+    .help-dialog .kbd {
+      display: inline-block;
+      padding: 0 5px;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      background: white;
+      font-weight: 700;
+      color: #1e40af;
+      font-size: 11px;
+      margin-right: 2px;
     }
 
     /* Modal de vuelto F9 (A12): reutiliza .modal-overlay/.modal-dialog de
@@ -1577,6 +1642,10 @@ import MainLayout from '../layouts/MainLayout.astro';
           game: selectedGames.length > 0 ? selectedGames.map(g => g.nombre).join(', ') : 'Apuesta',
           lines: ticketLines.map(l => ({ animal: l.animal || l.numero, number: l.numero, amountBs: l.moneda === 'bs' ? l.monto : 0, amountUsd: l.moneda === 'usd' ? l.monto : 0 })),
         };
+        // Snapshot para F12 reimprimir (A6, REQ-TF-03): tras POST ok se guarda
+        // el último ticket impreso; si la impresora falla, F12 reimprime sin
+        // depender de red (rechazado GET /tickets/{id}).
+        localStorage.setItem('ultimoTicket', JSON.stringify(ticketData));
         if (window.electron?.printTicket) {
           await window.electron.printTicket({ ticketData });
         } else {
@@ -1668,25 +1737,131 @@ import MainLayout from '../layouts/MainLayout.astro';
       }
     }
 
+    // ─── Modal de ayuda F1 (REQ-KB-07/08, A12 refined) ──────────────────────
+    // Contenido dinámico (grafo de zonas + mapa F1–F12) al abrir; se cierra
+    // con su toggle (F1), Esc, botón Cerrar o click en el overlay.
+
+    function renderAyudaContenido() {
+      const el = document.getElementById('help-content');
+      if (!el) return;
+      const grafo = grafoActual();
+      const zonasHtml = grafo.zonas
+        .map((z) => '<span class="kbd">' + (NOMBRE_ZONA[z] ?? z) + '</span>')
+        .join('<span class="leg-arrow"> → </span>');
+      const fkeysHtml = KEYMAP
+        .map((k) => '<li><span class="kbd">' + k.tecla + '</span> ' + (k.accion ? k.nombre : 'Libre') + '</li>')
+        .join('');
+      el.innerHTML =
+        '<p class="help-zonas"><strong>Zonas (Tab / Shift+Tab):</strong> ' + zonasHtml + '</p>' +
+        '<p class="help-zonas"><strong>Teclas:</strong></p><ul class="help-fkeys">' + fkeysHtml + '</ul>';
+    }
+
+    function cerrarAyudaModal() {
+      document.getElementById('help-overlay')?.classList.remove('abierto');
+      restaurarFoco();
+    }
+
+    function toggleAyudaModal() {
+      const overlay = document.getElementById('help-overlay');
+      if (!overlay) return;
+      if (overlay.classList.contains('abierto')) {
+        cerrarAyudaModal();
+      } else {
+        renderAyudaContenido();
+        overlay.classList.add('abierto');
+      }
+    }
+
+    // ─── Acciones F2/F3/F4/F12 (A11, REQ-KB-07) ─────────────────────────────
+    // F3 anula la jugada (grupo) del último groupId añadido; F4 la duplica
+    // con groupId nuevo (atómico: si algún horario expiró, avisa y no copia).
+
+    function anularUltimaJugada() {
+      const ultima = ticketLines[ticketLines.length - 1];
+      if (!ultima) return;
+      // Mismo criterio que el ✕ de la fila agrupada (A3): borra el grupo
+      // completo del último groupId, no una línea suelta.
+      removeGroup(ultima.groupId);
+    }
+
+    function repetirUltimaJugada() {
+      const ultima = ticketLines[ticketLines.length - 1];
+      if (!ultima) return;
+      const grupo = ticketLines.filter((l) => l.groupId === ultima.groupId);
+      // Atómico (A11): si algún horario de la jugada ya expiró (filtro A4),
+      // se avisa y NO se duplica nada (sin copia parcial).
+      const expirados = grupo.filter((l) => horarioExpirado(l.horario)).map((l) => l.horario);
+      if (expirados.length > 0) {
+        window.showModal({
+          message: 'El horario ' + expirados.join(', ') + ' ya pasó. No se repitió la jugada.',
+          type: 'error',
+        });
+        return;
+      }
+      // Duplica la jugada completa (combinación, monto, moneda y horarios
+      // originales) con un groupId NUEVO al final, sin depender de la
+      // selección actual (A11).
+      const nuevoId = nuevoGroupId();
+      ticketLines.push(...grupo.map((l) => ({ ...l, groupId: nuevoId })));
+      renderResumen();
+    }
+
+    // F12 reimprime el último ticket desde el snapshot localStorage.ultimoTicket
+    // (A6, REQ-TF-03): se guarda tras un POST ok en handlePrint; si falta o no
+    // es válido, aviso claro (nunca depende de red justo cuando falla la
+    // impresora; rechazado GET /tickets/{id}).
+    function reimprimirUltimo() {
+      const raw = localStorage.getItem('ultimoTicket');
+      if (!raw) {
+        window.showModal({
+          message: 'No hay un ticket previo para reimprimir. Genere un ticket con F5 / Imprimir primero.',
+          type: 'info',
+        });
+        return;
+      }
+      try {
+        const ticketData = JSON.parse(raw);
+        if (!ticketData || !Array.isArray(ticketData.lines) || ticketData.lines.length === 0) {
+          throw new Error('snapshot inválido');
+        }
+        if (window.electron?.printTicket) {
+          window.electron.printTicket({ ticketData });
+        } else {
+          window.showModal({
+            message: 'Reimpresión no disponible en este entorno.',
+            type: 'info',
+          });
+        }
+      } catch (e) {
+        localStorage.removeItem('ultimoTicket');
+        window.showModal({
+          message: 'El ticket previo no es válido. Se eliminó el respaldo.',
+          type: 'error',
+        });
+      }
+    }
+
     // ─── Navegación por teclado (PR2: KB-01..04, KB-08, KB-09; A1) ──────────
-    // Las ACCIONES de F-keys se conectan en PR3b (REQ-KB-07, A11, A12): F9
-    // (vuelto) en este slice; F2/F3/F4/F5/F12 y ayuda F1 en el siguiente;
-    // F7/F8/F10 (navegación) en el último. F6 (eliminar ítem) queda como
-    // no-op (fuera del alcance de PR3b). Las guardas de estado viven en
-    // routeKey (ejecutable=false) y la guarda estricta de modales (A12) en la
-    // regla 1 del router: con un modal abierto solo su toggle (F1/F9) y Esc.
+    // ACCIONES reales de F-keys (PR3b, REQ-KB-07, A11, A12): F1 ayuda, F2
+    // limpiar (= clearTicket), F3 anular último grupo, F4 repetir última
+    // (atómico), F5 pagar/generar (= handlePrint), F12 reimprimir snapshot.
+    // F7/F8/F10 (navegación) se conectan en el siguiente commit; F6 (eliminar
+    // ítem) queda como no-op (fuera del alcance de PR3b). Las guardas de
+    // estado viven en routeKey (ejecutable=false) y la guarda estricta de
+    // modales (A12) en la regla 1 del router: con un modal abierto solo su
+    // toggle (F1/F9) y Esc actúan.
     const ACCIONES_FKEYS = {
-      ayuda: () => console.debug('[PR3b] F1 ayuda: modal de ayuda pendiente'),
-      limpiar: () => console.debug('[PR3b] F2 limpiar: clearTicket pendiente'),
-      'anular-ultima': () => console.debug('[PR3b] F3 anular última: pendiente'),
-      'repetir-ultima': () => console.debug('[PR3b] F4 repetir última: pendiente'),
-      'pagar-generar': () => console.debug('[PR3b] F5 pagar/generar: handlePrint pendiente'),
+      ayuda: toggleAyudaModal,
+      limpiar: clearTicket,
+      'anular-ultima': anularUltimaJugada,
+      'repetir-ultima': repetirUltimaJugada,
+      'pagar-generar': () => { handlePrint(); },
       'eliminar-item': () => console.debug('[PR3b] F6 eliminar ítem: fuera de alcance (no-op)'),
       ventas: () => console.debug('[PR3b] F7 ventas: navegación pendiente'),
       cuadre: () => console.debug('[PR3b] F8 cuadre: navegación pendiente'),
       vuelto: toggleVueltoModal,
       resultados: () => console.debug('[PR3b] F10 resultados: navegación pendiente'),
-      reimprimir: () => console.debug('[PR3b] F12 reimprimir: pendiente'),
+      reimprimir: reimprimirUltimo,
     };
 
     function esEditable(target) {
@@ -1941,6 +2116,13 @@ import MainLayout from '../layouts/MainLayout.astro';
 
       document.getElementById('qt-clear').addEventListener('click', clearTicket);
       document.getElementById('qt-print').addEventListener('click', handlePrint);
+
+      // Modal de ayuda F1 (A12 refined): cierre por botón/overlay.
+      const helpOverlay = document.getElementById('help-overlay');
+      document.getElementById('help-cerrar').addEventListener('click', cerrarAyudaModal);
+      helpOverlay.addEventListener('click', (e) => {
+        if (e.target === helpOverlay) cerrarAyudaModal();
+      });
 
       // Modal de vuelto F9 (A12): cálculo en vivo + cierre por botón/overlay.
       const vueltoOverlay = document.getElementById('vuelto-overlay');
