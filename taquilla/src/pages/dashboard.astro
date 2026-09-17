@@ -766,6 +766,7 @@ import MainLayout from '../layouts/MainLayout.astro';
     import { apiFetch } from '../utils/apiFetch';
     import { getFingerprint } from '../utils/device';
     import { cargarCatalogo } from '../utils/catalogo';
+    import { buildZoneGraph, routeKey, KEYMAP } from '../utils/keyboard';
     import juegosRaw from '../data/juegos.json';
 
     // Catálogo local bundled (REQ-CL-01): reemplaza GAMES_CONFIG. Los juegos,
@@ -782,6 +783,7 @@ import MainLayout from '../layouts/MainLayout.astro';
     let selectedSigno = null;
     let selectedOpcion = null; // numérica/terminal: opción resaltada en la lista
     let columnMode = 'juegos';
+    let zonaActual = 'juegos';
 
     const ANIMAL_EMOJIS = ['🐬','🐏','🐂','🐆','🐸','🐕','🐈','🕊️','🦜','🐿️','🐅','🦁','🐄','🦅','🦊','🐒','🦚','🐎','🐻','🫏','🐓','🐪','🐈‍⬛','🐍','🦌','🐐','🐘','🐖','🦆','🐊','🦚','🐟','🦀','🦔','🐇','🐦','🐔'];
 
@@ -794,6 +796,24 @@ import MainLayout from '../layouts/MainLayout.astro';
       { code: 'triple_b', label: 'Triple B', digitos: 3, requiere_signo: false },
       { code: 'triple_c', label: 'Triple C', digitos: 3, requiere_signo: true },
     ];
+
+    const NOMBRE_ZONA = {
+      juegos: 'Juegos', modalidad: 'Modalidad', seleccion: 'Selección', signo: 'Signo',
+      horarios: 'Horario', numero: 'Número', monto: 'Monto', anadir: 'Añadir', resumen: 'Resumen',
+    };
+
+    // Objetivo de foco de cada zona (roving focus / tabindex explícito, KB-01).
+    const TARGETS_ZONA = {
+      juegos: '#juegos-list',
+      modalidad: '#modalidad-grid',
+      seleccion: '#seleccion-content',
+      signo: '#signos-triple-container',
+      horarios: '#horarios-grid',
+      numero: '#qt-numero',
+      monto: '#qt-monto',
+      anadir: '#qt-add',
+      resumen: '#resumen-content',
+    };
 
     function getGameById(id) {
       return catalogo.porId.get(id) ?? null;
@@ -859,12 +879,25 @@ import MainLayout from '../layouts/MainLayout.astro';
       selectedHorario = null;
       renderJuegosTabs();
       renderJuegos();
+      renderLegend();
       switchToJuegos();
       document.getElementById('juegos-col-title').textContent = 'Juegos';
     }
 
     function ordenTabs() {
       return ['animalitos', 'tripletas', 'terminales'].filter(t => catalogo.juegos.some(j => j.tipo === t));
+    }
+
+    function tabAnterior() {
+      const orden = ordenTabs();
+      const i = orden.indexOf(activeTab);
+      return orden[(i - 1 + orden.length) % orden.length];
+    }
+
+    function tabSiguiente() {
+      const orden = ordenTabs();
+      const i = orden.indexOf(activeTab);
+      return orden[(i + 1) % orden.length];
     }
 
     function renderJuegosTabs() {
@@ -901,6 +934,14 @@ import MainLayout from '../layouts/MainLayout.astro';
 
     function juegoActivo() {
       return selectedGames.length === 1 ? selectedGames[0] : null;
+    }
+
+    // Grafo de zonas del juego activo (A2): se reconstruye al cambiar de
+    // juego o de modalidad (la zona signo existe solo con triple_c, D1).
+    function grafoActual() {
+      const juego = juegoActivo();
+      const familia = juego?.familia ?? 'animalitos';
+      return buildZoneGraph(familia, { triple_c: tripleModalidad === 'triple_c' });
     }
 
     function loadHorariosConfig() {
@@ -1011,6 +1052,7 @@ import MainLayout from '../layouts/MainLayout.astro';
           container.querySelectorAll('.signo-btn').forEach(b => b.classList.remove('selected'));
           btn.classList.add('selected');
           selectedSigno = { value: btn.dataset.value, label: btn.dataset.label };
+          renderLegend();
           updateColumnMode();
         });
       });
@@ -1096,6 +1138,7 @@ import MainLayout from '../layouts/MainLayout.astro';
           tripleModalidadLabel = btn.textContent;
           document.getElementById('qt-numero').value = '';
           renderSignosForModalidad();
+          renderLegend();
           updateColumnMode();
         });
       });
@@ -1323,6 +1366,166 @@ import MainLayout from '../layouts/MainLayout.astro';
       printBtn.disabled = false;
     }
 
+    // ─── Navegación por teclado (PR2: KB-01..04, KB-08, KB-09; A1) ──────────
+    // Las ACCIONES de F-keys (F2..F12) se implementan en PR3b; aquí solo se
+    // registran como hooks (STUBS_FKEYS) y se aplican las GUARDAS de estado
+    // via routeKey. NO se implementa comportamiento de F-keys en este slice.
+    const STUBS_FKEYS = {
+      ayuda: () => console.debug('[PR3b] F1 ayuda: modal de ayuda pendiente'),
+      limpiar: () => console.debug('[PR3b] F2 limpiar: clearTicket pendiente'),
+      'anular-ultima': () => console.debug('[PR3b] F3 anular última: pendiente'),
+      'repetir-ultima': () => console.debug('[PR3b] F4 repetir última: pendiente'),
+      'pagar-generar': () => console.debug('[PR3b] F5 pagar/generar: handlePrint pendiente'),
+      'eliminar-item': () => console.debug('[PR3b] F6 eliminar ítem: pendiente'),
+      ventas: () => console.debug('[PR3b] F7 ventas: navegación pendiente'),
+      cuadre: () => console.debug('[PR3b] F8 cuadre: navegación pendiente'),
+      vuelto: () => console.debug('[PR3b] F9 vuelto: modal pendiente'),
+      resultados: () => console.debug('[PR3b] F10 resultados: navegación pendiente'),
+      reimprimir: () => console.debug('[PR3b] F12 reimprimir: pendiente'),
+    };
+
+    function esEditable(target) {
+      const t = target?.tagName;
+      return t === 'INPUT' || t === 'SELECT' || t === 'TEXTAREA';
+    }
+
+    // Guarda de modal (REQ-KB-08): cualquier .modal-overlay (showModal de
+    // MainLayout) o el futuro #help-overlay.abierto (PR3b).
+    function detectarModalAbierto() {
+      return (
+        document.querySelector('.modal-overlay') !== null ||
+        document.querySelector('#help-overlay.abierto') !== null
+      );
+    }
+
+    function objetivoZona(zona) {
+      return document.querySelector(TARGETS_ZONA[zona]);
+    }
+
+    function zonaVisible(zona) {
+      const el = objetivoZona(zona);
+      if (!el) return false;
+      return el.offsetParent !== null || el === document.body;
+    }
+
+    // Roving tabindex explícito (KB-01): solo la zona actual es tabulable.
+    function sincronizarTabindex(zona) {
+      Object.keys(TARGETS_ZONA).forEach(z => {
+        const el = objetivoZona(z);
+        if (!el) return;
+        if (z === 'numero' || z === 'monto') return; // inputs conservan tabindex nativo
+        el.tabIndex = z === zona ? 0 : -1;
+      });
+    }
+
+    function enfocarZona(zona) {
+      const el = objetivoZona(zona);
+      if (!el) return;
+      zonaActual = zona;
+      sincronizarTabindex(zona);
+      el.focus({ preventScroll: true });
+    }
+
+    // Ciclo Tab/Shift+Tab (KB-01): salta zonas ocultas (p. ej. juegos en modo
+    // horarios) y envuelve en el extremo.
+    function moverZona(delta) {
+      const grafo = grafoActual();
+      const saltos = grafo.zonas.length;
+      let zona = zonaActual;
+      for (let i = 0; i < saltos; i++) {
+        zona = delta > 0 ? grafo.siguiente(zona) : grafo.anterior(zona);
+        if (zona === null) break;
+        if (zonaVisible(zona)) {
+          enfocarZona(zona);
+          return;
+        }
+      }
+    }
+
+    function itemsDeZona(zona) {
+      const selectores = {
+        juegos: '.juego-card',
+        modalidad: '.modalidad-btn',
+        seleccion: '.animal-check, .opcion-item',
+        signo: '.signo-btn',
+        horarios: '.horario-item',
+        resumen: '.resumen-table tr',
+      };
+      const el = objetivoZona(zona);
+      if (!el) return [];
+      return Array.from(el.querySelectorAll(selectores[zona] || ''));
+    }
+
+    // ↑/↓ contextuales (KB-03): recorren la lista activa de la zona enfocada
+    // en orden DOM; sin wrap (el wrap es de zonas con Tab).
+    function moverFila(delta) {
+      const items = itemsDeZona(zonaActual);
+      if (items.length === 0) return;
+      const activo = document.activeElement;
+      let idx = items.indexOf(activo);
+      if (idx === -1) idx = delta > 0 ? -1 : items.length;
+      const objetivo = items[idx + delta];
+      if (!objetivo) return;
+      objetivo.focus();
+      objetivo.scrollIntoView({ block: 'nearest' });
+    }
+
+    // Enter activa el elemento de zona focalizado (tarjeta/opción/fila).
+    function activarItemFocalizado() {
+      const activo = document.activeElement;
+      if (!activo || esEditable(activo)) return;
+      if (!activo.closest('[data-zona]')) return;
+      if (typeof activo.click === 'function') activo.click();
+    }
+
+    // Esc sube un nivel sin descartar selección ni líneas (KB-04, A1).
+    function manejarEscape(nivel) {
+      if (nivel === 'modal') {
+        const ayuda = document.querySelector('#help-overlay.abierto');
+        if (ayuda) {
+          ayuda.classList.remove('abierto');
+          return;
+        }
+        const overlay = document.querySelector('.modal-overlay');
+        if (overlay) {
+          const btn = overlay.querySelector('.cancel-btn') ?? overlay.querySelector('.ok-btn');
+          btn?.click();
+        }
+        return;
+      }
+      if (nivel === 'input') {
+        document.activeElement?.blur?.();
+        return;
+      }
+      if (nivel === 'juegos') {
+        switchToJuegos();
+        document.getElementById('juegos-col-title').textContent = 'Juegos';
+        requestAnimationFrame(() => enfocarZona('juegos'));
+        return;
+      }
+      // zona-anterior: sin wrap (arriba de Juegos no hay nivel).
+      if (zonaActual === 'juegos') return;
+      const anterior = grafoActual().anterior(zonaActual);
+      if (anterior && zonaVisible(anterior)) enfocarZona(anterior);
+    }
+
+    // Leyenda estática (REQ-KB-09): barra de estado con el mapa de zonas
+    // (según el grafo del juego activo) y las teclas F1–F12.
+    function renderLegend() {
+      const el = document.getElementById('qt-legend');
+      if (!el) return;
+      const grafo = grafoActual();
+      const zonasHtml = grafo.zonas
+        .map(z => '<span class="kbd">' + (NOMBRE_ZONA[z] ?? z) + '</span>')
+        .join('<span class="leg-arrow"> → </span>');
+      const fkeysHtml = KEYMAP
+        .map(k => '<span><span class="kbd">' + k.tecla + '</span> ' + k.nombre + '</span>')
+        .join(' · ');
+      el.innerHTML =
+        '<span class="leg-grupo"><span class="leg-label">Zonas:</span> ' + zonasHtml + '</span>' +
+        '<span class="leg-grupo"><span class="leg-label">Teclas:</span> ' + fkeysHtml + '</span>';
+    }
+
     document.addEventListener('DOMContentLoaded', async () => {
       if (typeof window !== 'undefined' && window.electron?.getVersion) {
         try {
@@ -1381,6 +1584,7 @@ import MainLayout from '../layouts/MainLayout.astro';
           selectedHorario = null;
           switchToJuegos();
         }
+        renderLegend();
         updateColumnMode();
       });
 
@@ -1395,6 +1599,7 @@ import MainLayout from '../layouts/MainLayout.astro';
         document.getElementById('back-to-juegos').addEventListener('click', () => {
           switchToJuegos();
           document.getElementById('juegos-col-title').textContent = 'Juegos';
+          enfocarZona('juegos');
         });
       }
 
@@ -1430,6 +1635,62 @@ import MainLayout from '../layouts/MainLayout.astro';
           addLine();
           setTimeout(() => { addingLine = false; }, 500);
         }
+      });
+
+      // ─── Router de teclado (A1): una sola escucha en document ────────────
+      renderLegend();
+      enfocarZona('juegos'); // KB-01: foco inicial en la zona Juegos
+
+      // focusin sincroniza la zona actual con el elemento enfocado.
+      document.addEventListener('focusin', (e) => {
+        const zonaEl = e.target.closest?.('[data-zona]');
+        if (zonaEl && zonaEl.dataset.zona) {
+          zonaActual = zonaEl.dataset.zona;
+          sincronizarTabindex(zonaActual);
+        }
+      });
+
+      document.addEventListener('keydown', (e) => {
+        const decision = routeKey({
+          tecla: e.key,
+          repeat: e.repeat,
+          ctrlKey: e.ctrlKey,
+          shiftKey: e.shiftKey,
+          focoEditable: esEditable(e.target),
+          zonaActual,
+          modalAbierto: detectarModalAbierto(),
+          modalPropio: null, // PR3b: F1/F9 abren sus propios modales
+          columnMode,
+          tieneLineas: ticketLines.length > 0,
+          tieneHistorial: ticketLines.length > 0,
+        });
+        if (!decision.consume) return;
+        e.preventDefault();
+
+        switch (decision.tipo) {
+          case 'tab-siguiente': moverZona(1); break;
+          case 'tab-anterior': moverZona(-1); break;
+          case 'pestana-anterior': activarTab(tabAnterior()); break;
+          case 'pestana-siguiente': activarTab(tabSiguiente()); break;
+          case 'fila-anterior': moverFila(-1); break;
+          case 'fila-siguiente': moverFila(1); break;
+          case 'escape': manejarEscape(decision.nivel); break;
+          case 'toggle-modal': break; // PR3b: toggle del modal propio (F1/F9)
+          case 'f-key': {
+            if (!decision.ejecutable) break; // guarda de estado (KB-08, A11)
+            STUBS_FKEYS[decision.accion]?.();
+            break;
+          }
+          default: break;
+        }
+      });
+
+      // Enter activa el elemento de zona focalizado (tarjeta/opción/fila);
+      // dentro de inputs el Enter existente ya hace addLine.
+      document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        if (esEditable(e.target)) return;
+        activarItemFocalizado();
       });
     });
   </script>
