@@ -5,48 +5,676 @@ import MainLayout from '../layouts/MainLayout.astro';
 <MainLayout currentPage="cierre">
   <div class="cierre-page">
     <h2 class="page-title">💰 Cierre de Caja</h2>
-    <div class="placeholder-card">
-      <div class="placeholder-icon">🔒</div>
-      <p>Módulo de cierre de caja próximamente.</p>
-      <p class="placeholder-sub">Esta funcionalidad estará disponible en una próxima actualización.</p>
-    </div>
+
+    <!-- Resumen del período actual (GET /cierre/actual, AD-8) -->
+    <section class="card" id="resumen-card">
+      <div class="card-header">
+        <h3 class="card-title">Resumen del período actual</h3>
+        <button id="btn-refresh-preview" class="btn-refresh">🔄 Refrescar</button>
+      </div>
+      <div id="preview-content">
+        <div class="loading">Cargando resumen...</div>
+      </div>
+    </section>
+
+    <!-- Arqueo + ejecutar -->
+    <section class="card" id="arqueo-card">
+      <h3 class="card-title">Arqueo de caja</h3>
+      <div class="arqueo-grid">
+        <label class="arqueo-label">
+          Efectivo contado (BS)
+          <input type="number" id="arqueo-bs" step="0.01" min="0" placeholder="0.00" inputmode="decimal" />
+        </label>
+        <label class="arqueo-label">
+          Efectivo contado (USD)
+          <input type="number" id="arqueo-usd" step="0.01" min="0" placeholder="0.00" inputmode="decimal" />
+        </label>
+      </div>
+      <div id="diff-bs" class="diff"></div>
+      <div id="diff-usd" class="diff"></div>
+      <button id="btn-ejecutar" class="btn-primary">Ejecutar cierre</button>
+    </section>
+
+    <!-- Resultado del cierre ejecutado (201) -->
+    <section class="card" id="resultado-card" style="display: none;">
+      <div class="card-header">
+        <h3 class="card-title">Resultado del cierre</h3>
+        <div class="result-actions">
+          <button id="btn-print-resultado" class="btn-action btn-print">🖨️ Imprimir</button>
+          <button id="btn-refresh-resultado" class="btn-refresh">🔄 Refrescar</button>
+        </div>
+      </div>
+      <div id="resultado-content"></div>
+    </section>
+
+    <!-- Historial (GET /cierre) -->
+    <section class="card">
+      <h3 class="card-title">Historial de cierres</h3>
+      <div id="historial-content">
+        <div class="loading">Cargando...</div>
+      </div>
+    </section>
+
+    <!-- Reporte semanal (GET /cierre/semanal) -->
+    <section class="card">
+      <h3 class="card-title">Reporte semanal</h3>
+      <div class="filters">
+        <input type="date" id="semana-fecha" />
+        <button id="btn-semanal" class="btn-refresh">Consultar semana</button>
+      </div>
+      <div id="semanal-content">
+        <div class="loading">Cargando reporte semanal...</div>
+      </div>
+    </section>
   </div>
+
+  <style is:global>
+    .cierre-page { max-width: 1200px; margin: 0 auto; }
+    .page-title { font-size: 28px; font-weight: 700; color: #333; margin-bottom: 24px; }
+
+    .card {
+      background: white;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      padding: 18px 20px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .card-title { font-size: 17px; font-weight: 700; color: #333; margin: 0; }
+
+    .filters { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+    .filters input[type="date"] {
+      padding: 10px 12px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 15px;
+    }
+    .filters input[type="date"]:focus { border-color: #667eea; outline: none; }
+
+    .btn-refresh {
+      padding: 8px 16px;
+      background: #28a745;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background .15s;
+    }
+    .btn-refresh:hover { background: #218838; }
+    .btn-primary {
+      padding: 12px 26px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 600;
+      margin-top: 14px;
+      transition: filter .15s;
+    }
+    .btn-primary:hover { filter: brightness(0.95); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .loading { text-align: center; padding: 24px; color: #666; }
+    .empty-state { text-align: center; padding: 24px; color: #999; font-style: italic; }
+    .error-state { text-align: center; padding: 24px; color: #dc3545; }
+
+    .preview-period { font-size: 14px; color: #444; margin-bottom: 12px; }
+    .semanal-header { font-size: 14px; color: #444; margin-bottom: 6px; }
+    .ventana-info { font-size: 13px; color: #666; margin-bottom: 10px; }
+    .warn-banner {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeeba;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .breakdown-title { font-size: 13px; font-weight: 700; color: #555; margin: 14px 0 6px; }
+
+    .totals-table, .method-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      margin-bottom: 6px;
+    }
+    .totals-table th, .method-table th {
+      background: #f1f3f5;
+      padding: 8px 12px;
+      text-align: left;
+      font-weight: 600;
+      color: #666;
+      font-size: 12px;
+      border-bottom: 1px solid #dee2e6;
+    }
+    .totals-table td, .method-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid #e9ecef;
+    }
+    .row-total td { font-weight: 700; background: #f8f9fa; }
+
+    .arqueo-grid { display: flex; gap: 16px; flex-wrap: wrap; }
+    .arqueo-label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #555;
+    }
+    .arqueo-label input {
+      padding: 10px 12px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 16px;
+      width: 200px;
+    }
+    .arqueo-label input:focus { border-color: #667eea; outline: none; }
+
+    .diff { margin-top: 8px; font-size: 14px; font-weight: 600; min-height: 20px; }
+    .diff.faltante { color: #dc3545; }
+    .diff.sobrante { color: #28a745; }
+    .diff.neutral { color: #6c757d; }
+
+    .result-period { font-size: 14px; color: #444; margin-bottom: 12px; }
+    .arqueo-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+    .arqueo-item { font-size: 14px; color: #333; }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      min-width: 85px;
+      text-align: center;
+    }
+    .badge-faltante { background: #f8d7da; color: #721c24; }
+    .badge-sobrante { background: #d4edda; color: #155724; }
+    .badge-neutral { background: #e9ecef; color: #495057; }
+
+    .cierre-card { background: white; border-radius: 10px; margin-bottom: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); overflow: hidden; }
+    .cierre-row {
+      display: flex;
+      align-items: center;
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: background .15s;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .cierre-row:hover { background: #f8f9fa; }
+    .cierre-expand { width: 22px; font-size: 13px; color: #999; flex-shrink: 0; }
+    .cierre-expand.expanded { color: #667eea; }
+    .cierre-fecha { font-weight: 600; color: #333; min-width: 160px; font-size: 13px; }
+    .cierre-taquilla { color: #444; flex: 1; font-size: 13px; min-width: 100px; }
+    .cierre-total { min-width: 110px; text-align: right; font-weight: 600; font-size: 13px; }
+    .cierre-usd { min-width: 90px; text-align: right; font-size: 13px; color: #555; }
+    .cierre-actions { display: flex; gap: 6px; }
+    .cierre-detail { display: none; border-top: 1px solid #e9ecef; background: #fafbfc; padding: 14px 16px; }
+    .cierre-detail.open { display: block; }
+
+    .btn-action {
+      padding: 6px 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all .15s;
+      background: white;
+    }
+    .btn-action:hover { transform: translateY(-1px); }
+    .btn-print { color: #6c757d; border-color: #6c757d; }
+    .btn-print:hover { background: #e9ecef; }
+
+    .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 16px; flex-wrap: wrap; align-items: center; }
+    .page-btn { padding: 8px 14px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-size: 14px; }
+    .page-btn.active { background: #667eea; color: white; border-color: #667eea; }
+    .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  </style>
+
+  <script>
+    import { apiFetch, ApiError } from '../utils/apiFetch';
+
+    const METODOS = ['efectivo', 'transferencia', 'pago_movil', 'punto_venta'];
+    const METODO_LABELS = {
+      efectivo: 'Efectivo',
+      transferencia: 'Transferencia',
+      pago_movil: 'Pago móvil',
+      punto_venta: 'Punto de venta'
+    };
+
+    const fmtMoney = (n) => Number(n || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 });
+    const fmtFecha = (iso) => {
+      if (!iso) return '-';
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return '-';
+      return d.toLocaleString('es-VE', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', hour12: true
+      });
+    };
+    // Campos fecha-sola (YYYY-MM-DD) se muestran tal cual para no desplazar el día por zona horaria.
+    const fmtFechaSola = (s) =>
+      (typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s)) ? s : fmtFecha(s);
+
+    const esNulo = (v) => v === null || v === undefined || v === '';
+
+    let preview = null;
+    let ultimoCierre = null;
+    let historialCache = [];
+    let histPage = 1;
+    let histLastPage = 1;
+
+    // --- Errores según ApiError.kind (diseño: network/timeout modal, 422 mensaje del backend, 403 modal, rate-limited reintentar) ---
+    function showError(e, fallback) {
+      if (e instanceof ApiError) {
+        switch (e.kind) {
+          case 'network':
+          case 'timeout':
+            window.showModal({ message: 'Sin conexión con el servidor. Verifique su red e intente nuevamente.', type: 'error' });
+            return;
+          case 'forbidden':
+            window.showModal({ message: e.message || 'Acceso denegado.', type: 'error' });
+            return;
+          case 'rate-limited':
+            window.showModal({ message: e.message || 'Demasiadas solicitudes. Espere un momento e intente nuevamente.', type: 'error' });
+            return;
+          case 'http':
+            window.showModal({ message: e.message || fallback, type: 'error' });
+            return;
+          default:
+            window.showModal({ message: e.message || fallback, type: 'error' });
+            return;
+        }
+      }
+      window.showModal({ message: fallback, type: 'error' });
+    }
+
+    // --- Desglose por método (shape fijo AD-3) ---
+    function desgloseHtml(desglose) {
+      const d = desglose || {};
+      let html = '<table class="method-table"><thead><tr><th>Moneda</th><th>Método</th><th>Ventas</th><th>Egresos</th><th>Efectivo</th></tr></thead><tbody>';
+      for (const moneda of ['bs', 'usd']) {
+        const monedaLabel = moneda === 'bs' ? 'BS' : 'USD';
+        for (const metodo of METODOS) {
+          const m = d[moneda]?.[metodo] || { ventas: 0, egresos: 0, efectivo: 0 };
+          html += `<tr><td>${monedaLabel}</td><td>${METODO_LABELS[metodo]}</td><td>${fmtMoney(m.ventas)}</td><td>${fmtMoney(m.egresos)}</td><td>${fmtMoney(m.efectivo)}</td></tr>`;
+        }
+      }
+      html += '</tbody></table>';
+      return html;
+    }
+
+    function badgeClass(diff) {
+      if (esNulo(diff)) return 'badge-neutral';
+      const v = Number(diff);
+      if (v < -0.005) return 'badge-faltante';
+      if (v > 0.005) return 'badge-sobrante';
+      return 'badge-neutral';
+    }
+
+    function badgeText(diff) {
+      if (esNulo(diff)) return 'SIN ARQUEO';
+      const v = Number(diff);
+      if (v < -0.005) return 'FALTANTE';
+      if (v > 0.005) return 'SOBRANTE';
+      return 'CONCILIADO';
+    }
+
+    // --- Resumen del período actual ---
+    async function loadPreview() {
+      const el = document.getElementById('preview-content');
+      el.innerHTML = '<div class="loading">Cargando resumen...</div>';
+      try {
+        preview = await apiFetch('/cierre/actual');
+        renderPreview(preview);
+        updateDiferencias();
+      } catch (e) {
+        preview = null;
+        el.innerHTML = '<div class="error-state">No se pudo cargar el resumen del período.</div>';
+        showError(e, 'Error al cargar el resumen del período.');
+      }
+    }
+
+    function renderPreview(p) {
+      const el = document.getElementById('preview-content');
+      let html = `<div class="preview-period">Período: <strong>${fmtFecha(p.fecha_inicio)}</strong> → <strong>${fmtFecha(p.fecha_fin)}</strong> · Tasa: <strong>${fmtMoney(p.exchange_rate)}</strong></div>`;
+      html += '<table class="totals-table"><thead><tr><th>Concepto</th><th>BS</th><th>USD</th></tr></thead><tbody>';
+      html += `<tr><td>Ventas</td><td>Bs. ${fmtMoney(p.total_ventas_bs)}</td><td>$ ${fmtMoney(p.total_ventas_usd)}</td></tr>`;
+      html += `<tr><td>Egresos</td><td>Bs. ${fmtMoney(p.total_egresos_bs)}</td><td>$ ${fmtMoney(p.total_egresos_usd)}</td></tr>`;
+      html += `<tr class="row-total"><td>Efectivo esperado</td><td>Bs. ${fmtMoney(p.total_efectivo_bs)}</td><td>$ ${fmtMoney(p.total_efectivo_usd)}</td></tr>`;
+      html += '</tbody></table>';
+      html += '<div class="breakdown-title">Desglose por método</div>' + desgloseHtml(p.desglose_metodos);
+      el.innerHTML = html;
+    }
+
+    // --- Diferencia en vivo (arqueo - efectivo del preview) ---
+    function updateDiferencias() {
+      renderDiff('diff-bs', document.getElementById('arqueo-bs').value, preview ? Number(preview.total_efectivo_bs || 0) : null, 'BS');
+      renderDiff('diff-usd', document.getElementById('arqueo-usd').value, preview ? Number(preview.total_efectivo_usd || 0) : null, 'USD');
+    }
+
+    function renderDiff(elId, raw, esperado, moneda) {
+      const el = document.getElementById(elId);
+      if (!el) return;
+      if (raw === '' || esperado === null) {
+        el.textContent = '';
+        el.className = 'diff';
+        return;
+      }
+      const arqueo = parseFloat(raw);
+      if (isNaN(arqueo)) {
+        el.textContent = '';
+        el.className = 'diff';
+        return;
+      }
+      const diff = arqueo - esperado;
+      let cls = 'diff neutral';
+      let txt;
+      if (diff < -0.005) {
+        cls = 'diff faltante';
+        txt = `Faltante: ${moneda === 'BS' ? 'Bs.' : '$'} ${fmtMoney(Math.abs(diff))} (arqueo menor al efectivo esperado)`;
+      } else if (diff > 0.005) {
+        cls = 'diff sobrante';
+        txt = `Sobrante: ${moneda === 'BS' ? 'Bs.' : '$'} ${fmtMoney(diff)} (arqueo mayor al efectivo esperado)`;
+      } else {
+        txt = 'Conciliado';
+      }
+      el.textContent = txt;
+      el.className = cls;
+    }
+
+    // --- Ejecutar cierre (confirm showModal → POST /cierre) ---
+    async function ejecutarCierre() {
+      const bsVal = document.getElementById('arqueo-bs').value;
+      const usdVal = document.getElementById('arqueo-usd').value;
+      const body = {};
+      if (bsVal !== '') body.arqueo_efectivo_bs = parseFloat(bsVal);
+      if (usdVal !== '') body.arqueo_efectivo_usd = parseFloat(usdVal);
+
+      const espBs = preview ? Number(preview.total_efectivo_bs || 0) : 0;
+      const espUsd = preview ? Number(preview.total_efectivo_usd || 0) : 0;
+
+      let resumen = '¿Ejecutar el cierre de caja?';
+      if (preview) resumen += `<br>Período: ${fmtFecha(preview.fecha_inicio)} → ${fmtFecha(preview.fecha_fin)}`;
+      resumen += `<br>Efectivo esperado: Bs. ${fmtMoney(espBs)} / $ ${fmtMoney(espUsd)}`;
+      if (body.arqueo_efectivo_bs !== undefined) {
+        const d = body.arqueo_efectivo_bs - espBs;
+        resumen += `<br>Contado BS: Bs. ${fmtMoney(body.arqueo_efectivo_bs)} (${d < -0.005 ? 'faltante' : d > 0.005 ? 'sobrante' : 'conciliado'})`;
+      }
+      if (body.arqueo_efectivo_usd !== undefined) {
+        const d = body.arqueo_efectivo_usd - espUsd;
+        resumen += `<br>Contado USD: $ ${fmtMoney(body.arqueo_efectivo_usd)} (${d < -0.005 ? 'faltante' : d > 0.005 ? 'sobrante' : 'conciliado'})`;
+      }
+
+      const ok = await window.showModal({ message: resumen, type: 'confirm' });
+      if (!ok) return;
+
+      const btn = document.getElementById('btn-ejecutar');
+      btn.disabled = true;
+      try {
+        const cierre = await apiFetch('/cierre', { method: 'POST', body });
+        ultimoCierre = cierre;
+        renderResultado(cierre);
+        await window.showModal({ message: 'Cierre ejecutado correctamente.', type: 'success' });
+        loadPreview();
+        loadHistorial(1);
+      } catch (e) {
+        showError(e, 'Error al ejecutar el cierre.');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // --- Resultado (201) ---
+    function renderResultado(c) {
+      document.getElementById('resultado-card').style.display = '';
+      const diffBs = c.faltante_sobrante_bs;
+      const diffUsd = c.faltante_sobrante_usd;
+      let html = `<div class="result-period">Período: <strong>${fmtFecha(c.fecha_inicio)}</strong> → <strong>${fmtFecha(c.fecha_fin)}</strong> · Tasa: <strong>${fmtMoney(c.exchange_rate_cierre)}</strong></div>`;
+      html += '<table class="totals-table"><thead><tr><th>Concepto</th><th>BS</th><th>USD</th></tr></thead><tbody>';
+      html += `<tr><td>Ventas</td><td>Bs. ${fmtMoney(c.total_ventas_bs)}</td><td>$ ${fmtMoney(c.total_ventas_usd)}</td></tr>`;
+      html += `<tr><td>Egresos</td><td>Bs. ${fmtMoney(c.total_egresos_bs)}</td><td>$ ${fmtMoney(c.total_egresos_usd)}</td></tr>`;
+      html += `<tr class="row-total"><td>Efectivo</td><td>Bs. ${fmtMoney(c.total_efectivo_bs)}</td><td>$ ${fmtMoney(c.total_efectivo_usd)}</td></tr>`;
+      html += '</tbody></table>';
+      html += '<div class="arqueo-row">';
+      html += `<span class="arqueo-item">Arqueo BS: <strong>${esNulo(c.arqueo_efectivo_bs) ? '—' : 'Bs. ' + fmtMoney(c.arqueo_efectivo_bs)}</strong></span>`;
+      html += `<span class="badge ${badgeClass(diffBs)}">${badgeText(diffBs)}</span>`;
+      html += `<span class="arqueo-item">Arqueo USD: <strong>${esNulo(c.arqueo_efectivo_usd) ? '—' : '$ ' + fmtMoney(c.arqueo_efectivo_usd)}</strong></span>`;
+      html += `<span class="badge ${badgeClass(diffUsd)}">${badgeText(diffUsd)}</span>`;
+      html += '</div>';
+      html += '<div class="breakdown-title">Desglose por método</div>' + desgloseHtml(c.desglose_metodos);
+      document.getElementById('resultado-content').innerHTML = html;
+    }
+
+    function refrescarResultado() {
+      document.getElementById('resultado-card').style.display = 'none';
+      ultimoCierre = null;
+      document.getElementById('arqueo-bs').value = '';
+      document.getElementById('arqueo-usd').value = '';
+      updateDiferencias();
+      loadPreview();
+    }
+
+    // --- Historial (GET /cierre?per_page=10&page=N) ---
+    async function loadHistorial(page) {
+      const container = document.getElementById('historial-content');
+      container.innerHTML = '<div class="loading">Cargando...</div>';
+      try {
+        const response = await apiFetch('/cierre?per_page=10&page=' + (page || 1));
+        historialCache = response.data || [];
+        histPage = response.current_page || 1;
+        histLastPage = response.last_page || 1;
+        renderHistorial(historialCache);
+        if (histLastPage > 1) {
+          let ph = '<div class="pagination">';
+          ph += `<button class="page-btn" data-page="${histPage - 1}" ${histPage <= 1 ? 'disabled' : ''}>Anterior</button>`;
+          for (let p = Math.max(1, histPage - 2); p <= Math.min(histLastPage, histPage + 2); p++) {
+            ph += `<button class="page-btn ${p === histPage ? 'active' : ''}" data-page="${p}">${p}</button>`;
+          }
+          ph += `<button class="page-btn" data-page="${histPage + 1}" ${histPage >= histLastPage ? 'disabled' : ''}>Siguiente</button>`;
+          ph += '</div>';
+          container.insertAdjacentHTML('beforeend', ph);
+        }
+      } catch (e) {
+        container.innerHTML = '<div class="error-state">Error al cargar el historial.</div>';
+        showError(e, 'Error al cargar el historial.');
+      }
+    }
+
+    function cierreDetailHtml(c) {
+      const diffBs = c.faltante_sobrante_bs;
+      const diffUsd = c.faltante_sobrante_usd;
+      let html = `<div class="result-period">Período: <strong>${fmtFecha(c.fecha_inicio)}</strong> → <strong>${fmtFecha(c.fecha_fin)}</strong> · Tasa: <strong>${fmtMoney(c.exchange_rate_cierre)}</strong></div>`;
+      html += '<table class="totals-table"><thead><tr><th>Concepto</th><th>BS</th><th>USD</th></tr></thead><tbody>';
+      html += `<tr><td>Ventas</td><td>Bs. ${fmtMoney(c.total_ventas_bs)}</td><td>$ ${fmtMoney(c.total_ventas_usd)}</td></tr>`;
+      html += `<tr><td>Egresos</td><td>Bs. ${fmtMoney(c.total_egresos_bs)}</td><td>$ ${fmtMoney(c.total_egresos_usd)}</td></tr>`;
+      html += `<tr class="row-total"><td>Efectivo</td><td>Bs. ${fmtMoney(c.total_efectivo_bs)}</td><td>$ ${fmtMoney(c.total_efectivo_usd)}</td></tr>`;
+      html += '</tbody></table>';
+      html += '<div class="arqueo-row">';
+      html += `<span class="arqueo-item">Arqueo BS: <strong>${esNulo(c.arqueo_efectivo_bs) ? '—' : 'Bs. ' + fmtMoney(c.arqueo_efectivo_bs)}</strong></span>`;
+      html += `<span class="badge ${badgeClass(diffBs)}">${badgeText(diffBs)}</span>`;
+      html += `<span class="arqueo-item">Arqueo USD: <strong>${esNulo(c.arqueo_efectivo_usd) ? '—' : '$ ' + fmtMoney(c.arqueo_efectivo_usd)}</strong></span>`;
+      html += `<span class="badge ${badgeClass(diffUsd)}">${badgeText(diffUsd)}</span>`;
+      html += '</div>';
+      html += '<div class="breakdown-title">Desglose por método</div>' + desgloseHtml(c.desglose_metodos);
+      return html;
+    }
+
+    function renderHistorial(cierres) {
+      const container = document.getElementById('historial-content');
+      if (!cierres || cierres.length === 0) {
+        container.innerHTML = '<div class="empty-state">No hay cierres registrados</div>';
+        return;
+      }
+      let html = '';
+      cierres.forEach(c => {
+        html += `
+        <div class="cierre-card" data-cierre-id="${c.id}">
+          <div class="cierre-row" data-toggle="${c.id}">
+            <span class="cierre-expand">▶</span>
+            <span class="cierre-fecha">${fmtFecha(c.fecha_fin)}</span>
+            <span class="cierre-taquilla">${c.taquilla?.nombre || 'Taquilla #' + c.taquilla_id}</span>
+            <span class="cierre-total">Bs. ${fmtMoney(c.total_efectivo_bs)}</span>
+            <span class="cierre-usd">$ ${fmtMoney(c.total_efectivo_usd)}</span>
+            <span class="badge ${badgeClass(c.faltante_sobrante_bs)}">${badgeText(c.faltante_sobrante_bs)}</span>
+            <div class="cierre-actions">
+              <button class="btn-action btn-print" data-action="print" data-id="${c.id}">🖨️ Imprimir</button>
+            </div>
+          </div>
+          <div class="cierre-detail" data-detail="${c.id}">${cierreDetailHtml(c)}</div>
+        </div>`;
+      });
+      container.innerHTML = html;
+    }
+
+    function toggleRow(id) {
+      const detail = document.querySelector(`[data-detail="${id}"]`);
+      const expand = document.querySelector(`[data-toggle="${id}"] .cierre-expand`);
+      if (!detail) return;
+      detail.classList.toggle('open');
+      if (expand) expand.textContent = detail.classList.contains('open') ? '▼' : '▶';
+    }
+
+    // --- Impresión (IPC print-cierre; fuera de Electron → showModal) ---
+    async function imprimirCierre(cierre) {
+      if (!window.electron?.printCierre) {
+        await window.showModal({ message: 'Impresión no disponible fuera de Electron', type: 'error' });
+        return;
+      }
+      try {
+        const res = await window.electron.printCierre({ cierreData: cierre });
+        if (res && res.success) {
+          await window.showModal({ message: res.message, type: 'success' });
+        } else {
+          await window.showModal({ message: (res && res.message) || 'No se pudo imprimir.', type: 'error' });
+        }
+      } catch (e) {
+        await window.showModal({ message: 'Error al imprimir: ' + e.message, type: 'error' });
+      }
+    }
+
+    async function imprimirCierrePorId(id) {
+      try {
+        const cierre = await apiFetch('/cierre/' + id);
+        await imprimirCierre(cierre);
+      } catch (e) {
+        showError(e, 'Error al cargar el cierre para imprimir.');
+      }
+    }
+
+    // --- Reporte semanal (GET /cierre/semanal?fecha=) ---
+    function todayCaracas() {
+      const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Caracas', year: 'numeric', month: '2-digit', day: '2-digit'
+      }).formatToParts(new Date());
+      const get = (t) => parts.find(p => p.type === t)?.value || '';
+      return `${get('year')}-${get('month')}-${get('day')}`;
+    }
+
+    async function cargarSemanal() {
+      const fecha = document.getElementById('semana-fecha').value;
+      const content = document.getElementById('semanal-content');
+      content.innerHTML = '<div class="loading">Cargando reporte semanal...</div>';
+      try {
+        const url = fecha ? '/cierre/semanal?fecha=' + fecha : '/cierre/semanal';
+        const reporte = await apiFetch(url);
+        renderSemanal(reporte);
+      } catch (e) {
+        content.innerHTML = '<div class="error-state">Error al cargar el reporte semanal.</div>';
+        showError(e, 'Error al cargar el reporte semanal.');
+      }
+    }
+
+    function renderSemanal(r) {
+      const content = document.getElementById('semanal-content');
+      if (!r) {
+        content.innerHTML = '<div class="error-state">Sin datos.</div>';
+        return;
+      }
+      const ventana = r.ventana_cubierta || {};
+      const incluidos = ventana.cierres_incluidos || 0;
+
+      let html = `<div class="semanal-header">Semana: <strong>${fmtFechaSola(r.fecha_desde)}</strong> → <strong>${fmtFechaSola(r.fecha_hasta)}</strong></div>`;
+      html += `<div class="ventana-info">Cierres incluidos: <strong>${incluidos}</strong> de 7 días`;
+      if (ventana.desde) html += ` · Cubierto: ${fmtFecha(ventana.desde)} → ${fmtFecha(ventana.hasta)}`;
+      html += '</div>';
+      if (incluidos < 7) {
+        html += `<div class="warn-banner">⚠️ La semana está incompleta: solo ${incluidos} día(s) con cierre de los 7 esperados.</div>`;
+      }
+      if (incluidos === 0) {
+        html += '<div class="empty-state">No hay cierres registrados en esta semana.</div>';
+        content.innerHTML = html;
+        return;
+      }
+
+      html += '<table class="totals-table"><thead><tr><th>Concepto</th><th>BS</th><th>USD</th></tr></thead><tbody>';
+      html += `<tr><td>Ventas</td><td>Bs. ${fmtMoney(r.total_ventas_bs)}</td><td>$ ${fmtMoney(r.total_ventas_usd)}</td></tr>`;
+      html += `<tr><td>Egresos</td><td>Bs. ${fmtMoney(r.total_egresos_bs)}</td><td>$ ${fmtMoney(r.total_egresos_usd)}</td></tr>`;
+      html += `<tr class="row-total"><td>Efectivo</td><td>Bs. ${fmtMoney(r.total_efectivo_bs)}</td><td>$ ${fmtMoney(r.total_efectivo_usd)}</td></tr>`;
+      if (r.arqueo_efectivo_bs !== null && r.arqueo_efectivo_bs !== undefined) {
+        html += `<tr><td>Arqueo</td><td>Bs. ${fmtMoney(r.arqueo_efectivo_bs)}</td><td>$ ${fmtMoney(r.arqueo_efectivo_usd)}</td></tr>`;
+        html += `<tr><td>Falt./Sobr.</td><td>Bs. ${fmtMoney(r.faltante_sobrante_bs)} <span class="badge ${badgeClass(r.faltante_sobrante_bs)}">${badgeText(r.faltante_sobrante_bs)}</span></td><td>$ ${fmtMoney(r.faltante_sobrante_usd)} <span class="badge ${badgeClass(r.faltante_sobrante_usd)}">${badgeText(r.faltante_sobrante_usd)}</span></td></tr>`;
+      }
+      html += '</tbody></table>';
+      html += '<div class="breakdown-title">Desglose por método</div>' + desgloseHtml(r.desglose_metodos);
+      html += `<div class="breakdown-title">Cierres incluidos (${(r.cierres || []).length})</div>`;
+      html += '<table class="method-table"><thead><tr><th>ID</th><th>Fecha fin</th><th>Ventas BS</th><th>Efectivo BS</th></tr></thead><tbody>';
+      (r.cierres || []).forEach(c => {
+        html += `<tr><td>#${c.id}</td><td>${fmtFecha(c.fecha_fin)}</td><td>Bs. ${fmtMoney(c.total_ventas_bs)}</td><td>Bs. ${fmtMoney(c.total_efectivo_bs)}</td></tr>`;
+      });
+      html += '</tbody></table>';
+      content.innerHTML = html;
+    }
+
+    // --- Inicialización y eventos ---
+    document.getElementById('semana-fecha').value = todayCaracas();
+    document.getElementById('arqueo-bs').addEventListener('input', updateDiferencias);
+    document.getElementById('arqueo-usd').addEventListener('input', updateDiferencias);
+    document.getElementById('btn-refresh-preview').addEventListener('click', loadPreview);
+    document.getElementById('btn-ejecutar').addEventListener('click', ejecutarCierre);
+    document.getElementById('btn-print-resultado').addEventListener('click', () => {
+      if (ultimoCierre) imprimirCierre(ultimoCierre);
+    });
+    document.getElementById('btn-refresh-resultado').addEventListener('click', refrescarResultado);
+    document.getElementById('btn-semanal').addEventListener('click', cargarSemanal);
+
+    document.addEventListener('click', (e) => {
+      const printBtn = e.target.closest('[data-action="print"]');
+      if (printBtn) {
+        imprimirCierrePorId(Number(printBtn.dataset.id));
+        return;
+      }
+      const pageBtn = e.target.closest('.page-btn[data-page]');
+      if (pageBtn && !pageBtn.disabled) {
+        loadHistorial(Number(pageBtn.dataset.page));
+        return;
+      }
+      const toggle = e.target.closest('[data-toggle]');
+      if (toggle) toggleRow(toggle.dataset.toggle);
+    });
+
+    loadPreview();
+    loadHistorial(1);
+    cargarSemanal();
+  </script>
 </MainLayout>
-
-<style is:global>
-  .cierre-page {
-    max-width: 1200px;
-    margin: 0 auto;
-  }
-
-  .page-title {
-    font-size: 24px;
-    font-weight: 700;
-    color: #333;
-    margin-bottom: 16px;
-  }
-
-  .placeholder-card {
-    background: white;
-    border-radius: 12px;
-    padding: 60px 40px;
-    text-align: center;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  }
-
-  .placeholder-icon {
-    font-size: 48px;
-    margin-bottom: 16px;
-  }
-
-  .placeholder-card p {
-    font-size: 18px;
-    color: #555;
-    margin: 8px 0;
-  }
-
-  .placeholder-sub {
-    font-size: 14px !important;
-    color: #999 !important;
-  }
-</style>
