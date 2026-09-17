@@ -10,10 +10,13 @@
 
 - El pago se expresa en **multiplicador** (×): el número por el que se multiplica lo apostado.
   **Ejemplo:** si un premio es "30×" y apuestas **Bs. 10**, ganas `10 × 30 = Bs. 300`.
-- La regla general del sistema: **sin fuente oficial con valores → juego deshabilitado**
-  (`active=false`). Hoy solo aplica a `la-ricachona`.
-- Algunos juegos tienen **comodines** (figuras o condiciones especiales que pagan más). Se explican
-  juego por juego.
+- **Regla de redondeo**: todo monto de premio se calcula con **máximo 2 decimales**
+  (`premio = monto × multiplicador`, redondeado a 2 decimales). La moneda del premio es la misma de la
+  apuesta: **Bs. o USD** según la tasa aplicada a la venta.
+- **Regla de soporte**: **sin fuente oficial con valores → juego deshabilitado** (`active=false`).
+  Hoy solo aplica a `la-ricachona` (marcada como deshabilitada/pendiente al final del documento).
+- Algunos juegos tienen **comodines** (figuras o condiciones especiales que pagan más) y **modalidades**
+  (formas de acertar con premio distinto). Se explican juego por juego.
 
 ## Resumen de multiplicadores oficiales
 
@@ -74,12 +77,14 @@ Igual que Lotto Activo (38 figuras, 30×). **Ejemplo**: Bs. 10 al Tigre → `10 
   duplicado como Delfín/Ballena). Sorteos del feed oficial Lotto Activo 2.
 - **Qué se apuesta**: una figura y el monto.
 - **Cuándo ganas**: si tu figura sale en el sorteo.
-- **Cuánto pagas**:
+- **Cuánto pagas** (reglamento oficial "Lotto Activo 2"):
   - **Figura normal**: **50×**.
+  - **Palabra PATRONUS**: cuando en el sorteo sale la palabra "PATRONUS" sobre una figura normal, el
+    acumulado es **50× + 20× = 70×**.
   - **El Patronus (figura 75)**: **120×**.
-  - **Palabra PATRONUS**: **+20×** (sobre el premio base → 50× + 20× = **70×**).
 - **Ejemplos**:
   - Bs. 10 a la figura 42 (Tucán) → `10 × 50 = Bs. 500`.
+  - Bs. 10 a la figura 42 y sale la palabra PATRONUS → `10 × 70 = Bs. 700`.
   - Bs. 10 al Patronus (75) → `10 × 120 = Bs. 1.200`.
 
 ### 5. Cazalotón — 30× (Dupleta 800× / Tripleta 200×)
@@ -169,23 +174,37 @@ triple exacto, las 2 últimas cifras (terminal/cola), las 2 primeras (punta), o 
 - **Cuánto pagas** (reglamento oficial):
   - **Triple Fijo** (A o B): **600×**.
   - **A + B** (ambos triples): **200.000×**.
-  - **Solo A o B**: **150×** (⚠️ el afiche decía 100× — pendiente de confirmar).
+  - **Solo A o B**: **150×** (reglamento).
   - **Punta 60×** · **Terminal 60×** · **Cruzado 3.000×/10×**.
-  - **C + Signo**: **6.000×** (⚠️ el afiche decía 5.000× — pendiente).
+  - **C + Signo**: **6.000×** (reglamento).
   - **Terminal + Signo 600×** · **Signo 6×**.
 - **Ejemplo**: Bs. 10 al Triple A y B → salen ambos → `10 × 200.000 = Bs. 2.000.000`.
 
-### 16. El Arrejuntado — 40× base
+### 16. El Arrejuntado — 40× base (6 modalidades)
 
-- **Cómo se juega**: 6 modalidades en un mismo resultado: **animalito**, **El Arrimao**, **El Pegadito**,
-  **Triple A**, **Triple B** y **Triple + Signo**.
-- **Cuánto pagas**:
+- **Cómo se juega**: en **cada sorteo** se cantan, a la vez, **6 resultados** sobre los que puedes
+  apostar por separado:
+  1. **Animalito** — una figura (como los juegos de animalitos).
+  2. **Triple A** — un número de 3 cifras (000–999).
+  3. **Triple B** — otro número de 3 cifras (000–999).
+  4. **Triple + Signo** — uno de los triples combinado con su signo zodiacal.
+  5. **El Arrimao** — un número de **4 cifras** (ej. `2091`).
+  6. **El Pegadito** — un número de **5 cifras** (ej. `01963`).
+- **Qué se apuesta**: eliges una modalidad y el número/figura exacto de esa modalidad. Ganar el
+  Pegadito o el Arrimao es **acertar el número exacto** de 5 o 4 cifras (no es un comodín: es una
+  modalidad propia del sorteo).
+- **Cuánto pagas** (reglamento oficial + web oficial para el Pegadito):
   - **Animalito**: **40×** (base).
   - **Triple A** y **Triple B**: **600×**.
   - **Triple + Signo**: **6.000×**.
-  - **El Arrimao**: **6.000×**.
-  - **El Pegadito**: **60.000×**.
-- **Ejemplo**: Bs. 10 al Pegadito → `10 × 60.000 = Bs. 600.000`.
+  - **El Arrimao** (4 cifras exactas): **6.000×**.
+  - **El Pegadito** (5 cifras exactas): **60.000×**.
+- **Ejemplos**:
+  - Bs. 10 al Animalito → sale tu animalito → `10 × 40 = Bs. 400`.
+  - Bs. 10 al Triple A 452 → sale 452 → `10 × 600 = Bs. 6.000`.
+  - Bs. 10 al Triple + Signo → sale tu triple con su signo → `10 × 6.000 = Bs. 60.000`.
+  - Bs. 10 al Arrimao 2091 → sale `2091` → `10 × 6.000 = Bs. 60.000`.
+  - Bs. 10 al Pegadito 01963 → sale `01963` → `10 × 60.000 = Bs. 600.000`.
 
 ### 17. Triple Táchira — 500×
 
@@ -199,9 +218,11 @@ triple exacto, las 2 últimas cifras (terminal/cola), las 2 primeras (punta), o 
 - **Cómo se juega**: eliges un triple de 3 cifras (000–999, entrada libre). 12 sorteos (08:00–19:00).
   El "terminal" es **derivado**: los 2 últimos dígitos del triple (`n % 100`), y la aproximación es
   el terminal ±1.
-- **Cuánto pagas**: **Triple 700×** · **Terminal 60×** · **Aproximación 10×**.
-  (⚠️ valores informativos: el sitio oficial no publica cifras ni reglamento.)
-- **Ejemplo**: Bs. 10 al triple 346 → sale 346 → `10 × 700 = Bs. 7.000`.
+- **Cuánto pagas** (reglamento oficial): **Triple 700×** · **Terminal 60×** · **Aproximación 10×**.
+- **Ejemplos**:
+  - Bs. 10 al triple 346 → sale 346 → `10 × 700 = Bs. 7.000`.
+  - Bs. 10 al terminal 46 (2 últimas cifras del triple) → sale el triple 346 → `10 × 60 = Bs. 600`.
+  - Bs. 10 a la aproximación 45 (terminal ±1) → sale el triple 346 → `10 × 10 = Bs. 100`.
 
 ### 19. Triple Zamorano — 600×
 
@@ -211,11 +232,11 @@ triple exacto, las 2 últimas cifras (terminal/cola), las 2 primeras (punta), o 
   **Cola+Signo 600×** · **Uña+Signo 60×**.
 - **Ejemplo**: Bs. 10 al triple 105 → sale 105 → `10 × 600 = Bs. 6.000`.
 
-### 20. La Ricachona — DESHABILITADO
+### 20. La Ricachona — DESHABILITADO / PENDIENTE
 
-- **Estado**: **deshabilitado** (`active=false`). El reglamento (2022) no trae valores de premio y no
-  se localizó una fuente oficial con multiplicadores. Por la regla de soporte del sistema, **no se
-  brinda soporte** hasta tener la fuente oficial con valores.
+- **Estado**: **deshabilitado** (`active=false`) y **pendiente de fuente**. El reglamento (2022) no
+  trae valores de premio y no se localizó una fuente oficial con multiplicadores. Por la regla de
+  soporte del sistema, **no se brinda soporte** hasta tener la fuente oficial con valores.
 
 ---
 
@@ -226,17 +247,23 @@ triple exacto, las 2 últimas cifras (terminal/cola), las 2 primeras (punta), o 
 - **Cómo se juega**: eliges un terminal de 2 cifras (00–99).
 - **Qué se apuesta**: el número de 2 cifras y el monto.
 - **Cuándo ganas**: si el terminal sale en el sorteo.
-- **Cuánto pagas**: **60×** (reglamento). ⚠️ El FAQ oficial dice **70× + 5× por aproximación** —
-  pendiente de confirmar con el operador.
+- **Cuánto pagas**: **60×** (reglamento oficial — H12 resuelto: se usa 60×).
 - **Ejemplo**: Bs. 10 al terminal 37 → sale 37 → `10 × 60 = Bs. 600`.
 
 ---
 
 ## Notas finales
 
-- Los valores marcados con **⚠️** están en revisión o provienen de fuente informativa (no reglamento):
-  Triple Chance (solo A/B 150× vs 100×, C+Signo 6.000× vs 5.000×), Terminal Trío (60× vs 70×),
-  Triple Fácil (700×/60×/10×), El Arrejuntado (base 40× / Pegadito 60.000× del sitio oficial).
-- Los comodines (MEGA, Selva A/B, Guacharito 99, Guácharo 75, Patronus 75) **ya se capturan en los
-  datos** y se liquidan en el ciclo del motor de premios.
-- Toda cifra de esta guía se aplica sobre el monto apostado: `premio = monto × multiplicador`.
+- **Todos los multiplicadores de esta guía son definitivos** y provienen de la fuente indicada en cada
+  juego: reglamento oficial (Chance, Terminal Trío, Monje, Triple Fácil, Cazalotón, Guácharo, Chaima,
+  Granjita, Táchira, Zamorano, Zulia, Caliente, Trío Activo) o **web/sitio oficial** (El Arrejuntado
+  incluye el Pegadito 60.000×, Selva Plus, Mega Animal 40, Guacharito).
+- Los **comodines** (MEGA 40×, Selva A/B 160×/200×, Guacharito 99→150×, Guácharo 75→120×, Patronus
+  75→120×, palabra PATRONUS +20×) **ya se capturan en los datos** y se liquidan en el ciclo del motor
+  de premios.
+- El **Pegadito y el Arrimao** del Arrejuntado son **modalidades del sorteo** (acertar el número exacto
+  de 5 y 4 cifras), no comodines.
+- **Regla de soporte**: sin fuente oficial con valores → juego deshabilitado. `la-ricachona` queda
+  deshabilitada (`active=false`) y pendiente de fuente.
+- **Regla de redondeo**: todo premio se expresa con **máximo 2 decimales** (`premio = monto ×
+  multiplicador`, redondeado a 2 decimales) en la moneda apostada (Bs. o USD según la tasa).

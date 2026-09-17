@@ -26,22 +26,27 @@ oficial.
 - **Premios config-driven por juego**: `config.premios` (base + modalidades + comodines) reemplaza el
   `$multiplicador` hardcodeado de `Animalitos`/`Tripletas`/`Terminales`. `calcularPremio` lee los
   valores del juego.
-- **Corrección de multiplicadores** con reglamentos cosechados: monje 30→**50×** (+Patronus 120×,
-  palabra +20×), el-arrejuntado 30→**40×** base (+modalidades), loto-chaima 30→**40×** (+Tripleta 50×),
-  revisión de `triple-chance` (H23: 150× vs 100× y 6.000× vs 5.000×).
+- **Corrección de multiplicadores** con reglamentos cosechados: monje 30→**50×** (+Patronus 75→120×,
+  palabra PATRONUS +20× = acumulado 70×), el-arrejuntado 30→**40×** base (+modalidades, ver abajo),
+  loto-chaima 30→**40×** (+Tripleta 50×), triple-chance → **reglamento** (solo A/B 150×, C+Signo 6.000×),
+  triple-facil → **reglamento** (700×/Terminal 60×/Aprox 10×), terminal-activo → **60× reglamento** (H12 resuelto).
 - **Liquidación de comodines** (datos ya capturados): MEGA 40×, Selva A 160×/B 200×, Guacharito
   (99) 150×, Guácharo (75) 120×, Patronus (75) 120×, palabra PATRONUS +20×.
 - **Deshabilitar `la-ricachona`** (`active=false`) — único juego sin multiplicador oficial localizado.
 - **Tests de regresión por juego** (apuesta acentuada, terminal, signo, comodín, premio base).
 
 **Fase 2 — Modalidades complejas (requieren ampliar el modelo de apuesta):**
-- Dupleta (Lotto Activo 1.000×, Cazalotón 800×), Cruzado/Pegadito 60.000×/Arrimao 6.000×
-  (Arrejuntado), Par Millonario 200.000×, Punta/Terminal/Aproximación por juego, Terminal+Zodiacal,
-  Tripleta (Cazalotón 200×, Chaima 50×). Rediseño de `combinacion` (1 línea → multi-combinación/sorteos).
+- Dupleta (Lotto Activo 1.000×, Cazalotón 800×), Par Millonario 200.000×, Punta/Terminal/Aproximación
+  por juego, Terminal+Zodiacal, Tripleta (Cazalotón 200×, Chaima 50×). Rediseño de `combinacion`
+  (1 línea → multi-combinación/sorteos).
+- Modalidades numéricas exactas del Arrejuntado: **El Pegadito** (5 cifras exactas, 60.000×) y
+  **El Arrimao** (4 cifras exactas, 6.000×) — acertar el número exacto del sorteo (son modalidades,
+  NO comodines).
 
-**Fase 3 — Ciclo de vida y redondeo (lo que quede):**
-- Estados de apuesta (`ganadora`/`perdida` por ausencia de resultado, N5), dedupe de filas pre-H22
-  (N6), `premio_posible` real (N4), política de redondeo (2 decimales, half-up) y moneda del premio.
+**Fase 3 — Ciclo de vida y redondeo (EN ESTE CICLO, no opcional):**
+- Estados de apuesta (`ganadora`/`perdida` por ausencia de resultado, N5), doble liquidación por filas
+  pre-H22 (N6, dedupe), `premio_posible` real (N4), y política de redondeo: **máximo 2 decimales**
+  (moneda Bs./USD según la tasa aplicada).
 
 ### Out of Scope
 
@@ -90,7 +95,7 @@ de terminales. `PagoController` y `TicketController` dejan de recalcular contra 
 
 | Riesgo | Prob. | Mitigación |
 |--------|-------|------------|
-| Pagar de más/menos por valores sin confirmar | Alta | Solo aplicar valores con fuente oficial; H23/FAQ Trío 60× vs 70× quedan como pregunta abierta |
+| Pagar de más/menos por valores sin confirmar | Baja | H23/H12/Patronus/Fácil/Arrejuntado ya decididos con reglamento; solo aplicar valores con fuente oficial |
 | Refactor sin regresión rompe juegos que hoy funcionan | Media | Tests por juego antes/después (Fase 1e) |
 | Dupleta/Par requieren rediseño del modelo de apuesta | Media | Aislar en Fase 2, no tocar en Fase 1 |
 | Doble liquidación por filas pre-H22 | Baja | Dedupe previo (N6) antes de tocar liquidación |
@@ -104,8 +109,8 @@ juego rompe, se restaura su multiplicador anterior desde el commit base sin afec
 
 ## Dependencies
 
-- Reglamentos oficiales cosechados en `docs/reglamentos/` (sin acción del cliente salvo H23/FAQ).
-- Confirmación del cliente en las preguntas abiertas (H23, Trío 60× vs 70×, Patronus).
+- Reglamentos oficiales cosechados en `docs/reglamentos/` (sin acción pendiente del cliente).
+- Decisiones del cliente ya registradas en "Decisiones del cliente (resueltas)" (H23, Trío 60×, Patronus, Fase 3, redondeo).
 
 ## Supuestos
 
@@ -113,21 +118,23 @@ juego rompe, se restaura su multiplicador anterior desde el commit base sin afec
 2. Los premios se configuran por juego en `config.premios` (no plugin por juego ni tabla de reglas).
 3. El ciclo es **solo backend**; el front sigue con su catálogo actual.
 4. Los comodines ya capturados (mega/selva/figuras) son liquidables sin tocar scrapers.
-5. Los valores del reglamento priman sobre la informativa y el afiche (H23 se confirma).
+5. Los valores del reglamento oficial priman sobre la informativa y el afiche (H23 y H12 resueltos con reglamento).
 
-## Preguntas abiertas al cliente
+## Decisiones del cliente (resueltas)
 
-1. `triple-chance` (H23): ¿se usa el reglamento (150× / C+Signo 6.000×) o el afiche (100× / 5.000×)?
-2. Terminal Trío: ¿60× (reglamento) o 70× + 5× aprox (FAQ, H12)? ¿Se soporta la aproximación?
-3. Monje "palabra PATRONUS +20×": ¿la apuesta es a la figura 75 o a una opción "PATRONUS" textual?
-   Confirmar mecánica exacta (acumulación 50×+20×=70×).
-4. `triple-facil`: ¿confirmar 700×/60×/10× (informativos, sin reglamento)? ¿Derivar el terminal
-   `n%100` del triple en el motor?
-5. `el-arrejuntado`: los valores vienen del sitio oficial (#premios) — ¿hay reglamento PDF para
-   respaldar base 40×/Pegadito 60.000×?
-6. ¿Los estados de apuesta (`ganadora`/`perdida`/`vencido`) y el `premio_posible` entran en este
-   ciclo (Fase 3) o se difieren?
-7. ¿Política de redondeo (half-up a 2 decimales) y moneda del premio (la apostada)?
+1. **Triple Chance** → **reglamento**: solo A/B **150×**, C+Signo **6.000×** (no el afiche). H23 resuelto.
+2. **Terminal Trío** → **reglamento**: **60×**. H12 resuelto (se usa 60×, no el FAQ 70×).
+3. **Monje "palabra PATRONUS"** → acumulado **70×** (figura 50× + palabra +20× cuando sale la palabra);
+   Patronus figura 75 = **120×**.
+4. **Triple Fácil** → **reglamento**: 700× / Terminal 60× / Aproximación 10×.
+5. **El Arrejuntado** → **reglamento** (y lo que solo aparezca en su web oficial, como el Pegadito
+   60.000×, se acepta). **El Pegadito**: cada sorteo canta un número de **5 cifras** ("pegadito",
+   ej. `01963`) y uno de **4 cifras** ("arrimao", ej. `2091`) además del animalito/Triple A/B/Signo.
+   Se apuesta al número exacto: Pegadito (5 cifras) **60.000×**, El Arrimao (4 cifras) **6.000×**.
+   (Nota técnica: es una modalidad del sorteo, no un comodín.)
+6. **Fase 3 ENTRA en este ciclo**: estados de apuesta, doble liquidación (filas pre-H22, N6),
+   `premio_posible` (N4), redondeo — todo en alcance ("así se alargue").
+7. **Redondeo/moneda**: premios con **máximo 2 decimales**; moneda Bs./USD según la tasa aplicada.
 
 ## Success Criteria
 
@@ -136,4 +143,6 @@ juego rompe, se restaura su multiplicador anterior desde el commit base sin afec
 - [ ] `terminal-activo` paga 60× (N1 cerrado).
 - [ ] Comodines MEGA/Selva/Guacharito/Guácharo/Patronus liquidan su multiplicador.
 - [ ] `la-ricachona` queda `active=false` y no es vendible.
+- [ ] Estados de apuesta (ganadora/perdida), dedupe pre-H22 (N6) y `premio_posible` real (N4) implementados.
+- [ ] Premios redondeados a máximo 2 decimales (moneda Bs./USD).
 - [ ] Suite de regresión por juego en verde (tests nuevos + existentes).
