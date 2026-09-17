@@ -28,10 +28,20 @@ class CierreController extends Controller
     {
         $user = $request->user();
 
+        $validated = $request->validate([
+            'arqueo_efectivo_bs' => 'nullable|numeric|min:0',
+            'arqueo_efectivo_usd' => 'nullable|numeric|min:0',
+        ]);
+
         $taquillaId = $this->resolveTaquillaParaCierre($user, $request);
 
         try {
-            $cierre = $this->cierreService->crearCierre($taquillaId, $user->id);
+            $cierre = $this->cierreService->crearCierre(
+                $taquillaId,
+                $user->id,
+                isset($validated['arqueo_efectivo_bs']) ? (float) $validated['arqueo_efectivo_bs'] : null,
+                isset($validated['arqueo_efectivo_usd']) ? (float) $validated['arqueo_efectivo_usd'] : null,
+            );
         } catch (\RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }

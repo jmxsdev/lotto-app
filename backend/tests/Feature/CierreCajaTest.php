@@ -13,6 +13,7 @@ use App\Models\Taquilla;
 use App\Models\User;
 use Carbon\Carbon;
 use Database\Seeders\DatabaseSeeder;
+use Database\Seeders\JuegoAnimalitosSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -281,9 +282,60 @@ class CierreCajaTest extends TestCase
         $this->assertEquals(300.0, (float) $cierre['total_ventas_bs']);
     }
 
-    public function test_cierre_sin_tasa_activa_responde_422()
+    public function test_cierre_sin_tasa_activa_usa_fallback_historica()
     {
+        // La tasa sembrada deja de estar activa pero queda como histórica:
+        // el cierre usa el fallback (última por reference_date) en vez de 422.
         ExchangeRate::query()->update(['is_active' => false]);
+
+        $taquilla = $this->taquillaSeeded();
+
+        $response = $this->actingAs($this->masterUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id]);
+
+        $response->assertStatus(201);
+
+        $this->assertEquals(36.5, (float) $response->json('exchange_rate_cierre'));
+
+        $this->assertDatabaseHas('cierres_caja', [
+            'taquilla_id' => $taquilla->id,
+            'exchange_rate_cierre' => 36.5,
+        ]);
+    }
+
+    public function test_fallback_usa_ultima_tasa_historica()
+    {
+        ExchangeRate::query()->delete();
+        $super = $this->superUser();
+
+        ExchangeRate::create([
+            'rate' => 35.00,
+            'base_currency' => 'USD',
+            'reference_date' => now()->subDays(2),
+            'set_by' => $super->id,
+            'is_active' => false,
+        ]);
+        ExchangeRate::create([
+            'rate' => 38.00,
+            'base_currency' => 'USD',
+            'reference_date' => now()->subDay(),
+            'set_by' => $super->id,
+            'is_active' => false,
+        ]);
+
+        $taquilla = $this->taquillaSeeded();
+
+        $response = $this->actingAs($this->masterUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id]);
+
+        $response->assertStatus(201);
+
+        $this->assertEquals(38.0, (float) $response->json('exchange_rate_cierre'));
+    }
+
+    public function test_sin_tasa_alguna_responde_422()
+    {
+        ExchangeRate::query()->delete();
 
         $taquilla = $this->taquillaSeeded();
 
@@ -294,6 +346,315 @@ class CierreCajaTest extends TestCase
             ->assertJsonPath('message', 'No hay tasa de cambio activa para realizar el cierre.');
 
         $this->assertDatabaseMissing('cierres_caja', ['taquilla_id' => $taquilla->id]);
+    }
+
+    // ==================================================
+    // POST /api/v1/cierre — arqueo físico y diferencia
+    // ==================================================
+
+    public function test_cierre_con_arqueo_persiste_contado_y_diferencia()
+    {
+        $taquilla = $this->crearTaquilla('TTC08', $this->grupoSeeded()->id);
+
+        $ap1 = $this->crearApuesta($taquilla, ['amount_bs' => 1000, 'total_bs_equivalent' => 1000, 'fecha_hora' => now()->subHour()]);
+        $this->crearPago($taquilla, ['tipo' => 'ingreso', 'apuesta_id' => $ap1->id, 'amount_bs' => 1000, 'metodo_pago' => 'efectivo']);
+        $ap2 = $this->crearApuesta($taquilla, ['amount_bs' => 300, 'total_bs_equivalent' => 300, 'fecha_hora' => now()->subHour()]);
+        $this->crearPago($taquilla, ['tipo' => 'ingreso', 'apuesta_id' => $ap2->id, 'amount_bs' => 300, 'metodo_pago' => 'transferencia']);
+        $ap3 = $this->crearApuesta($taquilla, ['amount_bs' => 150, 'total_bs_equivalent' => 150, 'fecha_hora' => now()->subHour()]);
+        $this->crearPago($taquilla, ['tipo' => 'ingreso', 'apuesta_id' => $ap3->id, 'amount_bs' => 150, 'metodo_pago' => 'pago_movil']);
+        $ap4 = $this->crearApuesta($taquilla, ['amount_bs' => 50, 'total_bs_equivalent' => 50, 'fecha_hora' => now()->subHour()]);
+        $this->crearPago($taquilla, ['tipo' => 'ingreso', 'apuesta_id' => $ap4->id, 'amount_bs' => 50, 'metodo_pago' => 'punto_venta']);
+        $ap5 = $this->crearApuesta($taquilla, ['amount_usd' => 30, 'total_bs_equivalent' => 1095, 'fecha_hora' => now()->subHour()]);
+        $this->crearPago($taquilla, ['tipo' => 'ingreso', 'apuesta_id' => $ap5->id, 'amount_usd' => 30, 'metodo_pago' => 'efectivo']);
+
+        $this->crearPago($taquilla, ['tipo' => 'egreso', 'amount_bs' => 30, 'metodo_pago' => 'transferencia', 'created_at' => now()->subMinutes(5)]);
+        $this->crearPago($taquilla, ['tipo' => 'egreso', 'amount_bs' => 10, 'metodo_pago' => 'efectivo', 'created_at' => now()->subMinutes(4)]);
+        $this->crearPago($taquilla, ['tipo' => 'egreso', 'amount_usd' => 3, 'metodo_pago' => 'efectivo', 'created_at' => now()->subMinutes(3)]);
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', [
+                'taquilla_id' => $taquilla->id,
+                'arqueo_efectivo_bs' => 1450,
+                'arqueo_efectivo_usd' => 30,
+            ]);
+
+        $response->assertStatus(201);
+
+        $cierre = $response->json();
+
+        $this->assertEquals(1500.0, (float) $cierre['total_ventas_bs']);
+        $this->assertEquals(30.0, (float) $cierre['total_ventas_usd']);
+        $this->assertEquals(2595.0, (float) $cierre['total_ventas_bs_equivalent']);
+        $this->assertEquals(40.0, (float) $cierre['total_egresos_bs']);
+        $this->assertEquals(3.0, (float) $cierre['total_egresos_usd']);
+        $this->assertEquals(1460.0, (float) $cierre['total_efectivo_bs']);
+        $this->assertEquals(27.0, (float) $cierre['total_efectivo_usd']);
+
+        $this->assertEquals(1450.0, (float) $cierre['arqueo_efectivo_bs']);
+        $this->assertEquals(30.0, (float) $cierre['arqueo_efectivo_usd']);
+        $this->assertEquals(-10.0, (float) $cierre['faltante_sobrante_bs']);
+        $this->assertEquals(3.0, (float) $cierre['faltante_sobrante_usd']);
+
+        $this->assertDatabaseHas('cierres_caja', [
+            'taquilla_id' => $taquilla->id,
+            'arqueo_efectivo_bs' => 1450.00,
+            'arqueo_efectivo_usd' => 30.00,
+            'faltante_sobrante_bs' => -10.00,
+            'faltante_sobrante_usd' => 3.00,
+        ]);
+    }
+
+    public function test_faltante_es_negativo()
+    {
+        $taquilla = $this->crearTaquilla('TTC09', $this->grupoSeeded()->id);
+        $ap = $this->crearApuesta($taquilla, ['amount_bs' => 1000, 'total_bs_equivalent' => 1000, 'fecha_hora' => now()->subHour()]);
+        $this->crearPago($taquilla, ['tipo' => 'ingreso', 'apuesta_id' => $ap->id, 'amount_bs' => 1000, 'metodo_pago' => 'efectivo']);
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', [
+                'taquilla_id' => $taquilla->id,
+                'arqueo_efectivo_bs' => 900,
+            ]);
+
+        $response->assertStatus(201);
+
+        $this->assertEquals(1000.0, (float) $response->json('total_efectivo_bs'));
+        $this->assertEquals(-100.0, (float) $response->json('faltante_sobrante_bs'));
+
+        $this->assertDatabaseHas('cierres_caja', [
+            'taquilla_id' => $taquilla->id,
+            'faltante_sobrante_bs' => -100.00,
+        ]);
+    }
+
+    public function test_sobrante_es_positivo()
+    {
+        $taquilla = $this->crearTaquilla('TTC10', $this->grupoSeeded()->id);
+        $ap = $this->crearApuesta($taquilla, ['amount_bs' => 1000, 'total_bs_equivalent' => 1000, 'fecha_hora' => now()->subHour()]);
+        $this->crearPago($taquilla, ['tipo' => 'ingreso', 'apuesta_id' => $ap->id, 'amount_bs' => 1000, 'metodo_pago' => 'efectivo']);
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', [
+                'taquilla_id' => $taquilla->id,
+                'arqueo_efectivo_bs' => 1100,
+            ]);
+
+        $response->assertStatus(201);
+
+        $this->assertEquals(1000.0, (float) $response->json('total_efectivo_bs'));
+        $this->assertEquals(100.0, (float) $response->json('faltante_sobrante_bs'));
+
+        $this->assertDatabaseHas('cierres_caja', [
+            'taquilla_id' => $taquilla->id,
+            'faltante_sobrante_bs' => 100.00,
+        ]);
+    }
+
+    public function test_cierre_sin_arqueo_deja_campos_nulos()
+    {
+        $taquilla = $this->crearTaquilla('TTC11', $this->grupoSeeded()->id);
+        $ap = $this->crearApuesta($taquilla, ['amount_bs' => 500, 'total_bs_equivalent' => 500, 'fecha_hora' => now()->subHour()]);
+        $this->crearPago($taquilla, ['tipo' => 'ingreso', 'apuesta_id' => $ap->id, 'amount_bs' => 500, 'metodo_pago' => 'efectivo']);
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('arqueo_efectivo_bs', null)
+            ->assertJsonPath('arqueo_efectivo_usd', null)
+            ->assertJsonPath('faltante_sobrante_bs', null)
+            ->assertJsonPath('faltante_sobrante_usd', null);
+
+        $this->assertDatabaseHas('cierres_caja', [
+            'taquilla_id' => $taquilla->id,
+            'arqueo_efectivo_bs' => null,
+            'arqueo_efectivo_usd' => null,
+            'faltante_sobrante_bs' => null,
+            'faltante_sobrante_usd' => null,
+        ]);
+    }
+
+    public function test_arqueo_negativo_responde_422()
+    {
+        $taquilla = $this->taquillaSeeded();
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', [
+                'taquilla_id' => $taquilla->id,
+                'arqueo_efectivo_bs' => -50,
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors('arqueo_efectivo_bs');
+
+        $this->assertDatabaseMissing('cierres_caja', ['taquilla_id' => $taquilla->id]);
+    }
+
+    // ==================================================
+    // POST /api/v1/cierre — desglose por método de pago
+    // ==================================================
+
+    public function test_desglose_por_metodo_suma_el_total_bs()
+    {
+        $taquilla = $this->crearTaquilla('TTC12', $this->grupoSeeded()->id);
+
+        $ap1 = $this->crearApuesta($taquilla, ['amount_bs' => 1000, 'total_bs_equivalent' => 1000, 'fecha_hora' => now()->subHour()]);
+        $this->crearPago($taquilla, ['tipo' => 'ingreso', 'apuesta_id' => $ap1->id, 'amount_bs' => 1000, 'metodo_pago' => 'efectivo']);
+        $ap2 = $this->crearApuesta($taquilla, ['amount_bs' => 300, 'total_bs_equivalent' => 300, 'fecha_hora' => now()->subHour()]);
+        $this->crearPago($taquilla, ['tipo' => 'ingreso', 'apuesta_id' => $ap2->id, 'amount_bs' => 300, 'metodo_pago' => 'transferencia']);
+        $ap3 = $this->crearApuesta($taquilla, ['amount_bs' => 150, 'total_bs_equivalent' => 150, 'fecha_hora' => now()->subHour()]);
+        $this->crearPago($taquilla, ['tipo' => 'ingreso', 'apuesta_id' => $ap3->id, 'amount_bs' => 150, 'metodo_pago' => 'pago_movil']);
+        $ap4 = $this->crearApuesta($taquilla, ['amount_bs' => 50, 'total_bs_equivalent' => 50, 'fecha_hora' => now()->subHour()]);
+        $this->crearPago($taquilla, ['tipo' => 'ingreso', 'apuesta_id' => $ap4->id, 'amount_bs' => 50, 'metodo_pago' => 'punto_venta']);
+
+        $this->crearPago($taquilla, ['tipo' => 'egreso', 'amount_bs' => 30, 'metodo_pago' => 'transferencia', 'created_at' => now()->subMinutes(5)]);
+        $this->crearPago($taquilla, ['tipo' => 'egreso', 'amount_bs' => 10, 'metodo_pago' => 'efectivo', 'created_at' => now()->subMinutes(4)]);
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id]);
+
+        $response->assertStatus(201);
+
+        $desglose = $response->json('desglose_metodos');
+
+        $this->assertEquals(1000.0, (float) $desglose['bs']['efectivo']['ventas']);
+        $this->assertEquals(300.0, (float) $desglose['bs']['transferencia']['ventas']);
+        $this->assertEquals(150.0, (float) $desglose['bs']['pago_movil']['ventas']);
+        $this->assertEquals(50.0, (float) $desglose['bs']['punto_venta']['ventas']);
+
+        $this->assertEquals(10.0, (float) $desglose['bs']['efectivo']['egresos']);
+        $this->assertEquals(30.0, (float) $desglose['bs']['transferencia']['egresos']);
+
+        $this->assertEquals(990.0, (float) $desglose['bs']['efectivo']['efectivo']);
+        $this->assertEquals(270.0, (float) $desglose['bs']['transferencia']['efectivo']);
+
+        // Consistencia: la suma de métodos iguala el total de la moneda
+        $sumaVentas = array_sum(array_map(fn ($m) => (float) $m['ventas'], $desglose['bs']));
+        $sumaEfectivo = array_sum(array_map(fn ($m) => (float) $m['efectivo'], $desglose['bs']));
+
+        $this->assertEquals(1500.0, $sumaVentas);
+        $this->assertEquals(1500.0, (float) $response->json('total_ventas_bs'));
+        $this->assertEquals(1460.0, $sumaEfectivo);
+        $this->assertEquals(1460.0, (float) $response->json('total_efectivo_bs'));
+    }
+
+    public function test_usd_se_contabiliza_integro_en_efectivo()
+    {
+        $taquilla = $this->crearTaquilla('TTC13', $this->grupoSeeded()->id);
+
+        // Venta mixta: el componente bs conserva su método
+        $ap1 = $this->crearApuesta($taquilla, ['amount_bs' => 100, 'total_bs_equivalent' => 100, 'fecha_hora' => now()->subHour()]);
+        $this->crearPago($taquilla, ['tipo' => 'ingreso', 'apuesta_id' => $ap1->id, 'amount_bs' => 100, 'metodo_pago' => 'transferencia']);
+
+        // Venta USD cuyo ingreso se registró como pago_movil: el desglose normaliza a efectivo
+        $ap2 = $this->crearApuesta($taquilla, ['amount_usd' => 30, 'total_bs_equivalent' => 1095, 'fecha_hora' => now()->subHour()]);
+        $this->crearPago($taquilla, ['tipo' => 'ingreso', 'apuesta_id' => $ap2->id, 'amount_usd' => 30, 'metodo_pago' => 'pago_movil']);
+
+        // Egreso USD registrado como transferencia: normaliza a efectivo
+        $this->crearPago($taquilla, ['tipo' => 'egreso', 'amount_usd' => 3, 'metodo_pago' => 'transferencia', 'created_at' => now()->subMinutes(5)]);
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id]);
+
+        $response->assertStatus(201);
+
+        $desglose = $response->json('desglose_metodos');
+
+        $this->assertEquals(30.0, (float) $desglose['usd']['efectivo']['ventas']);
+        $this->assertEquals(3.0, (float) $desglose['usd']['efectivo']['egresos']);
+        $this->assertEquals(27.0, (float) $desglose['usd']['efectivo']['efectivo']);
+
+        // Ningún otro método recibe USD
+        foreach (['transferencia', 'pago_movil', 'punto_venta'] as $metodo) {
+            $this->assertEquals(0.0, (float) $desglose['usd'][$metodo]['ventas']);
+            $this->assertEquals(0.0, (float) $desglose['usd'][$metodo]['egresos']);
+        }
+
+        // El componente bs de la venta mixta sí conserva su método
+        $this->assertEquals(100.0, (float) $desglose['bs']['transferencia']['ventas']);
+
+        // Consistencia con los totales USD
+        $this->assertEquals(30.0, (float) $response->json('total_ventas_usd'));
+        $this->assertEquals(3.0, (float) $response->json('total_egresos_usd'));
+        $this->assertEquals(27.0, (float) $response->json('total_efectivo_usd'));
+    }
+
+    public function test_desglose_excluye_apuesta_anulada()
+    {
+        $taquilla = $this->crearTaquilla('TTC14', $this->grupoSeeded()->id);
+
+        $apValida = $this->crearApuesta($taquilla, ['amount_bs' => 500, 'total_bs_equivalent' => 500, 'fecha_hora' => now()->subHour()]);
+        $this->crearPago($taquilla, ['tipo' => 'ingreso', 'apuesta_id' => $apValida->id, 'amount_bs' => 500, 'metodo_pago' => 'transferencia']);
+
+        // Anulada por estado: su ingreso (huérfano) no debe aparecer en el desglose
+        $apAnulada = $this->crearApuesta($taquilla, ['amount_bs' => 700, 'total_bs_equivalent' => 700, 'estado' => 'anulada', 'fecha_hora' => now()->subMinutes(30)]);
+        $this->crearPago($taquilla, ['tipo' => 'ingreso', 'apuesta_id' => $apAnulada->id, 'amount_bs' => 700, 'metodo_pago' => 'pago_movil']);
+
+        // Anulada por soft delete: tampoco
+        $apBorrada = $this->crearApuesta($taquilla, ['amount_bs' => 300, 'total_bs_equivalent' => 300, 'fecha_hora' => now()->subMinutes(20)]);
+        $this->crearPago($taquilla, ['tipo' => 'ingreso', 'apuesta_id' => $apBorrada->id, 'amount_bs' => 300, 'metodo_pago' => 'punto_venta']);
+        $apBorrada->delete();
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id]);
+
+        $response->assertStatus(201);
+
+        $desglose = $response->json('desglose_metodos');
+
+        $this->assertEquals(500.0, (float) $response->json('total_ventas_bs'));
+        $this->assertEquals(500.0, (float) $desglose['bs']['transferencia']['ventas']);
+        $this->assertEquals(0.0, (float) $desglose['bs']['pago_movil']['ventas']);
+        $this->assertEquals(0.0, (float) $desglose['bs']['punto_venta']['ventas']);
+    }
+
+    // ==================================================
+    // POST /api/v1/cierre — no bloquea la venta (D3)
+    // ==================================================
+
+    public function test_venta_posterior_al_cierre_se_registra_normalmente()
+    {
+        $this->seed(JuegoAnimalitosSeeder::class);
+
+        $juego = Juego::where('slug', 'lotto-activo')->first();
+
+        $taquilla = Taquilla::factory()->create();
+        $taquilla->update(['mac_address' => 'AA:BB:CC:DD:EE:FF', 'active' => true]);
+
+        $taquillaUser = User::factory()->create([
+            'taquilla_id' => $taquilla->id,
+            'role' => 'taquilla',
+        ]);
+        $taquillaUser->assignRole('taquilla');
+
+        $cierreResponse = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
+            ->actingAs($taquillaUser, 'sanctum')
+            ->postJson('/api/v1/cierre');
+
+        $cierreResponse->assertStatus(201);
+
+        $ventaResponse = $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
+            ->actingAs($taquillaUser, 'sanctum')
+            ->postJson('/api/v1/apuestas', [
+                'juego_id' => $juego->id,
+                'combinacion' => ['animal' => 'perro', 'numero' => 5],
+                'amount_bs' => 1800,
+                'amount_usd' => 0,
+                'sorteo_hora' => now()->addHours(2)->format('Y-m-d H:i:s'),
+            ]);
+
+        $ventaResponse->assertStatus(201);
+
+        $this->assertDatabaseHas('apuestas', [
+            'taquilla_id' => $taquilla->id,
+            'amount_bs' => 1800,
+        ]);
+
+        $this->assertDatabaseHas('pagos', [
+            'taquilla_id' => $taquilla->id,
+            'tipo' => 'ingreso',
+            'metodo_pago' => 'efectivo',
+        ]);
     }
 
     // ==================================================
