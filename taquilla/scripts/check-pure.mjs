@@ -28,6 +28,7 @@ import {
   filtrarHorariosFuturos,
   seleccionadosExpirados,
   agruparPorGroupId,
+  indiceSeleccionTrasEliminar,
 } from '../src/utils/horarios.ts';
 import { calcularVuelto } from '../src/utils/vuelto.ts';
 
@@ -462,6 +463,15 @@ v = calcularVuelto({ totalBs: 100, recibido: 5, moneda: 'usd', tasa: -1 });
 ok(v.ok === false && v.motivo === 'tasa-no-disponible', 'USD con tasa negativa → tasa-no-disponible');
 v = calcularVuelto({ totalBs: 100, recibido: 120, moneda: 'bs', tasa: null });
 ok(v.ok === true && cerca(v.vueltoBs, 20) && v.vueltoUsd === null, 'Bs sin tasa → calcula en Bs (sin equivalente $)');
+
+console.log('\n== PR3b: F6 selección del resumen tras eliminar (KB-07) ==');
+ok(indiceSeleccionTrasEliminar(1, 0) === null, '1 grupo, elimino el único → sin selección (null)');
+ok(indiceSeleccionTrasEliminar(2, 0) === 0, '2 grupos, elimino el 1º → queda la fila en índice 0');
+ok(indiceSeleccionTrasEliminar(2, 1) === 0, '2 grupos, elimino el último → selecciona la 1ª restante (0)');
+ok(indiceSeleccionTrasEliminar(3, 1) === 1, '3 grupos, elimino el medio → la fila que ocupó su lugar (1)');
+ok(indiceSeleccionTrasEliminar(3, 2) === 1, '3 grupos, elimino el último → selecciona la última restante (1)');
+ok(indiceSeleccionTrasEliminar(4, 3) === 2, '4 grupos, elimino el último → última restante (2)');
+ok(indiceSeleccionTrasEliminar(0, 0) === null, '0 grupos → null (sin filas)');
 
 console.log(`\n${checks} checks, ${fallos} fallos`);
 process.exit(fallos === 0 ? 0 : 1);

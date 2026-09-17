@@ -727,6 +727,15 @@ import MainLayout from '../layouts/MainLayout.astro';
       background: #f8f9fa;
     }
 
+    /* Fila de grupo enfocada del resumen (F6, KB-07): el cursor de selección
+       del teclado reutiliza el lenguaje visual .selected de la app (azul
+       suave #dbeafe / #3b82f6); outline refuerza el foco roving sobre <tr>. */
+    .resumen-table tbody tr:focus {
+      background: #dbeafe;
+      outline: 2px solid #3b82f6;
+      outline-offset: -2px;
+    }
+
     .resumen-table .btn-rm {
       background: none;
       border: none;
@@ -960,7 +969,7 @@ import MainLayout from '../layouts/MainLayout.astro';
     import { getFingerprint } from '../utils/device';
     import { cargarCatalogo } from '../utils/catalogo';
     import { buildZoneGraph, routeKey, KEYMAP } from '../utils/keyboard';
-    import { alternarHorario, marcarTodosVisibles, expandirLineas, horarioExpirado, filtrarHorariosFuturos, seleccionadosExpirados, agruparPorGroupId } from '../utils/horarios';
+    import { alternarHorario, marcarTodosVisibles, expandirLineas, horarioExpirado, filtrarHorariosFuturos, seleccionadosExpirados, agruparPorGroupId, indiceSeleccionTrasEliminar } from '../utils/horarios';
     import { calcularVuelto } from '../utils/vuelto';
     import juegosRaw from '../data/juegos.json';
 
@@ -1486,7 +1495,10 @@ import MainLayout from '../layouts/MainLayout.astro';
         const montoStr = primera.moneda === 'bs'
           ? `Bs. ${montoGrupo.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`
           : `$ ${montoGrupo.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
-        html += `<tr>
+        // tabindex="-1" + data-grupo (F6, KB-07): la fila es el ítem de la
+        // zona Resumen (↑/↓ la enfocan vía moverFila) y F6 la elimina por el
+        // mismo groupId del ✕ (removeGroup).
+        html += `<tr tabindex="-1" data-grupo="${grupo.groupId}">
           <td>${sorteoDisplay}</td>
           <td>${animalDisplay}</td>
           <td class="${montoClass}">${montoStr}</td>
@@ -1841,13 +1853,40 @@ import MainLayout from '../layouts/MainLayout.astro';
       }
     }
 
+    // ─── F6 eliminar ítem (REQ-KB-07/08, A3) ───────────────────────────────
+    // Elimina la fila (grupo) SELECCIONADA del resumen por la MISMA ruta del
+    // ✕ de la fila agrupada (removeGroup), sin lógica duplicada. Guardas
+    // (KB-08): solo con foco en la zona Resumen y sobre una fila de grupo —
+    // si no hay fila seleccionada o el resumen está vacío → no-op (sin
+    // lanzar). La guarda de modal ya la aplica routeKey (regla 1: con un
+    // modal abierto solo su propio toggle y Esc) y la de estado (F6 sin
+    // líneas) la marca no-ejecutable en el router.
+    function eliminarItemSeleccionado() {
+      if (zonaActual !== 'resumen') return;
+      const fila = document.activeElement?.closest?.('.resumen-table tbody tr[data-grupo]');
+      if (!fila) return;
+      const totalAntes = document.querySelectorAll('#resumen-content .resumen-table tbody tr[data-grupo]').length;
+      const indiceEliminado = Array.from(fila.parentElement.children).indexOf(fila);
+      removeGroup(fila.dataset.grupo);
+      // Selección tras el borrado (KB-07): foco en la fila que ocupó su
+      // lugar, en la última restante o en ninguna (removeGroup ya devolvió
+      // la columna a Juegos cuando el ticket quedó vacío).
+      const filas = document.querySelectorAll('#resumen-content .resumen-table tbody tr[data-grupo]');
+      const nuevoIndice = indiceSeleccionTrasEliminar(totalAntes, indiceEliminado);
+      const objetivo = nuevoIndice === null ? null : filas[nuevoIndice];
+      if (objetivo) {
+        objetivo.focus();
+        objetivo.scrollIntoView({ block: 'nearest' });
+      }
+    }
+
     // ─── Navegación por teclado (PR2: KB-01..04, KB-08, KB-09; A1) ──────────
     // ACCIONES reales de F-keys (PR3b, REQ-KB-07, A11, A12): F1 ayuda, F2
     // limpiar (= clearTicket), F3 anular último grupo, F4 repetir última
-    // (atómico), F5 pagar/generar (= handlePrint), F7/F8/F10 navegan a
-    // pantallas existentes (confirm-and-discard DIFERIDO: solo navegación),
-    // F12 reimprimir snapshot. F6 (eliminar ítem) queda como no-op (fuera
-    // del alcance de PR3b). Las guardas de estado viven en routeKey
+    // (atómico), F5 pagar/generar (= handlePrint), F6 eliminar el grupo
+    // seleccionado del resumen, F7/F8/F10 navegan a pantallas existentes
+    // (confirm-and-discard DIFERIDO: solo navegación), F12 reimprimir
+    // snapshot. Las guardas de estado viven en routeKey
     // (ejecutable=false) y la guarda estricta de modales (A12) en la regla 1
     // del router: con un modal abierto solo su toggle (F1/F9) y Esc actúan.
     const ACCIONES_FKEYS = {
@@ -1856,7 +1895,7 @@ import MainLayout from '../layouts/MainLayout.astro';
       'anular-ultima': anularUltimaJugada,
       'repetir-ultima': repetirUltimaJugada,
       'pagar-generar': () => { handlePrint(); },
-      'eliminar-item': () => console.debug('[PR3b] F6 eliminar ítem: fuera de alcance (no-op)'),
+      'eliminar-item': eliminarItemSeleccionado,
       ventas: () => { window.location.href = '/historial'; },
       cuadre: () => { window.location.href = '/cierre'; },
       vuelto: toggleVueltoModal,
@@ -1940,7 +1979,7 @@ import MainLayout from '../layouts/MainLayout.astro';
         seleccion: '.animal-check, .opcion-item',
         signo: '.signo-btn',
         horarios: '.horario-item',
-        resumen: '.resumen-table tr',
+        resumen: '.resumen-table tbody tr',
       };
       const el = objetivoZona(zona);
       if (!el) return [];

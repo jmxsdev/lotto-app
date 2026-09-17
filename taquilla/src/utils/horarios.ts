@@ -9,6 +9,8 @@
  *   - ahoraHHMM, horarioExpirado, filtrarHorariosFuturos,
  *     seleccionadosExpirados (filtro dinámico + bloqueo al expirar, A4).
  *   - agruparPorGroupId (resumen agrupado, MH-03).
+ *   - indiceSeleccionTrasEliminar (F6: fila a seleccionar tras borrar un
+ *     grupo del resumen, KB-07).
  *
  * Los horarios del catálogo bundled son cadenas "HH:MM" de 24 h con cero a la
  * izquierda; la comparación lexicográfica es equivalente a la temporal.
@@ -102,4 +104,15 @@ export function agruparPorGroupId(lineas: readonly LineaExpandida[]): Array<{ gr
     grupos[i].lines.push(l);
   }
   return grupos;
+}
+
+/**
+ * Índice de la fila a seleccionar en el resumen tras eliminar un grupo
+ * (F6, REQ-KB-07): con `totalGrupos` filas ANTES del borrado y el índice de
+ * la fila eliminada, devuelve la fila que ocupó su lugar (mismo índice) o la
+ * última restante si se eliminó la última; null si no queda ninguna fila.
+ */
+export function indiceSeleccionTrasEliminar(totalGrupos: number, indiceEliminado: number): number | null {
+  if (totalGrupos <= 1) return null;
+  return Math.min(indiceEliminado, totalGrupos - 2);
 }
