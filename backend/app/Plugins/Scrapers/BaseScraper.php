@@ -2,8 +2,11 @@
 
 namespace App\Plugins\Scrapers;
 
+use App\Models\Juego;
+use App\Models\Resultado;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\DomCrawler\Crawler;
 
@@ -120,6 +123,83 @@ abstract class BaseScraper
     protected function createCrawler(string $html): Crawler
     {
         return new Crawler($html);
+    }
+
+    /**
+     * Resuelve el juego registrado por slug o name; nunca crea juegos en caliente.
+     *
+     * @param  array{slug?: string, name?: string}  $data
+     */
+    protected function findJuegoOrFail(array $data): Juego
+    {
+        $slug = $data['slug'] ?? null;
+        $name = $data['name'] ?? null;
+
+        if ($slug) {
+            $juego = Juego::where('slug', $slug)->first();
+
+            if ($juego) {
+                return $juego;
+            }
+        }
+
+        if ($name) {
+            $juego = Juego::where('name', $name)->first();
+
+            if ($juego) {
+                return $juego;
+            }
+        }
+
+        $identificador = $slug ?: $name ?: 'desconocido';
+
+        throw new \RuntimeException("Juego no registrado: {$identificador}; ejecuta su seeder para registrarlo");
+    }
+
+    /**
+     * Normaliza hora_sorteo a "H:i" en America/Caracas.
+     * Acepta "10:00 AM", "H:i:s" o "H:i"; devuelve null si está vacío o es inválido.
+     */
+    protected function normalizeHora(?string $hora): ?string
+    {
+        if (! $hora) {
+            return null;
+        }
+
+        try {
+            return Carbon::parse(trim($hora), 'America/Caracas')->format('H:i');
+        } catch (\Exception) {
+            return null;
+        }
+    }
+
+    /**
+     * Persiste resultados con dedupe por juego + fecha + hora (upsert).
+     */
+    public function saveResults(array $resultados, string $fecha): int
+    {
+        $guardados = 0;
+
+        foreach ($resultados as $resultadoData) {
+            $resultadoData['fecha_sorteo'] = $fecha;
+
+            $existing = Resultado::where('juego_id', $resultadoData['juego_id'])
+                ->whereDate('fecha_sorteo', $fecha)
+                ->where('hora_sorteo', $resultadoData['hora_sorteo'])
+                ->first();
+
+            if ($existing) {
+                $existing->update($resultadoData);
+                $this->logInfo("Resultado actualizado: hora {$resultadoData['hora_sorteo']}");
+            } else {
+                Resultado::create($resultadoData);
+                $this->logInfo("Resultado creado: hora {$resultadoData['hora_sorteo']}");
+            }
+
+            $guardados++;
+        }
+
+        return $guardados;
     }
 
     protected function logInfo(string $message, array $context = []): void

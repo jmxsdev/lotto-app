@@ -31,7 +31,7 @@ class Animalitos implements JuegoInterface
         'cochino' => 20,
         'gallo' => 21,
         'camello' => 22,
-        'cobra' => 23,
+        'cebra' => 23,
         'iguana' => 24,
         'gallina' => 25,
         'vaca' => 26,

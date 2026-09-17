@@ -38,7 +38,7 @@ class JuegoAnimalitosSeeder extends Seeder
         ['label' => 'Cochino', 'value' => 'cochino', 'numero' => 20],
         ['label' => 'Gallo', 'value' => 'gallo', 'numero' => 21],
         ['label' => 'Camello', 'value' => 'camello', 'numero' => 22],
-        ['label' => 'Cobra', 'value' => 'cobra', 'numero' => 23],
+        ['label' => 'Cebra', 'value' => 'cebra', 'numero' => 23],
         ['label' => 'Iguana', 'value' => 'iguana', 'numero' => 24],
         ['label' => 'Gallina', 'value' => 'gallina', 'numero' => 25],
         ['label' => 'Vaca', 'value' => 'vaca', 'numero' => 26],
@@ -93,6 +93,17 @@ class JuegoAnimalitosSeeder extends Seeder
                 'active' => true,
             ]
         );
+
+        // Migración de datos: el feed oficial y el reglamento declaran
+        // "Cebra = 23" (antes teníamos "Cobra" — ver docs/seguimiento-verificacion.md).
+        // Renombra la fila existente ANTES del loop para no duplicar opciones.
+        JuegoOpcion::where('juego_id', $juego->id)
+            ->where('value', 'cobra')
+            ->update([
+                'label' => 'Cebra',
+                'value' => 'cebra',
+                'numero' => 23,
+            ]);
 
         foreach ($this->animales as $i => $animal) {
             JuegoOpcion::firstOrCreate(

@@ -36,7 +36,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
           <div class="field"><label>Estado</label><input name="estado" /></div>
           <div class="field"><label>Municipio</label><input name="municipio" /></div>
         </div>
-        <div class="field checkbox-line"><label><input type="checkbox" name="active" checked /> Taquilla activa</label></div>
+        <div class="field checkbox-line" id="active-line" style="display:none"><label><input type="checkbox" name="active" /> Taquilla activa</label></div>
         <div class="field-section" id="user-section">
           <h4>👤 Usuario Jefe</h4>
           <div class="form-grid">
@@ -149,7 +149,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
     .checkbox-line { margin-top: 4px; } .checkbox-line label { display: flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer; } .checkbox-line input[type="checkbox"] { width: auto; margin: 0; }
     .field-section { border-top: 1px solid #e2e8f0; margin-top: 16px; padding-top: 12px; } .field-section h4 { font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 10px; }
     .user-hint { font-size: 12px; color: #64748b; background: #f1f5f9; border-radius: 6px; padding: 8px 10px; margin-bottom: 12px; }
-    .table-wrap { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .table-wrap { background: #fff; border-radius: 10px; overflow-x: auto; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
     table { width: 100%; border-collapse: collapse; } th { background: #f1f5f9; padding: 10px 12px; text-align: left; font-size: 12px; font-weight: 600; color: #666; text-transform: uppercase; } td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; } tr:hover td { background: #f8fafc; }
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 9999; }
     .modal-card { background: #fff; border-radius: 12px; padding: 28px; width: 480px; max-width: 95%; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 30px rgba(0,0,0,0.2); }
@@ -314,7 +314,10 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
       f.direccion.value = taquilla?.direccion || '';
       f.estado.value = taquilla?.estado || '';
       f.municipio.value = taquilla?.municipio || '';
-      f.active.checked = taquilla ? !!taquilla.active : true;
+      f.active.checked = taquilla ? !!taquilla.active : false;
+      // El checkbox de activación solo aplica en edición: al crear, la taquilla
+      // nace inactiva (invariante server-side) y el campo queda oculto.
+      document.getElementById('active-line').style.display = isCreate ? 'none' : '';
       document.getElementById('user-section').style.display = isCreate ? 'block' : 'none';
       document.getElementById('user-hint').style.display = isCreate ? 'none' : 'block';
       f.user_name.required = isCreate;
@@ -378,7 +381,6 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
         direccion: f.direccion.value || null,
         estado: f.estado.value || null,
         municipio: f.municipio.value || null,
-        active: f.active.checked,
       };
       if (isCreate) {
         body.user_name = f.user_name.value;
@@ -395,6 +397,8 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
           const created = res?.taquilla || res?.data?.taquilla || res;
           window.location.href = '/taquillas/detalle?id=' + created.id + '&tab=informacion';
         } else {
+          // Edición: el toggle del checkbox sí viaja en el PUT (intacto).
+          body.active = f.active.checked;
           await apiFetch('PUT', '/taquillas/' + taquillaId, body);
           await showModal({ message: 'Taquilla actualizada correctamente.', type: 'success' });
           await loadTaquilla();

@@ -41,7 +41,7 @@ class FetchResultsJobTest extends TestCase
 
         $resultado = Resultado::all()->firstWhere(fn ($r) => ($r->numeros_ganadores['nombre_animal'] ?? null) === 'Delfin');
         $this->assertNotNull($resultado, 'El resultado Delfin debería existir');
-        $this->assertEquals('10:00 AM', $resultado->hora_sorteo);
+        $this->assertEquals('10:00', $resultado->hora_sorteo);
         $this->assertEquals('Venezuela', $resultado->numeros_ganadores['pais']);
     }
 
@@ -100,6 +100,6 @@ class FetchResultsJobTest extends TestCase
 
         $resultadoDelfin = Resultado::all()->firstWhere(fn ($r) => ($r->numeros_ganadores['nombre_animal'] ?? null) === 'Delfin');
         $this->assertNotNull($resultadoDelfin);
-        $this->assertEquals('10:00 AM', $resultadoDelfin->hora_sorteo);
+        $this->assertEquals('10:00', $resultadoDelfin->hora_sorteo);
     }
 }

@@ -38,7 +38,7 @@ class ResultadoController extends Controller
         }
 
         $resultados = $query->orderBy('fecha_sorteo', 'desc')
-            ->orderBy('hora_sorteo', 'asc')
+            ->orderBy('hora_sorteo', 'desc')
             ->paginate($request->input('per_page', 50));
 
         return response()->json($resultados);

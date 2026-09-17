@@ -1,0 +1,158 @@
+{
+    "status": 201,
+    "response": [
+        {
+            "events": [
+                135083,
+                135084
+            ],
+            "results": [
+                {
+                    "A": "683"
+                },
+                {
+                    "C": "452-ARI"
+                }
+            ],
+            "event_timestamp": {
+                "seconds": 1789243200
+            }
+        },
+        {
+            "events": [
+                135051,
+                135052
+            ],
+            "results": [
+                {
+                    "A": "274"
+                },
+                {
+                    "C": "384-SAG"
+                }
+            ],
+            "event_timestamp": {
+                "seconds": 1789236000
+            }
+        },
+        {
+            "events": [
+                135048,
+                135049
+            ],
+            "results": [
+                {
+                    "A": "197"
+                },
+                {
+                    "C": "731-SAG"
+                }
+            ],
+            "event_timestamp": {
+                "seconds": 1789228800
+            }
+        },
+        {
+            "events": [
+                135090,
+                135091
+            ],
+            "results": [
+                {
+                    "A": "561"
+                },
+                {
+                    "C": "805-LEO"
+                }
+            ],
+            "event_timestamp": {
+                "seconds": 1789221600
+            }
+        },
+        {
+            "events": [
+                134812,
+                134813
+            ],
+            "results": [
+                {
+                    "A": "902"
+                },
+                {
+                    "C": "047-VIR"
+                }
+            ],
+            "event_timestamp": {
+                "seconds": 1789167600
+            }
+        },
+        {
+            "events": [
+                134838,
+                134839
+            ],
+            "results": [
+                {
+                    "A": "769"
+                },
+                {
+                    "C": "549-GEM"
+                }
+            ],
+            "event_timestamp": {
+                "seconds": 1789156800
+            }
+        },
+        {
+            "events": [
+                134806,
+                134807
+            ],
+            "results": [
+                {
+                    "A": "196"
+                },
+                {
+                    "C": "782-LIB"
+                }
+            ],
+            "event_timestamp": {
+                "seconds": 1789149600
+            }
+        },
+        {
+            "events": [
+                134803,
+                134804
+            ],
+            "results": [
+                {
+                    "A": "295"
+                },
+                {
+                    "C": "733-PIS"
+                }
+            ],
+            "event_timestamp": {
+                "seconds": 1789142400
+            }
+        },
+        {
+            "events": [
+                134845,
+                134846
+            ],
+            "results": [
+                {
+                    "A": "634"
+                },
+                {
+                    "C": "778-VIR"
+                }
+            ],
+            "event_timestamp": {
+                "seconds": 1789135200
+            }
+        }
+    ]
+}

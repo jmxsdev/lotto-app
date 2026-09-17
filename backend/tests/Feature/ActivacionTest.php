@@ -195,4 +195,64 @@ class ActivacionTest extends TestCase
 
         $response->assertStatus(200);
     }
+
+    // ==================================================
+    // CARACTERIZACIÓN (activacion-taquilla): reactivación
+    // y protección de MAC — comportamiento actual preservado.
+    // ==================================================
+
+    public function test_reactivacion_misma_mac_responde_200_y_actualiza_last_connection_at()
+    {
+        $taquilla = Taquilla::factory()->create([
+            'activation_code' => 'ABC123',
+            'active' => true,
+            'mac_address' => 'AA:BB:CC:DD:EE:FF',
+            'device_fingerprint' => 'test-fp-001',
+            'last_connection_at' => null,
+        ]);
+
+        $response = $this->postJson('/api/v1/activar', [
+            'activation_code' => 'ABC123',
+            'mac_address' => 'AA:BB:CC:DD:EE:FF',
+            'device_fingerprint' => 'test-fp-001',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'Taquilla reactivada exitosamente.');
+
+        // La reactivación con la misma MAC actualiza last_connection_at.
+        $this->assertNotNull($taquilla->fresh()->last_connection_at);
+        $this->assertDatabaseHas('taquillas', [
+            'id' => $taquilla->id,
+            'active' => true,
+            'mac_address' => 'AA:BB:CC:DD:EE:FF',
+        ]);
+    }
+
+    public function test_activa_con_mac_distinta_devuelve_403()
+    {
+        $taquilla = Taquilla::factory()->create([
+            'activation_code' => 'ABC123',
+            'active' => true,
+            'mac_address' => 'AA:BB:CC:DD:EE:FF',
+            'device_fingerprint' => 'test-fp-001',
+        ]);
+
+        $response = $this->postJson('/api/v1/activar', [
+            'activation_code' => 'ABC123',
+            'mac_address' => '11:22:33:44:55:66',
+            'device_fingerprint' => 'test-fp-002',
+        ]);
+
+        // Protección de MAC: nunca activar con una MAC distinta.
+        $response->assertStatus(403)
+            ->assertJsonPath('message', 'Esta taquilla ya está activada con otra dirección MAC.');
+
+        $this->assertDatabaseHas('taquillas', [
+            'id' => $taquilla->id,
+            'active' => true,
+            'mac_address' => 'AA:BB:CC:DD:EE:FF',
+        ]);
+    }
 }

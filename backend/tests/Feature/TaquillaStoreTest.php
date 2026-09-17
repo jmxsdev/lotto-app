@@ -331,4 +331,83 @@ class TaquillaStoreTest extends TestCase
         // Dos creaciones consecutivas nunca comparten código de activación.
         $this->assertNotSame($code1, $code2);
     }
+
+    // ==================================================
+    // NACIMIENTO INACTIVO (activacion-taquilla) — el store
+    // fuerza active=false ignorando el payload del cliente.
+    // ==================================================
+
+    public function test_store_fuerza_active_false_ignorando_payload()
+    {
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/taquillas', $this->payload([
+                'code' => 'TNA01',
+                'active' => true,
+            ]));
+
+        $response->assertStatus(201)
+            ->assertJsonPath('taquilla.active', false);
+
+        // La BD persiste active=false y sin MAC, sin importar el payload.
+        $this->assertDatabaseHas('taquillas', [
+            'code' => 'TNA01',
+            'active' => false,
+            'mac_address' => null,
+        ]);
+    }
+
+    public function test_taquilla_creada_con_active_true_puede_activarse_por_codigo()
+    {
+        // Cliente envía active:true (bug histórico): el store lo ignora y
+        // la taquilla nace inactiva, por lo que /activar NO debe responder 403.
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/taquillas', $this->payload([
+                'code' => 'TNA02',
+                'active' => true,
+            ]));
+
+        $response->assertStatus(201);
+
+        $codigo = $response->json('taquilla.activation_code');
+        $this->assertNotEmpty($codigo);
+
+        $activacion = $this->postJson('/api/v1/activar', [
+            'activation_code' => $codigo,
+            'mac_address' => 'AA:BB:CC:DD:EE:FF',
+            'device_fingerprint' => 'test-fp-creada',
+        ]);
+
+        $activacion->assertStatus(200)
+            ->assertJsonPath('success', true);
+
+        $this->assertDatabaseHas('taquillas', [
+            'code' => 'TNA02',
+            'active' => true,
+            'mac_address' => 'AA:BB:CC:DD:EE:FF',
+            'device_fingerprint' => 'test-fp-creada',
+        ]);
+    }
+
+    public function test_listado_taquillas_ordena_por_id_desc()
+    {
+        // Dos creaciones consecutivas: la última debe aparecer primero.
+        $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/taquillas', $this->payload(['code' => 'TNA10']));
+        $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/taquillas', $this->payload([
+                'code' => 'TNA11',
+                'user_email' => 'taquilla-11@test.com',
+            ]));
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->getJson('/api/v1/taquillas');
+
+        $response->assertStatus(200);
+
+        $lista = $response->json();
+        $this->assertNotEmpty($lista);
+
+        // La fila nueva (última creada, id mayor) es la primera del listado.
+        $this->assertSame('TNA11', $lista[0]['code']);
+    }
 }

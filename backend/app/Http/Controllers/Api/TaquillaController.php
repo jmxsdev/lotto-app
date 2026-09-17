@@ -58,7 +58,8 @@ class TaquillaController extends Controller
             return response()->json(['message' => 'No tienes permiso para ver taquillas.'], 403);
         }
 
-        $taquillas = $query->with('grupo.banca')->get();
+        // Orden descendente: la taquilla recién creada aparece primero.
+        $taquillas = $query->with('grupo.banca')->orderByDesc('id')->get();
 
         return response()->json($taquillas);
     }
@@ -165,7 +166,10 @@ class TaquillaController extends Controller
                 'activation_code' => $activationCode,
                 'vigencia_premios' => $request->vigencia_premios ?? null,
                 'tiempo_eliminacion' => $request->tiempo_eliminacion ?? null,
-                'active' => $request->active ?? false,
+                // Nacimiento inactivo: el único camino legítimo a true es
+                // /activar (código + MAC) o el toggle manual. El payload
+                // `active` se sigue validando por compatibilidad, pero se ignora.
+                'active' => false,
                 'created_by' => $user->id,
                 'rif' => $request->rif,
                 'email' => $request->email,
