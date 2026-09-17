@@ -66,14 +66,14 @@ class JuegoPluginManager
         return $plugin->validarApuesta($data);
     }
 
+    /**
+     * El dinero lo decide PremiosEngine (D1/C, REQ1): la forma del acierto
+     * llega vía `evaluarAcierto` del plugin y el multiplicador desde
+     * `config.premios`. Sin circularidad: el engine solo llama `getPlugin`.
+     */
     public function calcularPremio(Juego $juego, array $apuesta, array $resultados): array
     {
-        $plugin = $this->getPlugin($juego);
-        if (! $plugin) {
-            return ['premio_bs' => 0, 'premio_usd' => 0];
-        }
-
-        return $plugin->calcularPremio($apuesta, $resultados);
+        return (new PremiosEngine($this))->calcular($juego, $apuesta, $resultados);
     }
 
     public function getOpciones(Juego $juego): array
