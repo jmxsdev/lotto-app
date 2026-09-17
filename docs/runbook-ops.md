@@ -90,6 +90,30 @@ ignora `.env.development` y cualquier override persistido del selector dev.
    reales); con versión remota > local aparece el aviso "nueva versión" con
    Continuar, y con la red desactivada no se muestra ningún error.
 
+### Catálogo bundled (taquilla/src/data/juegos.json)
+
+El dashboard de la taquilla carga el catálogo desde una copia local empaquetada
+(`taquilla/src/data/juegos.json`, 21 juegos) y NO desde un endpoint del backend
+(REQ-CL-01). La fuente de verdad es `docs/juegos.json` (mismo repo).
+
+Si `docs/juegos.json` cambia (nuevo juego, horarios, premios u opciones):
+
+1. Actualizar la copia bundled con una copia literal desde el repo:
+   ```bash
+   git show origin/main:docs/juegos.json > taquilla/src/data/juegos.json
+   ```
+   (copia byte a byte; el loader valida shape, deriva familias y salvaguarda
+   datos legacy Cobra→Cebra).
+2. Ejecutar el harness [Lin] del loader:
+   ```bash
+   node taquilla/scripts/check-pure.mjs
+   ```
+3. Re-empaquetar la release (sección anterior): `pnpm electron:build:win` —
+   la copia bundled viaja en `dist/` y DEBE quedar dentro del instalador NSIS.
+
+Nota: la copia bundled es data (no código autorado) y conserva `version` y
+`juegos` tal cual vienen de `docs/juegos.json`.
+
 ## Checklist — PC nueva
 
 ### Accesos y claves
