@@ -1844,12 +1844,12 @@ import MainLayout from '../layouts/MainLayout.astro';
     // ─── Navegación por teclado (PR2: KB-01..04, KB-08, KB-09; A1) ──────────
     // ACCIONES reales de F-keys (PR3b, REQ-KB-07, A11, A12): F1 ayuda, F2
     // limpiar (= clearTicket), F3 anular último grupo, F4 repetir última
-    // (atómico), F5 pagar/generar (= handlePrint), F12 reimprimir snapshot.
-    // F7/F8/F10 (navegación) se conectan en el siguiente commit; F6 (eliminar
-    // ítem) queda como no-op (fuera del alcance de PR3b). Las guardas de
-    // estado viven en routeKey (ejecutable=false) y la guarda estricta de
-    // modales (A12) en la regla 1 del router: con un modal abierto solo su
-    // toggle (F1/F9) y Esc actúan.
+    // (atómico), F5 pagar/generar (= handlePrint), F7/F8/F10 navegan a
+    // pantallas existentes (confirm-and-discard DIFERIDO: solo navegación),
+    // F12 reimprimir snapshot. F6 (eliminar ítem) queda como no-op (fuera
+    // del alcance de PR3b). Las guardas de estado viven en routeKey
+    // (ejecutable=false) y la guarda estricta de modales (A12) en la regla 1
+    // del router: con un modal abierto solo su toggle (F1/F9) y Esc actúan.
     const ACCIONES_FKEYS = {
       ayuda: toggleAyudaModal,
       limpiar: clearTicket,
@@ -1857,10 +1857,10 @@ import MainLayout from '../layouts/MainLayout.astro';
       'repetir-ultima': repetirUltimaJugada,
       'pagar-generar': () => { handlePrint(); },
       'eliminar-item': () => console.debug('[PR3b] F6 eliminar ítem: fuera de alcance (no-op)'),
-      ventas: () => console.debug('[PR3b] F7 ventas: navegación pendiente'),
-      cuadre: () => console.debug('[PR3b] F8 cuadre: navegación pendiente'),
+      ventas: () => { window.location.href = '/historial'; },
+      cuadre: () => { window.location.href = '/cierre'; },
       vuelto: toggleVueltoModal,
-      resultados: () => console.debug('[PR3b] F10 resultados: navegación pendiente'),
+      resultados: () => { window.location.href = '/resultados'; },
       reimprimir: reimprimirUltimo,
     };
 
