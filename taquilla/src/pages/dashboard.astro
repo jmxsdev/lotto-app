@@ -1652,7 +1652,7 @@ import MainLayout from '../layouts/MainLayout.astro';
           date: new Date().toLocaleDateString('es-VE'),
           time: new Date().toLocaleTimeString('es-VE'),
           game: selectedGames.length > 0 ? selectedGames.map(g => g.nombre).join(', ') : 'Apuesta',
-          lines: ticketLines.map(l => ({ animal: l.animal || l.numero, number: l.numero, amountBs: l.moneda === 'bs' ? l.monto : 0, amountUsd: l.moneda === 'usd' ? l.monto : 0 })),
+          lines: ticketLines.map(l => ({ animal: l.animal || l.numero, number: l.numero, sorteo: l.horario, amountBs: l.moneda === 'bs' ? l.monto : 0, amountUsd: l.moneda === 'usd' ? l.monto : 0 })),
         };
         // Snapshot para F12 reimprimir (A6, REQ-TF-03): tras POST ok se guarda
         // el último ticket impreso; si la impresora falla, F12 reimprime sin
