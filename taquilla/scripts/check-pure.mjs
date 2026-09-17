@@ -19,6 +19,11 @@ import {
   crearBuscadorDigitos,
 } from '../src/utils/catalogo.ts';
 import { buildZoneGraph, routeKey, KEYMAP, esFKey } from '../src/utils/keyboard.ts';
+import {
+  alternarHorario,
+  marcarTodosVisibles,
+  expandirLineas,
+} from '../src/utils/horarios.ts';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const rutaJson = join(AQUI, '..', 'src', 'data', 'juegos.json');
@@ -322,6 +327,53 @@ r = routeKey(est({ tecla: 'Enter' }));
 ok(!r.consume, 'Enter en zona → pasa (semántica de toggle en PR3a)');
 r = routeKey(est({ tecla: 'x' }));
 ok(!r.consume, 'tecla no mapeada → pasa');
+
+console.log('\n== PR3a: routeKey — marcar todos (KB-05) ==');
+r = routeKey(est({ ctrlKey: true, tecla: 'a', columnMode: 'horarios' }));
+ok(r.consume && r.tipo === 'marcar-todos', 'Ctrl+A fuera de input con horarios abiertos → marcar-todos');
+r = routeKey(est({ tecla: '*', columnMode: 'horarios' }));
+ok(r.consume && r.tipo === 'marcar-todos', '`*` con horarios abiertos → marcar-todos');
+r = routeKey(est({ ctrlKey: true, tecla: 'a', columnMode: 'juegos' }));
+ok(!r.consume, 'Ctrl+A sin lista de horarios abierta → pasa (no secuestra)');
+r = routeKey(est({ tecla: '*', columnMode: 'juegos' }));
+ok(!r.consume, '`*` sin lista de horarios abierta → pasa');
+r = routeKey(est({ ctrlKey: true, tecla: 'a', focoEditable: true, columnMode: 'horarios' }));
+ok(!r.consume, 'Ctrl+A en INPUT → pasa (selección de texto nativa, no secuestra)');
+r = routeKey(est({ ctrlKey: true, tecla: 'a', modalAbierto: true }));
+ok(!r.consume, 'Ctrl+A con modal abierto → pasa (guarda KB-08)');
+
+console.log('\n== PR3a: multiselección de horarios (KB-05, A3) ==');
+let sel = alternarHorario([], '14:00');
+ok(JSON.stringify(sel) === JSON.stringify(['14:00']), `toggle: [] + '14:00' → ['14:00'] (${sel.join(',')})`);
+sel = alternarHorario(sel, '17:00');
+ok(JSON.stringify(sel) === JSON.stringify(['14:00', '17:00']), `toggle: agrega '17:00' → ['14:00','17:00'] (${sel.join(',')})`);
+sel = alternarHorario(sel, '14:00');
+ok(JSON.stringify(sel) === JSON.stringify(['17:00']), `toggle: quita '14:00' → ['17:00'] (${sel.join(',')})`);
+ok(
+  JSON.stringify(marcarTodosVisibles(['14:00', '17:00'])) === JSON.stringify(['14:00', '17:00']),
+  'marcarTodosVisibles marca todos los visibles (orden preservado)',
+);
+ok(JSON.stringify(marcarTodosVisibles([])) === JSON.stringify([]), 'marcarTodosVisibles con lista vacía → []');
+
+console.log('\n== PR3a: expansión a N apuestas (REQ-MH-02, REQ-TF-01, D2) ==');
+const baseLinea = {
+  juegoId: 1,
+  juegoName: 'Lotto Activo',
+  juegoType: 'animalitos',
+  numero: '27',
+  animal: 'Perro',
+  monto: 10,
+  moneda: 'bs',
+  tripleModalidad: null,
+  tripleModalidadLabel: null,
+};
+const expandidas = expandirLineas(baseLinea, ['14:00', '17:00'], 'g1');
+ok(expandidas.length === 2, `2 horarios ⇒ 2 líneas (${expandidas.length})`);
+ok(expandidas.every((l) => l.monto === 10), 'cada línea con monto completo (10)');
+ok(expandidas[0].horario === '14:00' && expandidas[1].horario === '17:00', 'línea 1 → 14:00, línea 2 → 17:00');
+ok(expandidas.every((l) => l.groupId === 'g1'), 'todas las líneas del grupo con el mismo groupId');
+ok(expandidas[0].animal === 'Perro' && expandidas[0].juegoId === 1, 'la base se copia por línea');
+ok(expandirLineas(baseLinea, [], 'g2').length === 0, '0 horarios ⇒ 0 líneas');
 
 console.log('\n== REQ-KB-07: KEYMAP F1–F12 ==');
 ok(KEYMAP.length === 12, `KEYMAP: 12 teclas (${KEYMAP.length})`);

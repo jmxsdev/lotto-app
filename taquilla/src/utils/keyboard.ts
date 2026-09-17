@@ -17,7 +17,8 @@
  *     de estado (F5/F6 sin líneas, F3/F4 sin historial, F2 sin líneas),
  *     e.repeat ignorado en F-keys, modal abierto → solo su toggle (F1/F9) y
  *     Esc, foco en INPUT/SELECT → no intercepta salvo F-keys/Escape, ←/→ solo
- *     en zona Juegos, ↑/↓ contextuales, Tab/Shift+Tab ciclan zonas.
+ *     en zona Juegos, ↑/↓ contextuales, Tab/Shift+Tab ciclan zonas, Ctrl+A/`*`
+ *     marcan todos los horarios visibles (KB-05).
  */
 
 export type FamiliaOpciones = 'animalitos' | 'zodiacal' | 'numerica' | 'terminal';
@@ -168,6 +169,7 @@ export type RutaDecision =
   | { consume: true; tipo: 'pestana-siguiente' }
   | { consume: true; tipo: 'fila-anterior' }
   | { consume: true; tipo: 'fila-siguiente' }
+  | { consume: true; tipo: 'marcar-todos' }
   | { consume: true; tipo: 'escape'; nivel: 'modal' | 'input' | 'juegos' | 'zona-anterior' }
   | { consume: true; tipo: 'toggle-modal'; modal: 'f1' | 'f9' }
   | { consume: true; tipo: 'f-key'; fkey: string; accion: string; ejecutable: boolean }
@@ -230,7 +232,16 @@ export function routeKey(state: EstadoRuteo): RutaDecision {
     return { consume: false, tipo: 'pasar' };
   }
 
-  // 5. Navegación por zonas (KB-01, KB-03, KB-04).
+  // 5. Marcar todos los horarios visibles (KB-05, A3): Ctrl+A o `*` SOLO con
+  //    la lista de horarios abierta y fuera de input (el texto de inputs no se
+  //    secuestra; focoEditable ya retornó en la regla 4).
+  if ((state.ctrlKey && state.tecla.toLowerCase() === 'a') || state.tecla === '*') {
+    return state.columnMode === 'horarios'
+      ? { consume: true, tipo: 'marcar-todos' }
+      : { consume: false, tipo: 'pasar' };
+  }
+
+  // 6. Navegación por zonas (KB-01, KB-03, KB-04).
   switch (state.tecla) {
     case 'Tab':
       return state.shiftKey

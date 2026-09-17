@@ -767,6 +767,7 @@ import MainLayout from '../layouts/MainLayout.astro';
     import { getFingerprint } from '../utils/device';
     import { cargarCatalogo } from '../utils/catalogo';
     import { buildZoneGraph, routeKey, KEYMAP } from '../utils/keyboard';
+    import { alternarHorario, marcarTodosVisibles, expandirLineas } from '../utils/horarios';
     import juegosRaw from '../data/juegos.json';
 
     // Catálogo local bundled (REQ-CL-01): reemplaza GAMES_CONFIG. Los juegos,
@@ -823,7 +824,9 @@ import MainLayout from '../layouts/MainLayout.astro';
       return catalogo.porId.get(juegoId)?.tipo ?? null;
     }
 
-    let selectedHorario = null;
+    // Multiselección de horarios (REQ-MH-01, A3): toggle Space/Enter/click;
+    // Ctrl+A / `*` marcan todos los visibles SOLO fuera de input (KB-05).
+    let selectedHorarios = [];
     let horariosCache = [];
     let activeTab = 'animalitos';
     let tripleModalidad = null;
@@ -876,7 +879,7 @@ import MainLayout from '../layouts/MainLayout.astro';
       tripleModalidadLabel = null;
       document.getElementById('seleccion-content').innerHTML = '<div class="seleccion-placeholder">Seleccione un juego</div>';
       horariosCache = [];
-      selectedHorario = null;
+      selectedHorarios = [];
       renderJuegosTabs();
       renderJuegos();
       renderLegend();
@@ -948,7 +951,7 @@ import MainLayout from '../layouts/MainLayout.astro';
       const juego = juegoActivo();
       if (!juego) return;
       horariosCache = juego.horarios.map(h => ({ hora: h }));
-      selectedHorario = null;
+      selectedHorarios = [];
       renderHorariosGrid();
     }
 
@@ -1113,9 +1116,36 @@ import MainLayout from '../layouts/MainLayout.astro';
         return;
       }
       container.innerHTML = horariosCache.map(h => {
-        const sel = selectedHorario === h.hora ? ' selected' : '';
-        return '<div class="horario-item' + sel + '" data-hora="' + h.hora + '">' + h.hora + '</div>';
+        const sel = selectedHorarios.includes(h.hora) ? ' selected' : '';
+        return '<div class="horario-item' + sel + '" data-hora="' + h.hora + '" tabindex="-1">' + h.hora + '</div>';
       }).join('');
+    }
+
+    // Identidad de grupo por jugada (A3): cada Añadir crea un groupId nuevo,
+    // así dos jugadas iguales no comparten grupo (duplicados = grupo nuevo).
+    let grupoSeq = 0;
+    function nuevoGroupId() {
+      grupoSeq += 1;
+      return 'g' + grupoSeq;
+    }
+
+    function toggleHorario(hora) {
+      selectedHorarios = alternarHorario(selectedHorarios, hora);
+      // Actualiza la clase del ítem sin re-renderizar (preserva el foco del
+      // roving focus al alternar con Space/Enter/click).
+      const item = document.querySelector('#horarios-grid .horario-item[data-hora="' + hora + '"]');
+      item?.classList.toggle('selected', selectedHorarios.includes(hora));
+    }
+
+    function marcarTodosHorarios() {
+      if (columnMode !== 'horarios') return;
+      const prevHora = document.activeElement?.dataset?.hora;
+      selectedHorarios = marcarTodosVisibles(horariosCache.map(h => h.hora));
+      renderHorariosGrid();
+      if (prevHora) {
+        const nuevo = document.querySelector('#horarios-grid .horario-item[data-hora="' + prevHora + '"]');
+        nuevo?.focus({ preventScroll: true });
+      }
     }
 
     function renderTripleModalidades() {
@@ -1144,13 +1174,13 @@ import MainLayout from '../layouts/MainLayout.astro';
       });
     }
 
+    // sorteo_hora del POST por línea (REQ-TF-01, A4): `<hoy> HH:MM:00` sin salto
+    // de día (D3). El cliente solo permite horarios futuros del día (filtro A4)
+    // y bloquea los que expiran; el backend D3 (PR4) es la autoridad final.
     function formatDateWithHorario(hora) {
       const partes = hora.split(':');
       const d = new Date();
       d.setHours(parseInt(partes[0]), parseInt(partes[1] || '0'), 0, 0);
-      if (d <= new Date()) {
-        d.setDate(d.getDate() + 1);
-      }
       const y = d.getFullYear();
       const m = String(d.getMonth() + 1).padStart(2, '0');
       const day = String(d.getDate()).padStart(2, '0');
@@ -1234,7 +1264,7 @@ import MainLayout from '../layouts/MainLayout.astro';
       const juego = juegoActivo();
       if (!juego) { window.showModal({ message: 'Seleccione al menos un juego', type: 'error' }); return; }
       if (!monto || Number(monto) <= 0) { window.showModal({ message: 'Ingrese un monto válido', type: 'error' }); return; }
-      if (!selectedHorario) { window.showModal({ message: 'Seleccione un horario para el sorteo', type: 'error' }); return; }
+      if (!selectedHorarios.length) { window.showModal({ message: 'Seleccione un horario para el sorteo', type: 'error' }); return; }
 
       const familia = juego.familia;
       if (familia === 'zodiacal') {
@@ -1249,22 +1279,26 @@ import MainLayout from '../layouts/MainLayout.astro';
         numero = String(selectedAnimal.numero).padStart(2, '0');
       }
 
+      // Expansión multi-horario (REQ-MH-02, REQ-TF-01, D2): N horarios ⇒ N líneas,
+      // cada una con el monto completo y el groupId del grupo (A3). El
+      // resumen agrupa por groupId; los duplicados generan grupo nuevo.
+      const groupId = nuevoGroupId();
       selectedGames.forEach(game => {
         const animal = familia === 'zodiacal'
           ? (selectedSigno ? selectedSigno.label : null)
           : (selectedAnimal ? selectedAnimal.label : null);
-        ticketLines.push({
+        const baseLinea = {
           juegoId: game.id,
           juegoName: game.nombre,
           juegoType: game.tipo,
-          horario: selectedHorario,
           numero: numero,
           animal: animal,
           monto: Number(monto),
           moneda: moneda,
           tripleModalidad: familia === 'zodiacal' ? tripleModalidad : null,
           tripleModalidadLabel: familia === 'zodiacal' ? tripleModalidadLabel : null,
-        });
+        };
+        ticketLines.push(...expandirLineas(baseLinea, [...selectedHorarios], groupId));
       });
 
       document.getElementById('qt-numero').value = '';
@@ -1292,7 +1326,7 @@ import MainLayout from '../layouts/MainLayout.astro';
       selectedOpcion = null;
       tripleModalidad = null;
       tripleModalidadLabel = null;
-      selectedHorario = null;
+      selectedHorarios = [];
       document.getElementById('qt-numero').value = '';
       document.getElementById('qt-monto').value = '';
       if (juegoActivo()) {
@@ -1313,7 +1347,7 @@ import MainLayout from '../layouts/MainLayout.astro';
         selectedOpcion = null;
         tripleModalidad = null;
         tripleModalidadLabel = null;
-        selectedHorario = null;
+        selectedHorarios = [];
         document.getElementById('qt-numero').value = '';
         if (juegoActivo()) {
           renderSeleccion();
@@ -1523,7 +1557,8 @@ import MainLayout from '../layouts/MainLayout.astro';
         .join(' · ');
       el.innerHTML =
         '<span class="leg-grupo"><span class="leg-label">Zonas:</span> ' + zonasHtml + '</span>' +
-        '<span class="leg-grupo"><span class="leg-label">Teclas:</span> ' + fkeysHtml + '</span>';
+        '<span class="leg-grupo"><span class="leg-label">Teclas:</span> ' + fkeysHtml + '</span>' +
+        '<span class="leg-grupo"><span class="leg-label">Horarios:</span> <span class="kbd">Ctrl+A</span>/<span class="kbd">*</span> marcar todos</span>';
     }
 
     document.addEventListener('DOMContentLoaded', async () => {
@@ -1581,7 +1616,7 @@ import MainLayout from '../layouts/MainLayout.astro';
         } else {
           document.getElementById('seleccion-content').innerHTML = '<div class="seleccion-placeholder">Seleccione un juego</div>';
           horariosCache = [];
-          selectedHorario = null;
+          selectedHorarios = [];
           switchToJuegos();
         }
         renderLegend();
@@ -1591,9 +1626,7 @@ import MainLayout from '../layouts/MainLayout.astro';
       document.getElementById('horarios-grid').addEventListener('click', (e) => {
         const item = e.target.closest('.horario-item');
         if (!item) return;
-        document.querySelectorAll('.horario-item.selected').forEach(b => b.classList.remove('selected'));
-        item.classList.add('selected');
-        selectedHorario = item.dataset.hora;
+        toggleHorario(item.dataset.hora);
       });
       if (document.getElementById('back-to-juegos')) {
         document.getElementById('back-to-juegos').addEventListener('click', () => {
@@ -1674,6 +1707,7 @@ import MainLayout from '../layouts/MainLayout.astro';
           case 'pestana-siguiente': activarTab(tabSiguiente()); break;
           case 'fila-anterior': moverFila(-1); break;
           case 'fila-siguiente': moverFila(1); break;
+          case 'marcar-todos': marcarTodosHorarios(); break;
           case 'escape': manejarEscape(decision.nivel); break;
           case 'toggle-modal': break; // PR3b: toggle del modal propio (F1/F9)
           case 'f-key': {
@@ -1685,12 +1719,14 @@ import MainLayout from '../layouts/MainLayout.astro';
         }
       });
 
-      // Enter activa el elemento de zona focalizado (tarjeta/opción/fila);
-      // dentro de inputs el Enter existente ya hace addLine.
+      // Enter/Space activan el elemento de zona focalizado (KB-05: toggle de
+      // horarios con Space/Enter; PR2 ya activaba con Enter). Dentro de inputs
+      // el Enter existente hace addLine y Space escribe texto (no se intercepta).
       document.addEventListener('keydown', (e) => {
-        if (e.key !== 'Enter') return;
+        if (e.key !== 'Enter' && e.key !== ' ') return;
         if (esEditable(e.target)) return;
         activarItemFocalizado();
+        if (e.key === ' ') e.preventDefault(); // Space en ítem: sin scroll de página
       });
     });
   </script>
