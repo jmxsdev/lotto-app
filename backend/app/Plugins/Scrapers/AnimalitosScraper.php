@@ -150,17 +150,30 @@ class AnimalitosScraper extends BaseScraper
         // Formato anidado: Animalitos
         $pais = ($juegoData['pais'] ?? '1') === '1' ? 'Venezuela' : 'República Dominicana';
 
+        $numerosGanadores = [
+            'numero' => (int) ($data['number_animal'] ?? 0),
+            'nombre_animal' => $data['name_animal'] ?? null,
+            'imagen_animal' => $data['image_animal'] ?? null,
+            'color_animal' => $data['color_animal'] ?? null,
+            'pais' => $pais,
+        ];
+
+        // H14: el feed trae special_result="1" en Monje (id_game=7), el mismo
+        // criterio del front oficial (id_game==7 && special_result==1). Se
+        // mapea como flag `patronus` para que el engine liquide la palabra
+        // PATRONUS (+20× acumulativo, REQ6). Defensivo: solo para el juego
+        // Monje y solo cuando el flag es 1. SEMÁNTICA POR CONFIRMAR con una
+        // captura real (¿el flag marca el sorteo con palabra, o es estático
+        // del juego?); si se confirma distinta, se ajusta solo este mapeo.
+        if ($juego->slug === 'monje-millonario' && (int) ($data['special_result'] ?? 0) === 1) {
+            $numerosGanadores['patronus'] = true;
+        }
+
         return [
             'juego_id' => $juego->id,
             'fecha_sorteo' => now()->format('Y-m-d'),
             'hora_sorteo' => $this->normalizeHora($data['time_s'] ?? null) ?? ($data['time_s'] ?? null),
-            'numeros_ganadores' => [
-                'numero' => (int) ($data['number_animal'] ?? 0),
-                'nombre_animal' => $data['name_animal'] ?? null,
-                'imagen_animal' => $data['image_animal'] ?? null,
-                'color_animal' => $data['color_animal'] ?? null,
-                'pais' => $pais,
-            ],
+            'numeros_ganadores' => $numerosGanadores,
             'sorteo_id_externo' => $data['id_game'] ?? null,
             'premios_detalle' => null,
         ];
