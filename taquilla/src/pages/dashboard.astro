@@ -86,6 +86,32 @@ import MainLayout from '../layouts/MainLayout.astro';
         </div>
       </div>
     </div>
+
+    <!-- Modal de vuelto F9 (A12, REQ-KB-07): reutiliza los estilos globales
+         .modal-overlay/.modal-dialog de MainLayout; la clase .abierto controla
+         la visibilidad. Guarda estricta A12: con un modal abierto ninguna otra
+         F-key abre otro; solo F9 (su propio toggle) y Esc/Cerrar/click actúan. -->
+    <div id="vuelto-overlay" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Calculadora de vuelto">
+      <div class="modal-dialog vuelto-dialog">
+        <h3 class="vuelto-title">Calculadora de vuelto</h3>
+        <div class="vuelto-fila">
+          <label for="vuelto-total">Total a cobrar (Bs)</label>
+          <input type="number" id="vuelto-total" step="0.01" min="0">
+        </div>
+        <div class="vuelto-fila">
+          <label for="vuelto-recibido">Monto recibido</label>
+          <input type="number" id="vuelto-recibido" step="0.01" min="0">
+          <select id="vuelto-moneda">
+            <option value="bs">Bs</option>
+            <option value="usd">$</option>
+          </select>
+        </div>
+        <div class="vuelto-resultado" id="vuelto-resultado" role="status"></div>
+        <div class="modal-buttons">
+          <button class="modal-btn modal-btn-secondary" id="vuelto-cerrar">Cerrar</button>
+        </div>
+      </div>
+    </div>
   </div>
   
   <style is:global>
@@ -778,6 +804,90 @@ import MainLayout from '../layouts/MainLayout.astro';
       font-style: italic;
       font-size: 13px;
     }
+
+    /* Modal de vuelto F9 (A12): reutiliza .modal-overlay/.modal-dialog de
+       MainLayout; la clase .abierto controla la visibilidad (el ID gana
+       especificidad sobre .modal-overlay para el display). */
+    #vuelto-overlay {
+      display: none;
+    }
+
+    #vuelto-overlay.abierto {
+      display: flex;
+    }
+
+    .vuelto-dialog {
+      max-width: 380px;
+      text-align: left;
+    }
+
+    .vuelto-title {
+      font-size: 16px;
+      margin-bottom: 14px;
+      color: #333;
+    }
+
+    .vuelto-fila {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .vuelto-fila label {
+      flex: 1;
+      font-size: 13px;
+      color: #555;
+    }
+
+    .vuelto-fila input {
+      flex: 1;
+      min-width: 0;
+      padding: 6px 10px;
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+
+    .vuelto-fila input:focus {
+      border-color: #667eea;
+      outline: none;
+    }
+
+    .vuelto-fila select {
+      padding: 6px 8px;
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      background: white;
+    }
+
+    .vuelto-resultado {
+      margin: 12px 0;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 14px;
+      text-align: center;
+      background: #f8f9fa;
+      color: #555;
+    }
+
+    .vuelto-ok {
+      color: #059669;
+      background: #ecfdf5;
+    }
+
+    .vuelto-falta {
+      color: #dc2626;
+      background: #fef2f2;
+    }
+
+    .vuelto-error {
+      color: #b45309;
+      background: #fffbeb;
+    }
   </style>
   
   <script>
@@ -786,6 +896,7 @@ import MainLayout from '../layouts/MainLayout.astro';
     import { cargarCatalogo } from '../utils/catalogo';
     import { buildZoneGraph, routeKey, KEYMAP } from '../utils/keyboard';
     import { alternarHorario, marcarTodosVisibles, expandirLineas, horarioExpirado, filtrarHorariosFuturos, seleccionadosExpirados, agruparPorGroupId } from '../utils/horarios';
+    import { calcularVuelto } from '../utils/vuelto';
     import juegosRaw from '../data/juegos.json';
 
     // Catálogo local bundled (REQ-CL-01): reemplaza GAMES_CONFIG. Los juegos,
@@ -794,6 +905,10 @@ import MainLayout from '../layouts/MainLayout.astro';
     const catalogo = cargarCatalogo(juegosRaw);
 
     let tasaActiva = 36.50;
+    // Disponibilidad de la tasa (A12): loadTasa() lo setea. Si falla, el modal
+    // de vuelto muestra «Tasa no disponible» y calcula solo en Bs (calcularVuelto
+    // nunca usa una tasa silenciosa).
+    let tasaDisponible = false;
 
     let selectedGames = [];
     let ticketLines = [];
@@ -873,10 +988,17 @@ import MainLayout from '../layouts/MainLayout.astro';
       try {
         const data = await apiFetch('/exchange-rate/active');
         tasaActiva = data.rate;
+        tasaDisponible = true;
         document.getElementById('tasa-dolar').textContent = `Bs. ${Number(data.rate).toLocaleString('es-VE', { minimumFractionDigits: 2 })}`;
         const fecha = data.updated_at ? new Date(data.updated_at).toLocaleDateString('es-VE') : 'hoy';
         document.getElementById('tasa-meta').textContent = `Actualizada: ${fecha}`;
+        // Si el modal de vuelto está abierto cuando llega la tasa (loadTasa
+        // async), se habilita el selector $ y se recalcula (A12).
+        const monedaSel = document.getElementById('vuelto-moneda');
+        if (monedaSel) monedaSel.disabled = false;
+        if (document.querySelector('#vuelto-overlay.abierto')) calcularVueltoModal();
       } catch (e) {
+        tasaDisponible = false;
         document.getElementById('tasa-dolar').textContent = '--';
         document.getElementById('tasa-meta').textContent = 'No disponible';
       }
@@ -1470,20 +1592,99 @@ import MainLayout from '../layouts/MainLayout.astro';
       printBtn.disabled = false;
     }
 
+    // ─── Modal de vuelto F9 (A12, REQ-KB-07) ────────────────────────────────
+    // Renderer-only: reutiliza tasaActiva (sin fetch nuevo) para que el
+    // cálculo cuadre con getTotalBs/getTicketTotal y la tarjeta de tasa. Con
+    // 0 líneas pendientes abre igual (total 0,00 editable): F9 nunca se
+    // bloquea por estado. La guarda estricta (A12) vive en routeKey + el glue.
+
+    // ¿El overlay está realmente visible? Los modales propios son estáticos
+    // (display:none cerrados, .abierto abiertos), a diferencia de los
+    // .modal-overlay dinámicos de showModal (siempre visibles en el DOM).
+    function overlayVisible(el) {
+      return el !== null && getComputedStyle(el).display !== 'none';
+    }
+
+    function restaurarFoco() {
+      requestAnimationFrame(() => enfocarZona(zonaActual));
+    }
+
+    function abrirVueltoModal() {
+      const overlay = document.getElementById('vuelto-overlay');
+      if (!overlay) return;
+      document.getElementById('vuelto-total').value = getTicketTotal().toFixed(2);
+      document.getElementById('vuelto-recibido').value = '';
+      // Sin tasa activa: se deshabilita el selector $ (solo Bs, A12).
+      document.getElementById('vuelto-moneda').disabled = !tasaDisponible;
+      document.getElementById('vuelto-moneda').value = 'bs';
+      overlay.classList.add('abierto');
+      calcularVueltoModal();
+      document.getElementById('vuelto-recibido').focus();
+    }
+
+    function cerrarVueltoModal() {
+      document.getElementById('vuelto-overlay')?.classList.remove('abierto');
+      restaurarFoco();
+    }
+
+    function toggleVueltoModal() {
+      const overlay = document.getElementById('vuelto-overlay');
+      if (!overlay) return;
+      if (overlay.classList.contains('abierto')) {
+        cerrarVueltoModal();
+      } else {
+        abrirVueltoModal();
+      }
+    }
+
+    // Cálculo en vivo del vuelto (A12): total editable, recibido con selector
+    // Bs/$; salida es-VE 2 decimales; negativo = «Falta» en rojo.
+    function calcularVueltoModal() {
+      const el = document.getElementById('vuelto-resultado');
+      if (!el) return;
+      const total = parseFloat(document.getElementById('vuelto-total').value) || 0;
+      const recibidoRaw = document.getElementById('vuelto-recibido').value;
+      if (recibidoRaw === '') {
+        el.className = 'vuelto-resultado';
+        el.textContent = 'Ingrese el monto recibido para calcular el vuelto.';
+        return;
+      }
+      const recibido = parseFloat(recibidoRaw) || 0;
+      const moneda = document.getElementById('vuelto-moneda').value;
+      const res = calcularVuelto({ totalBs: total, recibido, moneda, tasa: tasaDisponible ? tasaActiva : null });
+      const fmt = (n) => n.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      if (!res.ok) {
+        el.className = 'vuelto-resultado vuelto-error';
+        el.textContent = 'Tasa no disponible. Verifique la conexión para calcular en $, o use Bs.';
+        return;
+      }
+      const equivUsd = res.vueltoUsd !== null ? ' ($ ' + fmt(Math.abs(res.vueltoUsd)) + ')' : '';
+      if (res.negativo) {
+        el.className = 'vuelto-resultado vuelto-falta';
+        el.innerHTML = 'Falta: <strong>Bs. ' + fmt(Math.abs(res.vueltoBs)) + '</strong>' + equivUsd;
+      } else {
+        el.className = 'vuelto-resultado vuelto-ok';
+        el.innerHTML = 'Vuelto: <strong>Bs. ' + fmt(res.vueltoBs) + '</strong>' + equivUsd;
+      }
+    }
+
     // ─── Navegación por teclado (PR2: KB-01..04, KB-08, KB-09; A1) ──────────
-    // Las ACCIONES de F-keys (F2..F12) se implementan en PR3b; aquí solo se
-    // registran como hooks (STUBS_FKEYS) y se aplican las GUARDAS de estado
-    // via routeKey. NO se implementa comportamiento de F-keys en este slice.
-    const STUBS_FKEYS = {
+    // Las ACCIONES de F-keys se conectan en PR3b (REQ-KB-07, A11, A12): F9
+    // (vuelto) en este slice; F2/F3/F4/F5/F12 y ayuda F1 en el siguiente;
+    // F7/F8/F10 (navegación) en el último. F6 (eliminar ítem) queda como
+    // no-op (fuera del alcance de PR3b). Las guardas de estado viven en
+    // routeKey (ejecutable=false) y la guarda estricta de modales (A12) en la
+    // regla 1 del router: con un modal abierto solo su toggle (F1/F9) y Esc.
+    const ACCIONES_FKEYS = {
       ayuda: () => console.debug('[PR3b] F1 ayuda: modal de ayuda pendiente'),
       limpiar: () => console.debug('[PR3b] F2 limpiar: clearTicket pendiente'),
       'anular-ultima': () => console.debug('[PR3b] F3 anular última: pendiente'),
       'repetir-ultima': () => console.debug('[PR3b] F4 repetir última: pendiente'),
       'pagar-generar': () => console.debug('[PR3b] F5 pagar/generar: handlePrint pendiente'),
-      'eliminar-item': () => console.debug('[PR3b] F6 eliminar ítem: pendiente'),
+      'eliminar-item': () => console.debug('[PR3b] F6 eliminar ítem: fuera de alcance (no-op)'),
       ventas: () => console.debug('[PR3b] F7 ventas: navegación pendiente'),
       cuadre: () => console.debug('[PR3b] F8 cuadre: navegación pendiente'),
-      vuelto: () => console.debug('[PR3b] F9 vuelto: modal pendiente'),
+      vuelto: toggleVueltoModal,
       resultados: () => console.debug('[PR3b] F10 resultados: navegación pendiente'),
       reimprimir: () => console.debug('[PR3b] F12 reimprimir: pendiente'),
     };
@@ -1493,13 +1694,24 @@ import MainLayout from '../layouts/MainLayout.astro';
       return t === 'INPUT' || t === 'SELECT' || t === 'TEXTAREA';
     }
 
-    // Guarda de modal (REQ-KB-08): cualquier .modal-overlay (showModal de
-    // MainLayout) o el futuro #help-overlay.abierto (PR3b).
+    // Guarda de modal (REQ-KB-08, A12 refined): cualquier .modal-overlay VISIBLE
+    // (showModal de MainLayout es dinámico y siempre visible en el DOM; los
+    // modales propios F1/F9 son estáticos con display:none cerrados) o el
+    // #help-overlay.abierto. La visibilidad evita que un modal propio cerrado
+    // (aún en el DOM) bloquee las F-keys.
     function detectarModalAbierto() {
-      return (
-        document.querySelector('.modal-overlay') !== null ||
-        document.querySelector('#help-overlay.abierto') !== null
-      );
+      const genericos = Array.from(document.querySelectorAll('.modal-overlay'));
+      if (genericos.some((el) => overlayVisible(el))) return true;
+      return document.querySelector('#help-overlay.abierto') !== null;
+    }
+
+    // Modal propio abierto para routeKey (A12): 'f1' (ayuda) o 'f9' (vuelto).
+    // Con un modal abierto, routeKey solo permite el toggle del modal propio
+    // (F1/F9) y Esc; ninguna otra F-key abre otro modal.
+    function modalPropioActual() {
+      if (document.querySelector('#help-overlay.abierto')) return 'f1';
+      if (document.querySelector('#vuelto-overlay.abierto')) return 'f9';
+      return null;
     }
 
     function objetivoZona(zona) {
@@ -1585,12 +1797,19 @@ import MainLayout from '../layouts/MainLayout.astro';
     // Esc sube un nivel sin descartar selección ni líneas (KB-04, A1).
     function manejarEscape(nivel) {
       if (nivel === 'modal') {
+        // Cierra el modal superior: ayuda F1 → vuelto F9 → showModal genérico.
         const ayuda = document.querySelector('#help-overlay.abierto');
         if (ayuda) {
           ayuda.classList.remove('abierto');
+          restaurarFoco();
           return;
         }
-        const overlay = document.querySelector('.modal-overlay');
+        const vuelto = document.querySelector('#vuelto-overlay.abierto');
+        if (vuelto) {
+          cerrarVueltoModal();
+          return;
+        }
+        const overlay = Array.from(document.querySelectorAll('.modal-overlay')).find(overlayVisible);
         if (overlay) {
           const btn = overlay.querySelector('.cancel-btn') ?? overlay.querySelector('.ok-btn');
           btn?.click();
@@ -1723,6 +1942,17 @@ import MainLayout from '../layouts/MainLayout.astro';
       document.getElementById('qt-clear').addEventListener('click', clearTicket);
       document.getElementById('qt-print').addEventListener('click', handlePrint);
 
+      // Modal de vuelto F9 (A12): cálculo en vivo + cierre por botón/overlay.
+      const vueltoOverlay = document.getElementById('vuelto-overlay');
+      ['vuelto-total', 'vuelto-recibido'].forEach((id) => {
+        document.getElementById(id).addEventListener('input', calcularVueltoModal);
+      });
+      document.getElementById('vuelto-moneda').addEventListener('change', calcularVueltoModal);
+      document.getElementById('vuelto-cerrar').addEventListener('click', cerrarVueltoModal);
+      vueltoOverlay.addEventListener('click', (e) => {
+        if (e.target === vueltoOverlay) cerrarVueltoModal();
+      });
+
       document.getElementById('qt-numero').addEventListener('input', (e) => {
         if (!selectedGames[0] || selectedGames[0].tipo !== 'animalitos') return;
         if (animalesCache.length === 0) return;
@@ -1738,7 +1968,11 @@ import MainLayout from '../layouts/MainLayout.astro';
 
       let addingLine = false;
       document.addEventListener('keydown', (e) => {
-        if (e.target.tagName === 'INPUT' && e.key === 'Enter') {
+        // Enter solo añade línea desde los inputs del ticket (qt-numero/
+        // qt-monto); los inputs de los modales (p. ej. vuelto F9) no deben
+        // disparar addLine, y con un modal abierto nada añade (guarda A12).
+        if (e.key === 'Enter' && (e.target.id === 'qt-numero' || e.target.id === 'qt-monto')) {
+          if (detectarModalAbierto()) return;
           e.preventDefault();
           if (addingLine) return;
           addingLine = true;
@@ -1769,7 +2003,7 @@ import MainLayout from '../layouts/MainLayout.astro';
           focoEditable: esEditable(e.target),
           zonaActual,
           modalAbierto: detectarModalAbierto(),
-          modalPropio: null, // PR3b: F1/F9 abren sus propios modales
+          modalPropio: modalPropioActual(),
           columnMode,
           tieneLineas: ticketLines.length > 0,
           tieneHistorial: ticketLines.length > 0,
@@ -1786,10 +2020,17 @@ import MainLayout from '../layouts/MainLayout.astro';
           case 'fila-siguiente': moverFila(1); break;
           case 'marcar-todos': marcarTodosHorarios(); break;
           case 'escape': manejarEscape(decision.nivel); break;
-          case 'toggle-modal': break; // PR3b: toggle del modal propio (F1/F9)
+          case 'toggle-modal': {
+            // A12: toggle del modal propio. routeKey solo lo emite cuando el
+            // modal abierto ES el propio (F1↔ayuda, F9↔vuelto); con cualquier
+            // otro modal abierto ninguna F-key llega aquí.
+            if (decision.modal === 'f1') toggleAyudaModal();
+            if (decision.modal === 'f9') toggleVueltoModal();
+            break;
+          }
           case 'f-key': {
             if (!decision.ejecutable) break; // guarda de estado (KB-08, A11)
-            STUBS_FKEYS[decision.accion]?.();
+            ACCIONES_FKEYS[decision.accion]?.();
             break;
           }
           default: break;

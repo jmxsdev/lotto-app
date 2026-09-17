@@ -29,6 +29,7 @@ import {
   seleccionadosExpirados,
   agruparPorGroupId,
 } from '../src/utils/horarios.ts';
+import { calcularVuelto } from '../src/utils/vuelto.ts';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const rutaJson = join(AQUI, '..', 'src', 'data', 'juegos.json');
@@ -427,6 +428,40 @@ ok(
   KEYMAP.filter((k) => k.guarda === 'historial').map((k) => k.tecla).join(',') === 'F3,F4',
   'guardas de estado: F3/F4 requieren historial (A11)',
 );
+
+console.log('\n== PR3b: calcularVuelto (A12, REQ-KB-07 F9) ==');
+const cerca = (a, b) => Math.abs(a - b) < 1e-9;
+
+// Positivo en Bs (vuelto a devolver) + equivalente en $ con tasa disponible.
+let v = calcularVuelto({ totalBs: 100, recibido: 150, moneda: 'bs', tasa: 36.5 });
+ok(v.ok === true, 'vuelto Bs: cálculo disponible');
+ok(cerca(v.vueltoBs, 50), `positivo Bs: vuelto 50 (${v.vueltoBs})`);
+ok(v.negativo === false, 'positivo → no es falta');
+ok(v.vueltoUsd !== null && cerca(v.vueltoUsd, 50 / 36.5), `equivalente $: 50/36.5 (${v.vueltoUsd})`);
+
+// Negativo en Bs (falta) → vuelto negativo, marcado como falta.
+v = calcularVuelto({ totalBs: 100, recibido: 80, moneda: 'bs', tasa: 36.5 });
+ok(v.ok === true && cerca(v.vueltoBs, -20) && v.negativo === true, `negativo Bs: falta 20 (${v.vueltoBs})`);
+
+// Pago exacto → vuelto 0, no es falta.
+v = calcularVuelto({ totalBs: 100, recibido: 100, moneda: 'bs', tasa: 36.5 });
+ok(v.ok === true && cerca(v.vueltoBs, 0) && v.negativo === false, 'pago exacto → vuelto 0');
+
+// Recibido en USD: se convierte con la tasa (5 × 36.5 = 182.5 Bs → vuelto 82.5).
+v = calcularVuelto({ totalBs: 100, recibido: 5, moneda: 'usd', tasa: 36.5 });
+ok(v.ok === true, 'USD con tasa → cálculo disponible');
+ok(cerca(v.vueltoBs, 82.5), `USD: vuelto 82.5 Bs (${v.vueltoBs})`);
+ok(v.vueltoUsd !== null && cerca(v.vueltoUsd, 82.5 / 36.5), `USD: equivalente $ (${v.vueltoUsd})`);
+
+// Tasa no disponible: NUNCA tasa silenciosa (A12).
+v = calcularVuelto({ totalBs: 100, recibido: 5, moneda: 'usd', tasa: null });
+ok(v.ok === false && v.motivo === 'tasa-no-disponible', 'USD sin tasa → tasa-no-disponible (sin tasa silenciosa)');
+v = calcularVuelto({ totalBs: 100, recibido: 5, moneda: 'usd', tasa: 0 });
+ok(v.ok === false && v.motivo === 'tasa-no-disponible', 'USD con tasa 0 → tasa-no-disponible');
+v = calcularVuelto({ totalBs: 100, recibido: 5, moneda: 'usd', tasa: -1 });
+ok(v.ok === false && v.motivo === 'tasa-no-disponible', 'USD con tasa negativa → tasa-no-disponible');
+v = calcularVuelto({ totalBs: 100, recibido: 120, moneda: 'bs', tasa: null });
+ok(v.ok === true && cerca(v.vueltoBs, 20) && v.vueltoUsd === null, 'Bs sin tasa → calcula en Bs (sin equivalente $)');
 
 console.log(`\n${checks} checks, ${fallos} fallos`);
 process.exit(fallos === 0 ? 0 : 1);
