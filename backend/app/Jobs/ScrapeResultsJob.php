@@ -13,6 +13,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log as FacadeLog;
 use Illuminate\Support\Str;
 
@@ -91,9 +92,13 @@ class ScrapeResultsJob implements ShouldQueue
                 ->whereDate('fecha_sorteo', $fecha)
                 ->get();
 
+            // N6/D6-b: guard defensivo — un sorteo duplicado (pre-H22) no debe
+            // liquidarse dos veces; se evalúa UNA sola vez por (fecha, hora).
+            $aEvaluar = $this->dedupeResultadosDelDia($ultimosResultados);
+
             $apuestaService = app(ApuestaService::class);
             $totalGanadoras = 0;
-            foreach ($ultimosResultados as $resultado) {
+            foreach ($aEvaluar as $resultado) {
                 $totalGanadoras += $apuestaService->verificarGanadores($resultado);
             }
             FacadeLog::info("{$juego->name}: jugadas ganadoras detectadas: {$totalGanadoras}");
@@ -145,6 +150,36 @@ class ScrapeResultsJob implements ShouldQueue
         $class = 'App\\Plugins\\Scrapers\\'.Str::studly($type).'Scraper';
 
         return class_exists($class) ? $class : null;
+    }
+
+    /**
+     * Dedupe defensivo del día (N6/D6-b): agrupa los resultados por
+     * (fecha, hora normalizada) y conserva UNA fila por sorteo — la más
+     * completa en `numeros_ganadores`, desempate por `updated_at` más
+     * reciente y luego por `id` mayor (mismo criterio que la migración
+     * dedupe_resultados_sorteo_duplicado, D6-a).
+     *
+     * @param  Collection<int, Resultado>  $resultados
+     * @return Collection<int, Resultado>
+     */
+    protected function dedupeResultadosDelDia($resultados)
+    {
+        return $resultados
+            ->groupBy(function (Resultado $r) {
+                return $r->fecha_sorteo->toDateString().'|'.substr((string) $r->hora_sorteo, 0, 5);
+            })
+            ->map(function ($grupo) {
+                if ($grupo->count() <= 1) {
+                    return $grupo->first();
+                }
+
+                return $grupo->sortByDesc(function (Resultado $r) {
+                    return (count((array) $r->numeros_ganadores) * 1_000_000_000)
+                        + ((int) optional($r->updated_at)->timestamp)
+                        + $r->id;
+                })->first();
+            })
+            ->values();
     }
 
     protected function instantiateScraper(string $class, Juego $juego): object
