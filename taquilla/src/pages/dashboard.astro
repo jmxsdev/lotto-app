@@ -2141,6 +2141,53 @@ import MainLayout from '../layouts/MainLayout.astro';
       if (typeof activo.click === 'function') activo.click();
     }
 
+    // ─── Búsqueda por dígito en la zona Selección (FIX-5, REQ-KB-06) ───────
+    // Reutiliza el motor puro existente (buscarPorDigito/crearBuscadorDigitos,
+    // catalogo.ts): buffer multi-dígito con commit por inactividad (700 ms) o
+    // Enter. Animalitos → foco/selección del .animal-check coincidente (el
+    // dup numero:0 lista Ballena/Delfín para desambiguar, REQ-CL-03).
+    // Numérica/terminal/zodiacal → salto a la zona Número con el dígito
+    // precargado (2/3 cifras); el resto se teclea nativo en el input.
+    let buscadorDigitos = null;
+
+    function aplicarCoincidenciasAnimales(coincidencias) {
+      if (coincidencias.length === 0) return;
+      const juego = juegoActivo();
+      if (!juego || juego.familia !== 'animalitos') return;
+      const unica = coincidencias.length === 1 ? coincidencias[0] : null;
+      if (unica) {
+        selectedAnimal = { numero: unica.numero, label: unica.label };
+      }
+      renderAnimales();
+      const card = document.querySelector('#seleccion-content .animal-check[data-numero="' + coincidencias[0].numero + '"]');
+      if (card) {
+        card.focus();
+        card.scrollIntoView({ block: 'nearest' });
+      }
+      updateColumnMode();
+    }
+
+    function manejarDigitoEnSeleccion(digito) {
+      const juego = juegoActivo();
+      if (!juego) return;
+      if (juego.familia === 'animalitos') {
+        // Buffer persistente por juego: se recrea si cambió el juego activo.
+        if (!buscadorDigitos || buscadorDigitos.juegoId !== juego.id) {
+          buscadorDigitos = crearBuscadorDigitos(juego, (coincidencias) => aplicarCoincidenciasAnimales(coincidencias));
+          buscadorDigitos.juegoId = juego.id;
+        }
+        buscadorDigitos.teclear(digito);
+        return;
+      }
+      // numérica/terminal/zodiacal: salta a Número y precarga el dígito
+      // (2 cifras numérica/terminal, 3 zodiacal); el resto se escribe nativo.
+      const input = document.getElementById('qt-numero');
+      if (!input) return;
+      const maxDigitos = juego.familia === 'zodiacal' ? 3 : 2;
+      input.value = (input.value + digito).slice(0, maxDigitos);
+      enfocarZona('numero');
+    }
+
     // Esc sube un nivel sin descartar selección ni líneas (KB-04, A1).
     function manejarEscape(nivel) {
       if (nivel === 'modal') {
@@ -2283,6 +2330,7 @@ import MainLayout from '../layouts/MainLayout.astro';
           selectedHorarios = [];
           switchToJuegos();
         }
+        buscadorDigitos = null; // FIX-5: el buffer de dígitos es por juego
         renderLegend();
         updateColumnMode();
         if (selectedGames.length > 0) enfocarZona('horarios'); // FIX-2
@@ -2405,6 +2453,7 @@ import MainLayout from '../layouts/MainLayout.astro';
           case 'fila-siguiente': moverFila(1); break;
           case 'marcar-todos': marcarTodosHorarios(); break;
           case 'escape': manejarEscape(decision.nivel); break;
+          case 'digito': manejarDigitoEnSeleccion(decision.digito); break; // FIX-5
           case 'toggle-modal': {
             // A12: toggle del modal propio. routeKey solo lo emite cuando el
             // modal abierto ES el propio (F1↔ayuda, F9↔vuelto); con cualquier
@@ -2428,6 +2477,13 @@ import MainLayout from '../layouts/MainLayout.astro';
       document.addEventListener('keydown', (e) => {
         if (e.key !== 'Enter' && e.key !== ' ') return;
         if (esEditable(e.target)) return;
+        // FIX-5 (REQ-KB-06): Enter confirma el buffer de dígitos pendiente en
+        // la zona Selección (animalitos) ANTES de activar el ítem focalizado;
+        // con el buffer vacío el Enter actúa como siempre.
+        if (e.key === 'Enter' && zonaActual === 'seleccion' && buscadorDigitos && buscadorDigitos.buffer() !== '') {
+          buscadorDigitos.commit();
+          return;
+        }
         activarItemFocalizado();
         if (e.key === ' ') e.preventDefault(); // Space en ítem: sin scroll de página
       });

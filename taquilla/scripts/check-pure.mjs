@@ -516,4 +516,19 @@ r = routeKey(est({ zonaActual: 'juegos', tecla: 'ArrowRight', seleccionEnCurso: 
 ok(r.consume && r.tipo === 'pestana-siguiente' && r.ejecutable === true, '→ en Juegos sin selección → pestaña ejecutable');
 r = routeKey(est({ zonaActual: 'juegos', tecla: 'ArrowLeft', seleccionEnCurso: true }));
 ok(r.consume && r.tipo === 'pestana-anterior' && r.ejecutable === false, '← en Juegos con selección en curso → pestaña BLOQUEADA');
+
+console.log('\n== win-fixes FIX-5: ruteo de dígitos en la zona Selección ==');
+r = routeKey(est({ zonaActual: 'seleccion', tecla: '5' }));
+ok(r.consume && r.tipo === 'digito' && r.digito === '5', 'dígito en seleccion → decisión digito');
+r = routeKey(est({ zonaActual: 'seleccion', tecla: '0' }));
+ok(r.consume && r.tipo === 'digito' && r.digito === '0', 'dígito 0 en seleccion → digito (dup Ballena/Delfín lo resuelve el glue)');
+r = routeKey(est({ zonaActual: 'seleccion', tecla: 'a' }));
+ok(!r.consume, 'letra en seleccion → pasa (letter-jump es del glue, no del router)');
+r = routeKey(est({ zonaActual: 'juegos', tecla: '5' }));
+ok(!r.consume, 'dígito fuera de seleccion → pasa');
+r = routeKey(est({ zonaActual: 'seleccion', tecla: '5', focoEditable: true }));
+ok(!r.consume, 'dígito en INPUT → pasa (typing nativo, A1)');
+r = routeKey(est({ zonaActual: 'seleccion', tecla: '5', modalAbierto: true }));
+ok(!r.consume, 'dígito con modal abierto → pasa (guarda KB-08)');
 console.log(`\n${checks} checks, ${fallos} fallos`);
+process.exit(fallos === 0 ? 0 : 1);

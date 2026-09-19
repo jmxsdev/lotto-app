@@ -242,6 +242,7 @@ export type RutaDecision =
   | { consume: true; tipo: 'escape'; nivel: 'modal' | 'input' | 'juegos' | 'zona-anterior' }
   | { consume: true; tipo: 'toggle-modal'; modal: 'f1' | 'f9' }
   | { consume: true; tipo: 'f-key'; fkey: string; accion: string; ejecutable: boolean }
+  | { consume: true; tipo: 'digito'; digito: string }
   | { consume: false; tipo: 'pasar' };
 
 /**
@@ -314,6 +315,14 @@ export function routeKey(state: EstadoRuteo): RutaDecision {
       : { consume: false, tipo: 'pasar' };
   }
 
+  // 6. Dígito en la zona Selección (FIX-5, REQ-KB-06): con foco fuera de
+  //    input, un dígito arranca la búsqueda (animalitos) o salta a Número
+  //    (numérica/terminal/zodiacal). El glue decide según la familia.
+  if (/^\d$/.test(state.tecla) && state.zonaActual === 'seleccion') {
+    return { consume: true, tipo: 'digito', digito: state.tecla };
+  }
+
+  // 7. Navegación por zonas (KB-01, KB-03, KB-04; FIX-3a, FIX-3c).
   switch (state.tecla) {
     case 'Tab':
       return state.shiftKey
