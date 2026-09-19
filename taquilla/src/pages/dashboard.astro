@@ -1318,9 +1318,11 @@ import MainLayout from '../layouts/MainLayout.astro';
       }
       if (listo) {
         switchToHorarios();
-      } else {
-        switchToJuegos();
       }
+      // FIX-4: con un juego activo y selección incompleta la columna izquierda
+      // NO rebota a Juegos — los horarios quedan visibles apenas se elige el
+      // juego; el regreso manual es Esc / ← Volver (KB-04). Solo la ausencia
+      // total de juego (arriba) vuelve a la lista de Juegos.
     }
 
     function switchToHorarios() {
@@ -2191,6 +2193,9 @@ import MainLayout from '../layouts/MainLayout.astro';
         if (selectedGames.length > 0) {
           renderSeleccion();
           loadHorariosConfig();
+          // FIX-4: los horarios aparecen apenas se elige el juego (sin esperar
+          // la selección completa); updateColumnMode ya no rebota a Juegos.
+          switchToHorarios();
         } else {
           document.getElementById('seleccion-content').innerHTML = '<div class="seleccion-placeholder">Seleccione un juego</div>';
           horariosCache = [];
