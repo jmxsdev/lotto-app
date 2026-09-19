@@ -41,6 +41,11 @@ import MainLayout from '../layouts/MainLayout.astro';
 
     <div id="qt-legend" class="qt-legend" role="status" aria-label="Atajos de teclado"></div>
 
+    <!-- Aviso breve de pestañas bloqueadas (FIX-3c, KB-03): toast transitorio
+         no intrusivo cuando ←/→ intenta cambiar de pestaña con selección en
+         curso. No desplaza el layout (fixed) y se auto-oculta (~1.8 s). -->
+    <div id="qt-tab-aviso" class="qt-tab-aviso" role="status" aria-live="polite"></div>
+
     <div class="quick-ticket">
       <div class="qt-bar">
         <input type="number" id="qt-numero" class="qt-input" placeholder="Número" min="0" step="1" data-zona="numero">
@@ -233,6 +238,30 @@ import MainLayout from '../layouts/MainLayout.astro';
     .qt-legend .leg-arrow {
       color: #94a3b8;
       font-weight: 700;
+    }
+
+    /* Aviso breve de guard de pestañas (FIX-3c): fixed para no desplazar el
+       layout; opacity transicionada; pointer-events none (no bloquea clicks). */
+    .qt-tab-aviso {
+      position: fixed;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1e293b;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+      z-index: 9998;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
+    }
+
+    .qt-tab-aviso.visible {
+      opacity: 1;
     }
 
     .quick-ticket {
@@ -990,8 +1019,8 @@ import MainLayout from '../layouts/MainLayout.astro';
   <script>
     import { apiFetch } from '../utils/apiFetch';
     import { getFingerprint } from '../utils/device';
-    import { cargarCatalogo } from '../utils/catalogo';
-    import { buildZoneGraph, routeKey, KEYMAP } from '../utils/keyboard';
+    import { cargarCatalogo, buscarPorDigito, crearBuscadorDigitos } from '../utils/catalogo';
+    import { buildZoneGraph, routeKey, zonaHorizontal, zonaPendienteSeleccion } from '../utils/keyboard';
     import { alternarHorario, marcarTodosVisibles, expandirLineas, horarioExpirado, filtrarHorariosFuturos, seleccionadosExpirados, agruparPorGroupId, indiceSeleccionTrasEliminar } from '../utils/horarios';
     import { calcularVuelto } from '../utils/vuelto';
     import juegosRaw from '../data/juegos.json';
@@ -1105,8 +1134,36 @@ import MainLayout from '../layouts/MainLayout.astro';
       renderJuegos();
     }
 
+    // ─── Guard de pestañas (FIX-3c, KB-03) ────────────────────────────────
+    // Con una selección en curso (animal/signo/modalidad elegidos u horarios
+    // marcados) ←/→ en la zona Juegos NO debe descartarla silenciosamente
+    // (activarTab resetea TODO el avance). El cambio de pestaña solo se
+    // permite con la selección vacía; las líneas ya añadidas no se tocan.
+    function seleccionEnCurso() {
+      return Boolean(
+        selectedAnimal || selectedSigno || selectedOpcion ||
+        tripleModalidad || tripleModalidadLabel ||
+        selectedHorarios.length > 0,
+      );
+    }
+
+    let avisoTabTimer = null;
+    function mostrarAvisoTab(mensaje) {
+      const el = document.getElementById('qt-tab-aviso');
+      if (!el) return;
+      el.textContent = mensaje;
+      el.classList.add('visible');
+      clearTimeout(avisoTabTimer);
+      avisoTabTimer = setTimeout(() => el.classList.remove('visible'), 1800);
+    }
+
     function activarTab(tipo) {
       if (activeTab === tipo) return;
+      // FIX-3c: si hay selección en curso se bloquea el cambio (aviso breve).
+      if (seleccionEnCurso()) {
+        mostrarAvisoTab('Finalice la selección actual antes de cambiar de pestaña (F2 limpia)');
+        return;
+      }
       activeTab = tipo;
       selectedGames = [];
       selectedAnimal = null;
@@ -1998,6 +2055,21 @@ import MainLayout from '../layouts/MainLayout.astro';
     // Ciclo Tab/Shift+Tab (KB-01): salta zonas ocultas (p. ej. juegos en modo
     // horarios) y envuelve en el extremo.
     function moverZona(delta) {
+      // FIX-3b (KB-01): Tab desde Horarios con selección PENDIENTE vuelve a la
+      // zona que falta (seleccion/modalidad/signo) ANTES de numero/monto. Con
+      // la selección completa sigue el ciclo normal del grafo.
+      if (delta > 0 && zonaActual === 'horarios') {
+        const pendiente = zonaPendienteSeleccion({
+          familia: juegoActivo()?.familia ?? null,
+          tripleModalidad,
+          signoElegido: selectedSigno !== null,
+          animalElegido: selectedAnimal !== null,
+        });
+        if (pendiente && zonaVisible(pendiente)) {
+          enfocarZona(pendiente);
+          return;
+        }
+      }
       const grafo = grafoActual();
       const saltos = grafo.zonas.length;
       let zona = zonaActual;
@@ -2009,6 +2081,15 @@ import MainLayout from '../layouts/MainLayout.astro';
           return;
         }
       }
+    }
+
+    // Movimiento lateral ←/→ entre columnas (FIX-3a, KB-03): usa la misma
+    // adyacencia pura (zonaHorizontal) que rutea routeKey, con la columna
+    // izquierda según columnMode (juegos ↔ seleccion ↔ resumen, horarios ↔
+    // seleccion). Sin vecino → no-op (el glue ya consumió la tecla).
+    function moverHorizontal(direccion) {
+      const destino = zonaHorizontal(zonaActual, direccion, columnMode);
+      if (destino && zonaVisible(destino)) enfocarZona(destino);
     }
 
     function itemsDeZona(zona) {
@@ -2302,6 +2383,7 @@ import MainLayout from '../layouts/MainLayout.astro';
           columnMode,
           tieneLineas: ticketLines.length > 0,
           tieneHistorial: ticketLines.length > 0,
+          seleccionEnCurso: seleccionEnCurso(), // FIX-3c
         });
         if (!decision.consume) return;
         e.preventDefault();
@@ -2309,8 +2391,16 @@ import MainLayout from '../layouts/MainLayout.astro';
         switch (decision.tipo) {
           case 'tab-siguiente': moverZona(1); break;
           case 'tab-anterior': moverZona(-1); break;
-          case 'pestana-anterior': activarTab(tabAnterior()); break;
-          case 'pestana-siguiente': activarTab(tabSiguiente()); break;
+          case 'pestana-anterior':
+            // FIX-3c: con selección en curso routeKey marca ejecutable=false;
+            // el guard real vive en activarTab (cubre también el click).
+            if (!decision.ejecutable) { mostrarAvisoTab('Finalice la selección actual antes de cambiar de pestaña (F2 limpia)'); break; }
+            activarTab(tabAnterior()); break;
+          case 'pestana-siguiente':
+            if (!decision.ejecutable) { mostrarAvisoTab('Finalice la selección actual antes de cambiar de pestaña (F2 limpia)'); break; }
+            activarTab(tabSiguiente()); break;
+          case 'zona-izquierda': moverHorizontal('izquierda'); break; // FIX-3a
+          case 'zona-derecha': moverHorizontal('derecha'); break; // FIX-3a
           case 'fila-anterior': moverFila(-1); break;
           case 'fila-siguiente': moverFila(1); break;
           case 'marcar-todos': marcarTodosHorarios(); break;

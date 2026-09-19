@@ -19,6 +19,18 @@
  *     Esc, foco en INPUT/SELECT → no intercepta salvo F-keys/Escape, ←/→ solo
  *     en zona Juegos, ↑/↓ contextuales, Tab/Shift+Tab ciclan zonas, Ctrl+A/`*`
  *     marcan todos los horarios visibles (KB-05).
+ *   - win-fixes (batch de remediación del feedback de usuario):
+ *     - FIX-3a: ←/→ fuera de la zona Juegos se mueven ENTRE columnas
+ *       (zonaHorizontal: juegos/horarios ↔ seleccion ↔ resumen) en vez de morir.
+ *     - FIX-3b: Tab desde Horarios con selección pendiente vuelve a la zona que
+ *       falta (seleccion/modalidad/signo, zonaPendienteSeleccion) antes de
+ *       numero/monto.
+ *     - FIX-3c: cambio de pestaña (→/← en Juegos) bloqueado con selección en
+ *       curso (pestana-* con ejecutable=false).
+ *     - FIX-5: dígitos en la zona Selección → decisión `digito` (el glue decide
+ *       entre el buscador de animales y el salto a Número).
+ *     - FIX-6: navegación global F7/F8/F10/Alt+D (NAV_GLOBAL + destinoNav)
+ *       desde MainLayout; KEYMAP marca F7/F8/F10 con implementadaEn 'win-fixes'.
  */
 
 export type FamiliaOpciones = 'animalitos' | 'zodiacal' | 'numerica' | 'terminal';
@@ -86,6 +98,58 @@ const ZONAS_BASE: readonly NombreZona[] = [
   'anadir',
   'resumen',
 ];
+
+/**
+ * Adyacencia HORIZONTAL entre zonas (FIX-3a, KB-03): ←/→ fuera de la zona
+ * Juegos se mueven entre columnas (izquierda ↔ centro ↔ derecha) en vez de
+ * morir. La columna izquierda es juegos u horarios según columnMode; el
+ * centro agrupa modalidad/seleccion/signo; la derecha es el resumen.
+ * numero/monto/anadir (barra superior) no tienen vecino horizontal → null.
+ */
+export type DireccionHorizontal = 'izquierda' | 'derecha';
+
+export function zonaHorizontal(
+  actual: NombreZona,
+  direccion: DireccionHorizontal,
+  columnMode: 'juegos' | 'horarios',
+): NombreZona | null {
+  const izquierda: NombreZona = columnMode === 'horarios' ? 'horarios' : 'juegos';
+  const centro: readonly NombreZona[] = ['modalidad', 'seleccion', 'signo'];
+  if (direccion === 'derecha') {
+    if (actual === 'juegos' || actual === 'horarios') return 'seleccion';
+    if (centro.includes(actual)) return 'resumen';
+    return null;
+  }
+  if (centro.includes(actual)) return izquierda;
+  if (actual === 'resumen') return 'seleccion';
+  return null;
+}
+
+/**
+ * Zona de selección PENDIENTE (FIX-3b, KB-01): con un juego activo, la zona
+ * que todavía falta completar ANTES de numero/monto. animalitos sin animal →
+ * seleccion; zodiacal sin modalidad → modalidad; triple_c sin signo → signo.
+ * null = la selección está completa (o no aplica: numérica/terminal, cuyo
+ * «pendiente» es la propia zona numero).
+ */
+export interface EstadoSeleccionPendiente {
+  familia: FamiliaOpciones | null;
+  tripleModalidad: string | null;
+  signoElegido: boolean;
+  animalElegido: boolean;
+}
+
+export function zonaPendienteSeleccion(estado: EstadoSeleccionPendiente): NombreZona | null {
+  if (estado.familia === 'animalitos') {
+    return estado.animalElegido ? null : 'seleccion';
+  }
+  if (estado.familia === 'zodiacal') {
+    if (!estado.tripleModalidad) return 'modalidad';
+    if (estado.tripleModalidad === 'triple_c' && !estado.signoElegido) return 'signo';
+    return null;
+  }
+  return null;
+}
 
 function crearGrafo(familia: FamiliaOpciones, zonas: readonly NombreZona[]): GrafoZonas {
   return {
@@ -160,13 +224,18 @@ export interface EstadoRuteo {
   tieneLineas: boolean;
   /** Guarda de estado: F3/F4 requieren historial (último groupId, A11). */
   tieneHistorial: boolean;
+  /** Guarda de pestañas (FIX-3c): hay selección en curso (animal/signo/
+   *  modalidad elegidos u horarios marcados) → ←/→ en Juegos NO cambia pestaña. */
+  seleccionEnCurso: boolean;
 }
 
 export type RutaDecision =
   | { consume: true; tipo: 'tab-siguiente' }
   | { consume: true; tipo: 'tab-anterior' }
-  | { consume: true; tipo: 'pestana-anterior' }
-  | { consume: true; tipo: 'pestana-siguiente' }
+  | { consume: true; tipo: 'pestana-anterior'; ejecutable: boolean }
+  | { consume: true; tipo: 'pestana-siguiente'; ejecutable: boolean }
+  | { consume: true; tipo: 'zona-izquierda' }
+  | { consume: true; tipo: 'zona-derecha' }
   | { consume: true; tipo: 'fila-anterior' }
   | { consume: true; tipo: 'fila-siguiente' }
   | { consume: true; tipo: 'marcar-todos' }
@@ -185,8 +254,12 @@ export type RutaDecision =
  *      F5 refresh, F12 devtools…) con `ejecutable` según la guarda de estado.
  *   4. Foco en INPUT/SELECT nativo → solo Escape (blur) actúa; el resto pasa
  *      (no secuestra typing, A1).
- *   5. Navegación: Tab/Shift+Tab ciclan zonas; ←/→ solo en zona Juegos;
- *      ↑/↓ contextuales (filas); Escape sube nivel sin descartar selección.
+ *   5. Marcar todos los horarios (Ctrl+A/`*`, KB-05).
+ *   6. Dígito en la zona Selección → `digito` (FIX-5).
+ *   7. Navegación: Tab/Shift+Tab ciclan zonas; ←/→ en Juegos cambian de
+ *      pestaña (bloqueado con selección en curso, FIX-3c) y fuera de Juegos
+ *      se mueven entre columnas (FIX-3a); ↑/↓ contextuales; Escape sube
+ *      nivel sin descartar selección.
  */
 export function routeKey(state: EstadoRuteo): RutaDecision {
   const fkey = obtenerFKey(state.tecla);
@@ -241,19 +314,30 @@ export function routeKey(state: EstadoRuteo): RutaDecision {
       : { consume: false, tipo: 'pasar' };
   }
 
-  // 6. Navegación por zonas (KB-01, KB-03, KB-04).
   switch (state.tecla) {
     case 'Tab':
       return state.shiftKey
         ? { consume: true, tipo: 'tab-anterior' }
         : { consume: true, tipo: 'tab-siguiente' };
     case 'ArrowLeft':
-      return state.zonaActual === 'juegos'
-        ? { consume: true, tipo: 'pestana-anterior' }
+      if (state.zonaActual === 'juegos') {
+        // FIX-3c: con selección en curso el cambio de pestaña se bloquea
+        // (ejecutable=false); el glue muestra el aviso breve.
+        return { consume: true, tipo: 'pestana-anterior', ejecutable: !state.seleccionEnCurso };
+      }
+      if (state.zonaActual === null) return { consume: false, tipo: 'pasar' };
+      // FIX-3a: fuera de Juegos, ← se mueve a la columna adyacente (o pasa
+      // si no hay vecino horizontal, p. ej. numero/monto/anadir).
+      return zonaHorizontal(state.zonaActual, 'izquierda', state.columnMode) !== null
+        ? { consume: true, tipo: 'zona-izquierda' }
         : { consume: false, tipo: 'pasar' };
     case 'ArrowRight':
-      return state.zonaActual === 'juegos'
-        ? { consume: true, tipo: 'pestana-siguiente' }
+      if (state.zonaActual === 'juegos') {
+        return { consume: true, tipo: 'pestana-siguiente', ejecutable: !state.seleccionEnCurso };
+      }
+      if (state.zonaActual === null) return { consume: false, tipo: 'pasar' };
+      return zonaHorizontal(state.zonaActual, 'derecha', state.columnMode) !== null
+        ? { consume: true, tipo: 'zona-derecha' }
         : { consume: false, tipo: 'pasar' };
     case 'ArrowUp':
       return { consume: true, tipo: 'fila-anterior' };

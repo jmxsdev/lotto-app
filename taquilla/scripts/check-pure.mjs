@@ -18,7 +18,7 @@ import {
   buscarPorDigito,
   crearBuscadorDigitos,
 } from '../src/utils/catalogo.ts';
-import { buildZoneGraph, routeKey, KEYMAP, esFKey } from '../src/utils/keyboard.ts';
+import { buildZoneGraph, routeKey, KEYMAP, esFKey, zonaHorizontal, zonaPendienteSeleccion } from '../src/utils/keyboard.ts';
 import {
   alternarHorario,
   marcarTodosVisibles,
@@ -266,6 +266,7 @@ const est = (parcial) => ({
   columnMode: 'juegos',
   tieneLineas: false,
   tieneHistorial: false,
+  seleccionEnCurso: false,
   ...parcial,
 });
 let r = routeKey(est({ tecla: 'F5', tieneLineas: true }));
@@ -319,7 +320,7 @@ ok(r.consume && r.tipo === 'pestana-siguiente', '→ en zona Juegos → siguient
 r = routeKey(est({ zonaActual: 'juegos', tecla: 'ArrowLeft' }));
 ok(r.consume && r.tipo === 'pestana-anterior', '← en zona Juegos → pestaña anterior');
 r = routeKey(est({ zonaActual: 'seleccion', tecla: 'ArrowRight' }));
-ok(!r.consume, '→ fuera de Juegos → pasa (KB-03)');
+ok(r.consume && r.tipo === 'zona-derecha', '→ fuera de Juegos → zona derecha (seleccion → resumen, FIX-3a)');
 r = routeKey(est({ zonaActual: 'seleccion', tecla: 'ArrowDown' }));
 ok(r.consume && r.tipo === 'fila-siguiente', '↓ en lista → fila siguiente (contextual)');
 r = routeKey(est({ zonaActual: 'horarios', tecla: 'ArrowUp' }));
@@ -473,5 +474,46 @@ ok(indiceSeleccionTrasEliminar(3, 2) === 1, '3 grupos, elimino el último → se
 ok(indiceSeleccionTrasEliminar(4, 3) === 2, '4 grupos, elimino el último → última restante (2)');
 ok(indiceSeleccionTrasEliminar(0, 0) === null, '0 grupos → null (sin filas)');
 
+console.log('\n== win-fixes FIX-3a: ruteo lateral ←/→ entre columnas ==');
+ok(zonaHorizontal('juegos', 'derecha', 'juegos') === 'seleccion', 'juegos → seleccion (derecha)');
+ok(zonaHorizontal('horarios', 'derecha', 'horarios') === 'seleccion', 'horarios → seleccion (derecha)');
+ok(zonaHorizontal('seleccion', 'derecha', 'juegos') === 'resumen', 'seleccion → resumen (derecha)');
+ok(zonaHorizontal('seleccion', 'izquierda', 'juegos') === 'juegos', 'seleccion ← juegos (izquierda, columnMode juegos)');
+ok(zonaHorizontal('seleccion', 'izquierda', 'horarios') === 'horarios', 'seleccion ← horarios (izquierda, columnMode horarios)');
+ok(zonaHorizontal('modalidad', 'izquierda', 'horarios') === 'horarios', 'modalidad ← horarios (centro → izquierda)');
+ok(zonaHorizontal('signo', 'derecha', 'juegos') === 'resumen', 'signo → resumen (centro → derecha)');
+ok(zonaHorizontal('resumen', 'izquierda', 'juegos') === 'seleccion', 'resumen ← seleccion (izquierda)');
+ok(zonaHorizontal('numero', 'derecha', 'juegos') === null, 'numero sin vecino horizontal (barra superior)');
+ok(zonaHorizontal('monto', 'izquierda', 'juegos') === null, 'monto sin vecino horizontal');
+ok(zonaHorizontal('anadir', 'derecha', 'juegos') === null, 'anadir sin vecino horizontal');
+ok(zonaHorizontal('horarios', 'izquierda', 'horarios') === null, 'horarios es la columna izquierda: ← sin vecino');
+r = routeKey(est({ zonaActual: 'seleccion', tecla: 'ArrowLeft' }));
+ok(r.consume && r.tipo === 'zona-izquierda', '← en seleccion → zona-izquierda (FIX-3a)');
+r = routeKey(est({ zonaActual: 'horarios', columnMode: 'horarios', tecla: 'ArrowRight' }));
+ok(r.consume && r.tipo === 'zona-derecha', '→ en horarios → zona-derecha (horarios ↔ seleccion, FIX-3a)');
+r = routeKey(est({ zonaActual: 'horarios', columnMode: 'horarios', tecla: 'ArrowLeft' }));
+ok(!r.consume, '← en horarios (columna izquierda) → pasa');
+r = routeKey(est({ zonaActual: 'numero', tecla: 'ArrowRight' }));
+ok(!r.consume, '→ en numero (sin vecino) → pasa');
+
+console.log('\n== win-fixes FIX-3b: zona de selección pendiente (Tab desde Horarios) ==');
+const pend = (familia, tripleModalidad = null, signoElegido = false, animalElegido = false) =>
+  zonaPendienteSeleccion({ familia, tripleModalidad, signoElegido, animalElegido });
+ok(pend('animalitos') === 'seleccion', 'animalitos sin animal → pendiente seleccion');
+ok(pend('animalitos', null, false, true) === null, 'animalitos con animal → sin pendiente');
+ok(pend('zodiacal') === 'modalidad', 'zodiacal sin modalidad → pendiente modalidad');
+ok(pend('zodiacal', 'triple_c') === 'signo', 'zodiacal triple_c sin signo → pendiente signo');
+ok(pend('zodiacal', 'triple_c', true) === null, 'zodiacal triple_c con signo → sin pendiente');
+ok(pend('zodiacal', 'triple_a') === null, 'zodiacal triple_a → sin pendiente');
+ok(pend('numerica', 'triple_a') === null, 'numérica → sin pendiente (el número es la zona numero)');
+ok(pend('terminal') === null, 'terminal → sin pendiente');
+ok(pend(null) === null, 'sin juego → sin pendiente');
+
+console.log('\n== win-fixes FIX-3c: guard de pestañas con selección en curso ==');
+r = routeKey(est({ zonaActual: 'juegos', tecla: 'ArrowRight', seleccionEnCurso: true }));
+ok(r.consume && r.tipo === 'pestana-siguiente' && r.ejecutable === false, '→ en Juegos con selección en curso → pestaña BLOQUEADA (FIX-3c)');
+r = routeKey(est({ zonaActual: 'juegos', tecla: 'ArrowRight', seleccionEnCurso: false }));
+ok(r.consume && r.tipo === 'pestana-siguiente' && r.ejecutable === true, '→ en Juegos sin selección → pestaña ejecutable');
+r = routeKey(est({ zonaActual: 'juegos', tecla: 'ArrowLeft', seleccionEnCurso: true }));
+ok(r.consume && r.tipo === 'pestana-anterior' && r.ejecutable === false, '← en Juegos con selección en curso → pestaña BLOQUEADA');
 console.log(`\n${checks} checks, ${fallos} fallos`);
-process.exit(fallos === 0 ? 0 : 1);
