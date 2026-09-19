@@ -27,13 +27,13 @@ Chain strategy: feature-branch-chain
 - [x] 1.1 RED `tests/Unit/TextoTest.php` → GREEN `app/Support/Texto.php::normalizar()`. Done: "Delfín"≡"Delfin".
 - [x] 1.2 RED `tests/Unit/PremiosOficialesTest.php` → GREEN `app/Support/PremiosOficiales.php` (21 juegos). Done: catálogo == spec.
 - [x] 1.3 RED `tests/Unit/PremiosEngineTest.php` → GREEN `app/Services/PremiosEngine.php` (`calcular`,`premioPosible`,`reglas`). Done: 75+palabra=140×; 1.23456→1.23; inactivo→0.
-- [ ] 1.4 `app/Plugins/Contracts/JuegoInterface.php`: +`evaluarAcierto()`,`modalidadDe()`,`validarApuesta(data,?opciones)`. Done: 3 plugins implementan.
-- [ ] 1.5 RED `tests/Unit/AnimalitosPluginTest.php` → GREEN `app/Plugins/Juegos/Animalitos.php` (acentos). Done: H13/N10.
-- [ ] 1.6 RED `tests/Unit/TerminalesPluginTest.php` → GREEN `app/Plugins/Juegos/Terminales.php` (clave `numero`, padding). Done: 37→60× (N1).
-- [ ] 1.7 RED `tests/Unit/TripletasPluginTest.php` → GREEN `app/Plugins/Juegos/Tripletas.php` (signo label/sigla, tipo estricto). Done: REQ4/REQ5.
-- [ ] 1.8 RED `tests/Unit/AnimalitosScraperTest.php` → GREEN `app/Plugins/Scrapers/AnimalitosScraper.php` (mapper `patronus`). Done: H14.
-- [ ] 1.9 RED `tests/Feature/ScrapeResultsJobTest.php` → GREEN `BaseScraper.php` (upsert+hora) + `Jobs/ScrapeResultsJob.php`. Done: N6.
-- [ ] 1.10 `app/Services/JuegoPluginManager.php`: `calcularPremio`/`getMultiplicador`→engine; `validarApuesta` pasa `juego_opciones`. Done: REQ15.
+- [x] 1.4 `app/Plugins/Contracts/JuegoInterface.php`: +`evaluarAcierto()`,`modalidadDe()`,`validarApuesta(data,?opciones)`. Done: 3 plugins implementan.
+- [x] 1.5 RED `tests/Unit/AnimalitosPluginTest.php` → GREEN `app/Plugins/Juegos/Animalitos.php` (acentos). Done: H13/N10.
+- [x] 1.6 RED `tests/Unit/TerminalesPluginTest.php` → GREEN `app/Plugins/Juegos/Terminales.php` (clave `numero`, padding). Done: 37→60× (N1).
+- [x] 1.7 RED `tests/Unit/TripletasPluginTest.php` → GREEN `app/Plugins/Juegos/Tripletas.php` (signo label/sigla, tipo estricto). Done: REQ4/REQ5.
+- [x] 1.8 RED `tests/Unit/AnimalitosScraperTest.php` → GREEN `app/Plugins/Scrapers/AnimalitosScraper.php` (mapper `patronus`). Done: H14.
+- [x] 1.9 RED `tests/Feature/ScrapeResultsJobTest.php` → GREEN `BaseScraper.php` (upsert+hora) + `Jobs/ScrapeResultsJob.php`. Done: N6.
+- [x] 1.10 `app/Services/JuegoPluginManager.php`: `calcularPremio`/`getMultiplicador`→engine; `validarApuesta` pasa `juego_opciones`. Done: REQ15.
 - [ ] 1.11 RED `tests/Unit/ApuestaServiceTest.php` → GREEN `ApuestaService::createApuesta` (guard inactivo, `premio_posible`). Done: REQ7/REQ12.
 - [ ] 1.12 RED `tests/Feature/ApuestaTest.php` → GREEN `Api/PagoController.php` (motor; acepta `ganadora`+legacy). Done: REQ10.
 - [ ] 1.13 RED → GREEN `Api/TicketController::ganadores` (`whereTime`+engine). Done: REQ9.
