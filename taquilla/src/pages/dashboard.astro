@@ -373,6 +373,15 @@ import MainLayout from '../layouts/MainLayout.astro';
       color: #1e40af;
     }
 
+    /* Foco roving de tarjetas de juego (FIX-1, KB-01): mismo lenguaje visual
+       que la fila del resumen (F6) — outline azul. Sin esto moverFila().focus()
+       era un no-op silencioso (la tarjeta no era enfocable). */
+    .juego-card:focus {
+      background: #dbeafe;
+      outline: 2px solid #3b82f6;
+      outline-offset: -2px;
+    }
+
     .juegos-tabs {
       display: flex;
       gap: 0;
@@ -591,6 +600,20 @@ import MainLayout from '../layouts/MainLayout.astro';
       border-color: #dc2626;
       background: #fef2f2;
       color: #dc2626;
+    }
+
+    /* Foco roving de horarios (FIX-2, KB-01): outline azul visible sobre el
+       ítem; el expirado conserva su rojo (outline rojo) para no borrar la
+       semántica de expiración al enfocarlo. */
+    .horario-item:focus {
+      outline: 2px solid #3b82f6;
+      outline-offset: -2px;
+      background: #dbeafe;
+    }
+
+    .horario-item.expirado:focus {
+      background: #fef2f2;
+      outline-color: #dc2626;
     }
 
     .qt-horario-aviso {
@@ -1142,7 +1165,9 @@ import MainLayout from '../layouts/MainLayout.astro';
       container.innerHTML = juegos.map(j => {
         let icon = activeTab === 'animalitos' ? '🎰' : activeTab === 'tripletas' ? '🎯' : '🔢';
         const selected = selectedGames.some(g => g.id === j.id) ? ' selected' : '';
-        return `<div class="juego-card${selected}" data-id="${j.id}">
+        // tabindex="-1" (FIX-1, KB-01): las tarjetas son ítems del roving
+        // focus (↑/↓ + Enter); sin esto moverFila().focus() era un no-op.
+        return `<div class="juego-card${selected}" data-id="${j.id}" tabindex="-1">
           <span class="juego-icon">${icon}</span>
           <span class="juego-name">${j.nombre}</span>
         </div>`;
@@ -1953,6 +1978,18 @@ import MainLayout from '../layouts/MainLayout.astro';
       if (!el) return;
       zonaActual = zona;
       sincronizarTabindex(zona);
+      // FIX-2 (KB-01): al entrar en la zona Horarios el foco cae en el PRIMER
+      // ítem visible (.horario-item), no en el contenedor — así Space/Enter
+      // togglean directo (KB-05) en vez de ser un no-op silencioso. Los
+      // ítems expirados (extras al final) no roban el foco inicial.
+      if (zona === 'horarios') {
+        const items = itemsDeZona('horarios');
+        const objetivo = items.find((i) => !i.classList.contains('expirado')) ?? items[0];
+        if (objetivo) {
+          objetivo.focus({ preventScroll: true });
+          return;
+        }
+      }
       el.focus({ preventScroll: true });
     }
 
@@ -2004,7 +2041,20 @@ import MainLayout from '../layouts/MainLayout.astro';
     function activarItemFocalizado() {
       const activo = document.activeElement;
       if (!activo || esEditable(activo)) return;
-      if (!activo.closest('[data-zona]')) return;
+      const zonaEl = activo.closest?.('[data-zona]');
+      if (!zonaEl) return;
+      // FIX-2 (KB-01): si el foco está en el CONTENEDOR de una zona (p. ej.
+      // #horarios-grid tras el tab), activar su primer ítem focalizable en vez
+      // de no hacer nada (el contenedor no tiene click()). El siguiente
+      // Enter/Space ya opera sobre el ítem (roving focus en dos pasos).
+      if (activo === zonaEl) {
+        const items = itemsDeZona(zonaEl.dataset.zona);
+        if (items.length > 0) {
+          items[0].focus();
+          items[0].scrollIntoView({ block: 'nearest' });
+          return;
+        }
+      }
       if (typeof activo.click === 'function') activo.click();
     }
 
@@ -2097,7 +2147,25 @@ import MainLayout from '../layouts/MainLayout.astro';
       // re-renderiza la lista; los seleccionados que expiran pasan a rojo y
       // el aviso #qt-horario-aviso se actualiza.
       setInterval(() => {
-        if (columnMode === 'horarios') renderHorariosGrid();
+        if (columnMode !== 'horarios') return;
+        // FIX-2: preserva el foco del roving focus a través del re-render
+        // (mismo patrón que marcarTodosHorarios): si el foco estaba en la
+        // lista, se restaura por data-hora; si el ítem desapareció (expiró
+        // sin estar marcado), el foco vuelve al primer ítem visible o al
+        // contenedor — NUNCA se pierde en body. Si el foco estaba en un
+        // input (p. ej. Número/Monto), NO se roba.
+        const activo = document.activeElement;
+        const enLista = activo?.classList?.contains('horario-item') || activo?.id === 'horarios-grid';
+        const prevHora = activo?.dataset?.hora;
+        renderHorariosGrid();
+        if (!enLista) return;
+        const contenedor = document.getElementById('horarios-grid');
+        if (prevHora) {
+          const nuevo = contenedor?.querySelector('.horario-item[data-hora="' + prevHora + '"]');
+          if (nuevo) { nuevo.focus({ preventScroll: true }); return; }
+        }
+        const primero = contenedor?.querySelector('.horario-item:not(.expirado)') ?? contenedor?.querySelector('.horario-item');
+        if (primero) primero.focus({ preventScroll: true });
       }, 15000);
 
       document.getElementById('juegos-list').addEventListener('click', (e) => {
@@ -2131,6 +2199,7 @@ import MainLayout from '../layouts/MainLayout.astro';
         }
         renderLegend();
         updateColumnMode();
+        if (selectedGames.length > 0) enfocarZona('horarios'); // FIX-2
       });
 
       document.getElementById('horarios-grid').addEventListener('click', (e) => {
