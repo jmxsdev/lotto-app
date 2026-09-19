@@ -81,10 +81,10 @@ export const KEYMAP: readonly TeclaMapa[] = [
   { tecla: 'F4', accion: 'repetir-ultima', nombre: 'Repetir última', guarda: 'historial', implementadaEn: 'PR3b' },
   { tecla: 'F5', accion: 'pagar-generar', nombre: 'Pagar / Generar', guarda: 'lineas', implementadaEn: 'PR3b' },
   { tecla: 'F6', accion: 'eliminar-item', nombre: 'Eliminar ítem', guarda: 'lineas', implementadaEn: 'PR3b' },
-  { tecla: 'F7', accion: 'ventas', nombre: 'Ventas', guarda: 'ninguno', implementadaEn: 'PR3b' },
-  { tecla: 'F8', accion: 'cuadre', nombre: 'Cuadre', guarda: 'ninguno', implementadaEn: 'PR3b' },
+  { tecla: 'F7', accion: 'ventas', nombre: 'Ventas', guarda: 'ninguno', implementadaEn: 'win-fixes' },
+  { tecla: 'F8', accion: 'cuadre', nombre: 'Cuadre', guarda: 'ninguno', implementadaEn: 'win-fixes' },
   { tecla: 'F9', accion: 'vuelto', nombre: 'Vuelto', guarda: 'ninguno', implementadaEn: 'PR3b' },
-  { tecla: 'F10', accion: 'resultados', nombre: 'Resultados', guarda: 'ninguno', implementadaEn: 'PR3b' },
+  { tecla: 'F10', accion: 'resultados', nombre: 'Resultados', guarda: 'ninguno', implementadaEn: 'win-fixes' },
   { tecla: 'F11', accion: null, nombre: 'Libre', guarda: 'ninguno', implementadaEn: null },
   { tecla: 'F12', accion: 'reimprimir', nombre: 'Reimprimir', guarda: 'ninguno', implementadaEn: 'PR3b' },
 ];
@@ -98,6 +98,56 @@ const ZONAS_BASE: readonly NombreZona[] = [
   'anadir',
   'resumen',
 ];
+
+/** Destino de la navegación global (FIX-6): F-keys y Alt+D desde MainLayout. */
+export interface NavDestino {
+  tecla: string;
+  ruta: string;
+  nombre: string;
+}
+
+/**
+ * Mapa puro de navegación global (REQ-KB-07, FIX-6): se renderiza desde
+ * MainLayout.astro (cubre dashboard, historial, cierre, resultados y
+ * ganadores). F11 queda sin asignar (REQ-KB-07).
+ */
+export const NAV_GLOBAL: readonly NavDestino[] = [
+  { tecla: 'F7', ruta: '/historial', nombre: 'Ventas' },
+  { tecla: 'F8', ruta: '/cierre', nombre: 'Cuadre' },
+  { tecla: 'F10', ruta: '/resultados', nombre: 'Resultados' },
+  { tecla: 'Alt+D', ruta: '/dashboard', nombre: 'Dashboard' },
+];
+
+/**
+ * Resolución pura de tecla → destino de navegación (FIX-6). Alt+D exige
+ * altKey SIN ctrlKey (Ctrl+Alt = AltGr en algunos layouts y no debe
+ * dispararse). null si la tecla no navega (p. ej. F11, libre).
+ */
+export function destinoNav(tecla: string, opts: { altKey: boolean; ctrlKey: boolean }): NavDestino | null {
+  if (opts.altKey && !opts.ctrlKey && tecla.toLowerCase() === 'd') {
+    return NAV_GLOBAL.find((n) => n.tecla === 'Alt+D') ?? null;
+  }
+  return NAV_GLOBAL.find((n) => n.tecla === tecla) ?? null;
+}
+
+export interface TeclaLegend {
+  tecla: string;
+  nombre: string;
+}
+
+/**
+ * Teclas mostradas en la leyenda/ayuda (REQ-KB-09, FIX-6): F1–F12 (KEYMAP,
+ * F11 «Libre») más los destinos globales no-F (Alt+D) del NAV_GLOBAL.
+ */
+export function teclasLegend(): readonly TeclaLegend[] {
+  const extras = NAV_GLOBAL
+    .filter((n) => !KEYMAP.some((k) => k.tecla === n.tecla))
+    .map((n) => ({ tecla: n.tecla, nombre: n.nombre }));
+  return [
+    ...KEYMAP.map((k) => ({ tecla: k.tecla, nombre: k.accion ? k.nombre : 'Libre' })),
+    ...extras,
+  ];
+}
 
 /**
  * Adyacencia HORIZONTAL entre zonas (FIX-3a, KB-03): ←/→ fuera de la zona

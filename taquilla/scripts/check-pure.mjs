@@ -19,6 +19,7 @@ import {
   crearBuscadorDigitos,
 } from '../src/utils/catalogo.ts';
 import { buildZoneGraph, routeKey, KEYMAP, esFKey, zonaHorizontal, zonaPendienteSeleccion } from '../src/utils/keyboard.ts';
+import { destinoNav, NAV_GLOBAL, teclasLegend } from '../src/utils/keyboard.ts';
 import {
   alternarHorario,
   marcarTodosVisibles,
@@ -419,8 +420,12 @@ ok(KEYMAP.find((k) => k.tecla === 'F11').accion === null, 'F11 sin asignar (libr
 const acciones = KEYMAP.map((k) => k.accion).filter(Boolean);
 ok(acciones.length === 11, `11 acciones mapeadas (${acciones.length})`);
 ok(
-  KEYMAP.every((k) => k.accion === null || k.implementadaEn === 'PR3b'),
-  'todas las acciones de F-keys quedan ancladas a PR3b (stubs en PR2)',
+  KEYMAP.filter((k) => k.implementadaEn === 'PR3b').map((k) => k.tecla).join(',') === 'F1,F2,F3,F4,F5,F6,F9,F12',
+  'PR3b mantiene las acciones locales del dashboard (F1-F6, F9, F12)',
+);
+ok(
+  KEYMAP.filter((k) => k.implementadaEn === 'win-fixes').map((k) => k.tecla).join(',') === 'F7,F8,F10',
+  'win-fixes mueve F7/F8/F10 a la navegación global (MainLayout, FIX-6)',
 );
 ok(
   KEYMAP.filter((k) => k.guarda === 'lineas').map((k) => k.tecla).join(',') === 'F2,F5,F6',
@@ -530,5 +535,27 @@ r = routeKey(est({ zonaActual: 'seleccion', tecla: '5', focoEditable: true }));
 ok(!r.consume, 'dígito en INPUT → pasa (typing nativo, A1)');
 r = routeKey(est({ zonaActual: 'seleccion', tecla: '5', modalAbierto: true }));
 ok(!r.consume, 'dígito con modal abierto → pasa (guarda KB-08)');
+
+console.log('\n== win-fixes FIX-6: navegación global F7/F8/F10 y Alt+D ==');
+ok(NAV_GLOBAL.length === 4, `NAV_GLOBAL: 4 destinos (${NAV_GLOBAL.length})`);
+ok(NAV_GLOBAL.find((n) => n.tecla === 'F7')?.ruta === '/historial', 'F7 → /historial');
+ok(NAV_GLOBAL.find((n) => n.tecla === 'F8')?.ruta === '/cierre', 'F8 → /cierre');
+ok(NAV_GLOBAL.find((n) => n.tecla === 'F10')?.ruta === '/resultados', 'F10 → /resultados');
+ok(NAV_GLOBAL.find((n) => n.tecla === 'Alt+D')?.ruta === '/dashboard', 'Alt+D → /dashboard');
+ok(destinoNav('F7', { altKey: false, ctrlKey: false })?.ruta === '/historial', 'destinoNav F7 → /historial');
+ok(destinoNav('F8', { altKey: false, ctrlKey: false })?.ruta === '/cierre', 'destinoNav F8 → /cierre');
+ok(destinoNav('F10', { altKey: false, ctrlKey: false })?.ruta === '/resultados', 'destinoNav F10 → /resultados');
+ok(destinoNav('d', { altKey: true, ctrlKey: false })?.ruta === '/dashboard', 'destinoNav Alt+D → /dashboard');
+ok(destinoNav('D', { altKey: true, ctrlKey: false })?.ruta === '/dashboard', 'destinoNav Alt+Shift+D (mayúscula) → /dashboard');
+ok(destinoNav('d', { altKey: false, ctrlKey: false }) === null, 'd sin Alt → sin destino');
+ok(destinoNav('d', { altKey: true, ctrlKey: true }) === null, 'Ctrl+Alt+d (AltGr) → sin destino');
+ok(destinoNav('F11', { altKey: false, ctrlKey: false }) === null, 'F11 → sin destino (libre, REQ-KB-07)');
+ok(destinoNav('x', { altKey: false, ctrlKey: false }) === null, 'tecla no navegable → null');
+const legend = teclasLegend();
+ok(legend.length === 13, `teclasLegend: 13 teclas (F1–F12 + Alt+D) (${legend.length})`);
+ok(legend.some((t) => t.tecla === 'Alt+D' && t.nombre === 'Dashboard'), 'teclasLegend incluye Alt+D → Dashboard');
+ok(legend.find((t) => t.tecla === 'F11')?.nombre === 'Libre', 'F11 sigue «Libre» en la leyenda');
+ok(legend.find((t) => t.tecla === 'F7')?.nombre === 'Ventas', 'F7 → Ventas en la leyenda');
+
 console.log(`\n${checks} checks, ${fallos} fallos`);
 process.exit(fallos === 0 ? 0 : 1);

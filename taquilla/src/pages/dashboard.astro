@@ -1021,6 +1021,7 @@ import MainLayout from '../layouts/MainLayout.astro';
     import { getFingerprint } from '../utils/device';
     import { cargarCatalogo, buscarPorDigito, crearBuscadorDigitos } from '../utils/catalogo';
     import { buildZoneGraph, routeKey, zonaHorizontal, zonaPendienteSeleccion } from '../utils/keyboard';
+    import { teclasLegend } from '../utils/keyboard';
     import { alternarHorario, marcarTodosVisibles, expandirLineas, horarioExpirado, filtrarHorariosFuturos, seleccionadosExpirados, agruparPorGroupId, indiceSeleccionTrasEliminar } from '../utils/horarios';
     import { calcularVuelto } from '../utils/vuelto';
     import juegosRaw from '../data/juegos.json';
@@ -1844,8 +1845,8 @@ import MainLayout from '../layouts/MainLayout.astro';
       const zonasHtml = grafo.zonas
         .map((z) => '<span class="kbd">' + (NOMBRE_ZONA[z] ?? z) + '</span>')
         .join('<span class="leg-arrow"> → </span>');
-      const fkeysHtml = KEYMAP
-        .map((k) => '<li><span class="kbd">' + k.tecla + '</span> ' + (k.accion ? k.nombre : 'Libre') + '</li>')
+      const fkeysHtml = teclasLegend()
+        .map(t => '<li><span class="kbd">' + t.tecla + '</span> ' + t.nombre + '</li>')
         .join('');
       el.innerHTML =
         '<p class="help-zonas"><strong>Zonas (Tab / Shift+Tab):</strong> ' + zonasHtml + '</p>' +
@@ -1968,9 +1969,10 @@ import MainLayout from '../layouts/MainLayout.astro';
     // ACCIONES reales de F-keys (PR3b, REQ-KB-07, A11, A12): F1 ayuda, F2
     // limpiar (= clearTicket), F3 anular último grupo, F4 repetir última
     // (atómico), F5 pagar/generar (= handlePrint), F6 eliminar el grupo
-    // seleccionado del resumen, F7/F8/F10 navegan a pantallas existentes
-    // (confirm-and-discard DIFERIDO: solo navegación), F12 reimprimir
-    // snapshot. Las guardas de estado viven en routeKey
+    // seleccionado del resumen, F9 vuelto, F12 reimprimir snapshot. F7/F8/F10
+    // (ventas/cuadre/resultados) NO viven aquí desde FIX-6: la navegación es
+    // GLOBAL en MainLayout.astro (evita doble dispatch en las 5 pantallas).
+    // Las guardas de estado viven en routeKey
     // (ejecutable=false) y la guarda estricta de modales (A12) en la regla 1
     // del router: con un modal abierto solo su toggle (F1/F9) y Esc actúan.
     const ACCIONES_FKEYS = {
@@ -1980,10 +1982,7 @@ import MainLayout from '../layouts/MainLayout.astro';
       'repetir-ultima': repetirUltimaJugada,
       'pagar-generar': () => { handlePrint(); },
       'eliminar-item': eliminarItemSeleccionado,
-      ventas: () => { window.location.href = '/historial'; },
-      cuadre: () => { window.location.href = '/cierre'; },
       vuelto: toggleVueltoModal,
-      resultados: () => { window.location.href = '/resultados'; },
       reimprimir: reimprimirUltimo,
     };
 
@@ -2235,8 +2234,10 @@ import MainLayout from '../layouts/MainLayout.astro';
       const zonasHtml = grafo.zonas
         .map(z => '<span class="kbd">' + (NOMBRE_ZONA[z] ?? z) + '</span>')
         .join('<span class="leg-arrow"> → </span>');
-      const fkeysHtml = KEYMAP
-        .map(k => '<span><span class="kbd">' + k.tecla + '</span> ' + k.nombre + '</span>')
+      // FIX-6 (REQ-KB-09): KEYMAP (F1–F12) + destinos globales no-F (Alt+D)
+      // del NAV_GLOBAL vía teclasLegend — la leyenda refleja el mapa real.
+      const fkeysHtml = teclasLegend()
+        .map(t => '<span><span class="kbd">' + t.tecla + '</span> ' + t.nombre + '</span>')
         .join(' · ');
       el.innerHTML =
         '<span class="leg-grupo"><span class="leg-label">Zonas:</span> ' + zonasHtml + '</span>' +
