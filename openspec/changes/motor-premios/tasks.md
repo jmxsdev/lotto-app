@@ -44,8 +44,8 @@ Chain strategy: feature-branch-chain
 
 ## Fase 2 — Modalidades single-draw (sin tablas)
 
-- [ ] 2.1 RED unit `modalidadDe` → GREEN plugins derivan clave canónica (incl. `selecciones[]`). Done: claves §3.1.
-- [ ] 2.2 RED `tests/Feature/ModalidadesSingleDrawTest.php` (Cruzado, Par A+B, Tripleta, Arrimao, Pegadito, Punta/Terminal/Aprox, Terminal+Zodiacal) → GREEN `PremiosEngine` same-draw. Done: REQ11; Dupleta rechazada.
+- [x] 2.1 RED unit `modalidadDe` → GREEN plugins derivan clave canónica (incl. `selecciones[]`). Done: claves §3.1.
+- [x] 2.2 RED `tests/Feature/ModalidadesSingleDrawTest.php` (Cruzado, Par A+B, Tripleta, Arrimao, Pegadito, Punta/Terminal/Aprox, Terminal+Zodiacal) → GREEN `PremiosEngine` same-draw. Done: REQ11; Dupleta rechazada.
 
 ## Fase 3 — Estados, vencimiento, premio_posible
 

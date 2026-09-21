@@ -231,11 +231,76 @@ Este batch (2 commits nuevos):
 
 ## Remaining Tasks
 
-- [ ] Fase 2 (2.1–2.2: modalidades single-draw, `selecciones[]`)
 - [ ] Fase 3 (3.1–3.5: estados/vencimiento, `verificarGanadores` → `ganadora`, job de vencimiento, acumular premio_total)
+
+## Slice F2 (este batch: modalidades single-draw; rama `feat/motor-premios-f2-modalidades`, base `feat/motor-premios-f1d-callsites`)
+
+> F2 implementa las modalidades de UN solo sorteo (REQ11, D8, §3.1/§3.2/§3.4):
+> los plugins derivan la clave canónica (`modalidadDe`) y el motor liquida
+> same-draw con `selecciones[]` dentro de `combinacion` (sin tablas). La
+> Dupleta queda FUERA de alcance y un test la fija como rechazada.
+
+### TDD Cycle Evidence (F2)
+
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 2.1 | `tests/Unit/TripletasPluginTest.php` (+5 tests modalidadDe) · `tests/Unit/AnimalitosPluginTest.php` (+2) | Unit | ✅ 124/124 baseline | ✅ Escrito (6 fallos: claves devolvían 'base') | ✅ 6/6 nuevos · 33/33 archivo | ✅ 5 claves §3.1 (triples, posiciones, con signo, arrimao/pegadito, selecciones) + dupleta nunca emitida + tripleta 3 selecciones + 2 selecciones→base | ✅ Pint |
+| 2.2 | `tests/Feature/ModalidadesSingleDrawTest.php` (nuevo, +15) | Feature (RefreshDatabase) | ✅ 124/124 baseline | ✅ Escrito (15 fallos: 14 modalidades → 0; dupleta premio_posible daba 300) | ✅ 21/21 (15 nuevos + 6 negativos) | ✅ Cruzado 3000/10, Par 200000/150, Tripleta 200/50, Arrimao 6000, Pegadito 60000, Terminal/Punta/Uña/Aprox 60/60/5/10, T+Z Zulia 600/Táchira 500, dupleta ×2 | ✅ Pint |
+
+### Test Summary (F2)
+
+- Tests escritos en este batch: **7 unit (2.1) + 15 feature (2.2)** · Pasando: todos
+- Focused del slice F2:
+  `--filter='ModalidadesSingleDrawTest|TripletasPluginTest|AnimalitosPluginTest|MotorPremiosRegresionTest'`
+  → **passed: 84 tests, 154 assertions**
+- Focused tras Pint: `--filter='ModalidadesSingleDrawTest|TripletasPluginTest|AnimalitosPluginTest|TerminalesPluginTest|PremiosEngineTest|MotorPremiosRegresionTest'` → **passed: 115 tests, 192 assertions**
+- Regresión del motor F1a–F1d + F2: `--filter='TextoTest|PremiosOficialesTest|PremiosEngineTest|AnimalitosPluginTest|TerminalesPluginTest|TripletasPluginTest|AnimalitosScraperTest|ScrapeResultsJobTest|BaseScraperHelpersTest|JuegoPluginManagerTest|ScraperResolverTest|JuegosJsonTest|TicketGanadoresTest|ApuestaServiceTest|ApuestaTest|PagoTipoTest'` → **passed: 197 tests, 1260 assertions, 1 skip legacy**
+- Regresión legacy: `--filter='ResultsTest|VerificacionOriginalesTest'` → **106/106 passed, 504 assertions**
+- BD: `DB_DATABASE=lotto_test_motor` para toda la evidencia (la `lotto_test` compartida quedó corrupta por el agente concurrente; `.env` sin cambios).
+
+### Files Changed (F2)
+
+| File | Acción | Qué |
+|------|--------|-----|
+| `backend/app/Plugins/Juegos/Tripletas.php` | Modificar | `modalidadDe` deriva todo el vocabulario §3.1 (triples secos → `triple_a`/`triple_b`, posiciones, con signo, arrimao/pegadito, `selecciones[]` → `triple_a_b`/`cruzado`); `evaluarAcierto` ampliado a terminal/punta/uña/aproximación/signo_terminal/signo_uña/signo_solo/arrimao/pegadito y multi-selección same-draw; el triple seco emite la clave del tipo apostado |
+| `backend/app/Plugins/Juegos/Animalitos.php` | Modificar | `modalidadDe`/`evaluarAcierto` con Tripleta (3 `selecciones[]` contra `numeros_ganadores.figuras[]`, acentos normalizados); Dupleta (2 selecciones) nunca se emite |
+| `backend/app/Services/PremiosEngine.php` | Modificar | `premioPosible` rechaza la modalidad DECLARADA no soportada por el juego (0): Dupleta fuera de alcance (D8); las claves derivadas conservan fallback a base |
+| `backend/tests/Unit/TripletasPluginTest.php` | Modificar | +5 tests `modalidadDe` (claves §3.1, selecciones, dupleta nunca emitida); ajuste: triple seco emite `triple_b` (no `base`) |
+| `backend/tests/Unit/AnimalitosPluginTest.php` | Modificar | +2 tests `modalidadDe` (tripleta 3 selecciones; 2 selecciones → base) |
+| `backend/tests/Feature/ModalidadesSingleDrawTest.php` | Crear | +21 tests (15 de comportamiento + 6 negativos) de liquidación single-draw por el camino manager→engine con juegos desde `PremiosOficiales::configPara` |
+| `backend/tests/Feature/MotorPremiosRegresionTest.php` | Modificar | el-arrejuntado `triple_a` 40× → **600×** (la clave canónica del tipo apostado activa `triple_a:600` de §3.2; la regresión F1d había aproximado 40× por la clave `base`) |
+| `openspec/changes/motor-premios/tasks.md` | Modificar | 2.1–2.2 `[x]` — **Fase 2 completa** |
+
+### Work Unit Evidence (F2)
+
+| Evidence | Valor |
+|---|---|
+| Focused test (2.1) | `--filter='TripletasPluginTest\|AnimalitosPluginTest'` → RED 27/33 (6 fallos) → GREEN 33/33 tras el plugin |
+| Focused test (2.2) | `--filter='ModalidadesSingleDrawTest'` → RED 6/21 (15 fallos) → GREEN 21/21 tras motor+plugins |
+| Focused completo slice | `--filter='ModalidadesSingleDrawTest\|TripletasPluginTest\|AnimalitosPluginTest\|TerminalesPluginTest\|PremiosEngineTest\|MotorPremiosRegresionTest'` → passed: 115 tests, 192 assertions |
+| Runtime harness | Regresión del motor F1a–F1d + F2 → 197 passed (1 skip legacy); legacy `ResultsTest` → 106/106; Pint `--test` sobre los 7 archivos del slice → passed |
+| Rollback boundary | `git revert` de los 2 commits del slice F2 (89f7f4c, 09f0a40) retira plugins+engine+test sin tocar F1a–F1d ni Fase 3; el cambio de `premio_posible` (rechazo de modalidades declaradas) es el único punto con efecto en call sites, reversible con el mismo revert |
+
+### Commits (rama `feat/motor-premios-f2-modalidades`, base `feat/motor-premios-f1d-callsites`)
+
+- 89f7f4c feat(motor-premios): plugins derivan la clave canonica de modalidad del vocabulario §3.1 (2.1, REQ11)
+- 09f0a40 feat(motor-premios): motor liquida modalidades single-draw y rechaza dupleta (2.2, REQ11/D8/§3.2)
+- (docs) docs(sdd): marca F2 (2.1-2.2) y registra apply-progress del slice
+
+### Deviations (F2)
+
+1. **Triple seco emite la clave del tipo apostado (`triple_a`/`triple_b`), no `base`**: corrige la aproximación de F1d (deviation #4, que cubría "la misma clave base" con triple_a a 40×). §3.2 configura `triple_a:600`/`triple_b:600` para el-arrejuntado; el motor ahora lee esa modalidad (600×) y en los demás juegos de tripletas cae al base por fallback (`?? base`) sin cambio de valor. Tests actualizados: `TripletasPluginTest` (clave `triple_b`) y `MotorPremiosRegresionTest::test_el_arrejuntado_triple_a_paga_600x`.
+2. **Terminal/Punta/Uña se comparan contra CUALQUIER triple del sorteo (A, B o C)**: los scrapers no persisten claves `terminal`/`punta`/`uña` (solo `triple_a/b/c`); la posición se deriva matemáticamente (2 últimas / 2 primeras / última cifra) y el acierto ocurre si la posición coincide en cualquiera de los triples del resultado. El `signo_terminal`/`signo_uña` usan el `triple_c` como referencia (el que viaja con el signo del sorteo).
+3. **Terminal+Zodiacal Táchira 500× por fallback a base**: §3.2 NO configura `signo_terminal` para triple-tachira (solo `terminal:50`, `signo_triple:5000`); REQ11 menciona la modalidad para Táchira pero sin valor propio en la tabla → el motor resuelve `?? base` = 500× (reglamento). Si el reglamento exige otro valor, agregarlo al catálogo en `PremiosOficiales` + seeder + JuegosJsonTest (fuera de este slice).
+4. **Tripleta se liquida contra `numeros_ganadores.figuras[]`**: los scrapers actuales de Cazalotón/Loto Chaima persisten UNA figura por sorteo (`nombre_animal`); el contrato de liquidación de Tripleta (3 figuras) queda definido y testeado con el shape `figuras[]`, pero la persistencia de las 3 figuras por los scrapers queda fuera de alcance (F1 cerrada; se documenta como trabajo futuro cuando la fuente provea el shape).
+5. **`premioPosible` rechaza modalidad DECLARADA no soportada**: antes devolvía `modalidades[clave] ?? base`; ahora una clave declarada (p. ej. `dupleta`) que no existe en `premios.modalidades` (ni es `base`) devuelve 0. Las claves DERIVADAS por el plugin conservan el fallback a base. Efecto colateral esperado: un front que envíe claves legacy ('cola', 'zodiacal') obtendría 0 — el contrato de Fase 2 es el vocabulario canónico (D8).
+
+### Issues (F2)
+
+- Ninguno funcional. Nota operativa: la BD compartida `lotto_test` sigue corrupta por el agente concurrente; toda la evidencia se corrió contra `lotto_test_motor` (sin commitear `.env`).
 
 ## Status
 
-**17/17 tareas del cambio completadas en Fase 1** (F1a + F1b + F1c + F1d íntegros). Fase 1 completa: motor config-driven activo en todos los call sites productivos (createApuesta, PagoController, TicketController::ganadores, reglas) con regresión por los 21 juegos. Pendiente: Fases 2 y 3.
+**19/19 tareas del cambio completadas (Fase 1 + Fase 2)**. F2: plugins derivan el vocabulario canónico §3.1 y el motor liquida las modalidades single-draw con `selecciones[]` same-draw; la Dupleta queda rechazada (premio_posible y liquidación en 0). Pendiente: Fase 3 (estados/vencimiento, `verificarGanadores` → `ganadora`, job de vencimiento, acumular `premio_total`).
 
 Session: ses_f4f7a75d2ffe1V5gJLiamGKc4I · Project: lotto-app · Scope: project
