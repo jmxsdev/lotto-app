@@ -1694,6 +1694,10 @@ import MainLayout from '../layouts/MainLayout.astro';
           juegoType: game.tipo,
           numero: numero,
           animal: animal,
+          // win-fixes2 FIX E: sigla (value, "SAG") para el POST; el label
+          // ("Sagitario") es solo visual. Tripletas.php:44-47 valida
+          // strtoupper($signo) ∈ siglas (ARI..PIS) — el label rompía F5.
+          signoSigla: familia === 'zodiacal' ? (selectedSigno ? selectedSigno.value : null) : null,
           monto: Number(monto),
           moneda: moneda,
           tripleModalidad: familia === 'zodiacal' ? tripleModalidad : null,
@@ -1780,7 +1784,9 @@ import MainLayout from '../layouts/MainLayout.astro';
         const lines = ticketLines.map(line => ({
           juego_id: line.juegoId,
           combinacion: line.tripleModalidad
-            ? { tipo: line.tripleModalidad, numero: line.numero, signo: line.animal }
+            // win-fixes2 FIX E: el signo viaja SIEMPRE como sigla (value),
+            // nunca el label — cubre todos los zodiacales (incl. el-arrejuntado).
+            ? { tipo: line.tripleModalidad, numero: line.numero, signo: line.signoSigla ?? null }
             : (line.juegoType === 'terminales'
               ? { numero: line.numero }
               : { animal: line.animal || line.numero, numero: line.numero }),

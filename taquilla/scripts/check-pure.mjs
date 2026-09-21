@@ -19,6 +19,7 @@ import {
   crearBuscadorDigitos,
   signoPorPosicion,
   normalizarNumeroTriple,
+  siglaDeSigno,
 } from '../src/utils/catalogo.ts';
 import { buildZoneGraph, routeKey, KEYMAP, esFKey, zonaHorizontal, zonaPendienteSeleccion } from '../src/utils/keyboard.ts';
 import { destinoNav, NAV_GLOBAL, teclasLegend } from '../src/utils/keyboard.ts';
@@ -588,6 +589,23 @@ const trioNum = catalogo.porSlug.get('trio-activo');
 ok(trioNum.familia === 'numerica', 'trio-activo sigue siendo numérica (100 opciones)');
 ok(trioNum.modalidades && trioNum.modalidades.punta === 60 && trioNum.modalidades.terminal === 60, 'trio-activo: premios informativos punta/terminal 60× (A2)');
 ok(normalizarNumeroTriple(trioNum.opciones[5].label) === '005', `opción label "05" → "005" (${trioNum.opciones[5].label})`);
+
+console.log('\n== win-fixes2 FIX E: signo → sigla (value) en todos los zodiacales ==');
+// Mismo conjunto que el plugin Tripletas (Tripletas.php:10-13).
+const SIGLAS_TRIPLETAS = ['ARI', 'TAU', 'GEM', 'CAN', 'LEO', 'VIR', 'LIB', 'ESC', 'SAG', 'CAP', 'ACU', 'PIS'];
+const zodiacales = ['triple-zulia', 'triple-caliente', 'triple-chance', 'el-arrejuntado', 'la-ricachona', 'triple-tachira', 'triple-zamorano'];
+for (const slug of zodiacales) {
+  const juego = catalogo.porSlug.get(slug);
+  ok(juego.familia === 'zodiacal' && juego.opciones.length === 12, `${slug}: zodiacal con 12 signos`);
+  const todosValidos = juego.opciones.every((o) => SIGLAS_TRIPLETAS.includes(siglaDeSigno(juego, o.label)));
+  ok(todosValidos, `${slug}: cada label mapea a una sigla válida del plugin`);
+  ok(juego.opciones.every((o) => siglaDeSigno(juego, o.label) === o.value), `${slug}: siglaDeSigno(label) === value`);
+}
+ok(siglaDeSigno(catalogo.porSlug.get('triple-zulia'), 'Sagitario') === 'SAG', 'triple-zulia "Sagitario" → SAG');
+ok(siglaDeSigno(catalogo.porSlug.get('el-arrejuntado'), 'Aries') === 'ARI', 'el-arrejuntado "Aries" → ARI (cubierto)');
+ok(siglaDeSigno(catalogo.porSlug.get('triple-zulia'), 'Inexistente') === null, 'label inexistente → null');
+ok(siglaDeSigno(lottoActivo, 'Perro') === null, 'familia no zodiacal → null');
+ok(catalogo.porSlug.get('triple-zulia').opciones.every((o) => /^[A-Z]{3}$/.test(o.value)), 'valores zodiacales: siglas de 3 letras mayúsculas');
 
 console.log('\n== win-fixes FIX-6: navegación global F7/F8/F10 y Alt+D ==');
 ok(NAV_GLOBAL.length === 4, `NAV_GLOBAL: 4 destinos (${NAV_GLOBAL.length})`);
