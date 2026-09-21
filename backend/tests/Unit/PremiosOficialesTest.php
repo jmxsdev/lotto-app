@@ -262,4 +262,118 @@ class PremiosOficialesTest extends TestCase
     {
         $this->assertNull(PremiosOficiales::para('juego-inexistente'));
     }
+
+    // ==================================================
+    // configPara(): fuente única para migración y seeders (D2/D4)
+    // ==================================================
+
+    public function test_config_para_lotto_activo_escribe_premios_y_espejos_vacios()
+    {
+        $config = PremiosOficiales::configPara('lotto-activo');
+
+        $this->assertSame(30, $config['premio_multiplo']);
+        $this->assertSame([
+            'base' => 30,
+            'modalidades' => [],
+            'comodines' => [],
+        ], $config['premios']);
+        $this->assertSame([], $config['modalidades']);
+        $this->assertSame([], $config['comodines']);
+    }
+
+    public function test_config_para_trio_activo_mantiene_claves_legacy_y_premios_canonicos()
+    {
+        $config = PremiosOficiales::configPara('trio-activo');
+
+        $this->assertSame(600, $config['premio_multiplo']);
+        $this->assertSame([
+            'base' => 600,
+            'modalidades' => ['terminal' => 60, 'punta' => 60],
+            'comodines' => [],
+        ], $config['premios']);
+        // Espejo legacy: claves históricas, mismos valores (§3.1).
+        $this->assertSame(['terminal' => 60, 'punta' => 60], $config['modalidades']);
+    }
+
+    public function test_config_para_triple_zulia_mapea_vocabulario_canonico_a_espejo_legacy()
+    {
+        $config = PremiosOficiales::configPara('triple-zulia');
+
+        // terminal→cola, signo_triple→zodiacal, signo_terminal→terminal_zodiacal.
+        $this->assertSame(['cola' => 60, 'zodiacal' => 6000, 'terminal_zodiacal' => 600], $config['modalidades']);
+        $this->assertSame([
+            'base' => 600,
+            'modalidades' => ['terminal' => 60, 'signo_triple' => 6000, 'signo_terminal' => 600],
+            'comodines' => [],
+        ], $config['premios']);
+    }
+
+    public function test_config_para_triple_zamorano_mapea_todas_las_claves_de_signo()
+    {
+        $config = PremiosOficiales::configPara('triple-zamorano');
+
+        $this->assertSame([
+            'cola' => 60,
+            'uña' => 5,
+            'zodiacal' => 6000,
+            'cola_signo' => 600,
+            'uña_signo' => 60,
+        ], $config['modalidades']);
+    }
+
+    public function test_config_para_triple_chance_alinea_valores_del_reglamento_h23()
+    {
+        $config = PremiosOficiales::configPara('triple-chance');
+
+        // 100→150 (solo A/B) y 5.000→6.000 (C+Signo) según el reglamento (H23).
+        $this->assertSame(150, $config['modalidades']['triple_a_o_b']);
+        $this->assertSame(6000, $config['modalidades']['triple_c_signo']);
+        $this->assertSame(200000, $config['modalidades']['triple_a_b']);
+        $this->assertSame(60, $config['modalidades']['terminal']);
+        $this->assertSame(6, $config['modalidades']['signo']);
+        $this->assertSame(600, $config['premio_multiplo']);
+    }
+
+    public function test_config_para_monje_millonario_incluye_comodines_con_tipo()
+    {
+        $config = PremiosOficiales::configPara('monje-millonario');
+
+        $this->assertSame(50, $config['premio_multiplo']);
+        $this->assertSame('numero', $config['comodines']['patronus-75']['tipo']);
+        $this->assertSame(120, $config['comodines']['patronus-75']['premio_multiplo']);
+        $this->assertSame('palabra', $config['comodines']['patronus-palabra']['tipo']);
+        $this->assertTrue($config['comodines']['patronus-palabra']['acumulativo']);
+        $this->assertSame(20, $config['comodines']['patronus-palabra']['premio_multiplo']);
+    }
+
+    public function test_config_para_terminal_activo_preserva_clave_legacy_con_valor_de_base()
+    {
+        $config = PremiosOficiales::configPara('terminal-activo');
+
+        // El acierto del juego es `terminal` (N1); las modalidades canónicas
+        // quedan vacías y el motor resuelve por base. El espejo legacy conserva
+        // la clave histórica del export con el valor derivado de base (60).
+        $this->assertSame(['terminal' => 60], $config['modalidades']);
+        $this->assertSame([], $config['premios']['modalidades']);
+    }
+
+    public function test_config_para_la_ricachona_sin_premios_ni_multiplicador()
+    {
+        $config = PremiosOficiales::configPara('la-ricachona');
+
+        // REQ7: sin fuente oficial → sin premios canónicos ni espejo legacy de base.
+        $this->assertArrayNotHasKey('premios', $config);
+        $this->assertArrayNotHasKey('premio_multiplo', $config);
+        $this->assertSame([], $config['modalidades']);
+        $this->assertSame([], $config['comodines']);
+    }
+
+    public function test_config_para_cubre_los_21_juegos_y_slug_desconocido_devuelve_vacio()
+    {
+        foreach (PremiosOficiales::slugs() as $slug) {
+            $this->assertIsArray(PremiosOficiales::configPara($slug), "configPara({$slug}) debe ser array");
+        }
+
+        $this->assertSame([], PremiosOficiales::configPara('juego-inexistente'));
+    }
 }

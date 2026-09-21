@@ -223,6 +223,64 @@ class PremiosOficiales
     ];
 
     /**
+     * Espejo legacy de `config.modalidades` (D2/§3.1): las claves históricas que
+     * consumen el export `docs/juegos.json` y los tests legacy, mapeadas desde
+     * el vocabulario canónico de `premios.modalidades`. Los juegos ausentes
+     * usan la clave canónica tal cual (identidad).
+     *
+     * @var array<string, array<string, string>>
+     */
+    private const ESPEJO_MODALIDADES = [
+        'triple-zulia' => [
+            'terminal' => 'cola',
+            'signo_triple' => 'zodiacal',
+            'signo_terminal' => 'terminal_zodiacal',
+        ],
+        'triple-caliente' => [
+            'terminal' => 'cola',
+            'signo_triple' => 'zodiacal',
+            'signo_terminal' => 'terminal_zodiacal',
+        ],
+        'triple-tachira' => [
+            'terminal' => 'cola',
+            'signo_triple' => 'zodiacal',
+        ],
+        'triple-zamorano' => [
+            'terminal' => 'cola',
+            'uña' => 'uña',
+            'signo_triple' => 'zodiacal',
+            'signo_terminal' => 'cola_signo',
+            'signo_uña' => 'uña_signo',
+        ],
+        'triple-chance' => [
+            'triple_a_b' => 'triple_a_b',
+            'solo_a_b' => 'triple_a_o_b',
+            'punta' => 'punta',
+            'terminal' => 'terminal',
+            'cruzado' => 'cruzado',
+            'cruzado_10' => 'cruzado_10',
+            'signo_triple' => 'triple_c_signo',
+            'signo_terminal' => 'signo_terminal',
+            'signo_solo' => 'signo',
+        ],
+    ];
+
+    /**
+     * Claves legacy SIN contraparte canónica que el contrato histórico del
+     * export conserva. El valor se deriva de `base` (fuente única): jamás se
+     * duplica a mano.
+     *
+     * - `terminal-activo`: el acierto del juego ES `terminal` (clave que
+     *   devuelve el plugin, N1); las modalidades canónicas quedan vacías y el
+     *   motor resuelve por base, pero el export legacy mostraba `{terminal: 60}`.
+     *
+     * @var array<string, array<int, string>>
+     */
+    private const ESPEJO_EXTRA = [
+        'terminal-activo' => ['terminal'],
+    ];
+
+    /**
      * Catálogo completo: slug → configuración de premios.
      *
      * @return array<string, array{base?: int, modalidades: array<string, int>, comodines: array<string, array<string, mixed>>, active: bool}>
@@ -251,5 +309,70 @@ class PremiosOficiales
     public static function activo(string $slug): bool
     {
         return self::CATALOGO[$slug]['active'] ?? false;
+    }
+
+    /**
+     * Configuración completa a escribir en `juegos.config` (D2/D4): la fuente
+     * del motor (`premios` canónico) más los espejos legacy (`premio_multiplo`,
+     * `modalidades`, `comodines`) con claves históricas y valores canónicos.
+     * Única fuente para la migración de backfill y los 21 seeders, de modo que
+     * BD nueva y BD existente convergen al mismo contrato.
+     *
+     * `la-ricachona` (sin fuente oficial, REQ7) no devuelve `premios` ni
+     * `premio_multiplo`: no tiene valores que migrar.
+     *
+     * @return array<string, mixed>
+     */
+    public static function configPara(string $slug): array
+    {
+        $catalogo = self::CATALOGO[$slug] ?? null;
+
+        if ($catalogo === null) {
+            return [];
+        }
+
+        $config = [];
+
+        if (isset($catalogo['base'])) {
+            // Espejo legacy: el export y los tests leen `premio_multiplo`.
+            $config['premio_multiplo'] = $catalogo['base'];
+
+            // Fuente del motor (D1/C, §3): vocabulario canónico.
+            $config['premios'] = [
+                'base' => $catalogo['base'],
+                'modalidades' => $catalogo['modalidades'],
+                'comodines' => $catalogo['comodines'],
+            ];
+        }
+
+        // Espejos legacy: claves históricas con valores canónicos (§3.1).
+        $config['modalidades'] = self::espejoLegacyModalidades($slug, $catalogo['modalidades']);
+
+        // Claves legacy sin contraparte canónica: valor derivado de base.
+        foreach (self::ESPEJO_EXTRA[$slug] ?? [] as $clave) {
+            $config['modalidades'][$clave] = $catalogo['base'];
+        }
+
+        $config['comodines'] = $catalogo['comodines'];
+
+        return $config;
+    }
+
+    /**
+     * Traduce el vocabulario canónico al espejo legacy (claves históricas).
+     *
+     * @param  array<string, int>  $canonicas
+     * @return array<string, int>
+     */
+    private static function espejoLegacyModalidades(string $slug, array $canonicas): array
+    {
+        $mapa = self::ESPEJO_MODALIDADES[$slug] ?? [];
+
+        $espejo = [];
+        foreach ($canonicas as $clave => $valor) {
+            $espejo[$mapa[$clave] ?? $clave] = $valor;
+        }
+
+        return $espejo;
     }
 }
