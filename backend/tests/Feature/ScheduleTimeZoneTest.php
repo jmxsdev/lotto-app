@@ -140,4 +140,44 @@ class ScheduleTimeZoneTest extends TestCase
 
         $this->assertCount(4, $eventos, '4 juegos compartiendo el feed animalitos deben registrar 4 pasadas de fuente, no 16 (una por juego).');
     }
+
+    public function test_el_sweep_de_reconciliacion_se_registra_cada_15_minutos(): void
+    {
+        $juego = $this->crearJuego('lotto-activo', 'https://www.lottoactivo.com/resultados/animalitos/');
+
+        JuegoHorario::create([
+            'juego_id' => $juego->id,
+            'hora' => '08:00:00',
+            'active' => true,
+        ]);
+
+        $provider = new ScheduleServiceProvider($this->app);
+        $provider->boot();
+
+        $evento = collect(Schedule::events())
+            ->first(fn ($event) => $event->description === 'reconciliar_resultados');
+
+        $this->assertNotNull($evento, 'El sweep de reconciliación debe estar registrado en la agenda.');
+        $this->assertSame('*/15 * * * *', $evento->expression, 'El sweep debe correr cada 15 minutos.');
+    }
+
+    public function test_el_cierre_de_dia_se_registra_a_las_23_45(): void
+    {
+        $juego = $this->crearJuego('lotto-activo', 'https://www.lottoactivo.com/resultados/animalitos/');
+
+        JuegoHorario::create([
+            'juego_id' => $juego->id,
+            'hora' => '23:00:00',
+            'active' => true,
+        ]);
+
+        $provider = new ScheduleServiceProvider($this->app);
+        $provider->boot();
+
+        $evento = collect(Schedule::events())
+            ->first(fn ($event) => $event->description === 'reconciliar_resultados_cierre');
+
+        $this->assertNotNull($evento, 'El cierre de día debe estar registrado en la agenda.');
+        $this->assertSame('45 23 * * *', $evento->expression, 'El cierre de día debe correr a las 23:45.');
+    }
 }

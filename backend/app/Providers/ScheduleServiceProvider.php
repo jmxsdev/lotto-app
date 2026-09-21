@@ -53,5 +53,18 @@ class ScheduleServiceProvider extends ServiceProvider
 
             Log::info("Schedule registrado para la fuente {$fuente->key}: {$horas->count()} horas x 4 pasadas");
         }
+
+        // Sweep de reconciliación: cada 15 min rescata solo fuentes con sorteos
+        // esperados-faltantes (juego_horarios vs resultados). Cierre de día 23:45:
+        // gracia 0 + ventana de día completo cubre huecos de cadencia dispersa.
+        Schedule::command('resultados:reconciliar')
+            ->everyFifteenMinutes()
+            ->name('reconciliar_resultados')
+            ->withoutOverlapping(10);
+
+        Schedule::command('resultados:reconciliar --day-close')
+            ->dailyAt('23:45')
+            ->name('reconciliar_resultados_cierre')
+            ->withoutOverlapping(30);
     }
 }
