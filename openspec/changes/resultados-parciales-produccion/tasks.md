@@ -36,18 +36,18 @@ Chain strategy: pending
 - [x] 1.5 REFACTOR — modificar `backend/app/Jobs/ScrapeResultsJob.php`: delegar `resolveScraper`/`instantiateScraper` a `ScraperSourceResolver::scraperFor(Juego)`; actualizar `ScrapeResultsJobTest`/`ScraperResolverTest` → verde.
 - [x] 1.6 RED — ampliar `backend/tests/Feature/ScheduleTimeZoneTest.php`: pasadas `scrape_{key}_{H:i}` `+15/+30/+45` (expresiones `15 8 * * *`, `30 8 * * *`, `45 8 * * *`), nombradas por fuente. RED.
 - [x] 1.7 GREEN — modificar `backend/app/Providers/ScheduleServiceProvider.php`: registrar por fuente y hora pasadas `hora/+15/+30/+45` con `withoutOverlapping(5)`. GREEN.
-- [x] 1.8 RED — crear `backend/tests/Feature/ResultadoControllerScrapeAllTest.php`: `scrape-all` sin `juego_id` despacha 1 job por fuente (≈38, no 50) y respuesta JSON intacta. RED.
+- [x] 1.8 RED — crear `backend/tests/Feature/ResultadoControllerScrapeAllTest.php`: `scrape-all` sin `juego_id` despacha 1 job por fuente y respuesta JSON intacta. RED. (Nota: la estimación "≈38, no 50" del design refiere a producción; el seed local tiene 21 juegos con `requires_scraper` → 18 fuentes, verificado en slice 1.)
 - [x] 1.9 GREEN — modificar `backend/app/Http/Controllers/Api/ResultadoController.php`: `scrapeAll`/`scrape` sin `juego_id` agrupan por fuente (`ScrapeSourceJob`), respuesta intacta. GREEN.
 - [x] 1.10 — `php artisan test` completo + `vendor/bin/pint` (Pint enforced en CI) → verde y limpio.
 
 ## Slice 2: Sweep (`resultados:reconciliar` + day-close)
 
-- [ ] 2.1 RED — crear `backend/tests/Feature/ReconciliarSorteosCommandTest.php` (`Bus::fake`): solo faltantes (`juego_horarios` hora ≤ now−gracia vs `resultados` hoy); respeta `--grace/--window/--max-sources`; cap 20; `--day-close` = gracia 0 + ventana día completo; día sano = 0 despachos. RED.
-- [ ] 2.2 GREEN — crear `backend/app/Services/DrawReconciliationService.php` (`missingByJuego(fecha, graceMin, windowMin)`). GREEN.
-- [ ] 2.3 GREEN — crear `backend/app/Console/Commands/ReconciliarSorteos.php` (`resultados:reconciliar`, flags `--grace=50 --window=180 --max-sources=20 --day-close --dry-run --force`), despacha `ScrapeSourceJob` por fuente faltante. GREEN.
-- [ ] 2.4 RED — ampliar `ScheduleTimeZoneTest`: comandos `reconciliar_resultados` (cada 15 min) y `reconciliar_resultados_cierre` (23:45). RED.
-- [ ] 2.5 GREEN — modificar `ScheduleServiceProvider`: sweep cada 15 min (`withoutOverlapping(10)`) y cierre 23:45 (`withoutOverlapping(30)`), solo consola. GREEN.
-- [ ] 2.6 — `php artisan test` + `vendor/bin/pint`.
+- [x] 2.1 RED — crear `backend/tests/Feature/ReconciliarSorteosCommandTest.php` (`Bus::fake`): solo faltantes (`juego_horarios` hora ≤ now−gracia vs `resultados` hoy); respeta `--grace/--window/--max-sources`; cap 20; `--day-close` = gracia 0 + ventana día completo; día sano = 0 despachos. RED.
+- [x] 2.2 GREEN — crear `backend/app/Services/DrawReconciliationService.php` (`missingByJuego(fecha, graceMin, windowMin)`). GREEN.
+- [x] 2.3 GREEN — crear `backend/app/Console/Commands/ReconciliarSorteos.php` (`resultados:reconciliar`, flags `--grace=50 --window=180 --max-sources=20 --day-close --dry-run --force`), despacha `ScrapeSourceJob` por fuente faltante. GREEN.
+- [x] 2.4 RED — ampliar `ScheduleTimeZoneTest`: comandos `reconciliar_resultados` (cada 15 min) y `reconciliar_resultados_cierre` (23:45). RED.
+- [x] 2.5 GREEN — modificar `ScheduleServiceProvider`: sweep cada 15 min (`withoutOverlapping(10)`) y cierre 23:45 (`withoutOverlapping(30)`), solo consola. GREEN.
+- [x] 2.6 — `php artisan test` + `vendor/bin/pint`.
 
 ## Slice 3: Servicio `scheduler` (compose + entrypoint + docs + rollout)
 
