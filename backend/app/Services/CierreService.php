@@ -338,6 +338,11 @@ class CierreService
      * fusionado, ventana cubierta (min/max fecha_fin) y los diarios incluidos
      * ordenados por fecha_fin asc.
      *
+     * `cierres[]` expone el shape completo de cada diario (AD-12, Q3):
+     * totales por moneda, arqueo, faltante/sobrante, desglose por método y
+     * tasa del cierre, para listar e imprimir el reporte por rango. Los
+     * totales agregados y `ventana_cubierta` no cambian.
+     *
      * Semana sin diarios: totales en 0, arqueo/faltante null, ventana cubierta
      * {null, null, 0} y cierres [].
      *
@@ -417,7 +422,18 @@ class CierreService
                 'fecha_inicio' => $cierre->fecha_inicio,
                 'fecha_fin' => $cierre->fecha_fin,
                 'total_ventas_bs' => $cierre->total_ventas_bs,
+                'total_ventas_usd' => $cierre->total_ventas_usd,
+                'total_ventas_bs_equivalent' => $cierre->total_ventas_bs_equivalent,
+                'total_egresos_bs' => $cierre->total_egresos_bs,
+                'total_egresos_usd' => $cierre->total_egresos_usd,
                 'total_efectivo_bs' => $cierre->total_efectivo_bs,
+                'total_efectivo_usd' => $cierre->total_efectivo_usd,
+                'arqueo_efectivo_bs' => $cierre->arqueo_efectivo_bs,
+                'arqueo_efectivo_usd' => $cierre->arqueo_efectivo_usd,
+                'faltante_sobrante_bs' => $cierre->faltante_sobrante_bs,
+                'faltante_sobrante_usd' => $cierre->faltante_sobrante_usd,
+                'desglose_metodos' => $cierre->desglose_metodos,
+                'exchange_rate_cierre' => $cierre->exchange_rate_cierre,
             ])->all(),
         ];
     }

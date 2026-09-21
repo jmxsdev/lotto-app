@@ -1038,6 +1038,111 @@ class CierreCajaTest extends TestCase
         $this->assertEquals(150.0, (float) $response->json('total_ventas_bs'));
     }
 
+    public function test_semanal_cierres_incluye_shape_completo()
+    {
+        $taquilla = $this->taquillaSeeded();
+
+        // Dos diarios en el rango con shape completo (desglose, arqueo, faltante)
+        $this->crearCierre($taquilla, [
+            'fecha_inicio' => Carbon::create(2026, 8, 10, 8, 0, 0),
+            'fecha_fin' => Carbon::create(2026, 8, 10, 20, 0, 0),
+            'total_ventas_bs' => 1500,
+            'total_ventas_usd' => 30,
+            'total_ventas_bs_equivalent' => 2595,
+            'total_egresos_bs' => 40,
+            'total_egresos_usd' => 3,
+            'total_efectivo_bs' => 1460,
+            'total_efectivo_usd' => 27,
+            'arqueo_efectivo_bs' => 1450,
+            'arqueo_efectivo_usd' => 30,
+            'faltante_sobrante_bs' => -10,
+            'faltante_sobrante_usd' => 3,
+            'desglose_metodos' => $this->desgloseDiaEfectivo(1500, 40, 30),
+        ]);
+        $this->crearCierre($taquilla, [
+            'fecha_inicio' => Carbon::create(2026, 8, 11, 8, 0, 0),
+            'fecha_fin' => Carbon::create(2026, 8, 11, 20, 0, 0),
+            'total_ventas_bs' => 500,
+            'total_ventas_usd' => 0,
+            'total_ventas_bs_equivalent' => 500,
+            'total_egresos_bs' => 0,
+            'total_egresos_usd' => 0,
+            'total_efectivo_bs' => 500,
+            'total_efectivo_usd' => 0,
+            'arqueo_efectivo_bs' => null,
+            'arqueo_efectivo_usd' => null,
+            'faltante_sobrante_bs' => null,
+            'faltante_sobrante_usd' => null,
+            'desglose_metodos' => $this->desgloseDiaEfectivo(500, 0, 0),
+        ]);
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->getJson('/api/v1/cierre/semanal?fecha_desde=2026-08-10&fecha_hasta=2026-08-11');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('ventana_cubierta.cierres_incluidos', 2);
+
+        $cierres = $response->json('cierres');
+        $this->assertCount(2, $cierres);
+
+        // Shape exacto por cierre (AD-12): desglose, arqueo, faltante, tasa
+        $this->assertEquals([
+            'id', 'taquilla_id', 'fecha_inicio', 'fecha_fin',
+            'total_ventas_bs', 'total_ventas_usd', 'total_ventas_bs_equivalent',
+            'total_egresos_bs', 'total_egresos_usd',
+            'total_efectivo_bs', 'total_efectivo_usd',
+            'arqueo_efectivo_bs', 'arqueo_efectivo_usd',
+            'faltante_sobrante_bs', 'faltante_sobrante_usd',
+            'desglose_metodos', 'exchange_rate_cierre',
+        ], array_keys($cierres[0]));
+
+        // Primer cierre: totales por moneda, arqueo, faltante y desglose
+        $primero = $cierres[0];
+        $this->assertEquals($taquilla->id, $primero['taquilla_id']);
+        $this->assertEquals(1500.0, (float) $primero['total_ventas_bs']);
+        $this->assertEquals(30.0, (float) $primero['total_ventas_usd']);
+        $this->assertEquals(2595.0, (float) $primero['total_ventas_bs_equivalent']);
+        $this->assertEquals(40.0, (float) $primero['total_egresos_bs']);
+        $this->assertEquals(3.0, (float) $primero['total_egresos_usd']);
+        $this->assertEquals(1460.0, (float) $primero['total_efectivo_bs']);
+        $this->assertEquals(27.0, (float) $primero['total_efectivo_usd']);
+        $this->assertEquals(1450.0, (float) $primero['arqueo_efectivo_bs']);
+        $this->assertEquals(30.0, (float) $primero['arqueo_efectivo_usd']);
+        $this->assertEquals(-10.0, (float) $primero['faltante_sobrante_bs']);
+        $this->assertEquals(3.0, (float) $primero['faltante_sobrante_usd']);
+        $this->assertEquals(1500.0, (float) $primero['desglose_metodos']['bs']['efectivo']['ventas']);
+        $this->assertEquals(40.0, (float) $primero['desglose_metodos']['bs']['efectivo']['egresos']);
+        $this->assertEquals(1460.0, (float) $primero['desglose_metodos']['bs']['efectivo']['efectivo']);
+        $this->assertEquals(30.0, (float) $primero['desglose_metodos']['usd']['efectivo']['ventas']);
+        $this->assertEquals(36.5, (float) $primero['exchange_rate_cierre']);
+
+        // Segundo cierre sin arqueo: arqueo y faltante null
+        $segundo = $cierres[1];
+        $this->assertEquals(500.0, (float) $segundo['total_ventas_bs']);
+        $this->assertEquals(500.0, (float) $segundo['total_efectivo_bs']);
+        $this->assertNull($segundo['arqueo_efectivo_bs']);
+        $this->assertNull($segundo['arqueo_efectivo_usd']);
+        $this->assertNull($segundo['faltante_sobrante_bs']);
+        $this->assertNull($segundo['faltante_sobrante_usd']);
+
+        // Regresión: totales agregados y ventana_cubierta sin cambios
+        $this->assertEquals(2000.0, (float) $response->json('total_ventas_bs'));
+        $this->assertEquals(30.0, (float) $response->json('total_ventas_usd'));
+        $this->assertEquals(3095.0, (float) $response->json('total_ventas_bs_equivalent'));
+        $this->assertEquals(40.0, (float) $response->json('total_egresos_bs'));
+        $this->assertEquals(3.0, (float) $response->json('total_egresos_usd'));
+        $this->assertEquals(1960.0, (float) $response->json('total_efectivo_bs'));
+        $this->assertEquals(27.0, (float) $response->json('total_efectivo_usd'));
+        $this->assertEquals(1450.0, (float) $response->json('arqueo_efectivo_bs'));
+        $this->assertEquals(30.0, (float) $response->json('arqueo_efectivo_usd'));
+        $this->assertEquals(-10.0, (float) $response->json('faltante_sobrante_bs'));
+        $this->assertEquals(3.0, (float) $response->json('faltante_sobrante_usd'));
+
+        $ventana = $response->json('ventana_cubierta');
+        $this->assertEquals('2026-08-10 20:00', $this->fechaJson($ventana['desde'])->format('Y-m-d H:i'));
+        $this->assertEquals('2026-08-11 20:00', $this->fechaJson($ventana['hasta'])->format('Y-m-d H:i'));
+    }
+
     public function test_semanal_fecha_y_rango_son_mutuamente_excluyentes()
     {
         $response = $this->actingAs($this->superUser(), 'sanctum')
