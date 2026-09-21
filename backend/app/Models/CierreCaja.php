@@ -20,11 +20,13 @@ class CierreCaja extends Model
         'faltante_sobrante_bs', 'faltante_sobrante_usd',
         'desglose_metodos',
         'exchange_rate_cierre', 'created_by',
+        'reclosed_by', 'reclosed_at',
     ];
 
     protected $casts = [
         'fecha_inicio' => 'datetime',
         'fecha_fin' => 'datetime',
+        'reclosed_at' => 'datetime',
         'total_ventas_bs' => 'decimal:2',
         'total_ventas_usd' => 'decimal:2',
         'total_ventas_bs_equivalent' => 'decimal:2',
