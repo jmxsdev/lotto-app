@@ -2036,17 +2036,21 @@ import MainLayout from '../layouts/MainLayout.astro';
       if (!el) return;
       zonaActual = zona;
       sincronizarTabindex(zona);
-      // FIX-2 (KB-01): al entrar en la zona Horarios el foco cae en el PRIMER
-      // ítem visible (.horario-item), no en el contenedor — así Space/Enter
-      // togglean directo (KB-05) en vez de ser un no-op silencioso. Los
-      // ítems expirados (extras al final) no roban el foco inicial.
-      if (zona === 'horarios') {
-        const items = itemsDeZona('horarios');
-        const objetivo = items.find((i) => !i.classList.contains('expirado')) ?? items[0];
-        if (objetivo) {
-          objetivo.focus({ preventScroll: true });
-          return;
+      // FIX-2 generalizado (win-fixes2 FIX A, KB-01): al entrar en CUALQUIER
+      // zona con ítems focalizables (juegos, modalidad, selección, signo,
+      // horarios, resumen) el foco cae en el PRIMER ítem, no en el contenedor
+      // — así Space/Enter actúan directo (KB-05) y ↑/↓ navegan la lista desde
+      // el primer ítem. Horarios conserva su matiz: los ítems expirados
+      // (extras al final) no roban el foco inicial. Zonas sin ítems
+      // (numero/monto/anadir) caen al contenedor/input como siempre.
+      const items = itemsDeZona(zona);
+      if (items.length > 0) {
+        let objetivo = items[0];
+        if (zona === 'horarios') {
+          objetivo = items.find((i) => !i.classList.contains('expirado')) ?? items[0];
         }
+        objetivo.focus({ preventScroll: true });
+        return;
       }
       el.focus({ preventScroll: true });
     }
