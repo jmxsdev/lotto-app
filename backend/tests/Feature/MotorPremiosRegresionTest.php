@@ -239,15 +239,16 @@ class MotorPremiosRegresionTest extends TestCase
         );
     }
 
-    public function test_el_arrejuntado_triple_a_base_40x(): void
+    public function test_el_arrejuntado_triple_a_paga_600x(): void
     {
-        // §3.2: base 40× (el plugin de el-arrejuntado es Tripletas; la clave
-        // evaluable hoy es triple_a → base).
+        // §3.2: el-arrejuntado configura `triple_a`/`triple_b` a 600×; desde
+        // F2 el triple seco emite la clave del tipo apostado y el motor lee
+        // esa modalidad (ya no cae al base 40× como en F1d).
         $this->assertPremio(
             'el-arrejuntado',
             ['tipo' => 'triple_a', 'numero' => '894'],
             ['triple_a' => '894'],
-            40
+            600
         );
     }
 

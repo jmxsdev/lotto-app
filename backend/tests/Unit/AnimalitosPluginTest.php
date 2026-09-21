@@ -142,6 +142,28 @@ class AnimalitosPluginTest extends TestCase
         $this->assertSame('base', $this->plugin->modalidadDe(['animal' => 'gato', 'numero' => 11]));
     }
 
+    public function test_modalidad_de_tripleta_con_tres_selecciones_del_mismo_sorteo()
+    {
+        // F2/D8 §3.4: 3 animales del mismo sorteo → tripleta (Cazalotón 200×,
+        // Loto Chaima 50×). La Dupleta (2 animales, 2 sorteos) queda fuera.
+        $this->assertSame('tripleta', $this->plugin->modalidadDe([
+            'selecciones' => [
+                ['animal' => 'perro'],
+                ['animal' => 'gato'],
+                ['animal' => 'leon'],
+            ],
+        ]));
+    }
+
+    public function test_modalidad_de_base_con_menos_de_tres_selecciones()
+    {
+        // 2 selecciones no es tripleta ni dupleta soportada: cae a base como
+        // shape no reconocido (D8: la dupleta no se modela).
+        $this->assertSame('base', $this->plugin->modalidadDe([
+            'selecciones' => [['animal' => 'perro'], ['animal' => 'gato']],
+        ]));
+    }
+
     // ---------------- validarApuesta(): acentos en opciones (N2) ----------------
 
     public function test_validar_apuesta_acepta_label_acentuado_de_las_opciones()

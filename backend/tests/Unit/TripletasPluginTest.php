@@ -57,7 +57,9 @@ class TripletasPluginTest extends TestCase
         ]));
 
         $this->assertTrue($acierto['coincide']);
-        $this->assertSame('base', $acierto['clave']);
+        // F2: el triple seco emite la clave del TIPO apostado (el-arrejuntado
+        // `triple_b` 600×, §3.2); en el resto de juegos el engine cae al base.
+        $this->assertSame('triple_b', $acierto['clave']);
     }
 
     public function test_evaluar_acierto_compara_con_padding_a_3_cifras()
@@ -118,13 +120,72 @@ class TripletasPluginTest extends TestCase
         $this->assertFalse($acierto['coincide']);
     }
 
-    // ---------------- modalidadDe() ----------------
+    // ---------------- modalidadDe(): vocabulario canónico §3.1 ----------------
 
-    public function test_modalidad_de_deriva_la_clave_canonica_del_tipo()
+    public function test_modalidad_de_deriva_las_claves_de_los_triples()
     {
-        $this->assertSame('base', $this->plugin->modalidadDe(['tipo' => 'triple_a', 'numero' => '452']));
-        $this->assertSame('base', $this->plugin->modalidadDe(['tipo' => 'triple_b', 'numero' => '452']));
+        // F2: el triple seco deriva la clave del TIPO apostado (no 'base'):
+        // el-arrejuntado configura `triple_a`/`triple_b` a 600× (§3.2); en los
+        // demás juegos el motor cae al base por fallback (`?? base`).
+        $this->assertSame('triple_a', $this->plugin->modalidadDe(['tipo' => 'triple_a', 'numero' => '452']));
+        $this->assertSame('triple_b', $this->plugin->modalidadDe(['tipo' => 'triple_b', 'numero' => '452']));
         $this->assertSame('signo_triple', $this->plugin->modalidadDe(['tipo' => 'triple_c', 'numero' => '452', 'signo' => 'ESC']));
+    }
+
+    public function test_modalidad_de_deriva_las_posiciones_del_triple()
+    {
+        // §3.1: terminal (2 últimas), punta (2 primeras), uña (última) y
+        // aproximación (terminal ±1).
+        $this->assertSame('terminal', $this->plugin->modalidadDe(['tipo' => 'terminal', 'numero' => '52']));
+        $this->assertSame('punta', $this->plugin->modalidadDe(['tipo' => 'punta', 'numero' => '45']));
+        $this->assertSame('uña', $this->plugin->modalidadDe(['tipo' => 'uña', 'numero' => '2']));
+        $this->assertSame('aproximacion', $this->plugin->modalidadDe(['tipo' => 'aproximacion', 'numero' => '51']));
+    }
+
+    public function test_modalidad_de_deriva_las_claves_con_signo()
+    {
+        // §3.1: signo_terminal (terminal + signo), signo_uña (uña + signo) y
+        // signo_solo (signo sin número, 6× en Triple Chance).
+        $this->assertSame('signo_terminal', $this->plugin->modalidadDe(['tipo' => 'signo_terminal', 'numero' => '59', 'signo' => 'LEO']));
+        $this->assertSame('signo_uña', $this->plugin->modalidadDe(['tipo' => 'signo_uña', 'numero' => '9', 'signo' => 'LEO']));
+        $this->assertSame('signo_solo', $this->plugin->modalidadDe(['tipo' => 'signo_solo', 'signo' => 'LEO']));
+    }
+
+    public function test_modalidad_de_deriva_arrimao_y_pegadito_del_arrejuntado()
+    {
+        // §3.1: número exacto de 4 cifras (arrimao 6.000×) y 5 cifras
+        // (pegadito 60.000×) — claves que persiste el scraper (§3.2).
+        $this->assertSame('arrimao', $this->plugin->modalidadDe(['tipo' => 'arrimao', 'numero' => '1825']));
+        $this->assertSame('pegadito', $this->plugin->modalidadDe(['tipo' => 'pegadito', 'numero' => '10503']));
+    }
+
+    public function test_modalidad_de_deriva_multi_seleccion_same_draw()
+    {
+        // §3.4/D8: multi-selección del MISMO sorteo dentro de `selecciones[]`:
+        // Par Millonario A+B (dos triples) y Cruzado (dos puntas).
+        $this->assertSame('triple_a_b', $this->plugin->modalidadDe([
+            'selecciones' => [
+                ['tipo' => 'triple_a', 'numero' => '452'],
+                ['tipo' => 'triple_b', 'numero' => '310'],
+            ],
+        ]));
+        $this->assertSame('cruzado', $this->plugin->modalidadDe([
+            'selecciones' => [
+                ['tipo' => 'punta', 'numero' => '45'],
+                ['tipo' => 'punta', 'numero' => '14'],
+            ],
+        ]));
+    }
+
+    public function test_modalidad_de_nunca_deriva_dupleta()
+    {
+        // D8: la Dupleta queda FUERA de alcance; el plugin jamás emite esa
+        // clave (el rechazo lo fija el motor en premioPosible y el 0 en
+        // evaluarAcierto).
+        $this->assertNotSame('dupleta', $this->plugin->modalidadDe(['tipo' => 'dupleta', 'numero' => '452']));
+        $this->assertNotSame('dupleta', $this->plugin->modalidadDe([
+            'selecciones' => [['animal' => 'perro'], ['animal' => 'gato']],
+        ]));
     }
 
     // ---------------- validarApuesta(): signo label o sigla (REQ4/N2) ----------------
