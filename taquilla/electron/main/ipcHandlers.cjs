@@ -18,8 +18,13 @@ function generateTicketHtml(ticketData) {
     const totalBs = lines.reduce((s, l) => s + (l.amountBs || 0), 0);
     const totalUsd = lines.reduce((s, l) => s + (l.amountUsd || 0), 0);
 
+    // A7 (aditivo, retrocompatible): si alguna línea trae `sorteo`, se
+    // muestra la columna Hora; sin `sorteo` la plantilla queda como hoy.
+    const hasSorteo = lines.some(l => l.sorteo);
+    const horaTh = hasSorteo ? '<th>Hora</th>' : '';
+
     const rows = lines.map((l, i) =>
-        `<tr><td>${i + 1}.</td><td>${l.animal}</td><td>#${l.number}</td><td>Bs. ${(l.amountBs || 0).toFixed(2)}</td><td>$${(l.amountUsd || 0).toFixed(2)}</td></tr>`
+        `<tr><td>${i + 1}.</td><td>${l.animal}</td><td>#${l.number}</td>${hasSorteo ? `<td>${l.sorteo || ''}</td>` : ''}<td>Bs. ${(l.amountBs || 0).toFixed(2)}</td><td>$${(l.amountUsd || 0).toFixed(2)}</td></tr>`
     ).join('');
 
     return `
@@ -42,7 +47,7 @@ function generateTicketHtml(ticketData) {
             <p>Fecha: ${date} - ${time}</p>
             <hr>
             <table>
-                <thead><tr><th>#</th><th>Animal</th><th>N</th><th>BS</th><th>USD</th></tr></thead>
+                <thead><tr><th>#</th><th>Animal</th><th>N</th>${horaTh}<th>BS</th><th>USD</th></tr></thead>
                 <tbody>${rows}</tbody>
             </table>
             <hr>
