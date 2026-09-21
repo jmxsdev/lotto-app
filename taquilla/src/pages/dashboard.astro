@@ -454,6 +454,15 @@ import MainLayout from '../layouts/MainLayout.astro';
       font-weight: 500;
     }
 
+    /* Contexto de las tripletas numéricas (win-fixes2 FIX D): juego +
+       modalidades informativas y aclaración del padding 2→3 cifras. */
+    .modalidad-sub {
+      font-size: 11px;
+      color: #999;
+      font-weight: 400;
+      font-style: italic;
+    }
+
     .modalidad-grid {
       display: flex;
       gap: 6px;
@@ -1039,7 +1048,7 @@ import MainLayout from '../layouts/MainLayout.astro';
   <script>
     import { apiFetch } from '../utils/apiFetch';
     import { getFingerprint } from '../utils/device';
-    import { cargarCatalogo, buscarPorDigito, crearBuscadorDigitos, signoPorPosicion } from '../utils/catalogo';
+    import { cargarCatalogo, buscarPorDigito, crearBuscadorDigitos, signoPorPosicion, normalizarNumeroTriple } from '../utils/catalogo';
     import { buildZoneGraph, routeKey, zonaHorizontal, zonaPendienteSeleccion } from '../utils/keyboard';
     import { teclasLegend } from '../utils/keyboard';
     import { alternarHorario, marcarTodosVisibles, expandirLineas, horarioExpirado, filtrarHorariosFuturos, seleccionadosExpirados, agruparPorGroupId, indiceSeleccionTrasEliminar } from '../utils/horarios';
@@ -1323,10 +1332,22 @@ import MainLayout from '../layouts/MainLayout.astro';
     }
 
     // Numérica (100 opciones 00-99) y terminal (00-99): lista de 2 dígitos.
-    // Deferral aceptado: sin padding 05→005 (ver design/PR2).
+    // win-fixes2 FIX D: las tripletas numéricas (trio-activo, triple-facil) se
+    // juegan como TRIPLE del plugin Tripletas (número de 3 cifras en el POST,
+    // "05"→"005"); la UI aclara el juego y sus modalidades (punta/terminal,
+    // premios informativos del catálogo, A2) para no verse como una terminal
+    // genérica. El deferral del padding se cierra aquí.
     function renderOpcionesLista(juego) {
       const container = document.getElementById('seleccion-content');
-      let html = '<div class="modalidad-label">Seleccione el número (00-99):</div>';
+      let header = 'Seleccione el número (00-99):';
+      if (juego.familia === 'numerica') {
+        const premios = juego.modalidades
+          ? Object.entries(juego.modalidades).map(([k, v]) => k + ' ' + v + '×').join(' · ')
+          : '';
+        header = juego.nombre + (premios ? ' — ' + premios : '') +
+          '<br><span class="modalidad-sub">Jugada como triple de 3 cifras: "05" se apuesta como 005</span>';
+      }
+      let html = '<div class="modalidad-label">' + header + '</div>';
       html += '<div class="opciones-lista">';
       juego.opciones.forEach(op => {
         const sel = selectedOpcion && selectedOpcion.numero === op.numero ? ' selected' : '';
@@ -1646,8 +1667,13 @@ import MainLayout from '../layouts/MainLayout.astro';
         if (!tripleModalidad) { window.showModal({ message: 'Seleccione una modalidad (Triple A/B/C)', type: 'error' }); return; }
         if (tripleModalidad === 'triple_c' && !selectedSigno) { window.showModal({ message: 'Seleccione un signo (obligatorio para Triple C)', type: 'error' }); return; }
         if (!numero || numero.length !== 3) { window.showModal({ message: 'Ingrese un número de exactamente 3 cifras', type: 'error' }); return; }
-      } else if (familia === 'numerica' || familia === 'terminal') {
-        // Deferral aceptado: numérica sin padding 05→005; 2 cifras como terminal.
+      } else if (familia === 'numerica') {
+        // win-fixes2 FIX D: trio-activo/triple-facil ofrecen 00-99 pero el
+        // plugin Tripletas exige 3 dígitos (^\d{3}$). La selección de 1-3
+        // cifras se normaliza a 3 ("05"→"005") al armar la línea/POST.
+        if (!numero || !/^\d{1,3}$/.test(numero)) { window.showModal({ message: 'Ingrese un número de 1 a 3 cifras', type: 'error' }); return; }
+        numero = normalizarNumeroTriple(numero);
+      } else if (familia === 'terminal') {
         if (!numero || numero.length !== 2) { window.showModal({ message: 'Ingrese un número de exactamente 2 cifras', type: 'error' }); return; }
       } else {
         if (!selectedAnimal) { window.showModal({ message: 'Seleccione un animal', type: 'error' }); return; }

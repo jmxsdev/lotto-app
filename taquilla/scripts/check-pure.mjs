@@ -18,6 +18,7 @@ import {
   buscarPorDigito,
   crearBuscadorDigitos,
   signoPorPosicion,
+  normalizarNumeroTriple,
 } from '../src/utils/catalogo.ts';
 import { buildZoneGraph, routeKey, KEYMAP, esFKey, zonaHorizontal, zonaPendienteSeleccion } from '../src/utils/keyboard.ts';
 import { destinoNav, NAV_GLOBAL, teclasLegend } from '../src/utils/keyboard.ts';
@@ -569,6 +570,24 @@ r = routeKey(est({ zonaActual: 'signo', tecla: '5', focoEditable: true }));
 ok(!r.consume, 'dígito en INPUT dentro de Signo → pasa (typing nativo, A1)');
 r = routeKey(est({ zonaActual: 'signo', tecla: '5', modalAbierto: true }));
 ok(!r.consume, 'dígito con modal abierto → pasa (guarda KB-08)');
+
+console.log('\n== win-fixes2 FIX D: tripletas numéricas normalizadas a 3 cifras ==');
+ok(normalizarNumeroTriple('05') === '005', '"05" → "005" (padding del plugin Tripletas)');
+ok(normalizarNumeroTriple('5') === '005', '"5" → "005" (1 cifra)');
+ok(normalizarNumeroTriple('005') === '005', '"005" → "005" (ya 3 cifras, sin tocar)');
+ok(normalizarNumeroTriple('00') === '000', '"00" → "000"');
+ok(normalizarNumeroTriple('0') === '000', '"0" → "000"');
+ok(normalizarNumeroTriple('999') === '999', '"999" → "999" (máximo)');
+ok(normalizarNumeroTriple('') === null, 'vacío → null');
+ok(normalizarNumeroTriple('abc') === null, 'no numérico → null');
+ok(normalizarNumeroTriple('1234') === null, '4 cifras → null (fuera del rango del plugin)');
+ok(normalizarNumeroTriple(' 05 ') === '005', 'con espacios alrededor se recorta');
+// Coherencia con el catálogo: trio-activo/triple-facil son numérica 00-99
+// (el plugin Tripletas valida 3 cifras, Tripletas.php:36-47).
+const trioNum = catalogo.porSlug.get('trio-activo');
+ok(trioNum.familia === 'numerica', 'trio-activo sigue siendo numérica (100 opciones)');
+ok(trioNum.modalidades && trioNum.modalidades.punta === 60 && trioNum.modalidades.terminal === 60, 'trio-activo: premios informativos punta/terminal 60× (A2)');
+ok(normalizarNumeroTriple(trioNum.opciones[5].label) === '005', `opción label "05" → "005" (${trioNum.opciones[5].label})`);
 
 console.log('\n== win-fixes FIX-6: navegación global F7/F8/F10 y Alt+D ==');
 ok(NAV_GLOBAL.length === 4, `NAV_GLOBAL: 4 destinos (${NAV_GLOBAL.length})`);

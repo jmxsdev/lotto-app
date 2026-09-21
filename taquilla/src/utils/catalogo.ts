@@ -215,6 +215,18 @@ export function siglaDeSigno(juego: JuegoCatalogo, label: string): string | null
 }
 
 /**
+ * Número de tripleta numérica normalizado a 3 dígitos (win-fixes2 FIX D):
+ * trio-activo/triple-facil ofrecen 100 opciones 00-99 pero el plugin
+ * Tripletas valida `^\d{3}$` (Tripletas.php:36-47). La selección de 1-3
+ * cifras se expande a 3 ("05"→"005"); null si no son dígitos (1-3).
+ */
+export function normalizarNumeroTriple(digitos: string): string | null {
+  const limpio = String(digitos ?? '').trim();
+  if (!/^\d{1,3}$/.test(limpio)) return null;
+  return limpio.padStart(3, '0');
+}
+
+/**
  * Búsqueda por dígito (REQ-KB-06, REQ-CL-03): devuelve TODAS las coincidencias
  * exactas (Ballena/Delfín comparten numero 0) para el buffer de dígitos ya
  * confirmado. Terminal "05" matchea label y clave numérica → numero 5.
