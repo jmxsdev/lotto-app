@@ -3,10 +3,14 @@
 namespace App\Services;
 
 use App\Models\Apuesta;
+use App\Models\Banca;
 use App\Models\CierreCaja;
 use App\Models\ExchangeRate;
 use App\Models\Pago;
+use App\Models\Taquilla;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class CierreService
 {
@@ -62,6 +66,56 @@ class CierreService
                 'created_by' => $userId,
             ]);
         });
+    }
+
+    /**
+     * Validar la clave de cierre contra la cadena jerárquica de la taquilla
+     * (AD-7): (1) usuarios role=banca con banca_id = banca del grupo de la
+     * taquilla; (2) el usuario role=master con id = Banca.master_id de esa
+     * banca; (3) todos los role=super_master. Solo cuentan los candidatos
+     * con clave configurada (whereNotNull) y la clave se verifica con
+     * Hash::check en OR. La clave nunca se persiste ni se expone.
+     *
+     * @throws \RuntimeException si la taquilla no existe, ningún candidato
+     *                           tiene clave configurada o ninguna coincide
+     */
+    public function validarClaveCierre(int $taquillaId, string $clave): void
+    {
+        $taquilla = Taquilla::find($taquillaId);
+
+        if (! $taquilla) {
+            throw new \RuntimeException('Taquilla no encontrada.');
+        }
+
+        $bancaId = $taquilla->grupo?->banca_id;
+        $masterId = $bancaId !== null ? Banca::find($bancaId)?->master_id : null;
+
+        $candidatos = User::query()
+            ->where(function ($query) use ($bancaId, $masterId) {
+                if ($bancaId !== null) {
+                    $query->orWhere(fn ($q) => $q->where('role', 'banca')->where('banca_id', $bancaId));
+                }
+
+                if ($masterId !== null) {
+                    $query->orWhere(fn ($q) => $q->where('id', $masterId)->where('role', 'master'));
+                }
+
+                $query->orWhere('role', 'super_master');
+            })
+            ->whereNotNull('clave_cierre')
+            ->get();
+
+        if ($candidatos->isEmpty()) {
+            throw new \RuntimeException('No hay una clave de cierre configurada para esta taquilla.');
+        }
+
+        foreach ($candidatos as $candidato) {
+            if (Hash::check($clave, $candidato->clave_cierre)) {
+                return;
+            }
+        }
+
+        throw new \RuntimeException('Clave de cierre incorrecta.');
     }
 
     /**

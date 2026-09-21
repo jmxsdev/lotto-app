@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\ApuestaController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BancaController;
 use App\Http\Controllers\Api\CierreController;
+use App\Http\Controllers\Api\ClaveCierreController;
 use App\Http\Controllers\Api\DispositivoController;
 use App\Http\Controllers\Api\EstadisticaController;
 use App\Http\Controllers\Api\ExchangeRateController;
@@ -44,6 +45,14 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/user', [AuthController::class, 'user']);
         Route::post('/logout', [AuthController::class, 'logout']);
+
+        // Self-service de la clave de cierre (AD-9): sirve al PANEL, sin
+        // headers de dispositivo; fuera de verify.mac como /user y /logout.
+        // Roles elegibles super_master|master|banca; otros roles → 403.
+        Route::middleware(['role:super_master|master|banca'])->group(function () {
+            Route::get('/usuarios/clave-cierre', [ClaveCierreController::class, 'show']);
+            Route::put('/usuarios/clave-cierre', [ClaveCierreController::class, 'update']);
+        });
     });
 
     // Rutas protegidas con Sanctum + verificación MAC
