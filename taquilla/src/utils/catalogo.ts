@@ -189,6 +189,32 @@ function claveNumerica(opcion: OpcionCatalogo, familia: FamiliaOpciones): string
 }
 
 /**
+ * Signo zodiacal por POSICIÓN 1-12 (win-fixes2 FIX B): con triple_c activo los
+ * dígitos 1-12 seleccionan el signo correspondiente (el índice se muestra en
+ * cada botón). Solo aplica a la familia zodiacal; fuera de rango (0, >12, no
+ * numérico) devuelve null. La posición es el índice en `juego.opciones` + 1,
+ * que replica el orden del plugin Tripletas (ARI..PIS, Tripletas.php:10-13).
+ */
+export function signoPorPosicion(juego: JuegoCatalogo, digitos: string): OpcionCatalogo | null {
+  if (juego.familia !== 'zodiacal') return null;
+  if (!/^\d{1,2}$/.test(digitos)) return null;
+  const posicion = parseInt(digitos, 10);
+  if (posicion < 1 || posicion > 12) return null;
+  return juego.opciones[posicion - 1] ?? null;
+}
+
+/**
+ * Sigla (value) del signo zodiacal por su label (win-fixes2 FIX E): el
+ * backend Tripletas.php valida `strtoupper($signo) ∈ siglas` (ARI, TAU, …), NO
+ * el label ("Sagitario"). null si el label no existe o no es zodiacal.
+ */
+export function siglaDeSigno(juego: JuegoCatalogo, label: string): string | null {
+  if (juego.familia !== 'zodiacal') return null;
+  const opcion = juego.opciones.find((o) => o.label === label);
+  return opcion ? opcion.value : null;
+}
+
+/**
  * Búsqueda por dígito (REQ-KB-06, REQ-CL-03): devuelve TODAS las coincidencias
  * exactas (Ballena/Delfín comparten numero 0) para el buffer de dígitos ya
  * confirmado. Terminal "05" matchea label y clave numérica → numero 5.

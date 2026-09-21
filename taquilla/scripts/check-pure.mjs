@@ -17,6 +17,7 @@ import {
   saltarPorLetra,
   buscarPorDigito,
   crearBuscadorDigitos,
+  signoPorPosicion,
 } from '../src/utils/catalogo.ts';
 import { buildZoneGraph, routeKey, KEYMAP, esFKey, zonaHorizontal, zonaPendienteSeleccion } from '../src/utils/keyboard.ts';
 import { destinoNav, NAV_GLOBAL, teclasLegend } from '../src/utils/keyboard.ts';
@@ -534,6 +535,29 @@ ok(!r.consume, 'dígito fuera de seleccion → pasa');
 r = routeKey(est({ zonaActual: 'seleccion', tecla: '5', focoEditable: true }));
 ok(!r.consume, 'dígito en INPUT → pasa (typing nativo, A1)');
 r = routeKey(est({ zonaActual: 'seleccion', tecla: '5', modalAbierto: true }));
+ok(!r.consume, 'dígito con modal abierto → pasa (guarda KB-08)');
+
+console.log('\n== win-fixes2 FIX B: dígitos 1-12 → signo por posición (zodiacal) ==');
+const zuliaSignos = catalogo.porSlug.get('triple-zulia');
+ok(signoPorPosicion(zuliaSignos, '1')?.label === 'Aries', 'dígito 1 → Aries (posición 1)');
+ok(signoPorPosicion(zuliaSignos, '9')?.value === 'SAG', 'dígito 9 → Sagitario (sigla SAG)');
+ok(signoPorPosicion(zuliaSignos, '10')?.label === 'Capricornio', 'dígito 10 → Capricornio (posición 10)');
+ok(signoPorPosicion(zuliaSignos, '12')?.value === 'PIS', 'dígito 12 → Piscis (sigla PIS)');
+ok(signoPorPosicion(zuliaSignos, '0') === null, 'dígito 0 → null (fuera de 1-12)');
+ok(signoPorPosicion(zuliaSignos, '13') === null, 'dígito 13 → null (fuera de 1-12)');
+ok(signoPorPosicion(zuliaSignos, 'abc') === null, 'no numérico → null');
+ok(signoPorPosicion(zuliaSignos, '') === null, 'buffer vacío → null');
+ok(signoPorPosicion(lottoActivo, '5') === null, 'familia no zodiacal → null');
+ok(zuliaSignos.opciones.length === 12, 'los 12 signos siguen presentes (posición = índice + 1)');
+r = routeKey(est({ zonaActual: 'signo', tecla: '5' }));
+ok(r.consume && r.tipo === 'digito' && r.digito === '5', 'dígito en zona Signo → decisión digito (FIX B)');
+r = routeKey(est({ zonaActual: 'signo', tecla: '1' }));
+ok(r.consume && r.tipo === 'digito' && r.digito === '1', 'dígito 1 en zona Signo → digito');
+r = routeKey(est({ zonaActual: 'signo', tecla: 'a' }));
+ok(!r.consume, 'letra en zona Signo → pasa (no es dígito)');
+r = routeKey(est({ zonaActual: 'signo', tecla: '5', focoEditable: true }));
+ok(!r.consume, 'dígito en INPUT dentro de Signo → pasa (typing nativo, A1)');
+r = routeKey(est({ zonaActual: 'signo', tecla: '5', modalAbierto: true }));
 ok(!r.consume, 'dígito con modal abierto → pasa (guarda KB-08)');
 
 console.log('\n== win-fixes FIX-6: navegación global F7/F8/F10 y Alt+D ==');

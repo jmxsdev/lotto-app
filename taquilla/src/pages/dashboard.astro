@@ -715,6 +715,26 @@ import MainLayout from '../layouts/MainLayout.astro';
       color: #1e40af;
     }
 
+    /* Índice discreto 1-12 de cada signo (win-fixes2 FIX B): permite
+       seleccionar el signo por posición con los dígitos 1-12 del teclado. */
+    .signo-idx {
+      display: inline-block;
+      min-width: 14px;
+      margin-right: 5px;
+      padding: 0 3px;
+      border-radius: 4px;
+      background: #eef2ff;
+      color: #667eea;
+      font-size: 10px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .signo-btn.selected .signo-idx {
+      background: #bfdbfe;
+      color: #1e40af;
+    }
+
     .signo-label {
       font-size: 12px;
       color: #666;
@@ -1019,7 +1039,7 @@ import MainLayout from '../layouts/MainLayout.astro';
   <script>
     import { apiFetch } from '../utils/apiFetch';
     import { getFingerprint } from '../utils/device';
-    import { cargarCatalogo, buscarPorDigito, crearBuscadorDigitos } from '../utils/catalogo';
+    import { cargarCatalogo, buscarPorDigito, crearBuscadorDigitos, signoPorPosicion } from '../utils/catalogo';
     import { buildZoneGraph, routeKey, zonaHorizontal, zonaPendienteSeleccion } from '../utils/keyboard';
     import { teclasLegend } from '../utils/keyboard';
     import { alternarHorario, marcarTodosVisibles, expandirLineas, horarioExpirado, filtrarHorariosFuturos, seleccionadosExpirados, agruparPorGroupId, indiceSeleccionTrasEliminar } from '../utils/horarios';
@@ -1341,9 +1361,12 @@ import MainLayout from '../layouts/MainLayout.astro';
       if (!signos || signos.length === 0) return;
       let html = '<div class="signo-label">Seleccione signo (obligatorio):</div>';
       html += '<div class="signos-grid">';
-      signos.forEach(s => {
+      signos.forEach((s, i) => {
         const sel = selectedSigno && selectedSigno.value === s.value ? ' selected' : '';
-        html += '<button class="signo-btn' + sel + '" data-value="' + s.value + '" data-label="' + s.label + '" tabindex="-1">' + s.label + '</button>';
+        // win-fixes2 FIX B: índice 1-12 visible en cada botón — los dígitos
+        // del teclado (zona signo) seleccionan el signo por posición.
+        html += '<button class="signo-btn' + sel + '" data-value="' + s.value + '" data-label="' + s.label + '" tabindex="-1">' +
+          '<span class="signo-idx">' + (i + 1) + '</span>' + s.label + '</button>';
       });
       html += '</div>';
       container.innerHTML = html;
@@ -2152,6 +2175,11 @@ import MainLayout from '../layouts/MainLayout.astro';
     // Numérica/terminal/zodiacal → salto a la zona Número con el dígito
     // precargado (2/3 cifras); el resto se teclea nativo en el input.
     let buscadorDigitos = null;
+    // Buffer de dígitos de la zona Signo (win-fixes2 FIX B): acumula 1-2
+    // dígitos y al confirmar (inactividad 700 ms / Enter) selecciona el signo
+    // zodiacal por posición 1-12 (signoPorPosicion). Mismo motor que el
+    // buscador de animales (crearBuscadorDigitos).
+    let buscadorSignos = null;
 
     function aplicarCoincidenciasAnimales(coincidencias) {
       if (coincidencias.length === 0) return;
@@ -2170,6 +2198,29 @@ import MainLayout from '../layouts/MainLayout.astro';
       updateColumnMode();
     }
 
+    // win-fixes2 FIX B: dígitos 1-12 → signo por posición (zodiacal triple_c).
+    // El buffer se reinicia tras seleccionar; un índice fuera de 1-12 se
+    // descarta (no-op) y el buffer vuelve a cero para el siguiente intento.
+    function aplicarSignoPorPosicion(buffer) {
+      const juego = juegoActivo();
+      if (!juego || juego.familia !== 'zodiacal') return;
+      const signo = signoPorPosicion(juego, buffer);
+      if (!signo) {
+        buscadorSignos?.limpiar();
+        return;
+      }
+      selectedSigno = { value: signo.value, label: signo.label };
+      renderSignosForModalidad();
+      const btn = document.querySelector('#signos-triple-container .signo-btn[data-value="' + signo.value + '"]');
+      if (btn) {
+        btn.focus();
+        btn.scrollIntoView({ block: 'nearest' });
+      }
+      buscadorSignos?.limpiar();
+      renderLegend();
+      updateColumnMode();
+    }
+
     function manejarDigitoEnSeleccion(digito) {
       const juego = juegoActivo();
       if (!juego) return;
@@ -2182,8 +2233,21 @@ import MainLayout from '../layouts/MainLayout.astro';
         buscadorDigitos.teclear(digito);
         return;
       }
-      // numérica/terminal/zodiacal: salta a Número y precarga el dígito
-      // (2 cifras numérica/terminal, 3 zodiacal); el resto se escribe nativo.
+      // win-fixes2 FIX B: zodiacal con triple_c (la zona signo está visible)
+      // → los dígitos 1-12 seleccionan el signo por posición, tanto desde la
+      // zona Signo como desde Selección con foco no editable. Para teclear el
+      // número de 3 cifras se Tab hasta la zona Número (foco editable).
+      if (juego.familia === 'zodiacal' && tripleModalidad === 'triple_c') {
+        if (!buscadorSignos || buscadorSignos.juegoId !== juego.id) {
+          buscadorSignos = crearBuscadorDigitos(juego, (_coincidencias, buffer) => aplicarSignoPorPosicion(buffer));
+          buscadorSignos.juegoId = juego.id;
+        }
+        buscadorSignos.teclear(digito);
+        return;
+      }
+      // numérica/terminal/zodiacal (triple_a/b): salta a Número y precarga el
+      // dígito (2 cifras numérica/terminal, 3 zodiacal); el resto se escribe
+      // nativo.
       const input = document.getElementById('qt-numero');
       if (!input) return;
       const maxDigitos = juego.familia === 'zodiacal' ? 3 : 2;
@@ -2336,6 +2400,7 @@ import MainLayout from '../layouts/MainLayout.astro';
           switchToJuegos();
         }
         buscadorDigitos = null; // FIX-5: el buffer de dígitos es por juego
+        buscadorSignos = null; // win-fixes2 FIX B: buffer de signos por juego
         renderLegend();
         updateColumnMode();
         if (selectedGames.length > 0) enfocarZona('horarios'); // FIX-2
@@ -2484,9 +2549,14 @@ import MainLayout from '../layouts/MainLayout.astro';
         if (esEditable(e.target)) return;
         // FIX-5 (REQ-KB-06): Enter confirma el buffer de dígitos pendiente en
         // la zona Selección (animalitos) ANTES de activar el ítem focalizado;
-        // con el buffer vacío el Enter actúa como siempre.
+        // con el buffer vacío el Enter actúa como siempre. win-fixes2 FIX B:
+        // Enter también confirma el buffer de signos (zona Signo, 1-12).
         if (e.key === 'Enter' && zonaActual === 'seleccion' && buscadorDigitos && buscadorDigitos.buffer() !== '') {
           buscadorDigitos.commit();
+          return;
+        }
+        if (e.key === 'Enter' && zonaActual === 'signo' && buscadorSignos && buscadorSignos.buffer() !== '') {
+          buscadorSignos.commit();
           return;
         }
         activarItemFocalizado();

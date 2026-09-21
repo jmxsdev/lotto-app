@@ -31,6 +31,10 @@
  *       entre el buscador de animales y el salto a Número).
  *     - FIX-6: navegación global F7/F8/F10/Alt+D (NAV_GLOBAL + destinoNav)
  *       desde MainLayout; KEYMAP marca F7/F8/F10 con implementadaEn 'win-fixes'.
+ *   - win-fixes2 (batch de remediación 2):
+ *     - FIX B: los dígitos también se rutean en la zona Signo (zodiacal
+ *       triple_c) → decisión `digito`; el glue selecciona el signo por
+ *       posición 1-12.
  */
 
 export type FamiliaOpciones = 'animalitos' | 'zodiacal' | 'numerica' | 'terminal';
@@ -365,10 +369,12 @@ export function routeKey(state: EstadoRuteo): RutaDecision {
       : { consume: false, tipo: 'pasar' };
   }
 
-  // 6. Dígito en la zona Selección (FIX-5, REQ-KB-06): con foco fuera de
-  //    input, un dígito arranca la búsqueda (animalitos) o salta a Número
-  //    (numérica/terminal/zodiacal). El glue decide según la familia.
-  if (/^\d$/.test(state.tecla) && state.zonaActual === 'seleccion') {
+  // 6. Dígito en la zona Selección (FIX-5, REQ-KB-06) o Signo (win-fixes2
+  //    FIX B): con foco fuera de input, un dígito arranca la búsqueda
+  //    (animalitos) o salta a Número (numérica/terminal), y en la zona Signo
+  //    (zodiacal triple_c) selecciona el signo por posición 1-12. El glue
+  //    decide según la familia y la modalidad activa.
+  if (/^\d$/.test(state.tecla) && (state.zonaActual === 'seleccion' || state.zonaActual === 'signo')) {
     return { consume: true, tipo: 'digito', digito: state.tecla };
   }
 
