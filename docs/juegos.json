@@ -7,6 +7,13 @@
             "nombre": "Lotto Activo",
             "tipo": "animalitos",
             "premio_multiplo": 30,
+            "premios": {
+                "base": 30,
+                "comodines": [],
+                "modalidades": []
+            },
+            "active": true,
+            "vendible": true,
             "comodines": null,
             "modalidades": null,
             "horarios": [
@@ -222,6 +229,17 @@
             "nombre": "Triple Zulia",
             "tipo": "tripletas",
             "premio_multiplo": 600,
+            "premios": {
+                "base": 600,
+                "comodines": [],
+                "modalidades": {
+                    "terminal": 60,
+                    "signo_triple": 6000,
+                    "signo_terminal": 600
+                }
+            },
+            "active": true,
+            "vendible": true,
             "comodines": null,
             "modalidades": {
                 "cola": 60,
@@ -302,6 +320,13 @@
             "nombre": "Terminal Activo",
             "tipo": "terminales",
             "premio_multiplo": 60,
+            "premios": {
+                "base": 60,
+                "comodines": [],
+                "modalidades": []
+            },
+            "active": true,
+            "vendible": true,
             "comodines": null,
             "modalidades": {
                 "terminal": 60
@@ -829,6 +854,13 @@
             "nombre": "Lotto Activo RD Internacional",
             "tipo": "animalitos",
             "premio_multiplo": 30,
+            "premios": {
+                "base": 30,
+                "comodines": [],
+                "modalidades": []
+            },
+            "active": true,
+            "vendible": true,
             "comodines": null,
             "modalidades": null,
             "horarios": [
@@ -1044,6 +1076,13 @@
             "nombre": "Lotto Activo República Dominicana",
             "tipo": "animalitos",
             "premio_multiplo": 30,
+            "premios": {
+                "base": 30,
+                "comodines": [],
+                "modalidades": []
+            },
+            "active": true,
+            "vendible": true,
             "comodines": null,
             "modalidades": null,
             "horarios": [
@@ -1260,8 +1299,41 @@
             "slug": "monje-millonario",
             "nombre": "Monje Millonario",
             "tipo": "animalitos",
-            "premio_multiplo": 30,
-            "comodines": null,
+            "premio_multiplo": 50,
+            "premios": {
+                "base": 50,
+                "comodines": {
+                    "patronus-75": {
+                        "tipo": "numero",
+                        "nombre": "Patronus",
+                        "numero": 75,
+                        "premio_multiplo": 120
+                    },
+                    "patronus-palabra": {
+                        "tipo": "palabra",
+                        "nombre": "PATRONUS",
+                        "acumulativo": true,
+                        "premio_multiplo": 20
+                    }
+                },
+                "modalidades": []
+            },
+            "active": true,
+            "vendible": true,
+            "comodines": {
+                "patronus-75": {
+                    "tipo": "numero",
+                    "nombre": "Patronus",
+                    "numero": 75,
+                    "premio_multiplo": 120
+                },
+                "patronus-palabra": {
+                    "tipo": "palabra",
+                    "nombre": "PATRONUS",
+                    "acumulativo": true,
+                    "premio_multiplo": 20
+                }
+            },
             "modalidades": null,
             "horarios": [
                 "08:05",
@@ -1671,6 +1743,16 @@
             "nombre": "Trío Activo",
             "tipo": "tripletas",
             "premio_multiplo": 600,
+            "premios": {
+                "base": 600,
+                "comodines": [],
+                "modalidades": {
+                    "punta": 60,
+                    "terminal": 60
+                }
+            },
+            "active": true,
+            "vendible": true,
             "comodines": null,
             "modalidades": {
                 "punta": 60,
@@ -2199,6 +2281,17 @@
             "nombre": "Triple Caliente",
             "tipo": "tripletas",
             "premio_multiplo": 600,
+            "premios": {
+                "base": 600,
+                "comodines": [],
+                "modalidades": {
+                    "terminal": 60,
+                    "signo_triple": 6000,
+                    "signo_terminal": 600
+                }
+            },
+            "active": true,
+            "vendible": true,
             "comodines": null,
             "modalidades": {
                 "cola": 60,
@@ -2279,9 +2372,17 @@
             "nombre": "Cazaloton",
             "tipo": "animalitos",
             "premio_multiplo": 30,
+            "premios": {
+                "base": 30,
+                "comodines": [],
+                "modalidades": {
+                    "tripleta": 200
+                }
+            },
+            "active": true,
+            "vendible": true,
             "comodines": null,
             "modalidades": {
-                "dupleta": 800,
                 "tripleta": 200
             },
             "horarios": [
@@ -2496,17 +2597,34 @@
             "nombre": "Triple Chance",
             "tipo": "tripletas",
             "premio_multiplo": 600,
+            "premios": {
+                "base": 600,
+                "comodines": [],
+                "modalidades": {
+                    "punta": 60,
+                    "cruzado": 3000,
+                    "solo_a_b": 150,
+                    "terminal": 60,
+                    "cruzado_10": 10,
+                    "signo_solo": 6,
+                    "triple_a_b": 200000,
+                    "signo_triple": 6000,
+                    "signo_terminal": 600
+                }
+            },
+            "active": true,
+            "vendible": true,
             "comodines": null,
             "modalidades": {
+                "punta": 60,
                 "signo": 6,
-                "triple": 600,
+                "cruzado": 3000,
                 "terminal": 60,
+                "cruzado_10": 10,
                 "triple_a_b": 200000,
-                "aproximacion": 10,
-                "terminal_a_b": 5000,
-                "triple_a_o_b": 100,
-                "terminal_a_o_b": 5,
-                "triple_c_signo": 5000
+                "triple_a_o_b": 150,
+                "signo_terminal": 600,
+                "triple_c_signo": 6000
             },
             "horarios": [
                 "09:00",
@@ -2589,9 +2707,28 @@
             "slug": "el-arrejuntado",
             "nombre": "El Arrejuntado",
             "tipo": "tripletas",
-            "premio_multiplo": 30,
+            "premio_multiplo": 40,
+            "premios": {
+                "base": 40,
+                "comodines": [],
+                "modalidades": {
+                    "arrimao": 6000,
+                    "pegadito": 60000,
+                    "triple_a": 600,
+                    "triple_b": 600,
+                    "signo_triple": 6000
+                }
+            },
+            "active": true,
+            "vendible": true,
             "comodines": null,
-            "modalidades": null,
+            "modalidades": {
+                "arrimao": 6000,
+                "pegadito": 60000,
+                "triple_a": 600,
+                "triple_b": 600,
+                "signo_triple": 6000
+            },
             "horarios": [
                 "10:00",
                 "13:00",
@@ -2668,8 +2805,23 @@
             "nombre": "El Guacharito Millonario",
             "tipo": "animalitos",
             "premio_multiplo": 70,
+            "premios": {
+                "base": 70,
+                "comodines": {
+                    "guacharito-99": {
+                        "tipo": "numero",
+                        "nombre": "Guacharito",
+                        "numero": 99,
+                        "premio_multiplo": 150
+                    }
+                },
+                "modalidades": []
+            },
+            "active": true,
+            "vendible": true,
             "comodines": {
                 "guacharito-99": {
+                    "tipo": "numero",
                     "nombre": "Guacharito",
                     "numero": 99,
                     "premio_multiplo": 150
@@ -3204,8 +3356,23 @@
             "nombre": "Guacharo Activo",
             "tipo": "animalitos",
             "premio_multiplo": 60,
+            "premios": {
+                "base": 60,
+                "comodines": {
+                    "guacharo-75": {
+                        "tipo": "numero",
+                        "nombre": "Guácharo",
+                        "numero": 75,
+                        "premio_multiplo": 120
+                    }
+                },
+                "modalidades": []
+            },
+            "active": true,
+            "vendible": true,
             "comodines": {
                 "guacharo-75": {
+                    "tipo": "numero",
                     "nombre": "Guácharo",
                     "numero": 75,
                     "premio_multiplo": 120
@@ -3620,6 +3787,13 @@
             "nombre": "La Granjita",
             "tipo": "animalitos",
             "premio_multiplo": 30,
+            "premios": {
+                "base": 30,
+                "comodines": [],
+                "modalidades": []
+            },
+            "active": true,
+            "vendible": true,
             "comodines": null,
             "modalidades": null,
             "horarios": [
@@ -3834,7 +4008,10 @@
             "slug": "la-ricachona",
             "nombre": "La Ricachona",
             "tipo": "tripletas",
-            "premio_multiplo": 30,
+            "premio_multiplo": null,
+            "premios": null,
+            "active": false,
+            "vendible": false,
             "comodines": null,
             "modalidades": null,
             "horarios": [
@@ -3851,77 +4028,27 @@
                 "18:05",
                 "19:05"
             ],
-            "opciones": [
-                {
-                    "numero": null,
-                    "label": "Aries",
-                    "value": "ARI"
-                },
-                {
-                    "numero": null,
-                    "label": "Tauro",
-                    "value": "TAU"
-                },
-                {
-                    "numero": null,
-                    "label": "Géminis",
-                    "value": "GEM"
-                },
-                {
-                    "numero": null,
-                    "label": "Cáncer",
-                    "value": "CAN"
-                },
-                {
-                    "numero": null,
-                    "label": "Leo",
-                    "value": "LEO"
-                },
-                {
-                    "numero": null,
-                    "label": "Virgo",
-                    "value": "VIR"
-                },
-                {
-                    "numero": null,
-                    "label": "Libra",
-                    "value": "LIB"
-                },
-                {
-                    "numero": null,
-                    "label": "Escorpio",
-                    "value": "ESC"
-                },
-                {
-                    "numero": null,
-                    "label": "Sagitario",
-                    "value": "SAG"
-                },
-                {
-                    "numero": null,
-                    "label": "Capricornio",
-                    "value": "CAP"
-                },
-                {
-                    "numero": null,
-                    "label": "Acuario",
-                    "value": "ACU"
-                },
-                {
-                    "numero": null,
-                    "label": "Piscis",
-                    "value": "PIS"
-                }
-            ]
+            "opciones": []
         },
         {
             "id": 16,
             "slug": "loto-chaima",
             "nombre": "Loto Chaima",
             "tipo": "animalitos",
-            "premio_multiplo": 30,
+            "premio_multiplo": 40,
+            "premios": {
+                "base": 40,
+                "comodines": [],
+                "modalidades": {
+                    "tripleta": 50
+                }
+            },
+            "active": true,
+            "vendible": true,
             "comodines": null,
-            "modalidades": null,
+            "modalidades": {
+                "tripleta": 50
+            },
             "horarios": [
                 "08:00",
                 "09:00",
@@ -4230,8 +4357,22 @@
             "nombre": "Mega Animal 40",
             "tipo": "animalitos",
             "premio_multiplo": 30,
+            "premios": {
+                "base": 30,
+                "comodines": {
+                    "mega": {
+                        "tipo": "flag",
+                        "nombre": "MEGA",
+                        "premio_multiplo": 40
+                    }
+                },
+                "modalidades": []
+            },
+            "active": true,
+            "vendible": true,
             "comodines": {
                 "mega": {
+                    "tipo": "flag",
                     "nombre": "MEGA",
                     "premio_multiplo": 40
                 }
@@ -4450,12 +4591,36 @@
             "nombre": "Selva Plus",
             "tipo": "animalitos",
             "premio_multiplo": 80,
+            "premios": {
+                "base": 80,
+                "comodines": {
+                    "comodin-a": {
+                        "tipo": "letra",
+                        "valor": "A",
+                        "nombre": "Leoncito",
+                        "premio_multiplo": 160
+                    },
+                    "comodin-b": {
+                        "tipo": "letra",
+                        "valor": "B",
+                        "nombre": "Selva Plus",
+                        "premio_multiplo": 200
+                    }
+                },
+                "modalidades": []
+            },
+            "active": true,
+            "vendible": true,
             "comodines": {
                 "comodin-a": {
+                    "tipo": "letra",
+                    "valor": "A",
                     "nombre": "Leoncito",
                     "premio_multiplo": 160
                 },
                 "comodin-b": {
+                    "tipo": "letra",
+                    "valor": "B",
                     "nombre": "Selva Plus",
                     "premio_multiplo": 200
                 }
@@ -5000,6 +5165,16 @@
             "nombre": "Triple Táchira",
             "tipo": "tripletas",
             "premio_multiplo": 500,
+            "premios": {
+                "base": 500,
+                "comodines": [],
+                "modalidades": {
+                    "terminal": 50,
+                    "signo_triple": 5000
+                }
+            },
+            "active": true,
+            "vendible": true,
             "comodines": null,
             "modalidades": {
                 "cola": 50,
@@ -5079,6 +5254,16 @@
             "nombre": "Triple Fácil",
             "tipo": "tripletas",
             "premio_multiplo": 700,
+            "premios": {
+                "base": 700,
+                "comodines": [],
+                "modalidades": {
+                    "terminal": 60,
+                    "aproximacion": 10
+                }
+            },
+            "active": true,
+            "vendible": true,
             "comodines": null,
             "modalidades": {
                 "terminal": 60,
@@ -5607,6 +5792,19 @@
             "nombre": "Triple Zamorano",
             "tipo": "tripletas",
             "premio_multiplo": 600,
+            "premios": {
+                "base": 600,
+                "comodines": [],
+                "modalidades": {
+                    "uña": 5,
+                    "terminal": 60,
+                    "signo_uña": 60,
+                    "signo_triple": 6000,
+                    "signo_terminal": 600
+                }
+            },
+            "active": true,
+            "vendible": true,
             "comodines": null,
             "modalidades": {
                 "cola": 60,

@@ -10,6 +10,7 @@ use App\Models\JuegoOpcion;
 use App\Models\PluginJuego;
 use App\Plugins\Juegos\Animalitos;
 use App\Plugins\Scrapers\SelvaPlusScraper;
+use App\Support\PremiosOficiales;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -17,18 +18,12 @@ class SelvaPlusSeeder extends Seeder
 {
     public function run(): void
     {
-        $juego = Juego::firstOrCreate(
+        $juego = Juego::updateOrCreate(
             ['slug' => 'selva-plus'],
             [
                 'name' => 'Selva Plus',
                 'type' => 'animalitos',
-                'config' => [
-                    'premio_multiplo' => 80,
-                    'comodines' => [
-                        'comodin-a' => ['nombre' => 'Leoncito', 'premio_multiplo' => 160],
-                        'comodin-b' => ['nombre' => 'Selva Plus', 'premio_multiplo' => 200],
-                    ],
-                ],
+                'config' => PremiosOficiales::configPara('selva-plus'),
                 'requires_scraper' => true,
                 'scraper_url' => 'https://api.lotterly.co/v1/results/selva-plus/',
                 'scraper_class' => SelvaPlusScraper::class,

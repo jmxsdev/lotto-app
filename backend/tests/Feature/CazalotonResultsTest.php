@@ -51,12 +51,15 @@ class CazalotonResultsTest extends TestCase
 
         // Reglamento oficial de cazaloton.com (Reglamento.pdf, 17 páginas,
         // parseable; verificado el 14-sep-2026): CAZALOTÓN simple 30x
-        // (Art. 22), DUPLETA 800x (Art. 23) y TRIPLETA 200x (Art. 24).
+        // (Art. 22) y TRIPLETA 200x (Art. 24). La DUPLETA 800x (Art. 23)
+        // queda FUERA de alcance (decisión del cliente): cada jugada es una
+        // apuesta independiente y no se configura ni se liquida.
         // La fuente de resultados se mantiene en loteriadehoy (el sitio
         // oficial NO publica resultados — sus enlaces apuntan al agregador).
         $this->assertEquals(30, $juego->config['premio_multiplo']);
-        $this->assertEquals(800, $juego->config['modalidades']['dupleta']);
+        $this->assertArrayNotHasKey('dupleta', $juego->config['modalidades'], 'Dupleta fuera de alcance: no se configura.');
         $this->assertEquals(200, $juego->config['modalidades']['tripleta']);
+        $this->assertEquals(30, $juego->config['premios']['base']);
     }
 
     public function test_seeder_registra_limite_default_y_plugin_animalitos(): void

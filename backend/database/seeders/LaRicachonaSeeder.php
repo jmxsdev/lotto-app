@@ -15,19 +15,21 @@ class LaRicachonaSeeder extends Seeder
 {
     public function run(): void
     {
-        $juego = Juego::firstOrCreate(
+        // REQ7: la-ricachona NO tiene fuente oficial con multiplicadores → se
+        // mantiene registrada (apuestas previas intactas) pero inactiva: no se
+        // vende ni se liquida (active=false) y su plugin queda inactivo.
+        $juego = Juego::updateOrCreate(
             ['slug' => 'la-ricachona'],
             [
                 'name' => 'La Ricachona',
                 'type' => 'tripletas',
                 'config' => [
-                    'premio_multiplo' => 30,
                     'modalidades_permitidas' => ['triple_a'],
                 ],
                 'requires_scraper' => true,
                 'scraper_url' => 'https://laricachona.com/',
                 'scraper_class' => LaRicachonaScraper::class,
-                'active' => true,
+                'active' => false,
             ]
         );
 
@@ -45,12 +47,12 @@ class LaRicachonaSeeder extends Seeder
             );
         }
 
-        PluginJuego::firstOrCreate(
+        PluginJuego::updateOrCreate(
             ['juego_id' => $juego->id],
             [
                 'class_namespace' => Tripletas::class,
                 'version' => '1.0.0',
-                'active' => true,
+                'active' => false,
             ]
         );
 

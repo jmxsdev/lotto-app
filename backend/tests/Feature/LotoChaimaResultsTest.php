@@ -43,7 +43,10 @@ class LotoChaimaResultsTest extends TestCase
         $this->assertTrue($juego->requires_scraper);
         $this->assertEquals('https://api.lotterly.co/v1/results/loto-chaima/', $juego->scraper_url);
         $this->assertEquals(LotoChaimaScraper::class, $juego->scraper_class);
-        $this->assertEquals(30, $juego->config['premio_multiplo']);
+        // Base 40× (antes 30) + tripleta 50× según el reglamento (spec §3.2).
+        $this->assertEquals(40, $juego->config['premio_multiplo']);
+        $this->assertEquals(40, $juego->config['premios']['base']);
+        $this->assertEquals(50, $juego->config['premios']['modalidades']['tripleta']);
     }
 
     public function test_seeder_registra_limite_default_y_plugin(): void

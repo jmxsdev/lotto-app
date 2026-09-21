@@ -8,6 +8,7 @@ use App\Models\JuegoHorario;
 use App\Models\JuegoLimite;
 use App\Models\PluginJuego;
 use App\Plugins\Juegos\Terminales;
+use App\Support\PremiosOficiales;
 use Illuminate\Database\Seeder;
 
 class TerminalesSeeder extends Seeder
@@ -19,12 +20,7 @@ class TerminalesSeeder extends Seeder
             [
                 'name' => 'Terminal Activo',
                 'type' => 'terminales',
-                'config' => [
-                    'premio_multiplo' => 60,
-                    'modalidades' => [
-                        'terminal' => 60,
-                    ],
-                ],
+                'config' => PremiosOficiales::configPara('terminal-activo'),
                 'requires_scraper' => true,
                 'scraper_url' => 'https://www.lottoactivo.com/resultados/terminal_activo/',
                 'active' => true,

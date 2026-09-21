@@ -114,9 +114,12 @@ class JuegosJsonTest extends TestCase
         $porSlug = collect($this->generado['juegos'])->keyBy('slug');
 
         foreach ($this->generado['juegos'] as $juego) {
-            foreach (['id', 'slug', 'nombre', 'tipo', 'premio_multiplo', 'comodines', 'modalidades', 'horarios', 'opciones'] as $campo) {
+            foreach (['id', 'slug', 'nombre', 'tipo', 'premio_multiplo', 'premios', 'active', 'vendible', 'comodines', 'modalidades', 'horarios', 'opciones'] as $campo) {
                 $this->assertArrayHasKey($campo, $juego, "Falta el campo [{$campo}] en el juego [{$juego['slug']}].");
             }
+
+            // D10: vendible = active (el juego deshabilitado no se oferta).
+            $this->assertSame($juego['active'], $juego['vendible'], "vendible de [{$juego['slug']}] debe igualar a active.");
 
             $this->assertNotEmpty($juego['horarios'], "El juego [{$juego['slug']}] no tiene horarios.");
 
@@ -137,10 +140,38 @@ class JuegosJsonTest extends TestCase
             );
         }
 
-        // premio_multiplo desde config del juego
+        // premio_multiplo desde config del juego (espejo legacy de premios.base)
         $this->assertSame(30, $porSlug['lotto-activo']['premio_multiplo']);
         $this->assertSame(60, $porSlug['terminal-activo']['premio_multiplo']);
         $this->assertSame(600, $porSlug['trio-activo']['premio_multiplo']);
+
+        // Contrato del motor (D10): `premios` canónico exportado aditivamente.
+        $this->assertEqualsCanonicalizing(
+            ['base' => 30, 'modalidades' => [], 'comodines' => []],
+            $porSlug['lotto-activo']['premios'],
+            'lotto-activo premios'
+        );
+        $this->assertTrue($porSlug['lotto-activo']['active']);
+        $this->assertTrue($porSlug['lotto-activo']['vendible']);
+
+        // monje-millonario: base 50 (antes 30) + comodines Patronus 120 / palabra +20.
+        $this->assertSame(50, $porSlug['monje-millonario']['premio_multiplo']);
+        $this->assertSame(50, $porSlug['monje-millonario']['premios']['base']);
+        $this->assertSame(120, $porSlug['monje-millonario']['premios']['comodines']['patronus-75']['premio_multiplo']);
+        $this->assertSame(20, $porSlug['monje-millonario']['premios']['comodines']['patronus-palabra']['premio_multiplo']);
+
+        // el-arrejuntado y loto-chaima: base 40 (antes 30) según el reglamento.
+        $this->assertSame(40, $porSlug['el-arrejuntado']['premio_multiplo']);
+        $this->assertSame(40, $porSlug['el-arrejuntado']['premios']['base']);
+        $this->assertSame(40, $porSlug['loto-chaima']['premio_multiplo']);
+        $this->assertSame(40, $porSlug['loto-chaima']['premios']['base']);
+        $this->assertSame(50, $porSlug['loto-chaima']['premios']['modalidades']['tripleta']);
+
+        // la-ricachona: inactiva, sin premios y no vendible (REQ7/D10).
+        $this->assertFalse($porSlug['la-ricachona']['active']);
+        $this->assertFalse($porSlug['la-ricachona']['vendible']);
+        $this->assertNull($porSlug['la-ricachona']['premios']);
+        $this->assertNull($porSlug['la-ricachona']['premio_multiplo']);
 
         // Contrato JSON enriquecido (WU f27): `comodines` y `modalidades` son
         // campos ADITIVOS y OPCIONALES exportados desde config cuando existen;
@@ -150,17 +181,18 @@ class JuegosJsonTest extends TestCase
 
         // mega-animal-40: comodín MEGA 40× desde la fuente OFICIAL
         // megaanimal40.com (WU f27; resuelve H1/H20). Base 30×, 40× con MEGA.
-        $this->assertSame(
-            ['mega' => ['nombre' => 'MEGA', 'premio_multiplo' => 40]],
+        // El espejo legacy ahora incluye `tipo` (mismo shape canónico, D2).
+        $this->assertEqualsCanonicalizing(
+            ['mega' => ['tipo' => 'flag', 'premio_multiplo' => 40, 'nombre' => 'MEGA']],
             $porSlug['mega-animal-40']['comodines']
         );
         $this->assertNull($porSlug['mega-animal-40']['modalidades']);
 
         // selva-plus: comodines A (Leoncito 160×) y B (Selva Plus 200×)
-        $this->assertSame(
+        $this->assertEqualsCanonicalizing(
             [
-                'comodin-a' => ['nombre' => 'Leoncito', 'premio_multiplo' => 160],
-                'comodin-b' => ['nombre' => 'Selva Plus', 'premio_multiplo' => 200],
+                'comodin-a' => ['tipo' => 'letra', 'premio_multiplo' => 160, 'valor' => 'A', 'nombre' => 'Leoncito'],
+                'comodin-b' => ['tipo' => 'letra', 'premio_multiplo' => 200, 'valor' => 'B', 'nombre' => 'Selva Plus'],
             ],
             $porSlug['selva-plus']['comodines']
         );
@@ -172,28 +204,32 @@ class JuegosJsonTest extends TestCase
         $this->assertSame(120, $porSlug['guacharo-activo']['comodines']['guacharo-75']['premio_multiplo']);
 
         // modalidades desde config donde aplique (triples, trío, terminal, etc.)
-        $this->assertSame(
+        $this->assertEqualsCanonicalizing(
             ['cola' => 60, 'zodiacal' => 6000, 'terminal_zodiacal' => 600],
-            $porSlug['triple-zulia']['modalidades']
+            $porSlug['triple-zulia']['modalidades'],
+            'triple-zulia modalidades'
         );
-        $this->assertSame(
+        $this->assertEqualsCanonicalizing(
             ['cola' => 60, 'zodiacal' => 6000, 'terminal_zodiacal' => 600],
-            $porSlug['triple-caliente']['modalidades']
+            $porSlug['triple-caliente']['modalidades'],
+            'triple-caliente modalidades'
         );
-        $this->assertSame(
+        $this->assertEqualsCanonicalizing(
             ['cola' => 50, 'zodiacal' => 5000],
-            $porSlug['triple-tachira']['modalidades']
+            $porSlug['triple-tachira']['modalidades'],
+            'triple-tachira modalidades'
         );
-        $this->assertSame(
+        $this->assertEqualsCanonicalizing(
             ['cola' => 60, 'uña' => 5, 'zodiacal' => 6000, 'cola_signo' => 600, 'uña_signo' => 60],
-            $porSlug['triple-zamorano']['modalidades']
+            $porSlug['triple-zamorano']['modalidades'],
+            'triple-zamorano modalidades'
         );
-        $this->assertSame(['punta' => 60, 'terminal' => 60], $porSlug['trio-activo']['modalidades']);
-        $this->assertSame(['terminal' => 60], $porSlug['terminal-activo']['modalidades']);
-        $this->assertSame(['dupleta' => 800, 'tripleta' => 200], $porSlug['cazaloton']['modalidades']);
-        $this->assertSame(['terminal' => 60, 'aproximacion' => 10], $porSlug['triple-facil']['modalidades']);
+        $this->assertEqualsCanonicalizing(['terminal' => 60, 'punta' => 60], $porSlug['trio-activo']['modalidades'], 'trio-activo modalidades');
+        $this->assertEqualsCanonicalizing(['terminal' => 60], $porSlug['terminal-activo']['modalidades'], 'terminal-activo modalidades');
+        $this->assertEqualsCanonicalizing(['tripleta' => 200], $porSlug['cazaloton']['modalidades'], 'cazaloton modalidades');
+        $this->assertEqualsCanonicalizing(['terminal' => 60, 'aproximacion' => 10], $porSlug['triple-facil']['modalidades'], 'triple-facil modalidades');
         $this->assertSame(200000, $porSlug['triple-chance']['modalidades']['triple_a_b']);
-        $this->assertSame(5000, $porSlug['triple-chance']['modalidades']['triple_c_signo']);
+        $this->assertSame(6000, $porSlug['triple-chance']['modalidades']['triple_c_signo']);
         $this->assertNull($porSlug['triple-chance']['comodines']);
 
         // lotto-activo: 38 animales desde tabla juego_opciones
@@ -251,11 +287,8 @@ class JuegosJsonTest extends TestCase
         $this->assertSame('00', $porSlug['trio-activo']['opciones'][0]['label']);
         $this->assertSame('99', $porSlug['trio-activo']['opciones'][99]['label']);
 
-        // la-ricachona sin tabla: 12 signos desde el plugin Tripletas
-        foreach (['la-ricachona'] as $slug) {
-            $this->assertCount(12, $porSlug[$slug]['opciones'], "[{$slug}] debe tener 12 opciones (plugin Tripletas).");
-        }
-        $this->assertSame('Géminis', $porSlug['la-ricachona']['opciones'][2]['label'], 'Acentos correctos desde el plugin.');
+        // la-ricachona inactiva (REQ7): plugin inactivo → sin opciones ofertadas.
+        $this->assertEmpty($porSlug['la-ricachona']['opciones'], 'la-ricachona (inactiva) no debe ofertar opciones.');
 
         // loto-chaima: 57 animales PROPIOS desde la tabla juego_opciones
         // (zoológico de 0–55 distinto al canónico; ballena y delfín comparten

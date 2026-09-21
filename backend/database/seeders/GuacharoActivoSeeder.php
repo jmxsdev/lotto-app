@@ -10,6 +10,7 @@ use App\Models\JuegoOpcion;
 use App\Models\PluginJuego;
 use App\Plugins\Juegos\Animalitos;
 use App\Plugins\Scrapers\GuacharoActivoOficialScraper;
+use App\Support\PremiosOficiales;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -27,16 +28,7 @@ class GuacharoActivoSeeder extends Seeder
             [
                 'name' => 'Guacharo Activo',
                 'type' => 'animalitos',
-                'config' => [
-                    'premio_multiplo' => 60,
-                    'comodines' => [
-                        'guacharo-75' => [
-                            'nombre' => 'Guácharo',
-                            'numero' => 75,
-                            'premio_multiplo' => 120,
-                        ],
-                    ],
-                ],
+                'config' => PremiosOficiales::configPara('guacharo-activo'),
                 'requires_scraper' => true,
                 'scraper_url' => 'https://api.lotterly.co/v1/results/guacharo-activo/',
                 'scraper_class' => GuacharoActivoOficialScraper::class,

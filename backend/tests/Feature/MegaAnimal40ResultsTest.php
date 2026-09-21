@@ -58,8 +58,9 @@ class MegaAnimal40ResultsTest extends TestCase
         $this->assertEquals('https://megaanimal40.com/', $juego->scraper_url);
         $this->assertEquals(MegaAnimal40OficialScraper::class, $juego->scraper_class);
         $this->assertEquals(30, $juego->config['premio_multiplo']);
+        // El espejo legacy ahora incluye `tipo` (mismo shape canónico, D2).
         $this->assertEquals(
-            ['mega' => ['nombre' => 'MEGA', 'premio_multiplo' => 40]],
+            ['mega' => ['tipo' => 'flag', 'premio_multiplo' => 40, 'nombre' => 'MEGA']],
             $juego->config['comodines']
         );
     }

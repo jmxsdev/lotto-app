@@ -10,6 +10,7 @@ use App\Models\JuegoOpcion;
 use App\Models\PluginJuego;
 use App\Plugins\Juegos\Tripletas;
 use App\Plugins\Scrapers\ElArrejuntaoScraper;
+use App\Support\PremiosOficiales;
 use Illuminate\Database\Seeder;
 
 class ElArrejuntadoSeeder extends Seeder
@@ -22,12 +23,12 @@ class ElArrejuntadoSeeder extends Seeder
 
     public function run(): void
     {
-        $juego = Juego::firstOrCreate(
+        $juego = Juego::updateOrCreate(
             ['slug' => 'el-arrejuntado'],
             [
                 'name' => 'El Arrejuntado',
                 'type' => 'tripletas',
-                'config' => ['premio_multiplo' => 30],
+                'config' => PremiosOficiales::configPara('el-arrejuntado'),
                 'requires_scraper' => true,
                 'scraper_url' => 'https://backend.serviciosintegradostriple7.com/api/v1/products/el-arrejuntao/results/',
                 'scraper_class' => ElArrejuntaoScraper::class,
