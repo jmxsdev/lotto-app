@@ -154,15 +154,88 @@ Este batch (2 commits nuevos):
 
 - Ninguno funcional. Nota operativa: la BD `lotto_test` es compartida con el otro agente; en caso de colisión usar `DB_DATABASE=lotto_test_motor` (sin commitear .env). En este batch no hubo colisión.
 
+## Slice F1d (este batch: call sites + reglas + regresión; rama `feat/motor-premios-f1d-callsites`)
+
+> F1d completa la **Fase 1** del cambio: los call sites productivos dejan de usar el
+> plugin directo y pasan por el motor (REQ10/REQ12/REQ9), con guard de juego
+> inactivo (REQ7), reglas aditivas (D10) y regresión por juego (REQ16).
+
+### TDD Cycle Evidence (F1d)
+
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 1.11 | `tests/Unit/ApuestaServiceTest.php` (+3) | Unit (BD) | ✅ 18/18 previos | ✅ Escrito (inactivo no lanza; premio_posible 0→500) | ✅ 3/3 nuevos · 21/21 archivo | ✅ 3 casos: inactivo, base motor 500, modalidad declarada 2000 | ✅ Pint |
+| 1.12 | `tests/Feature/ApuestaTest.php` (+4) | Feature (RefreshDatabase) | ✅ 24/24 previos | ✅ Escrito (ganadora 422; legacy pendiente+resultado 422; monto 301 aceptado) | ✅ 4/4 nuevos | ✅ 4 casos: ganadora motor, legacy pendiente, pendiente sin resultado, monto≠motor | ✅ Pint |
+| 1.13 | `tests/Feature/TicketGanadoresTest.php` (nuevo, +3) | Feature (RefreshDatabase) | N/A (nuevo) | ✅ Escrito (0 ganadores; sin ganadora; MEGA 300 no 400) | ✅ 3/3 | ✅ 3 casos: filtro hora REQ9, estado ganadora, comodín MEGA 40× | ✅ Pint |
+| 1.14-reglas | `tests/Feature/JuegosJsonTest.php` (+1) | Feature (RefreshDatabase) | ✅ 3/3 previos | ✅ Escrito (campo `premios` ausente) | ✅ 4/4 archivo | ✅ monje (base 50, patronus 120/20) | ✅ Pint |
+| 1.17 | `tests/Feature/MotorPremiosRegresionTest.php` (nuevo, +30) | Feature (RefreshDatabase) | N/A (nuevo) | ✅ Escrito (30 casos por juego/comodín; verdes contra motor F1a) | ✅ 30/30 | ✅ 21 juegos + comodines (MEGA/Selva A+B/Guacharito/Guácharo/Patronus 140×) | ✅ Pint |
+
+### Test Summary (F1d)
+
+- Tests escritos en este batch: **11 nuevos** (3 + 4 + 3 + 1 + 30 → 41 métodos; 30 de regresión) · Pasando: todos
+- Focused del slice F1d:
+  `--filter='MotorPremiosRegresionTest|TicketGanadoresTest|ApuestaServiceTest|ApuestaTest|PagoTipoTest|JuegosJsonTest'`
+  → **passed: 78 tests, 903 assertions**
+- Regresión legacy completa: `--filter='ResultsTest|VerificacionOriginalesTest'` → **106/106 passed, 504 assertions**
+- F1a–F1d motor+plugins: `--filter='TextoTest|PremiosOficialesTest|PremiosEngineTest|AnimalitosPluginTest|TerminalesPluginTest|TripletasPluginTest|AnimalitosScraperTest|ScrapeResultsJobTest|BaseScraperHelpersTest|JuegoPluginManagerTest|ScraperResolverTest'` → **142 passed, 401 assertions, 1 skip legacy**
+- Feature relacionadas (jobs/caja/roles): **61/61 passed**
+- Pint: `--test` sobre los archivos del slice → passed (3 fixes aplicados: TicketController, TicketGanadoresTest, MotorPremiosRegresionTest)
+- BD: `lotto_test` colisionaba con el otro agente (tablas a medias); se usó `DB_DATABASE=lotto_test_motor` para toda la evidencia del slice.
+
+### Files Changed (F1d)
+
+| File | Acción | Qué |
+|------|--------|-----|
+| `backend/app/Services/ApuestaService.php` | Modificar | Guard REQ7 (juego inactivo o sin plugin → RuntimeException); `premio_posible` con `PremiosEngine::premioPosible` (D9), nunca 0 por resultados vacíos |
+| `backend/app/Http/Controllers/Api/PagoController.php` | Modificar | `calcularPremio` delega en el manager→motor (N11); estado pagable `['pendiente','ganadora']` (D5, REQ10) |
+| `backend/app/Http/Controllers/Api/TicketController.php` | Modificar | `ganadores`: `whereTime('sorteo_hora', hora)` + `whereIn(estado, pendiente\|ganadora)` + motor (N7, REQ9); multiplicador desde `getMultiplicador` |
+| `backend/app/Http/Controllers/Api/JuegoController.php` | Modificar | `reglas` +`premios` del motor aditivo (D10/§3.3) |
+| `backend/tests/Unit/ApuestaServiceTest.php` | Modificar | +3 tests createApuesta (guard inactivo, premio_posible motor, modalidad declarada) |
+| `backend/tests/Feature/ApuestaTest.php` | Modificar | +4 tests PagoController (ganadora, legacy pendiente+resultado, pendiente sin resultado, monto≠motor) |
+| `backend/tests/Feature/TicketGanadoresTest.php` | Crear | +3 tests ganadores (filtro hora REQ9, estado ganadora, comodín MEGA) |
+| `backend/tests/Feature/JuegosJsonTest.php` | Modificar | +1 test endpoint `reglas` expone `premios` (aditivo) |
+| `backend/tests/Feature/MotorPremiosRegresionTest.php` | Crear | +30 casos de regresión por juego/comodín (REQ16, design §8) |
+| `openspec/changes/motor-premios/tasks.md` | Modificar | 1.11–1.13, 1.14 (reglas) y 1.17 `[x]` — **Fase 1 completa** |
+
+### Work Unit Evidence (F1d)
+
+| Evidence | Valor |
+|---|---|
+| Focused test (1.11) | `--filter='ApuestaServiceTest'` → passed: 21/21 |
+| Focused test (1.12) | `--filter='ApuestaTest::test_pago'` → passed: 4/4; `ApuestaTest\|PagoTipoTest` 25/25 |
+| Focused test (1.13) | `--filter='TicketGanadoresTest'` → passed: 3/3 |
+| Focused test (1.14-reglas) | `--filter='JuegosJsonTest'` → passed: 4/4 (728 assertions) |
+| Focused test (1.17) | `--filter='MotorPremiosRegresionTest'` → passed: 30/30, 59 assertions |
+| Runtime harness | `--filter='ResultsTest\|VerificacionOriginalesTest'` (regresión legacy, design §8) → 106/106; job/caja/roles 61/61; F1a–F1d motor 142 passed |
+| Rollback boundary | `git revert` de los 5 commits del slice F1d (6f1733a..64606d2) retira service+controllers+tests sin tocar F1a–F1c ni Fase 2/3 |
+
+### Commits (rama `feat/motor-premios-f1d-callsites`, base `feat/motor-premios-f1c-migraciones`)
+
+- 6f1733a feat(motor-premios): guard de juego inactivo y premio_posible con motor en createApuesta (1.11, REQ7/REQ12, D9)
+- b613190 feat(motor-premios): PagoController valida contra el motor y acepta ganadora y legacy pendiente (1.12, REQ10/N11/D5)
+- a36903b feat(motor-premios): ganadores filtra por sorteo con whereTime y calcula con motor (1.13, REQ9/N7)
+- 6e33bed feat(motor-premios): reglas expone premios del motor de forma aditiva (1.14-reglas, D10)
+- 64606d2 feat(motor-premios): regresion por juego con motor, comodines, acentos y juego inactivo (1.17, REQ16)
+
+### Deviations (F1d)
+
+1. **Guard REQ7 incluye plugin nulo**: además de `active=false`, `createApuesta` rechaza juegos sin plugin activo (`getPlugin` null, p. ej. la-ricachona). El design §5 lo pedía explícito ("no vender si active=false/plugin inactivo"); sin esto, el premio_posible del motor tampoco tendría multiplicador que resolver.
+2. **PagoController estado pagable = `['pendiente','ganadora']`** (no solo `ganadora`+`pendiente` con resultado): la devolución (`tipo=devolucion`) de una `pendiente` sin resultado sigue permitida (PagoTipoTest existente); el egreso sin `resultado_id` se rechaza en la rama siguiente con su mensaje propio. D5 se cumple: `ganadora` aceptada y legacy `pendiente` con `resultado_id` aceptada para premios.
+3. **Multiplicador del payload de ganadores**: pasa de `plugin->obtenerMultiplicador()` (hardcode) a `getMultiplicador` (config base del motor). Campo con el MISMO nombre; solo cambia el valor de origen (REQ1).
+4. **El-Arrejuntado en regresión**: el plugin del juego es `Tripletas` (no Animalitos), así que el caso base evaluable es `triple_a` → 40× (la fila "animalito" del design §8 no es evaluable con el adaptador real; se cubre la misma clave `base` con triple_a).
+5. **Tests legacy `*ResultsTest`**: ya alineados en F1c (design §8: MegaAnimal40 comodines `tipo`, TripleChance 150/6.000, LotoChaima/ElArrejuntado 40, LaRicachona inactiva); en F1d no requirieron cambios adicionales — verificados 106/106 verdes.
+
+### Issues (F1d)
+
+- Ninguno funcional. Nota operativa: la BD compartida `lotto_test` quedó corrupta por el agente concurrente (tablas a medias en el primer intento); toda la evidencia del slice se corrió contra `lotto_test_motor`.
+
 ## Remaining Tasks
 
-- [ ] 1.11–1.13 (slice F1d: call sites — ApuestaService, PagoController, TicketController)
-- [ ] 1.14 `JuegoController::reglas` (parte restante, slice F1d)
-- [ ] 1.17 `MotorPremiosRegresionTest` (slice F1d)
-- [ ] Fase 2 (2.1–2.2) y Fase 3 (3.1–3.5)
+- [ ] Fase 2 (2.1–2.2: modalidades single-draw, `selecciones[]`)
+- [ ] Fase 3 (3.1–3.5: estados/vencimiento, `verificarGanadores` → `ganadora`, job de vencimiento, acumular premio_total)
 
 ## Status
 
-13/17 tareas del cambio completadas (slices F1a, F1b y F1c íntegros + export de 1.14). Ready for next batch (F1d).
+**17/17 tareas del cambio completadas en Fase 1** (F1a + F1b + F1c + F1d íntegros). Fase 1 completa: motor config-driven activo en todos los call sites productivos (createApuesta, PagoController, TicketController::ganadores, reglas) con regresión por los 21 juegos. Pendiente: Fases 2 y 3.
 
 Session: ses_f4f7a75d2ffe1V5gJLiamGKc4I · Project: lotto-app · Scope: project

@@ -34,13 +34,13 @@ Chain strategy: feature-branch-chain
 - [x] 1.8 RED `tests/Unit/AnimalitosScraperTest.php` → GREEN `app/Plugins/Scrapers/AnimalitosScraper.php` (mapper `patronus`). Done: H14.
 - [x] 1.9 RED `tests/Feature/ScrapeResultsJobTest.php` → GREEN `BaseScraper.php` (upsert+hora) + `Jobs/ScrapeResultsJob.php`. Done: N6.
 - [x] 1.10 `app/Services/JuegoPluginManager.php`: `calcularPremio`/`getMultiplicador`→engine; `validarApuesta` pasa `juego_opciones`. Done: REQ15.
-- [ ] 1.11 RED `tests/Unit/ApuestaServiceTest.php` → GREEN `ApuestaService::createApuesta` (guard inactivo, `premio_posible`). Done: REQ7/REQ12.
-- [ ] 1.12 RED `tests/Feature/ApuestaTest.php` → GREEN `Api/PagoController.php` (motor; acepta `ganadora`+legacy). Done: REQ10.
-- [ ] 1.13 RED → GREEN `Api/TicketController::ganadores` (`whereTime`+engine). Done: REQ9.
-- [ ] 1.14 RED `tests/Feature/JuegosJsonTest.php` → GREEN `Api/JuegoController::reglas` + `JuegoCatalogoService` (`premios`,`active`,`vendible`); regenerar `docs/juegos.json`. Done: contrato catálogo. **Export (service + `docs/juegos.json` + test) ✅ en F1c**; `JuegoController::reglas` pendiente en F1d.
+- [x] 1.11 RED `tests/Unit/ApuestaServiceTest.php` → GREEN `ApuestaService::createApuesta` (guard inactivo, `premio_posible`). Done: REQ7/REQ12.
+- [x] 1.12 RED `tests/Feature/ApuestaTest.php` → GREEN `Api/PagoController.php` (motor; acepta `ganadora`+legacy). Done: REQ10.
+- [x] 1.13 RED `tests/Feature/TicketGanadoresTest.php` → GREEN `Api/TicketController::ganadores` (`whereTime`+engine). Done: REQ9.
+- [x] 1.14 RED `tests/Feature/JuegosJsonTest.php` → GREEN `Api/JuegoController::reglas` + `JuegoCatalogoService` (`premios`,`active`,`vendible`); regenerar `docs/juegos.json`. Done: contrato catálogo. **Export (service + `docs/juegos.json` + test) ✅ en F1c**; `JuegoController::reglas` ✅ en F1d (aditivo).
 - [x] 1.15 Migraciones: `000001_add_ganadora_to_apuestas_estado` · `000002_backfill_premios_config_juegos` · `000003_dedupe_resultados_sorteo_duplicado`. Done: `migrate` ×2 sin error (idempotencia) + rollback de las reversibles.
 - [x] 1.16 Seeders 21: `config.premios`+espejos; `LaRicachonaSeeder`→`active=false`. Done: `migrate:fresh --seed` verde.
-- [ ] 1.17 RED `tests/Feature/MotorPremiosRegresionTest.php` (≥1 caso/juego+comodín). Done: verde.
+- [x] 1.17 RED `tests/Feature/MotorPremiosRegresionTest.php` (≥1 caso/juego+comodín). Done: verde.
 
 ## Fase 2 — Modalidades single-draw (sin tablas)
 
