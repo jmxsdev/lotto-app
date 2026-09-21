@@ -2,8 +2,10 @@
 
 namespace App\Providers;
 
-use App\Jobs\ScrapeResultsJob;
-use App\Models\Juego;
+use App\Jobs\ScrapeSourceJob;
+use App\Models\JuegoHorario;
+use App\Services\ScraperSourceResolver;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\Schema;
@@ -17,23 +19,39 @@ class ScheduleServiceProvider extends ServiceProvider
             return;
         }
 
-        $juegos = Juego::where('requires_scraper', true)->with('horarios')->get();
+        if (! $this->app->runningInConsole()) {
+            return;
+        }
 
-        foreach ($juegos as $juego) {
-            foreach ($juego->horarios as $horario) {
-                $horaLocal = substr($horario->hora, 0, 5);
+        $resolver = app(ScraperSourceResolver::class);
 
-                // Los horarios se registran EN HORA LOCAL (America/Caracas):
-                // Laravel interpreta dailyAt() en la zona horaria de la app
-                // (config/app.php), así que NO hay que convertir a UTC — hacerlo
-                // correría los jobs 4 horas tarde (doble conversión).
-                Schedule::job(new ScrapeResultsJob($juego->id))
-                    ->dailyAt($horaLocal)
-                    ->name("scrape_{$juego->slug}_{$horaLocal}")
-                    ->withoutOverlapping(5);
+        foreach ($resolver->sources() as $fuente) {
+            $horas = JuegoHorario::whereIn('juego_id', $fuente->juegoIds)
+                ->where('active', true)
+                ->pluck('hora')
+                ->map(fn (string $hora) => substr($hora, 0, 5))
+                ->unique()
+                ->sort()
+                ->values();
+
+            foreach ($horas as $hora) {
+                foreach ([0, 15, 30, 45] as $offset) {
+                    $horaCorrida = Carbon::parse($hora)->addMinutes($offset)->format('H:i');
+                    $sufijo = $offset === 0 ? '' : '+'.$offset;
+
+                    // Los horarios se registran EN HORA LOCAL (America/Caracas):
+                    // Laravel interpreta dailyAt() en la zona horaria de la app
+                    // (config/app.php), así que NO hay que convertir a UTC — hacerlo
+                    // correría los jobs 4 horas tarde (doble conversión, H21).
+                    // Pasadas retardadas: hora, +15, +30, +45 con guarda en el job.
+                    Schedule::job(new ScrapeSourceJob($fuente->key, null, $hora))
+                        ->dailyAt($horaCorrida)
+                        ->name("scrape_{$fuente->key}_{$hora}{$sufijo}")
+                        ->withoutOverlapping(5);
+                }
             }
 
-            Log::info("Schedule registrado para {$juego->name}: {$juego->horarios->count()} horarios");
+            Log::info("Schedule registrado para la fuente {$fuente->key}: {$horas->count()} horas x 4 pasadas");
         }
     }
 }
