@@ -25,6 +25,12 @@ class CierreController extends Controller
      * La taquilla (rol taquilla) cierra su propia caja; los roles
      * administrativos deben indicar la taquilla (taquilla_id) dentro de
      * su alcance jerárquico.
+     *
+     * Un cierre por día (AD-2/AD-4): el primer cierre responde 201 con
+     * reclosed=false; si ya existe el cierre del día, exige clave_cierre
+     * (nullable|digits_between:4,8) y responde 200 con reclosed=true.
+     * Los errores de la clave (ausente, incorrecta, sin candidatos) y de
+     * la tasa se mapean a 422 con el mensaje claro del servicio.
      */
     public function store(Request $request)
     {
@@ -33,22 +39,29 @@ class CierreController extends Controller
         $validated = $request->validate([
             'arqueo_efectivo_bs' => 'nullable|numeric|min:0',
             'arqueo_efectivo_usd' => 'nullable|numeric|min:0',
+            'clave_cierre' => 'nullable|digits_between:4,8',
         ]);
 
         $taquillaId = $this->resolveTaquillaParaCierre($user, $request);
 
         try {
-            $cierre = $this->cierreService->crearCierre(
+            $resultado = $this->cierreService->crearCierre(
                 $taquillaId,
                 $user->id,
                 isset($validated['arqueo_efectivo_bs']) ? (float) $validated['arqueo_efectivo_bs'] : null,
                 isset($validated['arqueo_efectivo_usd']) ? (float) $validated['arqueo_efectivo_usd'] : null,
+                $validated['clave_cierre'] ?? null,
             );
         } catch (\RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        return response()->json($cierre->load('taquilla.grupo.banca'), 201);
+        $cierre = $resultado['cierre']->load('taquilla.grupo.banca');
+
+        return response()->json(
+            $cierre->toArray() + ['reclosed' => $resultado['reclosed']],
+            $resultado['reclosed'] ? 200 : 201
+        );
     }
 
     /**

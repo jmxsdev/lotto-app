@@ -15,6 +15,8 @@ use Carbon\Carbon;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\JuegoAnimalitosSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 /**
@@ -259,9 +261,10 @@ class CierreCajaTest extends TestCase
     {
         $taquilla = $this->crearTaquilla('TTC02', $this->grupoSeeded()->id);
 
+        // Cierre de AYER (23:50): el cierre de hoy inicia desde su fecha_fin
         $this->crearCierre($taquilla, [
-            'fecha_inicio' => now()->subDay(),
-            'fecha_fin' => now()->subHours(2),
+            'fecha_inicio' => now()->subDay()->setTime(8, 0),
+            'fecha_fin' => now()->subDay()->setTime(23, 50),
         ]);
 
         $this->crearApuesta($taquilla, ['amount_bs' => 300, 'total_bs_equivalent' => 300, 'fecha_hora' => now()->subHour()]);
@@ -274,7 +277,7 @@ class CierreCajaTest extends TestCase
         $cierre = $response->json();
 
         $this->assertEquals(
-            now()->subHours(2)->format('Y-m-d H:i'),
+            now()->subDay()->setTime(23, 50)->format('Y-m-d H:i'),
             $this->fechaJson($cierre['fecha_inicio'])->format('Y-m-d H:i')
         );
 
@@ -1142,5 +1145,412 @@ class CierreCajaTest extends TestCase
         $this->assertNotFalse($posCierre, 'Ruta {cierre} no registrada');
         $this->assertLessThan($posCierre, $posActual);
         $this->assertLessThan($posCierre, $posSemanal);
+    }
+
+    // ==================================================
+    // POST /api/v1/cierre — re-cierre del día (WU3)
+    // ==================================================
+
+    public function test_primer_cierre_del_dia_crea_con_reclosed_false()
+    {
+        $taquilla = $this->taquillaSeeded();
+        $this->crearApuesta($taquilla, ['amount_bs' => 100, 'total_bs_equivalent' => 100, 'fecha_hora' => now()->subHour()]);
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('reclosed', false);
+
+        $this->assertEquals(1, CierreCaja::where('taquilla_id', $taquilla->id)->count());
+    }
+
+    public function test_segundo_cierre_del_dia_actualiza_la_fila()
+    {
+        $taquilla = $this->crearTaquilla('TTC30', $this->grupoSeeded()->id);
+
+        // Venta del período antes del primer cierre (10:00)
+        $this->crearApuesta($taquilla, ['amount_bs' => 200, 'total_bs_equivalent' => 200, 'fecha_hora' => now()->subHours(2)]);
+
+        // Primer cierre del día a las 12:00 (testNow del setUp)
+        $primero = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id]);
+
+        $primero->assertStatus(201);
+        $id = $primero->json('id');
+        $fechaInicioOriginal = $this->fechaJson($primero->json('fecha_inicio'));
+        $createdByOriginal = $primero->json('created_by');
+
+        // Venta POSTERIOR al primer cierre (13:00): solo el re-cierre la incluye
+        Carbon::setTestNow(Carbon::create(2026, 8, 12, 14, 0, 0));
+        $this->crearApuesta($taquilla, ['amount_bs' => 300, 'total_bs_equivalent' => 300, 'fecha_hora' => Carbon::create(2026, 8, 12, 13, 0, 0)]);
+
+        $this->bancaUser()->update(['clave_cierre' => Hash::make('123456')]);
+
+        $re = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', [
+                'taquilla_id' => $taquilla->id,
+                'clave_cierre' => '123456',
+                'arqueo_efectivo_bs' => 480,
+            ]);
+
+        $re->assertStatus(200)
+            ->assertJsonPath('reclosed', true)
+            ->assertJsonPath('id', $id);
+
+        // Sigue siendo UNA sola fila: el re-cierre actualizó, no creó
+        $this->assertEquals(1, CierreCaja::where('taquilla_id', $taquilla->id)->count());
+
+        // Totales y desglose recalculados desde el fecha_inicio ORIGINAL
+        $this->assertEquals(500.0, (float) $re->json('total_ventas_bs'));
+        $this->assertEquals(500.0, (float) $re->json('total_efectivo_bs'));
+
+        // Arqueo y faltante refrescados con los del re-cierre
+        $this->assertEquals(480.0, (float) $re->json('arqueo_efectivo_bs'));
+        $this->assertEquals(-20.0, (float) $re->json('faltante_sobrante_bs'));
+
+        // fecha_fin extendido a now(); fecha_inicio y created_by INTACTOS
+        $this->assertEquals(
+            '2026-08-12 14:00',
+            $this->fechaJson($re->json('fecha_fin'))->format('Y-m-d H:i')
+        );
+        $this->assertEquals(
+            $fechaInicioOriginal->format('Y-m-d H:i'),
+            $this->fechaJson($re->json('fecha_inicio'))->format('Y-m-d H:i')
+        );
+        $this->assertEquals($createdByOriginal, $re->json('created_by'));
+    }
+
+    public function test_re_cierre_es_idempotente()
+    {
+        $taquilla = $this->crearTaquilla('TTC31', $this->grupoSeeded()->id);
+        $this->crearApuesta($taquilla, ['amount_bs' => 100, 'total_bs_equivalent' => 100, 'fecha_hora' => now()->subHour()]);
+        $this->bancaUser()->update(['clave_cierre' => Hash::make('123456')]);
+
+        $primero = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id]);
+        $primero->assertStatus(201);
+        $id = $primero->json('id');
+
+        // Primer re-cierre a las 13:00
+        Carbon::setTestNow(Carbon::create(2026, 8, 12, 13, 0, 0));
+        $re1 = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id, 'clave_cierre' => '123456']);
+        $re1->assertStatus(200)->assertJsonPath('id', $id);
+
+        // Segundo re-cierre a las 14:00: sigue una sola fila, fechas re-extendidas
+        Carbon::setTestNow(Carbon::create(2026, 8, 12, 14, 0, 0));
+        $re2 = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id, 'clave_cierre' => '123456']);
+        $re2->assertStatus(200)
+            ->assertJsonPath('id', $id)
+            ->assertJsonPath('reclosed', true);
+
+        $this->assertEquals(1, CierreCaja::where('taquilla_id', $taquilla->id)->count());
+        $this->assertEquals(
+            '2026-08-12 14:00',
+            $this->fechaJson($re2->json('fecha_fin'))->format('Y-m-d H:i')
+        );
+        $this->assertEquals(
+            '2026-08-12 14:00',
+            $this->fechaJson($re2->json('reclosed_at'))->format('Y-m-d H:i')
+        );
+    }
+
+    public function test_re_cierre_audita_reclosed_by_y_reclosed_at()
+    {
+        $taquilla = $this->crearTaquilla('TTC32', $this->grupoSeeded()->id);
+        $this->crearApuesta($taquilla, ['amount_bs' => 100, 'total_bs_equivalent' => 100, 'fecha_hora' => now()->subHour()]);
+        $this->masterUser()->update(['clave_cierre' => Hash::make('654321')]);
+
+        $primero = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id]);
+        $primero->assertStatus(201);
+
+        Carbon::setTestNow(Carbon::create(2026, 8, 12, 15, 30, 0));
+        $master = $this->masterUser();
+
+        $re = $this->actingAs($master, 'sanctum')
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id, 'clave_cierre' => '654321']);
+
+        $re->assertStatus(200)
+            ->assertJsonPath('reclosed_by', $master->id)
+            ->assertJsonMissingPath('clave_cierre');
+
+        $cierre = CierreCaja::where('taquilla_id', $taquilla->id)->first();
+        $this->assertEquals($master->id, $cierre->reclosed_by);
+        $this->assertEquals(
+            '2026-08-12 15:30',
+            $this->fechaJson($cierre->reclosed_at)->format('Y-m-d H:i')
+        );
+    }
+
+    public function test_cierre_en_dia_siguiente_crea_fila_nueva()
+    {
+        $taquilla = $this->crearTaquilla('TTC33', $this->grupoSeeded()->id);
+
+        // Último cierre ayer 23:50 (America/Caracas): fuera del rango de hoy
+        $this->crearCierre($taquilla, [
+            'fecha_inicio' => Carbon::create(2026, 8, 11, 8, 0, 0),
+            'fecha_fin' => Carbon::create(2026, 8, 11, 23, 50, 0),
+        ]);
+
+        // Ahora es hoy 00:10
+        Carbon::setTestNow(Carbon::create(2026, 8, 12, 0, 10, 0));
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('reclosed', false);
+
+        $this->assertEquals(2, CierreCaja::where('taquilla_id', $taquilla->id)->count());
+    }
+
+    public function test_re_cierre_sin_clave_responde_422()
+    {
+        $taquilla = $this->crearTaquilla('TTC34', $this->grupoSeeded()->id);
+        $this->crearApuesta($taquilla, ['amount_bs' => 100, 'total_bs_equivalent' => 100, 'fecha_hora' => now()->subHour()]);
+        $this->bancaUser()->update(['clave_cierre' => Hash::make('123456')]);
+
+        $primero = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id]);
+        $primero->assertStatus(201);
+        $id = $primero->json('id');
+        $fechaFinOriginal = $this->fechaJson($primero->json('fecha_fin'));
+
+        Carbon::setTestNow(Carbon::create(2026, 8, 12, 13, 0, 0));
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'La clave de cierre es obligatoria para re-cerrar el día.');
+
+        // La fila queda sin cambios
+        $fila = CierreCaja::find($id);
+        $this->assertEquals(
+            $fechaFinOriginal->format('Y-m-d H:i'),
+            $this->fechaJson($fila->fecha_fin)->format('Y-m-d H:i')
+        );
+        $this->assertNull($fila->reclosed_by);
+        $this->assertNull($fila->reclosed_at);
+        $this->assertEquals(1, CierreCaja::where('taquilla_id', $taquilla->id)->count());
+    }
+
+    public function test_re_cierre_con_clave_incorrecta_responde_422()
+    {
+        $taquilla = $this->crearTaquilla('TTC35', $this->grupoSeeded()->id);
+        $this->crearApuesta($taquilla, ['amount_bs' => 100, 'total_bs_equivalent' => 100, 'fecha_hora' => now()->subHour()]);
+        $this->bancaUser()->update(['clave_cierre' => Hash::make('123456')]);
+
+        $primero = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id]);
+        $primero->assertStatus(201);
+
+        Carbon::setTestNow(Carbon::create(2026, 8, 12, 13, 0, 0));
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id, 'clave_cierre' => '999999']);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'Clave de cierre incorrecta.');
+
+        $fila = CierreCaja::where('taquilla_id', $taquilla->id)->first();
+        $this->assertNull($fila->reclosed_by);
+        $this->assertNull($fila->reclosed_at);
+        $this->assertEquals(1, CierreCaja::where('taquilla_id', $taquilla->id)->count());
+    }
+
+    public function test_re_cierre_sin_candidatos_con_clave_responde_422()
+    {
+        $taquilla = $this->crearTaquilla('TTC36', $this->grupoSeeded()->id);
+        $this->crearApuesta($taquilla, ['amount_bs' => 100, 'total_bs_equivalent' => 100, 'fecha_hora' => now()->subHour()]);
+
+        $primero = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id]);
+        $primero->assertStatus(201);
+
+        Carbon::setTestNow(Carbon::create(2026, 8, 12, 13, 0, 0));
+
+        // Ningún usuario de la cadena (banca BT001, master, super_master) tiene clave
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id, 'clave_cierre' => '123456']);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'No hay una clave de cierre configurada para esta taquilla.');
+
+        $this->assertEquals(1, CierreCaja::where('taquilla_id', $taquilla->id)->count());
+    }
+
+    /**
+     * Escenario compartido: primer cierre a las 12:00 y re-cierre a las 13:00
+     * con la clave del usuario indicado (que debe pertenecer a la cadena).
+     *
+     * @return array{0: TestResponse, 1: int, 2: Taquilla}
+     */
+    private function cerrarYRecerrarConClave(string $codigoTaquilla, User $usuarioConClave, string $clave): array
+    {
+        Carbon::setTestNow(Carbon::create(2026, 8, 12, 12, 0, 0));
+
+        $taquilla = $this->crearTaquilla($codigoTaquilla, $this->grupoSeeded()->id);
+        $this->crearApuesta($taquilla, ['amount_bs' => 100, 'total_bs_equivalent' => 100, 'fecha_hora' => Carbon::create(2026, 8, 12, 11, 0, 0)]);
+        $usuarioConClave->update(['clave_cierre' => Hash::make($clave)]);
+
+        $primero = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id]);
+        $primero->assertStatus(201);
+        $id = $primero->json('id');
+
+        Carbon::setTestNow(Carbon::create(2026, 8, 12, 13, 0, 0));
+
+        $re = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id, 'clave_cierre' => $clave]);
+
+        return [$re, $id, $taquilla];
+    }
+
+    public function test_re_cierre_con_clave_de_banca_master_y_super_master()
+    {
+        [$reBanca, $idBanca] = $this->cerrarYRecerrarConClave('TTC37', $this->bancaUser(), '111111');
+        $reBanca->assertStatus(200)
+            ->assertJsonPath('reclosed', true)
+            ->assertJsonPath('id', $idBanca);
+
+        [$reMaster, $idMaster] = $this->cerrarYRecerrarConClave('TTC38', $this->masterUser(), '222222');
+        $reMaster->assertStatus(200)
+            ->assertJsonPath('reclosed', true)
+            ->assertJsonPath('id', $idMaster);
+
+        [$reSuper, $idSuper] = $this->cerrarYRecerrarConClave('TTC39', $this->superUser(), '333333');
+        $reSuper->assertStatus(200)
+            ->assertJsonPath('reclosed', true)
+            ->assertJsonPath('id', $idSuper);
+    }
+
+    public function test_re_cierre_rechaza_clave_de_otra_banca()
+    {
+        $taquilla = $this->crearTaquilla('TTC40', $this->grupoSeeded()->id);
+        $this->crearApuesta($taquilla, ['amount_bs' => 100, 'total_bs_equivalent' => 100, 'fecha_hora' => now()->subHour()]);
+
+        // La banca PROPIA tiene clave: la cadena tiene candidatos para validar
+        $this->bancaUser()->update(['clave_cierre' => Hash::make('123456')]);
+
+        $primero = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id]);
+        $primero->assertStatus(201);
+
+        // Banca ajena con clave: NO pertenece a la cadena de la taquilla
+        $otraBanca = Banca::create(['name' => 'Banca Ajena R', 'code' => 'BTAR01', 'created_by' => $this->superUser()->id]);
+        $bancaAjena = User::factory()->create(['role' => 'banca', 'banca_id' => $otraBanca->id]);
+        $bancaAjena->assignRole('banca');
+        $bancaAjena->update(['clave_cierre' => Hash::make('555555')]);
+
+        Carbon::setTestNow(Carbon::create(2026, 8, 12, 13, 0, 0));
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id, 'clave_cierre' => '555555']);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'Clave de cierre incorrecta.');
+
+        // Control: la clave de la banca propia SÍ permite el re-cierre
+        $ok = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id, 'clave_cierre' => '123456']);
+
+        $ok->assertStatus(200)->assertJsonPath('reclosed', true);
+        $this->assertEquals(1, CierreCaja::where('taquilla_id', $taquilla->id)->count());
+    }
+
+    public function test_cierre_de_hoy_toma_el_ultimo_por_fecha_fin()
+    {
+        $taquilla = $this->crearTaquilla('TTC41', $this->grupoSeeded()->id);
+        $this->bancaUser()->update(['clave_cierre' => Hash::make('123456')]);
+
+        // Demo: dos filas el mismo día (datos heredados de antes del re-cierre)
+        $viejo = $this->crearCierre($taquilla, [
+            'fecha_inicio' => Carbon::create(2026, 8, 12, 8, 0, 0),
+            'fecha_fin' => Carbon::create(2026, 8, 12, 10, 0, 0),
+            'total_ventas_bs' => 100,
+            'total_efectivo_bs' => 100,
+        ]);
+        $ultimo = $this->crearCierre($taquilla, [
+            'fecha_inicio' => Carbon::create(2026, 8, 12, 9, 0, 0),
+            'fecha_fin' => Carbon::create(2026, 8, 12, 11, 0, 0),
+            'total_ventas_bs' => 100,
+            'total_efectivo_bs' => 100,
+        ]);
+
+        Carbon::setTestNow(Carbon::create(2026, 8, 12, 12, 0, 0));
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id, 'clave_cierre' => '123456']);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('reclosed', true)
+            ->assertJsonPath('id', $ultimo->id);
+
+        // Conserva el fecha_inicio del ÚLTIMO cierre (09:00), no el del viejo (08:00)
+        $this->assertEquals(
+            '2026-08-12 09:00',
+            $this->fechaJson($response->json('fecha_inicio'))->format('Y-m-d H:i')
+        );
+        $this->assertEquals(
+            '2026-08-12 12:00',
+            $this->fechaJson($response->json('fecha_fin'))->format('Y-m-d H:i')
+        );
+
+        // El re-cierre actualizó la última fila; la vieja permanece intacta
+        $this->assertEquals(2, CierreCaja::where('taquilla_id', $taquilla->id)->count());
+        $this->assertEquals(
+            '2026-08-12 10:00',
+            $this->fechaJson(CierreCaja::find($viejo->id)->fecha_fin)->format('Y-m-d H:i')
+        );
+
+        // Totales recalculados desde 09:00 (sin apuestas en el período → 0,
+        // no hereda los 100 demo de la fila)
+        $this->assertEquals(0.0, (float) $response->json('total_ventas_bs'));
+    }
+
+    // ==================================================
+    // GET /api/v1/cierre/actual — cierre_hoy (WU3, AD-11)
+    // ==================================================
+
+    public function test_actual_expone_cierre_hoy_null_sin_cierre()
+    {
+        $taquilla = $this->crearTaquilla('TTC42', $this->grupoSeeded()->id);
+        $this->crearApuesta($taquilla, ['amount_bs' => 500, 'total_bs_equivalent' => 500, 'fecha_hora' => now()->subHour()]);
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->getJson('/api/v1/cierre/actual?taquilla_id='.$taquilla->id);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('cierre_hoy', null);
+    }
+
+    public function test_actual_expone_cierre_hoy_con_cierre()
+    {
+        $taquilla = $this->crearTaquilla('TTC43', $this->grupoSeeded()->id);
+        $cierre = $this->crearCierre($taquilla, [
+            'fecha_inicio' => now()->subHours(3),
+            'fecha_fin' => now()->subHour(),
+        ]);
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->getJson('/api/v1/cierre/actual?taquilla_id='.$taquilla->id);
+
+        $response->assertStatus(200);
+
+        $hoy = $response->json('cierre_hoy');
+        $this->assertNotNull($hoy, 'cierre_hoy debe traer el cierre del día.');
+        $this->assertEquals($cierre->id, $hoy['id']);
+        $this->assertEquals(
+            $this->fechaJson($cierre->fecha_inicio)->format('Y-m-d H:i'),
+            $this->fechaJson($hoy['fecha_inicio'])->format('Y-m-d H:i')
+        );
+        $this->assertEquals(
+            $this->fechaJson($cierre->fecha_fin)->format('Y-m-d H:i'),
+            $this->fechaJson($hoy['fecha_fin'])->format('Y-m-d H:i')
+        );
     }
 }

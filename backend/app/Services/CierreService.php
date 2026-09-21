@@ -30,42 +30,110 @@ class CierreService
      * calcula la diferencia por moneda (faltante_sobrante_X = arqueo_X -
      * total_efectivo_X); si se omite, arqueo y diferencia quedan nulos.
      *
-     * @throws \RuntimeException si no existe ninguna tasa de cambio
+     * Un cierre por día calendario (AD-2/AD-3): si ya existe el cierre de hoy
+     * (fecha_fin ∈ [startOfDay, +1d) en America/Caracas), el llamado es un
+     * RE-CIERRE: exige clave_cierre validada contra la cadena de la taquilla
+     * y actualiza la misma fila (extiende fecha_fin a now(), recalcula desde
+     * el fecha_inicio ORIGINAL, refresca arqueo/desglose y registra
+     * reclosed_by/reclosed_at; fecha_inicio y created_by quedan intactos).
+     * La clave nunca se persiste ni se expone.
+     *
+     * @return array{cierre: CierreCaja, reclosed: bool} la fila y si fue un
+     *                                                   re-cierre (true) o la creación del día (false)
+     *
+     * @throws \RuntimeException si no existe tasa, falta la clave en un
+     *                           re-cierre o la clave no valida la cadena
      */
-    public function crearCierre(int $taquillaId, int $userId, ?float $arqueoBs = null, ?float $arqueoUsd = null): CierreCaja
+    public function crearCierre(int $taquillaId, int $userId, ?float $arqueoBs = null, ?float $arqueoUsd = null, ?string $clave = null): array
     {
-        return DB::transaction(function () use ($taquillaId, $userId, $arqueoBs, $arqueoUsd) {
+        return DB::transaction(function () use ($taquillaId, $userId, $arqueoBs, $arqueoUsd, $clave) {
             $tasa = $this->resolverTasa();
-
             $fechaFin = now();
-            $fechaInicio = $this->resolveFechaInicio($taquillaId, $fechaFin);
 
+            $cierreHoy = $this->resolveCierreHoy($taquillaId);
+
+            // Re-cierre del día (AD-3): actualiza la fila dentro de la misma
+            // transacción; la clave se valida ANTES de tocar la fila.
+            if ($cierreHoy) {
+                if ($clave === null || $clave === '') {
+                    throw new \RuntimeException('La clave de cierre es obligatoria para re-cerrar el día.');
+                }
+
+                $this->validarClaveCierre($taquillaId, $clave);
+
+                $totales = $this->calcularTotales($taquillaId, $cierreHoy->fecha_inicio, $fechaFin);
+
+                $cierreHoy->update($this->atributosTotales($totales, $tasa, $arqueoBs, $arqueoUsd) + [
+                    'fecha_fin' => $fechaFin,
+                    'reclosed_by' => $userId,
+                    'reclosed_at' => $fechaFin,
+                ]);
+
+                return ['cierre' => $cierreHoy->refresh(), 'reclosed' => true];
+            }
+
+            // Primer cierre del día: crea la fila
+            $fechaInicio = $this->resolveFechaInicio($taquillaId, $fechaFin);
             $totales = $this->calcularTotales($taquillaId, $fechaInicio, $fechaFin);
 
-            return CierreCaja::create([
+            $cierre = CierreCaja::create($this->atributosTotales($totales, $tasa, $arqueoBs, $arqueoUsd) + [
                 'taquilla_id' => $taquillaId,
                 'fecha_inicio' => $fechaInicio,
                 'fecha_fin' => $fechaFin,
-                'total_ventas_bs' => $totales['total_ventas_bs'],
-                'total_ventas_usd' => $totales['total_ventas_usd'],
-                'total_ventas_bs_equivalent' => $totales['total_ventas_bs_equivalent'],
-                'total_egresos_bs' => $totales['total_egresos_bs'],
-                'total_egresos_usd' => $totales['total_egresos_usd'],
-                'total_efectivo_bs' => $totales['total_efectivo_bs'],
-                'total_efectivo_usd' => $totales['total_efectivo_usd'],
-                'arqueo_efectivo_bs' => $arqueoBs,
-                'arqueo_efectivo_usd' => $arqueoUsd,
-                'faltante_sobrante_bs' => $arqueoBs !== null
-                    ? round($arqueoBs - $totales['total_efectivo_bs'], 2)
-                    : null,
-                'faltante_sobrante_usd' => $arqueoUsd !== null
-                    ? round($arqueoUsd - $totales['total_efectivo_usd'], 2)
-                    : null,
-                'desglose_metodos' => $totales['desglose_metodos'],
-                'exchange_rate_cierre' => $tasa->rate,
                 'created_by' => $userId,
             ]);
+
+            return ['cierre' => $cierre, 'reclosed' => false];
         });
+    }
+
+    /**
+     * Atributos comunes de totales/arqueo/desglose/tasa para crear o
+     * actualizar una fila de cierre (AD-3): mismos cálculos en ambas ramas.
+     *
+     * @return array<string, mixed>
+     */
+    private function atributosTotales(array $totales, ExchangeRate $tasa, ?float $arqueoBs, ?float $arqueoUsd): array
+    {
+        return [
+            'total_ventas_bs' => $totales['total_ventas_bs'],
+            'total_ventas_usd' => $totales['total_ventas_usd'],
+            'total_ventas_bs_equivalent' => $totales['total_ventas_bs_equivalent'],
+            'total_egresos_bs' => $totales['total_egresos_bs'],
+            'total_egresos_usd' => $totales['total_egresos_usd'],
+            'total_efectivo_bs' => $totales['total_efectivo_bs'],
+            'total_efectivo_usd' => $totales['total_efectivo_usd'],
+            'arqueo_efectivo_bs' => $arqueoBs,
+            'arqueo_efectivo_usd' => $arqueoUsd,
+            'faltante_sobrante_bs' => $arqueoBs !== null
+                ? round($arqueoBs - $totales['total_efectivo_bs'], 2)
+                : null,
+            'faltante_sobrante_usd' => $arqueoUsd !== null
+                ? round($arqueoUsd - $totales['total_efectivo_usd'], 2)
+                : null,
+            'desglose_metodos' => $totales['desglose_metodos'],
+            'exchange_rate_cierre' => $tasa->rate,
+        ];
+    }
+
+    /**
+     * Detectar el cierre del día calendario de la taquilla (AD-2): rango
+     * explícito [startOfDay, +1d) sobre fecha_fin en America/Caracas
+     * (no `whereDate`, que compara el valor crudo UTC y desplaza el día).
+     * Con varias filas demo el mismo día se toma la última por fecha_fin
+     * (y por id como desempate).
+     */
+    public function resolveCierreHoy(int $taquillaId): ?CierreCaja
+    {
+        $inicio = now()->startOfDay();
+        $fin = $inicio->copy()->addDay();
+
+        return CierreCaja::where('taquilla_id', $taquillaId)
+            ->where('fecha_fin', '>=', $inicio)
+            ->where('fecha_fin', '<', $fin)
+            ->orderByDesc('fecha_fin')
+            ->orderByDesc('id')
+            ->first();
     }
 
     /**
@@ -358,6 +426,9 @@ class CierreService
      * Preview read-only del período actual (AD-8): mismos cálculos que
      * crearCierre pero sin persistir. Usado por GET /cierre/actual.
      *
+     * Campo aditivo `cierre_hoy` (AD-11): el cierre del día calendario
+     * {id, fecha_inicio, fecha_fin} o null si no existe, para que la UI
+     * decida el copy del confirm y solicite la clave en re-cierre.
      *
      * @return array<string, mixed>
      *
@@ -370,11 +441,18 @@ class CierreService
         $fechaInicio = $this->resolveFechaInicio($taquillaId, $fechaFin);
         $totales = $this->calcularTotales($taquillaId, $fechaInicio, $fechaFin);
 
+        $cierreHoy = $this->resolveCierreHoy($taquillaId);
+
         return [
             'taquilla_id' => $taquillaId,
             'fecha_inicio' => $fechaInicio,
             'fecha_fin' => $fechaFin,
             'exchange_rate' => $tasa->rate,
+            'cierre_hoy' => $cierreHoy !== null ? [
+                'id' => $cierreHoy->id,
+                'fecha_inicio' => $cierreHoy->fecha_inicio,
+                'fecha_fin' => $cierreHoy->fecha_fin,
+            ] : null,
         ] + $totales;
     }
 
