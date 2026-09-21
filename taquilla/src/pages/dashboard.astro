@@ -2041,6 +2041,7 @@ import MainLayout from '../layouts/MainLayout.astro';
     // Las guardas de estado viven en routeKey
     // (ejecutable=false) y la guarda estricta de modales (A12) en la regla 1
     // del router: con un modal abierto solo su toggle (F1/F9) y Esc actúan.
+    // F11 «Números» (win-fixes3): salto directo al input de Número.
     const ACCIONES_FKEYS = {
       ayuda: toggleAyudaModal,
       limpiar: clearTicket,
@@ -2050,6 +2051,13 @@ import MainLayout from '../layouts/MainLayout.astro';
       'eliminar-item': eliminarItemSeleccionado,
       vuelto: toggleVueltoModal,
       reimprimir: reimprimirUltimo,
+      // F11 (win-fixes3): foco al input #qt-numero + zona `numero`; desde ahí
+      // Tab→Monto y Enter→Añadir ya operan con el ruteo existente.
+      'ir-numero': () => {
+        const input = document.getElementById('qt-numero');
+        if (input) input.focus({ preventScroll: true });
+        enfocarZona('numero');
+      },
     };
 
     function esEditable(target) {

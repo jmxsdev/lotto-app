@@ -38,6 +38,11 @@
  *     - FIX C: F2 pasa a «Limpiar todo» (nombre) con guarda 'ninguno': se
  *       ejecuta aunque no haya líneas para poder limpiar la selección en
  *       curso (desviación de A11; antes guarda 'lineas').
+ *   - win-fixes3 (batch de remediación 3):
+ *     - F11 pasa de «Libre» a «Números» (accion `ir-numero`): el glue lleva
+ *       el foco al input de Número y a la zona `numero`; desde ahí Tab→Monto
+ *       y Enter→Añadir ya funcionan. El menú nativo de Electron se desactiva
+ *       (Menu.setApplicationMenu(null)) para que F11 no dispare fullscreen.
  */
 
 export type FamiliaOpciones = 'animalitos' | 'zodiacal' | 'numerica' | 'terminal';
@@ -71,16 +76,16 @@ export interface GrafoZonas {
 
 export interface TeclaMapa {
   tecla: 'F1' | 'F2' | 'F3' | 'F4' | 'F5' | 'F6' | 'F7' | 'F8' | 'F9' | 'F10' | 'F11' | 'F12';
-  /** Acción semántica (REQ-KB-07). null = tecla libre (F11). */
+  /** Acción semántica (REQ-KB-07). null = tecla sin acción. */
   accion: string | null;
   nombre: string;
   /** Guarda de estado: 'lineas' (F2/F5/F6), 'historial' (F3/F4), 'ninguno'. */
   guarda: 'lineas' | 'historial' | 'ninguno';
-  /** Slice que implementa la acción: PR3b. null = sin acción asignada. */
-  implementadaEn: 'PR3b' | null;
+  /** Slice que implementa la acción. null = sin acción asignada. */
+  implementadaEn: 'PR3b' | 'win-fixes' | 'win-fixes3' | null;
 }
 
-/** Mapa F1–F12 (REQ-KB-07). F11 queda sin asignar. */
+/** Mapa F1–F12 (REQ-KB-07). F11 = «Números» (win-fixes3). */
 export const KEYMAP: readonly TeclaMapa[] = [
   { tecla: 'F1', accion: 'ayuda', nombre: 'Ayuda', guarda: 'ninguno', implementadaEn: 'PR3b' },
   // F2 «Limpiar todo» (win-fixes2 FIX C): guarda 'ninguno' — se ejecuta SIN
@@ -95,7 +100,10 @@ export const KEYMAP: readonly TeclaMapa[] = [
   { tecla: 'F8', accion: 'cuadre', nombre: 'Cuadre', guarda: 'ninguno', implementadaEn: 'win-fixes' },
   { tecla: 'F9', accion: 'vuelto', nombre: 'Vuelto', guarda: 'ninguno', implementadaEn: 'PR3b' },
   { tecla: 'F10', accion: 'resultados', nombre: 'Resultados', guarda: 'ninguno', implementadaEn: 'win-fixes' },
-  { tecla: 'F11', accion: null, nombre: 'Libre', guarda: 'ninguno', implementadaEn: null },
+  // F11 «Números» (win-fixes3): salto directo al input de Número. El menú
+  // nativo de Electron se desactiva (main.cjs) para que F11 no haga
+  // fullscreen; el glue enfoca #qt-numero y la zona `numero`.
+  { tecla: 'F11', accion: 'ir-numero', nombre: 'Números', guarda: 'ninguno', implementadaEn: 'win-fixes3' },
   { tecla: 'F12', accion: 'reimprimir', nombre: 'Reimprimir', guarda: 'ninguno', implementadaEn: 'PR3b' },
 ];
 
@@ -119,7 +127,8 @@ export interface NavDestino {
 /**
  * Mapa puro de navegación global (REQ-KB-07, FIX-6): se renderiza desde
  * MainLayout.astro (cubre dashboard, historial, cierre, resultados y
- * ganadores). F11 queda sin asignar (REQ-KB-07).
+ * ganadores). F11 NO navega: es la acción local «Números» del dashboard
+ * (win-fixes3).
  */
 export const NAV_GLOBAL: readonly NavDestino[] = [
   { tecla: 'F7', ruta: '/historial', nombre: 'Ventas' },
@@ -131,7 +140,7 @@ export const NAV_GLOBAL: readonly NavDestino[] = [
 /**
  * Resolución pura de tecla → destino de navegación (FIX-6). Alt+D exige
  * altKey SIN ctrlKey (Ctrl+Alt = AltGr en algunos layouts y no debe
- * dispararse). null si la tecla no navega (p. ej. F11, libre).
+ * dispararse). null si la tecla no navega (p. ej. F11, local del dashboard).
  */
 export function destinoNav(tecla: string, opts: { altKey: boolean; ctrlKey: boolean }): NavDestino | null {
   if (opts.altKey && !opts.ctrlKey && tecla.toLowerCase() === 'd') {
@@ -147,7 +156,7 @@ export interface TeclaLegend {
 
 /**
  * Teclas mostradas en la leyenda/ayuda (REQ-KB-09, FIX-6): F1–F12 (KEYMAP,
- * F11 «Libre») más los destinos globales no-F (Alt+D) del NAV_GLOBAL.
+ * F11 «Números») más los destinos globales no-F (Alt+D) del NAV_GLOBAL.
  */
 export function teclasLegend(): readonly TeclaLegend[] {
   const extras = NAV_GLOBAL
@@ -349,7 +358,8 @@ export function routeKey(state: EstadoRuteo): RutaDecision {
   // 3. F-keys mapeadas: consumen siempre; ejecutables según guarda de estado.
   if (fkey) {
     if (fkey.accion === null) {
-      // F11 libre (REQ-KB-07): no consume.
+      // Red de seguridad: F-key sin acción no consume (hoy TODAS las F1–F12
+      // tienen acción, incluida F11 «Números» desde win-fixes3).
       return { consume: false, tipo: 'pasar' };
     }
     let ejecutable = true;

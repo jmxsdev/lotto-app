@@ -288,7 +288,7 @@ ok(r.consume && r.ejecutable === false, 'F3 sin historial → guarda bloquea');
 r = routeKey(est({ tecla: 'F4', tieneHistorial: true }));
 ok(r.consume && r.ejecutable === true, 'F4 con historial → ejecutable');
 r = routeKey(est({ tecla: 'F11' }));
-ok(!r.consume, 'F11 libre → no consume (REQ-KB-07)');
+ok(r.consume && r.tipo === 'f-key' && r.accion === 'ir-numero' && r.ejecutable === true, 'F11 → f-key «ir-numero» ejecutable (win-fixes3, ya no libre)');
 r = routeKey(est({ tecla: 'F5', repeat: true, tieneLineas: true }));
 ok(!r.consume, 'F5 con e.repeat → se ignora (A1)');
 r = routeKey(est({ tecla: 'F5', focoEditable: true, tieneLineas: true }));
@@ -421,9 +421,9 @@ console.log('\n== REQ-KB-07: KEYMAP F1–F12 ==');
 ok(KEYMAP.length === 12, `KEYMAP: 12 teclas (${KEYMAP.length})`);
 ok(esFKey('F1') && esFKey('F12') && esFKey('F9'), 'esFKey F1/F12/F9 → true');
 ok(!esFKey('F13') && !esFKey('f1') && !esFKey('Enter'), 'esFKey no-F → false');
-ok(KEYMAP.find((k) => k.tecla === 'F11').accion === null, 'F11 sin asignar (libre)');
+ok(KEYMAP.find((k) => k.tecla === 'F11').accion === 'ir-numero', 'F11 asignado: accion «ir-numero» (win-fixes3)');
 const acciones = KEYMAP.map((k) => k.accion).filter(Boolean);
-ok(acciones.length === 11, `11 acciones mapeadas (${acciones.length})`);
+ok(acciones.length === 12, `12 acciones mapeadas (F1–F12 completos, ${acciones.length})`);
 ok(
   KEYMAP.filter((k) => k.implementadaEn === 'PR3b').map((k) => k.tecla).join(',') === 'F1,F2,F3,F4,F5,F6,F9,F12',
   'PR3b mantiene las acciones locales del dashboard (F1-F6, F9, F12)',
@@ -431,6 +431,10 @@ ok(
 ok(
   KEYMAP.filter((k) => k.implementadaEn === 'win-fixes').map((k) => k.tecla).join(',') === 'F7,F8,F10',
   'win-fixes mueve F7/F8/F10 a la navegación global (MainLayout, FIX-6)',
+);
+ok(
+  KEYMAP.filter((k) => k.implementadaEn === 'win-fixes3').map((k) => k.tecla).join(',') === 'F11',
+  'win-fixes3 asigna F11 «Números» (salto directo al input)',
 );
 ok(
   KEYMAP.filter((k) => k.guarda === 'lineas').map((k) => k.tecla).join(',') === 'F5,F6',
@@ -620,12 +624,12 @@ ok(destinoNav('d', { altKey: true, ctrlKey: false })?.ruta === '/dashboard', 'de
 ok(destinoNav('D', { altKey: true, ctrlKey: false })?.ruta === '/dashboard', 'destinoNav Alt+Shift+D (mayúscula) → /dashboard');
 ok(destinoNav('d', { altKey: false, ctrlKey: false }) === null, 'd sin Alt → sin destino');
 ok(destinoNav('d', { altKey: true, ctrlKey: true }) === null, 'Ctrl+Alt+d (AltGr) → sin destino');
-ok(destinoNav('F11', { altKey: false, ctrlKey: false }) === null, 'F11 → sin destino (libre, REQ-KB-07)');
+ok(destinoNav('F11', { altKey: false, ctrlKey: false }) === null, 'F11 → sin destino (no navega; es local del dashboard)');
 ok(destinoNav('x', { altKey: false, ctrlKey: false }) === null, 'tecla no navegable → null');
 const legend = teclasLegend();
 ok(legend.length === 13, `teclasLegend: 13 teclas (F1–F12 + Alt+D) (${legend.length})`);
 ok(legend.some((t) => t.tecla === 'Alt+D' && t.nombre === 'Dashboard'), 'teclasLegend incluye Alt+D → Dashboard');
-ok(legend.find((t) => t.tecla === 'F11')?.nombre === 'Libre', 'F11 sigue «Libre» en la leyenda');
+ok(legend.find((t) => t.tecla === 'F11')?.nombre === 'Números', 'F11 → «Números» en la leyenda (win-fixes3)');
 ok(legend.find((t) => t.tecla === 'F7')?.nombre === 'Ventas', 'F7 → Ventas en la leyenda');
 
 console.log(`\n${checks} checks, ${fallos} fallos`);
