@@ -1182,7 +1182,7 @@ import MainLayout from '../layouts/MainLayout.astro';
       if (activeTab === tipo) return;
       // FIX-3c: si hay selección en curso se bloquea el cambio (aviso breve).
       if (seleccionEnCurso()) {
-        mostrarAvisoTab('Finalice la selección actual antes de cambiar de pestaña (F2 limpia)');
+        mostrarAvisoTab('Finalice la selección actual antes de cambiar de pestaña (F2 Limpiar todo)');
         return;
       }
       activeTab = tipo;
@@ -1695,23 +1695,33 @@ import MainLayout from '../layouts/MainLayout.astro';
     }
 
     function clearTicket() {
+      // win-fixes2 FIX C (desviación de A11): F2 / 🗑️ «Limpiar todo» vacía el
+      // ticket Y TODA la selección en curso — juego, animal, signo, opción,
+      // modalidad, horarios y buffers de dígitos — y vuelve las zonas a Juegos
+      // con foco inicial. A11 mantenía el juego activo y exigía líneas; el
+      // reset total deja el guard de pestañas (seleccionEnCurso) satisfecho de
+      // forma natural al limpiar. Sin líneas también limpia la selección.
       ticketLines = [];
+      selectedGames = [];
       selectedAnimal = null;
       selectedSigno = null;
       selectedOpcion = null;
       tripleModalidad = null;
       tripleModalidadLabel = null;
       selectedHorarios = [];
+      horariosCache = [];
+      buscadorDigitos = null;
+      buscadorSignos = null;
       document.getElementById('qt-numero').value = '';
       document.getElementById('qt-monto').value = '';
-      if (juegoActivo()) {
-        renderSeleccion();
-      } else {
-        document.getElementById('seleccion-content').innerHTML = '<div class="seleccion-placeholder">Seleccione un juego</div>';
-      }
+      renderJuegos();
+      renderSeleccion();
+      renderLegend();
       switchToJuegos();
+      document.getElementById('juegos-col-title').textContent = 'Juegos';
       saveToLocalStorage();
       renderResumen();
+      requestAnimationFrame(() => enfocarZona('juegos'));
     }
 
     // El ✕ de la fila agrupada borra el grupo completo (A3): todas las líneas
@@ -1990,9 +2000,10 @@ import MainLayout from '../layouts/MainLayout.astro';
 
     // ─── Navegación por teclado (PR2: KB-01..04, KB-08, KB-09; A1) ──────────
     // ACCIONES reales de F-keys (PR3b, REQ-KB-07, A11, A12): F1 ayuda, F2
-    // limpiar (= clearTicket), F3 anular último grupo, F4 repetir última
-    // (atómico), F5 pagar/generar (= handlePrint), F6 eliminar el grupo
-    // seleccionado del resumen, F9 vuelto, F12 reimprimir snapshot. F7/F8/F10
+    // limpiar todo (= clearTicket, reset TOTAL — win-fixes2 FIX C), F3 anular
+    // último grupo, F4 repetir última (atómico), F5 pagar/generar
+    // (= handlePrint), F6 eliminar el grupo seleccionado del resumen, F9
+    // vuelto, F12 reimprimir snapshot. F7/F8/F10
     // (ventas/cuadre/resultados) NO viven aquí desde FIX-6: la navegación es
     // GLOBAL en MainLayout.astro (evita doble dispatch en las 5 pantallas).
     // Las guardas de estado viven en routeKey
@@ -2512,10 +2523,10 @@ import MainLayout from '../layouts/MainLayout.astro';
           case 'pestana-anterior':
             // FIX-3c: con selección en curso routeKey marca ejecutable=false;
             // el guard real vive en activarTab (cubre también el click).
-            if (!decision.ejecutable) { mostrarAvisoTab('Finalice la selección actual antes de cambiar de pestaña (F2 limpia)'); break; }
+            if (!decision.ejecutable) { mostrarAvisoTab('Finalice la selección actual antes de cambiar de pestaña (F2 Limpiar todo)'); break; }
             activarTab(tabAnterior()); break;
           case 'pestana-siguiente':
-            if (!decision.ejecutable) { mostrarAvisoTab('Finalice la selección actual antes de cambiar de pestaña (F2 limpia)'); break; }
+            if (!decision.ejecutable) { mostrarAvisoTab('Finalice la selección actual antes de cambiar de pestaña (F2 Limpiar todo)'); break; }
             activarTab(tabSiguiente()); break;
           case 'zona-izquierda': moverHorizontal('izquierda'); break; // FIX-3a
           case 'zona-derecha': moverHorizontal('derecha'); break; // FIX-3a

@@ -35,6 +35,9 @@
  *     - FIX B: los dígitos también se rutean en la zona Signo (zodiacal
  *       triple_c) → decisión `digito`; el glue selecciona el signo por
  *       posición 1-12.
+ *     - FIX C: F2 pasa a «Limpiar todo» (nombre) con guarda 'ninguno': se
+ *       ejecuta aunque no haya líneas para poder limpiar la selección en
+ *       curso (desviación de A11; antes guarda 'lineas').
  */
 
 export type FamiliaOpciones = 'animalitos' | 'zodiacal' | 'numerica' | 'terminal';
@@ -80,7 +83,10 @@ export interface TeclaMapa {
 /** Mapa F1–F12 (REQ-KB-07). F11 queda sin asignar. */
 export const KEYMAP: readonly TeclaMapa[] = [
   { tecla: 'F1', accion: 'ayuda', nombre: 'Ayuda', guarda: 'ninguno', implementadaEn: 'PR3b' },
-  { tecla: 'F2', accion: 'limpiar', nombre: 'Limpiar', guarda: 'lineas', implementadaEn: 'PR3b' },
+  // F2 «Limpiar todo» (win-fixes2 FIX C): guarda 'ninguno' — se ejecuta SIN
+  // líneas para poder limpiar la selección en curso (desviación de A11, que
+  // exigía líneas; el reset total deja el guard de pestañas satisfecho).
+  { tecla: 'F2', accion: 'limpiar', nombre: 'Limpiar todo', guarda: 'ninguno', implementadaEn: 'PR3b' },
   { tecla: 'F3', accion: 'anular-ultima', nombre: 'Anular última', guarda: 'historial', implementadaEn: 'PR3b' },
   { tecla: 'F4', accion: 'repetir-ultima', nombre: 'Repetir última', guarda: 'historial', implementadaEn: 'PR3b' },
   { tecla: 'F5', accion: 'pagar-generar', nombre: 'Pagar / Generar', guarda: 'lineas', implementadaEn: 'PR3b' },

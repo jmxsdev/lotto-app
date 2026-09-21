@@ -276,7 +276,9 @@ ok(r.consume && r.tipo === 'f-key' && r.ejecutable === true, 'F5 con líneas →
 r = routeKey(est({ tecla: 'F5', tieneLineas: false }));
 ok(r.consume && r.tipo === 'f-key' && r.ejecutable === false, 'F5 sin líneas → consume (preventDefault) pero NO ejecuta');
 r = routeKey(est({ tecla: 'F2', tieneLineas: false }));
-ok(r.consume && r.ejecutable === false, 'F2 sin líneas → guarda bloquea (no-op, A11)');
+ok(r.consume && r.ejecutable === true, 'F2 sin líneas → ejecutable (limpia la selección en curso, win-fixes2 FIX C)');
+r = routeKey(est({ tecla: 'F2', tieneLineas: true }));
+ok(r.consume && r.ejecutable === true, 'F2 con líneas → ejecutable');
 r = routeKey(est({ tecla: 'F6', tieneLineas: false }));
 ok(r.consume && r.ejecutable === false, 'F6 sin líneas → guarda bloquea');
 r = routeKey(est({ tecla: 'F3', tieneHistorial: false }));
@@ -429,13 +431,21 @@ ok(
   'win-fixes mueve F7/F8/F10 a la navegación global (MainLayout, FIX-6)',
 );
 ok(
-  KEYMAP.filter((k) => k.guarda === 'lineas').map((k) => k.tecla).join(',') === 'F2,F5,F6',
-  'guardas de estado: F2/F5/F6 requieren líneas (A11)',
+  KEYMAP.filter((k) => k.guarda === 'lineas').map((k) => k.tecla).join(',') === 'F5,F6',
+  'guardas de estado: F5/F6 requieren líneas (F2 ya no, win-fixes2 FIX C)',
 );
 ok(
   KEYMAP.filter((k) => k.guarda === 'historial').map((k) => k.tecla).join(',') === 'F3,F4',
   'guardas de estado: F3/F4 requieren historial (A11)',
 );
+
+console.log('\n== win-fixes2 FIX C: F2 «Limpiar todo» (reset total) ==');
+const f2 = KEYMAP.find((k) => k.tecla === 'F2');
+ok(f2.nombre === 'Limpiar todo', `F2 nombre → «Limpiar todo» (${f2.nombre})`);
+ok(f2.guarda === 'ninguno', 'F2 sin guarda de líneas (se ejecuta con selección en curso)');
+ok(teclasLegend().find((t) => t.tecla === 'F2')?.nombre === 'Limpiar todo', 'leyenda refleja «Limpiar todo»');
+r = routeKey(est({ tecla: 'F2', tieneLineas: false, seleccionEnCurso: true }));
+ok(r.consume && r.tipo === 'f-key' && r.ejecutable === true, 'F2 con selección en curso y 0 líneas → ejecuta (limpia todo)');
 
 console.log('\n== PR3b: calcularVuelto (A12, REQ-KB-07 F9) ==');
 const cerca = (a, b) => Math.abs(a - b) < 1e-9;
