@@ -78,7 +78,22 @@ class PremiosEngine
             return ['premio_bs' => 0.0, 'premio_usd' => 0.0];
         }
 
-        $clave = $combinacion['modalidad'] ?? $this->modalidadDe($juego, $combinacion);
+        // F2/D8 (REQ11): una modalidad DECLARADA no soportada por el juego se
+        // rechaza (la Dupleta no se implementa; el front la modela como
+        // apuestas independientes). Las claves DERIVADAS por el plugin caen al
+        // base por fallback (`multiplicadorPara`), como en F1d.
+        if (isset($combinacion['modalidad'])) {
+            $clave = (string) $combinacion['modalidad'];
+            $premios = $juego->config['premios'] ?? [];
+            $modalidades = $premios['modalidades'] ?? [];
+
+            if ($clave !== 'base' && ! array_key_exists($clave, $modalidades)) {
+                return ['premio_bs' => 0.0, 'premio_usd' => 0.0];
+            }
+        } else {
+            $clave = $this->modalidadDe($juego, $combinacion);
+        }
+
         $multiplicador = $this->multiplicadorPara($juego, (string) $clave);
 
         return [
