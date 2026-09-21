@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\Juego;
+use App\Models\User;
 use App\Services\JuegoCatalogoService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -457,5 +459,31 @@ class JuegosJsonTest extends TestCase
             $this->assertSame(1, $idsGenerados[$i] - $idsGenerados[$i - 1], 'Los ids generados deben ser estrictamente consecutivos.');
         }
         $this->assertSame(21, count($idsGenerados), 'Deben ser exactamente 21 juegos.');
+    }
+
+    public function test_endpoint_reglas_incluye_premios_del_motor(): void
+    {
+        // F1d 1.14-reglas (D10/§3.3): GET /juegos/{id}/reglas expone `premios`
+        // ({base, modalidades, comodines} del motor) de forma ADITIVA sobre las
+        // reglas del plugin. No rompe el contrato previo.
+        $user = User::where('email', 'super@lotto.com')->first();
+        $juego = Juego::where('slug', 'monje-millonario')->first();
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->getJson("/api/v1/juegos/{$juego->id}/reglas");
+
+        $response->assertStatus(200);
+        $data = $response->json();
+
+        // Aditivo: campos legacy del plugin se conservan.
+        $this->assertArrayHasKey('descripcion', $data);
+        $this->assertArrayHasKey('tipo', $data);
+        $this->assertArrayHasKey('modalidades', $data);
+
+        // Premios del motor (config.premios): base 50, comodines Patronus.
+        $this->assertArrayHasKey('premios', $data, 'reglas debe exponer premios del motor (aditivo).');
+        $this->assertSame(50, $data['premios']['base']);
+        $this->assertSame(120, $data['premios']['comodines']['patronus-75']['premio_multiplo']);
+        $this->assertSame(20, $data['premios']['comodines']['patronus-palabra']['premio_multiplo']);
     }
 }
