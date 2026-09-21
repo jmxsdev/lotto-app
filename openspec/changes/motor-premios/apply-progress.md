@@ -84,7 +84,10 @@
 
 ## Commits (rama `feat/motor-premios-f1c-migraciones`)
 
-- {commits del slice — se completan al cerrar el batch}
+- 7ba158d feat(motor-premios): PremiosOficiales::configPara como fuente unica de premios y espejos legacy (1.16, D2/D4)
+- 30e9d5e feat(motor-premios): export con premios/active/vendible y 21 seeders alineados al catalogo (1.14-export/1.16, D10)
+- c15a2c0 feat(motor-premios): migraciones ganadora, backfill premios y dedupe de resultados (1.15, REQ7/REQ13/REQ14, D5/D6)
+- 12f39ff docs(sdd): marca F1c (1.14-export/1.15/1.16) y registra apply-progress del slice
 
 ## Deviations (F1c)
 
