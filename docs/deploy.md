@@ -696,6 +696,13 @@ EOF
 Umbral de disco calibrado sobre el **disco real (237 GB)**: alerta cuando queda
 menos del 20 % libre.
 
+Reglas de resultados (textfile `resultados.prom` que escribe el scheduler con
+`resultados:metricas`): `MissingDraw` dispara cuando un sorteo esperado lleva
+más de 1 hora sin persistir (distingue gap upstream de fallo del scraper);
+`DailyDrawsIncomplete` cuando el conteo diario queda por debajo del esperado
+según `juego_horarios`; `DrawMetricsStale` cuando el propio textfile no se
+actualiza (el comando no corre).
+
 ```bash
 cat > /home/deploy/monitoring/alerts.yml <<'EOF'
 groups:
@@ -742,8 +749,49 @@ groups:
         labels: { severity: warning }
         annotations:
           summary: "Backup diario sin éxito en más de 26 horas"
+
+      - alert: MissingDraw
+        expr: lotto_draws_pending_seconds > 3600
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Sorteo faltante de {{ $labels.juego }} por más de 1 hora: gap upstream (la fuente no publicó) o fallo del scraper sostenido; verificar la fuente"
+
+      - alert: DailyDrawsIncomplete
+        expr: lotto_daily_incomplete > 0
+        for: 30m
+        labels: { severity: warning }
+        annotations:
+          summary: "Conteo diario de {{ $labels.juego }} por debajo del esperado según juego_horarios"
+
+      - alert: DrawMetricsStale
+        expr: (time() - lotto_metrics_timestamp) > 3600
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "Métricas de resultados sin actualizar hace más de 1 hora (resultados:metricas no corre)"
 EOF
 ```
+
+### 12.4.1 Aplicar las reglas de alertas de resultados (rollout — pendiente)
+
+> ⚠️ El textfile `resultados.prom` lo escribe el scheduler (`resultados:metricas`
+> cada 15 min) en el volumen `/var/lib/lotto-metrics` (§12.7); node-exporter lo
+> scrapea con `--collector.textfile.directory=/var/lib/node_exporter/textfile`.
+
+1. Copia el bloque `alerts.yml` actualizado al VPS (incluye las reglas
+   `MissingDraw`, `DailyDrawsIncomplete` y `DrawMetricsStale`):
+
+```bash
+nano /home/deploy/monitoring/alerts.yml   # pegar el bloque completo del §12.4
+docker restart lotto_prometheus           # recarga las reglas
+```
+
+2. Verifica que las 3 reglas nuevas estén presentes:
+   `curl -s http://127.0.0.1:9090/api/v1/rules | jq '.data.groups[].rules[].name'` (túnel SSH).
+
+Rollback: quitar las 3 reglas de `alerts.yml` + `docker restart lotto_prometheus`;
+el textfile `resultados.prom` se puede borrar (el comando lo regenera cada 15 min).
 
 ### 12.5 `alertmanager.yml` (receptor Telegram)
 

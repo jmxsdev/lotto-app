@@ -58,11 +58,11 @@ Chain strategy: pending
 
 ## Slice 4: Alertas (`resultados:metricas` + reglas Prometheus + docs)
 
-- [ ] 4.1 RED — crear `backend/tests/Feature/ResultadosMetricasCommandTest.php`: `*.prom` atómico y correcto (métricas `lotto_draws_expected_today|persisted_today|missing|pending_seconds|daily_incomplete|metrics_timestamp`, label `juego=slug`); falla si falta el dir. RED.
-- [ ] 4.2 GREEN — crear `backend/app/Console/Commands/ResultadosMetricas.php` (`resultados:metricas`): textfile atómico (tmp+rename), falla si falta el dir. GREEN.
-- [ ] 4.3 RED — ampliar `ScheduleTimeZoneTest`: comando `resultados_metricas` cada 15 min. RED.
-- [ ] 4.4 GREEN — modificar `ScheduleServiceProvider`: registrar `resultados:metricas` cada 15 min (`withoutOverlapping(5)`). GREEN.
-- [ ] 4.5 — actualizar `docs/deploy.md` §12.4 `alerts.yml`: reglas `MissingDraw` (`pending_seconds>3600`, 5m), `DailyDrawsIncomplete` (`daily_incomplete>0`, 30m), `DrawMetricsStale` (>1h, 15m) (convención `BackupNotRun`).
+- [x] 4.1 RED — crear `backend/tests/Feature/ResultadosMetricasCommandTest.php`: `*.prom` atómico y correcto (métricas `lotto_draws_expected_today|persisted_today|missing|pending_seconds|daily_incomplete|metrics_timestamp`, label `juego=slug`); falla si falta el dir. RED.
+- [x] 4.2 GREEN — crear `backend/app/Console/Commands/ResultadosMetricas.php` (`resultados:metricas`): textfile atómico (tmp+rename), falla si falta el dir. GREEN.
+- [x] 4.3 RED — ampliar `ScheduleTimeZoneTest`: comando `resultados_metricas` cada 15 min. RED.
+- [x] 4.4 GREEN — modificar `ScheduleServiceProvider`: registrar `resultados:metricas` cada 15 min (`withoutOverlapping(5)`). GREEN.
+- [x] 4.5 — actualizar `docs/deploy.md` §12.4 `alerts.yml`: reglas `MissingDraw` (`pending_seconds>3600`, 5m), `DailyDrawsIncomplete` (`daily_incomplete>0`, 30m), `DrawMetricsStale` (>1h, 15m) (convención `BackupNotRun`).
 - [ ] 4.6 ROLLOUT (usuario) — aplicar reglas a `/home/deploy/monitoring/alerts.yml` + `docker restart lotto_prometheus`.
 
 ## Rollback por slice
