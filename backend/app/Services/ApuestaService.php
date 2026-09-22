@@ -982,6 +982,7 @@ class ApuestaService
         $apuestas = Apuesta::with('ticket')
             ->where('juego_id', $resultado->juego_id)
             ->where('estado', 'pendiente')
+            ->whereNull('resultado_id') // N5: no reprocesar lo ya liquidado
             ->whereDate('sorteo_hora', $resultado->fecha_sorteo->toDateString())
             ->whereTime('sorteo_hora', $horaSorteo)
             ->get();
@@ -996,7 +997,11 @@ class ApuestaService
                 $combinacion = json_decode($combinacion, true);
             }
 
-            $premio = $plugin->calcularPremio(
+            // REQ10/D5 (design §4): el dinero lo decide el MOTOR
+            // (manager → PremiosEngine, acentos/comodines/config), nunca el
+            // plugin legacy directo (que no normaliza ni lee config.premios).
+            $premio = $pluginManager->calcularPremio(
+                $resultado->juego,
                 [
                     'combinacion' => $combinacion ?? [],
                     'amount_bs' => (float) $apuesta->amount_bs,
@@ -1008,15 +1013,9 @@ class ApuestaService
             $premioBs = $premio['premio_bs'] ?? 0;
             $premioUsd = $premio['premio_usd'] ?? 0;
 
-            $apuesta->resultado_id = $resultado->id;
-            $apuesta->save();
-
-            DetalleApuesta::where('apuesta_id', $apuesta->id)->update([
-                'premio_ganado' => $premioBs > 0 ? $premioBs : null,
-                'premio_ganado_usd' => $premioUsd > 0 ? $premioUsd : null,
-            ]);
-
             if ($premioBs > 0 || $premioUsd > 0) {
+                // D5 (REQ13): pendiente → ganadora (impaga), con resultado_id.
+                $apuesta->estado = 'ganadora';
                 $ganadoras++;
 
                 $ticketId = $apuesta->ticket_id;
@@ -1029,9 +1028,17 @@ class ApuestaService
                     $ticketsGanadores[$ticketId] = true;
                 }
             } else {
+                // D5: pendiente → perdida.
                 $apuesta->estado = 'perdida';
-                $apuesta->save();
             }
+
+            $apuesta->resultado_id = $resultado->id;
+            $apuesta->save();
+
+            DetalleApuesta::where('apuesta_id', $apuesta->id)->update([
+                'premio_ganado' => $premioBs > 0 ? $premioBs : null,
+                'premio_ganado_usd' => $premioUsd > 0 ? $premioUsd : null,
+            ]);
         }
 
         foreach ($ticketPremios as $ticketId => $premios) {
