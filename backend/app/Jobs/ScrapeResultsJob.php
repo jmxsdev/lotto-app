@@ -5,16 +5,14 @@ namespace App\Jobs;
 use App\Models\Juego;
 use App\Models\Log;
 use App\Models\Resultado;
-use App\Plugins\Scrapers\AnimalitosScraper;
-use App\Plugins\Scrapers\TripletasScraper;
 use App\Services\ApuestaService;
+use App\Services\ScraperSourceResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log as FacadeLog;
-use Illuminate\Support\Str;
 
 class ScrapeResultsJob implements ShouldQueue
 {
@@ -48,9 +46,9 @@ class ScrapeResultsJob implements ShouldQueue
 
         FacadeLog::info("=== INICIO ScrapeResultsJob para {$juego->name} fecha: {$fecha} ===");
 
-        $scraperClass = $this->resolveScraper($juego);
+        $scraper = app(ScraperSourceResolver::class)->scraperFor($juego);
 
-        if (! $scraperClass || ! class_exists($scraperClass)) {
+        if (! $scraper) {
             FacadeLog::warning("No existe scraper para: {$juego->name} (type: {$juego->type}, url: {$juego->scraper_url})");
             $this->logToDatabase('warning', 'No existe scraper', [
                 'juego' => $juego->name,
@@ -61,7 +59,6 @@ class ScrapeResultsJob implements ShouldQueue
         }
 
         try {
-            $scraper = $this->instantiateScraper($scraperClass, $juego);
             $resultados = $scraper->execute($fecha);
 
             if (empty($resultados)) {
@@ -117,52 +114,22 @@ class ScrapeResultsJob implements ShouldQueue
         FacadeLog::info("=== FIN ScrapeResultsJob {$juego->name} ===");
     }
 
+    /**
+     * Compatibilidad con tests previos: la resolución de clase vive ahora en
+     * ScraperSourceResolver (contrato idéntico: scraper_class > URL > convención).
+     */
     protected function resolveScraper(Juego $juego): ?string
     {
-        if ($juego->scraper_class) {
-            $class = $juego->scraper_class;
-
-            if (class_exists($class)) {
-                return $class;
-            }
-
-            FacadeLog::warning("ScrapeResultsJob: scraper_class {$juego->scraper_class} no existe para {$juego->name}");
-
-            return null;
-        }
-
-        $url = $juego->scraper_url ?? '';
-        $type = $juego->type;
-
-        if (str_contains($url, 'lottoactivo.com')) {
-            return AnimalitosScraper::class;
-        }
-        if (str_contains($url, 'triplezulia')) {
-            return TripletasScraper::class;
-        }
-
-        // Fallback: convention-based by type
-        $class = 'App\\Plugins\\Scrapers\\'.Str::studly($type).'Scraper';
-
-        return class_exists($class) ? $class : null;
+        return app(ScraperSourceResolver::class)->scraperClassFor($juego);
     }
 
+    /**
+     * Compatibilidad con tests previos: la instanciación (slug de lottoactivo
+     * derivado de la URL, juego inyectado al resto de clases) vive en el resolver.
+     */
     protected function instantiateScraper(string $class, Juego $juego): object
     {
-        if ($class === AnimalitosScraper::class) {
-            $slug = 'animalitos';
-            $url = $juego->scraper_url ?? '';
-            if (str_contains($url, 'trio_activo')) {
-                $slug = 'trio_activo';
-            }
-            if (str_contains($url, 'terminal_activo')) {
-                $slug = 'terminal_activo';
-            }
-
-            return new AnimalitosScraper($slug);
-        }
-
-        return new $class($juego);
+        return app(ScraperSourceResolver::class)->instantiateClass($class, $juego);
     }
 
     protected function logToDatabase(string $level, string $message, array $context = []): void

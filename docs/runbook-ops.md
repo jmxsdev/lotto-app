@@ -3,7 +3,7 @@
 ## Estado (2026-08-19)
 
 - **VPS**: `166.1.88.100` (host-9d346c.ns.truo.co), Debian 13, 16 GB RAM / 6 vCPU / 237 GB SSD
-- **Stack**: Docker Compose en `/home/deploy/lotto-app` — `api` (FrankenPHP), `mysql` 8, `redis` 7, `horizon`, `caddy`
+- **Stack**: Docker Compose en `/home/deploy/lotto-app` — `api` (FrankenPHP), `mysql` 8, `redis` 7, `scheduler` (agenda `schedule:work`), `horizon`, `caddy`
 - **Acceso SSH**: SOLO por llave, usuario `deploy`. Root SSH deshabilitado.
 - **API interna**: `127.0.0.1:10000` (healthcheck `GET /api/v1/juegos` → 401/200 = vivo)
 - **Archivo de secretos**: `/home/deploy/lotto-app/.env.production` (permiso 600)
@@ -38,9 +38,37 @@ git pull                                  # actualizar código
 docker compose --env-file .env.production -f docker-compose.prod.yml ps
 docker logs -f lotto_api_prod             # logs API
 docker logs -f lotto_horizon_prod         # logs colas
+docker logs -f lotto_scheduler_prod       # logs agenda (schedule:work)
 # Rollback manual:
 docker compose --env-file .env.production -f docker-compose.prod.yml up -d <imagen-anterior>
 ```
+
+## Scheduler de resultados (agenda por fuente)
+
+El servicio `scheduler` corre `php artisan schedule:work` (compose prod). Agenda:
+pasadas por fuente `scrape_{sourceKey}_{H:i}[+15|+30|+45]`, sweep
+`resultados:reconciliar` cada 15 min y cierre `--day-close` a las 23:45.
+
+```bash
+docker ps | grep lotto_scheduler_prod          # Up (healthy)
+docker exec lotto_scheduler_prod php artisan schedule:list   # agenda real (expresiones cron)
+docker logs -f lotto_scheduler_prod            # ejecuciones por minuto
+docker restart lotto_scheduler_prod            # tras sembrar/editar horarios (agenda congelada al arrancar)
+```
+
+Rollback del scheduler (vuelve al cron del host):
+
+```bash
+# 1. eliminar el contenedor (el `up -d` NO borra huérfanos)
+docker rm -f lotto_scheduler_prod
+# 2. re-agregar la línea cron como deploy (conservando restic):
+crontab -e
+# * * * * * cd /home/deploy/lotto-app && docker exec lotto_api_prod php artisan schedule:run >> /home/deploy/logs/schedule.log 2>&1
+```
+
+La transición es segura: el mutex Redis (`withoutOverlapping`) evitó el doble
+dispatch durante el solapamiento, y el upsert idempotente (`saveResults`) hace
+seguro re-ejecutar sin duplicados.
 
 ## Taquilla Windows release (build + re-publicación)
 
