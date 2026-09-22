@@ -161,6 +161,26 @@ class ScheduleTimeZoneTest extends TestCase
         $this->assertSame('*/15 * * * *', $evento->expression, 'El sweep debe correr cada 15 minutos.');
     }
 
+    public function test_las_metricas_de_resultados_se_registran_cada_15_minutos(): void
+    {
+        $juego = $this->crearJuego('lotto-activo', 'https://www.lottoactivo.com/resultados/animalitos/');
+
+        JuegoHorario::create([
+            'juego_id' => $juego->id,
+            'hora' => '08:00:00',
+            'active' => true,
+        ]);
+
+        $provider = new ScheduleServiceProvider($this->app);
+        $provider->boot();
+
+        $evento = collect(Schedule::events())
+            ->first(fn ($event) => $event->description === 'resultados_metricas');
+
+        $this->assertNotNull($evento, 'El exportador de métricas debe estar registrado en la agenda.');
+        $this->assertSame('*/15 * * * *', $evento->expression, 'resultados:metricas debe correr cada 15 minutos.');
+    }
+
     public function test_el_cierre_de_dia_se_registra_a_las_23_45(): void
     {
         $juego = $this->crearJuego('lotto-activo', 'https://www.lottoactivo.com/resultados/animalitos/');

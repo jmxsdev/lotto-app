@@ -66,5 +66,11 @@ class ScheduleServiceProvider extends ServiceProvider
             ->dailyAt('23:45')
             ->name('reconciliar_resultados_cierre')
             ->withoutOverlapping(30);
+
+        // Métricas de alerta: textfile Prometheus (resultados.prom) cada 15 min.
+        Schedule::command('resultados:metricas')
+            ->everyFifteenMinutes()
+            ->name('resultados_metricas')
+            ->withoutOverlapping(5);
     }
 }
