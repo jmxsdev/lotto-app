@@ -141,8 +141,12 @@ class PagoController extends Controller
         if ($apuesta->ticket_id) {
             $ticket = Ticket::with('apuestas')->find($apuesta->ticket_id);
             if ($ticket && $ticket->estado !== 'pagada') {
+                // D5: la cascada suma `vencido` a "resuelta"; `ganadora`
+                // (impaga) NO resuelve el ticket.
                 $todasResueltas = $ticket->apuestas->every(function ($a) {
-                    return $a->estado === 'pagada' || $a->estado === 'anulada' || $a->estado === 'perdida' || $a->trashed();
+                    return $a->estado === 'pagada' || $a->estado === 'anulada'
+                        || $a->estado === 'perdida' || $a->estado === 'vencido'
+                        || $a->trashed();
                 });
                 if ($todasResueltas) {
                     $ticket->update(['estado' => 'pagada']);
