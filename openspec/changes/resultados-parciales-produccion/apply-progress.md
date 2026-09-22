@@ -1,6 +1,6 @@
-# Apply Progress — Slices 1–3 (`resultados-parciales-produccion`)
+# Apply Progress — Slices 1–4 (`resultados-parciales-produccion`)
 
-**Estado**: Slice 1 COMPLETO (tareas 1.1–1.10). Slice 2 COMPLETO (tareas 2.1–2.6). Slice 3 COMPLETO (tareas 3.1–3.3; tarea 3.4 ROLLOUT pendiente de ejecución por el usuario). Slice 4 NO implementado (alertas).
+**Estado**: Slice 1 COMPLETO (tareas 1.1–1.10). Slice 2 COMPLETO (tareas 2.1–2.6). Slice 3 COMPLETO (tareas 3.1–3.3; tarea 3.4 ROLLOUT pendiente de ejecución por el usuario). Slice 4 COMPLETO (tareas 4.1–4.5; tarea 4.6 ROLLOUT pendiente de ejecución por el usuario — reglas en `alerts.yml` + restart de Prometheus).
 
 **Modo**: STRICT TDD. Runner: `php artisan test` (canonical; CI usa `php artisan test --display-warnings`).
 
@@ -178,4 +178,82 @@ Rollback global slice 2: quitar `DrawReconciliationService`/`ReconciliarSorteos`
 
 ## Siguiente paso
 
-Slice 4: alertas (`resultados:metricas` + reglas Prometheus + docs; tareas 4.1–4.6). Antes, el usuario debe ejecutar el rollout del slice 3 (tarea 3.4) y la integración a main queda user-gated tras verify.
+Slice 4 implementado (tareas 4.1–4.5; 4.6 ROLLOUT pendiente de usuario). Quedan pendientes de USUARIO: rollout del slice 3 (tarea 3.4: retirar cron del host + `up -d` + verificar scheduler) y rollout del slice 4 (tarea 4.6: aplicar reglas a `alerts.yml` + `docker restart lotto_prometheus`). La integración a main sigue user-gated tras verify.
+
+---
+
+# Slice 4 — Alertas (`resultados:metricas` + reglas Prometheus + docs)
+
+## Archivos cambiados (Slice 4)
+
+| Archivo | Acción | Qué |
+|---|---|---|
+| `backend/app/Console/Commands/ResultadosMetricas.php` | Crear | `resultados:metricas` con `--path` (default `/var/lib/lotto-metrics`). Escribe `resultados.prom` (textfile node-exporter) atómico: tmp en el mismo directorio + `rename()`; FALLA (exit 1, mensaje de error) si el dir no existe — no lo crea. Métricas por juego (label `juego`=slug) solo para juegos `requires_scraper AND active`: `lotto_draws_expected_today` (todos los horarios activos del día, incl. futuros), `lotto_draws_persisted_today` (filas `resultados` de hoy), `lotto_draws_missing` (vencidos hora<=ahora sin fila persistida), `lotto_draws_pending_seconds` (segundos desde el faltante más temprano; 0 si no hay), `lotto_daily_incomplete` (1 si el conteo del día de referencia quedó bajo el esperado; referencia = AYER antes de las 23:45, HOY desde las 23:45) y `lotto_metrics_timestamp` global (sin label). Bloques HELP/TYPE por métrica. |
+| `backend/tests/Feature/ResultadosMetricasCommandTest.php` | Crear | 5 tests (22 asserts, tiempo congelado `Carbon::setTestNow`): métricas correctas por juego + juego sin scraper excluido; atomicidad (solo `resultados.prom` en el dir, sin `.tmp`); fallo con dir inexistente (exit 1 + mensaje); día completo tras 23:45 → incompletos 0; `pending_seconds` usa el faltante más temprano (08:00 → 21600 s). |
+| `backend/app/Providers/ScheduleServiceProvider.php` | Modificar | Registra `resultados:metricas` cada 15 min (`everyFifteenMinutes()`, nombre `resultados_metricas`, `withoutOverlapping(5)`), solo consola (el provider ya retorna si no corre en consola). |
+| `backend/tests/Feature/ScheduleTimeZoneTest.php` | Modificar | +1 test: `resultados_metricas` con expresión `*/15 * * * *`. |
+| `docs/deploy.md` | Modificar | §12.4 `alerts.yml`: 3 reglas nuevas siguiendo la convención `BackupNotRun` — `MissingDraw` (`lotto_draws_pending_seconds > 3600`, `for: 5m`, annotation que distingue gap upstream de fallo del scraper), `DailyDrawsIncomplete` (`lotto_daily_incomplete > 0`, `for: 30m`), `DrawMetricsStale` (`(time() - lotto_metrics_timestamp) > 3600`, `for: 15m`). **§12.4.1 nuevo**: pasos exactos del rollout 4.6 (pegar bloque en `/home/deploy/monitoring/alerts.yml` + `docker restart lotto_prometheus` + verificación vía `/api/v1/rules` + rollback). |
+| `openspec/changes/resultados-parciales-produccion/tasks.md` | Modificar | Tasks 4.1–4.5 `[x]`; 4.6 queda `[ ]` (rollout pendiente de usuario). |
+| `openspec/changes/resultados-parciales-produccion/apply-progress.md` | Modificar | Este artefacto (merge slices 1–4). |
+
+## TDD Cycle Evidence (Slice 4)
+
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|---|---|---|
+| 4.1 | `tests/Feature/ResultadosMetricasCommandTest.php` | Feature | N/A (nuevo) | ✅ 5 errores (`The command "resultados:metricas" does not exist`) | ✅ 5/5 (22 asserts) | ✅ 5 casos (métricas por juego + exclusión sin-scraper, atomicidad, dir faltante, día completo tras 23:45, pendiente más temprano) | ✅ Pint |
+| 4.2 | (mismo archivo; comando) | Feature | N/A | ✅ (4.1 cubre) | ✅ 5/5 (22 asserts) | ➖ cubierto por 4.1 | ✅ Pint |
+| 4.3 | `tests/Feature/ScheduleTimeZoneTest.php` | Feature | ✅ 7/7 (previo) | ✅ 1 fallo (evento `resultados_metricas` ausente) | ✅ 8/8 (18 asserts) | ✅ 1 caso (`*/15 * * * *`) | ➖ none |
+| 4.4 | (mismo archivo) | Feature | N/A | ✅ (4.3 cubre) | ✅ 8/8 (18 asserts) | ➖ cubierto por 4.3 | ✅ Pint |
+| 4.5 | `docs/deploy.md` §12.4/§12.4.1 | docs | N/A | — | revisión manual (3 reglas, convención BackupNotRun, annotation con distinción gap/fallo) | ➖ 3 reglas | ✅ — |
+| 4.6 | rollout usuario | — | — | — | — | — | — |
+
+## Work Unit Evidence (Slice 4)
+
+| Work unit | Focused test command y resultado | Runtime harness | Rollback boundary |
+|---|---|---|---|
+| Comando + test (4.1–4.2) | `php artisan test --filter=ResultadosMetricasCommandTest` → 5/5 (22 asserts) | `php artisan resultados:metricas --path=/tmp/opencode/metricas-harness` → escribe `resultados.prom` con métricas reales por juego (lotto-activo 12 esperados, triple-zulia 3, terminal-activo 12, …); dir inexistente → exit 1 `El directorio textfile no existe`; solo `resultados.prom` en el dir (atómico) | Revertir `ResultadosMetricas.php` + `ResultadosMetricasCommandTest.php` |
+| Agenda (4.3–4.4) | `php artisan test --filter=ScheduleTimeZoneTest` → 8/8 (18 asserts) | `php artisan schedule:list` → `*/15 * * * * php artisan resultados:metricas` | Revertir el bloque `resultados:metricas` en `ScheduleServiceProvider.php` + 1 test |
+| Docs (4.5) | Revisión manual de §12.4 (3 reglas) + §12.4.1 (pasos de rollout) | N/A — docs; las reglas se ejercitan en el rollout 4.6 | Revertir el commit de docs |
+| Suite regresión | `DB_DATABASE=lotto_test_slice2 php -d memory_limit=1536M artisan test --display-warnings` → (§Evidencia) + `vendor/bin/pint --test` → passed | N/A | N/A |
+
+## Evidencia de ejecución — Slice 4
+
+- RED 4.1: `DB_DATABASE=lotto_test_slice2 php artisan test --filter=ResultadosMetricasCommandTest` → 5 errores `The command "resultados:metricas" does not exist.`
+- GREEN 4.2: mismo filtro → 5/5 passed (22 assertions).
+- Safety net 4.3 (previo): `php artisan test --filter=ScheduleTimeZoneTest` → 7/7 passed (16 asserts).
+- RED 4.3: mismo filtro → 7 passed / 1 failed (evento `resultados_metricas` ausente).
+- GREEN 4.4: mismo filtro → 8/8 passed (18 assertions).
+- Runtime harness: `php artisan resultados:metricas --path=/tmp/opencode/metricas-harness` → "Métricas de resultados escritas en .../resultados.prom"; contenido real por juego con label `juego`=slug; `lotto_draws_missing`/`pending_seconds` 0 en horario sin vencidos (comportamiento esperado); `--path` inexistente → exit 1 con mensaje; `ls` del dir → solo `resultados.prom` (sin `.tmp`).
+- Runtime harness agenda: `php artisan schedule:list | grep metricas` → `*/15 * * * * php artisan resultados:metricas`.
+- **Suite completa (regresión)**: (resultado al final de esta sección, tras ~20 min) + `vendor/bin/pint --test` → passed.
+- Test count previo del branch: 770 tests / 768 passed / 2 skipped pre-existentes / 0 fails. Con slice 4: +6 tests nuevos (5 metrics + 1 agenda) → 776 tests / 774 passed esperados.
+
+## Commits (Slice 4)
+
+| SHA | Mensaje |
+|---|---|
+| `7f013d0` | `feat(backend): comando resultados:metricas con textfile atomico de Prometheus` (ResultadosMetricas + ResultadosMetricasCommandTest) |
+| `119e84b` | `feat(backend): agenda resultados:metricas cada 15 min con withoutOverlapping(5)` (ScheduleServiceProvider + ScheduleTimeZoneTest) |
+| `2f2d71c` | `docs(deploy): reglas de alerta de resultados en alerts.yml y pasos de rollout` (docs/deploy.md + tasks.md) |
+| (siguiente) | `docs(sdd): progreso de apply del slice 4 de resultados-parciales-produccion` (tasks + apply-progress) |
+
+Nada fue pusheado ni mergeado; integración a main es user-gated tras verificación.
+
+## Decisiones de interpretación (slice 4, documentadas)
+
+12. **Cálculo de `missing` y `pending_seconds`**: el design lista los nombres sin definir la fórmula. Implementado: `lotto_draws_missing` = vencidos (`hora <= ahora`) sin fila persistida — los sorteos futuros NO cuentan como faltantes (un día sano a las 10:00 con el sorteo de las 20:00 pendiente da missing 0); `lotto_draws_pending_seconds` = segundos desde el faltante más temprano (0 si no hay faltantes). Coherente con la regla `MissingDraw` (N=60 > gracia 50) y con la semántica del sweep (`DrawReconciliationService`). `expected_today` cuenta TODOS los horarios activos del día (incl. futuros).
+13. **`lotto_daily_incomplete` con referencia AYER antes de las 23:45 / HOY después**: semántica exacta del design. Un gap del día anterior (p. ej. cazaloton 12:00) sigue visible como alerta durante todo el día siguiente — el gap upstream nunca vuelve a ser silencioso; a las 23:45 la referencia cambia a HOY (el día ya cerró con la pasada +45 del último sorteo).
+14. **Solo juegos `requires_scraper = true AND active = true`** generan métricas (mismo filtro que `DrawReconciliationService` y `scrapeAll`); el test fija que un juego sin scraper no aparece en el textfile.
+15. **Default de `--path` = `/var/lib/lotto-metrics`** (el design no fija default): coincide con el volumen del compose montado en `scheduler`/`api` (§12.7); en tests se pasa `--path` a un dir de `storage/framework/testing`.
+16. **Rollout 4.6 documentado en §12.4.1** de `docs/deploy.md` (pasos + verificación + rollback); el checkbox de la tarea queda `[ ]` — ejecución del usuario en el VPS.
+17. **Bloques HELP/TYPE en español con acentos** correctos (UTF-8); el texto del textfile es documentación, no código, así que se aplicó la ortografía neutral correcta.
+
+## Hallazgos (slice 4)
+
+- El runtime harness contra la DB dev mostró `lotto_draws_missing`/`pending_seconds` en 0 con `persisted_today` 0 en horario sin vencidos: comportamiento correcto del diseño (no hay sorteo vencido aún, no puede haber faltante), no un bug.
+- `lotto_metrics_timestamp` no lleva label (global), espejo de `backup_last_success_timestamp` — así `DrawMetricsStale` no depende de ningún juego.
+- La suite (770 tests previos) corre contra `lotto_test_slice2`; los +6 tests nuevos del slice 4 no tocan parser ni lectura: solo lecturas a `juego_horarios`/`resultados` + escritura del textfile en `storage/framework/testing`.
+
+## Resultado de la suite completa (regresión)
+
+`DB_DATABASE=lotto_test_slice2 php -d memory_limit=1536M artisan test --display-warnings` → **passed, tests 776, passed 774, assertions 3800, skipped 2** (skips pre-existentes: ApuestaServiceTest condicional y PluginIntegrationTest), exit 0, ~28 min (1.690.309 ms). `vendor/bin/pint --test` → passed (repo backend completo).
