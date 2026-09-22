@@ -39,8 +39,8 @@ CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localh
 SANCTUM_STATEFUL_DOMAINS=${SANCTUM_STATEFUL_DOMAINS:-localhost}
 EOF
 
-# Migraciones — solo el contenedor API las ejecuta (Horizon las omite)
-if [ "${RUN_HORIZON:-false}" != "true" ]; then
+# Migraciones — solo el contenedor API las ejecuta (Horizon y scheduler las omiten)
+if [ "${RUN_HORIZON:-false}" != "true" ] && [ "${RUN_SCHEDULER:-false}" != "true" ]; then
 if php -r "require 'vendor/autoload.php'; \$app = require 'bootstrap/app.php'; \$app->make('db'); echo Schema::hasTable('migrations') ? 'EXISTS' : 'EMPTY';" 2>/dev/null | grep -q "EXISTS"; then
     echo "📦 Migraciones ya ejecutadas, verificando pendientes..."
     php artisan migrate --force
@@ -61,6 +61,12 @@ PORT=${PORT:-10000}
 if [ "${RUN_HORIZON:-false}" = "true" ]; then
     echo "🌐 Iniciando Horizon (worker de colas)..."
     exec php artisan horizon
+fi
+
+# Scheduler (agenda de resultados por fuente) — schedule:work en primer plano
+if [ "${RUN_SCHEDULER:-false}" = "true" ]; then
+    echo "Iniciando scheduler (schedule:work)..."
+    exec php artisan schedule:work
 fi
 
 # API con FrankenPHP (servidor real con opcache).
