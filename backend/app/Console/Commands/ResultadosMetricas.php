@@ -175,11 +175,11 @@ class ResultadosMetricas extends Command
             # TYPE lotto_draws_persisted_today gauge
             # HELP lotto_draws_missing Sorteos vencidos sin persistir hoy por juego
             # TYPE lotto_draws_missing gauge
-            # HELP lotto_draws_pending_seconds Segundos desde el sorteo faltante mas temprano por juego
+            # HELP lotto_draws_pending_seconds Segundos desde el sorteo faltante más temprano por juego
             # TYPE lotto_draws_pending_seconds gauge
-            # HELP lotto_daily_incomplete 1 si el conteo diario quedo por debajo del esperado (ayer hasta 23:45, hoy despues)
+            # HELP lotto_daily_incomplete 1 si el conteo diario quedó por debajo del esperado (ayer hasta 23:45, hoy después)
             # TYPE lotto_daily_incomplete gauge
-            # HELP lotto_metrics_timestamp Epoca (unix) de la ultima escritura de metricas de resultados
+            # HELP lotto_metrics_timestamp Época (unix) de la última escritura de métricas de resultados
             # TYPE lotto_metrics_timestamp gauge
 
             PROM;
