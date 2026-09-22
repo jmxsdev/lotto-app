@@ -49,8 +49,8 @@ Chain strategy: feature-branch-chain
 
 ## Fase 3 — Estados, vencimiento, premio_posible
 
-- [ ] 3.1 RED (ganadora→pagada) → GREEN `ApuestaService::verificarGanadores` (`estado='ganadora'`+`resultado_id`, `whereNull`). Done: REQ13/N5.
-- [ ] 3.2 RED `tests/Unit` → GREEN `app/Services/ConfiguracionService.php` (key `apuestas.vencimiento_sin_resultado`, default 24h). Done: default.
-- [ ] 3.3 RED `tests/Feature/ConfiguracionVencimientoTest.php` (403) → GREEN `Api/ConfiguracionController.php` + `routes/api.php` (`role:super_master|master`). Done: role-gating.
-- [ ] 3.4 RED `tests/Feature/VencimientoApuestasTest.php` (catch-up) → GREEN `Jobs/MarcarApuestasVencidasJob.php` (relanza `ScrapeResultsJob`) + `routes/console.php`. Done: REQ13 búsqueda previa.
-- [ ] 3.5 Acumular `premio_total_*` ticket con `increment`. Done: sin sobreescritura multi-sorteo.
+- [x] 3.1 RED (ganadora→pagada) → GREEN `ApuestaService::verificarGanadores` (`estado='ganadora'`+`resultado_id`, `whereNull`). Done: REQ13/N5.
+- [x] 3.2 RED `tests/Unit` → GREEN `app/Services/ConfiguracionService.php` (key `apuestas.vencimiento_sin_resultado`, default 24h). Done: default.
+- [x] 3.3 RED `tests/Feature/ConfiguracionVencimientoTest.php` (403) → GREEN `Api/ConfiguracionController.php` + `routes/api.php` (`role:super_master|master`). Done: role-gating.
+- [x] 3.4 RED `tests/Feature/VencimientoApuestasTest.php` (catch-up) → GREEN `Jobs/MarcarApuestasVencidasJob.php` (relanza `ScrapeResultsJob`) + `routes/console.php`. Done: REQ13 búsqueda previa.
+- [x] 3.5 Acumular `premio_total_*` ticket con `increment`. Done: sin sobreescritura multi-sorteo.
