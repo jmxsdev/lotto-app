@@ -162,31 +162,58 @@ try {
       }
       setInterval(refreshTasa, 60000);
 
-      function showModal({ message, type = 'info' }) {
+      // Variante type:'input' (AD-14): resuelve string|null; Enter confirma, Escape/overlay/botones cancelan → null.
+      // Tipos info/success/error/confirm intactos (retrocompatible): resuelven boolean como antes.
+      function showModal({ message, type = 'info', inputType = 'text', placeholder = '', minLength, maxLength, pattern, inputmode }) {
         return new Promise((resolve) => {
-          const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'confirm' ? '⚠️' : 'ℹ️';
-          const buttons = type === 'confirm'
-            ? `<button class="modal-btn modal-btn-secondary cancel-btn">✗ No</button>
-               <button class="modal-btn modal-btn-danger ok-btn">✓ Sí</button>`
-            : `<button class="modal-btn modal-btn-primary ok-btn">✓ Aceptar</button>`;
+          const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'confirm' ? '⚠️' : type === 'input' ? '🔑' : 'ℹ️';
+          let buttons;
+          if (type === 'confirm') {
+            buttons = `<button class="modal-btn modal-btn-secondary cancel-btn">✗ No</button>
+               <button class="modal-btn modal-btn-danger ok-btn">✓ Sí</button>`;
+          } else if (type === 'input') {
+            buttons = `<button class="modal-btn modal-btn-secondary cancel-btn">✗ Cancelar</button>
+               <button class="modal-btn modal-btn-primary ok-btn">✓ Aceptar</button>`;
+          } else {
+            buttons = `<button class="modal-btn modal-btn-primary ok-btn">✓ Aceptar</button>`;
+          }
+          const inputAttrs = type === 'input'
+            ? ` type="${inputType}" placeholder="${placeholder}" autocomplete="off" autocapitalize="off" spellcheck="false"`
+              + (minLength !== undefined ? ` minlength="${minLength}"` : '')
+              + (maxLength !== undefined ? ` maxlength="${maxLength}"` : '')
+              + (pattern ? ` pattern="${pattern}"` : '')
+              + (inputmode ? ` inputmode="${inputmode}"` : '')
+            : '';
+          const inputHtml = type === 'input' ? `<input class="modal-input"${inputAttrs} />` : '';
           const overlay = document.createElement('div');
           overlay.className = 'modal-overlay';
           overlay.innerHTML = `<div class="modal-dialog">
             <div class="modal-icon">${icon}</div>
             <p class="modal-message">${message}</p>
+            ${inputHtml}
             <div class="modal-buttons">${buttons}</div>
           </div>`;
           document.body.appendChild(overlay);
+          const input = overlay.querySelector('.modal-input');
+
+          if (type === 'input' && input) {
+            input.focus();
+            input.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter') { e.preventDefault(); overlay.remove(); resolve(input.value); }
+              else if (e.key === 'Escape') { e.preventDefault(); overlay.remove(); resolve(null); }
+            });
+          }
+
           overlay.querySelector('.ok-btn')?.addEventListener('click', () => {
             overlay.remove();
-            resolve(true);
+            resolve(type === 'input' ? (input ? input.value : '') : true);
           });
           overlay.querySelector('.cancel-btn')?.addEventListener('click', () => {
             overlay.remove();
-            resolve(false);
+            resolve(type === 'input' ? null : false);
           });
           overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) { overlay.remove(); resolve(false); }
+            if (e.target === overlay) { overlay.remove(); resolve(type === 'input' ? null : false); }
           });
         });
       }
@@ -390,6 +417,18 @@ try {
   }
   .modal-icon { font-size: 36px; margin-bottom: 10px; }
   .modal-message { font-size: 15px; color: #333; margin-bottom: 22px; line-height: 1.5; word-wrap: break-word; }
+  .modal-input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-size: 20px;
+    text-align: center;
+    letter-spacing: 6px;
+    margin-bottom: 18px;
+    font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+  .modal-input:focus { border-color: #667eea; outline: none; }
   .modal-buttons { display: flex; gap: 8px; justify-content: center; }
   .modal-btn {
     padding: 10px 22px; border-radius: 8px; font-size: 14px; font-weight: 600;

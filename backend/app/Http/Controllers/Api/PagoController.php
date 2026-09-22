@@ -11,6 +11,7 @@ use App\Models\Ticket;
 use App\Services\JuegoPluginManager;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class PagoController extends Controller
 {
@@ -26,6 +27,7 @@ class PagoController extends Controller
             'amount_usd' => 'nullable|numeric|min:0',
             'tipo' => 'required|in:ingreso,egreso,devolucion',
             'moneda' => 'required|in:bs,usd,mixto',
+            'metodo_pago' => ['nullable', Rule::in(Pago::METODOS_PAGO)],
             'referencia' => 'nullable|string|max:255',
             'concepto' => 'nullable|string|max:255',
         ], [
@@ -117,6 +119,11 @@ class PagoController extends Controller
             'exchange_rate_applied' => $apuesta->exchange_rate_applied,
             'tipo' => $request->tipo,
             'moneda' => $request->moneda,
+            'metodo_pago' => Pago::resolverMetodoPago(
+                $request->input('metodo_pago'),
+                $request->moneda,
+                (float) ($request->amount_usd ?? 0)
+            ),
             'concepto' => $request->concepto ?? 'Pago de premio',
             'referencia' => $request->referencia,
             'created_by' => $user->id,

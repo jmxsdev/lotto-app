@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\ApuestaController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BancaController;
 use App\Http\Controllers\Api\CierreController;
+use App\Http\Controllers\Api\ClaveCierreController;
 use App\Http\Controllers\Api\DispositivoController;
 use App\Http\Controllers\Api\EstadisticaController;
 use App\Http\Controllers\Api\ExchangeRateController;
@@ -44,6 +45,14 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/user', [AuthController::class, 'user']);
         Route::post('/logout', [AuthController::class, 'logout']);
+
+        // Self-service de la clave de cierre (AD-9): sirve al PANEL, sin
+        // headers de dispositivo; fuera de verify.mac como /user y /logout.
+        // Roles elegibles super_master|master|banca; otros roles → 403.
+        Route::middleware(['role:super_master|master|banca'])->group(function () {
+            Route::get('/usuarios/clave-cierre', [ClaveCierreController::class, 'show']);
+            Route::put('/usuarios/clave-cierre', [ClaveCierreController::class, 'update']);
+        });
     });
 
     // Rutas protegidas con Sanctum + verificación MAC
@@ -164,6 +173,10 @@ Route::prefix('v1')->group(function () {
         Route::middleware(['role:super_master|master|banca|grupo|taquilla|agencia'])->group(function () {
             Route::post('/cierre', [CierreController::class, 'store']);
             Route::get('/cierre', [CierreController::class, 'index']);
+            // AD-11: actual y semanal ANTES de /cierre/{cierre} para que el
+            // route-model binding no capture "actual"/"semanal" (404).
+            Route::get('/cierre/actual', [CierreController::class, 'actual']);
+            Route::get('/cierre/semanal', [CierreController::class, 'semanal']);
             Route::get('/cierre/{cierre}', [CierreController::class, 'show']);
         });
 

@@ -473,6 +473,7 @@ class ApuestaService
             'exchange_rate_applied' => $tasaActiva->rate,
             'tipo' => 'ingreso',
             'moneda' => $moneda,
+            'metodo_pago' => Pago::resolverMetodoPago($data['metodo_pago'] ?? null, $moneda, $amountUsd),
             'concepto' => 'Compra de ticket',
             'created_by' => $userId,
         ]);

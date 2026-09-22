@@ -3,8 +3,10 @@
 namespace App\Http\Requests;
 
 use App\Models\Juego;
+use App\Models\Pago;
 use App\Services\JuegoPluginManager;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class ApuestaStoreRequest extends FormRequest
 {
@@ -20,6 +22,7 @@ class ApuestaStoreRequest extends FormRequest
             'amount_bs' => 'required|numeric|min:0',
             'amount_usd' => 'required|numeric|min:0',
             'sorteo_hora' => 'sometimes|date_format:Y-m-d H:i:s|after_or_equal:now',
+            'metodo_pago' => ['nullable', Rule::in(Pago::METODOS_PAGO)],
         ];
 
         $juego = Juego::find($this->juego_id);
