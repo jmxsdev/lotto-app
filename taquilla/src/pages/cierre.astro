@@ -55,15 +55,25 @@ import MainLayout from '../layouts/MainLayout.astro';
       </div>
     </section>
 
-    <!-- Reporte semanal (GET /cierre/semanal) -->
+    <!-- Reportes por rangos (GET /cierre/semanal?fecha_desde&fecha_hasta, AD-12/AD-13) -->
     <section class="card">
-      <h3 class="card-title">Reporte semanal</h3>
-      <div class="filters">
-        <input type="date" id="semana-fecha" />
-        <button id="btn-semanal" class="btn-refresh">Consultar semana</button>
+      <div class="card-header">
+        <h3 class="card-title">Reportes por rangos</h3>
+        <button id="btn-print-reporte" class="btn-action btn-print" disabled>🖨️ Imprimir reporte</button>
       </div>
-      <div id="semanal-content">
-        <div class="loading">Cargando reporte semanal...</div>
+      <div class="filters">
+        <label class="range-label">
+          Desde
+          <input type="date" id="reporte-desde" />
+        </label>
+        <label class="range-label">
+          Hasta
+          <input type="date" id="reporte-hasta" />
+        </label>
+        <button id="btn-reporte-rango" class="btn-refresh">Consultar</button>
+      </div>
+      <div id="rango-content">
+        <div class="loading">Cargando reporte por rango...</div>
       </div>
     </section>
   </div>
@@ -97,6 +107,14 @@ import MainLayout from '../layouts/MainLayout.astro';
       font-size: 15px;
     }
     .filters input[type="date"]:focus { border-color: #667eea; outline: none; }
+    .range-label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #555;
+    }
 
     .btn-refresh {
       padding: 8px 16px;
@@ -209,6 +227,8 @@ import MainLayout from '../layouts/MainLayout.astro';
     .badge-faltante { background: #f8d7da; color: #721c24; }
     .badge-sobrante { background: #d4edda; color: #155724; }
     .badge-neutral { background: #e9ecef; color: #495057; }
+    .badge-abierto { background: #cce5ff; color: #004085; }
+    .badge-reclosed { background: #e7e3f7; color: #4b2e83; }
 
     .cierre-card { background: white; border-radius: 10px; margin-bottom: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); overflow: hidden; }
     .cierre-row {
@@ -275,16 +295,40 @@ import MainLayout from '../layouts/MainLayout.astro';
     // Campos fecha-sola (YYYY-MM-DD) se muestran tal cual para no desplazar el día por zona horaria.
     const fmtFechaSola = (s) =>
       (typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s)) ? s : fmtFecha(s);
+    // Solo la fecha del día (copy de crear/re-cierre: "Cierre del día X").
+    const fmtFechaDia = (iso) => {
+      if (!iso) return '-';
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return '-';
+      return d.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    };
 
     const esNulo = (v) => v === null || v === undefined || v === '';
 
     let preview = null;
     let ultimoCierre = null;
+    let ultimoReporte = null;
     let historialCache = [];
     let histPage = 1;
     let histLastPage = 1;
 
     // --- Errores según ApiError.kind (diseño: network/timeout modal, 422 mensaje del backend, 403 modal, rate-limited reintentar) ---
+    // 422 tiene dos shapes (5.4): negocio con solo `message`; validación con `errors` por campo.
+    function httpErrorMsg(e, fallback) {
+      const payload = e.payload;
+      if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+        const errors = payload.errors;
+        if (errors && typeof errors === 'object') {
+          const key = Object.keys(errors)[0];
+          const first = key ? errors[key] : null;
+          const msg = Array.isArray(first) ? first[0] : first;
+          if (typeof msg === 'string' && msg) return msg;
+        }
+        if (typeof payload.message === 'string' && payload.message) return payload.message;
+      }
+      return e.message || fallback;
+    }
+
     function showError(e, fallback) {
       if (e instanceof ApiError) {
         switch (e.kind) {
@@ -299,7 +343,7 @@ import MainLayout from '../layouts/MainLayout.astro';
             window.showModal({ message: e.message || 'Demasiadas solicitudes. Espere un momento e intente nuevamente.', type: 'error' });
             return;
           case 'http':
-            window.showModal({ message: e.message || fallback, type: 'error' });
+            window.showModal({ message: httpErrorMsg(e, fallback), type: 'error' });
             return;
           default:
             window.showModal({ message: e.message || fallback, type: 'error' });
@@ -357,7 +401,11 @@ import MainLayout from '../layouts/MainLayout.astro';
 
     function renderPreview(p) {
       const el = document.getElementById('preview-content');
-      let html = `<div class="preview-period">Período: <strong>${fmtFecha(p.fecha_inicio)}</strong> → <strong>${fmtFecha(p.fecha_fin)}</strong> · Tasa: <strong>${fmtMoney(p.exchange_rate)}</strong></div>`;
+      // Período ABIERTO explícito (5.2): rango visible desde el último cierre → ahora + badge.
+      let html = `<div class="preview-period">Período: <span class="badge badge-abierto">ABIERTO</span> desde <strong>${fmtFecha(p.fecha_inicio)}</strong> → <strong>ahora (${fmtFecha(p.fecha_fin)})</strong> · Tasa: <strong>${fmtMoney(p.exchange_rate)}</strong></div>`;
+      if (p.cierre_hoy) {
+        html += `<div class="warn-banner">⚠️ Cierre del día <strong>${fmtFecha(p.cierre_hoy.fecha_fin)}</strong> ya registrado: un nuevo cierre lo actualizará (requiere clave)</div>`;
+      }
       html += '<table class="totals-table"><thead><tr><th>Concepto</th><th>BS</th><th>USD</th></tr></thead><tbody>';
       html += `<tr><td>Ventas</td><td>Bs. ${fmtMoney(p.total_ventas_bs)}</td><td>$ ${fmtMoney(p.total_ventas_usd)}</td></tr>`;
       html += `<tr><td>Egresos</td><td>Bs. ${fmtMoney(p.total_egresos_bs)}</td><td>$ ${fmtMoney(p.total_egresos_usd)}</td></tr>`;
@@ -403,7 +451,7 @@ import MainLayout from '../layouts/MainLayout.astro';
       el.className = cls;
     }
 
-    // --- Ejecutar cierre (confirm showModal → POST /cierre) ---
+    // --- Ejecutar cierre (confirm showModal → POST /cierre; re-cierre con clave) ---
     async function ejecutarCierre() {
       const bsVal = document.getElementById('arqueo-bs').value;
       const usdVal = document.getElementById('arqueo-usd').value;
@@ -411,10 +459,17 @@ import MainLayout from '../layouts/MainLayout.astro';
       if (bsVal !== '') body.arqueo_efectivo_bs = parseFloat(bsVal);
       if (usdVal !== '') body.arqueo_efectivo_usd = parseFloat(usdVal);
 
+      const recierre = Boolean(preview?.cierre_hoy);
       const espBs = preview ? Number(preview.total_efectivo_bs || 0) : 0;
       const espUsd = preview ? Number(preview.total_efectivo_usd || 0) : 0;
 
-      let resumen = '¿Ejecutar el cierre de caja?';
+      // Copy del confirm distingue crear ("Cierre del día X") de re-cierre (5.4).
+      let resumen;
+      if (recierre) {
+        resumen = 'El cierre de hoy ya existe: se actualizará desde el inicio original.';
+      } else {
+        resumen = `¿Ejecutar el cierre de caja? Se creará el cierre del día ${fmtFechaDia(preview ? preview.fecha_fin : null)}.`;
+      }
       if (preview) resumen += `<br>Período: ${fmtFecha(preview.fecha_inicio)} → ${fmtFecha(preview.fecha_fin)}`;
       resumen += `<br>Efectivo esperado: Bs. ${fmtMoney(espBs)} / $ ${fmtMoney(espUsd)}`;
       if (body.arqueo_efectivo_bs !== undefined) {
@@ -429,13 +484,36 @@ import MainLayout from '../layouts/MainLayout.astro';
       const ok = await window.showModal({ message: resumen, type: 'confirm' });
       if (!ok) return;
 
+      // Prompt de clave SOLO en re-cierre (5.4, AD-14): null cancela el flujo completo.
+      if (recierre) {
+        const clave = await window.showModal({
+          message: 'El cierre de hoy ya existe: se actualizará desde el inicio original.<br>Ingrese la clave de cierre para re-cerrar el día.',
+          type: 'input',
+          inputType: 'password',
+          inputmode: 'numeric',
+          placeholder: '••••••',
+          minLength: 4,
+          maxLength: 8
+        });
+        if (clave === null) return;
+        const limpia = clave.trim();
+        if (!/^\d{4,8}$/.test(limpia)) {
+          await window.showModal({ message: 'La clave debe ser un PIN numérico de 4 a 8 dígitos.', type: 'error' });
+          return;
+        }
+        body.clave_cierre = limpia;
+      }
+
       const btn = document.getElementById('btn-ejecutar');
       btn.disabled = true;
       try {
         const cierre = await apiFetch('/cierre', { method: 'POST', body });
         ultimoCierre = cierre;
         renderResultado(cierre);
-        await window.showModal({ message: 'Cierre ejecutado correctamente.', type: 'success' });
+        await window.showModal({
+          message: cierre.reclosed ? 'Cierre del día actualizado (re-cierre).' : 'Cierre ejecutado correctamente.',
+          type: 'success'
+        });
         loadPreview();
         loadHistorial(1);
       } catch (e) {
@@ -445,12 +523,12 @@ import MainLayout from '../layouts/MainLayout.astro';
       }
     }
 
-    // --- Resultado (201) ---
+    // --- Resultado (201 crear / 200 re-cierre) ---
     function renderResultado(c) {
       document.getElementById('resultado-card').style.display = '';
       const diffBs = c.faltante_sobrante_bs;
       const diffUsd = c.faltante_sobrante_usd;
-      let html = `<div class="result-period">Período: <strong>${fmtFecha(c.fecha_inicio)}</strong> → <strong>${fmtFecha(c.fecha_fin)}</strong> · Tasa: <strong>${fmtMoney(c.exchange_rate_cierre)}</strong></div>`;
+      let html = `<div class="result-period">${c.reclosed ? '<span class="badge badge-reclosed">RE-CIERRE</span> ' : ''}Período: <strong>${fmtFecha(c.fecha_inicio)}</strong> → <strong>${fmtFecha(c.fecha_fin)}</strong> · Tasa: <strong>${fmtMoney(c.exchange_rate_cierre)}</strong></div>`;
       html += '<table class="totals-table"><thead><tr><th>Concepto</th><th>BS</th><th>USD</th></tr></thead><tbody>';
       html += `<tr><td>Ventas</td><td>Bs. ${fmtMoney(c.total_ventas_bs)}</td><td>$ ${fmtMoney(c.total_ventas_usd)}</td></tr>`;
       html += `<tr><td>Egresos</td><td>Bs. ${fmtMoney(c.total_egresos_bs)}</td><td>$ ${fmtMoney(c.total_egresos_usd)}</td></tr>`;
@@ -582,7 +660,7 @@ import MainLayout from '../layouts/MainLayout.astro';
       }
     }
 
-    // --- Reporte semanal (GET /cierre/semanal?fecha=) ---
+    // --- Reportes por rangos (GET /cierre/semanal?fecha_desde&fecha_hasta, 5.3/AD-12) ---
     function todayCaracas() {
       const parts = new Intl.DateTimeFormat('en-CA', {
         timeZone: 'America/Caracas', year: 'numeric', month: '2-digit', day: '2-digit'
@@ -591,38 +669,56 @@ import MainLayout from '../layouts/MainLayout.astro';
       return `${get('year')}-${get('month')}-${get('day')}`;
     }
 
-    async function cargarSemanal() {
-      const fecha = document.getElementById('semana-fecha').value;
-      const content = document.getElementById('semanal-content');
-      content.innerHTML = '<div class="loading">Cargando reporte semanal...</div>';
+    async function cargarReporteRango() {
+      const desdeEl = document.getElementById('reporte-desde');
+      const hastaEl = document.getElementById('reporte-hasta');
+      const desde = desdeEl.value;
+      const hasta = hastaEl.value;
+
+      if (!desde || !hasta) {
+        await window.showModal({ message: 'Seleccione las dos fechas del rango (desde y hasta).', type: 'error' });
+        return;
+      }
+      // Valida desde ≤ hasta antes de llamar (UI design 5.3).
+      if (desde > hasta) {
+        await window.showModal({ message: 'La fecha "desde" no puede ser posterior a "hasta".', type: 'error' });
+        return;
+      }
+
+      const content = document.getElementById('rango-content');
+      content.innerHTML = '<div class="loading">Cargando reporte por rango...</div>';
+      const btnPrint = document.getElementById('btn-print-reporte');
+      if (btnPrint) btnPrint.disabled = true;
       try {
-        const url = fecha ? '/cierre/semanal?fecha=' + fecha : '/cierre/semanal';
+        const url = '/cierre/semanal?fecha_desde=' + encodeURIComponent(desde) + '&fecha_hasta=' + encodeURIComponent(hasta);
         const reporte = await apiFetch(url);
-        renderSemanal(reporte);
+        ultimoReporte = reporte;
+        renderReporteRango(reporte);
+        if (btnPrint) btnPrint.disabled = false;
       } catch (e) {
-        content.innerHTML = '<div class="error-state">Error al cargar el reporte semanal.</div>';
-        showError(e, 'Error al cargar el reporte semanal.');
+        ultimoReporte = null;
+        content.innerHTML = '<div class="error-state">Error al cargar el reporte por rango.</div>';
+        showError(e, 'Error al cargar el reporte por rango.');
       }
     }
 
-    function renderSemanal(r) {
-      const content = document.getElementById('semanal-content');
+    function renderReporteRango(r) {
+      const content = document.getElementById('rango-content');
       if (!r) {
         content.innerHTML = '<div class="error-state">Sin datos.</div>';
         return;
       }
       const ventana = r.ventana_cubierta || {};
       const incluidos = ventana.cierres_incluidos || 0;
+      const cierres = r.cierres || [];
 
-      let html = `<div class="semanal-header">Semana: <strong>${fmtFechaSola(r.fecha_desde)}</strong> → <strong>${fmtFechaSola(r.fecha_hasta)}</strong></div>`;
-      html += `<div class="ventana-info">Cierres incluidos: <strong>${incluidos}</strong> de 7 días`;
+      let html = `<div class="semanal-header">Rango: <strong>${fmtFechaSola(r.fecha_desde)}</strong> → <strong>${fmtFechaSola(r.fecha_hasta)}</strong></div>`;
+      html += `<div class="ventana-info">Cierres incluidos: <strong>${incluidos}</strong>`;
       if (ventana.desde) html += ` · Cubierto: ${fmtFecha(ventana.desde)} → ${fmtFecha(ventana.hasta)}`;
       html += '</div>';
-      if (incluidos < 7) {
-        html += `<div class="warn-banner">⚠️ La semana está incompleta: solo ${incluidos} día(s) con cierre de los 7 esperados.</div>`;
-      }
+
       if (incluidos === 0) {
-        html += '<div class="empty-state">No hay cierres registrados en esta semana.</div>';
+        html += '<div class="empty-state">No hay cierres registrados en este rango.</div>';
         content.innerHTML = html;
         return;
       }
@@ -631,23 +727,64 @@ import MainLayout from '../layouts/MainLayout.astro';
       html += `<tr><td>Ventas</td><td>Bs. ${fmtMoney(r.total_ventas_bs)}</td><td>$ ${fmtMoney(r.total_ventas_usd)}</td></tr>`;
       html += `<tr><td>Egresos</td><td>Bs. ${fmtMoney(r.total_egresos_bs)}</td><td>$ ${fmtMoney(r.total_egresos_usd)}</td></tr>`;
       html += `<tr class="row-total"><td>Efectivo</td><td>Bs. ${fmtMoney(r.total_efectivo_bs)}</td><td>$ ${fmtMoney(r.total_efectivo_usd)}</td></tr>`;
-      if (r.arqueo_efectivo_bs !== null && r.arqueo_efectivo_bs !== undefined) {
+      if (!esNulo(r.arqueo_efectivo_bs)) {
         html += `<tr><td>Arqueo</td><td>Bs. ${fmtMoney(r.arqueo_efectivo_bs)}</td><td>$ ${fmtMoney(r.arqueo_efectivo_usd)}</td></tr>`;
         html += `<tr><td>Falt./Sobr.</td><td>Bs. ${fmtMoney(r.faltante_sobrante_bs)} <span class="badge ${badgeClass(r.faltante_sobrante_bs)}">${badgeText(r.faltante_sobrante_bs)}</span></td><td>$ ${fmtMoney(r.faltante_sobrante_usd)} <span class="badge ${badgeClass(r.faltante_sobrante_usd)}">${badgeText(r.faltante_sobrante_usd)}</span></td></tr>`;
       }
       html += '</tbody></table>';
       html += '<div class="breakdown-title">Desglose por método</div>' + desgloseHtml(r.desglose_metodos);
-      html += `<div class="breakdown-title">Cierres incluidos (${(r.cierres || []).length})</div>`;
-      html += '<table class="method-table"><thead><tr><th>ID</th><th>Fecha fin</th><th>Ventas BS</th><th>Efectivo BS</th></tr></thead><tbody>';
-      (r.cierres || []).forEach(c => {
-        html += `<tr><td>#${c.id}</td><td>${fmtFecha(c.fecha_fin)}</td><td>Bs. ${fmtMoney(c.total_ventas_bs)}</td><td>Bs. ${fmtMoney(c.total_efectivo_bs)}</td></tr>`;
+      html += `<div class="breakdown-title">Cierres del rango (${cierres.length})</div>`;
+      // Desglose expandible con ids data-rango-* para no colisionar con el historial (5.3).
+      cierres.forEach((c) => {
+        html += `
+        <div class="cierre-card" data-rango-id="${c.id}">
+          <div class="cierre-row" data-rango-toggle="${c.id}">
+            <span class="cierre-expand">▶</span>
+            <span class="cierre-fecha">${fmtFecha(c.fecha_fin)}</span>
+            <span class="cierre-taquilla">Taquilla #${c.taquilla_id}</span>
+            <span class="cierre-total">Bs. ${fmtMoney(c.total_efectivo_bs)}</span>
+            <span class="cierre-usd">$ ${fmtMoney(c.total_efectivo_usd)}</span>
+            <span class="badge ${badgeClass(c.faltante_sobrante_bs)}">${badgeText(c.faltante_sobrante_bs)}</span>
+          </div>
+          <div class="cierre-detail" data-rango-detail="${c.id}">${cierreDetailHtml(c)}</div>
+        </div>`;
       });
-      html += '</tbody></table>';
       content.innerHTML = html;
     }
 
+    function toggleRangoRow(id) {
+      const detail = document.querySelector(`[data-rango-detail="${id}"]`);
+      const expand = document.querySelector(`[data-rango-toggle="${id}"] .cierre-expand`);
+      if (!detail) return;
+      detail.classList.toggle('open');
+      if (expand) expand.textContent = detail.classList.contains('open') ? '▼' : '▶';
+    }
+
+    // --- Imprimir reporte por rango (IPC print-reporte, AD-13): payload del estado en memoria, sin re-fetch ---
+    async function imprimirReporte() {
+      if (!ultimoReporte) {
+        await window.showModal({ message: 'Primero consulte un reporte por rango.', type: 'error' });
+        return;
+      }
+      if (!window.electron?.printReporte) {
+        await window.showModal({ message: 'Impresión no disponible fuera de Electron', type: 'error' });
+        return;
+      }
+      try {
+        const res = await window.electron.printReporte({ reporteData: ultimoReporte });
+        if (res && res.success) {
+          await window.showModal({ message: res.message, type: 'success' });
+        } else {
+          await window.showModal({ message: (res && res.message) || 'No se pudo imprimir.', type: 'error' });
+        }
+      } catch (e) {
+        await window.showModal({ message: 'Error al imprimir: ' + e.message, type: 'error' });
+      }
+    }
+
     // --- Inicialización y eventos ---
-    document.getElementById('semana-fecha').value = todayCaracas();
+    document.getElementById('reporte-desde').value = todayCaracas();
+    document.getElementById('reporte-hasta').value = todayCaracas();
     document.getElementById('arqueo-bs').addEventListener('input', updateDiferencias);
     document.getElementById('arqueo-usd').addEventListener('input', updateDiferencias);
     document.getElementById('btn-refresh-preview').addEventListener('click', loadPreview);
@@ -656,7 +793,8 @@ import MainLayout from '../layouts/MainLayout.astro';
       if (ultimoCierre) imprimirCierre(ultimoCierre);
     });
     document.getElementById('btn-refresh-resultado').addEventListener('click', refrescarResultado);
-    document.getElementById('btn-semanal').addEventListener('click', cargarSemanal);
+    document.getElementById('btn-reporte-rango').addEventListener('click', cargarReporteRango);
+    document.getElementById('btn-print-reporte').addEventListener('click', imprimirReporte);
 
     document.addEventListener('click', (e) => {
       const printBtn = e.target.closest('[data-action="print"]');
@@ -670,11 +808,16 @@ import MainLayout from '../layouts/MainLayout.astro';
         return;
       }
       const toggle = e.target.closest('[data-toggle]');
-      if (toggle) toggleRow(toggle.dataset.toggle);
+      if (toggle) {
+        toggleRow(toggle.dataset.toggle);
+        return;
+      }
+      const rangoToggle = e.target.closest('[data-rango-toggle]');
+      if (rangoToggle) toggleRangoRow(rangoToggle.dataset.rangoToggle);
     });
 
     loadPreview();
     loadHistorial(1);
-    cargarSemanal();
+    cargarReporteRango();
   </script>
 </MainLayout>

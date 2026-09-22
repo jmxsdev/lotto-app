@@ -164,6 +164,130 @@ function generateCierreHtml(cierreData) {
     `;
 }
 
+// Reporte por rango (AD-12/AD-13): totales + desglose fusionado + listado de
+// cierres con su desglose. Strings libres escapadas; montos es-VE (carry-over).
+function generateReporteHtml(reporteData) {
+    const r = reporteData || {};
+    const ventana = r.ventana_cubierta || {};
+    const cierres = Array.isArray(r.cierres) ? r.cierres : [];
+    const incluidos = ventana.cierres_incluidos !== undefined && ventana.cierres_incluidos !== null
+        ? ventana.cierres_incluidos
+        : cierres.length;
+
+    const taquillaNombre = escapeHtml(r.taquilla?.nombre || r.taquillaNombre || '');
+    const fechaDesde = escapeHtml(r.fecha_desde || '');
+    const fechaHasta = escapeHtml(r.fecha_hasta || '');
+    const cubiertoDesde = ventana.desde ? fmtFecha(ventana.desde) : '-';
+    const cubiertoHasta = ventana.hasta ? fmtFecha(ventana.hasta) : '-';
+    const tieneArqueo = r.arqueo_efectivo_bs !== null && r.arqueo_efectivo_bs !== undefined;
+
+    let fusionRows = '';
+    for (const moneda of ['bs', 'usd']) {
+        const monedaLabel = moneda === 'bs' ? 'BS' : 'USD';
+        for (const metodo of METODOS_CIERRE) {
+            const m = r.desglose_metodos?.[moneda]?.[metodo] || { ventas: 0, egresos: 0, efectivo: 0 };
+            fusionRows += `<tr><td>${monedaLabel}</td><td>${METODO_CIERRE_LABELS[metodo]}</td>` +
+                `<td>${fmtMoney(m.ventas)}</td><td>${fmtMoney(m.egresos)}</td><td>${fmtMoney(m.efectivo)}</td></tr>`;
+        }
+    }
+
+    let cierresHtml = '';
+    cierres.forEach((c) => {
+        const cierreId = escapeHtml(String(c.id ?? ''));
+        const taquillaId = escapeHtml(String(c.taquilla_id ?? ''));
+        const tieneArqueoCierre = c.arqueo_efectivo_bs !== null && c.arqueo_efectivo_bs !== undefined;
+
+        let desgloseRows = '';
+        for (const moneda of ['bs', 'usd']) {
+            const monedaLabel = moneda === 'bs' ? 'BS' : 'USD';
+            for (const metodo of METODOS_CIERRE) {
+                const m = c.desglose_metodos?.[moneda]?.[metodo] || { ventas: 0, egresos: 0, efectivo: 0 };
+                desgloseRows += `<tr><td>${monedaLabel}</td><td>${METODO_CIERRE_LABELS[metodo]}</td>` +
+                    `<td>${fmtMoney(m.ventas)}</td><td>${fmtMoney(m.egresos)}</td><td>${fmtMoney(m.efectivo)}</td></tr>`;
+            }
+        }
+
+        cierresHtml += `
+            <hr>
+            <h3>Cierre #${cierreId} - Taquilla #${taquillaId}</h3>
+            <p>Desde: ${fmtFecha(c.fecha_inicio)}</p>
+            <p>Hasta: ${fmtFecha(c.fecha_fin)}</p>
+            <p>Tasa: ${fmtMoney(c.exchange_rate_cierre)}</p>
+            <table>
+                <thead><tr><th></th><th>BS</th><th>USD</th></tr></thead>
+                <tbody>
+                    <tr><td>Ventas</td><td>${fmtMoney(c.total_ventas_bs)}</td><td>${fmtMoney(c.total_ventas_usd)}</td></tr>
+                    <tr><td>Egresos</td><td>${fmtMoney(c.total_egresos_bs)}</td><td>${fmtMoney(c.total_egresos_usd)}</td></tr>
+                    <tr class="total"><td>Efectivo</td><td>${fmtMoney(c.total_efectivo_bs)}</td><td>${fmtMoney(c.total_efectivo_usd)}</td></tr>
+                </tbody>
+            </table>
+            ${tieneArqueoCierre ? `
+            <table>
+                <thead><tr><th></th><th>BS</th><th>USD</th></tr></thead>
+                <tbody>
+                    <tr><td>Arqueo</td><td>${fmtMoney(c.arqueo_efectivo_bs)}</td><td>${fmtMoney(c.arqueo_efectivo_usd)}</td></tr>
+                    <tr class="total"><td>Falt./Sobr.</td><td>${fmtMoney(c.faltante_sobrante_bs)}</td><td>${fmtMoney(c.faltante_sobrante_usd)}</td></tr>
+                </tbody>
+            </table>` : '<p>Sin arqueo registrado.</p>'}
+            <h3>Desglose #${cierreId}</h3>
+            <table>
+                <thead><tr><th>Mon</th><th>Metodo</th><th>Ventas</th><th>Egresos</th><th>Efectivo</th></tr></thead>
+                <tbody>${desgloseRows}</tbody>
+            </table>`;
+    });
+
+    return `
+        <style>
+            @page { margin: 0; size: 80mm auto; }
+            body { font-family: 'Courier New', monospace; font-size: 11px; width: 72mm; margin: 0 auto; padding: 4px 2mm; }
+            h2 { text-align: center; font-size: 14px; margin: 0 0 4px; }
+            h3 { font-size: 11px; margin: 6px 0 2px; }
+            hr { border: none; border-top: 1px dashed #000; margin: 4px 0; }
+            table { width: 100%; border-collapse: collapse; font-size: 10px; }
+            th, td { text-align: left; padding: 1px 0; }
+            th { border-bottom: 1px solid #000; }
+            .total { font-weight: bold; }
+            .text-center { text-align: center; }
+        </style>
+        <div>
+            <h2>REPORTE POR RANGO</h2>
+            <p class="text-center">${taquillaNombre || 'Taquilla'}</p>
+            <hr>
+            <p>Desde: ${fechaDesde}</p>
+            <p>Hasta: ${fechaHasta}</p>
+            <p>Cierres incluidos: ${escapeHtml(String(incluidos))}</p>
+            <p>Cubierto: ${cubiertoDesde} - ${cubiertoHasta}</p>
+            <hr>
+            <h3>Totales</h3>
+            <table>
+                <thead><tr><th></th><th>BS</th><th>USD</th></tr></thead>
+                <tbody>
+                    <tr><td>Ventas</td><td>${fmtMoney(r.total_ventas_bs)}</td><td>${fmtMoney(r.total_ventas_usd)}</td></tr>
+                    <tr><td>Egresos</td><td>${fmtMoney(r.total_egresos_bs)}</td><td>${fmtMoney(r.total_egresos_usd)}</td></tr>
+                    <tr class="total"><td>Efectivo</td><td>${fmtMoney(r.total_efectivo_bs)}</td><td>${fmtMoney(r.total_efectivo_usd)}</td></tr>
+                </tbody>
+            </table>
+            ${tieneArqueo ? `
+            <table>
+                <thead><tr><th></th><th>BS</th><th>USD</th></tr></thead>
+                <tbody>
+                    <tr><td>Arqueo</td><td>${fmtMoney(r.arqueo_efectivo_bs)}</td><td>${fmtMoney(r.arqueo_efectivo_usd)}</td></tr>
+                    <tr class="total"><td>Falt./Sobr.</td><td>${fmtMoney(r.faltante_sobrante_bs)}</td><td>${fmtMoney(r.faltante_sobrante_usd)}</td></tr>
+                </tbody>
+            </table>` : '<p>Sin arqueo agregado.</p>'}
+            <hr>
+            <h3>Desglose fusionado</h3>
+            <table>
+                <thead><tr><th>Mon</th><th>Metodo</th><th>Ventas</th><th>Egresos</th><th>Efectivo</th></tr></thead>
+                <tbody>${fusionRows}</tbody>
+            </table>
+            ${cierresHtml}
+            <hr>
+            <p class="text-center">Gracias!</p>
+        </div>
+    `;
+}
+
 async function printWithSystemDialog(win, html, noun = 'Documento') {
     return new Promise((resolve, reject) => {
         const printWin = new BrowserWindow({
@@ -274,6 +398,18 @@ function registerIpcHandlers(upstream) {
         return await printHtml(win, html, 'Cierre');
     });
 
+    // Reporte por rango: totales + listado de cierres con desglose (AD-13).
+    ipcMain.handle('print-reporte', async (event, data) => {
+        const { reporteData } = data;
+        if (!reporteData || typeof reporteData !== 'object' || Array.isArray(reporteData)) {
+            return { success: false, message: 'Datos de reporte invalidos' };
+        }
+
+        const win = BrowserWindow.getFocusedWindow();
+        const html = generateReporteHtml(reporteData);
+        return await printHtml(win, html, 'Reporte');
+    });
+
     ipcMain.handle('get-version', () => {
         return app.getVersion();
     });
@@ -282,5 +418,6 @@ function registerIpcHandlers(upstream) {
 module.exports = {
     getMacAddress,
     generateCierreHtml,
+    generateReporteHtml,
     registerIpcHandlers
 };
