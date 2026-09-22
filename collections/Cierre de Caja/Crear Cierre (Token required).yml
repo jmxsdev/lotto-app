@@ -5,7 +5,7 @@ info:
 
 http:
   method: POST
-  url: "{{baseUrl}}/api/cierre"
+  url: "{{baseUrl}}/api/v1/cierre"
   headers:
     - name: Authorization
       value: Bearer {{token}}
@@ -20,16 +20,21 @@ http:
       {
         "taquilla_id": 1,
         "arqueo_efectivo_bs": 1450.00,
-        "arqueo_efectivo_usd": 30.00
+        "arqueo_efectivo_usd": 30.00,
+        "clave_cierre": "123456"
       }
   auth: inherit
 
 docs:
   - |
-    # Respuesta esperada: 201 Created
+    # Respuesta esperada: 201 Created (primer cierre) / 200 OK (re-cierre)
     Ejecuta el cierre de caja del período actual de la taquilla.
     - `arqueo_efectivo_bs` / `arqueo_efectivo_usd`: opcionales (`nullable|numeric|min:0`).
       Si se omiten, el arqueo y `faltante_sobrante_*` quedan en `null`.
+    - `clave_cierre`: opcional (`nullable|digits_between:4,8`, PIN numérico de 4 a 8
+      dígitos). SOLO se valida si la taquilla ya tiene un cierre en el día calendario
+      (America/Caracas): sin clave, con clave inválida o sin candidatos configurados
+      en la cadena (banca / master / super_master) responde 422.
     - Diferencia: `faltante_sobrante_X = arqueo_X - total_efectivo_X`
       (negativo = faltante, positivo = sobrante).
     - Roles administrativos: `taquilla_id` requerido (422 si falta); rol taquilla:
@@ -63,8 +68,54 @@ docs:
         }
       },
       "exchange_rate_cierre": 36.5000,
-      "created_by": 3
+      "created_by": 3,
+      "reclosed": false
     }
+    ```
+    Re-cierre (mismo día, 200 OK): la fila existente se actualiza en lugar de crear
+    otra — `fecha_fin` se extiende a `now()`, totales/desglose/faltante se recalculan
+    desde el `fecha_inicio` original y se registran `reclosed_by`/`reclosed_at`
+    (`fecha_inicio` y `created_by` quedan intactos):
+    ```json
+    {
+      "id": 12,
+      "taquilla_id": 1,
+      "fecha_inicio": "2026-09-17T08:00:00-04:00",
+      "fecha_fin": "2026-09-17T19:45:00-04:00",
+      "total_ventas_bs": 1650.00,
+      "total_ventas_usd": 30.00,
+      "total_ventas_bs_equivalent": 2745.00,
+      "total_egresos_bs": 45.00,
+      "total_egresos_usd": 3.00,
+      "total_efectivo_bs": 1605.00,
+      "total_efectivo_usd": 27.00,
+      "arqueo_efectivo_bs": 1600.00,
+      "arqueo_efectivo_usd": 30.00,
+      "faltante_sobrante_bs": -5.00,
+      "faltante_sobrante_usd": 3.00,
+      "desglose_metodos": {
+        "bs": {
+          "efectivo": { "ventas": 1100.00, "egresos": 35.00, "efectivo": 1065.00 },
+          "transferencia": { "ventas": 330.00, "egresos": 10.00, "efectivo": 320.00 },
+          "pago_movil": { "ventas": 170.00, "egresos": 0.00, "efectivo": 170.00 },
+          "punto_venta": { "ventas": 50.00, "egresos": 0.00, "efectivo": 50.00 }
+        },
+        "usd": {
+          "efectivo": { "ventas": 30.00, "egresos": 3.00, "efectivo": 27.00 }
+        }
+      },
+      "exchange_rate_cierre": 36.5000,
+      "created_by": 3,
+      "reclosed": true,
+      "reclosed_by": 3,
+      "reclosed_at": "2026-09-17T19:45:00-04:00"
+    }
+    ```
+    Errores 422 del re-cierre (sin clave / clave incorrecta / sin candidatos):
+    ```json
+    { "message": "La clave de cierre es obligatoria para re-cerrar el día." }
+    { "message": "Clave de cierre incorrecta." }
+    { "message": "No hay una clave de cierre configurada para esta taquilla." }
     ```
     Sin ninguna tasa de cambio registrada (activa ni histórica) responde 422:
     `{"message": "No hay tasa de cambio activa para realizar el cierre."}`

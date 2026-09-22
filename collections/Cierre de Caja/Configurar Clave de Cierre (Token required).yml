@@ -1,0 +1,59 @@
+info:
+  name: Configurar Clave de Cierre (Token required)
+  type: http
+  seq: 5
+
+http:
+  method: PUT
+  url: "{{baseUrl}}/api/v1/usuarios/clave-cierre"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "clave_actual": "123456",
+        "clave_nueva": "654321"
+      }
+  auth: inherit
+
+docs:
+  - |
+    # Configurar la clave de cierre (self-service, solo rol super_master|master|banca)
+    Endpoint self-service: cada usuario configura SOLO su propia clave. Otros roles
+    (taquilla, grupo, agencia) reciben 403 en GET y PUT.
+
+    ## GET (estado)
+    `GET /api/v1/usuarios/clave-cierre` — sin body:
+    ```json
+    { "clave_configurada": true }
+    ```
+    Devuelve solo el booleano; el hash nunca se serializa ni se expone.
+
+    ## PUT (configurar / cambiar)
+    - Primera configuración (sin clave previa): directa con `clave_nueva`:
+      ```json
+      { "clave_nueva": "123456" }
+      ```
+    - Cambio (ya existe clave): exige `clave_actual` verificada con Hash::check
+      antes de persistir; si no coincide responde 422 y la clave queda intacta.
+      `clave_nueva_confirma` es solo de la UI (no se envía).
+    - Reglas: `clave_nueva` requerida (`digits_between:4,8`, PIN numérico de 4 a 8
+      dígitos); `clave_actual` opcional salvo que ya exista clave configurada.
+    - Respuesta 200:
+      ```json
+      { "clave_configurada": true }
+      ```
+    - Errores 422 (formato inválido o clave actual incorrecta):
+      ```json
+      { "message": "La clave actual no coincide." }
+      ```
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
