@@ -39,48 +39,95 @@ import MainLayout from '../layouts/MainLayout.astro';
       </div>
     </div>
 
+    <div id="qt-legend" class="qt-legend" role="status" aria-label="Atajos de teclado"></div>
+
+    <!-- Aviso breve de pestañas bloqueadas (FIX-3c, KB-03): toast transitorio
+         no intrusivo cuando ←/→ intenta cambiar de pestaña con selección en
+         curso. No desplaza el layout (fixed) y se auto-oculta (~1.8 s). -->
+    <div id="qt-tab-aviso" class="qt-tab-aviso" role="status" aria-live="polite"></div>
+
     <div class="quick-ticket">
       <div class="qt-bar">
-        <input type="number" id="qt-numero" class="qt-input" placeholder="Número" min="0" step="1">
-        <input type="number" id="qt-monto" class="qt-input" placeholder="Monto" min="0" step="0.01">
-        <select id="qt-moneda" class="qt-select">
+        <input type="number" id="qt-numero" class="qt-input" placeholder="Número" min="0" step="1" data-zona="numero">
+        <input type="number" id="qt-monto" class="qt-input" placeholder="Monto" min="0" step="0.01" data-zona="monto">
+        <select id="qt-moneda" class="qt-select" tabindex="-1">
           <option value="bs">Bs</option>
           <option value="usd">$</option>
         </select>
-        <button id="qt-edit" class="qt-btn" title="Editar línea">✏️</button>
-        <button id="qt-add" class="qt-btn qt-btn-primary" title="Agregar línea">➕</button>
+        <button id="qt-add" class="qt-btn qt-btn-primary" title="Agregar línea" data-zona="anadir">➕</button>
       </div>
 
       <div class="qt-body">
         <div class="qt-column juegos-col">
           <h4 class="qt-col-title" id="juegos-col-title">Juegos</h4>
-          <div class="juegos-tabs" id="juegos-tabs"></div>
-          <div id="juegos-list" class="juegos-list"></div>
+          <div class="juegos-tabs" id="juegos-tabs" data-zona="juegos"></div>
+          <div id="juegos-list" class="juegos-list" data-zona="juegos"></div>
           <div id="horario-mode" class="horario-mode-inner" style="display:none">
-            <button id="back-to-juegos" class="back-btn">← Volver</button>
+            <button id="back-to-juegos" class="back-btn" tabindex="-1">← Volver</button>
             <div class="game-chips" id="game-chips"></div>
-            <div class="horarios-grid" id="horarios-grid"></div>
+            <div id="qt-horario-aviso" class="qt-horario-aviso" role="alert" style="display:none"></div>
+            <div class="horarios-grid" id="horarios-grid" data-zona="horarios"></div>
           </div>
         </div>
 
         <div class="qt-column animales-col" id="animales-col">
           <h4 class="qt-col-title">Selección</h4>
-          <div id="seleccion-content" class="seleccion-content">
+          <div id="seleccion-content" class="seleccion-content" data-zona="seleccion">
             <div class="seleccion-placeholder">Seleccione un juego</div>
           </div>
         </div>
 
         <div class="qt-column resumen-col">
           <h4 class="qt-col-title">Resumen del Ticket</h4>
-          <div id="resumen-content" class="resumen-content"></div>
+          <div id="resumen-content" class="resumen-content" data-zona="resumen"></div>
           <div class="qt-total" id="qt-total-row">
             <span class="total-label">Total:</span>
             <span class="total-amount" id="qt-total-amount">Bs. 0,00</span>
           </div>
           <div class="qt-actions">
-            <button id="qt-clear" class="btn btn-clear" disabled>🗑️ Limpiar</button>
-            <button id="qt-print" class="btn btn-primary" disabled>🖨️ Imprimir</button>
+            <button id="qt-clear" class="btn btn-clear" disabled tabindex="-1">🗑️ Limpiar</button>
+            <button id="qt-print" class="btn btn-primary" disabled tabindex="-1">🖨️ Imprimir</button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de ayuda F1 (REQ-KB-07/08, A12 refined): reutiliza los estilos
+         globales .modal-overlay/.modal-dialog; la clase .abierto controla la
+         visibilidad. Su toggle (F1) y Esc/Cerrar/click lo cierran; con él
+         abierto ninguna otra F-key ejecuta (guarda estricta A12). -->
+    <div id="help-overlay" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Ayuda de teclado">
+      <div class="modal-dialog help-dialog">
+        <h3 class="help-title">Ayuda de teclado</h3>
+        <div id="help-content"></div>
+        <div class="modal-buttons">
+          <button class="modal-btn modal-btn-primary" id="help-cerrar">Cerrar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de vuelto F9 (A12, REQ-KB-07): reutiliza los estilos globales
+         .modal-overlay/.modal-dialog de MainLayout; la clase .abierto controla
+         la visibilidad. Guarda estricta A12: con un modal abierto ninguna otra
+         F-key abre otro; solo F9 (su propio toggle) y Esc/Cerrar/click actúan. -->
+    <div id="vuelto-overlay" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Calculadora de vuelto">
+      <div class="modal-dialog vuelto-dialog">
+        <h3 class="vuelto-title">Calculadora de vuelto</h3>
+        <div class="vuelto-fila">
+          <label for="vuelto-total">Total a cobrar (Bs)</label>
+          <input type="number" id="vuelto-total" step="0.01" min="0">
+        </div>
+        <div class="vuelto-fila">
+          <label for="vuelto-recibido">Monto recibido</label>
+          <input type="number" id="vuelto-recibido" step="0.01" min="0">
+          <select id="vuelto-moneda">
+            <option value="bs">Bs</option>
+            <option value="usd">$</option>
+          </select>
+        </div>
+        <div class="vuelto-resultado" id="vuelto-resultado" role="status"></div>
+        <div class="modal-buttons">
+          <button class="modal-btn modal-btn-secondary" id="vuelto-cerrar">Cerrar</button>
         </div>
       </div>
     </div>
@@ -147,6 +194,74 @@ import MainLayout from '../layouts/MainLayout.astro';
       font-size: 10px;
       color: #999;
       margin-top: 0;
+    }
+
+    .qt-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 18px;
+      align-items: center;
+      padding: 6px 14px;
+      background: #f1f3f5;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      font-size: 12px;
+      color: #555;
+      line-height: 1.6;
+    }
+
+    .qt-legend .leg-grupo {
+      display: inline-flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .qt-legend .leg-label {
+      font-weight: 700;
+      color: #333;
+      margin-right: 2px;
+    }
+
+    .qt-legend .kbd {
+      display: inline-block;
+      padding: 0 5px;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      background: white;
+      font-weight: 700;
+      color: #1e40af;
+      font-size: 11px;
+      margin-right: 2px;
+    }
+
+    .qt-legend .leg-arrow {
+      color: #94a3b8;
+      font-weight: 700;
+    }
+
+    /* Aviso breve de guard de pestañas (FIX-3c): fixed para no desplazar el
+       layout; opacity transicionada; pointer-events none (no bloquea clicks). */
+    .qt-tab-aviso {
+      position: fixed;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1e293b;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+      z-index: 9998;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
+    }
+
+    .qt-tab-aviso.visible {
+      opacity: 1;
     }
 
     .quick-ticket {
@@ -287,6 +402,15 @@ import MainLayout from '../layouts/MainLayout.astro';
       color: #1e40af;
     }
 
+    /* Foco roving de tarjetas de juego (FIX-1, KB-01): mismo lenguaje visual
+       que la fila del resumen (F6) — outline azul. Sin esto moverFila().focus()
+       era un no-op silencioso (la tarjeta no era enfocable). */
+    .juego-card:focus {
+      background: #dbeafe;
+      outline: 2px solid #3b82f6;
+      outline-offset: -2px;
+    }
+
     .juegos-tabs {
       display: flex;
       gap: 0;
@@ -328,6 +452,15 @@ import MainLayout from '../layouts/MainLayout.astro';
       color: #666;
       margin-bottom: 6px;
       font-weight: 500;
+    }
+
+    /* Contexto de las tripletas numéricas (win-fixes2 FIX D): juego +
+       modalidades informativas y aclaración del padding 2→3 cifras. */
+    .modalidad-sub {
+      font-size: 11px;
+      color: #999;
+      font-weight: 400;
+      font-style: italic;
     }
 
     .modalidad-grid {
@@ -379,6 +512,14 @@ import MainLayout from '../layouts/MainLayout.astro';
 
     .seleccion-content {
       max-height: 440px;
+      overflow-y: auto;
+    }
+
+    .opciones-lista {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      max-height: 400px;
       overflow-y: auto;
     }
 
@@ -493,6 +634,37 @@ import MainLayout from '../layouts/MainLayout.astro';
       color: #1e40af;
     }
 
+    .horario-item.expirado {
+      border-color: #dc2626;
+      background: #fef2f2;
+      color: #dc2626;
+    }
+
+    /* Foco roving de horarios (FIX-2, KB-01): outline azul visible sobre el
+       ítem; el expirado conserva su rojo (outline rojo) para no borrar la
+       semántica de expiración al enfocarlo. */
+    .horario-item:focus {
+      outline: 2px solid #3b82f6;
+      outline-offset: -2px;
+      background: #dbeafe;
+    }
+
+    .horario-item.expirado:focus {
+      background: #fef2f2;
+      outline-color: #dc2626;
+    }
+
+    .qt-horario-aviso {
+      color: #dc2626;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
     .animal-num {
       font-weight: 700;
       color: #667eea;
@@ -549,6 +721,26 @@ import MainLayout from '../layouts/MainLayout.astro';
       border-color: #3b82f6;
       background: #dbeafe;
       font-weight: 600;
+      color: #1e40af;
+    }
+
+    /* Índice discreto 1-12 de cada signo (win-fixes2 FIX B): permite
+       seleccionar el signo por posición con los dígitos 1-12 del teclado. */
+    .signo-idx {
+      display: inline-block;
+      min-width: 14px;
+      margin-right: 5px;
+      padding: 0 3px;
+      border-radius: 4px;
+      background: #eef2ff;
+      color: #667eea;
+      font-size: 10px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .signo-btn.selected .signo-idx {
+      background: #bfdbfe;
       color: #1e40af;
     }
 
@@ -614,6 +806,15 @@ import MainLayout from '../layouts/MainLayout.astro';
 
     .resumen-table tr:hover {
       background: #f8f9fa;
+    }
+
+    /* Fila de grupo enfocada del resumen (F6, KB-07): el cursor de selección
+       del teclado reutiliza el lenguaje visual .selected de la app (azul
+       suave #dbeafe / #3b82f6); outline refuerza el foco roving sobre <tr>. */
+    .resumen-table tbody tr:focus {
+      background: #dbeafe;
+      outline: 2px solid #3b82f6;
+      outline-offset: -2px;
     }
 
     .resumen-table .btn-rm {
@@ -707,97 +908,215 @@ import MainLayout from '../layouts/MainLayout.astro';
       font-style: italic;
       font-size: 13px;
     }
+
+    /* Modal de ayuda F1 (A12 refined): mismo patrón de visibilidad que el de
+       vuelto; el ID gana especificidad sobre .modal-overlay. */
+    #help-overlay {
+      display: none;
+    }
+
+    #help-overlay.abierto {
+      display: flex;
+    }
+
+    .help-dialog {
+      max-width: 440px;
+      text-align: left;
+    }
+
+    .help-title {
+      font-size: 16px;
+      margin-bottom: 12px;
+      color: #333;
+    }
+
+    .help-zonas {
+      font-size: 13px;
+      color: #444;
+      line-height: 1.7;
+      margin-bottom: 8px;
+    }
+
+    .help-fkeys {
+      list-style: none;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 14px;
+      font-size: 13px;
+      color: #333;
+      margin-bottom: 14px;
+      padding: 0;
+    }
+
+    .help-dialog .kbd {
+      display: inline-block;
+      padding: 0 5px;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      background: white;
+      font-weight: 700;
+      color: #1e40af;
+      font-size: 11px;
+      margin-right: 2px;
+    }
+
+    /* Modal de vuelto F9 (A12): reutiliza .modal-overlay/.modal-dialog de
+       MainLayout; la clase .abierto controla la visibilidad (el ID gana
+       especificidad sobre .modal-overlay para el display). */
+    #vuelto-overlay {
+      display: none;
+    }
+
+    #vuelto-overlay.abierto {
+      display: flex;
+    }
+
+    .vuelto-dialog {
+      max-width: 380px;
+      text-align: left;
+    }
+
+    .vuelto-title {
+      font-size: 16px;
+      margin-bottom: 14px;
+      color: #333;
+    }
+
+    .vuelto-fila {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .vuelto-fila label {
+      flex: 1;
+      font-size: 13px;
+      color: #555;
+    }
+
+    .vuelto-fila input {
+      flex: 1;
+      min-width: 0;
+      padding: 6px 10px;
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+
+    .vuelto-fila input:focus {
+      border-color: #667eea;
+      outline: none;
+    }
+
+    .vuelto-fila select {
+      padding: 6px 8px;
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      background: white;
+    }
+
+    .vuelto-resultado {
+      margin: 12px 0;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 14px;
+      text-align: center;
+      background: #f8f9fa;
+      color: #555;
+    }
+
+    .vuelto-ok {
+      color: #059669;
+      background: #ecfdf5;
+    }
+
+    .vuelto-falta {
+      color: #dc2626;
+      background: #fef2f2;
+    }
+
+    .vuelto-error {
+      color: #b45309;
+      background: #fffbeb;
+    }
   </style>
   
   <script>
     import { apiFetch } from '../utils/apiFetch';
     import { getFingerprint } from '../utils/device';
+    import { cargarCatalogo, buscarPorDigito, crearBuscadorDigitos, signoPorPosicion, normalizarNumeroTriple } from '../utils/catalogo';
+    import { buildZoneGraph, routeKey, zonaHorizontal, zonaPendienteSeleccion } from '../utils/keyboard';
+    import { teclasLegend } from '../utils/keyboard';
+    import { alternarHorario, marcarTodosVisibles, expandirLineas, horarioExpirado, filtrarHorariosFuturos, seleccionadosExpirados, agruparPorGroupId, indiceSeleccionTrasEliminar } from '../utils/horarios';
+    import { calcularVuelto } from '../utils/vuelto';
+    import juegosRaw from '../data/juegos.json';
+
+    // Catálogo local bundled (REQ-CL-01): reemplaza GAMES_CONFIG. Los juegos,
+    // horarios y opciones vienen del JSON; la familia de opciones (A5) define
+    // la búsqueda/selección por juego activo (REQ-CL-02, REQ-KB-02).
+    const catalogo = cargarCatalogo(juegosRaw);
 
     let tasaActiva = 36.50;
+    // Disponibilidad de la tasa (A12): loadTasa() lo setea. Si falla, el modal
+    // de vuelto muestra «Tasa no disponible» y calcula solo en Bs (calcularVuelto
+    // nunca usa una tasa silenciosa).
+    let tasaDisponible = false;
 
     let selectedGames = [];
     let ticketLines = [];
-    let editIndex = -1;
     let animalesCache = [];
     let selectedAnimal = null;
+    let selectedSigno = null;
+    let selectedOpcion = null; // numérica/terminal: opción resaltada en la lista
     let columnMode = 'juegos';
+    let zonaActual = 'juegos';
 
     const ANIMAL_EMOJIS = ['🐬','🐏','🐂','🐆','🐸','🐕','🐈','🕊️','🦜','🐿️','🐅','🦁','🐄','🦅','🦊','🐒','🦚','🐎','🐻','🫏','🐓','🐪','🐈‍⬛','🐍','🦌','🐐','🐘','🐖','🦆','🐊','🦚','🐟','🦀','🦔','🐇','🐦','🐔'];
 
-    const GAMES_CONFIG = {
-      animalitos: {
-        defaultAnimales: [
-          { numero:0, label:'Delfín' },{ numero:1, label:'Carnero' },{ numero:2, label:'Toro' },{ numero:3, label:'Ciempiés' },
-          { numero:4, label:'Alacrán' },{ numero:5, label:'León' },{ numero:6, label:'Rana' },{ numero:7, label:'Perico' },
-          { numero:8, label:'Ratón' },{ numero:9, label:'Águila' },{ numero:10, label:'Tigre' },{ numero:11, label:'Gato' },
-          { numero:12, label:'Caballo' },{ numero:13, label:'Mono' },{ numero:14, label:'Paloma' },{ numero:15, label:'Zorro' },
-          { numero:16, label:'Oso' },{ numero:17, label:'Pavo' },{ numero:18, label:'Burro' },{ numero:19, label:'Chivo' },
-          { numero:20, label:'Cochino' },{ numero:21, label:'Gallo' },{ numero:22, label:'Camello' },{ numero:23, label:'Cobra' },
-          { numero:24, label:'Iguana' },{ numero:25, label:'Gallina' },{ numero:26, label:'Vaca' },{ numero:27, label:'Perro' },
-          { numero:28, label:'Zamuro' },{ numero:29, label:'Elefante' },{ numero:30, label:'Caimán' },{ numero:31, label:'Lapa' },
-          { numero:32, label:'Ardilla' },{ numero:33, label:'Pescado' },{ numero:34, label:'Venado' },{ numero:35, label:'Jirafa' },
-          { numero:36, label:'Culebra' }
-        ],
-        games: [
-          { id:1, type:'animalitos', name:'Lotto Activo', slug:'lotto-activo', multiplicador:30, horarios:['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00'] },
-          { id:4, type:'animalitos', name:'Lotto Activo RD Internacional', slug:'lotto-activo-rd', multiplicador:30, horarios:['08:30','09:30','10:30','11:30','12:30','13:30','14:30','15:30','16:30','17:30','18:30','19:30'] },
-          { id:5, type:'animalitos', name:'Lotto Activo Rep. Dominicana', slug:'lotto-activo-rep-dom', multiplicador:30, horarios:['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00'] },
-          { id:6, type:'animalitos', name:'Monje Millonario', slug:'monje-millonario', multiplicador:30, horarios:['08:05','09:05','10:05','11:05','12:05','13:05','14:05','15:05','16:05','17:05','18:05','19:05'] },
-        ],
-      },
-      tripletas: {
-        games: [
-          { id:2, type:'tripletas', name:'Triple Zulia', slug:'triple-zulia', multiplicador:30, horarios:['12:45','16:45','19:05'] },
-          { id:7, type:'tripletas', name:'Trío Activo', slug:'trio-activo', multiplicador:30, horarios:['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00'], soloTripleA:true },
-        ],
-        signos: [
-          { value:'ARI', label:'Aries', numero:1 },
-          { value:'TAU', label:'Tauro', numero:2 },
-          { value:'GEM', label:'Géminis', numero:3 },
-          { value:'CAN', label:'Cáncer', numero:4 },
-          { value:'LEO', label:'Leo', numero:5 },
-          { value:'VIR', label:'Virgo', numero:6 },
-          { value:'LIB', label:'Libra', numero:7 },
-          { value:'ESC', label:'Escorpio', numero:8 },
-          { value:'SAG', label:'Sagitario', numero:9 },
-          { value:'CAP', label:'Capricornio', numero:10 },
-          { value:'ACU', label:'Acuario', numero:11 },
-          { value:'PIS', label:'Piscis', numero:12 },
-        ],
-        modalidades: [
-          { code:'triple_a', label:'Triple A', digitos:3, requiere_signo:false, descripcion:'Acierte el número de 3 cifras exacto' },
-          { code:'triple_b', label:'Triple B', digitos:3, requiere_signo:false, descripcion:'Acierte el número de 3 cifras exacto' },
-          { code:'triple_c', label:'Triple C', digitos:3, requiere_signo:true, descripcion:'Acierte el número de 3 cifras y el signo zodiacal' },
-        ],
-      },
-      terminales: {
-        games: [
-          { id:3, type:'terminales', name:'Terminal Activo', slug:'terminal-activo', multiplicador:20, horarios:['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00'] },
-        ],
-      },
+    // Apostado types de tripletas (A2): el JSON bundled NO trae apostado types
+    // (sus "modalidades" son premios informativos: cola, zodiacal, punta…).
+    // zodiacal → triple_a/b/c (con zona signo solo para triple_c, D1);
+    // triple-numérico → solo triple_a, implícito al seleccionar el juego.
+    const APOSTADOS_TRIPLETAS = [
+      { code: 'triple_a', label: 'Triple A', digitos: 3, requiere_signo: false },
+      { code: 'triple_b', label: 'Triple B', digitos: 3, requiere_signo: false },
+      { code: 'triple_c', label: 'Triple C', digitos: 3, requiere_signo: true },
+    ];
+
+    const NOMBRE_ZONA = {
+      juegos: 'Juegos', modalidad: 'Modalidad', seleccion: 'Selección', signo: 'Signo',
+      horarios: 'Horario', numero: 'Número', monto: 'Monto', anadir: 'Añadir', resumen: 'Resumen',
+    };
+
+    // Objetivo de foco de cada zona (roving focus / tabindex explícito, KB-01).
+    const TARGETS_ZONA = {
+      juegos: '#juegos-list',
+      modalidad: '#modalidad-grid',
+      seleccion: '#seleccion-content',
+      signo: '#signos-triple-container',
+      horarios: '#horarios-grid',
+      numero: '#qt-numero',
+      monto: '#qt-monto',
+      anadir: '#qt-add',
+      resumen: '#resumen-content',
     };
 
     function getGameById(id) {
-      for (const type of Object.values(GAMES_CONFIG)) {
-        if (type.games) {
-          const found = type.games.find(g => g.id === id);
-          if (found) return found;
-        }
-      }
-      return null;
+      return catalogo.porId.get(id) ?? null;
     }
 
     function getGameType(juegoId) {
-      if (GAMES_CONFIG.animalitos.games.some(g => g.id === juegoId)) return 'animalitos';
-      if (GAMES_CONFIG.tripletas.games.some(g => g.id === juegoId)) return 'tripletas';
-      if (GAMES_CONFIG.terminales.games.some(g => g.id === juegoId)) return 'terminales';
-      return null;
+      return catalogo.porId.get(juegoId)?.tipo ?? null;
     }
 
-    let selectedHorario = null;
+    // Multiselección de horarios (REQ-MH-01, A3): toggle Space/Enter/click;
+    // Ctrl+A / `*` marcan todos los visibles SOLO fuera de input (KB-05).
+    let selectedHorarios = [];
     let horariosCache = [];
-    let signosCache = [];
-    let selectedSigno = null;
     let activeTab = 'animalitos';
     let tripleModalidad = null;
     let tripleModalidadLabel = null;
@@ -825,10 +1144,17 @@ import MainLayout from '../layouts/MainLayout.astro';
       try {
         const data = await apiFetch('/exchange-rate/active');
         tasaActiva = data.rate;
+        tasaDisponible = true;
         document.getElementById('tasa-dolar').textContent = `Bs. ${Number(data.rate).toLocaleString('es-VE', { minimumFractionDigits: 2 })}`;
         const fecha = data.updated_at ? new Date(data.updated_at).toLocaleDateString('es-VE') : 'hoy';
         document.getElementById('tasa-meta').textContent = `Actualizada: ${fecha}`;
+        // Si el modal de vuelto está abierto cuando llega la tasa (loadTasa
+        // async), se habilita el selector $ y se recalcula (A12).
+        const monedaSel = document.getElementById('vuelto-moneda');
+        if (monedaSel) monedaSel.disabled = false;
+        if (document.querySelector('#vuelto-overlay.abierto')) calcularVueltoModal();
       } catch (e) {
+        tasaDisponible = false;
         document.getElementById('tasa-dolar').textContent = '--';
         document.getElementById('tasa-meta').textContent = 'No disponible';
       }
@@ -838,135 +1164,153 @@ import MainLayout from '../layouts/MainLayout.astro';
       renderJuegos();
     }
 
+    // ─── Guard de pestañas (FIX-3c, KB-03) ────────────────────────────────
+    // Con una selección en curso (animal/signo/modalidad elegidos u horarios
+    // marcados) ←/→ en la zona Juegos NO debe descartarla silenciosamente
+    // (activarTab resetea TODO el avance). El cambio de pestaña solo se
+    // permite con la selección vacía; las líneas ya añadidas no se tocan.
+    function seleccionEnCurso() {
+      return Boolean(
+        selectedAnimal || selectedSigno || selectedOpcion ||
+        tripleModalidad || tripleModalidadLabel ||
+        selectedHorarios.length > 0,
+      );
+    }
+
+    let avisoTabTimer = null;
+    function mostrarAvisoTab(mensaje) {
+      const el = document.getElementById('qt-tab-aviso');
+      if (!el) return;
+      el.textContent = mensaje;
+      el.classList.add('visible');
+      clearTimeout(avisoTabTimer);
+      avisoTabTimer = setTimeout(() => el.classList.remove('visible'), 1800);
+    }
+
+    function activarTab(tipo) {
+      if (activeTab === tipo) return;
+      // FIX-3c: si hay selección en curso se bloquea el cambio (aviso breve).
+      if (seleccionEnCurso()) {
+        mostrarAvisoTab('Finalice la selección actual antes de cambiar de pestaña (F2 Limpiar todo)');
+        return;
+      }
+      activeTab = tipo;
+      selectedGames = [];
+      selectedAnimal = null;
+      selectedSigno = null;
+      selectedOpcion = null;
+      tripleModalidad = null;
+      tripleModalidadLabel = null;
+      document.getElementById('seleccion-content').innerHTML = '<div class="seleccion-placeholder">Seleccione un juego</div>';
+      horariosCache = [];
+      selectedHorarios = [];
+      renderJuegosTabs();
+      renderJuegos();
+      renderLegend();
+      switchToJuegos();
+      document.getElementById('juegos-col-title').textContent = 'Juegos';
+    }
+
+    function ordenTabs() {
+      return ['animalitos', 'tripletas', 'terminales'].filter(t => catalogo.juegos.some(j => j.tipo === t));
+    }
+
+    function tabAnterior() {
+      const orden = ordenTabs();
+      const i = orden.indexOf(activeTab);
+      return orden[(i - 1 + orden.length) % orden.length];
+    }
+
+    function tabSiguiente() {
+      const orden = ordenTabs();
+      const i = orden.indexOf(activeTab);
+      return orden[(i + 1) % orden.length];
+    }
+
     function renderJuegosTabs() {
       const container = document.getElementById('juegos-tabs');
       container.innerHTML = '';
-      const tipos = ['animalitos', 'tripletas', 'terminales'];
       const labels = { animalitos: 'Animalitos', tripletas: 'Tripletas', terminales: 'Terminales' };
-      tipos.forEach(t => {
+      ordenTabs().forEach(t => {
         const btn = document.createElement('button');
         btn.className = 'juego-tab' + (activeTab === t ? ' active' : '');
         btn.dataset.tab = t;
+        btn.tabIndex = -1; // las pestañas se cambian con ←/→ (KB-03)
         btn.textContent = labels[t] || t;
-        btn.addEventListener('click', () => {
-          if (activeTab === t) return;
-          activeTab = t;
-          selectedGames = [];
-          selectedAnimal = null;
-          selectedSigno = null;
-          tripleModalidad = null;
-          tripleModalidadLabel = null;
-          document.getElementById('seleccion-content').innerHTML = '<div class="seleccion-placeholder">Seleccione un juego</div>';
-          horariosCache = [];
-          selectedHorario = null;
-          renderJuegosTabs();
-          renderJuegos();
-          switchToJuegos();
-          document.getElementById('juegos-col-title').textContent = 'Juegos';
-        });
+        btn.addEventListener('click', () => activarTab(t));
         container.appendChild(btn);
       });
     }
 
     function renderJuegos() {
       const container = document.getElementById('juegos-list');
-      const config = GAMES_CONFIG[activeTab];
-      if (!config || !config.games) {
+      const juegos = catalogo.juegos.filter(j => j.tipo === activeTab);
+      if (juegos.length === 0) {
         container.innerHTML = '<div class="empty-state">Sin juegos disponibles</div>';
         return;
       }
-      container.innerHTML = config.games.map(j => {
+      container.innerHTML = juegos.map(j => {
         let icon = activeTab === 'animalitos' ? '🎰' : activeTab === 'tripletas' ? '🎯' : '🔢';
         const selected = selectedGames.some(g => g.id === j.id) ? ' selected' : '';
-        return `<div class="juego-card${selected}" data-id="${j.id}">
+        // tabindex="-1" (FIX-1, KB-01): las tarjetas son ítems del roving
+        // focus (↑/↓ + Enter); sin esto moverFila().focus() era un no-op.
+        return `<div class="juego-card${selected}" data-id="${j.id}" tabindex="-1">
           <span class="juego-icon">${icon}</span>
-          <span class="juego-name">${j.name}</span>
+          <span class="juego-name">${j.nombre}</span>
         </div>`;
       }).join('');
     }
 
-    function renderSignosForModalidad() {
-      const container = document.getElementById('signos-triple-container');
-      if (tripleModalidad !== 'triple_c') {
-        container.style.display = 'none';
-        selectedSigno = null;
-        return;
-      }
-      container.style.display = 'block';
-      const signos = GAMES_CONFIG.tripletas.signos;
-      if (!signos || signos.length === 0) return;
-      let html = '<div class="signo-label">Seleccione signo (opcional):</div>';
-      html += '<div class="signos-grid">';
-      signos.forEach(s => {
-        const sel = selectedSigno && selectedSigno.value === s.value ? ' selected' : '';
-        html += '<button class="signo-btn' + sel + '" data-value="' + s.value + '" data-label="' + s.label + '">' + s.label + '</button>';
-      });
-      html += '</div>';
-      container.innerHTML = html;
-      container.querySelectorAll('.signo-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          container.querySelectorAll('.signo-btn').forEach(b => b.classList.remove('selected'));
-          btn.classList.add('selected');
-          selectedSigno = { value: btn.dataset.value, label: btn.dataset.label };
-          updateColumnMode();
-        });
-      });
+    function juegoActivo() {
+      return selectedGames.length === 1 ? selectedGames[0] : null;
     }
 
-    function loadAnimalesConfig() {
-      const game = selectedGames[0];
-      if (!game) return;
-      animalesCache = game.animales || GAMES_CONFIG.animalitos.defaultAnimales || [];
-      renderAnimales();
+    // Grafo de zonas del juego activo (A2): se reconstruye al cambiar de
+    // juego o de modalidad (la zona signo existe solo con triple_c, D1).
+    function grafoActual() {
+      const juego = juegoActivo();
+      const familia = juego?.familia ?? 'animalitos';
+      return buildZoneGraph(familia, { triple_c: tripleModalidad === 'triple_c' });
     }
 
     function loadHorariosConfig() {
-      const game = selectedGames[0];
-      if (!game) return;
-      const cfg = getGameById(game.id);
-      if (!cfg || !cfg.horarios) { horariosCache = []; }
-      else { horariosCache = cfg.horarios.map(h => ({ hora: h })); }
-      selectedHorario = null;
+      const juego = juegoActivo();
+      if (!juego) return;
+      horariosCache = juego.horarios.map(h => ({ hora: h }));
+      selectedHorarios = [];
       renderHorariosGrid();
     }
 
-    function loadTripleConfig() {
-      const game = selectedGames[0];
-      if (!game) return;
-      const cfg = getGameById(game.id);
-      let modalidades = GAMES_CONFIG.tripletas.modalidades || [];
-      if (cfg && cfg.soloTripleA) {
-        modalidades = modalidades.filter(m => m.code === 'triple_a');
+    // Selección por FAMILIA DE OPCIONES del juego activo (REQ-CL-02, KB-02).
+    function renderSeleccion() {
+      const juego = juegoActivo();
+      const container = document.getElementById('seleccion-content');
+      if (!juego) {
+        container.innerHTML = '<div class="seleccion-placeholder">Seleccione un juego</div>';
+        return;
       }
-      if (modalidades.length === 1) {
-        tripleModalidad = modalidades[0].code;
-        tripleModalidadLabel = null;
-        const container = document.getElementById('seleccion-content');
-        container.innerHTML = '<div class="modalidad-label">' + modalidades[0].label + ' — ' + modalidades[0].descripcion + '</div>' +
-          '<div class="triple-info">Ingrese número de ' + modalidades[0].digitos + ' cifras en el campo superior</div>' +
-          '<div id="signos-triple-container" style="display:none"></div>';
-        if (modalidades[0].requiere_signo) {
-          loadSignosConfig();
-        }
-        updateColumnMode();
+      if (juego.familia === 'animalitos') {
+        animalesCache = juego.opciones;
+        renderAnimales();
+      } else if (juego.familia === 'zodiacal') {
+        renderTripleModalidades();
+      } else if (juego.familia === 'numerica') {
+        tripleModalidad = 'triple_a'; // A2: triple-numérico → solo triple_a
+        tripleModalidadLabel = 'Triple A';
+        renderOpcionesLista(juego);
       } else {
-        renderTripleModalidades(modalidades);
-      }
-    }
-
-    function loadSignosConfig() {
-      signosCache = GAMES_CONFIG.tripletas.signos || [];
-      if (signosCache.length > 0) {
-        renderSignosForModalidad();
+        renderOpcionesLista(juego); // terminal: 2 cifras
       }
     }
 
     function renderAnimales() {
       const container = document.getElementById('seleccion-content');
-      container.innerHTML = animalesCache.map(a => {
+      const juego = juegoActivo();
+      const lista = juego ? juego.opciones : animalesCache;
+      container.innerHTML = lista.map(a => {
         const emoji = ANIMAL_EMOJIS[a.numero] || '🐾';
         const sel = selectedAnimal && selectedAnimal.label === a.label ? ' selected' : '';
-        return `<div class="animal-check${sel}" data-numero="${a.numero}" data-label="${a.label}">
+        return `<div class="animal-check${sel}" data-numero="${a.numero}" data-label="${a.label}" tabindex="-1">
           <span class="animal-num">${a.numero}</span>
           <span class="animal-emoji">${emoji}</span>
           <span class="animal-label">${a.label}</span>
@@ -987,19 +1331,100 @@ import MainLayout from '../layouts/MainLayout.astro';
       });
     }
 
-    function updateColumnMode() {
-      const hasGames = selectedGames.length > 0;
-      const hasAnimal = selectedAnimal !== null;
-      const isTriple = selectedGames.length === 1 && selectedGames[0]?.type === 'tripletas';
-      const hasModalidad = tripleModalidad !== null;
-      const hasSigno = selectedSigno !== null;
-      const tripleReady = isTriple && hasModalidad && (tripleModalidad !== 'triple_c' || hasSigno);
-      const isTerminales = selectedGames.length === 1 && selectedGames[0]?.type === 'terminales';
-      if (hasGames && (hasAnimal || tripleReady || isTerminales)) {
-        switchToHorarios();
-      } else {
-        switchToJuegos();
+    // Numérica (100 opciones 00-99) y terminal (00-99): lista de 2 dígitos.
+    // win-fixes2 FIX D: las tripletas numéricas (trio-activo, triple-facil) se
+    // juegan como TRIPLE del plugin Tripletas (número de 3 cifras en el POST,
+    // "05"→"005"); la UI aclara el juego y sus modalidades (punta/terminal,
+    // premios informativos del catálogo, A2) para no verse como una terminal
+    // genérica. El deferral del padding se cierra aquí.
+    function renderOpcionesLista(juego) {
+      const container = document.getElementById('seleccion-content');
+      let header = 'Seleccione el número (00-99):';
+      if (juego.familia === 'numerica') {
+        const premios = juego.modalidades
+          ? Object.entries(juego.modalidades).map(([k, v]) => k + ' ' + v + '×').join(' · ')
+          : '';
+        header = juego.nombre + (premios ? ' — ' + premios : '') +
+          '<br><span class="modalidad-sub">Jugada como triple de 3 cifras: "05" se apuesta como 005</span>';
       }
+      let html = '<div class="modalidad-label">' + header + '</div>';
+      html += '<div class="opciones-lista">';
+      juego.opciones.forEach(op => {
+        const sel = selectedOpcion && selectedOpcion.numero === op.numero ? ' selected' : '';
+        html += '<div class="animal-check opcion-item' + sel + '" data-numero="' + op.numero + '" data-label="' + op.label + '" tabindex="-1">' +
+          '<span class="animal-num">' + op.label + '</span>' +
+          '<span class="animal-label">' + op.label + '</span>' +
+          '</div>';
+      });
+      html += '</div>';
+      container.innerHTML = html;
+      container.querySelectorAll('.opcion-item').forEach(el => {
+        el.addEventListener('click', () => {
+          selectedOpcion = { numero: parseInt(el.dataset.numero), label: el.dataset.label };
+          document.getElementById('qt-numero').value = el.dataset.label;
+          container.querySelectorAll('.opcion-item').forEach(o => o.classList.remove('selected'));
+          el.classList.add('selected');
+          updateColumnMode();
+        });
+      });
+    }
+
+    function renderSignosForModalidad() {
+      const juego = juegoActivo();
+      const container = document.getElementById('signos-triple-container');
+      if (!juego || tripleModalidad !== 'triple_c') {
+        container.style.display = 'none';
+        selectedSigno = null;
+        return;
+      }
+      container.style.display = 'block';
+      const signos = juego.opciones; // familia zodiacal: 12 signos (numero null)
+      if (!signos || signos.length === 0) return;
+      let html = '<div class="signo-label">Seleccione signo (obligatorio):</div>';
+      html += '<div class="signos-grid">';
+      signos.forEach((s, i) => {
+        const sel = selectedSigno && selectedSigno.value === s.value ? ' selected' : '';
+        // win-fixes2 FIX B: índice 1-12 visible en cada botón — los dígitos
+        // del teclado (zona signo) seleccionan el signo por posición.
+        html += '<button class="signo-btn' + sel + '" data-value="' + s.value + '" data-label="' + s.label + '" tabindex="-1">' +
+          '<span class="signo-idx">' + (i + 1) + '</span>' + s.label + '</button>';
+      });
+      html += '</div>';
+      container.innerHTML = html;
+      container.querySelectorAll('.signo-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          container.querySelectorAll('.signo-btn').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          selectedSigno = { value: btn.dataset.value, label: btn.dataset.label };
+          renderLegend();
+          updateColumnMode();
+        });
+      });
+    }
+
+    function updateColumnMode() {
+      const juego = juegoActivo();
+      if (!juego) {
+        switchToJuegos();
+        return;
+      }
+      let listo = false;
+      if (juego.familia === 'animalitos') {
+        listo = selectedAnimal !== null;
+      } else if (juego.familia === 'zodiacal') {
+        listo = tripleModalidad !== null && (tripleModalidad !== 'triple_c' || selectedSigno !== null);
+      } else if (juego.familia === 'numerica') {
+        listo = tripleModalidad === 'triple_a';
+      } else {
+        listo = true; // terminal
+      }
+      if (listo) {
+        switchToHorarios();
+      }
+      // FIX-4: con un juego activo y selección incompleta la columna izquierda
+      // NO rebota a Juegos — los horarios quedan visibles apenas se elige el
+      // juego; el regreso manual es Esc / ← Volver (KB-04). Solo la ausencia
+      // total de juego (arriba) vuelve a la lista de Juegos.
     }
 
     function switchToHorarios() {
@@ -1024,50 +1449,96 @@ import MainLayout from '../layouts/MainLayout.astro';
 
     function renderGameChips() {
       const container = document.getElementById('game-chips');
-      container.innerHTML = selectedGames.map(g => '<span class="game-chip">' + g.name + '</span>').join('');
+      container.innerHTML = selectedGames.map(g => '<span class="game-chip">' + g.nombre + '</span>').join('');
     }
 
-    function renderTerminalesInfo() {
-      const container = document.getElementById('seleccion-content');
-      container.innerHTML = '<div class="logo-placeholder">' +
-        '<div class="logo-box">🔢</div>' +
-        '<div class="logo-name">Terminales</div>' +
-        '<div style="font-size:12px;color:#999;margin-top:4px">Ingrese 2 dígitos (00-99) en el campo superior</div>' +
-        '</div>';
-    }
-
-    function renderLogo() {
-      const container = document.getElementById('seleccion-content');
-      const name = selectedGames.length > 0 ? selectedGames[0].name : 'Juego';
-      container.innerHTML = `<div class="logo-placeholder">
-        <div class="logo-box">🎲</div>
-        <div class="logo-name">${name}</div>
-      </div>`;
+    // Filtro dinámico de sorteos futuros (REQ-MH-04, A4): solo HH:MM > ahora en
+    // America/Caracas; se refresca cada 15 s (interval en DOMContentLoaded).
+    function horariosVisibles() {
+      return filtrarHorariosFuturos(horariosCache.map(h => h.hora));
     }
 
     function renderHorariosGrid() {
       const container = document.getElementById('horarios-grid');
-      if (!horariosCache || horariosCache.length === 0) {
+      const visibles = horariosVisibles();
+      // Los seleccionados que expiraron siguen visibles (en rojo) para poder
+      // desmarcarlos (REQ-MH-04, A4): se muestran al final de la lista.
+      const extras = seleccionadosExpirados(selectedHorarios).filter(h => !visibles.includes(h));
+      const items = [...visibles, ...extras];
+      if (items.length === 0) {
         container.innerHTML = '<div style="font-size:12px;color:#999;padding:8px">Sin horarios disponibles</div>';
+        renderHorarioAviso();
         return;
       }
-      container.innerHTML = horariosCache.map(h => {
-        const sel = selectedHorario === h.hora ? ' selected' : '';
-        return '<div class="horario-item' + sel + '" data-hora="' + h.hora + '">' + h.hora + '</div>';
+      container.innerHTML = items.map(hora => {
+        const sel = selectedHorarios.includes(hora) ? ' selected' : '';
+        const exp = horarioExpirado(hora) ? ' expirado' : '';
+        return '<div class="horario-item' + sel + exp + '" data-hora="' + hora + '" tabindex="-1">' + hora + '</div>';
       }).join('');
+      renderHorarioAviso();
     }
 
-    function renderTripleModalidades(modalidades) {
+    // Aviso de expiración (A4, REQ-MH-04): rojo mientras haya un horario
+    // seleccionado que ya pasó; addLine bloquea (guarda) hasta desmarcarlo.
+    function renderHorarioAviso() {
+      const aviso = document.getElementById('qt-horario-aviso');
+      if (!aviso) return;
+      const expirados = seleccionadosExpirados(selectedHorarios);
+      if (expirados.length > 0) {
+        aviso.textContent = 'El horario ' + expirados.join(', ') + ' ya pasó. Desmárquelo para continuar.';
+        aviso.style.display = 'block';
+      } else {
+        aviso.style.display = 'none';
+      }
+    }
+
+    // Identidad de grupo por jugada (A3): cada Añadir crea un groupId nuevo,
+    // así dos jugadas iguales no comparten grupo (duplicados = grupo nuevo).
+    let grupoSeq = 0;
+    function nuevoGroupId() {
+      grupoSeq += 1;
+      return 'g' + grupoSeq;
+    }
+
+    function toggleHorario(hora) {
+      const eraSeleccionado = selectedHorarios.includes(hora);
+      selectedHorarios = alternarHorario(selectedHorarios, hora);
+      if (eraSeleccionado && horarioExpirado(hora)) {
+        // Se desmarcó un horario expirado: desaparece de la lista (filtro A4)
+        // y el aviso se actualiza; sin auto-salto (D3).
+        renderHorariosGrid();
+        enfocarZona('horarios');
+        return;
+      }
+      // Actualiza la clase del ítem sin re-renderizar (preserva el foco del
+      // roving focus al alternar con Space/Enter/click).
+      const item = document.querySelector('#horarios-grid .horario-item[data-hora="' + hora + '"]');
+      item?.classList.toggle('selected', selectedHorarios.includes(hora));
+      renderHorarioAviso();
+    }
+
+    function marcarTodosHorarios() {
+      if (columnMode !== 'horarios') return;
+      const prevHora = document.activeElement?.dataset?.hora;
+      selectedHorarios = marcarTodosVisibles(horariosVisibles());
+      renderHorariosGrid();
+      if (prevHora) {
+        const nuevo = document.querySelector('#horarios-grid .horario-item[data-hora="' + prevHora + '"]');
+        nuevo?.focus({ preventScroll: true });
+      }
+    }
+
+    function renderTripleModalidades() {
       const container = document.getElementById('seleccion-content');
       let html = '<div class="modalidad-label">Seleccione modalidad:</div>';
-      html += '<div class="modalidad-grid">';
-      modalidades.forEach(m => {
+      html += '<div class="modalidad-grid" id="modalidad-grid" data-zona="modalidad">';
+      APOSTADOS_TRIPLETAS.forEach(m => {
         const sel = tripleModalidad === m.code ? ' selected' : '';
-        html += '<button class="modalidad-btn' + sel + '" data-modalidad="' + m.code + '">' + m.label + '</button>';
+        html += '<button class="modalidad-btn' + sel + '" data-modalidad="' + m.code + '" tabindex="-1">' + m.label + '</button>';
       });
       html += '</div>';
       html += '<div class="triple-info">Ingrese número de 3 cifras en el campo superior</div>';
-      html += '<div id="signos-triple-container" style="display:none"></div>';
+      html += '<div id="signos-triple-container" style="display:none" data-zona="signo"></div>';
       container.innerHTML = html;
       container.querySelectorAll('.modalidad-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -1077,18 +1548,19 @@ import MainLayout from '../layouts/MainLayout.astro';
           tripleModalidadLabel = btn.textContent;
           document.getElementById('qt-numero').value = '';
           renderSignosForModalidad();
+          renderLegend();
           updateColumnMode();
         });
       });
     }
 
+    // sorteo_hora del POST por línea (REQ-TF-01, A4): `<hoy> HH:MM:00` sin salto
+    // de día (D3). El cliente solo permite horarios futuros del día (filtro A4)
+    // y bloquea los que expiran; el backend D3 (PR4) es la autoridad final.
     function formatDateWithHorario(hora) {
       const partes = hora.split(':');
       const d = new Date();
       d.setHours(parseInt(partes[0]), parseInt(partes[1] || '0'), 0, 0);
-      if (d <= new Date()) {
-        d.setDate(d.getDate() + 1);
-      }
       const y = d.getFullYear();
       const m = String(d.getMonth() + 1).padStart(2, '0');
       const day = String(d.getDate()).padStart(2, '0');
@@ -1131,28 +1603,35 @@ import MainLayout from '../layouts/MainLayout.astro';
         return;
       }
 
+      // Resumen agrupado por jugada (REQ-MH-03, TF-04, A3): una fila por groupId
+      // ("Perro → 14:00, 17:00") con monto ×N; el POST sigue enviando N líneas.
+      const grupos = agruparPorGroupId(ticketLines);
       let html = `<table class="resumen-table">
         <thead><tr>
           <th>Sorteo</th><th>Animal / N°</th><th>Monto</th><th></th>
         </tr></thead><tbody>`;
-      ticketLines.forEach((line, i) => {
-        const montoClass = line.moneda === 'bs' ? 'monto-bs' : 'monto-usd';
-        const montoStr = line.moneda === 'bs'
-          ? `Bs. ${Number(line.monto).toLocaleString('es-VE', { minimumFractionDigits: 2 })}`
-          : `$ ${Number(line.monto).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
-        const sorteoDisplay = line.horario
-          ? (line.juegoName || '-') + ' - ' + line.horario
-          : (line.juegoName || '-');
-        const animalDisplay = line.juegoType === 'tripletas'
-          ? (line.tripleModalidadLabel
-              ? line.tripleModalidadLabel + ' ' + (line.numero || '-') + (line.animal ? ' - ' + line.animal : '')
-              : (line.numero ?? '-'))
-          : (line.animal ? line.animal + ' ' + (line.numero || '-') : (line.numero ?? '-'));
-        html += `<tr>
+      grupos.forEach(grupo => {
+        const primera = grupo.lines[0];
+        const montoClass = primera.moneda === 'bs' ? 'monto-bs' : 'monto-usd';
+        const horariosStr = grupo.lines.map(l => l.horario).join(', ');
+        const sorteoDisplay = (primera.juegoName || '-') + ' → ' + horariosStr;
+        const animalDisplay = primera.juegoType === 'tripletas'
+          ? (primera.tripleModalidadLabel
+              ? primera.tripleModalidadLabel + ' ' + (primera.numero || '-') + (primera.animal ? ' - ' + primera.animal : '')
+              : (primera.numero ?? '-'))
+          : (primera.animal ? primera.animal + ' ' + (primera.numero || '-') : (primera.numero ?? '-'));
+        const montoGrupo = Number(primera.monto) * grupo.lines.length;
+        const montoStr = primera.moneda === 'bs'
+          ? `Bs. ${montoGrupo.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`
+          : `$ ${montoGrupo.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+        // tabindex="-1" + data-grupo (F6, KB-07): la fila es el ítem de la
+        // zona Resumen (↑/↓ la enfocan vía moverFila) y F6 la elimina por el
+        // mismo groupId del ✕ (removeGroup).
+        html += `<tr tabindex="-1" data-grupo="${grupo.groupId}">
           <td>${sorteoDisplay}</td>
           <td>${animalDisplay}</td>
           <td class="${montoClass}">${montoStr}</td>
-          <td><button class="btn-rm" data-index="${i}" title="Eliminar">✕</button></td>
+          <td><button class="btn-rm" data-grupo="${grupo.groupId}" title="Eliminar grupo">✕</button></td>
         </tr>`;
       });
       html += '</tbody></table>';
@@ -1169,49 +1648,74 @@ import MainLayout from '../layouts/MainLayout.astro';
       const monto = document.getElementById('qt-monto').value.trim();
       const moneda = document.getElementById('qt-moneda').value;
 
-      if (selectedGames.length === 0) { window.showModal({ message: 'Seleccione al menos un juego', type: 'error' }); return; }
+      const juego = juegoActivo();
+      if (!juego) { window.showModal({ message: 'Seleccione al menos un juego', type: 'error' }); return; }
       if (!monto || Number(monto) <= 0) { window.showModal({ message: 'Ingrese un monto válido', type: 'error' }); return; }
-      if (!selectedHorario) { window.showModal({ message: 'Seleccione un horario para el sorteo', type: 'error' }); return; }
+      if (!selectedHorarios.length) { window.showModal({ message: 'Por favor, seleccione al menos un horario', type: 'error' }); return; }
 
-      const isTriple = selectedGames.length === 1 && selectedGames[0]?.type === 'tripletas';
-      const isTerminales = selectedGames.length === 1 && selectedGames[0]?.type === 'terminales';
-      if (isTriple) {
+      // Bloqueo por expiración (REQ-MH-04, A4): si algún horario seleccionado
+      // ya pasó no se añade nada; se avisa y queda desmarcable (sin auto-salto).
+      const expirados = seleccionadosExpirados(selectedHorarios);
+      if (expirados.length > 0) {
+        window.showModal({ message: 'El horario ' + expirados.join(', ') + ' ya pasó. Desmárquelo y seleccione un horario futuro.', type: 'error' });
+        renderHorariosGrid();
+        return;
+      }
+
+      const familia = juego.familia;
+      if (familia === 'zodiacal') {
         if (!tripleModalidad) { window.showModal({ message: 'Seleccione una modalidad (Triple A/B/C)', type: 'error' }); return; }
+        if (tripleModalidad === 'triple_c' && !selectedSigno) { window.showModal({ message: 'Seleccione un signo (obligatorio para Triple C)', type: 'error' }); return; }
         if (!numero || numero.length !== 3) { window.showModal({ message: 'Ingrese un número de exactamente 3 cifras', type: 'error' }); return; }
-      } else if (isTerminales) {
+      } else if (familia === 'numerica') {
+        // win-fixes2 FIX D: trio-activo/triple-facil ofrecen 00-99 pero el
+        // plugin Tripletas exige 3 dígitos (^\d{3}$). La selección de 1-3
+        // cifras se normaliza a 3 ("05"→"005") al armar la línea/POST.
+        if (!numero || !/^\d{1,3}$/.test(numero)) { window.showModal({ message: 'Ingrese un número de 1 a 3 cifras', type: 'error' }); return; }
+        numero = normalizarNumeroTriple(numero);
+      } else if (familia === 'terminal') {
         if (!numero || numero.length !== 2) { window.showModal({ message: 'Ingrese un número de exactamente 2 cifras', type: 'error' }); return; }
       } else {
         if (!selectedAnimal) { window.showModal({ message: 'Seleccione un animal', type: 'error' }); return; }
         numero = String(selectedAnimal.numero).padStart(2, '0');
       }
 
+      // Expansión multi-horario (REQ-MH-02, REQ-TF-01, D2): N horarios ⇒ N líneas,
+      // cada una con el monto completo y el groupId del grupo (A3). El
+      // resumen agrupa por groupId; los duplicados generan grupo nuevo.
+      const groupId = nuevoGroupId();
       selectedGames.forEach(game => {
-        const animal = isTriple
+        const animal = familia === 'zodiacal'
           ? (selectedSigno ? selectedSigno.label : null)
-          : (isTerminales ? null : selectedAnimal.label);
-        ticketLines.push({
+          : (selectedAnimal ? selectedAnimal.label : null);
+        const baseLinea = {
           juegoId: game.id,
-          juegoName: game.name,
-          juegoType: game.type,
-          horario: selectedHorario,
+          juegoName: game.nombre,
+          juegoType: game.tipo,
           numero: numero,
           animal: animal,
+          // win-fixes2 FIX E: sigla (value, "SAG") para el POST; el label
+          // ("Sagitario") es solo visual. Tripletas.php:44-47 valida
+          // strtoupper($signo) ∈ siglas (ARI..PIS) — el label rompía F5.
+          signoSigla: familia === 'zodiacal' ? (selectedSigno ? selectedSigno.value : null) : null,
           monto: Number(monto),
           moneda: moneda,
-          tripleModalidad: isTriple ? tripleModalidad : null,
-          tripleModalidadLabel: isTriple ? tripleModalidadLabel : null,
-        });
+          tripleModalidad: familia === 'zodiacal' ? tripleModalidad : null,
+          tripleModalidadLabel: familia === 'zodiacal' ? tripleModalidadLabel : null,
+        };
+        ticketLines.push(...expandirLineas(baseLinea, [...selectedHorarios], groupId));
       });
 
       document.getElementById('qt-numero').value = '';
       document.getElementById('qt-monto').value = '';
-      if (isTriple) {
+      if (familia === 'zodiacal') {
         tripleModalidad = null;
         tripleModalidadLabel = null;
         selectedSigno = null;
-        loadTripleConfig();
-      } else if (isTerminales) {
-        renderTerminalesInfo();
+        renderSeleccion();
+      } else if (familia === 'numerica' || familia === 'terminal') {
+        selectedOpcion = null;
+        renderSeleccion();
       } else {
         selectedAnimal = null;
         renderAnimales();
@@ -1221,35 +1725,49 @@ import MainLayout from '../layouts/MainLayout.astro';
     }
 
     function clearTicket() {
+      // win-fixes2 FIX C (desviación de A11): F2 / 🗑️ «Limpiar todo» vacía el
+      // ticket Y TODA la selección en curso — juego, animal, signo, opción,
+      // modalidad, horarios y buffers de dígitos — y vuelve las zonas a Juegos
+      // con foco inicial. A11 mantenía el juego activo y exigía líneas; el
+      // reset total deja el guard de pestañas (seleccionEnCurso) satisfecho de
+      // forma natural al limpiar. Sin líneas también limpia la selección.
       ticketLines = [];
+      selectedGames = [];
       selectedAnimal = null;
       selectedSigno = null;
+      selectedOpcion = null;
       tripleModalidad = null;
       tripleModalidadLabel = null;
-      selectedHorario = null;
+      selectedHorarios = [];
+      horariosCache = [];
+      buscadorDigitos = null;
+      buscadorSignos = null;
       document.getElementById('qt-numero').value = '';
       document.getElementById('qt-monto').value = '';
-      if (activeTab === 'animalitos' && animalesCache.length > 0) {
-        renderAnimales();
-      } else {
-        document.getElementById('seleccion-content').innerHTML = '<div class="seleccion-placeholder">Seleccione un juego</div>';
-      }
+      renderJuegos();
+      renderSeleccion();
+      renderLegend();
       switchToJuegos();
+      document.getElementById('juegos-col-title').textContent = 'Juegos';
       saveToLocalStorage();
       renderResumen();
+      requestAnimationFrame(() => enfocarZona('juegos'));
     }
 
-    function removeLine(index) {
-      ticketLines.splice(index, 1);
+    // El ✕ de la fila agrupada borra el grupo completo (A3): todas las líneas
+    // del groupId, no una línea suelta (criterio que F3 reutilizará en PR3b).
+    function removeGroup(groupId) {
+      ticketLines = ticketLines.filter(l => l.groupId !== groupId);
       if (ticketLines.length === 0) {
         selectedAnimal = null;
         selectedSigno = null;
+        selectedOpcion = null;
         tripleModalidad = null;
         tripleModalidadLabel = null;
-        selectedHorario = null;
+        selectedHorarios = [];
         document.getElementById('qt-numero').value = '';
-        if (activeTab === 'animalitos' && animalesCache.length > 0) {
-          renderAnimales();
+        if (juegoActivo()) {
+          renderSeleccion();
         } else {
           document.getElementById('seleccion-content').innerHTML = '<div class="seleccion-placeholder">Seleccione un juego</div>';
         }
@@ -1266,7 +1784,9 @@ import MainLayout from '../layouts/MainLayout.astro';
         const lines = ticketLines.map(line => ({
           juego_id: line.juegoId,
           combinacion: line.tripleModalidad
-            ? { tipo: line.tripleModalidad, numero: line.numero, signo: line.animal }
+            // win-fixes2 FIX E: el signo viaja SIEMPRE como sigla (value),
+            // nunca el label — cubre todos los zodiacales (incl. el-arrejuntado).
+            ? { tipo: line.tripleModalidad, numero: line.numero, signo: line.signoSigla ?? null }
             : (line.juegoType === 'terminales'
               ? { numero: line.numero }
               : { animal: line.animal || line.numero, numero: line.numero }),
@@ -1281,9 +1801,13 @@ import MainLayout from '../layouts/MainLayout.astro';
           ticketCode: result.data.ticket_code,
           date: new Date().toLocaleDateString('es-VE'),
           time: new Date().toLocaleTimeString('es-VE'),
-          game: selectedGames.length > 0 ? selectedGames.map(g => g.name).join(', ') : 'Apuesta',
-          lines: ticketLines.map(l => ({ animal: l.animal || l.numero, number: l.numero, amountBs: l.moneda === 'bs' ? l.monto : 0, amountUsd: l.moneda === 'usd' ? l.monto : 0 })),
+          game: selectedGames.length > 0 ? selectedGames.map(g => g.nombre).join(', ') : 'Apuesta',
+          lines: ticketLines.map(l => ({ animal: l.animal || l.numero, number: l.numero, sorteo: l.horario, amountBs: l.moneda === 'bs' ? l.monto : 0, amountUsd: l.moneda === 'usd' ? l.monto : 0 })),
         };
+        // Snapshot para F12 reimprimir (A6, REQ-TF-03): tras POST ok se guarda
+        // el último ticket impreso; si la impresora falla, F12 reimprime sin
+        // depender de red (rechazado GET /tickets/{id}).
+        localStorage.setItem('ultimoTicket', JSON.stringify(ticketData));
         if (window.electron?.printTicket) {
           await window.electron.printTicket({ ticketData });
         } else {
@@ -1297,6 +1821,547 @@ import MainLayout from '../layouts/MainLayout.astro';
         await window.showModal({ message: 'Error: ' + e.message, type: 'error' });
       }
       printBtn.disabled = false;
+    }
+
+    // ─── Modal de vuelto F9 (A12, REQ-KB-07) ────────────────────────────────
+    // Renderer-only: reutiliza tasaActiva (sin fetch nuevo) para que el
+    // cálculo cuadre con getTotalBs/getTicketTotal y la tarjeta de tasa. Con
+    // 0 líneas pendientes abre igual (total 0,00 editable): F9 nunca se
+    // bloquea por estado. La guarda estricta (A12) vive en routeKey + el glue.
+
+    // ¿El overlay está realmente visible? Los modales propios son estáticos
+    // (display:none cerrados, .abierto abiertos), a diferencia de los
+    // .modal-overlay dinámicos de showModal (siempre visibles en el DOM).
+    function overlayVisible(el) {
+      return el !== null && getComputedStyle(el).display !== 'none';
+    }
+
+    function restaurarFoco() {
+      requestAnimationFrame(() => enfocarZona(zonaActual));
+    }
+
+    function abrirVueltoModal() {
+      const overlay = document.getElementById('vuelto-overlay');
+      if (!overlay) return;
+      document.getElementById('vuelto-total').value = getTicketTotal().toFixed(2);
+      document.getElementById('vuelto-recibido').value = '';
+      // Sin tasa activa: se deshabilita el selector $ (solo Bs, A12).
+      document.getElementById('vuelto-moneda').disabled = !tasaDisponible;
+      document.getElementById('vuelto-moneda').value = 'bs';
+      overlay.classList.add('abierto');
+      calcularVueltoModal();
+      document.getElementById('vuelto-recibido').focus();
+    }
+
+    function cerrarVueltoModal() {
+      document.getElementById('vuelto-overlay')?.classList.remove('abierto');
+      restaurarFoco();
+    }
+
+    function toggleVueltoModal() {
+      const overlay = document.getElementById('vuelto-overlay');
+      if (!overlay) return;
+      if (overlay.classList.contains('abierto')) {
+        cerrarVueltoModal();
+      } else {
+        abrirVueltoModal();
+      }
+    }
+
+    // Cálculo en vivo del vuelto (A12): total editable, recibido con selector
+    // Bs/$; salida es-VE 2 decimales; negativo = «Falta» en rojo.
+    function calcularVueltoModal() {
+      const el = document.getElementById('vuelto-resultado');
+      if (!el) return;
+      const total = parseFloat(document.getElementById('vuelto-total').value) || 0;
+      const recibidoRaw = document.getElementById('vuelto-recibido').value;
+      if (recibidoRaw === '') {
+        el.className = 'vuelto-resultado';
+        el.textContent = 'Ingrese el monto recibido para calcular el vuelto.';
+        return;
+      }
+      const recibido = parseFloat(recibidoRaw) || 0;
+      const moneda = document.getElementById('vuelto-moneda').value;
+      const res = calcularVuelto({ totalBs: total, recibido, moneda, tasa: tasaDisponible ? tasaActiva : null });
+      const fmt = (n) => n.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      if (!res.ok) {
+        el.className = 'vuelto-resultado vuelto-error';
+        el.textContent = 'Tasa no disponible. Verifique la conexión para calcular en $, o use Bs.';
+        return;
+      }
+      const equivUsd = res.vueltoUsd !== null ? ' ($ ' + fmt(Math.abs(res.vueltoUsd)) + ')' : '';
+      if (res.negativo) {
+        el.className = 'vuelto-resultado vuelto-falta';
+        el.innerHTML = 'Falta: <strong>Bs. ' + fmt(Math.abs(res.vueltoBs)) + '</strong>' + equivUsd;
+      } else {
+        el.className = 'vuelto-resultado vuelto-ok';
+        el.innerHTML = 'Vuelto: <strong>Bs. ' + fmt(res.vueltoBs) + '</strong>' + equivUsd;
+      }
+    }
+
+    // ─── Modal de ayuda F1 (REQ-KB-07/08, A12 refined) ──────────────────────
+    // Contenido dinámico (grafo de zonas + mapa F1–F12) al abrir; se cierra
+    // con su toggle (F1), Esc, botón Cerrar o click en el overlay.
+
+    function renderAyudaContenido() {
+      const el = document.getElementById('help-content');
+      if (!el) return;
+      const grafo = grafoActual();
+      const zonasHtml = grafo.zonas
+        .map((z) => '<span class="kbd">' + (NOMBRE_ZONA[z] ?? z) + '</span>')
+        .join('<span class="leg-arrow"> → </span>');
+      const fkeysHtml = teclasLegend()
+        .map(t => '<li><span class="kbd">' + t.tecla + '</span> ' + t.nombre + '</li>')
+        .join('');
+      el.innerHTML =
+        '<p class="help-zonas"><strong>Zonas (Tab / Shift+Tab):</strong> ' + zonasHtml + '</p>' +
+        '<p class="help-zonas"><strong>Teclas:</strong></p><ul class="help-fkeys">' + fkeysHtml + '</ul>';
+    }
+
+    function cerrarAyudaModal() {
+      document.getElementById('help-overlay')?.classList.remove('abierto');
+      restaurarFoco();
+    }
+
+    function toggleAyudaModal() {
+      const overlay = document.getElementById('help-overlay');
+      if (!overlay) return;
+      if (overlay.classList.contains('abierto')) {
+        cerrarAyudaModal();
+      } else {
+        renderAyudaContenido();
+        overlay.classList.add('abierto');
+      }
+    }
+
+    // ─── Acciones F2/F3/F4/F12 (A11, REQ-KB-07) ─────────────────────────────
+    // F3 anula la jugada (grupo) del último groupId añadido; F4 la duplica
+    // con groupId nuevo (atómico: si algún horario expiró, avisa y no copia).
+
+    function anularUltimaJugada() {
+      const ultima = ticketLines[ticketLines.length - 1];
+      if (!ultima) return;
+      // Mismo criterio que el ✕ de la fila agrupada (A3): borra el grupo
+      // completo del último groupId, no una línea suelta.
+      removeGroup(ultima.groupId);
+    }
+
+    function repetirUltimaJugada() {
+      const ultima = ticketLines[ticketLines.length - 1];
+      if (!ultima) return;
+      const grupo = ticketLines.filter((l) => l.groupId === ultima.groupId);
+      // Atómico (A11): si algún horario de la jugada ya expiró (filtro A4),
+      // se avisa y NO se duplica nada (sin copia parcial).
+      const expirados = grupo.filter((l) => horarioExpirado(l.horario)).map((l) => l.horario);
+      if (expirados.length > 0) {
+        window.showModal({
+          message: 'El horario ' + expirados.join(', ') + ' ya pasó. No se repitió la jugada.',
+          type: 'error',
+        });
+        return;
+      }
+      // Duplica la jugada completa (combinación, monto, moneda y horarios
+      // originales) con un groupId NUEVO al final, sin depender de la
+      // selección actual (A11).
+      const nuevoId = nuevoGroupId();
+      ticketLines.push(...grupo.map((l) => ({ ...l, groupId: nuevoId })));
+      renderResumen();
+    }
+
+    // F12 reimprime el último ticket desde el snapshot localStorage.ultimoTicket
+    // (A6, REQ-TF-03): se guarda tras un POST ok en handlePrint; si falta o no
+    // es válido, aviso claro (nunca depende de red justo cuando falla la
+    // impresora; rechazado GET /tickets/{id}).
+    function reimprimirUltimo() {
+      const raw = localStorage.getItem('ultimoTicket');
+      if (!raw) {
+        window.showModal({
+          message: 'No hay un ticket previo para reimprimir. Genere un ticket con F5 / Imprimir primero.',
+          type: 'info',
+        });
+        return;
+      }
+      try {
+        const ticketData = JSON.parse(raw);
+        if (!ticketData || !Array.isArray(ticketData.lines) || ticketData.lines.length === 0) {
+          throw new Error('snapshot inválido');
+        }
+        if (window.electron?.printTicket) {
+          window.electron.printTicket({ ticketData });
+        } else {
+          window.showModal({
+            message: 'Reimpresión no disponible en este entorno.',
+            type: 'info',
+          });
+        }
+      } catch (e) {
+        localStorage.removeItem('ultimoTicket');
+        window.showModal({
+          message: 'El ticket previo no es válido. Se eliminó el respaldo.',
+          type: 'error',
+        });
+      }
+    }
+
+    // ─── F6 eliminar ítem (REQ-KB-07/08, A3) ───────────────────────────────
+    // Elimina la fila (grupo) SELECCIONADA del resumen por la MISMA ruta del
+    // ✕ de la fila agrupada (removeGroup), sin lógica duplicada. Guardas
+    // (KB-08): solo con foco en la zona Resumen y sobre una fila de grupo —
+    // si no hay fila seleccionada o el resumen está vacío → no-op (sin
+    // lanzar). La guarda de modal ya la aplica routeKey (regla 1: con un
+    // modal abierto solo su propio toggle y Esc) y la de estado (F6 sin
+    // líneas) la marca no-ejecutable en el router.
+    function eliminarItemSeleccionado() {
+      if (zonaActual !== 'resumen') return;
+      const fila = document.activeElement?.closest?.('.resumen-table tbody tr[data-grupo]');
+      if (!fila) return;
+      const totalAntes = document.querySelectorAll('#resumen-content .resumen-table tbody tr[data-grupo]').length;
+      const indiceEliminado = Array.from(fila.parentElement.children).indexOf(fila);
+      removeGroup(fila.dataset.grupo);
+      // Selección tras el borrado (KB-07): foco en la fila que ocupó su
+      // lugar, en la última restante o en ninguna (removeGroup ya devolvió
+      // la columna a Juegos cuando el ticket quedó vacío).
+      const filas = document.querySelectorAll('#resumen-content .resumen-table tbody tr[data-grupo]');
+      const nuevoIndice = indiceSeleccionTrasEliminar(totalAntes, indiceEliminado);
+      const objetivo = nuevoIndice === null ? null : filas[nuevoIndice];
+      if (objetivo) {
+        objetivo.focus();
+        objetivo.scrollIntoView({ block: 'nearest' });
+      }
+    }
+
+    // ─── Navegación por teclado (PR2: KB-01..04, KB-08, KB-09; A1) ──────────
+    // ACCIONES reales de F-keys (PR3b, REQ-KB-07, A11, A12): F1 ayuda, F2
+    // limpiar todo (= clearTicket, reset TOTAL — win-fixes2 FIX C), F3 anular
+    // último grupo, F4 repetir última (atómico), F5 pagar/generar
+    // (= handlePrint), F6 eliminar el grupo seleccionado del resumen, F9
+    // vuelto, F12 reimprimir snapshot. F7/F8/F10
+    // (ventas/cuadre/resultados) NO viven aquí desde FIX-6: la navegación es
+    // GLOBAL en MainLayout.astro (evita doble dispatch en las 5 pantallas).
+    // Las guardas de estado viven en routeKey
+    // (ejecutable=false) y la guarda estricta de modales (A12) en la regla 1
+    // del router: con un modal abierto solo su toggle (F1/F9) y Esc actúan.
+    // F11 «Números» (win-fixes3): salto directo al input de Número.
+    const ACCIONES_FKEYS = {
+      ayuda: toggleAyudaModal,
+      limpiar: clearTicket,
+      'anular-ultima': anularUltimaJugada,
+      'repetir-ultima': repetirUltimaJugada,
+      'pagar-generar': () => { handlePrint(); },
+      'eliminar-item': eliminarItemSeleccionado,
+      vuelto: toggleVueltoModal,
+      reimprimir: reimprimirUltimo,
+      // F11 (win-fixes3): foco al input #qt-numero + zona `numero`; desde ahí
+      // Tab→Monto y Enter→Añadir ya operan con el ruteo existente.
+      'ir-numero': () => {
+        const input = document.getElementById('qt-numero');
+        if (input) input.focus({ preventScroll: true });
+        enfocarZona('numero');
+      },
+    };
+
+    function esEditable(target) {
+      const t = target?.tagName;
+      return t === 'INPUT' || t === 'SELECT' || t === 'TEXTAREA';
+    }
+
+    // Guarda de modal (REQ-KB-08, A12 refined): cualquier .modal-overlay VISIBLE
+    // (showModal de MainLayout es dinámico y siempre visible en el DOM; los
+    // modales propios F1/F9 son estáticos con display:none cerrados) o el
+    // #help-overlay.abierto. La visibilidad evita que un modal propio cerrado
+    // (aún en el DOM) bloquee las F-keys.
+    function detectarModalAbierto() {
+      const genericos = Array.from(document.querySelectorAll('.modal-overlay'));
+      if (genericos.some((el) => overlayVisible(el))) return true;
+      return document.querySelector('#help-overlay.abierto') !== null;
+    }
+
+    // Modal propio abierto para routeKey (A12): 'f1' (ayuda) o 'f9' (vuelto).
+    // Con un modal abierto, routeKey solo permite el toggle del modal propio
+    // (F1/F9) y Esc; ninguna otra F-key abre otro modal.
+    function modalPropioActual() {
+      if (document.querySelector('#help-overlay.abierto')) return 'f1';
+      if (document.querySelector('#vuelto-overlay.abierto')) return 'f9';
+      return null;
+    }
+
+    function objetivoZona(zona) {
+      return document.querySelector(TARGETS_ZONA[zona]);
+    }
+
+    function zonaVisible(zona) {
+      const el = objetivoZona(zona);
+      if (!el) return false;
+      return el.offsetParent !== null || el === document.body;
+    }
+
+    // Roving tabindex explícito (KB-01): solo la zona actual es tabulable.
+    function sincronizarTabindex(zona) {
+      Object.keys(TARGETS_ZONA).forEach(z => {
+        const el = objetivoZona(z);
+        if (!el) return;
+        if (z === 'numero' || z === 'monto') return; // inputs conservan tabindex nativo
+        el.tabIndex = z === zona ? 0 : -1;
+      });
+    }
+
+    function enfocarZona(zona) {
+      const el = objetivoZona(zona);
+      if (!el) return;
+      zonaActual = zona;
+      sincronizarTabindex(zona);
+      // FIX-2 generalizado (win-fixes2 FIX A, KB-01): al entrar en CUALQUIER
+      // zona con ítems focalizables (juegos, modalidad, selección, signo,
+      // horarios, resumen) el foco cae en el PRIMER ítem, no en el contenedor
+      // — así Space/Enter actúan directo (KB-05) y ↑/↓ navegan la lista desde
+      // el primer ítem. Horarios conserva su matiz: los ítems expirados
+      // (extras al final) no roban el foco inicial. Zonas sin ítems
+      // (numero/monto/anadir) caen al contenedor/input como siempre.
+      const items = itemsDeZona(zona);
+      if (items.length > 0) {
+        let objetivo = items[0];
+        if (zona === 'horarios') {
+          objetivo = items.find((i) => !i.classList.contains('expirado')) ?? items[0];
+        }
+        objetivo.focus({ preventScroll: true });
+        return;
+      }
+      el.focus({ preventScroll: true });
+    }
+
+    // Ciclo Tab/Shift+Tab (KB-01): salta zonas ocultas (p. ej. juegos en modo
+    // horarios) y envuelve en el extremo.
+    function moverZona(delta) {
+      // FIX-3b (KB-01): Tab desde Horarios con selección PENDIENTE vuelve a la
+      // zona que falta (seleccion/modalidad/signo) ANTES de numero/monto. Con
+      // la selección completa sigue el ciclo normal del grafo.
+      if (delta > 0 && zonaActual === 'horarios') {
+        const pendiente = zonaPendienteSeleccion({
+          familia: juegoActivo()?.familia ?? null,
+          tripleModalidad,
+          signoElegido: selectedSigno !== null,
+          animalElegido: selectedAnimal !== null,
+        });
+        if (pendiente && zonaVisible(pendiente)) {
+          enfocarZona(pendiente);
+          return;
+        }
+      }
+      const grafo = grafoActual();
+      const saltos = grafo.zonas.length;
+      let zona = zonaActual;
+      for (let i = 0; i < saltos; i++) {
+        zona = delta > 0 ? grafo.siguiente(zona) : grafo.anterior(zona);
+        if (zona === null) break;
+        if (zonaVisible(zona)) {
+          enfocarZona(zona);
+          return;
+        }
+      }
+    }
+
+    // Movimiento lateral ←/→ entre columnas (FIX-3a, KB-03): usa la misma
+    // adyacencia pura (zonaHorizontal) que rutea routeKey, con la columna
+    // izquierda según columnMode (juegos ↔ seleccion ↔ resumen, horarios ↔
+    // seleccion). Sin vecino → no-op (el glue ya consumió la tecla).
+    function moverHorizontal(direccion) {
+      const destino = zonaHorizontal(zonaActual, direccion, columnMode);
+      if (destino && zonaVisible(destino)) enfocarZona(destino);
+    }
+
+    function itemsDeZona(zona) {
+      const selectores = {
+        juegos: '.juego-card',
+        modalidad: '.modalidad-btn',
+        seleccion: '.animal-check, .opcion-item',
+        signo: '.signo-btn',
+        horarios: '.horario-item',
+        resumen: '.resumen-table tbody tr',
+      };
+      const el = objetivoZona(zona);
+      if (!el) return [];
+      return Array.from(el.querySelectorAll(selectores[zona] || ''));
+    }
+
+    // ↑/↓ contextuales (KB-03): recorren la lista activa de la zona enfocada
+    // en orden DOM; sin wrap (el wrap es de zonas con Tab).
+    function moverFila(delta) {
+      const items = itemsDeZona(zonaActual);
+      if (items.length === 0) return;
+      const activo = document.activeElement;
+      let idx = items.indexOf(activo);
+      if (idx === -1) idx = delta > 0 ? -1 : items.length;
+      const objetivo = items[idx + delta];
+      if (!objetivo) return;
+      objetivo.focus();
+      objetivo.scrollIntoView({ block: 'nearest' });
+    }
+
+    // Enter activa el elemento de zona focalizado (tarjeta/opción/fila).
+    function activarItemFocalizado() {
+      const activo = document.activeElement;
+      if (!activo || esEditable(activo)) return;
+      const zonaEl = activo.closest?.('[data-zona]');
+      if (!zonaEl) return;
+      // FIX-2 (KB-01): si el foco está en el CONTENEDOR de una zona (p. ej.
+      // #horarios-grid tras el tab), activar su primer ítem focalizable en vez
+      // de no hacer nada (el contenedor no tiene click()). El siguiente
+      // Enter/Space ya opera sobre el ítem (roving focus en dos pasos).
+      if (activo === zonaEl) {
+        const items = itemsDeZona(zonaEl.dataset.zona);
+        if (items.length > 0) {
+          items[0].focus();
+          items[0].scrollIntoView({ block: 'nearest' });
+          return;
+        }
+      }
+      if (typeof activo.click === 'function') activo.click();
+    }
+
+    // ─── Búsqueda por dígito en la zona Selección (FIX-5, REQ-KB-06) ───────
+    // Reutiliza el motor puro existente (buscarPorDigito/crearBuscadorDigitos,
+    // catalogo.ts): buffer multi-dígito con commit por inactividad (700 ms) o
+    // Enter. Animalitos → foco/selección del .animal-check coincidente (el
+    // dup numero:0 lista Ballena/Delfín para desambiguar, REQ-CL-03).
+    // Numérica/terminal/zodiacal → salto a la zona Número con el dígito
+    // precargado (2/3 cifras); el resto se teclea nativo en el input.
+    let buscadorDigitos = null;
+    // Buffer de dígitos de la zona Signo (win-fixes2 FIX B): acumula 1-2
+    // dígitos y al confirmar (inactividad 700 ms / Enter) selecciona el signo
+    // zodiacal por posición 1-12 (signoPorPosicion). Mismo motor que el
+    // buscador de animales (crearBuscadorDigitos).
+    let buscadorSignos = null;
+
+    function aplicarCoincidenciasAnimales(coincidencias) {
+      if (coincidencias.length === 0) return;
+      const juego = juegoActivo();
+      if (!juego || juego.familia !== 'animalitos') return;
+      const unica = coincidencias.length === 1 ? coincidencias[0] : null;
+      if (unica) {
+        selectedAnimal = { numero: unica.numero, label: unica.label };
+      }
+      renderAnimales();
+      const card = document.querySelector('#seleccion-content .animal-check[data-numero="' + coincidencias[0].numero + '"]');
+      if (card) {
+        card.focus();
+        card.scrollIntoView({ block: 'nearest' });
+      }
+      updateColumnMode();
+    }
+
+    // win-fixes2 FIX B: dígitos 1-12 → signo por posición (zodiacal triple_c).
+    // El buffer se reinicia tras seleccionar; un índice fuera de 1-12 se
+    // descarta (no-op) y el buffer vuelve a cero para el siguiente intento.
+    function aplicarSignoPorPosicion(buffer) {
+      const juego = juegoActivo();
+      if (!juego || juego.familia !== 'zodiacal') return;
+      const signo = signoPorPosicion(juego, buffer);
+      if (!signo) {
+        buscadorSignos?.limpiar();
+        return;
+      }
+      selectedSigno = { value: signo.value, label: signo.label };
+      renderSignosForModalidad();
+      const btn = document.querySelector('#signos-triple-container .signo-btn[data-value="' + signo.value + '"]');
+      if (btn) {
+        btn.focus();
+        btn.scrollIntoView({ block: 'nearest' });
+      }
+      buscadorSignos?.limpiar();
+      renderLegend();
+      updateColumnMode();
+    }
+
+    function manejarDigitoEnSeleccion(digito) {
+      const juego = juegoActivo();
+      if (!juego) return;
+      if (juego.familia === 'animalitos') {
+        // Buffer persistente por juego: se recrea si cambió el juego activo.
+        if (!buscadorDigitos || buscadorDigitos.juegoId !== juego.id) {
+          buscadorDigitos = crearBuscadorDigitos(juego, (coincidencias) => aplicarCoincidenciasAnimales(coincidencias));
+          buscadorDigitos.juegoId = juego.id;
+        }
+        buscadorDigitos.teclear(digito);
+        return;
+      }
+      // win-fixes2 FIX B: zodiacal con triple_c (la zona signo está visible)
+      // → los dígitos 1-12 seleccionan el signo por posición, tanto desde la
+      // zona Signo como desde Selección con foco no editable. Para teclear el
+      // número de 3 cifras se Tab hasta la zona Número (foco editable).
+      if (juego.familia === 'zodiacal' && tripleModalidad === 'triple_c') {
+        if (!buscadorSignos || buscadorSignos.juegoId !== juego.id) {
+          buscadorSignos = crearBuscadorDigitos(juego, (_coincidencias, buffer) => aplicarSignoPorPosicion(buffer));
+          buscadorSignos.juegoId = juego.id;
+        }
+        buscadorSignos.teclear(digito);
+        return;
+      }
+      // numérica/terminal/zodiacal (triple_a/b): salta a Número y precarga el
+      // dígito (2 cifras numérica/terminal, 3 zodiacal); el resto se escribe
+      // nativo.
+      const input = document.getElementById('qt-numero');
+      if (!input) return;
+      const maxDigitos = juego.familia === 'zodiacal' ? 3 : 2;
+      input.value = (input.value + digito).slice(0, maxDigitos);
+      enfocarZona('numero');
+    }
+
+    // Esc sube un nivel sin descartar selección ni líneas (KB-04, A1).
+    function manejarEscape(nivel) {
+      if (nivel === 'modal') {
+        // Cierra el modal superior: ayuda F1 → vuelto F9 → showModal genérico.
+        const ayuda = document.querySelector('#help-overlay.abierto');
+        if (ayuda) {
+          ayuda.classList.remove('abierto');
+          restaurarFoco();
+          return;
+        }
+        const vuelto = document.querySelector('#vuelto-overlay.abierto');
+        if (vuelto) {
+          cerrarVueltoModal();
+          return;
+        }
+        const overlay = Array.from(document.querySelectorAll('.modal-overlay')).find(overlayVisible);
+        if (overlay) {
+          const btn = overlay.querySelector('.cancel-btn') ?? overlay.querySelector('.ok-btn');
+          btn?.click();
+        }
+        return;
+      }
+      if (nivel === 'input') {
+        document.activeElement?.blur?.();
+        return;
+      }
+      if (nivel === 'juegos') {
+        switchToJuegos();
+        document.getElementById('juegos-col-title').textContent = 'Juegos';
+        requestAnimationFrame(() => enfocarZona('juegos'));
+        return;
+      }
+      // zona-anterior: sin wrap (arriba de Juegos no hay nivel).
+      if (zonaActual === 'juegos') return;
+      const anterior = grafoActual().anterior(zonaActual);
+      if (anterior && zonaVisible(anterior)) enfocarZona(anterior);
+    }
+
+    // Leyenda estática (REQ-KB-09): barra de estado con el mapa de zonas
+    // (según el grafo del juego activo) y las teclas F1–F12.
+    function renderLegend() {
+      const el = document.getElementById('qt-legend');
+      if (!el) return;
+      const grafo = grafoActual();
+      const zonasHtml = grafo.zonas
+        .map(z => '<span class="kbd">' + (NOMBRE_ZONA[z] ?? z) + '</span>')
+        .join('<span class="leg-arrow"> → </span>');
+      // FIX-6 (REQ-KB-09): KEYMAP (F1–F12) + destinos globales no-F (Alt+D)
+      // del NAV_GLOBAL vía teclasLegend — la leyenda refleja el mapa real.
+      const fkeysHtml = teclasLegend()
+        .map(t => '<span><span class="kbd">' + t.tecla + '</span> ' + t.nombre + '</span>')
+        .join(' · ');
+      el.innerHTML =
+        '<span class="leg-grupo"><span class="leg-label">Zonas:</span> ' + zonasHtml + '</span>' +
+        '<span class="leg-grupo"><span class="leg-label">Teclas:</span> ' + fkeysHtml + '</span>' +
+        '<span class="leg-grupo"><span class="leg-label">Horarios:</span> <span class="kbd">Ctrl+A</span>/<span class="kbd">*</span> marcar todos</span>';
     }
 
     document.addEventListener('DOMContentLoaded', async () => {
@@ -1328,6 +2393,31 @@ import MainLayout from '../layouts/MainLayout.astro';
 
       setInterval(loadTicket, 2000);
 
+      // Refresco del filtro de sorteos futuros (REQ-MH-04, A4): cada 15 s se
+      // re-renderiza la lista; los seleccionados que expiran pasan a rojo y
+      // el aviso #qt-horario-aviso se actualiza.
+      setInterval(() => {
+        if (columnMode !== 'horarios') return;
+        // FIX-2: preserva el foco del roving focus a través del re-render
+        // (mismo patrón que marcarTodosHorarios): si el foco estaba en la
+        // lista, se restaura por data-hora; si el ítem desapareció (expiró
+        // sin estar marcado), el foco vuelve al primer ítem visible o al
+        // contenedor — NUNCA se pierde en body. Si el foco estaba en un
+        // input (p. ej. Número/Monto), NO se roba.
+        const activo = document.activeElement;
+        const enLista = activo?.classList?.contains('horario-item') || activo?.id === 'horarios-grid';
+        const prevHora = activo?.dataset?.hora;
+        renderHorariosGrid();
+        if (!enLista) return;
+        const contenedor = document.getElementById('horarios-grid');
+        if (prevHora) {
+          const nuevo = contenedor?.querySelector('.horario-item[data-hora="' + prevHora + '"]');
+          if (nuevo) { nuevo.focus({ preventScroll: true }); return; }
+        }
+        const primero = contenedor?.querySelector('.horario-item:not(.expirado)') ?? contenedor?.querySelector('.horario-item');
+        if (primero) primero.focus({ preventScroll: true });
+      }, 15000);
+
       document.getElementById('juegos-list').addEventListener('click', (e) => {
         const card = e.target.closest('.juego-card');
         if (!card) return;
@@ -1343,42 +2433,40 @@ import MainLayout from '../layouts/MainLayout.astro';
         }
         selectedSigno = null;
         selectedAnimal = null;
+        selectedOpcion = null;
         tripleModalidad = null;
         tripleModalidadLabel = null;
 
         renderJuegos();
         if (selectedGames.length > 0) {
-          const type = getGameType(juego.id);
-          if (type === 'animalitos') {
-            loadAnimalesConfig();
-          } else if (type === 'tripletas') {
-            loadTripleConfig();
-          } else if (type === 'terminales') {
-            renderTerminalesInfo();
-          } else {
-            renderLogo();
-          }
+          renderSeleccion();
           loadHorariosConfig();
+          // FIX-4: los horarios aparecen apenas se elige el juego (sin esperar
+          // la selección completa); updateColumnMode ya no rebota a Juegos.
+          switchToHorarios();
         } else {
           document.getElementById('seleccion-content').innerHTML = '<div class="seleccion-placeholder">Seleccione un juego</div>';
           horariosCache = [];
-          selectedHorario = null;
+          selectedHorarios = [];
           switchToJuegos();
         }
+        buscadorDigitos = null; // FIX-5: el buffer de dígitos es por juego
+        buscadorSignos = null; // win-fixes2 FIX B: buffer de signos por juego
+        renderLegend();
         updateColumnMode();
+        if (selectedGames.length > 0) enfocarZona('horarios'); // FIX-2
       });
 
       document.getElementById('horarios-grid').addEventListener('click', (e) => {
         const item = e.target.closest('.horario-item');
         if (!item) return;
-        document.querySelectorAll('.horario-item.selected').forEach(b => b.classList.remove('selected'));
-        item.classList.add('selected');
-        selectedHorario = item.dataset.hora;
+        toggleHorario(item.dataset.hora);
       });
       if (document.getElementById('back-to-juegos')) {
         document.getElementById('back-to-juegos').addEventListener('click', () => {
           switchToJuegos();
           document.getElementById('juegos-col-title').textContent = 'Juegos';
+          enfocarZona('juegos');
         });
       }
 
@@ -1386,14 +2474,32 @@ import MainLayout from '../layouts/MainLayout.astro';
 
       document.getElementById('resumen-content').addEventListener('click', (e) => {
         const btn = e.target.closest('.btn-rm');
-        if (btn) removeLine(parseInt(btn.dataset.index));
+        if (btn) removeGroup(btn.dataset.grupo);
       });
 
       document.getElementById('qt-clear').addEventListener('click', clearTicket);
       document.getElementById('qt-print').addEventListener('click', handlePrint);
 
+      // Modal de ayuda F1 (A12 refined): cierre por botón/overlay.
+      const helpOverlay = document.getElementById('help-overlay');
+      document.getElementById('help-cerrar').addEventListener('click', cerrarAyudaModal);
+      helpOverlay.addEventListener('click', (e) => {
+        if (e.target === helpOverlay) cerrarAyudaModal();
+      });
+
+      // Modal de vuelto F9 (A12): cálculo en vivo + cierre por botón/overlay.
+      const vueltoOverlay = document.getElementById('vuelto-overlay');
+      ['vuelto-total', 'vuelto-recibido'].forEach((id) => {
+        document.getElementById(id).addEventListener('input', calcularVueltoModal);
+      });
+      document.getElementById('vuelto-moneda').addEventListener('change', calcularVueltoModal);
+      document.getElementById('vuelto-cerrar').addEventListener('click', cerrarVueltoModal);
+      vueltoOverlay.addEventListener('click', (e) => {
+        if (e.target === vueltoOverlay) cerrarVueltoModal();
+      });
+
       document.getElementById('qt-numero').addEventListener('input', (e) => {
-        if (!selectedGames[0] || selectedGames[0].type !== 'animalitos') return;
+        if (!selectedGames[0] || selectedGames[0].tipo !== 'animalitos') return;
         if (animalesCache.length === 0) return;
         const val = parseInt(e.target.value);
         if (isNaN(val)) { selectedAnimal = null; renderAnimales(); updateColumnMode(); return; }
@@ -1407,13 +2513,105 @@ import MainLayout from '../layouts/MainLayout.astro';
 
       let addingLine = false;
       document.addEventListener('keydown', (e) => {
-        if (e.target.tagName === 'INPUT' && e.key === 'Enter') {
+        // Enter solo añade línea desde los inputs del ticket (qt-numero/
+        // qt-monto); los inputs de los modales (p. ej. vuelto F9) no deben
+        // disparar addLine, y con un modal abierto nada añade (guarda A12).
+        if (e.key === 'Enter' && (e.target.id === 'qt-numero' || e.target.id === 'qt-monto')) {
+          if (detectarModalAbierto()) return;
           e.preventDefault();
           if (addingLine) return;
           addingLine = true;
           addLine();
           setTimeout(() => { addingLine = false; }, 500);
         }
+      });
+
+      // ─── Router de teclado (A1): una sola escucha en document ────────────
+      renderLegend();
+      enfocarZona('juegos'); // KB-01: foco inicial en la zona Juegos
+
+      // focusin sincroniza la zona actual con el elemento enfocado.
+      document.addEventListener('focusin', (e) => {
+        const zonaEl = e.target.closest?.('[data-zona]');
+        if (zonaEl && zonaEl.dataset.zona) {
+          zonaActual = zonaEl.dataset.zona;
+          sincronizarTabindex(zonaActual);
+        }
+      });
+
+      document.addEventListener('keydown', (e) => {
+        const decision = routeKey({
+          tecla: e.key,
+          repeat: e.repeat,
+          ctrlKey: e.ctrlKey,
+          shiftKey: e.shiftKey,
+          focoEditable: esEditable(e.target),
+          zonaActual,
+          modalAbierto: detectarModalAbierto(),
+          modalPropio: modalPropioActual(),
+          columnMode,
+          tieneLineas: ticketLines.length > 0,
+          tieneHistorial: ticketLines.length > 0,
+          seleccionEnCurso: seleccionEnCurso(), // FIX-3c
+        });
+        if (!decision.consume) return;
+        e.preventDefault();
+
+        switch (decision.tipo) {
+          case 'tab-siguiente': moverZona(1); break;
+          case 'tab-anterior': moverZona(-1); break;
+          case 'pestana-anterior':
+            // FIX-3c: con selección en curso routeKey marca ejecutable=false;
+            // el guard real vive en activarTab (cubre también el click).
+            if (!decision.ejecutable) { mostrarAvisoTab('Finalice la selección actual antes de cambiar de pestaña (F2 Limpiar todo)'); break; }
+            activarTab(tabAnterior()); break;
+          case 'pestana-siguiente':
+            if (!decision.ejecutable) { mostrarAvisoTab('Finalice la selección actual antes de cambiar de pestaña (F2 Limpiar todo)'); break; }
+            activarTab(tabSiguiente()); break;
+          case 'zona-izquierda': moverHorizontal('izquierda'); break; // FIX-3a
+          case 'zona-derecha': moverHorizontal('derecha'); break; // FIX-3a
+          case 'fila-anterior': moverFila(-1); break;
+          case 'fila-siguiente': moverFila(1); break;
+          case 'marcar-todos': marcarTodosHorarios(); break;
+          case 'escape': manejarEscape(decision.nivel); break;
+          case 'digito': manejarDigitoEnSeleccion(decision.digito); break; // FIX-5
+          case 'toggle-modal': {
+            // A12: toggle del modal propio. routeKey solo lo emite cuando el
+            // modal abierto ES el propio (F1↔ayuda, F9↔vuelto); con cualquier
+            // otro modal abierto ninguna F-key llega aquí.
+            if (decision.modal === 'f1') toggleAyudaModal();
+            if (decision.modal === 'f9') toggleVueltoModal();
+            break;
+          }
+          case 'f-key': {
+            if (!decision.ejecutable) break; // guarda de estado (KB-08, A11)
+            ACCIONES_FKEYS[decision.accion]?.();
+            break;
+          }
+          default: break;
+        }
+      });
+
+      // Enter/Space activan el elemento de zona focalizado (KB-05: toggle de
+      // horarios con Space/Enter; PR2 ya activaba con Enter). Dentro de inputs
+      // el Enter existente hace addLine y Space escribe texto (no se intercepta).
+      document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        if (esEditable(e.target)) return;
+        // FIX-5 (REQ-KB-06): Enter confirma el buffer de dígitos pendiente en
+        // la zona Selección (animalitos) ANTES de activar el ítem focalizado;
+        // con el buffer vacío el Enter actúa como siempre. win-fixes2 FIX B:
+        // Enter también confirma el buffer de signos (zona Signo, 1-12).
+        if (e.key === 'Enter' && zonaActual === 'seleccion' && buscadorDigitos && buscadorDigitos.buffer() !== '') {
+          buscadorDigitos.commit();
+          return;
+        }
+        if (e.key === 'Enter' && zonaActual === 'signo' && buscadorSignos && buscadorSignos.buffer() !== '') {
+          buscadorSignos.commit();
+          return;
+        }
+        activarItemFocalizado();
+        if (e.key === ' ') e.preventDefault(); // Space en ítem: sin scroll de página
       });
     });
   </script>

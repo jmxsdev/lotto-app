@@ -412,7 +412,10 @@ class ApuestaService
         if ($sorteoHora) {
             $sorteoHora = Carbon::parse($sorteoHora);
             if ($sorteoHora->isPast()) {
-                $sorteoHora = Carbon::parse($this->getNextDrawTime($data['juego_id']));
+                // D3 (REQ-BK-01): un sorteo ya pasado se RECHAZA; nunca se
+                // salta al siguiente sorteo futuro. El catch de \RuntimeException
+                // en TicketController/ApuestaController lo surfacea como 422.
+                throw new \RuntimeException('El sorteo seleccionado ya pasó. Seleccione un horario futuro.');
             }
         } else {
             $sorteoHora = Carbon::parse($this->getNextDrawTime($data['juego_id']));

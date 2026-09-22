@@ -117,6 +117,7 @@ try {
     
     <script>
       import { apiFetch } from '../utils/apiFetch';
+      import { destinoNav } from '../utils/keyboard';
 
       let connected = navigator.onLine;
 
@@ -231,6 +232,40 @@ try {
         }
         localStorage.removeItem('auth_token');
         window.location.href = '/login';
+      });
+
+      // ─── Navegación global (FIX-6, REQ-KB-07) ─────────────────────────────
+      // F7→/historial, F8→/cierre, F10→/resultados, Alt+D→/dashboard. Vive en
+      // MainLayout para cubrir las 5 pantallas (dashboard, historial, cierre,
+      // resultados, ganadores); login/index/activacion NO usan este layout.
+      // Guardas (replican detectarModalAbierto/esEditable/e.repeat del
+      // dashboard): modal visible, foco en INPUT/SELECT/TEXTAREA o auto-
+      // repetición → la tecla NO navega (pero igual se previene el default
+      // nativo de F-keys). F11 queda libre (REQ-KB-07).
+      function esEditableGlobal(target) {
+        const t = target?.tagName;
+        return t === 'INPUT' || t === 'SELECT' || t === 'TEXTAREA';
+      }
+
+      function overlayVisibleGlobal(el) {
+        return el !== null && getComputedStyle(el).display !== 'none';
+      }
+
+      // Replica detectarModalAbierto del dashboard: cualquier .modal-overlay
+      // VISIBLE (showModal de MainLayout lo quita al cerrar; los modales
+      // propios del dashboard son estáticos con display:none cerrados).
+      function modalAbiertoGlobal() {
+        return Array.from(document.querySelectorAll('.modal-overlay')).some(overlayVisibleGlobal);
+      }
+
+      document.addEventListener('keydown', (e) => {
+        if (e.repeat) return;
+        if (esEditableGlobal(e.target)) return;
+        if (modalAbiertoGlobal()) return;
+        const destino = destinoNav(e.key, { altKey: e.altKey, ctrlKey: e.ctrlKey });
+        if (!destino) return;
+        e.preventDefault();
+        window.location.href = destino.ruta;
       });
     </script>
   </body>
