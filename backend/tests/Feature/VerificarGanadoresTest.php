@@ -180,4 +180,42 @@ class VerificarGanadoresTest extends TestCase
         $this->assertSame('600.00', $ticket->premio_total_bs, 'Dos jugadas ganadoras × 300 = 600.');
         $this->assertSame('0.00', $ticket->premio_total_usd);
     }
+
+    public function test_verificar_ganadores_acumula_premio_total_entre_sorteos(): void
+    {
+        // 3.5/D5 §10: `premio_total_*` del ticket se ACUMULA entre sorteos
+        // (increment, sin sobreescritura): 13:00 → 300; 16:30 → 600.
+        $juego = $this->juego();
+        $taquilla = Taquilla::factory()->create();
+        $fecha = '2026-09-21';
+
+        $ticket = Ticket::create([
+            'taquilla_id' => $taquilla->id,
+            'total_bs' => 20,
+            'total_usd' => 0,
+            'estado' => 'pendiente',
+        ]);
+
+        $resultado13 = $this->resultadoDe($juego, $fecha, '13:00');
+        $this->apuestaPara($juego, $taquilla, $fecha, '13:00', $ticket->id);
+
+        (new ApuestaService)->verificarGanadores($resultado13);
+        $ticket->refresh();
+        $this->assertSame('300.00', $ticket->premio_total_bs, 'Primer sorteo: 300.');
+
+        $resultado1630 = Resultado::create([
+            'juego_id' => $juego->id,
+            'fecha_sorteo' => $fecha,
+            'hora_sorteo' => '16:30',
+            'numeros_ganadores' => ['numero' => 0, 'nombre_animal' => 'Delfin'],
+        ]);
+        $this->apuestaPara($juego, $taquilla, $fecha, '16:30', $ticket->id);
+
+        (new ApuestaService)->verificarGanadores($resultado1630);
+
+        $ticket->refresh();
+        $this->assertSame('600.00', $ticket->premio_total_bs,
+            'Segundo sorteo: 600 (300 + 300), no 300 (sobreescritura).');
+        $this->assertSame('0.00', $ticket->premio_total_usd);
+    }
 }

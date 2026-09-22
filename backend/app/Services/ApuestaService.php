@@ -1042,10 +1042,17 @@ class ApuestaService
         }
 
         foreach ($ticketPremios as $ticketId => $premios) {
-            Ticket::where('id', $ticketId)->update([
-                'premio_total_bs' => $premios['bs'],
-                'premio_total_usd' => $premios['usd'],
-            ]);
+            // 3.5: premio_total_* se ACUMULA entre sorteos (increment), no se
+            // sobreescribe. La columna es nullable: se normaliza a 0 antes del
+            // primer increment (NULL + valor = NULL en MySQL).
+            Ticket::where('id', $ticketId)
+                ->whereNull('premio_total_bs')
+                ->update(['premio_total_bs' => 0, 'premio_total_usd' => 0]);
+
+            Ticket::where('id', $ticketId)
+                ->increment('premio_total_bs', $premios['bs']);
+            Ticket::where('id', $ticketId)
+                ->increment('premio_total_usd', $premios['usd']);
         }
 
         if (! empty($ticketsGanadores)) {
