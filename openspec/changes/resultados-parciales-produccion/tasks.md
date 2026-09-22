@@ -51,9 +51,9 @@ Chain strategy: pending
 
 ## Slice 3: Servicio `scheduler` (compose + entrypoint + docs + rollout)
 
-- [ ] 3.1 — modificar `backend/entrypoint.sh`: rama `RUN_SCHEDULER=true` → `exec php artisan schedule:work`; omitir migraciones/`optimize:clear` con `RUN_HORIZON` o `RUN_SCHEDULER` (solo API migra).
-- [ ] 3.2 — modificar `docker-compose.prod.yml`: servicio `scheduler` (`lotto_scheduler_prod`, imagen api, `RUN_SCHEDULER: "true"`, healthcheck `schedule:list`, depends_on mysql/redis healthy) + volumen `/home/deploy/monitoring/textfile:/var/lib/lotto-metrics:rw` en `scheduler` (y `api` en transición).
-- [ ] 3.3 — actualizar `docs/deploy.md` (servicio scheduler, reinicio tras sembrar horarios, volumen textfile), `docs/manual-mantenimiento.md` (§8 operación, `schedule:list`) y `docs/runbook-ops.md` (comandos/rollback).
+- [x] 3.1 — modificar `backend/entrypoint.sh`: rama `RUN_SCHEDULER=true` → `exec php artisan schedule:work`; omitir migraciones/`optimize:clear` con `RUN_HORIZON` o `RUN_SCHEDULER` (solo API migra).
+- [x] 3.2 — modificar `docker-compose.prod.yml`: servicio `scheduler` (`lotto_scheduler_prod`, imagen api, `RUN_SCHEDULER: "true"`, healthcheck `schedule:list`, depends_on mysql/redis healthy) + volumen `/home/deploy/monitoring/textfile:/var/lib/lotto-metrics:rw` en `scheduler` (y `api` en transición).
+- [x] 3.3 — actualizar `docs/deploy.md` (servicio scheduler, reinicio tras sembrar horarios, volumen textfile), `docs/manual-mantenimiento.md` (§8 operación, `schedule:list`) y `docs/runbook-ops.md` (comandos/rollback).
 - [ ] 3.4 ROLLOUT (usuario) — retirar del host la línea cron `schedule:run` (`crontab -e`; conservar restic); `docker compose --env-file .env.production -f docker-compose.prod.yml up -d`; verificar `crontab -l` (sin la línea), `docker ps` (`lotto_scheduler_prod`), `docker exec lotto_scheduler_prod php artisan schedule:list`. Nota: mutex Redis (`withoutOverlapping`) evita doble dispatch durante la transición.
 
 ## Slice 4: Alertas (`resultados:metricas` + reglas Prometheus + docs)
