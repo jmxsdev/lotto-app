@@ -33,6 +33,7 @@
 | `caddy` | caddy:2.9-alpine | 80/443 | ✅ público |
 | `api` | ghcr.io/jmxsdev/lotto-app-api (FrankenPHP, PHP 8.3) | 10000 | ❌ solo `127.0.0.1` |
 | `horizon` | ghcr.io/jmxsdev/lotto-app-api (worker colas) | — | ❌ interno |
+| `scheduler` | ghcr.io/jmxsdev/lotto-app-api (`schedule:work`) | — | ❌ interno |
 | `mysql` | mysql:8.0 | 3306 | ❌ solo red interna |
 | `redis` | redis:7.2-alpine (AOF) | 6379 | ❌ solo red interna |
 | Monitoreo (compose aparte) | prometheus, alertmanager, grafana, node-exporter, cAdvisor, mysqld-exporter, blackbox-exporter, uptime-kuma | 9090/9093/3000/3001 | ❌ solo `127.0.0.1` (Grafana etc. por túnel SSH); Uptime Kuma sale por Caddy en `status.gzuz.dev` |
@@ -342,7 +343,8 @@ chmod +x deploy.sh
 
 > El seeder crea los usuarios iniciales (super/master/banca/grupo/taquilla/demo) con
 > el `SEEDER_PASSWORD`. El `entrypoint.sh` del contenedor API ejecuta migraciones +
-> seed automáticamente en el primer arranque (Horizon las omite).
+> seed automáticamente en el primer arranque (Horizon y el scheduler las omiten:
+> solo la API migra).
 
 ---
 
@@ -357,7 +359,7 @@ El script hace `docker compose pull` (imagen pública de GHCR) o build local si 
 existe, levanta el stack y espera el healthcheck. Verificación manual:
 
 ```bash
-docker compose --env-file .env.production -f docker-compose.prod.yml ps   # 5 contenedores healthy
+docker compose --env-file .env.production -f docker-compose.prod.yml ps   # 6 contenedores healthy
 
 # Smoke: la API responde 401 (sin token) en JSON
 curl -s -o /dev/null -w '%{http_code}\n' -H 'Accept: application/json' http://127.0.0.1:10000/api/v1/juegos
@@ -370,6 +372,68 @@ docker logs lotto_api_prod | grep -E "Migrac|Seed"
 # POST /api/v1/login con email demo@lotto.com + SEEDER_PASSWORD y
 # headers X-Device-Fingerprint / X-Device-MAC
 ```
+
+### 9.1 Servicio `scheduler` (agenda de resultados)
+
+El servicio `scheduler` ejecuta `php artisan schedule:work` en primer plano
+(`RUN_SCHEDULER=true` en `entrypoint.sh`). Versiona el scheduling en el repo y
+elimina el drift del cron del host: la agenda que corre en producción ES la del
+repo.
+
+- **Agenda**: pasadas por fuente `scrape_{sourceKey}_{H:i}[+15|+30|+45]`, sweep
+  `resultados:reconciliar` cada 15 min y cierre `--day-close` a las 23:45.
+- ⚠️ **Agenda congelada al arrancar**: `schedule:work` carga la agenda al
+  iniciar. Si siembras o editas horarios (`juego_horarios`) con el scheduler
+  corriendo, reinícialo para que tome los cambios:
+  `docker restart lotto_scheduler_prod`.
+- **Mutex Redis** (`withoutOverlapping`): una misma tarea nunca corre dos veces
+  a la vez — clave durante la transición con la cron del host todavía activa.
+- **Healthcheck**: `php artisan schedule:list` (falla si la BD no responde).
+
+```bash
+# Verificación del scheduler
+docker ps | grep lotto_scheduler_prod              # Up (healthy)
+docker exec lotto_scheduler_prod php artisan schedule:list   # agenda real
+docker logs -f lotto_scheduler_prod                # ejecuciones por minuto
+```
+
+### 9.2 Rollout: migrar desde la cron del host al servicio `scheduler`
+
+Antes de este cambio, el host corría la agenda con una línea cron
+(`* * * * * ... schedule:run` dentro de la API) que NO estaba versionada en el
+repo (drift repo↔producción). Pasos para migrar (usuario, en el VPS):
+
+1. **Quitar SOLO la línea `schedule:run`** de la crontab de `deploy`
+   (conservar restic/backup y restore-test):
+
+   ```bash
+   crontab -e
+   # eliminar:  * * * * * ... schedule:run ...
+   # conservar: 0 3 * * * /home/deploy/lotto-app/scripts/backup.sh ...        (Fase 14)
+   # conservar: 0 4 1 * * /home/deploy/lotto-app/scripts/restore-test.sh ...  (Fase 14)
+   ```
+
+2. **Desplegar el nuevo compose** (crea el contenedor `scheduler`):
+
+   ```bash
+   cd /home/deploy/lotto-app
+   git pull
+   docker compose --env-file .env.production -f docker-compose.prod.yml up -d
+   ```
+
+3. **Verificar**:
+
+   ```bash
+   crontab -l                          # sin la línea schedule:run
+   docker ps | grep lotto_scheduler_prod      # Up (healthy)
+   docker exec lotto_scheduler_prod php artisan schedule:list
+   ```
+
+4. **La transición es segura**: durante el solapamiento (cron del host +
+   scheduler) el mutex Redis evita el doble dispatch, y la guarda de
+   `ScrapeSourceJob` omite las pasadas sin sorteos faltantes. Rollback:
+   `docker rm -f lotto_scheduler_prod` (el `up -d` no borra huérfanos) y
+   re-agregar la línea cron.
 
 ---
 
@@ -747,6 +811,10 @@ docker network ls | grep lotto_net   # debe aparecer exactamente "lotto_net"
 
 cd /home/deploy/monitoring
 mkdir -p textfile && chmod 777 textfile
+# ⚠️ Este directorio se monta como /var/lib/lotto-metrics (rw) en los servicios
+# `api` y `scheduler` del compose principal (docker-compose.prod.yml): ahí se
+# escriben los textfiles de Prometheus (backup.prom del backup y resultados.prom
+# de la agenda de resultados, Fase 9.1). No borrarlo ni cambiar el permiso.
 docker compose --env-file .monitoring-env -f docker-compose.monitoring.yml up -d
 docker compose -f docker-compose.monitoring.yml ps        # todo healthy/running
 ss -tlnp | grep -E "3000|3001|9090|9093"                  # bind 127.0.0.1
@@ -957,6 +1025,10 @@ crontab -e
 # agregar:
 0 3 * * * /home/deploy/lotto-app/scripts/backup.sh >> /home/deploy/backups/backup.log 2>&1
 ```
+
+> **Nota (scheduler)**: la agenda de Laravel ya NO se programa por cron del
+> host — la maneja el servicio `scheduler` (`schedule:work`, Fase 9.1). Esta
+> crontab contiene únicamente los backups (restic) y la prueba de restauración.
 
 ### 14.4 Prueba de restauración mensual
 
