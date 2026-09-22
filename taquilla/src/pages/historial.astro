@@ -248,6 +248,7 @@ import MainLayout from '../layouts/MainLayout.astro';
                 return {
                     animal: c.animal || c.signo || '-',
                     number: c.numero || '-',
+                    sorteo: a.sorteo_hora ? new Date(a.sorteo_hora).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }) : '',
                     amountBs: Number(a.amount_bs || 0),
                     amountUsd: Number(a.amount_usd || 0)
                 };
