@@ -235,7 +235,8 @@ Slice 4 implementado (tareas 4.1–4.5; 4.6 ROLLOUT pendiente de usuario). Queda
 | `7f013d0` | `feat(backend): comando resultados:metricas con textfile atomico de Prometheus` (ResultadosMetricas + ResultadosMetricasCommandTest) |
 | `119e84b` | `feat(backend): agenda resultados:metricas cada 15 min con withoutOverlapping(5)` (ScheduleServiceProvider + ScheduleTimeZoneTest) |
 | `2f2d71c` | `docs(deploy): reglas de alerta de resultados en alerts.yml y pasos de rollout` (docs/deploy.md + tasks.md) |
-| (siguiente) | `docs(sdd): progreso de apply del slice 4 de resultados-parciales-produccion` (tasks + apply-progress) |
+| `c011531` | `docs(sdd): progreso de apply del slice 4 de resultados-parciales-produccion` (tasks + apply-progress) |
+| `41d31ed` | `style(backend): acentos correctos en los bloques HELP del textfile de metricas` (post-suite; solo texto HELP, sin cambio de comportamiento) |
 
 Nada fue pusheado ni mergeado; integración a main es user-gated tras verificación.
 
