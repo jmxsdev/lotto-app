@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\ApuestaController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BancaController;
 use App\Http\Controllers\Api\CierreController;
+use App\Http\Controllers\Api\ConfiguracionController;
 use App\Http\Controllers\Api\DispositivoController;
 use App\Http\Controllers\Api\EstadisticaController;
 use App\Http\Controllers\Api\ExchangeRateController;
@@ -89,6 +90,16 @@ Route::prefix('v1')->group(function () {
         Route::middleware(['role:super_master|master|banca|grupo|agencia'])->group(function () {
             Route::apiResource('taquillas', TaquillaController::class);
             Route::patch('/taquillas/{taquilla}/toggle', [TaquillaController::class, 'toggle'])->name('taquillas.toggle');
+        });
+
+        // ==================================================
+        // CONFIGURACIONES — ventana de vencimiento sin resultado
+        // (REQ13/D5): solo super_master y master leen/editan la ventana
+        // (GET/PUT); cualquier otro rol autenticado recibe 403.
+        // ==================================================
+        Route::middleware(['role:super_master|master'])->group(function () {
+            Route::get('/configuraciones/apuestas-vencimiento', [ConfiguracionController::class, 'ventanaVencimiento']);
+            Route::put('/configuraciones/apuestas-vencimiento', [ConfiguracionController::class, 'actualizarVentanaVencimiento']);
         });
 
         // ==================================================
