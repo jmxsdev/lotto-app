@@ -1,63 +1,12 @@
-# cierre-caja Specification
+# Delta for cierre-caja
 
 **Estado**: draft
 
 ## Purpose
 
-Define el dominio del cierre de caja de la taquilla: desglose por método de pago, arqueo físico con faltante/sobrante por moneda, un cierre por día calendario con re-cierre idempotente autorizado por clave, reporte por rango derivado de los diarios persistidos, período abierto explícito, encadenamiento de períodos, política de tasa y autorización por jerarquía. El cierre es una operación de registro/reporte que NO bloquea la venta (D3).
+Ajustes al cierre de caja: un solo cierre por día calendario con re-cierre idempotente que actualiza la fila del día (con clave), reporte por rango con listado completo (`cierres[]` con desglose), período abierto explícito, indicador `cierre_hoy` en el preview, y sección "Reportes por rangos" con impresión en la taquilla.
 
-## Requirements
-
-### Requirement: Cierre diario con arqueo físico
-
-`POST /api/v1/cierre` MUST aceptar el arqueo opcional del cajero (`arqueo_efectivo_bs`, `arqueo_efectivo_usd`, decimal nullable) y persistirlo junto al cierre. El sistema MUST calcular la diferencia por moneda `faltante_sobrante_X = arqueo_efectivo_X − total_efectivo_X`; la diferencia negativa es **faltante** y la positiva **sobrante**. El arqueo SHALL ser opcional: si se omite, la diferencia queda ausente.
-
-#### Scenario: Cierre con arqueo conciliado
-
-- GIVEN una taquilla con ventas y egresos en el período
-- WHEN el cajero ejecuta el cierre enviando el efectivo contado (`arqueo_efectivo_bs`, `arqueo_efectivo_usd`)
-- THEN el cierre persiste el contado y la diferencia por moneda
-- AND la respuesta 201 incluye `total_efectivo_*`, `arqueo_efectivo_*` y `faltante_sobrante_*`
-
-#### Scenario: Faltante
-
-- GIVEN contado menor que el efectivo calculado
-- WHEN se ejecuta el cierre
-- THEN la diferencia es negativa (faltante)
-
-#### Scenario: Sobrante
-
-- GIVEN contado mayor que el efectivo calculado
-- WHEN se ejecuta el cierre
-- THEN la diferencia es positiva (sobrante)
-
-#### Scenario: Cierre sin arqueo
-
-- GIVEN el cajero no registra el contado
-- WHEN se ejecuta el cierre
-- THEN el cierre se crea sin arqueo (campos nulos) y sin diferencia
-
-### Requirement: Desglose por método de pago
-
-El cierre MUST desglosar `total_ventas` y `total_egresos` (y el efectivo derivado) por `metodo_pago` (`efectivo`, `transferencia`, `pago_movil`, `punto_venta`) y por moneda. El desglose MUST derivarse del `Pago.metodo_pago` capturado en origen; la suma de métodos MUST igualar el total de la moneda. El USD SHALL contabilizarse íntegro bajo `efectivo`.
-
-#### Scenario: VES con múltiples métodos
-
-- GIVEN pagos VES registrados con distintos `metodo_pago`
-- WHEN se ejecuta el cierre
-- THEN el desglose por método suma el total VES y cada método refleja su monto
-
-#### Scenario: USD siempre efectivo
-
-- GIVEN pagos USD
-- WHEN se ejecuta el cierre
-- THEN todo el USD queda bajo `efectivo`
-
-#### Scenario: Consistencia del desglose
-
-- GIVEN el desglose por método de una moneda
-- WHEN se comparan las sumas por método con el total de esa moneda
-- THEN son iguales
+## ADDED Requirements
 
 ### Requirement: Un cierre por día calendario (re-cierre idempotente con clave)
 
@@ -160,9 +109,13 @@ La sección "Reporte semanal" MUST renombrarse a "Reportes por rangos" y ofrecer
 - WHEN el cajero solicita imprimir
 - THEN se envía el reporte del rango a la impresora
 
+## MODIFIED Requirements
+
 ### Requirement: Reporte semanal derivado (GET /api/v1/cierre/semanal)
 
 `GET /api/v1/cierre/semanal` MUST devolver un rollup de solo lectura de los `CierreCaja` diarios persistidos y MUST NOT persistir entidad semanal ni columna `tipo` (D1). Acepta `fecha` (ancla de la semana calendario lunes–domingo `America/Caracas`) o `fecha_desde`/`fecha_hasta`; `taquilla_id` opcional para roles administrativos. El alcance jerárquico MUST ser el mismo de `index`. La respuesta MUST incluir totales por moneda y por método, y la ventana cubierta real (rango de `fecha_fin` de los diarios incluidos). El listado `cierres[]` MUST incluir el shape completo de cada cierre (desglose por método, arqueo y faltante/sobrante) para su impresión (Q3); los totales y `ventana_cubierta` SHALL permanecer sin cambios.
+
+(Previously: `cierres[]` solo exponía `id`, `taquilla_id`, `fecha_inicio`, `fecha_fin`, `total_ventas_bs` y `total_efectivo_bs`.)
 
 #### Scenario: Rollup de semana completa
 
@@ -195,101 +148,11 @@ La sección "Reporte semanal" MUST renombrarse a "Reportes por rangos" y ofrecer
 - THEN `cierres[]` incluye por cada cierre el desglose por método, arqueo y faltante/sobrante
 - AND los totales agregados y `ventana_cubierta` permanecen iguales
 
-### Requirement: Política de tasa de cambio (snapshot + fallback)
-
-Cada cierre diario MUST conservar `exchange_rate_cierre` como snapshot de la tasa al momento del cierre. Si no hay tasa activa, el cierre MUST usar la última tasa por `reference_date` como fallback en lugar de fallar con 422 (OQ2). El reporte semanal SHALL NOT requerir tasa viva (usa snapshots persistidos). Si no existe ninguna tasa (activa ni histórica), el cierre MUST responder 422.
-
-#### Scenario: Tasa activa disponible
-
-- GIVEN una tasa activa
-- WHEN se ejecuta el cierre
-- THEN persiste `exchange_rate_cierre` con la tasa activa
-
-#### Scenario: Fallback sin tasa activa
-
-- GIVEN ninguna tasa activa pero tasas históricas por `reference_date`
-- WHEN se ejecuta el cierre
-- THEN usa la última tasa histórica y persiste el snapshot (no 422)
-
-#### Scenario: Sin tasa alguna
-
-- GIVEN ninguna tasa activa ni histórica
-- WHEN se ejecuta el cierre
-- THEN responde 422 con mensaje claro
-
-### Requirement: Encadenamiento de períodos
-
-El período de un cierre MUST ser `[fecha_inicio, fecha_fin)` con `fecha_fin = now()`. `fecha_inicio` MUST ser el `fecha_fin` del último cierre de la taquilla; si no existe, la `fecha_hora` de su primera apuesta; si no hay actividad, `now()`. El encadenamiento MUST impedir solapes entre períodos de una misma taquilla.
-
-#### Scenario: Encadena desde el último cierre
-
-- GIVEN un cierre previo en la taquilla
-- WHEN se ejecuta un nuevo cierre
-- THEN `fecha_inicio` iguala el `fecha_fin` del cierre previo
-
-#### Scenario: Sin cierre previo
-
-- GIVEN una taquilla sin cierres
-- WHEN se ejecuta el primer cierre
-- THEN `fecha_inicio` es la `fecha_hora` de su primera apuesta
-
-#### Scenario: Sin actividad
-
-- GIVEN una taquilla sin cierres ni apuestas
-- WHEN se ejecuta el cierre
-- THEN el período queda vacío (`fecha_inicio = fecha_fin = now()`)
-
-### Requirement: Autorización por jerarquía
-
-El cierre y su consulta MUST respetar los roles actuales. `taquilla` cierra SOLO su propia taquilla (si envía otra → 403); `super_master` cualquier taquilla; `master` solo sus bancas; `banca`/`grupo`/`agencia` dentro de su alcance y MUST enviar `taquilla_id` (422 si falta). Violaciones de alcance MUST responder 403. No se introduce un permission específico nuevo (OQ3).
-
-#### Scenario: Taquilla cierra su caja
-
-- GIVEN un usuario rol `taquilla` con `taquilla_id`
-- WHEN ejecuta el cierre sin `taquilla_id`
-- THEN crea el cierre de su propia taquilla (201)
-
-#### Scenario: Taquilla intenta cerrar otra
-
-- GIVEN un usuario rol `taquilla`
-- WHEN envía `taquilla_id` de otra taquilla
-- THEN recibe 403
-
-#### Scenario: Admin sin taquilla_id
-
-- GIVEN un rol administrativo
-- WHEN ejecuta el cierre sin `taquilla_id`
-- THEN recibe 422 (validación)
-
-#### Scenario: Admin fuera de alcance
-
-- GIVEN un rol administrativo con `taquilla_id` fuera de su jerarquía
-- WHEN ejecuta el cierre
-- THEN recibe 403
-
-### Requirement: El cierre no bloquea la venta
-
-El cierre MUST ser solo registro/reporte y MUST NOT bloquear la venta ni cambiar el estado operativo de la taquilla (D3). No existe candado de venta.
-
-#### Scenario: Venta durante el cierre
-
-- GIVEN un cierre ejecutado
-- WHEN se registra una nueva apuesta después del cierre
-- THEN la apuesta se registra con normalidad
-
-### Requirement: Historial de cierres
-
-`GET /api/v1/cierre` MUST listar cierres con alcance jerárquico, paginado (default 20), ordenado por `fecha_fin` descendente, incluyendo `taquilla.grupo.banca` y `creador`.
-
-#### Scenario: Listado
-
-- GIVEN cierres existentes dentro del alcance del rol
-- WHEN se consulta `GET /api/v1/cierre`
-- THEN devuelve la página con los cierres más recientes primero
-
 ### Requirement: Impresión del cierre y del reporte desde la taquilla
 
 La UI `cierre.astro` MUST permitir imprimir el resultado de un cierre usando la integración de impresión existente (`electron-pos-printer`), con montos formateados (`toLocaleString('es-VE')`). La sección "Reportes por rangos" MUST permitir imprimir el reporte del rango (totales + listado con desglose) vía IPC `print-reporte` y `generateReporteHtml()`.
+
+(Previously: solo se imprimía el resultado de un cierre individual.)
 
 #### Scenario: Imprimir resultado
 
