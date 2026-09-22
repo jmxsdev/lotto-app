@@ -286,6 +286,9 @@ const name = user?.name || '';
     // Usuarios — todos los roles (el backend limita los datos según jerarquía)
     sidebarNav.appendChild(addLink('Usuarios', '/usuarios', '👤'));
 
+    // Clave de Cierre — solo roles elegibles (la clave autoriza el re-cierre)
+    if (['super_master','master','banca'].includes(role)) sidebarNav.appendChild(addLink('Clave de Cierre', '/clave-cierre', '🔑'));
+
     // Logs
     if (['super_master','master'].includes(role)) sidebarNav.appendChild(addLink('Logs', '/logs', '📋'));
 
