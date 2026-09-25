@@ -8,7 +8,7 @@
  *
  * Requiere Node 24+ (type-stripping nativo para importar .ts).
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -631,6 +631,31 @@ ok(legend.length === 13, `teclasLegend: 13 teclas (F1–F12 + Alt+D) (${legend.l
 ok(legend.some((t) => t.tecla === 'Alt+D' && t.nombre === 'Dashboard'), 'teclasLegend incluye Alt+D → Dashboard');
 ok(legend.find((t) => t.tecla === 'F11')?.nombre === 'Números', 'F11 → «Números» en la leyenda (win-fixes3)');
 ok(legend.find((t) => t.tecla === 'F7')?.nombre === 'Ventas', 'F7 → Ventas en la leyenda');
+
+console.log('\n== Logos de juegos (feat/taquilla-logos-juegos) ==');
+// Artefacto estático del dashboard: mapa slug → archivo generado desde
+// public/images/juegos/manifest.json (sin fetch en runtime). Todo slug del
+// catálogo debe tener entrada Y el archivo listado debe existir en disco.
+const rutaLogos = join(AQUI, '..', 'src', 'data', 'logos.json');
+const rutaImagenes = join(AQUI, '..', 'public', 'images', 'juegos');
+const logos = JSON.parse(readFileSync(rutaLogos, 'utf8'));
+ok(typeof logos === 'object' && logos !== null && !Array.isArray(logos), 'logos.json es un mapa slug → archivo');
+const slugsCatalogo = new Set(catalogo.juegos.map((j) => j.slug));
+const sinLogo = catalogo.juegos.filter((j) => !logos[j.slug]);
+ok(
+  sinLogo.length === 0,
+  `cobertura: ${catalogo.juegos.length - sinLogo.length}/${catalogo.juegos.length} juegos con logo` +
+    (sinLogo.length ? ` (faltan: ${sinLogo.map((j) => j.slug).join(', ')})` : ''),
+);
+for (const juego of catalogo.juegos) {
+  const archivo = logos[juego.slug];
+  ok(
+    Boolean(archivo) && existsSync(join(rutaImagenes, archivo)),
+    `${juego.slug} → ${archivo ?? 'SIN ENTRADA'} presente en public/images/juegos/`,
+  );
+}
+const huerfanos = Object.keys(logos).filter((slug) => !slugsCatalogo.has(slug));
+ok(huerfanos.length === 0, `sin entradas ajenas al catálogo (${huerfanos.join(', ') || 'ninguna'})`);
 
 console.log(`\n${checks} checks, ${fallos} fallos`);
 process.exit(fallos === 0 ? 0 : 1);

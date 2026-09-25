@@ -510,6 +510,34 @@ import MainLayout from '../layouts/MainLayout.astro';
       font-weight: 500;
     }
 
+    /* Logo del juego como contenido visible de la tarjeta
+       (feat/taquilla-logos-juegos): caja de altura fija + object-fit contain
+       para que todas las tarjetas midan igual sin importar el aspect ratio
+       del logo (hay de 723×747 a 2842×1100), sin recortes ni desbordes de la
+       columna. El <span> de respaldo queda centrado si el logo falla. */
+    .juego-logo-box {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 56px;
+      min-width: 0;
+    }
+
+    .juego-logo {
+      display: block;
+      max-height: 100%;
+      max-width: 100%;
+      object-fit: contain;
+      margin: 0 auto;
+    }
+
+    /* El display:block de .juego-logo gana al [hidden] del UA stylesheet:
+       sin esto, el onerror no podría ocultar el logo roto. */
+    .juego-logo[hidden] {
+      display: none;
+    }
+
     .seleccion-content {
       max-height: 440px;
       overflow-y: auto;
@@ -1054,11 +1082,18 @@ import MainLayout from '../layouts/MainLayout.astro';
     import { alternarHorario, marcarTodosVisibles, expandirLineas, horarioExpirado, filtrarHorariosFuturos, seleccionadosExpirados, agruparPorGroupId, indiceSeleccionTrasEliminar } from '../utils/horarios';
     import { calcularVuelto } from '../utils/vuelto';
     import juegosRaw from '../data/juegos.json';
+    import logosRaw from '../data/logos.json';
 
     // Catálogo local bundled (REQ-CL-01): reemplaza GAMES_CONFIG. Los juegos,
     // horarios y opciones vienen del JSON; la familia de opciones (A5) define
     // la búsqueda/selección por juego activo (REQ-CL-02, REQ-KB-02).
     const catalogo = cargarCatalogo(juegosRaw);
+
+    // Mapa slug → archivo de logo (feat/taquilla-logos-juegos), generado desde
+    // public/images/juegos/manifest.json. Artefacto estático bundled: el
+    // dashboard no hace fetch en runtime para resolver el logo del juego.
+    /** @type {Record<string, string>} */
+    const logos = logosRaw;
 
     let tasaActiva = 36.50;
     // Disponibilidad de la tasa (A12): loadTasa() lo setea. Si falla, el modal
@@ -1252,11 +1287,20 @@ import MainLayout from '../layouts/MainLayout.astro';
       container.innerHTML = juegos.map(j => {
         let icon = activeTab === 'animalitos' ? '🎰' : activeTab === 'tripletas' ? '🎯' : '🔢';
         const selected = selectedGames.some(g => g.id === j.id) ? ' selected' : '';
+        const archivo = logos[j.slug];
+        // feat/taquilla-logos-juegos: el logo reemplaza al nombre como contenido
+        // visible de la tarjeta. El nombre queda en un <span hidden> de
+        // respaldo: si el logo falla al cargar (onerror) o el slug no tiene
+        // entrada en logos.json, la tarjeta muestra el nombre (nunca vacía).
+        const nombre = `<span class="juego-name"${archivo ? ' hidden' : ''}>${j.nombre}</span>`;
+        const contenido = archivo
+          ? `<div class="juego-logo-box"><img class="juego-logo" src="/images/juegos/${archivo}" alt="${j.nombre}" title="${j.nombre}" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false;">${nombre}</div>`
+          : nombre;
         // tabindex="-1" (FIX-1, KB-01): las tarjetas son ítems del roving
         // focus (↑/↓ + Enter); sin esto moverFila().focus() era un no-op.
         return `<div class="juego-card${selected}" data-id="${j.id}" tabindex="-1">
           <span class="juego-icon">${icon}</span>
-          <span class="juego-name">${j.nombre}</span>
+          ${contenido}
         </div>`;
       }).join('');
     }
