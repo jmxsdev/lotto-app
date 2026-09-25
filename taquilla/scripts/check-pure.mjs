@@ -35,6 +35,7 @@ import {
   indiceSeleccionTrasEliminar,
 } from '../src/utils/horarios.ts';
 import { calcularVuelto } from '../src/utils/vuelto.ts';
+import { indiceDestinoFila, indiceDestinoColumna } from '../src/utils/gridNav.ts';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const rutaJson = join(AQUI, '..', 'src', 'data', 'juegos.json');
@@ -538,6 +539,37 @@ r = routeKey(est({ zonaActual: 'juegos', tecla: 'ArrowRight', seleccionEnCurso: 
 ok(r.consume && r.tipo === 'pestana-siguiente' && r.ejecutable === true, '→ en Juegos sin selección → pestaña ejecutable');
 r = routeKey(est({ zonaActual: 'juegos', tecla: 'ArrowLeft', seleccionEnCurso: true }));
 ok(r.consume && r.tipo === 'pestana-anterior' && r.ejecutable === false, '← en Juegos con selección en curso → pestaña BLOQUEADA');
+
+console.log('\n== feat/taquilla-logos-juegos: grid 2 columnas (gridNav) ==');
+// ←/→: celda adyacente de la MISMA fila (columna ±1, sin wrap). null en el
+// borde → el glue cae al cambio de pestaña. idx === -1 (contenedor) → null.
+ok(indiceDestinoColumna(0, 4, 1) === 1, 'col 0 → 1 en la misma fila');
+ok(indiceDestinoColumna(1, 4, 1) === null, 'col 1 → borde derecho (null)');
+ok(indiceDestinoColumna(1, 4, -1) === 0, 'col 1 ← 0 en la misma fila');
+ok(indiceDestinoColumna(0, 4, -1) === null, 'col 0 ← borde izquierdo (null)');
+ok(indiceDestinoColumna(2, 4, 1) === 3, 'fila 2: col 0 → 1');
+ok(indiceDestinoColumna(2, 4, -1) === null, 'fila 2: ← borde izquierdo (null)');
+ok(indiceDestinoColumna(3, 4, 1) === null, 'fila 2: → borde derecho (null)');
+// Fila impar (última con 1 solo ítem en col 0): ambos lados son borde.
+ok(indiceDestinoColumna(4, 5, 1) === null, 'fila impar: → borde (null)');
+ok(indiceDestinoColumna(4, 5, -1) === null, 'fila impar: ← borde (sin wrap a la fila previa)');
+ok(indiceDestinoColumna(3, 5, 1) === null, 'col 1 con fila impar debajo: → borde (null)');
+// idx inválido / contenedor / total trivial → null (comportamiento de pestaña).
+ok(indiceDestinoColumna(-1, 4, 1) === null, 'idx -1 (contenedor) → null (pestaña)');
+ok(indiceDestinoColumna(-2, 4, 1) === null, 'idx negativo fuera de rango → null');
+ok(indiceDestinoColumna(9, 4, 1) === null, 'idx >= total → null');
+ok(indiceDestinoColumna(0, 0, 1) === null, 'total 0 → null');
+ok(indiceDestinoColumna(0, 1, 1) === null && indiceDestinoColumna(0, 1, -1) === null, 'total 1: ambos lados borde');
+ok(indiceDestinoColumna(0, 6, 1, 3) === 1, 'columnas=3: col 0 → 1');
+ok(indiceDestinoColumna(2, 6, 1, 3) === null, 'columnas=3: col 2 → borde (null)');
+// indiceDestinoFila (helper movido a gridNav, mismo contrato que el inline).
+ok(indiceDestinoFila(0, 4, 1, 2) === 2 && indiceDestinoFila(1, 4, 1, 2) === 3, '↓ salta ±2 conservando la columna');
+ok(indiceDestinoFila(0, 4, -1, 2) === null && indiceDestinoFila(1, 4, -1, 2) === null, '↑ en la fila 0 → clamp (null)');
+ok(indiceDestinoFila(3, 5, 1, 2) === null, '↓ desde col 1 sin celda en la fila impar → null (no cambia de columna)');
+ok(indiceDestinoFila(4, 5, -1, 2) === 2 && indiceDestinoFila(4, 5, 1, 2) === null, 'fila impar: ↑ conserva columna (2), ↓ borde (null)');
+ok(indiceDestinoFila(-1, 4, 1, 2) === 0 && indiceDestinoFila(-1, 4, -1, 2) === 3, 'contenedor: entra por el extremo según la dirección');
+ok(indiceDestinoFila(0, 0, 1, 2) === null, 'total 0 → null');
+ok(indiceDestinoFila(2, 10, 1, 1) === 3, 'paso 1 (listas simples) → ±1');
 
 console.log('\n== win-fixes FIX-5: ruteo de dígitos en la zona Selección ==');
 r = routeKey(est({ zonaActual: 'seleccion', tecla: '5' }));

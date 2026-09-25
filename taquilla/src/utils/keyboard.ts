@@ -16,8 +16,9 @@
  *   - routeKey(state): decisión pura consumir/pasar (A1): F-keys con guardas
  *     de estado (F5/F6 sin líneas, F3/F4 sin historial, F2 sin líneas),
  *     e.repeat ignorado en F-keys, modal abierto → solo su toggle (F1/F9) y
- *     Esc, foco en INPUT/SELECT → no intercepta salvo F-keys/Escape, ←/→ solo
- *     en zona Juegos, ↑/↓ contextuales, Tab/Shift+Tab ciclan zonas, Ctrl+A/`*`
+ *     Esc, foco en INPUT/SELECT → no intercepta salvo F-keys/Escape, ←/→ en
+ *     zona Juegos (grid: columna adyacente o pestaña en el borde, resuelto por
+ *     el glue), ↑/↓ contextuales, Tab/Shift+Tab ciclan zonas, Ctrl+A/`*`
  *     marcan todos los horarios visibles (KB-05).
  *   - win-fixes (batch de remediación del feedback de usuario):
  *     - FIX-3a: ←/→ fuera de la zona Juegos se mueven ENTRE columnas
@@ -25,8 +26,10 @@
  *     - FIX-3b: Tab desde Horarios con selección pendiente vuelve a la zona que
  *       falta (seleccion/modalidad/signo, zonaPendienteSeleccion) antes de
  *       numero/monto.
- *     - FIX-3c: cambio de pestaña (→/← en Juegos) bloqueado con selección en
- *       curso (pestana-* con ejecutable=false).
+ *     - FIX-3c: cambio de pestaña (→/← en el BORDE del grid de Juegos;
+ *       feat/taquilla-logos-juegos: dentro de la fila el glue mueve de
+ *       columna) bloqueado con selección en curso (pestana-* con
+ *       ejecutable=false).
  *     - FIX-5: dígitos en la zona Selección → decisión `digito` (el glue decide
  *       entre el buscador de animales y el salto a Número).
  *     - FIX-6: navegación global F7/F8/F10/Alt+D (NAV_GLOBAL + destinoNav)
@@ -294,7 +297,8 @@ export interface EstadoRuteo {
   /** Guarda de estado: F3/F4 requieren historial (último groupId, A11). */
   tieneHistorial: boolean;
   /** Guarda de pestañas (FIX-3c): hay selección en curso (animal/signo/
-   *  modalidad elegidos u horarios marcados) → ←/→ en Juegos NO cambia pestaña. */
+   *  modalidad elegidos u horarios marcados) → ←/→ en Juegos NO cambia
+   *  pestaña (en el borde del grid; dentro de la fila mueve de columna). */
   seleccionEnCurso: boolean;
 }
 
@@ -326,9 +330,10 @@ export type RutaDecision =
  *      (no secuestra typing, A1).
  *   5. Marcar todos los horarios (Ctrl+A/`*`, KB-05).
  *   6. Dígito en la zona Selección → `digito` (FIX-5).
- *   7. Navegación: Tab/Shift+Tab ciclan zonas; ←/→ en Juegos cambian de
- *      pestaña (bloqueado con selección en curso, FIX-3c) y fuera de Juegos
- *      se mueven entre columnas (FIX-3a); ↑/↓ contextuales; Escape sube
+ *   7. Navegación: Tab/Shift+Tab ciclan zonas; ←/→ en Juegos se rutean como
+ *      cambio de pestaña (el glue decide: columna adyacente del grid o, en el
+ *      borde, pestaña — bloqueada con selección en curso, FIX-3c) y fuera de
+ *      Juegos se mueven entre columnas (FIX-3a); ↑/↓ contextuales; Escape sube
  *      nivel sin descartar selección.
  */
 export function routeKey(state: EstadoRuteo): RutaDecision {
