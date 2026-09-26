@@ -1,11 +1,12 @@
 ---
 import AdminLayout from '../layouts/AdminLayout.astro';
+import Icon from '../components/Icon.astro';
 ---
 
 <AdminLayout>
   <div class="page">
     <div class="page-header"><h2 class="page-title">Agencias (Locales)</h2><a class="btn btn-primary" href="/agencias/detalle">+ Nueva</a></div>
-    <p class="table-note">ℹ️ Un local (agencia) agrupa las taquillas de un mismo punto de venta. Desactivar un local pausa sus taquillas sin desregistrar dispositivos: al reactivarlo seguirán operando sin re-activación.</p>
+    <p class="table-note"><Icon name="info" size={14} /> Un local (agencia) agrupa las taquillas de un mismo punto de venta. Desactivar un local pausa sus taquillas sin desregistrar dispositivos: al reactivarlo seguirán operando sin re-activación.</p>
     <div id="content"><div class="loading">Cargando...</div></div>
   </div>
   <style is:global>
@@ -19,8 +20,8 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     .actions-cell { display: flex; gap: 4px; }
   </style>
   <script>
-    import { apiFetch } from '../utils/api.ts'; import { showModal } from '../utils/modal.ts';
-    async function load() { try { const data = await apiFetch('GET','/agencias?per_page=100'); const items = Array.isArray(data) ? data : (data?.data || []); let html = '<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Código</th><th>Grupo</th><th>Banca</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>'; items.forEach(a => { html += `<tr><td><strong>${a.name}</strong></td><td>${a.code}</td><td>${a.grupo?.name||'-'}</td><td>${a.grupo?.banca?.name||'-'}</td><td><span class="badge ${a.active?'badge-active':'badge-inactive'}">${a.active?'Activo':'Inactivo'}</span></td><td class="actions-cell"><a class="btn btn-sm btn-secondary" href="/agencias/detalle?id=${a.id}">👁️ Ver/Editar</a><button class="btn btn-sm ${a.active?'btn-danger':'btn-success'} toggle-btn" data-id="${a.id}" data-active="${a.active?'1':'0'}" title="${a.active?'Desactivar':'Activar'}">${a.active?'🔴':'🟢'}</button><button class="btn btn-sm btn-danger del-btn" data-id="${a.id}">🗑</button></td></tr>`; }); html += '</tbody></table></div>'; document.getElementById('content').innerHTML = html; } catch(e) { document.getElementById('content').innerHTML = '<div class="loading">Error: '+e.message+'</div>'; } }
+    import { apiFetch } from '../utils/api.ts'; import { showModal } from '../utils/modal.ts'; import { icono } from '../utils/iconos.ts';
+    async function load() { try { const data = await apiFetch('GET','/agencias?per_page=100'); const items = Array.isArray(data) ? data : (data?.data || []); let html = '<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Código</th><th>Grupo</th><th>Banca</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>'; items.forEach(a => { html += `<tr><td><strong>${a.name}</strong></td><td>${a.code}</td><td>${a.grupo?.name||'-'}</td><td>${a.grupo?.banca?.name||'-'}</td><td><span class="badge ${a.active?'badge-active':'badge-inactive'}">${a.active?'Activo':'Inactivo'}</span></td><td class="actions-cell"><a class="btn btn-sm btn-secondary" href="/agencias/detalle?id=${a.id}"><span aria-hidden="true">${icono('eye')}</span> Ver/Editar</a><button class="btn btn-sm ${a.active?'btn-danger':'btn-success'} toggle-btn" data-id="${a.id}" data-active="${a.active?'1':'0'}" title="${a.active?'Desactivar':'Activar'}" aria-label="${a.active?'Desactivar':'Activar'}">${icono('circle')}</button><button class="btn btn-sm btn-danger del-btn" data-id="${a.id}" aria-label="Eliminar">${icono('trash-2')}</button></td></tr>`; }); html += '</tbody></table></div>'; document.getElementById('content').innerHTML = html; } catch(e) { document.getElementById('content').innerHTML = '<div class="loading">Error: '+e.message+'</div>'; } }
     document.getElementById('content').addEventListener('click',(e)=>{const db=e.target.closest('.del-btn');const tb=e.target.closest('.toggle-btn');if(db){const id=parseInt(db.dataset.id);showModal({message:'¿Eliminar este local? Sus taquillas y usuarios quedarán sin local asignado.',type:'confirm'}).then(ok=>{if(!ok)return;apiFetch('DELETE','/agencias/'+id).then(()=>load()).catch(e=>showModal({message:e.message,type:'error'}));});}if(tb){const id=parseInt(tb.dataset.id);const activa=tb.dataset.active==='1';showModal({message:activa?'¿Desactivar local? Sus taquillas quedarán pausadas hasta reactivarlo.':'¿Activar local?',type:'confirm'}).then(ok=>{if(!ok)return;apiFetch('PATCH','/agencias/'+id+'/toggle').then(()=>load()).catch(e=>showModal({message:e.message,type:'error'}));});}});
     load();
   </script>
