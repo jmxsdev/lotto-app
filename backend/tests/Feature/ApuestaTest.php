@@ -4,10 +4,12 @@ namespace Tests\Feature;
 
 use App\Models\Apuesta;
 use App\Models\Banca;
+use App\Models\DetalleApuesta;
 use App\Models\ExchangeRate;
 use App\Models\Grupo;
 use App\Models\Juego;
 use App\Models\JuegoLimite;
+use App\Models\Resultado;
 use App\Models\Taquilla;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
@@ -798,5 +800,149 @@ class ApuestaTest extends TestCase
             ]);
 
         $responseBs->assertStatus(201);
+    }
+
+    // ============================================
+    // F1d 1.12 — PagoController: motor + estado ganadora / legacy pendiente (REQ10/D5/N11)
+    // ============================================
+
+    private function crearApuestaGanadoraParaPago(string $estado, bool $conResultado = true): Apuesta
+    {
+        $user = User::where('email', 'super@lotto.com')->first();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
+
+        $taquilla = Taquilla::factory()->create();
+        $taquilla->update(['mac_address' => 'AA:BB:CC:DD:EE:FF']);
+
+        // Resultado con "Delfin" (sin acento) y apuesta "Delfín" (con acento):
+        // el motor normaliza (H13/N10); el plugin legacy no.
+        $resultado = Resultado::create([
+            'juego_id' => $juego->id,
+            'fecha_sorteo' => '2026-09-21',
+            'hora_sorteo' => '13:00',
+            'numeros_ganadores' => ['numero' => 0, 'nombre_animal' => 'Delfin'],
+        ]);
+
+        $apuesta = Apuesta::create([
+            'taquilla_id' => $taquilla->id,
+            'juego_id' => $juego->id,
+            'combinacion' => json_encode(['animal' => 'Delfín', 'numero' => 0]),
+            'amount_bs' => 10,
+            'amount_usd' => 0,
+            'exchange_rate_applied' => 36.50,
+            'total_bs_equivalent' => 10,
+            'estado' => $estado,
+            'resultado_id' => $conResultado ? $resultado->id : null,
+        ]);
+
+        $apuesta->setRelation('resultado', $resultado);
+
+        DetalleApuesta::create([
+            'apuesta_id' => $apuesta->id,
+            'combinacion' => json_encode(['animal' => 'Delfín', 'numero' => 0]),
+            'monto' => 10,
+            'premio_posible' => 300,
+            'premio_posible_usd' => 0,
+            'premio_ganado' => null,
+            'premio_ganado_usd' => null,
+        ]);
+
+        return $apuesta;
+    }
+
+    public function test_pago_apuesta_ganadora_aceptado_contra_motor()
+    {
+        // REQ10/D5: una apuesta en estado `ganadora` (premio > 0, resultado_id)
+        // se paga validando contra el motor (30× base lotto-activo, acentos).
+        $user = User::where('email', 'super@lotto.com')->first();
+        $apuesta = $this->crearApuestaGanadoraParaPago('ganadora');
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/v1/pagos', [
+                'apuesta_id' => $apuesta->id,
+                'tipo' => 'egreso',
+                'moneda' => 'bs',
+                'amount_bs' => 300,
+                'amount_usd' => 0,
+            ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('data.apuesta_id', $apuesta->id);
+
+        $this->assertDatabaseHas('apuestas', [
+            'id' => $apuesta->id,
+            'estado' => 'pagada',
+        ]);
+        $this->assertDatabaseHas('detalle_apuestas', [
+            'apuesta_id' => $apuesta->id,
+            'premio_ganado' => 300.00,
+        ]);
+    }
+
+    public function test_pago_apuesta_pendiente_legacy_con_resultado_aceptado()
+    {
+        // REQ10/N11: compatibilidad — una apuesta legacy `pendiente` que ya
+        // tiene resultado_id (liquidada antes del cambio de estados) se paga.
+        $user = User::where('email', 'super@lotto.com')->first();
+        $apuesta = $this->crearApuestaGanadoraParaPago('pendiente');
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/v1/pagos', [
+                'apuesta_id' => $apuesta->id,
+                'tipo' => 'egreso',
+                'moneda' => 'bs',
+                'amount_bs' => 300,
+                'amount_usd' => 0,
+            ]);
+
+        $response->assertStatus(201);
+
+        $this->assertDatabaseHas('apuestas', [
+            'id' => $apuesta->id,
+            'estado' => 'pagada',
+        ]);
+    }
+
+    public function test_pago_apuesta_pendiente_sin_resultado_rechazado()
+    {
+        // D5: `pendiente` SIN resultado_id no se paga como egreso (no está
+        // liquidada); el monto del premio no puede validarse contra el motor.
+        $user = User::where('email', 'super@lotto.com')->first();
+        $apuesta = $this->crearApuestaGanadoraParaPago('pendiente', false);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/v1/pagos', [
+                'apuesta_id' => $apuesta->id,
+                'tipo' => 'egreso',
+                'moneda' => 'bs',
+                'amount_bs' => 300,
+                'amount_usd' => 0,
+            ]);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseHas('apuestas', [
+            'id' => $apuesta->id,
+            'estado' => 'pendiente',
+        ]);
+    }
+
+    public function test_pago_monto_no_coincide_con_motor_rechazado()
+    {
+        // N11: el monto se valida contra el motor (10 Bs × 30× = 300);
+        // un monto distinto (301) se rechaza.
+        $user = User::where('email', 'super@lotto.com')->first();
+        $apuesta = $this->crearApuestaGanadoraParaPago('ganadora');
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/v1/pagos', [
+                'apuesta_id' => $apuesta->id,
+                'tipo' => 'egreso',
+                'moneda' => 'bs',
+                'amount_bs' => 301,
+                'amount_usd' => 0,
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('premio_esperado_bs', 300);
     }
 }

@@ -385,27 +385,31 @@ class ApuestaService
 
         $combinacion = $data['combinacion'] ?? [];
 
-        // Validar la combinación contra las opciones específicas del juego
         $juego = Juego::find($data['juego_id']);
-        if ($juego) {
-            $plugin = app(JuegoPluginManager::class)->getPlugin($juego);
-            if ($plugin) {
-                $opciones = JuegoOpcion::where('juego_id', $juego->id)
-                    ->orderBy('numero')
-                    ->get()
-                    ->toArray();
 
-                if (empty($opciones)) {
-                    $opciones = $plugin->obtenerOpciones();
-                }
+        // REQ7: no se vende un juego inactivo ni sin plugin activo (sin
+        // fuente oficial con multiplicadores). El plugin inactivo (p. ej.
+        // la-ricachona) devuelve null en getPlugin.
+        $plugin = $juego ? app(JuegoPluginManager::class)->getPlugin($juego) : null;
+        if (! $juego || ! $juego->active || ! $plugin) {
+            throw new \RuntimeException('Este juego no está disponible para la venta.');
+        }
 
-                if (! $plugin->validarApuesta($data, $opciones)) {
-                    $labels = array_column($opciones, 'label');
-                    throw new \RuntimeException(
-                        'Animal no válido para este juego. Animales permitidos: '.implode(', ', $labels)
-                    );
-                }
-            }
+        // Validar la combinación contra las opciones específicas del juego
+        $opciones = JuegoOpcion::where('juego_id', $juego->id)
+            ->orderBy('numero')
+            ->get()
+            ->toArray();
+
+        if (empty($opciones)) {
+            $opciones = $plugin->obtenerOpciones();
+        }
+
+        if (! $plugin->validarApuesta($data, $opciones)) {
+            $labels = array_column($opciones, 'label');
+            throw new \RuntimeException(
+                'Animal no válido para este juego. Animales permitidos: '.implode(', ', $labels)
+            );
         }
 
         $sorteoHora = $data['sorteo_hora'] ?? null;
@@ -440,27 +444,25 @@ class ApuestaService
 
         $apuesta = Apuesta::create($apuestaData);
 
-        // Generar detalles con plugin
-        $juego = Juego::find($data['juego_id']);
-        if ($juego) {
-            $plugin = app(JuegoPluginManager::class)->getPlugin($juego);
-            $premio = $plugin
-                ? $plugin->calcularPremio(
-                    ['combinacion' => $combinacion, 'total_bs_equivalent' => $totalBsEquivalent, 'amount_bs' => $amountBs, 'amount_usd' => $amountUsd],
-                    []
-                )
-                : ['premio_bs' => $totalBsEquivalent, 'premio_usd' => 0];
+        // Generar detalles: premio_posible con el motor (REQ12/D9) — monto ×
+        // multiplicador de la modalidad desde config.premios. Nunca 0 por
+        // resultados vacíos (el guard de arriba garantiza juego activo + plugin).
+        $premioPosible = app(PremiosEngine::class)->premioPosible(
+            $juego,
+            $combinacion,
+            $amountBs,
+            $amountUsd
+        );
 
-            DetalleApuesta::create([
-                'apuesta_id' => $apuesta->id,
-                'combinacion' => json_encode($combinacion),
-                'monto' => $totalBsEquivalent,
-                'premio_posible' => $premio['premio_bs'],
-                'premio_posible_usd' => $premio['premio_usd'],
-                'premio_ganado' => null,
-                'premio_ganado_usd' => null,
-            ]);
-        }
+        DetalleApuesta::create([
+            'apuesta_id' => $apuesta->id,
+            'combinacion' => json_encode($combinacion),
+            'monto' => $totalBsEquivalent,
+            'premio_posible' => $premioPosible['premio_bs'],
+            'premio_posible_usd' => $premioPosible['premio_usd'],
+            'premio_ganado' => null,
+            'premio_ganado_usd' => null,
+        ]);
 
         // Crear pago
         $moneda = $amountBs > 0 && $amountUsd > 0 ? 'mixto' : ($amountUsd > 0 ? 'usd' : 'bs');
@@ -984,6 +986,7 @@ class ApuestaService
         $apuestas = Apuesta::with('ticket')
             ->where('juego_id', $resultado->juego_id)
             ->where('estado', 'pendiente')
+            ->whereNull('resultado_id') // N5: no reprocesar lo ya liquidado
             ->whereDate('sorteo_hora', $resultado->fecha_sorteo->toDateString())
             ->whereTime('sorteo_hora', $horaSorteo)
             ->get();
@@ -998,7 +1001,11 @@ class ApuestaService
                 $combinacion = json_decode($combinacion, true);
             }
 
-            $premio = $plugin->calcularPremio(
+            // REQ10/D5 (design §4): el dinero lo decide el MOTOR
+            // (manager → PremiosEngine, acentos/comodines/config), nunca el
+            // plugin legacy directo (que no normaliza ni lee config.premios).
+            $premio = $pluginManager->calcularPremio(
+                $resultado->juego,
                 [
                     'combinacion' => $combinacion ?? [],
                     'amount_bs' => (float) $apuesta->amount_bs,
@@ -1010,15 +1017,9 @@ class ApuestaService
             $premioBs = $premio['premio_bs'] ?? 0;
             $premioUsd = $premio['premio_usd'] ?? 0;
 
-            $apuesta->resultado_id = $resultado->id;
-            $apuesta->save();
-
-            DetalleApuesta::where('apuesta_id', $apuesta->id)->update([
-                'premio_ganado' => $premioBs > 0 ? $premioBs : null,
-                'premio_ganado_usd' => $premioUsd > 0 ? $premioUsd : null,
-            ]);
-
             if ($premioBs > 0 || $premioUsd > 0) {
+                // D5 (REQ13): pendiente → ganadora (impaga), con resultado_id.
+                $apuesta->estado = 'ganadora';
                 $ganadoras++;
 
                 $ticketId = $apuesta->ticket_id;
@@ -1031,16 +1032,31 @@ class ApuestaService
                     $ticketsGanadores[$ticketId] = true;
                 }
             } else {
+                // D5: pendiente → perdida.
                 $apuesta->estado = 'perdida';
-                $apuesta->save();
             }
+
+            $apuesta->resultado_id = $resultado->id;
+            $apuesta->save();
+
+            DetalleApuesta::where('apuesta_id', $apuesta->id)->update([
+                'premio_ganado' => $premioBs > 0 ? $premioBs : null,
+                'premio_ganado_usd' => $premioUsd > 0 ? $premioUsd : null,
+            ]);
         }
 
         foreach ($ticketPremios as $ticketId => $premios) {
-            Ticket::where('id', $ticketId)->update([
-                'premio_total_bs' => $premios['bs'],
-                'premio_total_usd' => $premios['usd'],
-            ]);
+            // 3.5: premio_total_* se ACUMULA entre sorteos (increment), no se
+            // sobreescribe. La columna es nullable: se normaliza a 0 antes del
+            // primer increment (NULL + valor = NULL en MySQL).
+            Ticket::where('id', $ticketId)
+                ->whereNull('premio_total_bs')
+                ->update(['premio_total_bs' => 0, 'premio_total_usd' => 0]);
+
+            Ticket::where('id', $ticketId)
+                ->increment('premio_total_bs', $premios['bs']);
+            Ticket::where('id', $ticketId)
+                ->increment('premio_total_usd', $premios['usd']);
         }
 
         if (! empty($ticketsGanadores)) {

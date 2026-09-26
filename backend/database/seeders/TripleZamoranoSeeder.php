@@ -10,6 +10,7 @@ use App\Models\JuegoOpcion;
 use App\Models\PluginJuego;
 use App\Plugins\Juegos\Tripletas;
 use App\Plugins\Scrapers\TripleZamoranoScraper;
+use App\Support\PremiosOficiales;
 use Illuminate\Database\Seeder;
 
 class TripleZamoranoSeeder extends Seeder
@@ -35,17 +36,10 @@ class TripleZamoranoSeeder extends Seeder
             [
                 'name' => 'Triple Zamorano',
                 'type' => 'tripletas',
-                'config' => [
-                    'premio_multiplo' => 600,
-                    'modalidades' => [
-                        'cola' => 60,
-                        'uña' => 5,
-                        'zodiacal' => 6000,
-                        'cola_signo' => 600,
-                        'uña_signo' => 60,
-                    ],
-                    'scraper' => ['product_id' => '1'],
-                ],
+                'config' => array_merge(
+                    PremiosOficiales::configPara('triple-zamorano'),
+                    ['scraper' => ['product_id' => '1']]
+                ),
                 'requires_scraper' => true,
                 'scraper_url' => 'https://www.triplezamorano.com/api/gaming/results/product',
                 'scraper_class' => TripleZamoranoScraper::class,

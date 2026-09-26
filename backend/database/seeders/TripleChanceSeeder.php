@@ -10,6 +10,7 @@ use App\Models\JuegoOpcion;
 use App\Models\PluginJuego;
 use App\Plugins\Juegos\Tripletas;
 use App\Plugins\Scrapers\TripleChanceOficialScraper;
+use App\Support\PremiosOficiales;
 use Illuminate\Database\Seeder;
 
 class TripleChanceSeeder extends Seeder
@@ -23,32 +24,20 @@ class TripleChanceSeeder extends Seeder
     public function run(): void
     {
         // Fuente OFICIAL: tuchance.com.ve ("Chance en línea") → api.scalalot.com
-        // (migrado desde loteriadehoy en el WU f24). Premios OFICIALES del afiche
-        // oficial del sitio (PDF "FINAL-OK-AFICHE-CHANCE-PARA-IMPRIMIR-CON-QR-PLOTEAR.pdf",
-        // texto extraído con pdftotext el 14-sep-2026): TRIPLE A/B/C 600x,
-        // TRIPLE A+B 200.000x, SOLO A o B 100x, TERMINAL 60x, TERMINAL A+B 5.000x,
-        // TRIPLE C + SIGNO 5.000x, SIGNO solo 6x. El reglamento oficial existe
-        // pero es un PDF escaneado (no parseable). `updateOrCreate` aplica la
-        // migración de fuente sobre el juego ya registrado.
+        // (migrado desde loteriadehoy en el WU f24). Premios OFICIALES del
+        // reglamento (spec §3.2/H23): TRIPLE A/B/C 600x, TRIPLE A+B 200.000x,
+        // SOLO A o B 150x, PUNTA 60x, TERMINAL 60x, CRUZADO 3.000x/10x,
+        // TRIPLE C + SIGNO 6.000x, TERMINAL+SIGNO 600x, SIGNO solo 6x.
+        // El reglamento oficial existe pero es un PDF escaneado (no parseable);
+        // el afiche del sitio declaraba SOLO A/B 100x y C+SIGNO 5.000x (corregido
+        // a 150x/6.000x según H23). `updateOrCreate` aplica la migración de
+        // fuente sobre el juego ya registrado.
         $juego = Juego::updateOrCreate(
             ['slug' => 'triple-chance'],
             [
                 'name' => 'Triple Chance',
                 'type' => 'tripletas',
-                'config' => [
-                    'premio_multiplo' => 600,
-                    'modalidades' => [
-                        'triple' => 600,
-                        'triple_a_b' => 200000,
-                        'triple_a_o_b' => 100,
-                        'aproximacion' => 10,
-                        'terminal' => 60,
-                        'terminal_a_b' => 5000,
-                        'terminal_a_o_b' => 5,
-                        'triple_c_signo' => 5000,
-                        'signo' => 6,
-                    ],
-                ],
+                'config' => PremiosOficiales::configPara('triple-chance'),
                 'requires_scraper' => true,
                 'scraper_url' => 'https://api.scalalot.com/servicelotteryresults/ServicioResultados.svc/ServicioResultados/ConsultarResultadoSorteo/Q0hBTkNF/',
                 'scraper_class' => TripleChanceOficialScraper::class,

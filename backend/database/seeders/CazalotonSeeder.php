@@ -9,6 +9,7 @@ use App\Models\JuegoLimite;
 use App\Models\PluginJuego;
 use App\Plugins\Juegos\Animalitos;
 use App\Plugins\Scrapers\LoteriaDeHoyScraper;
+use App\Support\PremiosOficiales;
 use Illuminate\Database\Seeder;
 
 class CazalotonSeeder extends Seeder
@@ -19,21 +20,17 @@ class CazalotonSeeder extends Seeder
         // cazaloton.com NO publica resultados: sus enlaces "Resultados" apuntan
         // a loteriadehoy.com. El reglamento oficial de cazaloton.com
         // (Reglamento.pdf, 17 páginas, parseable) confirma: 38 figuras (0/00/1-36),
-        // 11 sorteos 09:00–19:00 y premios CAZALOTÓN 30x (Art. 22), DUPLETA 800x
-        // (Art. 23), TRIPLETA 200x (Art. 24). `updateOrCreate` aplica las
-        // modalidades del reglamento sobre el juego ya registrado.
+        // 11 sorteos 09:00–19:00 y premios CAZALOTÓN 30x (Art. 22) y TRIPLETA
+        // 200x (Art. 24). La DUPLETA 800x (Art. 23) queda FUERA de alcance
+        // (decisión del cliente): cada jugada es una apuesta independiente y no
+        // se configura. `updateOrCreate` aplica las modalidades del reglamento
+        // sobre el juego ya registrado.
         $juego = Juego::updateOrCreate(
             ['slug' => 'cazaloton'],
             [
                 'name' => 'Cazaloton',
                 'type' => 'animalitos',
-                'config' => [
-                    'premio_multiplo' => 30,
-                    'modalidades' => [
-                        'dupleta' => 800,
-                        'tripleta' => 200,
-                    ],
-                ],
+                'config' => PremiosOficiales::configPara('cazaloton'),
                 'requires_scraper' => true,
                 'scraper_url' => 'https://loteriadehoy.com/animalito/cazaloton/resultados/',
                 'scraper_class' => LoteriaDeHoyScraper::class,
@@ -72,6 +69,6 @@ class CazalotonSeeder extends Seeder
             );
         }
 
-        $this->command->info('Juego Cazaloton actualizado (type: animalitos, scraper: LoteriaDeHoyScraper, fuente: loteriadehoy — oficial sin resultados; reglamento verificado: 30x/dupleta 800x/tripleta 200x).');
+        $this->command->info('Juego Cazaloton actualizado (type: animalitos, scraper: LoteriaDeHoyScraper, fuente: loteriadehoy — oficial sin resultados; reglamento verificado: 30x/tripleta 200x, dupleta fuera de alcance).');
     }
 }

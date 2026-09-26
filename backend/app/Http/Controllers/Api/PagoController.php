@@ -16,7 +16,11 @@ use Illuminate\Validation\Rule;
 class PagoController extends Controller
 {
     /**
-     * Registrar un pago de premio
+     * Registrar un pago de premio.
+     *
+     * Backend AUTORITATIVO (WU pago-premio): en `egreso` los montos son
+     * OPCIONALES — sin montos se aplica el premio calculado por el motor
+     * (`config.premios`); con montos se mantiene la validacion +-0.01.
      */
     public function store(Request $request)
     {
@@ -65,8 +69,11 @@ class PagoController extends Controller
             return response()->json(['message' => 'No autorizado.'], 403);
         }
 
-        // Verificar que la apuesta esté pendiente
-        if ($apuesta->estado !== 'pendiente') {
+        // Verificar estado pagable (D5/N11): `ganadora` (nuevo estado) o
+        // `pendiente` legacy con resultado_id ya liquidada. El egreso sin
+        // resultado se rechaza más abajo; la devolución de una `pendiente`
+        // sin resultado sigue permitida.
+        if (! in_array($apuesta->estado, ['pendiente', 'ganadora'], true)) {
             return response()->json([
                 'success' => false,
                 'message' => "No se puede pagar una apuesta {$apuesta->estado}.",
@@ -92,11 +99,15 @@ class PagoController extends Controller
                 ], 422);
             }
 
-            $amountBsRequest = (float) ($request->amount_bs ?? 0);
-            $amountUsdRequest = (float) ($request->amount_usd ?? 0);
+            // Backend AUTORITATIVO (WU pago-premio): los montos son OPCIONALES.
+            // - Sin monto -> se aplica el premio calculado por el MOTOR (la
+            //   taquilla no calcula ni confirma nada).
+            // - Con monto -> se mantiene la validacion +-0.01 (compatibilidad).
+            $amountBsRequest = $request->filled('amount_bs') ? (float) $request->amount_bs : null;
+            $amountUsdRequest = $request->filled('amount_usd') ? (float) $request->amount_usd : null;
 
-            $diffBs = abs($amountBsRequest - $premio['premio_bs']);
-            $diffUsd = abs($amountUsdRequest - $premio['premio_usd']);
+            $diffBs = $amountBsRequest === null ? 0.0 : abs($amountBsRequest - $premio['premio_bs']);
+            $diffUsd = $amountUsdRequest === null ? 0.0 : abs($amountUsdRequest - $premio['premio_usd']);
 
             if ($diffBs > 0.01 || $diffUsd > 0.01) {
                 return response()->json([
@@ -106,8 +117,15 @@ class PagoController extends Controller
                     'premio_esperado_usd' => $premio['premio_usd'],
                     'monto_enviado_bs' => $amountBsRequest,
                     'monto_enviado_usd' => $amountUsdRequest,
+                    'sugerencia' => 'Omite amount_bs/amount_usd: el backend aplica el premio calculado.',
                 ], 422);
             }
+
+            // Fija los montos aplicados (los del request o los del motor).
+            $request->merge([
+                'amount_bs' => $amountBsRequest ?? $premio['premio_bs'],
+                'amount_usd' => $amountUsdRequest ?? $premio['premio_usd'],
+            ]);
         }
 
         // Guardar pago
@@ -145,8 +163,12 @@ class PagoController extends Controller
         if ($apuesta->ticket_id) {
             $ticket = Ticket::with('apuestas')->find($apuesta->ticket_id);
             if ($ticket && $ticket->estado !== 'pagada') {
+                // D5: la cascada suma `vencido` a "resuelta"; `ganadora`
+                // (impaga) NO resuelve el ticket.
                 $todasResueltas = $ticket->apuestas->every(function ($a) {
-                    return $a->estado === 'pagada' || $a->estado === 'anulada' || $a->estado === 'perdida' || $a->trashed();
+                    return $a->estado === 'pagada' || $a->estado === 'anulada'
+                        || $a->estado === 'perdida' || $a->estado === 'vencido'
+                        || $a->trashed();
                 });
                 if ($todasResueltas) {
                     $ticket->update(['estado' => 'pagada']);
@@ -170,11 +192,21 @@ class PagoController extends Controller
             'user_agent' => $request->header('User-Agent'),
         ]);
 
-        return response()->json([
+        $response = [
             'success' => true,
             'message' => 'Pago registrado exitosamente.',
             'data' => $pago->load(['apuesta', 'creador']),
-        ], 201);
+        ];
+
+        // WU pago-premio: devuelve el premio aplicado (request o motor).
+        if ($request->tipo === 'egreso') {
+            $response['premio'] = [
+                'premio_bs' => (float) $request->amount_bs,
+                'premio_usd' => (float) $request->amount_usd,
+            ];
+        }
+
+        return response()->json($response, 201);
     }
 
     /**
@@ -193,29 +225,24 @@ class PagoController extends Controller
     }
 
     /**
-     * Calcular premio usando el plugin del juego
+     * Calcular premio con el MOTOR corregido (REQ10/N11): config-driven,
+     * acentos, terminales y comodines. El manager delega en PremiosEngine;
+     * nunca se usa el plugin directo (que no normaliza ni lee config).
      */
     private function calcularPremio(Apuesta $apuesta, ?Resultado $resultado): array
     {
-        $plugin = app(JuegoPluginManager::class)->getPlugin($apuesta->juego);
-
-        if (! $plugin) {
-            return ['premio_bs' => 0, 'premio_usd' => 0];
-        }
-
         $combinacion = is_string($apuesta->combinacion)
             ? json_decode($apuesta->combinacion, true)
             : $apuesta->combinacion;
 
         $resultados = $resultado ? $resultado->toArray() : [];
 
-        return $plugin->calcularPremio(
+        return app(JuegoPluginManager::class)->calcularPremio(
+            $apuesta->juego,
             [
                 'combinacion' => $combinacion,
-                'total_bs_equivalent' => $apuesta->total_bs_equivalent,
-                'monto' => $apuesta->total_bs_equivalent,
-                'amount_bs' => $apuesta->amount_bs,
-                'amount_usd' => $apuesta->amount_usd,
+                'amount_bs' => (float) $apuesta->amount_bs,
+                'amount_usd' => (float) $apuesta->amount_usd,
             ],
             $resultados
         );

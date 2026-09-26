@@ -93,9 +93,9 @@ import Icon from '../components/ui/Icon.astro';
       </div>
     </div>
 
-    <!-- Modal de ayuda F1 (REQ-KB-07/08, A12 refined): reutiliza los estilos
+    <!-- Modal de ayuda Alt+H (atajos-2026-09; era F1): reutiliza los estilos
          globales .modal-overlay/.modal-dialog; la clase .abierto controla la
-         visibilidad. Su toggle (F1) y Esc/Cerrar/click lo cierran; con él
+         visibilidad. Su toggle (Alt+H) y Esc/Cerrar/click lo cierran; con él
          abierto ninguna otra F-key ejecuta (guarda estricta A12). -->
     <div id="help-overlay" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Ayuda de teclado">
       <div class="modal-dialog help-dialog">
@@ -107,10 +107,11 @@ import Icon from '../components/ui/Icon.astro';
       </div>
     </div>
 
-    <!-- Modal de vuelto F9 (A12, REQ-KB-07): reutiliza los estilos globales
-         .modal-overlay/.modal-dialog de MainLayout; la clase .abierto controla
-         la visibilidad. Guarda estricta A12: con un modal abierto ninguna otra
-         F-key abre otro; solo F9 (su propio toggle) y Esc/Cerrar/click actúan. -->
+    <!-- Modal de vuelto F12 (atajos-2026-09; era F9): reutiliza los estilos
+         globales .modal-overlay/.modal-dialog de MainLayout; la clase .abierto
+         controla la visibilidad. Guarda estricta A12: con un modal abierto
+         ninguna otra F-key abre otro; solo F12 (su propio toggle) y
+         Esc/Cerrar/click actúan. -->
     <div id="vuelto-overlay" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Calculadora de vuelto">
       <div class="modal-dialog vuelto-dialog">
         <h3 class="vuelto-title">Calculadora de vuelto</h3>
@@ -129,6 +130,26 @@ import Icon from '../components/ui/Icon.astro';
         <div class="vuelto-resultado" id="vuelto-resultado" role="status"></div>
         <div class="modal-buttons">
           <button class="modal-btn modal-btn-secondary" id="vuelto-cerrar">Cerrar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de anulación F10 (atajos-2026-09): identifica el último ticket
+         pendiente vía GET /tickets y exige teclear su serial (anti-tecleo)
+         antes de DELETE /tickets/{id}. Guarda estricta A12 como el resto:
+         con él abierto ninguna F-key abre otro modal; Esc/Cancelar cierran. -->
+    <div id="anular-overlay" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Anular ticket">
+      <div class="modal-dialog anular-dialog">
+        <h3 class="anular-title">Anular ticket</h3>
+        <p class="anular-guia">Ingrese el serial del ticket para confirmar</p>
+        <div class="anular-fila">
+          <label for="anular-serial">Serial del ticket</label>
+          <input type="text" id="anular-serial" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Ej: TKT-000123">
+        </div>
+        <div class="anular-error" id="anular-error" role="alert"></div>
+        <div class="modal-buttons">
+          <button class="modal-btn modal-btn-secondary" id="anular-cerrar">Cancelar</button>
+          <button class="modal-btn modal-btn-primary" id="anular-confirmar">Confirmar</button>
         </div>
       </div>
     </div>
@@ -418,8 +439,9 @@ import Icon from '../components/ui/Icon.astro';
     }
 
     /* Foco roving de tarjetas de juego (FIX-1, KB-01): mismo lenguaje visual
-       que la fila del resumen (F6) — outline azul. Sin esto moverFila().focus()
-       era un no-op silencioso (la tarjeta no era enfocable). */
+       que la fila del resumen (Backspace) — outline azul. Sin esto
+       moverFila().focus() era un no-op silencioso (la tarjeta no era
+       enfocable). */
     .juego-card:focus {
       background: #dbeafe;
       outline: 2px solid #3b82f6;
@@ -907,9 +929,10 @@ import Icon from '../components/ui/Icon.astro';
       background: #f8f9fa;
     }
 
-    /* Fila de grupo enfocada del resumen (F6, KB-07): el cursor de selección
-       del teclado reutiliza el lenguaje visual .selected de la app (azul
-       suave #dbeafe / #3b82f6); outline refuerza el foco roving sobre <tr>. */
+    /* Fila de grupo enfocada del resumen (Backspace, KB-07): el cursor de
+       selección del teclado reutiliza el lenguaje visual .selected de la app
+       (azul suave #dbeafe / #3b82f6); outline refuerza el foco roving sobre
+       <tr>. */
     .resumen-table tbody tr:focus {
       background: #dbeafe;
       outline: 2px solid #3b82f6;
@@ -1024,8 +1047,9 @@ import Icon from '../components/ui/Icon.astro';
       font-size: 13px;
     }
 
-    /* Modal de ayuda F1 (A12 refined): mismo patrón de visibilidad que el de
-       vuelto; el ID gana especificidad sobre .modal-overlay. */
+    /* Modal de ayuda Alt+H (atajos-2026-09; era F1): mismo patrón de
+       visibilidad que el de vuelto; el ID gana especificidad sobre
+       .modal-overlay. */
     #help-overlay {
       display: none;
     }
@@ -1075,9 +1099,10 @@ import Icon from '../components/ui/Icon.astro';
       margin-right: 2px;
     }
 
-    /* Modal de vuelto F9 (A12): reutiliza .modal-overlay/.modal-dialog de
-       MainLayout; la clase .abierto controla la visibilidad (el ID gana
-       especificidad sobre .modal-overlay para el display). */
+    /* Modal de vuelto F12 (atajos-2026-09; era F9): reutiliza
+       .modal-overlay/.modal-dialog de MainLayout; la clase .abierto controla la
+       visibilidad (el ID gana especificidad sobre .modal-overlay para el
+       display). */
     #vuelto-overlay {
       display: none;
     }
@@ -1158,6 +1183,77 @@ import Icon from '../components/ui/Icon.astro';
       color: #b45309;
       background: #fffbeb;
     }
+
+    /* Modal de anulación F10 (atajos-2026-09): mismo patrón de visibilidad que
+       el de vuelto; el ID gana especificidad sobre .modal-overlay. */
+    #anular-overlay {
+      display: none;
+    }
+
+    #anular-overlay.abierto {
+      display: flex;
+    }
+
+    .anular-dialog {
+      max-width: 400px;
+      text-align: left;
+    }
+
+    .anular-title {
+      font-size: 16px;
+      margin-bottom: 8px;
+      color: #333;
+    }
+
+    .anular-guia {
+      font-size: 13px;
+      color: #555;
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+
+    .anular-fila {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .anular-fila label {
+      flex: 1;
+      font-size: 13px;
+      color: #555;
+    }
+
+    .anular-fila input {
+      flex: 1.2;
+      min-width: 0;
+      padding: 6px 10px;
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      text-transform: uppercase;
+    }
+
+    .anular-fila input:focus {
+      border-color: #667eea;
+      outline: none;
+    }
+
+    .anular-error {
+      display: none;
+      margin: 8px 0;
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #dc2626;
+      background: #fef2f2;
+    }
+
+    .anular-error.visible {
+      display: block;
+    }
   </style>
   
   <script>
@@ -1166,7 +1262,9 @@ import Icon from '../components/ui/Icon.astro';
     import { cargarCatalogo, buscarPorDigito, crearBuscadorDigitos, signoPorPosicion, normalizarNumeroTriple } from '../utils/catalogo';
     import { buildZoneGraph, routeKey, zonaHorizontal, zonaPendienteSeleccion } from '../utils/keyboard';
     import { teclasLegend } from '../utils/keyboard';
+    import { serialCoincide, ultimoTicketPendiente } from '../utils/keyboard';
     import { alternarHorario, marcarTodosVisibles, expandirLineas, horarioExpirado, filtrarHorariosFuturos, seleccionadosExpirados, agruparPorGroupId, indiceSeleccionTrasEliminar } from '../utils/horarios';
+    import { formatearJugada, nombresJuegos } from '../utils/ticket';
     import { calcularVuelto } from '../utils/vuelto';
     import { indiceDestinoFila, indiceDestinoColumna } from '../utils/gridNav';
     import { icono } from '../utils/iconos';
@@ -1311,28 +1409,43 @@ import Icon from '../components/ui/Icon.astro';
       avisoTabTimer = setTimeout(() => el.classList.remove('visible'), 1800);
     }
 
-    function activarTab(tipo) {
-      if (activeTab === tipo) return;
-      // FIX-3c: si hay selección en curso se bloquea el cambio (aviso breve).
-      if (seleccionEnCurso()) {
-        mostrarAvisoTab('Finalice la selección actual antes de cambiar de pestaña (F2 Limpiar todo)');
-        return;
-      }
-      activeTab = tipo;
+    // Reset de Juegos + Selección post-Añadir (pedido del usuario 2026-09-22).
+    // Un add exitoso ya no conserva el juego activo ni los horarios marcados:
+    // deja la columna izquierda en la lista de juegos de la PESTAÑA ACTUAL
+    // (activeTab no cambia), limpia la familia seleccionada (animal / opción /
+    // modalidad + signo) y sus buffers, y libera el guard de pestañas
+    // (seleccionEnCurso() queda false). No toca el ticket ni el resumen.
+    // Lo reutiliza activarTab; F11/clearTicket conserva su reset total.
+    function resetSeleccionJuegos() {
       selectedGames = [];
       selectedAnimal = null;
       selectedSigno = null;
       selectedOpcion = null;
       tripleModalidad = null;
       tripleModalidadLabel = null;
-      document.getElementById('seleccion-content').innerHTML = '<div class="seleccion-placeholder">Seleccione un juego</div>';
-      horariosCache = [];
       selectedHorarios = [];
-      renderJuegosTabs();
+      horariosCache = [];
+      buscadorDigitos = null; // FIX-5: el buffer de dígitos es por juego
+      buscadorSignos = null; // win-fixes2 FIX B: buffer de signos por juego
       renderJuegos();
+      renderSeleccion(); // sin juego activo → placeholder «Seleccione un juego»
       renderLegend();
+      renderHorariosGrid(); // sin caché ni selección residual (grid oculto)
       switchToJuegos();
       document.getElementById('juegos-col-title').textContent = 'Juegos';
+      requestAnimationFrame(() => enfocarZona('juegos'));
+    }
+
+    function activarTab(tipo) {
+      if (activeTab === tipo) return;
+      // FIX-3c: si hay selección en curso se bloquea el cambio (aviso breve).
+      if (seleccionEnCurso()) {
+        mostrarAvisoTab('Finalice la selección actual antes de cambiar de pestaña (F11 Limpiar todo)');
+        return;
+      }
+      activeTab = tipo;
+      resetSeleccionJuegos();
+      renderJuegosTabs();
     }
 
     function ordenTabs() {
@@ -1770,9 +1883,9 @@ import Icon from '../components/ui/Icon.astro';
         const montoStr = primera.moneda === 'bs'
           ? `Bs. ${montoGrupo.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`
           : `$ ${montoGrupo.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
-        // tabindex="-1" + data-grupo (F6, KB-07): la fila es el ítem de la
-        // zona Resumen (↑/↓ la enfocan vía moverFila) y F6 la elimina por el
-        // mismo groupId del ✕ (removeGroup).
+        // tabindex="-1" + data-grupo (Backspace, KB-07; era F6): la fila es el
+        // ítem de la zona Resumen (↑/↓ la enfocan vía moverFila) y Backspace la
+        // elimina por el mismo groupId del ✕ (removeGroup).
         html += `<tr tabindex="-1" data-grupo="${grupo.groupId}">
           <td>${sorteoDisplay}</td>
           <td>${animalDisplay}</td>
@@ -1842,7 +1955,7 @@ import Icon from '../components/ui/Icon.astro';
           animal: animal,
           // win-fixes2 FIX E: sigla (value, "SAG") para el POST; el label
           // ("Sagitario") es solo visual. Tripletas.php:44-47 valida
-          // strtoupper($signo) ∈ siglas (ARI..PIS) — el label rompía F5.
+          // strtoupper($signo) ∈ siglas (ARI..PIS) — el label rompía el POST (hoy F4).
           signoSigla: familia === 'zodiacal' ? (selectedSigno ? selectedSigno.value : null) : null,
           monto: Number(monto),
           moneda: moneda,
@@ -1854,24 +1967,15 @@ import Icon from '../components/ui/Icon.astro';
 
       document.getElementById('qt-numero').value = '';
       document.getElementById('qt-monto').value = '';
-      if (familia === 'zodiacal') {
-        tripleModalidad = null;
-        tripleModalidadLabel = null;
-        selectedSigno = null;
-        renderSeleccion();
-      } else if (familia === 'numerica' || familia === 'terminal') {
-        selectedOpcion = null;
-        renderSeleccion();
-      } else {
-        selectedAnimal = null;
-        renderAnimales();
-      }
+      // Pedido del usuario 2026-09-22: un add exitoso resetea Juegos + Selección
+      // completos (no solo la familia) para liberar el guard de pestañas; el
+      // ticket y la pestaña activa no se tocan.
+      resetSeleccionJuegos();
       renderResumen();
-      updateColumnMode();
     }
 
     function clearTicket() {
-      // win-fixes2 FIX C (desviación de A11): F2 / 🗑️ «Limpiar todo» vacía el
+      // win-fixes2 FIX C (desviación de A11): F11 / 🗑️ «Limpiar todo» vacía el
       // ticket Y TODA la selección en curso — juego, animal, signo, opción,
       // modalidad, horarios y buffers de dígitos — y vuelve las zonas a Juegos
       // con foco inicial. A11 mantenía el juego activo y exigía líneas; el
@@ -1901,7 +2005,7 @@ import Icon from '../components/ui/Icon.astro';
     }
 
     // El ✕ de la fila agrupada borra el grupo completo (A3): todas las líneas
-    // del groupId, no una línea suelta (criterio que F3 reutilizará en PR3b).
+    // del groupId, no una línea suelta (criterio que F3 «Eliminar última» reutiliza).
     function removeGroup(groupId) {
       ticketLines = ticketLines.filter(l => l.groupId !== groupId);
       if (ticketLines.length === 0) {
@@ -1943,16 +2047,37 @@ import Icon from '../components/ui/Icon.astro';
 
         const result = await apiFetch('/tickets', { method: 'POST', body: { lines } });
 
+        // Ticket impreso (2026-09): cada línea lleva su juego y el texto de la
+        // jugada ya compuesto (modalidad en tripletas, solo número en
+        // terminales); el encabezado lista TODOS los juegos del ticket y no la
+        // selección actual del dashboard.
+        const ticketLinesData = ticketLines.map(l => {
+          const esTripleta = l.juegoType === 'tripletas';
+          return {
+            game: l.juegoName,
+            jugada: formatearJugada({
+              tipo: l.juegoType,
+              animal: esTripleta ? null : l.animal,
+              numero: l.numero,
+              modalidad: esTripleta ? l.tripleModalidadLabel : null,
+              signo: esTripleta ? l.animal : null,
+            }),
+            sorteo: l.horario,
+            amountBs: l.moneda === 'bs' ? l.monto : 0,
+            amountUsd: l.moneda === 'usd' ? l.monto : 0,
+          };
+        });
         const ticketData = {
           ticketCode: result.data.ticket_code,
           date: new Date().toLocaleDateString('es-VE'),
           time: new Date().toLocaleTimeString('es-VE'),
-          game: selectedGames.length > 0 ? selectedGames.map(g => g.nombre).join(', ') : 'Apuesta',
-          lines: ticketLines.map(l => ({ animal: l.animal || l.numero, number: l.numero, sorteo: l.horario, amountBs: l.moneda === 'bs' ? l.monto : 0, amountUsd: l.moneda === 'usd' ? l.monto : 0 })),
+          game: nombresJuegos(ticketLinesData).join(', '),
+          lines: ticketLinesData,
         };
-        // Snapshot para F12 reimprimir (A6, REQ-TF-03): tras POST ok se guarda
-        // el último ticket impreso; si la impresora falla, F12 reimprime sin
-        // depender de red (rechazado GET /tickets/{id}).
+        // Snapshot para F9 reimprimir (atajos-2026-09; era F12. A6,
+        // REQ-TF-03): tras POST ok se guarda el último ticket impreso; si la
+        // impresora falla, F9 reimprime sin depender de red (rechazado
+        // GET /tickets/{id}).
         localStorage.setItem('ultimoTicket', JSON.stringify(ticketData));
         if (window.electron?.printTicket) {
           await window.electron.printTicket({ ticketData });
@@ -1969,10 +2094,10 @@ import Icon from '../components/ui/Icon.astro';
       printBtn.disabled = false;
     }
 
-    // ─── Modal de vuelto F9 (A12, REQ-KB-07) ────────────────────────────────
+    // ─── Modal de vuelto F12 (atajos-2026-09; A12, REQ-KB-07) ───────────────
     // Renderer-only: reutiliza tasaActiva (sin fetch nuevo) para que el
     // cálculo cuadre con getTotalBs/getTicketTotal y la tarjeta de tasa. Con
-    // 0 líneas pendientes abre igual (total 0,00 editable): F9 nunca se
+    // 0 líneas pendientes abre igual (total 0,00 editable): F12 nunca se
     // bloquea por estado. La guarda estricta (A12) vive en routeKey + el glue.
 
     // ¿El overlay está realmente visible? Los modales propios son estáticos
@@ -2045,9 +2170,106 @@ import Icon from '../components/ui/Icon.astro';
       }
     }
 
-    // ─── Modal de ayuda F1 (REQ-KB-07/08, A12 refined) ──────────────────────
-    // Contenido dinámico (grafo de zonas + mapa F1–F12) al abrir; se cierra
-    // con su toggle (F1), Esc, botón Cerrar o click en el overlay.
+    // ─── Modal de anulación F10 (atajos-2026-09) ────────────────────────────
+    // Identifica SIEMPRE el último ticket pendiente por backend (GET
+    // /tickets?estado=pendiente; el snapshot localStorage.ultimoTicket puede
+    // estar desactualizado) y exige teclear su serial (anti-tecleo) antes del
+    // DELETE /tickets/{id}. El backend valida estado pendiente, ventana de
+    // eliminación de la taquilla y sorteo no pasado (422 con mensaje propio).
+    // Guarda estricta A12: con este modal abierto ninguna F-key abre otro;
+    // Esc/Cancelar/click lo cierran.
+    let anularTicket = null; // último pendiente mostrado en el modal
+    let anularAbriendo = false; // evita dobles aperturas mientras llega el GET
+    let anularEnviando = false; // evita doble DELETE al re-confirmar
+
+    function mostrarErrorAnular(mensaje) {
+      const el = document.getElementById('anular-error');
+      if (!el) return;
+      el.textContent = mensaje;
+      el.classList.add('visible');
+    }
+
+    async function abrirAnularModal() {
+      if (anularAbriendo) return;
+      anularAbriendo = true;
+      try {
+        // El backend filtra por taquilla (rol taquilla) y ordena latest()
+        // (created_at DESC); ultimoTicketPendiente re-filtra pendientes y
+        // desempata por id (helper puro en keyboard.ts).
+        const res = await apiFetch('/tickets?estado=pendiente&per_page=10');
+        const ultimo = ultimoTicketPendiente(res?.data?.data ?? []);
+        if (!ultimo) {
+          await window.showModal({ message: 'No hay tickets pendientes para anular', type: 'info' });
+          return;
+        }
+        anularTicket = ultimo;
+        const overlay = document.getElementById('anular-overlay');
+        const input = document.getElementById('anular-serial');
+        const err = document.getElementById('anular-error');
+        if (!overlay || !input) return;
+        input.value = '';
+        if (err) { err.textContent = ''; err.classList.remove('visible'); }
+        overlay.classList.add('abierto');
+        input.focus();
+      } catch (e) {
+        await window.showModal({
+          message: 'No se pudo obtener el último ticket pendiente: ' + (e instanceof Error ? e.message : String(e)),
+          type: 'error',
+        });
+      } finally {
+        anularAbriendo = false;
+      }
+    }
+
+    function cerrarAnularModal() {
+      document.getElementById('anular-overlay')?.classList.remove('abierto');
+      anularTicket = null;
+      restaurarFoco();
+    }
+
+    async function confirmarAnularTicket() {
+      if (anularEnviando || !anularTicket) return;
+      const input = document.getElementById('anular-serial');
+      if (!input) return;
+      // Verificación anti-tecleo: sin serial correcto NO se llama al backend.
+      if (!serialCoincide(input.value, anularTicket.ticket_code)) {
+        mostrarErrorAnular('El serial no coincide con el último ticket');
+        input.focus();
+        return;
+      }
+      const codigo = anularTicket.ticket_code;
+      const id = String(anularTicket.id);
+      const btn = document.getElementById('anular-confirmar');
+      anularEnviando = true;
+      if (btn) btn.disabled = true;
+      try {
+        await apiFetch('/tickets/' + encodeURIComponent(id), { method: 'DELETE' });
+        cerrarAnularModal();
+        // Snapshot F12: solo se limpia si corresponde al ticket anulado (el
+        // último impreso puede ser otro).
+        const raw = localStorage.getItem('ultimoTicket');
+        if (raw) {
+          try {
+            const snap = JSON.parse(raw);
+            if (snap && serialCoincide(String(snap.ticketCode ?? ''), codigo)) {
+              localStorage.removeItem('ultimoTicket');
+            }
+          } catch { /* snapshot corrupto: no es el ticket anulado */ }
+        }
+        await window.showModal({ message: 'Ticket anulado correctamente', type: 'success' });
+      } catch (e) {
+        // 422 (ventana excedida / sorteo pasado / no pendiente) u otro error:
+        // mensaje del backend tal cual, inline para corregir y reintentar.
+        mostrarErrorAnular(e instanceof Error && e.message ? e.message : 'No se pudo anular el ticket.');
+      } finally {
+        anularEnviando = false;
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    // ─── Modal de ayuda Alt+H (atajos-2026-09; REQ-KB-07/08, A12) ───────────
+    // Contenido dinámico (grafo de zonas + mapa del KEYMAP) al abrir; se cierra
+    // con su toggle (Alt+H), Esc, botón Cerrar o click en el overlay.
 
     function renderAyudaContenido() {
       const el = document.getElementById('help-content');
@@ -2081,9 +2303,10 @@ import Icon from '../components/ui/Icon.astro';
       }
     }
 
-    // ─── Acciones F2/F3/F4/F12 (A11, REQ-KB-07) ─────────────────────────────
-    // F3 anula la jugada (grupo) del último groupId añadido; F4 la duplica
-    // con groupId nuevo (atómico: si algún horario expiró, avisa y no copia).
+    // ─── Acciones F1/F3/F4/F9/F12 (atajos-2026-09; A11, REQ-KB-07) ──────────
+    // F3 anula la jugada (grupo) del último groupId añadido; F1 la duplica
+    // con groupId nuevo (atómico: si algún horario expiró, avisa y no copia);
+    // F9 reimprime el snapshot; F12 abre el modal de vuelto.
 
     function anularUltimaJugada() {
       const ultima = ticketLines[ticketLines.length - 1];
@@ -2115,15 +2338,15 @@ import Icon from '../components/ui/Icon.astro';
       renderResumen();
     }
 
-    // F12 reimprime el último ticket desde el snapshot localStorage.ultimoTicket
-    // (A6, REQ-TF-03): se guarda tras un POST ok en handlePrint; si falta o no
-    // es válido, aviso claro (nunca depende de red justo cuando falla la
-    // impresora; rechazado GET /tickets/{id}).
+    // F9 reimprime el último ticket desde el snapshot localStorage.ultimoTicket
+    // (atajos-2026-09; era F12. A6, REQ-TF-03): se guarda tras un POST ok en
+    // handlePrint; si falta o no es válido, aviso claro (nunca depende de red
+    // justo cuando falla la impresora; rechazado GET /tickets/{id}).
     function reimprimirUltimo() {
       const raw = localStorage.getItem('ultimoTicket');
       if (!raw) {
         window.showModal({
-          message: 'No hay un ticket previo para reimprimir. Genere un ticket con F5 / Imprimir primero.',
+          message: 'No hay un ticket previo para reimprimir. Genere un ticket con F4 / Imprimir primero.',
           type: 'info',
         });
         return;
@@ -2150,14 +2373,14 @@ import Icon from '../components/ui/Icon.astro';
       }
     }
 
-    // ─── F6 eliminar ítem (REQ-KB-07/08, A3) ───────────────────────────────
+    // ─── Backspace eliminar ítem (atajos-2026-09; era F6. REQ-KB-07/08, A3) ──
     // Elimina la fila (grupo) SELECCIONADA del resumen por la MISMA ruta del
     // ✕ de la fila agrupada (removeGroup), sin lógica duplicada. Guardas
     // (KB-08): solo con foco en la zona Resumen y sobre una fila de grupo —
     // si no hay fila seleccionada o el resumen está vacío → no-op (sin
-    // lanzar). La guarda de modal ya la aplica routeKey (regla 1: con un
-    // modal abierto solo su propio toggle y Esc) y la de estado (F6 sin
-    // líneas) la marca no-ejecutable en el router.
+    // lanzar). El glue la llama desde la decisión pura `eliminar-item`
+    // (routeKey: Backspace fuera de inputs y con fila enfocada; la guarda de
+    // modal ya la aplica la regla 1 del router).
     function eliminarItemSeleccionado() {
       if (zonaActual !== 'resumen') return;
       const fila = document.activeElement?.closest?.('.resumen-table tbody tr[data-grupo]');
@@ -2177,29 +2400,30 @@ import Icon from '../components/ui/Icon.astro';
       }
     }
 
-    // ─── Navegación por teclado (PR2: KB-01..04, KB-08, KB-09; A1) ──────────
-    // ACCIONES reales de F-keys (PR3b, REQ-KB-07, A11, A12): F1 ayuda, F2
-    // limpiar todo (= clearTicket, reset TOTAL — win-fixes2 FIX C), F3 anular
-    // último grupo, F4 repetir última (atómico), F5 pagar/generar
-    // (= handlePrint), F6 eliminar el grupo seleccionado del resumen, F9
-    // vuelto, F12 reimprimir snapshot. F7/F8/F10
-    // (ventas/cuadre/resultados) NO viven aquí desde FIX-6: la navegación es
+    // ─── Navegación por teclado (KB-01..04, KB-08, KB-09; A1) ──────────────
+    // ACCIONES reales del KEYMAP atajos-2026-09 (REQ-KB-07, A11, A12): F1
+    // repetir última (atómico), F3 anular último grupo, F4 pagar/generar
+    // (= handlePrint), F9 reimprimir snapshot, F10 anular ticket (modal de
+    // serial + DELETE), F11 limpiar todo (= clearTicket, reset TOTAL) y F12
+    // vuelto. F2 (Números) y la ayuda (Alt+H) se rutean como decisiones puras
+    // (`f-key`/`toggle-modal`) desde routeKey; el handler de F2 vive en este
+    // mapa. F5/F6/F7/F8
+    // (ventas/resultados/ganadores/cuadre) NO viven aquí: la navegación es
     // GLOBAL en MainLayout.astro (evita doble dispatch en las 5 pantallas).
-    // Las guardas de estado viven en routeKey
-    // (ejecutable=false) y la guarda estricta de modales (A12) en la regla 1
-    // del router: con un modal abierto solo su toggle (F1/F9) y Esc actúan.
-    // F11 «Números» (win-fixes3): salto directo al input de Número.
+    // Las guardas de estado viven en routeKey (ejecutable=false) y la guarda
+    // estricta de modales (A12) en la regla 1 del router: con un modal abierto
+    // solo el toggle de su dueño (Alt+H↔ayuda, F12↔vuelto) y Esc actúan.
     const ACCIONES_FKEYS = {
-      ayuda: toggleAyudaModal,
-      limpiar: clearTicket,
-      'anular-ultima': anularUltimaJugada,
       'repetir-ultima': repetirUltimaJugada,
+      'anular-ultima': anularUltimaJugada,
       'pagar-generar': () => { handlePrint(); },
-      'eliminar-item': eliminarItemSeleccionado,
-      vuelto: toggleVueltoModal,
-      reimprimir: reimprimirUltimo,
-      // F11 (win-fixes3): foco al input #qt-numero + zona `numero`; desde ahí
-      // Tab→Monto y Enter→Añadir ya operan con el ruteo existente.
+      'reimprimir': reimprimirUltimo,
+      'anular-ticket': () => { abrirAnularModal(); },
+      'limpiar': clearTicket,
+      'vuelto': toggleVueltoModal,
+      // F2 (atajos-2026-09): foco al input #qt-numero + zona `numero`; desde
+      // ahí Tab→Monto y Enter→Añadir ya operan con el ruteo existente (mismo
+      // patrón del viejo F11 «Números» de win-fixes3).
       'ir-numero': () => {
         const input = document.getElementById('qt-numero');
         if (input) input.focus({ preventScroll: true });
@@ -2214,21 +2438,23 @@ import Icon from '../components/ui/Icon.astro';
 
     // Guarda de modal (REQ-KB-08, A12 refined): cualquier .modal-overlay VISIBLE
     // (showModal de MainLayout es dinámico y siempre visible en el DOM; los
-    // modales propios F1/F9 son estáticos con display:none cerrados) o el
-    // #help-overlay.abierto. La visibilidad evita que un modal propio cerrado
-    // (aún en el DOM) bloquee las F-keys.
+    // modales propios Alt+H/F12/F10 son estáticos con display:none cerrados)
+    // o el #help-overlay.abierto. La visibilidad evita que un modal propio
+    // cerrado (aún en el DOM) bloquee las F-keys.
     function detectarModalAbierto() {
       const genericos = Array.from(document.querySelectorAll('.modal-overlay'));
       if (genericos.some((el) => overlayVisible(el))) return true;
       return document.querySelector('#help-overlay.abierto') !== null;
     }
 
-    // Modal propio abierto para routeKey (A12): 'f1' (ayuda) o 'f9' (vuelto).
-    // Con un modal abierto, routeKey solo permite el toggle del modal propio
-    // (F1/F9) y Esc; ninguna otra F-key abre otro modal.
+    // Modal propio abierto para routeKey (A12): 'ayuda' (Alt+H) o 'vuelto'
+    // (F12). El modal de anulación F10 no tiene toggle propio (se cierra con
+    // Esc/Cancelar): con él abierto, modalPropio queda null y ninguna F-key
+    // ejecuta. Con un modal abierto, routeKey solo permite el toggle de su
+    // dueño y Esc; ninguna otra F-key abre otro modal.
     function modalPropioActual() {
-      if (document.querySelector('#help-overlay.abierto')) return 'f1';
-      if (document.querySelector('#vuelto-overlay.abierto')) return 'f9';
+      if (document.querySelector('#help-overlay.abierto')) return 'ayuda';
+      if (document.querySelector('#vuelto-overlay.abierto')) return 'vuelto';
       return null;
     }
 
@@ -2475,7 +2701,9 @@ import Icon from '../components/ui/Icon.astro';
     // Esc sube un nivel sin descartar selección ni líneas (KB-04, A1).
     function manejarEscape(nivel) {
       if (nivel === 'modal') {
-        // Cierra el modal superior: ayuda F1 → vuelto F9 → showModal genérico.
+        // Cierra el modal superior: ayuda (Alt+H) → vuelto (F12) → anular
+        // (F10) → showModal genérico. La guarda A12 impide que haya más de uno
+        // de los propios a la vez; el orden es defensivo.
         const ayuda = document.querySelector('#help-overlay.abierto');
         if (ayuda) {
           ayuda.classList.remove('abierto');
@@ -2485,6 +2713,11 @@ import Icon from '../components/ui/Icon.astro';
         const vuelto = document.querySelector('#vuelto-overlay.abierto');
         if (vuelto) {
           cerrarVueltoModal();
+          return;
+        }
+        const anular = document.querySelector('#anular-overlay.abierto');
+        if (anular) {
+          cerrarAnularModal();
           return;
         }
         const overlay = Array.from(document.querySelectorAll('.modal-overlay')).find(overlayVisible);
@@ -2511,7 +2744,7 @@ import Icon from '../components/ui/Icon.astro';
     }
 
     // Leyenda estática (REQ-KB-09): barra de estado con el mapa de zonas
-    // (según el grafo del juego activo) y las teclas F1–F12.
+    // (según el grafo del juego activo) y las teclas del KEYMAP atajos-2026-09.
     function renderLegend() {
       const el = document.getElementById('qt-legend');
       if (!el) return;
@@ -2519,8 +2752,9 @@ import Icon from '../components/ui/Icon.astro';
       const zonasHtml = grafo.zonas
         .map(z => '<span class="kbd">' + (NOMBRE_ZONA[z] ?? z) + '</span>')
         .join('<span class="leg-arrow"> &rarr; </span>');
-      // FIX-6 (REQ-KB-09): KEYMAP (F1–F12) + destinos globales no-F (Alt+D)
-      // del NAV_GLOBAL vía teclasLegend — la leyenda refleja el mapa real.
+      // FIX-6 (REQ-KB-09; atajos-2026-09): KEYMAP (F1–F12) + destinos globales
+      // no-F (Alt+D) + combos extra (Alt+H) vía teclasLegend — leyenda y
+      // ayuda derivan del mapa real, sin texto hardcodeado.
       const fkeysHtml = teclasLegend()
         .map(t => '<span><span class="kbd">' + t.tecla + '</span> ' + t.nombre + '</span>')
         .join(' · ');
@@ -2646,14 +2880,15 @@ import Icon from '../components/ui/Icon.astro';
       document.getElementById('qt-clear').addEventListener('click', clearTicket);
       document.getElementById('qt-print').addEventListener('click', handlePrint);
 
-      // Modal de ayuda F1 (A12 refined): cierre por botón/overlay.
+      // Modal de ayuda Alt+H (atajos-2026-09): cierre por botón/overlay.
       const helpOverlay = document.getElementById('help-overlay');
       document.getElementById('help-cerrar').addEventListener('click', cerrarAyudaModal);
       helpOverlay.addEventListener('click', (e) => {
         if (e.target === helpOverlay) cerrarAyudaModal();
       });
 
-      // Modal de vuelto F9 (A12): cálculo en vivo + cierre por botón/overlay.
+      // Modal de vuelto F12 (atajos-2026-09): cálculo en vivo + cierre por
+      // botón/overlay.
       const vueltoOverlay = document.getElementById('vuelto-overlay');
       ['vuelto-total', 'vuelto-recibido'].forEach((id) => {
         document.getElementById(id).addEventListener('input', calcularVueltoModal);
@@ -2662,6 +2897,14 @@ import Icon from '../components/ui/Icon.astro';
       document.getElementById('vuelto-cerrar').addEventListener('click', cerrarVueltoModal);
       vueltoOverlay.addEventListener('click', (e) => {
         if (e.target === vueltoOverlay) cerrarVueltoModal();
+      });
+
+      // Modal de anulación F10 (atajos-2026-09): Confirmar/Cancelar/overlay.
+      const anularOverlay = document.getElementById('anular-overlay');
+      document.getElementById('anular-cerrar').addEventListener('click', cerrarAnularModal);
+      document.getElementById('anular-confirmar').addEventListener('click', confirmarAnularTicket);
+      anularOverlay.addEventListener('click', (e) => {
+        if (e.target === anularOverlay) cerrarAnularModal();
       });
 
       document.getElementById('qt-numero').addEventListener('input', (e) => {
@@ -2680,7 +2923,7 @@ import Icon from '../components/ui/Icon.astro';
       let addingLine = false;
       document.addEventListener('keydown', (e) => {
         // Enter solo añade línea desde los inputs del ticket (qt-numero/
-        // qt-monto); los inputs de los modales (p. ej. vuelto F9) no deben
+        // qt-monto); los inputs de los modales (p. ej. vuelto F12) no deben
         // disparar addLine, y con un modal abierto nada añade (guarda A12).
         if (e.key === 'Enter' && (e.target.id === 'qt-numero' || e.target.id === 'qt-monto')) {
           if (detectarModalAbierto()) return;
@@ -2711,6 +2954,7 @@ import Icon from '../components/ui/Icon.astro';
           repeat: e.repeat,
           ctrlKey: e.ctrlKey,
           shiftKey: e.shiftKey,
+          altKey: e.altKey, // Alt+H = ayuda (atajos-2026-09)
           focoEditable: esEditable(e.target),
           zonaActual,
           modalAbierto: detectarModalAbierto(),
@@ -2718,6 +2962,9 @@ import Icon from '../components/ui/Icon.astro';
           columnMode,
           tieneLineas: ticketLines.length > 0,
           tieneHistorial: ticketLines.length > 0,
+          // Backspace → eliminar-item (atajos-2026-09; era F6): misma fila de
+          // grupo que valida eliminarItemSeleccionado (la fila con foco).
+          itemResumenSeleccionado: Boolean(document.activeElement?.closest?.('.resumen-table tbody tr[data-grupo]')),
           seleccionEnCurso: seleccionEnCurso(), // FIX-3c
         });
         if (!decision.consume) return;
@@ -2732,11 +2979,11 @@ import Icon from '../components/ui/Icon.astro';
             // es borde (moverColumna false) cambia de pestaña. FIX-3c: con
             // selección en curso routeKey marca ejecutable=false y se avisa.
             if (moverColumna(-1)) break;
-            if (!decision.ejecutable) { mostrarAvisoTab('Finalice la selección actual antes de cambiar de pestaña (F2 Limpiar todo)'); break; }
+            if (!decision.ejecutable) { mostrarAvisoTab('Finalice la selección actual antes de cambiar de pestaña (F11 Limpiar todo)'); break; }
             activarTab(tabAnterior()); break;
           case 'pestana-siguiente':
             if (moverColumna(1)) break;
-            if (!decision.ejecutable) { mostrarAvisoTab('Finalice la selección actual antes de cambiar de pestaña (F2 Limpiar todo)'); break; }
+            if (!decision.ejecutable) { mostrarAvisoTab('Finalice la selección actual antes de cambiar de pestaña (F11 Limpiar todo)'); break; }
             activarTab(tabSiguiente()); break;
           case 'zona-izquierda': moverHorizontal('izquierda'); break; // FIX-3a
           case 'zona-derecha': moverHorizontal('derecha'); break; // FIX-3a
@@ -2745,12 +2992,15 @@ import Icon from '../components/ui/Icon.astro';
           case 'marcar-todos': marcarTodosHorarios(); break;
           case 'escape': manejarEscape(decision.nivel); break;
           case 'digito': manejarDigitoEnSeleccion(decision.digito); break; // FIX-5
+          case 'eliminar-item': eliminarItemSeleccionado(); break; // Backspace (era F6)
           case 'toggle-modal': {
-            // A12: toggle del modal propio. routeKey solo lo emite cuando el
-            // modal abierto ES el propio (F1↔ayuda, F9↔vuelto); con cualquier
-            // otro modal abierto ninguna F-key llega aquí.
-            if (decision.modal === 'f1') toggleAyudaModal();
-            if (decision.modal === 'f9') toggleVueltoModal();
+            // A12: toggle del modal propio (Alt+H↔ayuda, F12↔vuelto).
+            // routeKey solo lo emite si no hay modal abierto o si el abierto es
+            // el propio; `ejecutable=false` (Alt+H con OTRO modal visible) se
+            // consume pero no ejecuta: preserva la guarda A12 sin abrir nada.
+            if (decision.ejecutable === false) break;
+            if (decision.modal === 'ayuda') toggleAyudaModal();
+            if (decision.modal === 'vuelto') toggleVueltoModal();
             break;
           }
           case 'f-key': {

@@ -1,0 +1,306 @@
+# Apply Progress — motor-premios (Slices F1a + F1b + F1c, tasks 1.1–1.10 + 1.14-export + 1.15–1.16)
+
+**Change**: motor-premios · **Ramas**: F1a `feat/motor-premios-f1a-engine` (base `feat/motor-premios`) + F1b `feat/motor-premios-f1b-plugins` (base F1a, worktree investigacion-produccion) + F1c `feat/motor-premios-f1c-migraciones` (base F1b) · **Modo**: Strict TDD · **Fechas**: F1a 2026-09-17 · F1b 2026-09-19 · F1c 2026-09-21
+
+> Merge: F1a proviene del topic Engram `sdd/motor-premios/apply-progress` (obs #266). F1b es este batch (continuación del slice F1b interrumpido: 1.9 y 1.10). F1c es este batch (slice F1c: migraciones + seeders + export; run previo interrumpido solo creó la rama).
+
+## TDD Cycle Evidence
+
+### Slice F1a (obs #266, preservado)
+
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 1.1 | `tests/Unit/TextoTest.php` | Unit | N/A (nuevo) | ✅ Escrito (6 errores clase inexistente) | ✅ 6/6 · 8 aserciones | ✅ 6 casos | ➖ Ninguno |
+| 1.2 | `tests/Unit/PremiosOficialesTest.php` | Unit | N/A (nuevo) | ✅ Escrito (21 errores clase inexistente) | ✅ 21/21 · 108 aserciones | ✅ 21 juegos | ➖ Ninguno |
+| 1.3 | `tests/Unit/PremiosEngineTest.php` | Unit | N/A (nuevo) | ✅ Escrito (21 errores clase inexistente) | ✅ 21/21 · 22 aserciones | ✅ 21 casos | ✅ Pint |
+
+### Slice F1b (este batch)
+
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 1.4 | `JuegoInterface` (contrato, sin test propio; 3 plugins lo implementan) | — | ✅ 36/36 plugin tests | N/A (contrato, commits previos 1.4–1.8) | ✅ | ✅ vía 1.5–1.7 | ✅ |
+| 1.5 | `tests/Unit/AnimalitosPluginTest.php` | Unit | N/A (commit previo) | ✅ (commit previo) | ✅ | ✅ acentos×2, comodines×6, modalidad×2, validar×2, dinero×2 | ✅ |
+| 1.6 | `tests/Unit/TerminalesPluginTest.php` | Unit | N/A (commit previo) | ✅ (commit previo) | ✅ | ✅ numero/padding/fallback/modalidad/validar/dinero | ✅ |
+| 1.7 | `tests/Unit/TripletasPluginTest.php` | Unit | N/A (commit previo) | ✅ (commit previo) | ✅ | ✅ tipo estricto, signo label/sigla, dinero | ✅ |
+| 1.8 | `tests/Unit/AnimalitosScraperTest.php` | Unit | N/A (commit previo) | ✅ (commit previo) | ✅ | ✅ mapper `patronus` | ✅ |
+| 1.9 | `tests/Feature/ScrapeResultsJobTest.php` (+168) · `tests/Unit/BaseScraperHelpersTest.php` (+53) | Feature+Unit | ✅ 12 pre-existentes pasando | ✅ (tests escritos en run previo; verificados RED→GREEN) | ✅ 5/5 nuevos · 16/16 archivo | ✅ 3 dedupe (fila completa, desempate, 1 evaluación) + 2 hora (12h/24h, segundos) | ✅ Pint |
+| 1.10 | `tests/Unit/JuegoPluginManagerTest.php` (nuevo, +7) | Unit (BD) | ✅ 36/36 plugin tests + 98/98 ResultsTest | ✅ Escrito (5 errores: getMultiplicador×3, validar zoo×2) | ✅ 7/7 | ✅ base config≠plugin ×3, zoo propio×2, fallback×1, sin plugin×1 | ✅ Pint |
+
+## Test Summary (F1b)
+
+- Tests escritos en este batch: **12** (5 de 1.9 + 7 de 1.10) · Pasando: 12 · Aserciones nuevas: 47
+- Focused 1.4–1.10 + F1a + ScraperResolver:
+  `php artisan test --filter='TextoTest|PremiosOficialesTest|PremiosEngineTest|AnimalitosPluginTest|TerminalesPluginTest|TripletasPluginTest|AnimalitosScraperTest|ScrapeResultsJobTest|BaseScraperHelpersTest|JuegoPluginManagerTest|ScraperResolverTest'`
+  → **passed: 133 tests, 351 assertions, 1 skipped** (skip pre-existente legacy condicional en `ScrapeResultsJobTest`)
+- Regresión legacy: `--filter='ResultsTest'` → **98/98 passed, 451 assertions** (los `*ResultsTest` pasan por call sites legacy de F1d; se actualizan en F1c/F1d con los valores del reglamento, design §8)
+- Pint: `--test` sobre todos los archivos del slice → passed (1 pase EOF aplicado en el test nuevo)
+
+### Slice F1c (este batch)
+
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 1.16 (fuente única) | `tests/Unit/PremiosOficialesTest.php` (+8) | Unit | ✅ 74/74 baseline | ✅ Escrito (8 errores: `configPara()` inexistente) | ✅ 8/8 nuevos · 30/30 archivo | ✅ 8 casos: trio, zulia, zamorano, chance (H23), monje, terminal-activo (espejo extra), ricachona, slug desconocido | ✅ Pint |
+| 1.14-export | `tests/Feature/JuegosJsonTest.php` (schema `premios`/`active`/`vendible` + valores reglamento) | Feature (RefreshDatabase) | ✅ 74/74 baseline | ✅ Escrito (campo `premios` ausente en export + valores legacy desactualizados) | ✅ 3/3 · 717 aserciones | ✅ lotto-activo/monje/el-arrejuntado/loto-chaima/ricachona/terminal-activo/triple-chance/cazaloton/mega/selva | ✅ Pint |
+| 1.16 (seeders) | `tests/Feature/*ResultsTest` (6 actualizados) + `JuegosJsonTest` | Feature | ✅ 74/74 | ✅ (asserts de valores nuevos, ver 1.14-export) | ✅ 83/83 seeders+export · 145/145 ResultsTest | ✅ 21 seeders vía `configPara` | ✅ Pint |
+| 1.15 (migraciones) | Harness: `migrate` ×2 + `migrate:rollback --step=3` + re-`migrate` (BD `lotto_test_motor`) | Runtime | N/A (harness) | N/A — las migraciones se prueban por harness, no por RED clásico | ✅ up ×2 sin error · down reversible · re-up | ✅ dedupe con duplicados reales (2 filas → 1, fusión de claves, hora normalizada, sorteo distinto intacto) | ✅ Pint |
+
+## Test Summary (F1c)
+
+- Tests escritos/actualizados en este batch: **8 unit (configPara)** + **1 feature (JuegosJsonTest)** + **6 ResultsTest alineados**
+- Focused slice F1c:
+  `php artisan test --filter='ElArrejuntadoResultsTest|LotoChaimaResultsTest|LaRicachonaResultsTest|MegaAnimal40ResultsTest|TripleChanceResultsTest|CazalotonResultsTest|VerificacionOriginalesTest|JuegosJsonTest|PremiosOficialesTest'`
+  → **passed: 83 tests, 1110 assertions**
+- Regresión completa F1a–F1c: `--filter='TextoTest|PremiosOficialesTest|PremiosEngineTest|AnimalitosPluginTest|TerminalesPluginTest|TripletasPluginTest|AnimalitosScraperTest|ScrapeResultsJobTest|BaseScraperHelpersTest|JuegoPluginManagerTest|ScraperResolverTest|JuegosJsonTest'` → **passed: 145 tests, 1118 assertions, 1 skip legacy**
+- Todos los `*ResultsTest` + VerificacionOriginalesTest + ScheduleTimeZoneTest + FetchResultsJobTest → **passed: 145 tests, 1401 assertions**
+- Pint: `--test` sobre todos los archivos del slice → passed (3 migraciones formateadas)
+- Evidencia migraciones (BD `lotto_test_motor`): `migrate` (3 DONE) → `migrate` ("Nothing to migrate") → `migrate:rollback --step=3` (down: ENUM sin `ganadora`, `premios` retirado, ricachona/plugin reactivados) → `migrate` (re-up) → `migrate` ("Nothing to migrate")
+- Evidencia dedupe (integración): 2 filas duplicadas del mismo sorteo (hora `01:00 PM` + `13:00:00`, claves distintas) + 1 fila de otro sorteo → tras `migrate`: 2 filas; el superviviente conserva la hora normalizada `13:00` y las claves fusionadas `{"numero":5,"animalito":"Delfin"}`; el sorteo `14:00` intacto.
+- `migrate:fresh --seed` → verde (las 3 migraciones + 21 seeders conviven; `docs/juegos.json` regenerado con `premios`/`active`/`vendible`)
+
+## Files Changed (F1c)
+
+| File | Acción | Qué |
+|------|--------|-----|
+| `backend/app/Support/PremiosOficiales.php` | Modificar | `configPara()` fuente única: `premios` canónico + espejos legacy (`premio_multiplo`, `modalidades`, `comodines`) + `ESPEJO_MODALIDADES`/`ESPEJO_EXTRA` (D2/D4) |
+| `backend/app/Services/JuegoCatalogoService.php` | Modificar | Export `premios`, `active`, `vendible` (=active) aditivo (D10); `comodines`/`modalidades` legacy conservados (null si vacíos) |
+| `backend/database/migrations/2026_09_17_000001_add_ganadora_to_apuestas_estado.php` | Crear | ENUM `ganadora` (REQ13/D5); `down` reubica a `pendiente` + restaura ENUM |
+| `backend/database/migrations/2026_09_17_000002_backfill_premios_config_juegos.php` | Crear | Merge `config.premios`+espejos desde `PremiosOficiales` ×21; ricachona `active=false`+plugin inactivo (REQ7/D4); `down` retira `premios`+reactiva |
+| `backend/database/migrations/2026_09_17_000003_dedupe_resultados_sorteo_duplicado.php` | Crear | Normaliza hora + dedupe por `(juego_id, DATE(fecha), hora)` conservando la fila más completa y fusionando claves (REQ14/D6-a); `down` no-op documentado |
+| `backend/database/seeders/*` (21) | Modificar | `config` desde `PremiosOficiales::configPara()` (`updateOrCreate`); `LaRicachonaSeeder` inactiva sin premios; cazaloton sin dupleta; valores reglamento (monje 50, arrejuntado/chaima 40, chance 150/6.000) |
+| `backend/tests/Unit/PremiosOficialesTest.php` | Modificar | +8 tests `configPara` (mapeo canónico→legacy, H23, espejo extra terminal-activo, ricachona, slug desconocido) |
+| `backend/tests/Feature/JuegosJsonTest.php` | Modificar | Schema +`premios`/`active`/`vendible`; asserts nuevos por juego; asserts legacy a valores del reglamento (canónicos por orden de claves JSON de MySQL) |
+| `backend/tests/Feature/{ElArrejuntado,LotoChaima,LaRicachona,MegaAnimal40,TripleChance,Cazaloton}ResultsTest.php` | Modificar | Valores de seeders alineados (40×, 150/6.000, `tipo` en comodines, ricachona inactiva+plugin inactivo, sin dupleta) |
+| `docs/juegos.json` | Modificar | Regenerado con `premios`/`active`/`vendible` |
+| `openspec/changes/motor-premios/tasks.md` | Modificar | 1.15–1.16 `[x]`; nota de export de 1.14 (reglas → F1d) |
+
+## Work Unit Evidence (F1c)
+
+| Evidence | Valor |
+|---|---|
+| Focused test (1.16+1.14-export) | `--filter='ElArrejuntadoResultsTest\|LotoChaimaResultsTest\|LaRicachonaResultsTest\|MegaAnimal40ResultsTest\|TripleChanceResultsTest\|CazalotonResultsTest\|VerificacionOriginalesTest\|JuegosJsonTest\|PremiosOficialesTest'` → passed: 83 tests, 1110 assertions |
+| Runtime harness (1.15) | `DB_DATABASE=lotto_test_motor php artisan migrate` ×2 (idempotente) + `migrate:rollback --step=3` (down reversible) + re-`migrate` → verde; dedupe probado con duplicados reales |
+| Runtime harness (1.16) | `DB_DATABASE=lotto_test_motor php artisan migrate:fresh --seed` → verde (21 juegos, ricachona inactiva); `juegos:export` regenera `docs/juegos.json` (21 juegos, contrato `premios`/`active`/`vendible`) |
+| Rollback boundary | `git revert` de los commits del slice F1c (migraciones, seeders, service, tests, docs/juegos.json) + `migrate:rollback --step=3`; nada de F1d tocado |
+
+## Commits (rama `feat/motor-premios-f1c-migraciones`)
+
+- 7ba158d feat(motor-premios): PremiosOficiales::configPara como fuente unica de premios y espejos legacy (1.16, D2/D4)
+- 30e9d5e feat(motor-premios): export con premios/active/vendible y 21 seeders alineados al catalogo (1.14-export/1.16, D10)
+- c15a2c0 feat(motor-premios): migraciones ganadora, backfill premios y dedupe de resultados (1.15, REQ7/REQ13/REQ14, D5/D6)
+- 12f39ff docs(sdd): marca F1c (1.14-export/1.15/1.16) y registra apply-progress del slice
+
+## Deviations (F1c)
+
+1. **`la-ricachona` sin `premio_multiplo`**: REQ7 la deja sin premios; el espejo legacy de base también se retira del config (export `premio_multiplo: null`). Design §7 solo decía "sin premios"; se interpreta que el multiplicador legacy (30, sin fuente) tampoco se publica.
+2. **Espejo legacy de `triple-chance`**: se alinea al vocabulario canónico (se retiran las claves legacy sin contraparte canónica `triple`, `aproximacion`, `terminal_a_b`, `terminal_a_o_b` del export; el reglamento §3.2 es la autoridad). `triple_a_o_b` 100→150 y `triple_c_signo` 5.000→6.000 (H23).
+3. **Espejo extra `terminal-activo`**: el catálogo canónico no define modalidades (el motor paga por base), pero el contrato histórico del export mostraba `{terminal: 60}`; se conserva vía `ESPEJO_EXTRA` con el valor derivado de `base` (no duplicado a mano).
+4. **`down` de 000002 no restaura los espejos legacy previos** (monje queda 50×, etc.): sigue el design §7 ("retira `premios` y reactiva ricachona"); el rollback deja la base actualizada, que es el contrato vigente del motor.
+5. **JuegosJsonTest**: asserts de arrays completos pasan a `assertEqualsCanonicalizing` (MySQL JSON reordena claves); el orden de claves JSON no es contrato.
+6. **`*ResultsTest` actualizados en F1c** (no en F1d): sus asserts de config validan los seeders; los flujos de liquidación legacy siguen intactos (call sites sin tocar, F1d).
+
+## Issues (F1c)
+
+- Ninguno funcional. Nota operativa: `docs/juegos.json` se regeneró contra `lotto_test_motor` sembrada (no contra la BD vacía tras el rollback de RefreshDatabase — primer intento escribió un catálogo vacío y se rehízo con `migrate:fresh --seed` + `juegos:export`).
+
+## Files Changed (F1b)
+
+| File | Acción | Qué |
+|------|--------|-----|
+| `backend/app/Plugins/Contracts/JuegoInterface.php` | Modificar (commit 1.4, bf90668) | +`evaluarAcierto`, `modalidadDe`, firma `validarApuesta(data,?opciones)` |
+| `backend/app/Plugins/Juegos/Animalitos.php` | Modificar (commit 1.5) | Acentos (H13/N10), comodines superset, `modalidadDe` |
+| `backend/app/Plugins/Juegos/Terminales.php` | Modificar (commit 1.6) | Clave `numero` + padding (N1/N9), `modalidadDe` |
+| `backend/app/Plugins/Juegos/Tripletas.php` | Modificar (commit 1.7) | Signo label/sigla, tipo estricto (N2/N3), `modalidadDe` |
+| `backend/app/Plugins/Scrapers/AnimalitosScraper.php` | Modificar (commit 1.8) | Mapper `patronus` (H14) |
+| `backend/app/Jobs/ScrapeResultsJob.php` | Modificar (commit 1.9, 3f72a00) | Guard `dedupeResultadosDelDia` (N6/D6-b) |
+| `backend/app/Plugins/Scrapers/BaseScraper.php` | Modificar (commit 1.9) | `saveResults` normaliza hora + `updateOrCreate` (D6-c) |
+| `backend/tests/Feature/ScrapeResultsJobTest.php` | Modificar (commit 1.9) | +3 tests dedupe (168 líneas) |
+| `backend/tests/Unit/BaseScraperHelpersTest.php` | Modificar (commit 1.9) | +2 tests normalización hora (53 líneas) |
+| `backend/app/Services/JuegoPluginManager.php` | Modificar (commit 1.10, 77f86dc) | `getMultiplicador`→engine (REQ1); `validarApuesta` con `juego_opciones` (REQ15/N12) |
+| `backend/tests/Unit/JuegoPluginManagerTest.php` | Crear (commit 1.10) | +7 tests del manager |
+| `openspec/changes/motor-premios/tasks.md` | Modificar | 1.4–1.10 marcadas `[x]` |
+
+## Work Unit Evidence (F1b)
+
+| Evidence | Valor |
+|---|---|
+| Focused test (1.9) | `php artisan test --filter='ScrapeResultsJobTest\|BaseScraperHelpersTest'` → passed: 16 tests, 39 assertions, 1 skip legacy |
+| Focused test (1.10) | `php artisan test --filter='JuegoPluginManagerTest'` → passed: 7/7 |
+| Focused completo slice | filter 1.4–1.10+F1a+ScraperResolver → passed: 133 tests, 351 assertions, 1 skip legacy |
+| Runtime harness | N/A — unidad de servicios/plugins sin frontera de runtime nueva (el flujo de red de scrapers se prueba vía Feature con fakes; la migración de call sites es F1d) |
+| Rollback boundary | `git revert` de los commits del slice F1b (3f72a00, 77f86dc) + revert de bf90668..7f8d317 (1.4–1.8) si se requiere; solo plugins/manager/job/tests; nada de F1c/F1d tocado |
+
+## Commits (rama `feat/motor-premios-f1b-plugins`)
+
+F1b (5 commits previos del slice, preservados):
+
+- bf90668 feat(motor-premios): JuegoInterface extiende contrato de adaptadores y motor activado (1.4, §3.3)
+- c0805da feat(motor-premios): plugin Animalitos con adaptador evaluarAcierto y acentos (1.5, H13/N10)
+- b0c3608 feat(motor-premios): plugin Terminales liquida contra clave numero con padding (1.6, N1/N9)
+- b5b9969 feat(motor-premios): plugin Tripletas con signo label/sigla y tipo estricto (1.7, N2/N3, REQ4/REQ5)
+- 7f8d317 feat(motor-premios): mapper patronus en AnimalitosScraper (1.8, H14)
+
+Este batch (2 commits nuevos):
+
+- 3f72a00 feat(motor-premios): dedupe del dia en job y normalizacion de hora en upsert (1.9, N6/D6)
+- 77f86dc feat(motor-premios): manager delega dinero en engine y valida con opciones reales (1.10, REQ15/N12/D1)
+
+## Deviations
+
+1. **1.9 tests llegaron escritos de un run interrumpido** (RED→GREEN ya resuelto en ese run): los verifiqué verdes (16/16) y commiteé. Sin cambios de diseño.
+2. **Sin tests legacy actualizados en F1b**: los `*ResultsTest` (regresión por juego) pasan por call sites legacy (`ApuestaService::createApuesta` → `$plugin->calcularPremio`) que NO se tocan hasta F1d (1.11–1.13). Su actualización con valores del reglamento (150/6.000, 40×, `active=false`) depende de los seeders de F1c, fuera de este slice. Design §8 lo confirma: "El resto de los `*ResultsTest` asserta campos legacy que se conservan".
+3. **`getMultiplicador` sin plugin**: antes devolvía 1; ahora devuelve `base` desde config (0 si no hay config). Ningún caller productivo usa este método (verificado por grep), solo el test nuevo. Es el contrato REQ1 (el multiplicador sale de config, no del plugin).
+
+## Issues
+
+- Ninguno funcional. Nota operativa: la BD `lotto_test` es compartida con el otro agente; en caso de colisión usar `DB_DATABASE=lotto_test_motor` (sin commitear .env). En este batch no hubo colisión.
+
+## Slice F1d (este batch: call sites + reglas + regresión; rama `feat/motor-premios-f1d-callsites`)
+
+> F1d completa la **Fase 1** del cambio: los call sites productivos dejan de usar el
+> plugin directo y pasan por el motor (REQ10/REQ12/REQ9), con guard de juego
+> inactivo (REQ7), reglas aditivas (D10) y regresión por juego (REQ16).
+
+### TDD Cycle Evidence (F1d)
+
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 1.11 | `tests/Unit/ApuestaServiceTest.php` (+3) | Unit (BD) | ✅ 18/18 previos | ✅ Escrito (inactivo no lanza; premio_posible 0→500) | ✅ 3/3 nuevos · 21/21 archivo | ✅ 3 casos: inactivo, base motor 500, modalidad declarada 2000 | ✅ Pint |
+| 1.12 | `tests/Feature/ApuestaTest.php` (+4) | Feature (RefreshDatabase) | ✅ 24/24 previos | ✅ Escrito (ganadora 422; legacy pendiente+resultado 422; monto 301 aceptado) | ✅ 4/4 nuevos | ✅ 4 casos: ganadora motor, legacy pendiente, pendiente sin resultado, monto≠motor | ✅ Pint |
+| 1.13 | `tests/Feature/TicketGanadoresTest.php` (nuevo, +3) | Feature (RefreshDatabase) | N/A (nuevo) | ✅ Escrito (0 ganadores; sin ganadora; MEGA 300 no 400) | ✅ 3/3 | ✅ 3 casos: filtro hora REQ9, estado ganadora, comodín MEGA 40× | ✅ Pint |
+| 1.14-reglas | `tests/Feature/JuegosJsonTest.php` (+1) | Feature (RefreshDatabase) | ✅ 3/3 previos | ✅ Escrito (campo `premios` ausente) | ✅ 4/4 archivo | ✅ monje (base 50, patronus 120/20) | ✅ Pint |
+| 1.17 | `tests/Feature/MotorPremiosRegresionTest.php` (nuevo, +30) | Feature (RefreshDatabase) | N/A (nuevo) | ✅ Escrito (30 casos por juego/comodín; verdes contra motor F1a) | ✅ 30/30 | ✅ 21 juegos + comodines (MEGA/Selva A+B/Guacharito/Guácharo/Patronus 140×) | ✅ Pint |
+
+### Test Summary (F1d)
+
+- Tests escritos en este batch: **11 nuevos** (3 + 4 + 3 + 1 + 30 → 41 métodos; 30 de regresión) · Pasando: todos
+- Focused del slice F1d:
+  `--filter='MotorPremiosRegresionTest|TicketGanadoresTest|ApuestaServiceTest|ApuestaTest|PagoTipoTest|JuegosJsonTest'`
+  → **passed: 78 tests, 903 assertions**
+- Regresión legacy completa: `--filter='ResultsTest|VerificacionOriginalesTest'` → **106/106 passed, 504 assertions**
+- F1a–F1d motor+plugins: `--filter='TextoTest|PremiosOficialesTest|PremiosEngineTest|AnimalitosPluginTest|TerminalesPluginTest|TripletasPluginTest|AnimalitosScraperTest|ScrapeResultsJobTest|BaseScraperHelpersTest|JuegoPluginManagerTest|ScraperResolverTest'` → **142 passed, 401 assertions, 1 skip legacy**
+- Feature relacionadas (jobs/caja/roles): **61/61 passed**
+- Pint: `--test` sobre los archivos del slice → passed (3 fixes aplicados: TicketController, TicketGanadoresTest, MotorPremiosRegresionTest)
+- BD: `lotto_test` colisionaba con el otro agente (tablas a medias); se usó `DB_DATABASE=lotto_test_motor` para toda la evidencia del slice.
+
+### Files Changed (F1d)
+
+| File | Acción | Qué |
+|------|--------|-----|
+| `backend/app/Services/ApuestaService.php` | Modificar | Guard REQ7 (juego inactivo o sin plugin → RuntimeException); `premio_posible` con `PremiosEngine::premioPosible` (D9), nunca 0 por resultados vacíos |
+| `backend/app/Http/Controllers/Api/PagoController.php` | Modificar | `calcularPremio` delega en el manager→motor (N11); estado pagable `['pendiente','ganadora']` (D5, REQ10) |
+| `backend/app/Http/Controllers/Api/TicketController.php` | Modificar | `ganadores`: `whereTime('sorteo_hora', hora)` + `whereIn(estado, pendiente\|ganadora)` + motor (N7, REQ9); multiplicador desde `getMultiplicador` |
+| `backend/app/Http/Controllers/Api/JuegoController.php` | Modificar | `reglas` +`premios` del motor aditivo (D10/§3.3) |
+| `backend/tests/Unit/ApuestaServiceTest.php` | Modificar | +3 tests createApuesta (guard inactivo, premio_posible motor, modalidad declarada) |
+| `backend/tests/Feature/ApuestaTest.php` | Modificar | +4 tests PagoController (ganadora, legacy pendiente+resultado, pendiente sin resultado, monto≠motor) |
+| `backend/tests/Feature/TicketGanadoresTest.php` | Crear | +3 tests ganadores (filtro hora REQ9, estado ganadora, comodín MEGA) |
+| `backend/tests/Feature/JuegosJsonTest.php` | Modificar | +1 test endpoint `reglas` expone `premios` (aditivo) |
+| `backend/tests/Feature/MotorPremiosRegresionTest.php` | Crear | +30 casos de regresión por juego/comodín (REQ16, design §8) |
+| `openspec/changes/motor-premios/tasks.md` | Modificar | 1.11–1.13, 1.14 (reglas) y 1.17 `[x]` — **Fase 1 completa** |
+
+### Work Unit Evidence (F1d)
+
+| Evidence | Valor |
+|---|---|
+| Focused test (1.11) | `--filter='ApuestaServiceTest'` → passed: 21/21 |
+| Focused test (1.12) | `--filter='ApuestaTest::test_pago'` → passed: 4/4; `ApuestaTest\|PagoTipoTest` 25/25 |
+| Focused test (1.13) | `--filter='TicketGanadoresTest'` → passed: 3/3 |
+| Focused test (1.14-reglas) | `--filter='JuegosJsonTest'` → passed: 4/4 (728 assertions) |
+| Focused test (1.17) | `--filter='MotorPremiosRegresionTest'` → passed: 30/30, 59 assertions |
+| Runtime harness | `--filter='ResultsTest\|VerificacionOriginalesTest'` (regresión legacy, design §8) → 106/106; job/caja/roles 61/61; F1a–F1d motor 142 passed |
+| Rollback boundary | `git revert` de los 5 commits del slice F1d (6f1733a..64606d2) retira service+controllers+tests sin tocar F1a–F1c ni Fase 2/3 |
+
+### Commits (rama `feat/motor-premios-f1d-callsites`, base `feat/motor-premios-f1c-migraciones`)
+
+- 6f1733a feat(motor-premios): guard de juego inactivo y premio_posible con motor en createApuesta (1.11, REQ7/REQ12, D9)
+- b613190 feat(motor-premios): PagoController valida contra el motor y acepta ganadora y legacy pendiente (1.12, REQ10/N11/D5)
+- a36903b feat(motor-premios): ganadores filtra por sorteo con whereTime y calcula con motor (1.13, REQ9/N7)
+- 6e33bed feat(motor-premios): reglas expone premios del motor de forma aditiva (1.14-reglas, D10)
+- 64606d2 feat(motor-premios): regresion por juego con motor, comodines, acentos y juego inactivo (1.17, REQ16)
+
+### Deviations (F1d)
+
+1. **Guard REQ7 incluye plugin nulo**: además de `active=false`, `createApuesta` rechaza juegos sin plugin activo (`getPlugin` null, p. ej. la-ricachona). El design §5 lo pedía explícito ("no vender si active=false/plugin inactivo"); sin esto, el premio_posible del motor tampoco tendría multiplicador que resolver.
+2. **PagoController estado pagable = `['pendiente','ganadora']`** (no solo `ganadora`+`pendiente` con resultado): la devolución (`tipo=devolucion`) de una `pendiente` sin resultado sigue permitida (PagoTipoTest existente); el egreso sin `resultado_id` se rechaza en la rama siguiente con su mensaje propio. D5 se cumple: `ganadora` aceptada y legacy `pendiente` con `resultado_id` aceptada para premios.
+3. **Multiplicador del payload de ganadores**: pasa de `plugin->obtenerMultiplicador()` (hardcode) a `getMultiplicador` (config base del motor). Campo con el MISMO nombre; solo cambia el valor de origen (REQ1).
+4. **El-Arrejuntado en regresión**: el plugin del juego es `Tripletas` (no Animalitos), así que el caso base evaluable es `triple_a` → 40× (la fila "animalito" del design §8 no es evaluable con el adaptador real; se cubre la misma clave `base` con triple_a).
+5. **Tests legacy `*ResultsTest`**: ya alineados en F1c (design §8: MegaAnimal40 comodines `tipo`, TripleChance 150/6.000, LotoChaima/ElArrejuntado 40, LaRicachona inactiva); en F1d no requirieron cambios adicionales — verificados 106/106 verdes.
+
+### Issues (F1d)
+
+- Ninguno funcional. Nota operativa: la BD compartida `lotto_test` quedó corrupta por el agente concurrente (tablas a medias en el primer intento); toda la evidencia del slice se corrió contra `lotto_test_motor`.
+
+## Remaining Tasks
+
+- [ ] Fase 3 (3.1–3.5: estados/vencimiento, `verificarGanadores` → `ganadora`, job de vencimiento, acumular premio_total)
+
+## Slice F2 (este batch: modalidades single-draw; rama `feat/motor-premios-f2-modalidades`, base `feat/motor-premios-f1d-callsites`)
+
+> F2 implementa las modalidades de UN solo sorteo (REQ11, D8, §3.1/§3.2/§3.4):
+> los plugins derivan la clave canónica (`modalidadDe`) y el motor liquida
+> same-draw con `selecciones[]` dentro de `combinacion` (sin tablas). La
+> Dupleta queda FUERA de alcance y un test la fija como rechazada.
+
+### TDD Cycle Evidence (F2)
+
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| 2.1 | `tests/Unit/TripletasPluginTest.php` (+5 tests modalidadDe) · `tests/Unit/AnimalitosPluginTest.php` (+2) | Unit | ✅ 124/124 baseline | ✅ Escrito (6 fallos: claves devolvían 'base') | ✅ 6/6 nuevos · 33/33 archivo | ✅ 5 claves §3.1 (triples, posiciones, con signo, arrimao/pegadito, selecciones) + dupleta nunca emitida + tripleta 3 selecciones + 2 selecciones→base | ✅ Pint |
+| 2.2 | `tests/Feature/ModalidadesSingleDrawTest.php` (nuevo, +15) | Feature (RefreshDatabase) | ✅ 124/124 baseline | ✅ Escrito (15 fallos: 14 modalidades → 0; dupleta premio_posible daba 300) | ✅ 21/21 (15 nuevos + 6 negativos) | ✅ Cruzado 3000/10, Par 200000/150, Tripleta 200/50, Arrimao 6000, Pegadito 60000, Terminal/Punta/Uña/Aprox 60/60/5/10, T+Z Zulia 600/Táchira 500, dupleta ×2 | ✅ Pint |
+
+### Test Summary (F2)
+
+- Tests escritos en este batch: **7 unit (2.1) + 15 feature (2.2)** · Pasando: todos
+- Focused del slice F2:
+  `--filter='ModalidadesSingleDrawTest|TripletasPluginTest|AnimalitosPluginTest|MotorPremiosRegresionTest'`
+  → **passed: 84 tests, 154 assertions**
+- Focused tras Pint: `--filter='ModalidadesSingleDrawTest|TripletasPluginTest|AnimalitosPluginTest|TerminalesPluginTest|PremiosEngineTest|MotorPremiosRegresionTest'` → **passed: 115 tests, 192 assertions**
+- Regresión del motor F1a–F1d + F2: `--filter='TextoTest|PremiosOficialesTest|PremiosEngineTest|AnimalitosPluginTest|TerminalesPluginTest|TripletasPluginTest|AnimalitosScraperTest|ScrapeResultsJobTest|BaseScraperHelpersTest|JuegoPluginManagerTest|ScraperResolverTest|JuegosJsonTest|TicketGanadoresTest|ApuestaServiceTest|ApuestaTest|PagoTipoTest'` → **passed: 197 tests, 1260 assertions, 1 skip legacy**
+- Regresión legacy: `--filter='ResultsTest|VerificacionOriginalesTest'` → **106/106 passed, 504 assertions**
+- BD: `DB_DATABASE=lotto_test_motor` para toda la evidencia (la `lotto_test` compartida quedó corrupta por el agente concurrente; `.env` sin cambios).
+
+### Files Changed (F2)
+
+| File | Acción | Qué |
+|------|--------|-----|
+| `backend/app/Plugins/Juegos/Tripletas.php` | Modificar | `modalidadDe` deriva todo el vocabulario §3.1 (triples secos → `triple_a`/`triple_b`, posiciones, con signo, arrimao/pegadito, `selecciones[]` → `triple_a_b`/`cruzado`); `evaluarAcierto` ampliado a terminal/punta/uña/aproximación/signo_terminal/signo_uña/signo_solo/arrimao/pegadito y multi-selección same-draw; el triple seco emite la clave del tipo apostado |
+| `backend/app/Plugins/Juegos/Animalitos.php` | Modificar | `modalidadDe`/`evaluarAcierto` con Tripleta (3 `selecciones[]` contra `numeros_ganadores.figuras[]`, acentos normalizados); Dupleta (2 selecciones) nunca se emite |
+| `backend/app/Services/PremiosEngine.php` | Modificar | `premioPosible` rechaza la modalidad DECLARADA no soportada por el juego (0): Dupleta fuera de alcance (D8); las claves derivadas conservan fallback a base |
+| `backend/tests/Unit/TripletasPluginTest.php` | Modificar | +5 tests `modalidadDe` (claves §3.1, selecciones, dupleta nunca emitida); ajuste: triple seco emite `triple_b` (no `base`) |
+| `backend/tests/Unit/AnimalitosPluginTest.php` | Modificar | +2 tests `modalidadDe` (tripleta 3 selecciones; 2 selecciones → base) |
+| `backend/tests/Feature/ModalidadesSingleDrawTest.php` | Crear | +21 tests (15 de comportamiento + 6 negativos) de liquidación single-draw por el camino manager→engine con juegos desde `PremiosOficiales::configPara` |
+| `backend/tests/Feature/MotorPremiosRegresionTest.php` | Modificar | el-arrejuntado `triple_a` 40× → **600×** (la clave canónica del tipo apostado activa `triple_a:600` de §3.2; la regresión F1d había aproximado 40× por la clave `base`) |
+| `openspec/changes/motor-premios/tasks.md` | Modificar | 2.1–2.2 `[x]` — **Fase 2 completa** |
+
+### Work Unit Evidence (F2)
+
+| Evidence | Valor |
+|---|---|
+| Focused test (2.1) | `--filter='TripletasPluginTest\|AnimalitosPluginTest'` → RED 27/33 (6 fallos) → GREEN 33/33 tras el plugin |
+| Focused test (2.2) | `--filter='ModalidadesSingleDrawTest'` → RED 6/21 (15 fallos) → GREEN 21/21 tras motor+plugins |
+| Focused completo slice | `--filter='ModalidadesSingleDrawTest\|TripletasPluginTest\|AnimalitosPluginTest\|TerminalesPluginTest\|PremiosEngineTest\|MotorPremiosRegresionTest'` → passed: 115 tests, 192 assertions |
+| Runtime harness | Regresión del motor F1a–F1d + F2 → 197 passed (1 skip legacy); legacy `ResultsTest` → 106/106; Pint `--test` sobre los 7 archivos del slice → passed |
+| Rollback boundary | `git revert` de los 2 commits del slice F2 (89f7f4c, 09f0a40) retira plugins+engine+test sin tocar F1a–F1d ni Fase 3; el cambio de `premio_posible` (rechazo de modalidades declaradas) es el único punto con efecto en call sites, reversible con el mismo revert |
+
+### Commits (rama `feat/motor-premios-f2-modalidades`, base `feat/motor-premios-f1d-callsites`)
+
+- 89f7f4c feat(motor-premios): plugins derivan la clave canonica de modalidad del vocabulario §3.1 (2.1, REQ11)
+- 09f0a40 feat(motor-premios): motor liquida modalidades single-draw y rechaza dupleta (2.2, REQ11/D8/§3.2)
+- (docs) docs(sdd): marca F2 (2.1-2.2) y registra apply-progress del slice
+
+### Deviations (F2)
+
+1. **Triple seco emite la clave del tipo apostado (`triple_a`/`triple_b`), no `base`**: corrige la aproximación de F1d (deviation #4, que cubría "la misma clave base" con triple_a a 40×). §3.2 configura `triple_a:600`/`triple_b:600` para el-arrejuntado; el motor ahora lee esa modalidad (600×) y en los demás juegos de tripletas cae al base por fallback (`?? base`) sin cambio de valor. Tests actualizados: `TripletasPluginTest` (clave `triple_b`) y `MotorPremiosRegresionTest::test_el_arrejuntado_triple_a_paga_600x`.
+2. **Terminal/Punta/Uña se comparan contra CUALQUIER triple del sorteo (A, B o C)**: los scrapers no persisten claves `terminal`/`punta`/`uña` (solo `triple_a/b/c`); la posición se deriva matemáticamente (2 últimas / 2 primeras / última cifra) y el acierto ocurre si la posición coincide en cualquiera de los triples del resultado. El `signo_terminal`/`signo_uña` usan el `triple_c` como referencia (el que viaja con el signo del sorteo).
+3. **Terminal+Zodiacal Táchira 500× por fallback a base**: §3.2 NO configura `signo_terminal` para triple-tachira (solo `terminal:50`, `signo_triple:5000`); REQ11 menciona la modalidad para Táchira pero sin valor propio en la tabla → el motor resuelve `?? base` = 500× (reglamento). Si el reglamento exige otro valor, agregarlo al catálogo en `PremiosOficiales` + seeder + JuegosJsonTest (fuera de este slice).
+4. **Tripleta se liquida contra `numeros_ganadores.figuras[]`**: los scrapers actuales de Cazalotón/Loto Chaima persisten UNA figura por sorteo (`nombre_animal`); el contrato de liquidación de Tripleta (3 figuras) queda definido y testeado con el shape `figuras[]`, pero la persistencia de las 3 figuras por los scrapers queda fuera de alcance (F1 cerrada; se documenta como trabajo futuro cuando la fuente provea el shape).
+5. **`premioPosible` rechaza modalidad DECLARADA no soportada**: antes devolvía `modalidades[clave] ?? base`; ahora una clave declarada (p. ej. `dupleta`) que no existe en `premios.modalidades` (ni es `base`) devuelve 0. Las claves DERIVADAS por el plugin conservan el fallback a base. Efecto colateral esperado: un front que envíe claves legacy ('cola', 'zodiacal') obtendría 0 — el contrato de Fase 2 es el vocabulario canónico (D8).
+
+### Issues (F2)
+
+- Ninguno funcional. Nota operativa: la BD compartida `lotto_test` sigue corrupta por el agente concurrente; toda la evidencia se corrió contra `lotto_test_motor` (sin commitear `.env`).
+
+## Status
+
+**19/19 tareas del cambio completadas (Fase 1 + Fase 2)**. F2: plugins derivan el vocabulario canónico §3.1 y el motor liquida las modalidades single-draw con `selecciones[]` same-draw; la Dupleta queda rechazada (premio_posible y liquidación en 0). Pendiente: Fase 3 (estados/vencimiento, `verificarGanadores` → `ganadora`, job de vencimiento, acumular `premio_total`).
+
+Session: ses_f4f7a75d2ffe1V5gJLiamGKc4I · Project: lotto-app · Scope: project

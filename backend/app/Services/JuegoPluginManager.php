@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Juego;
+use App\Models\JuegoOpcion;
 use App\Models\PluginJuego;
 use App\Plugins\Contracts\JuegoInterface;
 use Illuminate\Support\Facades\Log;
@@ -63,17 +64,29 @@ class JuegoPluginManager
             return false;
         }
 
-        return $plugin->validarApuesta($data);
-    }
+        // REQ15/N12: se valida contra las opciones reales del juego
+        // (juego_opciones, zoo propio), no contra el mapa canónico del
+        // plugin. Mismo contrato que ApuestaService::createApuesta.
+        $opciones = JuegoOpcion::where('juego_id', $juego->id)
+            ->orderBy('numero')
+            ->get()
+            ->toArray();
 
-    public function calcularPremio(Juego $juego, array $apuesta, array $resultados): array
-    {
-        $plugin = $this->getPlugin($juego);
-        if (! $plugin) {
-            return ['premio_bs' => 0, 'premio_usd' => 0];
+        if (empty($opciones)) {
+            $opciones = $plugin->obtenerOpciones();
         }
 
-        return $plugin->calcularPremio($apuesta, $resultados);
+        return $plugin->validarApuesta($data, $opciones);
+    }
+
+    /**
+     * El dinero lo decide PremiosEngine (D1/C, REQ1): la forma del acierto
+     * llega vía `evaluarAcierto` del plugin y el multiplicador desde
+     * `config.premios`. Sin circularidad: el engine solo llama `getPlugin`.
+     */
+    public function calcularPremio(Juego $juego, array $apuesta, array $resultados): array
+    {
+        return (new PremiosEngine($this))->calcular($juego, $apuesta, $resultados);
     }
 
     public function getOpciones(Juego $juego): array
@@ -108,11 +121,9 @@ class JuegoPluginManager
 
     public function getMultiplicador(Juego $juego): float
     {
-        $plugin = $this->getPlugin($juego);
-        if (! $plugin) {
-            return 1;
-        }
-
-        return $plugin->obtenerMultiplicador();
+        // REQ1: el multiplicador sale de config.premios vía PremiosEngine
+        // (clave base), nunca de una constante del plugin. Sin circularidad:
+        // el engine solo llama getPlugin().
+        return (new PremiosEngine($this))->multiplicadorPara($juego, 'base');
     }
 }

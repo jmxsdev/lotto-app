@@ -10,6 +10,7 @@ use App\Models\JuegoOpcion;
 use App\Models\PluginJuego;
 use App\Plugins\Juegos\Animalitos;
 use App\Plugins\Scrapers\LotoChaimaScraper;
+use App\Support\PremiosOficiales;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -17,14 +18,12 @@ class LotoChaimaSeeder extends Seeder
 {
     public function run(): void
     {
-        $juego = Juego::firstOrCreate(
+        $juego = Juego::updateOrCreate(
             ['slug' => 'loto-chaima'],
             [
                 'name' => 'Loto Chaima',
                 'type' => 'animalitos',
-                'config' => [
-                    'premio_multiplo' => 30,
-                ],
+                'config' => PremiosOficiales::configPara('loto-chaima'),
                 'requires_scraper' => true,
                 'scraper_url' => 'https://api.lotterly.co/v1/results/loto-chaima/',
                 'scraper_class' => LotoChaimaScraper::class,

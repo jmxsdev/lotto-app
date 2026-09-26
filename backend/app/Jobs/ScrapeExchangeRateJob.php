@@ -25,18 +25,8 @@ class ScrapeExchangeRateJob implements ShouldQueue
         Log::info('=== INICIO ScrapeExchangeRateJob ===');
 
         try {
-            // 1. Cliente HTTP
-            $client = new Client([
-                'timeout' => 30,
-                'verify' => false,
-                'headers' => [
-                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
-                ],
-            ]);
-
-            // 2. Obtener HTML del BCV
-            $response = $client->get('https://www.bcv.org.ve/');
-            $html = (string) $response->getBody();
+            // 1-2. Obtener HTML del BCV (fetch separado para testear sin red)
+            $html = $this->fetchHtml();
             Log::info('HTML obtenido, longitud: '.strlen($html));
 
             // 3. Parsear HTML
@@ -66,8 +56,21 @@ class ScrapeExchangeRateJob implements ShouldQueue
             $rate = floatval(str_replace(',', '.', str_replace('.', '', $rateText)));
             Log::info('Tasa parseada: '.$rate);
 
-            // 5. Guardar la tasa como activa (desactiva la anterior)
+            // 5. Guarda de idempotencia: si la tasa parseada iguala la activa,
+            // NO se inserta fila nueva (el BCV publica una tasa por día hábil;
+            // insertar cada hora llenaría la tabla de duplicados). La columna es
+            // decimal(10,4), así que se compara redondeando a 4 decimales (el
+            // float crudo de 8 decimales daría falsos "distintos"). Sin tasa
+            // activa previa → inserta.
             if ($rate > 0) {
+                $activa = ExchangeRate::where('is_active', true)->latest('reference_date')->first();
+
+                if ($activa !== null && round($rate, 4) === round((float) $activa->rate, 4)) {
+                    Log::info('Tasa sin cambios ('.$rate.'): se omite el INSERT; la fila activa se conserva.');
+
+                    return;
+                }
+
                 DB::beginTransaction();
                 try {
                     ExchangeRate::where('is_active', true)->update(['is_active' => false]);
@@ -97,5 +100,25 @@ class ScrapeExchangeRateJob implements ShouldQueue
         }
 
         Log::info('=== FIN ScrapeExchangeRateJob ===');
+    }
+
+    /**
+     * Fetch del HTML del BCV. Aislado en su propio método para que los tests
+     * puedan sobreescribirlo con un doble (fixtures) sin red, manteniendo el
+     * job encolable (un Client por constructor no serializa en la cola).
+     */
+    protected function fetchHtml(): string
+    {
+        $client = new Client([
+            'timeout' => 30,
+            'verify' => false,
+            'headers' => [
+                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
+            ],
+        ]);
+
+        $response = $client->get('https://www.bcv.org.ve/');
+
+        return (string) $response->getBody();
     }
 }

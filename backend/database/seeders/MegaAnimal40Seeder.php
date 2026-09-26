@@ -9,6 +9,7 @@ use App\Models\JuegoLimite;
 use App\Models\PluginJuego;
 use App\Plugins\Juegos\Animalitos;
 use App\Plugins\Scrapers\MegaAnimal40OficialScraper;
+use App\Support\PremiosOficiales;
 use Illuminate\Database\Seeder;
 
 class MegaAnimal40Seeder extends Seeder
@@ -36,12 +37,7 @@ class MegaAnimal40Seeder extends Seeder
             [
                 'name' => 'Mega Animal 40',
                 'type' => 'animalitos',
-                'config' => [
-                    'premio_multiplo' => 30,
-                    'comodines' => [
-                        'mega' => ['nombre' => 'MEGA', 'premio_multiplo' => 40],
-                    ],
-                ],
+                'config' => PremiosOficiales::configPara('mega-animal-40'),
                 'requires_scraper' => true,
                 'scraper_url' => 'https://megaanimal40.com/',
                 'scraper_class' => MegaAnimal40OficialScraper::class,

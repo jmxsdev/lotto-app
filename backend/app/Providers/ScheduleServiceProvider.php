@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Jobs\ScrapeExchangeRateJob;
 use App\Jobs\ScrapeSourceJob;
 use App\Models\JuegoHorario;
 use App\Services\ScraperSourceResolver;
@@ -15,11 +16,26 @@ class ScheduleServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
-        if (! Schema::hasTable('juegos')) {
+        if (! $this->app->runningInConsole()) {
             return;
         }
 
-        if (! $this->app->runningInConsole()) {
+        // Ventana de scrape de la tasa BCV: cada hora de 06:00 a 21:00 INCLUSIVE
+        // (16 corridas/día) EN HORA LOCAL (America/Caracas). dailyAt() interpreta
+        // la zona horaria de la app, así que NO se convierte a UTC (regla H21:
+        // convertir correría el job 4 horas tarde). El mutex deriva del NOMBRE
+        // (CallbackEvent), por eso cada hora tiene su propio candado.
+        // Registrada ANTES del guard de la tabla `juegos`: la ventana no depende
+        // de esa tabla y así `schedule:list` la muestra aunque la BD esté vacía
+        // o el API aún esté migrando (el contenedor scheduler no migra).
+        foreach (range(6, 21) as $hora) {
+            Schedule::job(new ScrapeExchangeRateJob)
+                ->dailyAt(sprintf('%02d:00', $hora))
+                ->name(sprintf('scrape_tasa_bcv_%02d:00', $hora))
+                ->withoutOverlapping(5);
+        }
+
+        if (! Schema::hasTable('juegos')) {
             return;
         }
 

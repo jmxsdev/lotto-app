@@ -9,21 +9,22 @@ use App\Models\JuegoLimite;
 use App\Models\PluginJuego;
 use App\Plugins\Juegos\Animalitos;
 use App\Plugins\Scrapers\LaGranjitaScraper;
+use App\Support\PremiosOficiales;
 use Illuminate\Database\Seeder;
 
 class LaGranjitaSeeder extends Seeder
 {
     public function run(): void
     {
-        $juego = Juego::firstOrCreate(
+        $juego = Juego::updateOrCreate(
             ['slug' => 'la-granjita'],
             [
                 'name' => 'La Granjita',
                 'type' => 'animalitos',
-                'config' => [
-                    'premio_multiplo' => 30,
-                    'scraper' => ['product_id' => '1'],
-                ],
+                'config' => array_merge(
+                    PremiosOficiales::configPara('la-granjita'),
+                    ['scraper' => ['product_id' => '1']]
+                ),
                 'requires_scraper' => true,
                 'scraper_url' => 'https://www.lagranjita.com/api/results.json?productId=1',
                 'scraper_class' => LaGranjitaScraper::class,

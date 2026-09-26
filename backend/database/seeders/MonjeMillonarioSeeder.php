@@ -9,6 +9,7 @@ use App\Models\JuegoLimite;
 use App\Models\JuegoOpcion;
 use App\Models\PluginJuego;
 use App\Plugins\Juegos\Animalitos;
+use App\Support\PremiosOficiales;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -62,7 +63,7 @@ class MonjeMillonarioSeeder extends Seeder
             [
                 'name' => 'Monje Millonario',
                 'type' => 'animalitos',
-                'config' => ['premio_multiplo' => 30],
+                'config' => PremiosOficiales::configPara('monje-millonario'),
                 'requires_scraper' => true,
                 'scraper_url' => 'https://www.lottoactivo.com/resultados/animalitos/',
                 'active' => true,

@@ -231,6 +231,19 @@ export function siglaDeSigno(juego: JuegoCatalogo, label: string): string | null
 }
 
 /**
+ * Label del signo zodiacal por su sigla (value), inverso de siglaDeSigno: el
+ * ticket impreso muestra el nombre ("Sagitario"), no la sigla ("SAG"), para
+ * que el jugador lo lea sin ambigüedad. null si no es zodiacal o no existe.
+ */
+export function labelDeSigno(juego: JuegoCatalogo, sigla: string): string | null {
+  if (juego.familia !== 'zodiacal') return null;
+  const objetivo = String(sigla ?? '').trim().toUpperCase();
+  if (!objetivo) return null;
+  const opcion = juego.opciones.find((o) => o.value.toUpperCase() === objetivo);
+  return opcion ? opcion.label : null;
+}
+
+/**
  * Número de tripleta numérica normalizado a 3 dígitos (win-fixes2 FIX D):
  * trio-activo/triple-facil ofrecen 100 opciones 00-99 pero el plugin
  * Tripletas valida `^\d{3}$` (Tripletas.php:36-47). La selección de 1-3

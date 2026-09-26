@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\ScrapeExchangeRateJob;
 use App\Jobs\ScrapeSourceJob;
 use App\Models\Juego;
 use App\Models\User;
@@ -33,8 +34,15 @@ class ResultadoControllerScrapeAllTest extends TestCase
     {
         Bus::fake();
 
-        $juegosConScraper = Juego::where('requires_scraper', true)->count();
-        $fuentes = app(ScraperSourceResolver::class)->sources();
+        // El endpoint opera sobre juegos ACTIVOS (`scrapeAll` filtra active).
+        // El seed incluye juegos `requires_scraper` inactivos (La Ricachona,
+        // REQ7): sus fuentes no entran en la consolidación despachada.
+        $juegosActivos = Juego::where('requires_scraper', true)->where('active', true)->pluck('id')->all();
+        $juegosConScraper = count($juegosActivos);
+        $fuentes = collect(app(ScraperSourceResolver::class)->sources())
+            ->filter(fn ($fuente) => array_intersect($fuente->juegoIds, $juegosActivos) !== [])
+            ->values()
+            ->all();
 
         $this->assertGreaterThan(
             count($fuentes),
@@ -54,6 +62,7 @@ class ResultadoControllerScrapeAllTest extends TestCase
         ]);
 
         Bus::assertDispatched(ScrapeSourceJob::class, count($fuentes));
+        Bus::assertNotDispatched(ScrapeExchangeRateJob::class);
 
         $resultados = $response->json('resultados');
         $this->assertCount($juegosConScraper, $resultados, 'La respuesta sigue desglosada por juego (shape intacto).');

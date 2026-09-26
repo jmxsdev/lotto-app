@@ -510,4 +510,108 @@ class ApuestaServiceTest extends TestCase
         $this->assertFalse($result['valid']);
         $this->assertStringContainsString('mixtas', $result['message']);
     }
+
+    // ============================================
+    // F1d 1.11 — createApuesta: guard inactivo (REQ7) + premio_posible con motor (REQ12/D9)
+    // ============================================
+
+    public function test_create_apuesta_rechaza_juego_inactivo()
+    {
+        // REQ7: la-ricachona (active=false, sin fuente oficial) no se vende.
+        $user = User::where('email', 'super@lotto.com')->first();
+
+        ExchangeRate::create([
+            'rate' => 36.50,
+            'base_currency' => 'USD',
+            'reference_date' => now(),
+            'set_by' => $user->id,
+            'is_active' => true,
+        ]);
+
+        $juego = Juego::where('slug', 'la-ricachona')->first();
+        $this->assertNotNull($juego);
+        $this->assertFalse($juego->active, 'la-ricachona debe estar inactiva (REQ7).');
+
+        $taquilla = Taquilla::factory()->create();
+        $service = new ApuestaService;
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageMatches('/inactivo|disponible/i');
+
+        $service->createApuesta([
+            'juego_id' => $juego->id,
+            'combinacion' => ['tipo' => 'triple_a', 'numero' => '123'],
+            'amount_bs' => 10,
+            'amount_usd' => 0,
+        ], $taquilla->id, $user->id);
+    }
+
+    public function test_create_apuesta_calcula_premio_posible_con_motor()
+    {
+        // REQ12/D9: premio_posible = monto × multiplicador de la modalidad
+        // (monje base 50×) desde config.premios vía PremiosEngine — nunca 0
+        // por resultados vacíos.
+        $user = User::where('email', 'super@lotto.com')->first();
+
+        ExchangeRate::create([
+            'rate' => 36.50,
+            'base_currency' => 'USD',
+            'reference_date' => now(),
+            'set_by' => $user->id,
+            'is_active' => true,
+        ]);
+
+        $juego = Juego::where('slug', 'monje-millonario')->first();
+        $this->assertNotNull($juego);
+        $this->assertSame(50, $juego->config['premios']['base']);
+
+        $taquilla = Taquilla::factory()->create();
+        $service = new ApuestaService;
+
+        $apuesta = $service->createApuesta([
+            'juego_id' => $juego->id,
+            'combinacion' => ['animal' => 'Tucán', 'numero' => 42],
+            'amount_bs' => 10,
+            'amount_usd' => 0,
+        ], $taquilla->id, $user->id);
+
+        $detalle = $apuesta->detalles()->first();
+        $this->assertNotNull($detalle);
+        $this->assertSame('500.00', $detalle->premio_posible, '10 Bs × 50× = 500 Bs (motor, no 0).');
+        $this->assertSame('0.00', $detalle->premio_posible_usd);
+    }
+
+    public function test_create_apuesta_premio_posible_usa_modalidad_declarada()
+    {
+        // REQ12/D9: si la combinacion declara `modalidad`, esa clave gana
+        // sobre la base (cazaloton: tripleta 200×, no base 30×).
+        $user = User::where('email', 'super@lotto.com')->first();
+
+        ExchangeRate::create([
+            'rate' => 36.50,
+            'base_currency' => 'USD',
+            'reference_date' => now(),
+            'set_by' => $user->id,
+            'is_active' => true,
+        ]);
+
+        $juego = Juego::where('slug', 'cazaloton')->first();
+        $this->assertNotNull($juego);
+        $this->assertSame(30, $juego->config['premios']['base']);
+        $this->assertSame(200, $juego->config['premios']['modalidades']['tripleta']);
+
+        $taquilla = Taquilla::factory()->create();
+        $service = new ApuestaService;
+
+        $apuesta = $service->createApuesta([
+            'juego_id' => $juego->id,
+            'combinacion' => ['modalidad' => 'tripleta', 'animal' => 'Perro', 'numero' => 27],
+            'amount_bs' => 10,
+            'amount_usd' => 0,
+        ], $taquilla->id, $user->id);
+
+        $detalle = $apuesta->detalles()->first();
+        $this->assertNotNull($detalle);
+        $this->assertSame('2000.00', $detalle->premio_posible, '10 Bs × 200× (tripleta) = 2000 Bs.');
+    }
 }

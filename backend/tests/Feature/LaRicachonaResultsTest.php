@@ -42,11 +42,14 @@ class LaRicachonaResultsTest extends TestCase
         $this->assertTrue($juego->requires_scraper);
         $this->assertEquals('https://laricachona.com/', $juego->scraper_url);
         $this->assertEquals(LaRicachonaScraper::class, $juego->scraper_class);
-        $this->assertEquals(30, $juego->config['premio_multiplo']);
+        // REQ7: sin fuente oficial → inactiva, sin premios ni multiplicador.
+        $this->assertFalse($juego->active, 'la-ricachona debe quedar inactiva (REQ7).');
+        $this->assertArrayNotHasKey('premios', $juego->config);
+        $this->assertArrayNotHasKey('premio_multiplo', $juego->config);
         $this->assertEquals(['triple_a'], $juego->config['modalidades_permitidas']);
     }
 
-    public function test_seeder_registra_limite_default_y_plugin(): void
+    public function test_seeder_registra_limite_default_y_plugin_inactivo(): void
     {
         $juego = Juego::where('slug', 'la-ricachona')->first();
 
@@ -54,9 +57,11 @@ class LaRicachonaResultsTest extends TestCase
         $this->assertNotNull($limite);
         $this->assertEquals(3600, (int) $limite->limite_minimo);
 
-        $plugin = PluginJuego::where('juego_id', $juego->id)->where('active', true)->first();
+        // El plugin existe pero queda INACTIVO (REQ7): no se vende ni se liquida.
+        $plugin = PluginJuego::where('juego_id', $juego->id)->first();
         $this->assertNotNull($plugin);
         $this->assertEquals(Tripletas::class, $plugin->class_namespace);
+        $this->assertFalse($plugin->active, 'El plugin de la-ricachona debe quedar inactivo.');
     }
 
     public function test_seeder_registra_los_doce_horarios_de_sorteo(): void

@@ -10,6 +10,7 @@ use App\Models\JuegoOpcion;
 use App\Models\PluginJuego;
 use App\Plugins\Juegos\Tripletas;
 use App\Plugins\Scrapers\TripleTachiraScraper;
+use App\Support\PremiosOficiales;
 use Illuminate\Database\Seeder;
 
 class TripleTachiraSeeder extends Seeder
@@ -34,13 +35,7 @@ class TripleTachiraSeeder extends Seeder
             [
                 'name' => 'Triple Táchira',
                 'type' => 'tripletas',
-                'config' => [
-                    'premio_multiplo' => 500,
-                    'modalidades' => [
-                        'cola' => 50,
-                        'zodiacal' => 5000,
-                    ],
-                ],
+                'config' => PremiosOficiales::configPara('triple-tachira'),
                 'requires_scraper' => true,
                 'scraper_url' => 'https://tripletachira.com/pruebah.php',
                 'scraper_class' => TripleTachiraScraper::class,

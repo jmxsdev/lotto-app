@@ -9,6 +9,7 @@ use App\Models\JuegoLimite;
 use App\Models\JuegoOpcion;
 use App\Models\PluginJuego;
 use App\Plugins\Juegos\Animalitos;
+use App\Support\PremiosOficiales;
 use Illuminate\Database\Seeder;
 
 class JuegoAnimalitosSeeder extends Seeder
@@ -56,12 +57,12 @@ class JuegoAnimalitosSeeder extends Seeder
 
     public function run(): void
     {
-        $juego = Juego::firstOrCreate(
+        $juego = Juego::updateOrCreate(
             ['slug' => 'lotto-activo'],
             [
                 'name' => 'Lotto Activo',
                 'type' => 'animalitos',
-                'config' => ['premio_multiplo' => 30],
+                'config' => PremiosOficiales::configPara('lotto-activo'),
                 'requires_scraper' => true,
                 'scraper_url' => 'https://www.lottoactivo.com/resultados/animalitos/',
                 'active' => true,

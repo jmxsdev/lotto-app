@@ -42,7 +42,10 @@ class ElArrejuntadoResultsTest extends TestCase
         $this->assertTrue($juego->requires_scraper);
         $this->assertEquals('https://backend.serviciosintegradostriple7.com/api/v1/products/el-arrejuntao/results/', $juego->scraper_url);
         $this->assertEquals(ElArrejuntaoScraper::class, $juego->scraper_class);
-        $this->assertEquals(30, $juego->config['premio_multiplo']);
+        // Base 40× según el reglamento (spec §3.2: 30→40).
+        $this->assertEquals(40, $juego->config['premio_multiplo']);
+        $this->assertEquals(40, $juego->config['premios']['base']);
+        $this->assertEquals(6000, $juego->config['premios']['modalidades']['arrimao']);
     }
 
     public function test_seeder_registra_limite_default_y_plugin_tripletas(): void

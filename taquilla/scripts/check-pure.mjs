@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * Harness [Lin] del módulo puro catalogo.ts — PR1 (REQ-CL-01..03, A5).
- * Crece en PR2 (grafos de zonas) y PR3b (calcularVuelto).
+ * Crece en PR2 (grafos de zonas), PR3b (calcularVuelto) y atajos-2026-09
+ * (re-mapeo del KEYMAP + helpers de la anulación F10).
  *
  * Ejecutar desde la raíz del repo:
  *   node taquilla/scripts/check-pure.mjs
@@ -20,9 +21,18 @@ import {
   signoPorPosicion,
   normalizarNumeroTriple,
   siglaDeSigno,
+  labelDeSigno,
 } from '../src/utils/catalogo.ts';
 import { buildZoneGraph, routeKey, KEYMAP, esFKey, zonaHorizontal, zonaPendienteSeleccion } from '../src/utils/keyboard.ts';
-import { destinoNav, NAV_GLOBAL, teclasLegend } from '../src/utils/keyboard.ts';
+import {
+  destinoNav,
+  NAV_GLOBAL,
+  teclasLegend,
+  ATAJOS_EXTRA,
+  normalizarSerial,
+  serialCoincide,
+  ultimoTicketPendiente,
+} from '../src/utils/keyboard.ts';
 import {
   alternarHorario,
   marcarTodosVisibles,
@@ -36,6 +46,7 @@ import {
 } from '../src/utils/horarios.ts';
 import { calcularVuelto } from '../src/utils/vuelto.ts';
 import { indiceDestinoFila, indiceDestinoColumna } from '../src/utils/gridNav.ts';
+import { formatearJugada, nombresJuegos, labelModalidad } from '../src/utils/ticket.ts';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const rutaJson = join(AQUI, '..', 'src', 'data', 'juegos.json');
@@ -264,6 +275,7 @@ const est = (parcial) => ({
   repeat: false,
   ctrlKey: false,
   shiftKey: false,
+  altKey: false,
   focoEditable: false,
   zonaActual: 'juegos',
   modalAbierto: false,
@@ -271,45 +283,78 @@ const est = (parcial) => ({
   columnMode: 'juegos',
   tieneLineas: false,
   tieneHistorial: false,
+  itemResumenSeleccionado: false,
   seleccionEnCurso: false,
   ...parcial,
 });
-let r = routeKey(est({ tecla: 'F5', tieneLineas: true }));
-ok(r.consume && r.tipo === 'f-key' && r.ejecutable === true, 'F5 con líneas → consume, ejecutable');
-r = routeKey(est({ tecla: 'F5', tieneLineas: false }));
-ok(r.consume && r.tipo === 'f-key' && r.ejecutable === false, 'F5 sin líneas → consume (preventDefault) pero NO ejecuta');
+let r = routeKey(est({ tecla: 'F4', tieneLineas: true }));
+ok(r.consume && r.tipo === 'f-key' && r.ejecutable === true, 'F4 con líneas → consume, ejecutable (pagar/generar)');
+r = routeKey(est({ tecla: 'F4', tieneLineas: false }));
+ok(r.consume && r.tipo === 'f-key' && r.ejecutable === false, 'F4 sin líneas → consume (preventDefault) pero NO ejecuta');
+r = routeKey(est({ tecla: 'F11', tieneLineas: false }));
+ok(r.consume && r.ejecutable === true, 'F11 sin líneas → ejecutable (limpia la selección en curso)');
+r = routeKey(est({ tecla: 'F11', tieneLineas: true }));
+ok(r.consume && r.ejecutable === true, 'F11 con líneas → ejecutable');
 r = routeKey(est({ tecla: 'F2', tieneLineas: false }));
-ok(r.consume && r.ejecutable === true, 'F2 sin líneas → ejecutable (limpia la selección en curso, win-fixes2 FIX C)');
-r = routeKey(est({ tecla: 'F2', tieneLineas: true }));
-ok(r.consume && r.ejecutable === true, 'F2 con líneas → ejecutable');
-r = routeKey(est({ tecla: 'F6', tieneLineas: false }));
-ok(r.consume && r.ejecutable === false, 'F6 sin líneas → guarda bloquea');
+ok(r.consume && r.tipo === 'f-key' && r.accion === 'ir-numero' && r.ejecutable === true, 'F2 → f-key «ir-numero» ejecutable (atajos-2026-09)');
+r = routeKey(est({ tecla: 'F10' }));
+ok(r.consume && r.tipo === 'f-key' && r.accion === 'anular-ticket' && r.ejecutable === true, 'F10 → f-key «anular-ticket» ejecutable (sin guarda de líneas)');
+r = routeKey(est({ tecla: 'F1', tieneHistorial: false }));
+ok(r.consume && r.ejecutable === false, 'F1 sin historial → guarda bloquea (repetir última)');
+r = routeKey(est({ tecla: 'F1', tieneHistorial: true }));
+ok(r.consume && r.tipo === 'f-key' && r.ejecutable === true, 'F1 con historial → ejecutable');
 r = routeKey(est({ tecla: 'F3', tieneHistorial: false }));
-ok(r.consume && r.ejecutable === false, 'F3 sin historial → guarda bloquea');
-r = routeKey(est({ tecla: 'F4', tieneHistorial: true }));
-ok(r.consume && r.ejecutable === true, 'F4 con historial → ejecutable');
-r = routeKey(est({ tecla: 'F11' }));
-ok(r.consume && r.tipo === 'f-key' && r.accion === 'ir-numero' && r.ejecutable === true, 'F11 → f-key «ir-numero» ejecutable (win-fixes3, ya no libre)');
-r = routeKey(est({ tecla: 'F5', repeat: true, tieneLineas: true }));
-ok(!r.consume, 'F5 con e.repeat → se ignora (A1)');
-r = routeKey(est({ tecla: 'F5', focoEditable: true, tieneLineas: true }));
-ok(r.consume && r.tipo === 'f-key' && r.ejecutable, 'F5 en INPUT → sí se intercepta (única excepción F-key)');
+ok(r.consume && r.ejecutable === false, 'F3 sin historial → guarda bloquea (eliminar última)');
+r = routeKey(est({ tecla: 'F4', repeat: true, tieneLineas: true }));
+ok(!r.consume, 'F4 con e.repeat → se ignora (A1)');
+r = routeKey(est({ tecla: 'F4', focoEditable: true, tieneLineas: true }));
+ok(r.consume && r.tipo === 'f-key' && r.ejecutable, 'F4 en INPUT → sí se intercepta (única excepción F-key)');
 
 console.log('\n== A1: routeKey — guarda de modal (REQ-KB-08) ==');
 r = routeKey(est({ modalAbierto: true, tecla: 'F2', tieneLineas: true }));
 ok(!r.consume, 'modal abierto + F2 → pasa (no ejecuta, KB-08)');
-r = routeKey(est({ modalAbierto: true, tecla: 'F5', tieneLineas: true }));
-ok(!r.consume, 'modal abierto + F5 → pasa');
+r = routeKey(est({ modalAbierto: true, tecla: 'F4', tieneLineas: true }));
+ok(!r.consume, 'modal abierto + F4 → pasa');
 r = routeKey(est({ modalAbierto: true, tecla: 'Escape' }));
 ok(r.consume && r.tipo === 'escape' && r.nivel === 'modal', 'modal abierto + Esc → cierra modal');
-r = routeKey(est({ modalAbierto: true, modalPropio: 'f1', tecla: 'F1' }));
-ok(r.consume && r.tipo === 'toggle-modal' && r.modal === 'f1', 'modal ayuda + F1 → toggle propio');
-r = routeKey(est({ modalAbierto: true, modalPropio: 'f9', tecla: 'F9' }));
-ok(r.consume && r.tipo === 'toggle-modal' && r.modal === 'f9', 'modal vuelto + F9 → toggle propio');
+r = routeKey(est({ modalAbierto: true, modalPropio: 'ayuda', altKey: true, tecla: 'h' }));
+ok(
+  r.consume && r.tipo === 'toggle-modal' && r.modal === 'ayuda' && r.ejecutable === true,
+  'modal ayuda + Alt+H → toggle propio (atajos-2026-09)',
+);
+r = routeKey(est({ modalAbierto: true, modalPropio: 'vuelto', tecla: 'F12' }));
+ok(
+  r.consume && r.tipo === 'toggle-modal' && r.modal === 'vuelto' && r.ejecutable === true,
+  'modal vuelto + F12 → toggle propio',
+);
 r = routeKey(est({ modalAbierto: true, modalPropio: null, tecla: 'F1' }));
 ok(!r.consume, 'modal genérico + F1 → pasa (sin toggle propio)');
 r = routeKey(est({ modalAbierto: true, tecla: 'Tab' }));
 ok(!r.consume, 'modal abierto + Tab → pasa');
+
+console.log('\n== atajos-2026-09: Alt+H = ayuda (toggle + guarda A12) ==');
+r = routeKey(est({ altKey: true, tecla: 'h' }));
+ok(
+  r.consume && r.tipo === 'toggle-modal' && r.modal === 'ayuda' && r.ejecutable === true,
+  'Alt+H sin modal → toggle del modal de ayuda',
+);
+r = routeKey(est({ altKey: true, tecla: 'h', modalAbierto: true, modalPropio: 'ayuda' }));
+ok(r.consume && r.ejecutable === true, 'Alt+H con ayuda abierta → cierra (toggle propio)');
+r = routeKey(est({ altKey: true, tecla: 'h', modalAbierto: true, modalPropio: 'vuelto' }));
+ok(
+  r.consume && r.tipo === 'toggle-modal' && r.modal === 'ayuda' && r.ejecutable === false,
+  'Alt+H con vuelto abierto → consume pero NO abre ayuda (A12)',
+);
+r = routeKey(est({ altKey: true, tecla: 'h', modalAbierto: true, modalPropio: null }));
+ok(r.consume && r.ejecutable === false, 'Alt+H con modal genérico → consume sin abrir ayuda (A12)');
+r = routeKey(est({ altKey: true, tecla: 'h', repeat: true }));
+ok(!r.consume, 'Alt+H con e.repeat → no re-dispara el toggle');
+r = routeKey(est({ altKey: true, tecla: 'h', focoEditable: true }));
+ok(r.consume && r.ejecutable === true, 'Alt+H en INPUT → abre ayuda (como el viejo F1)');
+r = routeKey(est({ altKey: true, tecla: 'H' }));
+ok(r.consume && r.ejecutable === true, 'Alt+Shift+H (mayúscula) → también toggles ayuda');
+r = routeKey(est({ altKey: true, ctrlKey: true, tecla: 'h' }));
+ok(!r.consume && r.tipo === 'pasar', 'Ctrl+Alt+H NO toggles ayuda (pasa, AltGr)');
 
 console.log('\n== A1: routeKey — inputs no se secuestran, navegación ==');
 r = routeKey(est({ focoEditable: true, tecla: 'a' }));
@@ -342,6 +387,20 @@ r = routeKey(est({ tecla: 'Enter' }));
 ok(!r.consume, 'Enter en zona → pasa (semántica de toggle en PR3a)');
 r = routeKey(est({ tecla: 'x' }));
 ok(!r.consume, 'tecla no mapeada → pasa');
+
+console.log('\n== atajos-2026-09: Backspace = eliminar-item (era F6) ==');
+r = routeKey(est({ tecla: 'Backspace', zonaActual: 'resumen', itemResumenSeleccionado: true, tieneLineas: true }));
+ok(r.consume && r.tipo === 'eliminar-item', 'Backspace en Resumen con fila enfocada → eliminar-item');
+r = routeKey(est({ tecla: 'Backspace', zonaActual: 'resumen', itemResumenSeleccionado: false, tieneLineas: true }));
+ok(!r.consume, 'Backspace en Resumen sin fila enfocada → pasa');
+r = routeKey(est({ tecla: 'Backspace', zonaActual: 'resumen', itemResumenSeleccionado: true, tieneLineas: false }));
+ok(!r.consume, 'Backspace sin líneas → pasa (guarda «lineas»)');
+r = routeKey(est({ tecla: 'Backspace', zonaActual: 'juegos', itemResumenSeleccionado: true, tieneLineas: true }));
+ok(!r.consume, 'Backspace fuera del Resumen → pasa');
+r = routeKey(est({ tecla: 'Backspace', zonaActual: 'resumen', itemResumenSeleccionado: true, tieneLineas: true, focoEditable: true }));
+ok(!r.consume, 'Backspace en INPUT → pasa (se sigue escribiendo normal)');
+r = routeKey(est({ tecla: 'Backspace', zonaActual: 'resumen', itemResumenSeleccionado: true, tieneLineas: true, modalAbierto: true }));
+ok(!r.consume, 'Backspace con modal abierto → pasa (guarda KB-08)');
 
 console.log('\n== PR3a: routeKey — marcar todos (KB-05) ==');
 r = routeKey(est({ ctrlKey: true, tecla: 'a', columnMode: 'horarios' }));
@@ -418,41 +477,48 @@ ok(
 );
 ok(JSON.stringify(agruparPorGroupId([])) === JSON.stringify([]), 'sin líneas → sin grupos');
 
-console.log('\n== REQ-KB-07: KEYMAP F1–F12 ==');
+console.log('\n== atajos-2026-09: KEYMAP F1–F12 ==');
 ok(KEYMAP.length === 12, `KEYMAP: 12 teclas (${KEYMAP.length})`);
 ok(esFKey('F1') && esFKey('F12') && esFKey('F9'), 'esFKey F1/F12/F9 → true');
-ok(!esFKey('F13') && !esFKey('f1') && !esFKey('Enter'), 'esFKey no-F → false');
-ok(KEYMAP.find((k) => k.tecla === 'F11').accion === 'ir-numero', 'F11 asignado: accion «ir-numero» (win-fixes3)');
+ok(!esFKey('F13') && !esFKey('f1') && !esFKey('Enter') && !esFKey('Backspace'), 'esFKey no-F → false');
+const accionDe = (tecla) => KEYMAP.find((k) => k.tecla === tecla)?.accion;
+ok(
+  accionDe('F1') === 'repetir-ultima' && accionDe('F2') === 'ir-numero' &&
+    accionDe('F3') === 'anular-ultima' && accionDe('F4') === 'pagar-generar',
+  'F1–F4: repetir/números/eliminar-última/pagar',
+);
+ok(
+  accionDe('F5') === 'ventas' && accionDe('F6') === 'resultados' &&
+    accionDe('F7') === 'ganadores' && accionDe('F8') === 'cuadre',
+  'F5–F8: navegación global (ventas/resultados/ganadores/cuadre)',
+);
+ok(
+  accionDe('F9') === 'reimprimir' && accionDe('F10') === 'anular-ticket' &&
+    accionDe('F11') === 'limpiar' && accionDe('F12') === 'vuelto',
+  'F9–F12: locales del dashboard (reimprimir/anular-ticket/limpiar/vuelto)',
+);
 const acciones = KEYMAP.map((k) => k.accion).filter(Boolean);
 ok(acciones.length === 12, `12 acciones mapeadas (F1–F12 completos, ${acciones.length})`);
+ok(KEYMAP.every((k) => k.implementadaEn === 'atajos-2026-09'), 'todo el KEYMAP marcado como batch «atajos-2026-09»');
+ok(KEYMAP.find((k) => k.tecla === 'F2')?.nombre === 'Números', 'F2 → «Números» en el KEYMAP');
+ok(!KEYMAP.some((k) => k.accion === 'ayuda'), '«ayuda» ya no es F-key: pasa al combo Alt+H');
 ok(
-  KEYMAP.filter((k) => k.implementadaEn === 'PR3b').map((k) => k.tecla).join(',') === 'F1,F2,F3,F4,F5,F6,F9,F12',
-  'PR3b mantiene las acciones locales del dashboard (F1-F6, F9, F12)',
+  KEYMAP.filter((k) => k.guarda === 'lineas').map((k) => k.tecla).join(',') === 'F4',
+  'guarda de líneas: solo F4 (pagar/generar)',
 );
 ok(
-  KEYMAP.filter((k) => k.implementadaEn === 'win-fixes').map((k) => k.tecla).join(',') === 'F7,F8,F10',
-  'win-fixes mueve F7/F8/F10 a la navegación global (MainLayout, FIX-6)',
+  KEYMAP.filter((k) => k.guarda === 'historial').map((k) => k.tecla).join(',') === 'F1,F3',
+  'guarda de historial: F1/F3 (repetir/eliminar última)',
 );
-ok(
-  KEYMAP.filter((k) => k.implementadaEn === 'win-fixes3').map((k) => k.tecla).join(',') === 'F11',
-  'win-fixes3 asigna F11 «Números» (salto directo al input)',
-);
-ok(
-  KEYMAP.filter((k) => k.guarda === 'lineas').map((k) => k.tecla).join(',') === 'F5,F6',
-  'guardas de estado: F5/F6 requieren líneas (F2 ya no, win-fixes2 FIX C)',
-);
-ok(
-  KEYMAP.filter((k) => k.guarda === 'historial').map((k) => k.tecla).join(',') === 'F3,F4',
-  'guardas de estado: F3/F4 requieren historial (A11)',
-);
+ok(KEYMAP.filter((k) => k.guarda === 'ninguno').length === 9, 'sin guarda: 9 teclas (F2, F5–F12)');
 
-console.log('\n== win-fixes2 FIX C: F2 «Limpiar todo» (reset total) ==');
-const f2 = KEYMAP.find((k) => k.tecla === 'F2');
-ok(f2.nombre === 'Limpiar todo', `F2 nombre → «Limpiar todo» (${f2.nombre})`);
-ok(f2.guarda === 'ninguno', 'F2 sin guarda de líneas (se ejecuta con selección en curso)');
-ok(teclasLegend().find((t) => t.tecla === 'F2')?.nombre === 'Limpiar todo', 'leyenda refleja «Limpiar todo»');
-r = routeKey(est({ tecla: 'F2', tieneLineas: false, seleccionEnCurso: true }));
-ok(r.consume && r.tipo === 'f-key' && r.ejecutable === true, 'F2 con selección en curso y 0 líneas → ejecuta (limpia todo)');
+console.log('\n== atajos-2026-09: F11 «Limpiar todo» (reset total, ex F2) ==');
+const f11 = KEYMAP.find((k) => k.tecla === 'F11');
+ok(f11.nombre === 'Limpiar todo', `F11 nombre → «Limpiar todo» (${f11.nombre})`);
+ok(f11.guarda === 'ninguno', 'F11 sin guarda de líneas (se ejecuta con selección en curso)');
+ok(teclasLegend().find((t) => t.tecla === 'F11')?.nombre === 'Limpiar todo', 'leyenda refleja «Limpiar todo»');
+r = routeKey(est({ tecla: 'F11', tieneLineas: false, seleccionEnCurso: true }));
+ok(r.consume && r.tipo === 'f-key' && r.ejecutable === true, 'F11 con selección en curso y 0 líneas → ejecuta (limpia todo)');
 
 console.log('\n== PR3b: calcularVuelto (A12, REQ-KB-07 F9) ==');
 const cerca = (a, b) => Math.abs(a - b) < 1e-9;
@@ -488,7 +554,7 @@ ok(v.ok === false && v.motivo === 'tasa-no-disponible', 'USD con tasa negativa �
 v = calcularVuelto({ totalBs: 100, recibido: 120, moneda: 'bs', tasa: null });
 ok(v.ok === true && cerca(v.vueltoBs, 20) && v.vueltoUsd === null, 'Bs sin tasa → calcula en Bs (sin equivalente $)');
 
-console.log('\n== PR3b: F6 selección del resumen tras eliminar (KB-07) ==');
+console.log('\n== Backspace (era F6): selección del resumen tras eliminar (KB-07) ==');
 ok(indiceSeleccionTrasEliminar(1, 0) === null, '1 grupo, elimino el único → sin selección (null)');
 ok(indiceSeleccionTrasEliminar(2, 0) === 0, '2 grupos, elimino el 1º → queda la fila en índice 0');
 ok(indiceSeleccionTrasEliminar(2, 1) === 0, '2 grupos, elimino el último → selecciona la 1ª restante (0)');
@@ -643,26 +709,36 @@ ok(siglaDeSigno(catalogo.porSlug.get('triple-zulia'), 'Inexistente') === null, '
 ok(siglaDeSigno(lottoActivo, 'Perro') === null, 'familia no zodiacal → null');
 ok(catalogo.porSlug.get('triple-zulia').opciones.every((o) => /^[A-Z]{3}$/.test(o.value)), 'valores zodiacales: siglas de 3 letras mayúsculas');
 
-console.log('\n== win-fixes FIX-6: navegación global F7/F8/F10 y Alt+D ==');
-ok(NAV_GLOBAL.length === 4, `NAV_GLOBAL: 4 destinos (${NAV_GLOBAL.length})`);
-ok(NAV_GLOBAL.find((n) => n.tecla === 'F7')?.ruta === '/historial', 'F7 → /historial');
+console.log('\n== atajos-2026-09: navegación global F5–F8 y Alt+D ==');
+ok(NAV_GLOBAL.length === 5, `NAV_GLOBAL: 5 destinos (${NAV_GLOBAL.length})`);
+ok(NAV_GLOBAL.find((n) => n.tecla === 'F5')?.ruta === '/historial', 'F5 → /historial');
+ok(NAV_GLOBAL.find((n) => n.tecla === 'F6')?.ruta === '/resultados', 'F6 → /resultados');
+ok(NAV_GLOBAL.find((n) => n.tecla === 'F7')?.ruta === '/ganadores', 'F7 → /ganadores');
 ok(NAV_GLOBAL.find((n) => n.tecla === 'F8')?.ruta === '/cierre', 'F8 → /cierre');
-ok(NAV_GLOBAL.find((n) => n.tecla === 'F10')?.ruta === '/resultados', 'F10 → /resultados');
 ok(NAV_GLOBAL.find((n) => n.tecla === 'Alt+D')?.ruta === '/dashboard', 'Alt+D → /dashboard');
-ok(destinoNav('F7', { altKey: false, ctrlKey: false })?.ruta === '/historial', 'destinoNav F7 → /historial');
+ok(destinoNav('F5', { altKey: false, ctrlKey: false })?.ruta === '/historial', 'destinoNav F5 → /historial');
+ok(destinoNav('F6', { altKey: false, ctrlKey: false })?.ruta === '/resultados', 'destinoNav F6 → /resultados');
+ok(destinoNav('F7', { altKey: false, ctrlKey: false })?.ruta === '/ganadores', 'destinoNav F7 → /ganadores');
 ok(destinoNav('F8', { altKey: false, ctrlKey: false })?.ruta === '/cierre', 'destinoNav F8 → /cierre');
-ok(destinoNav('F10', { altKey: false, ctrlKey: false })?.ruta === '/resultados', 'destinoNav F10 → /resultados');
 ok(destinoNav('d', { altKey: true, ctrlKey: false })?.ruta === '/dashboard', 'destinoNav Alt+D → /dashboard');
 ok(destinoNav('D', { altKey: true, ctrlKey: false })?.ruta === '/dashboard', 'destinoNav Alt+Shift+D (mayúscula) → /dashboard');
 ok(destinoNav('d', { altKey: false, ctrlKey: false }) === null, 'd sin Alt → sin destino');
 ok(destinoNav('d', { altKey: true, ctrlKey: true }) === null, 'Ctrl+Alt+d (AltGr) → sin destino');
-ok(destinoNav('F11', { altKey: false, ctrlKey: false }) === null, 'F11 → sin destino (no navega; es local del dashboard)');
+ok(destinoNav('F10', { altKey: false, ctrlKey: false }) === null, 'F10 → sin destino (local: anular ticket)');
+ok(destinoNav('F9', { altKey: false, ctrlKey: false }) === null, 'F9 → sin destino (local: reimprimir)');
+ok(destinoNav('F12', { altKey: false, ctrlKey: false }) === null, 'F12 → sin destino (local: vuelto)');
 ok(destinoNav('x', { altKey: false, ctrlKey: false }) === null, 'tecla no navegable → null');
 const legend = teclasLegend();
-ok(legend.length === 13, `teclasLegend: 13 teclas (F1–F12 + Alt+D) (${legend.length})`);
+ok(legend.length === 14, `teclasLegend: 14 teclas (F1–F12 + Alt+D + Alt+H) (${legend.length})`);
 ok(legend.some((t) => t.tecla === 'Alt+D' && t.nombre === 'Dashboard'), 'teclasLegend incluye Alt+D → Dashboard');
-ok(legend.find((t) => t.tecla === 'F11')?.nombre === 'Números', 'F11 → «Números» en la leyenda (win-fixes3)');
-ok(legend.find((t) => t.tecla === 'F7')?.nombre === 'Ventas', 'F7 → Ventas en la leyenda');
+ok(legend.some((t) => t.tecla === 'Alt+H' && t.nombre === 'Ayuda'), 'teclasLegend incluye Alt+H → Ayuda (era F1)');
+ok(legend.find((t) => t.tecla === 'F1')?.nombre === 'Repetir última', 'F1 → Repetir última en la leyenda');
+ok(legend.find((t) => t.tecla === 'F2')?.nombre === 'Números', 'F2 → Números en la leyenda');
+ok(legend.find((t) => t.tecla === 'F4')?.nombre === 'Pagar / Generar', 'F4 → Pagar / Generar en la leyenda');
+ok(legend.find((t) => t.tecla === 'F10')?.nombre === 'Anular ticket', 'F10 → Anular ticket en la leyenda');
+ok(legend.find((t) => t.tecla === 'F11')?.nombre === 'Limpiar todo', 'F11 → Limpiar todo en la leyenda');
+ok(legend.some((t) => t.nombre === 'Números'), 'la leyenda lista «Números» (F2 recupera ir-numero)');
+ok(ATAJOS_EXTRA.length === 1 && ATAJOS_EXTRA[0].tecla === 'Alt+H' && ATAJOS_EXTRA[0].nombre === 'Ayuda', 'ATAJOS_EXTRA: solo Alt+H → Ayuda');
 
 console.log('\n== Logos de juegos (feat/taquilla-logos-juegos) ==');
 // Artefacto estático del dashboard: mapa slug → archivo generado desde
@@ -717,6 +793,58 @@ ok(
   opcionesNoAnimal.every((o) => o.icono === undefined || o.icono === null),
   'familias no animal: sin icono (sanitizarOpcion descarta null/vacío)',
 );
+);
+
+console.log('\n== Ticket impreso (formato multi-juego, 2026-09) ==');
+ok(formatearJugada({ tipo: 'animalitos', animal: 'Perro', numero: '14' }) === 'Perro #14', 'animalitos: «Animal #N°»');
+ok(formatearJugada({ tipo: 'terminales', numero: '05' }) === '#05', 'terminal: solo el número (sin duplicar)');
+ok(formatearJugada({ tipo: 'tripletas', numero: '157', modalidad: 'Triple C', signo: 'Sagitario' }) === 'Triple C #157 Sagitario', 'tripleta zodiacal: modalidad + número + signo');
+ok(formatearJugada({ tipo: 'tripletas', numero: '005', modalidad: 'Triple A' }) === 'Triple A #005', 'tripleta numérica: modalidad + número');
+ok(formatearJugada({ tipo: 'animalitos', animal: null, numero: null }) === '-', 'sin datos → «-»');
+ok(labelModalidad('triple_b') === 'Triple B' && labelModalidad('triple_c') === 'Triple C', 'labelModalidad: códigos conocidos');
+ok(labelModalidad(null) === null && labelModalidad('otro') === null, 'labelModalidad: desconocidos → null');
+const juegosTicket = nombresJuegos([{ game: 'Triple Zulia' }, { game: 'Lotto Activo' }, { game: 'Triple Zulia' }, { game: '  ' }]);
+ok(juegosTicket.length === 2 && juegosTicket[0] === 'Triple Zulia' && juegosTicket[1] === 'Lotto Activo', 'nombresJuegos: únicos en orden de aparición');
+ok(labelDeSigno(catalogo.porSlug.get('triple-zulia'), 'SAG') === 'Sagitario', 'labelDeSigno: SAG → Sagitario');
+ok(labelDeSigno(catalogo.porSlug.get('triple-zulia'), 'sag') === 'Sagitario', 'labelDeSigno: case-insensitive');
+ok(labelDeSigno(catalogo.porSlug.get('triple-zulia'), 'XXX') === null, 'labelDeSigno: sigla inexistente → null');
+ok(labelDeSigno(lottoActivo, 'SAG') === null, 'labelDeSigno: familia no zodiacal → null');
+
+console.log('\n== atajos-2026-09: anulación F10 (serial + último pendiente) ==');
+ok(normalizarSerial('  tkt-000123 ') === 'TKT-000123', 'normalizarSerial: trim + mayúsculas');
+ok(normalizarSerial('tkt-000123') === 'TKT-000123', 'normalizarSerial: mayúsculas sin espacios');
+ok(normalizarSerial('') === '', 'normalizarSerial: vacío → vacío');
+ok(serialCoincide('tkt-000123', 'TKT-000123'), 'serialCoincide: ignora mayúsculas');
+ok(serialCoincide('  TKT-000123  ', 'TKT-000123'), 'serialCoincide: recorta extremos del tecleado');
+ok(!serialCoincide('TKT-000124', 'TKT-000123'), 'serialCoincide: serial distinto → false (anti-tecleo)');
+ok(!serialCoincide('TKT-000123', null), 'serialCoincide: ticket_code nulo → false');
+ok(!serialCoincide('TKT-000123', undefined), 'serialCoincide: ticket_code ausente → false');
+ok(!serialCoincide('', ''), 'serialCoincide: vacío vs vacío → false (sin código no hay match)');
+const ticketsApi = [
+  { id: 3, estado: 'anulada', ticket_code: 'T3', created_at: '2026-09-26T12:00:00Z' },
+  { id: 2, estado: 'pendiente', ticket_code: 'T2', created_at: '2026-09-26T11:00:00Z' },
+  { id: 1, estado: 'pendiente', ticket_code: 'T1', created_at: '2026-09-26T10:00:00Z' },
+  { id: 4, estado: 'pendiente', ticket_code: 'T4', created_at: '2026-09-26T09:00:00Z' },
+];
+ok(ultimoTicketPendiente(ticketsApi)?.ticket_code === 'T2', 'ultimoTicketPendiente: pendiente más reciente (T2)');
+ok(ultimoTicketPendiente(ticketsApi.filter((t) => t.estado !== 'pendiente')) === null, 'sin pendientes → null');
+ok(ultimoTicketPendiente([]) === null, 'lista vacía → null');
+ok(
+  ultimoTicketPendiente([
+    { id: 10, estado: 'pendiente', created_at: '2026-09-26T10:00:00Z' },
+    { id: 12, estado: 'pendiente', created_at: '2026-09-26T10:00:00Z' },
+  ]).id === 12,
+  'empate de created_at → desempate por id descendente',
+);
+ok(
+  ultimoTicketPendiente([
+    { id: 7, estado: 'pendiente' },
+    { id: 9, estado: 'pendiente' },
+  ]).id === 9,
+  'created_at ausente → id descendente',
+);
+ok(ultimoTicketPendiente([{ id: 5, estado: 'pendiente', created_at: 'fecha-inválida' }]).id === 5, 'created_at inválido → cae al id');
+ok(ticketsApi.length === 4 && ticketsApi[0].id === 3, 'ultimoTicketPendiente no muta la lista original');
 
 console.log(`\n${checks} checks, ${fallos} fallos`);
 process.exit(fallos === 0 ? 0 : 1);

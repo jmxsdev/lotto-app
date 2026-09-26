@@ -9,6 +9,9 @@ class Configuracion extends Model
 {
     use HasFactory;
 
+    /** La tabla es `configuraciones` (plural irregular español). */
+    protected $table = 'configuraciones';
+
     protected $fillable = [
         'key', 'value', 'description', 'banca_id',
     ];

@@ -9,6 +9,7 @@ use App\Models\Resultado;
 use App\Models\Ticket;
 use App\Services\ApuestaService;
 use App\Services\JuegoPluginManager;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -263,10 +264,16 @@ class TicketController extends Controller
         $pluginManager = app(JuegoPluginManager::class);
 
         foreach ($resultados as $resultado) {
+            $horaSorteo = $resultado->hora_sorteo;
+            if ($horaSorteo && preg_match('/AM|PM/i', $horaSorteo)) {
+                $horaSorteo = Carbon::createFromFormat('h:i A', trim($horaSorteo))->format('H:i:s');
+            }
+
             $apuestasQuery = Apuesta::with(['ticket', 'juego'])
                 ->where('juego_id', $resultado->juego_id)
-                ->where('estado', 'pendiente')
-                ->whereDate('sorteo_hora', $fecha);
+                ->whereIn('estado', ['pendiente', 'ganadora'])
+                ->whereDate('sorteo_hora', $fecha)
+                ->whereTime('sorteo_hora', $horaSorteo);
 
             if ($user->role === 'taquilla') {
                 $apuestasQuery->where('taquilla_id', $user->taquilla_id);
@@ -278,20 +285,19 @@ class TicketController extends Controller
 
             $apuestas = $apuestasQuery->get();
 
-            $plugin = $pluginManager->getPlugin($resultado->juego);
-
             foreach ($apuestas as $apuesta) {
                 $combinacion = $apuesta->combinacion;
                 if (is_string($combinacion)) {
                     $combinacion = json_decode($combinacion, true);
                 }
 
-                $premio = $plugin
-                    ? $plugin->calcularPremio(
-                        ['combinacion' => $combinacion ?? [], 'amount_bs' => (float) $apuesta->amount_bs, 'amount_usd' => (float) $apuesta->amount_usd],
-                        ['numeros_ganadores' => $resultado->numeros_ganadores]
-                    )
-                    : ['premio_bs' => 0, 'premio_usd' => 0];
+                // N7/REQ1: el premio lo decide el MOTOR (manager → PremiosEngine),
+                // nunca el plugin directo (no normaliza acentos ni aplica comodines).
+                $premio = $pluginManager->calcularPremio(
+                    $resultado->juego,
+                    ['combinacion' => $combinacion ?? [], 'amount_bs' => (float) $apuesta->amount_bs, 'amount_usd' => (float) $apuesta->amount_usd],
+                    ['numeros_ganadores' => $resultado->numeros_ganadores]
+                );
 
                 if (($premio['premio_bs'] ?? 0) > 0 || ($premio['premio_usd'] ?? 0) > 0) {
                     $ticketCode = $apuesta->ticket?->ticket_code ?? $apuesta->ticket_code;
@@ -322,7 +328,7 @@ class TicketController extends Controller
                         'sorteo_hora' => $apuesta->sorteo_hora?->format('Y-m-d H:i:s'),
                         'premio_bs' => $premio['premio_bs'] ?? 0,
                         'premio_usd' => $premio['premio_usd'] ?? 0,
-                        'multiplicador' => $plugin ? $plugin->obtenerMultiplicador() : 0,
+                        'multiplicador' => $pluginManager->getMultiplicador($resultado->juego),
                         'estado' => $apuesta->estado,
                     ];
                 }

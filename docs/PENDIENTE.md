@@ -37,3 +37,33 @@
 - Actualizar collection con los cambios de rutas de juegos
 - Agregar request para `PUT /api/juegos/{juego}`
 - Agregar request para `GET /api/juegos/{juego}/auditoria` (cuando exista)
+
+## Pendientes post motor-premios (2026-09-26)
+
+> Registrados al mergear `feat/motor-premios-f3-estados` a `main`. Referencias: `docs/integracion-front-motor-premios.md`, `docs/motor-premios.md`.
+
+### A. Tickets sin ganadores ("perdidos")
+
+- Un ticket cuyas apuestas perdieron todas **queda en `pendiente` para siempre**: no existe estado "perdedor" de ticket (ni en main ni tras el merge).
+- Front (taquilla/panel): mostrar "perdida" derivando de `GET /tickets` (ya trae `apuestas.estado` + `ganadoras_count`/`tiene_ganadores`); o mini-WU backend que exponga `resuelto`/`estado_display`.
+
+### B. Pago de premios de la taquilla (ROTO tambien en main)
+
+- Payload actual de la taquilla: `{ apuesta_id, amount_bs, amount_usd, tipo:'bs' }` — invalido (el enum es `ingreso|egreso|devolucion`). Fix: `{ apuesta_id, tipo:'egreso', moneda }` (montos OPCIONALES: el backend aplica el premio del motor). Ver `docs/integracion-front-motor-premios.md` seccion 1.3.
+- Ademas, con el motor mergeado las ganadoras quedan en `ganadora`: el flujo de pago debe aceptar ese estado.
+
+### C. Apuestas sin resultado (matching)
+
+- El matching exige juego + fecha + **HORA EXACTA** del sorteo. Tras el merge, `MarcarApuestasVencidasJob` vence a las 24h con catch-up previo; si se confirman mismatches de hora (taquilla vs proveedor), evaluar tolerancia en el matching.
+
+### D. Limites (gaps de panel/API)
+
+- Sin DELETE para limpiar/volver a heredar un limite; la UI habilita a `grupo` pero la API responde 403; filtro `agencia_id` inexistente en `juego_limites`; `LimitesTable.astro` muerto; nav `/limites` solo para super_master.
+
+### E. Comisiones (CICLO APARTE — decision 2026-09-26)
+
+- Hoy no existe nada operativo (ver `docs/integracion-front-motor-premios.md` seccion 5). Decision de producto pendiente: significado (H1/H2/H3) y donde se edita (defaults por juego + override por entidad en la matriz de limites).
+
+### F. Menor
+
+- `figuras[]` de Tripleta: los scrapers aun no la persisten (2a sugerencia del verify-report).
