@@ -1,0 +1,30 @@
+---
+import { ICONOS } from '../../data/iconos.js';
+
+interface Props {
+  /** Nombre Lucide del icono (clave del mapa generado, p. ej. 'trash-2'). */
+  name: string;
+  /** Tamaño en píxeles (por defecto 24, el viewBox de Lucide). */
+  size?: number;
+  /**
+   * Etiqueta accesible. Si se omite, el icono se trata como decorativo
+   * (aria-hidden="true"); si se provee, se renderiza role="img" con aria-label.
+   */
+  ariaLabel?: string;
+}
+
+const { name, size = 24, ariaLabel } = Astro.props;
+const svg = (ICONOS[name] ?? '').replace('width="24" height="24"', `width="${size}" height="${size}"`);
+const accesible = Boolean(ariaLabel);
+---
+
+{
+  svg && accesible && (
+    <span set:html={svg} role="img" aria-label={ariaLabel} />
+  )
+}
+{
+  svg && !accesible && (
+    <span set:html={svg} aria-hidden="true" />
+  )
+}
