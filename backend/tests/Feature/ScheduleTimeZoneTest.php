@@ -7,6 +7,7 @@ use App\Models\JuegoHorario;
 use App\Providers\ScheduleServiceProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schedule;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class ScheduleTimeZoneTest extends TestCase
@@ -199,5 +200,59 @@ class ScheduleTimeZoneTest extends TestCase
 
         $this->assertNotNull($evento, 'El cierre de día debe estar registrado en la agenda.');
         $this->assertSame('45 23 * * *', $evento->expression, 'El cierre de día debe correr a las 23:45.');
+    }
+
+    /**
+     * La ventana del scrape de tasa BCV (06:00–21:00 inclusive, 16 corridas/día)
+     * debe registrarse EN HORA LOCAL (America/Caracas). Assert por NOMBRE y no por
+     * conteos: el provider se auto-registra al boot de la app y el test vuelve a
+     * llamar boot(), así que cada nombre puede aparecer más de una vez.
+     */
+    public function test_la_ventana_de_tasa_bcv_se_registra_cada_hora_de_06_a_21(): void
+    {
+        $provider = new ScheduleServiceProvider($this->app);
+        $provider->boot();
+
+        $porNombre = collect(Schedule::events())
+            ->filter(fn ($event) => $event->description !== null && str_starts_with($event->description, 'scrape_tasa_bcv_'))
+            ->keyBy(fn ($event) => $event->description);
+
+        foreach (range(6, 21) as $hora) {
+            $nombre = sprintf('scrape_tasa_bcv_%02d:00', $hora);
+            $this->assertArrayHasKey($nombre, $porNombre, "Debe existir la entrada {$nombre}.");
+            $this->assertSame(
+                sprintf('0 %d * * *', $hora),
+                $porNombre[$nombre]->expression,
+                "La entrada {$nombre} debe disparar a las {$hora}:00 hora local (America/Caracas), sin conversión UTC."
+            );
+        }
+    }
+
+    public function test_la_ventana_de_tasa_bcv_reemplaza_la_cadencia_cada_seis_horas(): void
+    {
+        $provider = new ScheduleServiceProvider($this->app);
+        $provider->boot();
+
+        $legacy = collect(Schedule::events())
+            ->filter(fn ($event) => $event->expression === '0 */6 * * *');
+
+        $this->assertSame(0, $legacy->count(), 'La cadencia everySixHours del job de tasa debe desaparecer de la agenda.');
+    }
+
+    public function test_la_ventana_de_tasa_se_registra_aunque_falte_la_tabla_juegos(): void
+    {
+        Schema::shouldReceive('hasTable')->andReturn(false);
+
+        $provider = new ScheduleServiceProvider($this->app);
+        $provider->boot();
+
+        $porNombre = collect(Schedule::events())
+            ->filter(fn ($event) => $event->description !== null && str_starts_with($event->description, 'scrape_tasa_bcv_'))
+            ->keyBy(fn ($event) => $event->description);
+
+        foreach (range(6, 21) as $hora) {
+            $nombre = sprintf('scrape_tasa_bcv_%02d:00', $hora);
+            $this->assertArrayHasKey($nombre, $porNombre, "Sin la tabla juegos la ventana debe seguir registrándose (bloque anterior al guard).");
+        }
     }
 }
