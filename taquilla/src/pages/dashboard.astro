@@ -1280,6 +1280,33 @@ import MainLayout from '../layouts/MainLayout.astro';
       avisoTabTimer = setTimeout(() => el.classList.remove('visible'), 1800);
     }
 
+    // Reset de Juegos + Selección post-Añadir (pedido del usuario 2026-09-22).
+    // Un add exitoso ya no conserva el juego activo ni los horarios marcados:
+    // deja la columna izquierda en la lista de juegos de la PESTAÑA ACTUAL
+    // (activeTab no cambia), limpia la familia seleccionada (animal / opción /
+    // modalidad + signo) y sus buffers, y libera el guard de pestañas
+    // (seleccionEnCurso() queda false). No toca el ticket ni el resumen.
+    // Lo reutiliza activarTab; F2/clearTicket conserva su reset total.
+    function resetSeleccionJuegos() {
+      selectedGames = [];
+      selectedAnimal = null;
+      selectedSigno = null;
+      selectedOpcion = null;
+      tripleModalidad = null;
+      tripleModalidadLabel = null;
+      selectedHorarios = [];
+      horariosCache = [];
+      buscadorDigitos = null; // FIX-5: el buffer de dígitos es por juego
+      buscadorSignos = null; // win-fixes2 FIX B: buffer de signos por juego
+      renderJuegos();
+      renderSeleccion(); // sin juego activo → placeholder «Seleccione un juego»
+      renderLegend();
+      renderHorariosGrid(); // sin caché ni selección residual (grid oculto)
+      switchToJuegos();
+      document.getElementById('juegos-col-title').textContent = 'Juegos';
+      requestAnimationFrame(() => enfocarZona('juegos'));
+    }
+
     function activarTab(tipo) {
       if (activeTab === tipo) return;
       // FIX-3c: si hay selección en curso se bloquea el cambio (aviso breve).
@@ -1288,20 +1315,8 @@ import MainLayout from '../layouts/MainLayout.astro';
         return;
       }
       activeTab = tipo;
-      selectedGames = [];
-      selectedAnimal = null;
-      selectedSigno = null;
-      selectedOpcion = null;
-      tripleModalidad = null;
-      tripleModalidadLabel = null;
-      document.getElementById('seleccion-content').innerHTML = '<div class="seleccion-placeholder">Seleccione un juego</div>';
-      horariosCache = [];
-      selectedHorarios = [];
+      resetSeleccionJuegos();
       renderJuegosTabs();
-      renderJuegos();
-      renderLegend();
-      switchToJuegos();
-      document.getElementById('juegos-col-title').textContent = 'Juegos';
     }
 
     function ordenTabs() {
@@ -1821,20 +1836,11 @@ import MainLayout from '../layouts/MainLayout.astro';
 
       document.getElementById('qt-numero').value = '';
       document.getElementById('qt-monto').value = '';
-      if (familia === 'zodiacal') {
-        tripleModalidad = null;
-        tripleModalidadLabel = null;
-        selectedSigno = null;
-        renderSeleccion();
-      } else if (familia === 'numerica' || familia === 'terminal') {
-        selectedOpcion = null;
-        renderSeleccion();
-      } else {
-        selectedAnimal = null;
-        renderAnimales();
-      }
+      // Pedido del usuario 2026-09-22: un add exitoso resetea Juegos + Selección
+      // completos (no solo la familia) para liberar el guard de pestañas; el
+      // ticket y la pestaña activa no se tocan.
+      resetSeleccionJuegos();
       renderResumen();
-      updateColumnMode();
     }
 
     function clearTicket() {
