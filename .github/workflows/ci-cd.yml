@@ -59,7 +59,8 @@ jobs:
         env:
           COLUMNS: 300
         run: php artisan test --display-warnings --log-junit junit.xml
-        timeout-minutes: 30
+        # Suite completa ~35 min (1036 tests, motor-premios + main); 30 min quedaba corto
+        timeout-minutes: 60
 
       - name: Warnings de PHPUnit (junit)
         if: always()
