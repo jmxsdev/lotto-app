@@ -252,7 +252,7 @@ class ScheduleTimeZoneTest extends TestCase
 
         foreach (range(6, 21) as $hora) {
             $nombre = sprintf('scrape_tasa_bcv_%02d:00', $hora);
-            $this->assertArrayHasKey($nombre, $porNombre, "Sin la tabla juegos la ventana debe seguir registrándose (bloque anterior al guard).");
+            $this->assertArrayHasKey($nombre, $porNombre, 'Sin la tabla juegos la ventana debe seguir registrándose (bloque anterior al guard).');
         }
     }
 }

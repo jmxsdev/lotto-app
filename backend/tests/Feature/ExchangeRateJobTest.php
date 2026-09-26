@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Jobs\ScrapeExchangeRateJob;
 use App\Models\ExchangeRate;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
@@ -18,8 +19,7 @@ class ScrapeExchangeRateJobFake extends ScrapeExchangeRateJob
     public function __construct(
         private readonly string $html = '',
         private readonly bool $lanzaExcepcion = false,
-    ) {
-    }
+    ) {}
 
     protected function fetchHtml(): string
     {
@@ -40,7 +40,7 @@ class ExchangeRateJobTest extends TestCase
         return ExchangeRate::create([
             'rate' => $rate,
             'base_currency' => 'USD',
-            'reference_date' => $referenceDate !== null ? \Carbon\Carbon::parse($referenceDate) : now(),
+            'reference_date' => $referenceDate !== null ? Carbon::parse($referenceDate) : now(),
             'set_by' => null,
             'notes' => 'Tasa previa',
             'is_active' => true,
