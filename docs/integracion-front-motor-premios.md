@@ -41,27 +41,28 @@
 - Cada linea manda `amount_bs` **o** `amount_usd` (la otra en 0). No hay campo `moneda` por linea.
 - El backend valida monedas efectivas de la taquilla (herencia taquilla -> grupo -> banca) y rechaza 422 con mensaje.
 
-### 1.3 Pago de premios — payload exacto (CORREGIDO)
+### 1.3 Pago de premios — payload exacto (backend AUTORITATIVO)
 
 ```json
 POST /api/v1/pagos
 {
   "apuesta_id": 123,
   "tipo": "egreso",
-  "moneda": "bs",
-  "amount_bs": 1500.00,
-  "amount_usd": 0
+  "moneda": "bs"
 }
 ```
 
+Ya no hace falta mandar montos: el backend **ya calculo el premio** al liquidar (`premio_ganado` + `premio_total` del ticket) y lo **aplica el mismo** al pagar (`config.premios` via `PremiosEngine`). La taquilla no calcula ni confirma nada.
+
 Reglas del backend (`PagoController`):
 - `tipo` in `ingreso|egreso|devolucion` (para premios: **`egreso`**).
-- `moneda` in `bs|usd|mixto` (**obligatorio**).
+- `moneda` in `bs|usd|mixto` (**obligatorio**) — es la moneda en que se paga, no un monto.
 - Para `egreso`: la apuesta debe tener `resultado_id` y `estado in {pendiente, ganadora}`.
-- El monto DEBE coincidir (+-0.01) con el calculo del motor para esa apuesta -> usar **`premio_bs`/`premio_usd` de la jugada ganadora** (lo que devuelve `GET /tickets/ganadores` por jugada), **no** el monto apostado.
+- `amount_bs`/`amount_usd` son **OPCIONALES**: si se omiten, el backend aplica el premio calculado por el motor; si se envian, DEBEN coincidir (+-0.01) con ese premio (422 con `premio_esperado_bs/usd` y `sugerencia`).
+- La respuesta incluye `premio: { premio_bs, premio_usd }` (lo aplicado) para mostrar al cliente.
 - Al pagar: apuesta -> `pagada`; cascada del ticket (`premio_total`).
 
-> **Estado actual taquilla (roto)**: `ganadores.astro:144-172` y `historial.astro:217-243` mandan `{apuesta_id, amount_bs, amount_usd, tipo:'bs'}`: `tipo:'bs'` no existe en el enum, falta `moneda`, y el monto es el apostado. Ademas ambos flujos exigen `estado === 'pendiente'` (`ganadores.astro:155`, `historial.astro:225`) -> con el motor nuevo la apuesta liquida como `ganadora` y **no se paga nunca** (y la UI muestra "Pago registrado exitosamente!" sin pagar).
+> **Estado actual taquilla (roto)**: `ganadores.astro:144-172` y `historial.astro:217-243` mandan `{apuesta_id, amount_bs, amount_usd, tipo:'bs'}` (monto apostado). Con este contrato el fix es minimo: `tipo:'egreso'` + `moneda` + aceptar `estado === 'ganadora'`; los montos se pueden omitir.
 
 ### 1.4 Catalogo de juegos
 
@@ -180,8 +181,9 @@ NO hardcodear multiplicadores en el front: leer `premios` de `GET /juegos/{id}/r
 - Las opciones de modalidad por juego deben salir del catalogo (`/reglas` ya expone `premios` y el plugin sus `modalidades`), con digito/validacion local (`3 cifras`, `2 cifras`, `4`, `5`, `+-1` para aproximacion).
 
 **T3. Pago de premios (fix critico)** — seccion 1.3.
-- Nuevo payload; aceptar `estado === 'ganadora'` ademas de `pendiente`; monto = `premio_bs|premio_usd` de la jugada; `moneda` segun el monto pagado (`bs`/`usd`; `mixto` si ambos).
-- Quitar el "exito" falso cuando no se pago nada (`historial.astro:241-242`: mostrar el resultado real del POST).
+- Payload minimo: `{ apuesta_id, tipo:'egreso', moneda }` (montos OPCIONALES: el backend aplica el premio del motor).
+- Aceptar `estado === 'ganadora'` ademas de `pendiente`.
+- Quitar el "exito" falso cuando no se pago nada (`historial.astro:241-242`, `ganadores.astro:167`: mostrar el resultado real del POST).
 
 **T4. Estados y filtros**.
 - Agregar badges y filtros `ganadora` y `vencido` (`historial.astro:91-100,17-19`).
@@ -324,7 +326,7 @@ POST /api/v1/tickets
 | Tripleta (Cazaloton/Chaima) | ❌ no existe | `{modalidad:'tripleta', selecciones:[{animal},{animal},{animal}]}` |
 | Arrimao / Pegadito | ❌ no existe | `{tipo:'arrimao'|'pegadito', numero:'NNNN(N)'}` |
 | Punta / Una / Aproximacion / Signos | ❌ no existe | ver seccion 2.1 |
-| Pago | `{apuesta_id, amount_bs, amount_usd, tipo:'bs'}` (roto) | `{apuesta_id, tipo:'egreso', moneda, amount_bs, amount_usd}` con monto = premio |
+| Pago | `{apuesta_id, amount_bs, amount_usd, tipo:'bs'}` (roto) | `{apuesta_id, tipo:'egreso', moneda}` — montos opcionales (el backend aplica el premio) |
 
 ### 6.4 Orden de trabajo sugerido
 

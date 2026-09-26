@@ -49,7 +49,7 @@
 
 ### B. Pago de premios de la taquilla (ROTO tambien en main)
 
-- Payload actual de la taquilla: `{ apuesta_id, amount_bs, amount_usd, tipo:'bs' }` — sin `moneda` y con el monto apostado. El backend exige `tipo:'egreso'`, `moneda` (`bs|usd|mixto`) y monto = premio del motor (±0.01). Ver `docs/integracion-front-motor-premios.md` seccion 1.3.
+- Payload actual de la taquilla: `{ apuesta_id, amount_bs, amount_usd, tipo:'bs' }` — invalido (el enum es `ingreso|egreso|devolucion`). Fix: `{ apuesta_id, tipo:'egreso', moneda }` (montos OPCIONALES: el backend aplica el premio del motor). Ver `docs/integracion-front-motor-premios.md` seccion 1.3.
 - Ademas, con el motor mergeado las ganadoras quedan en `ganadora`: el flujo de pago debe aceptar ese estado.
 
 ### C. Apuestas sin resultado (matching)
