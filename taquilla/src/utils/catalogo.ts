@@ -36,7 +36,19 @@ export interface JuegoCatalogo {
   slug: string;
   nombre: string;
   tipo: TipoJuego;
-  premio_multiplo: number;
+  /**
+   * Espejo legacy de `premios.base` (motor-premios). `null` cuando el juego no
+   * está activo/vendible (p. ej. la-ricachona): el catálogo exportado lo lleva
+   * así y la taquilla debe aceptarlo sin romper la carga.
+   */
+  premio_multiplo: number | null;
+  /**
+   * Estado del motor (motor-premios): `active=false`/`vendible=false` significa
+   * que el juego no se ofrece ni permite vender (el backend lo rechaza). Se
+   * conserva en el catálogo (21 juegos) y la UI filtra por `vendible`.
+   */
+  active: boolean;
+  vendible: boolean;
   comodines: Record<string, unknown> | null;
   modalidades: Record<string, unknown> | null;
   horarios: string[];
@@ -140,14 +152,25 @@ export function cargarCatalogo(raw: unknown): Catalogo {
     if (typeof juego.tipo !== 'string' || !TIPOS_VALIDOS.includes(juego.tipo as TipoJuego)) {
       throw new Error(`juegos[${indice}]: "tipo" inválido`);
     }
-    if (!esNumero(juego.premio_multiplo)) {
-      throw new Error(`juegos[${indice}]: falta "premio_multiplo" numérico`);
+    // Motor-premios: el espejo legacy puede ser null en juegos inactivos/no
+    // vendibles (la-ricachona); la clave debe existir con número o null.
+    if (juego.premio_multiplo !== null && !esNumero(juego.premio_multiplo)) {
+      throw new Error(`juegos[${indice}]: falta "premio_multiplo" numérico o null`);
     }
+    // Motor-premios: sin campo (pre-motor) se asume activo/vendible; con campo
+    // se respeta el estado exportado (vendible cae a active si falta).
+    const active = typeof juego.active === 'boolean' ? juego.active : true;
+    const vendible = typeof juego.vendible === 'boolean' ? juego.vendible : active;
     if (!Array.isArray(juego.horarios) || juego.horarios.length === 0) {
       throw new Error(`juegos[${indice}]: faltan "horarios"`);
     }
-    if (!Array.isArray(juego.opciones) || juego.opciones.length === 0) {
+    if (!Array.isArray(juego.opciones)) {
       throw new Error(`juegos[${indice}]: faltan "opciones"`);
+    }
+    // Un juego vendible no puede quedar sin opciones; uno inactivo/no vendible
+    // sí (la-ricachona en el contrato del motor).
+    if (vendible && juego.opciones.length === 0) {
+      throw new Error(`juegos[${indice}]: juego vendible sin "opciones"`);
     }
 
     const opciones = juego.opciones.map((o, i) => {
@@ -161,7 +184,9 @@ export function cargarCatalogo(raw: unknown): Catalogo {
       slug: juego.slug,
       nombre: juego.nombre,
       tipo,
-      premio_multiplo: juego.premio_multiplo as number,
+      premio_multiplo: juego.premio_multiplo as number | null,
+      active,
+      vendible,
       comodines: (juego.comodines as Record<string, unknown> | null) ?? null,
       modalidades: (juego.modalidades as Record<string, unknown> | null) ?? null,
       horarios: juego.horarios as string[],

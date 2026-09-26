@@ -1428,7 +1428,7 @@ import Icon from '../components/ui/Icon.astro';
       buscadorDigitos = null; // FIX-5: el buffer de dígitos es por juego
       buscadorSignos = null; // win-fixes2 FIX B: buffer de signos por juego
       renderJuegos();
-      renderSeleccion(); // sin juego activo → placeholder «Seleccione un juego»
+      renderSeleccion(); // sin juego activo: placeholder «Seleccione un juego»
       renderLegend();
       renderHorariosGrid(); // sin caché ni selección residual (grid oculto)
       switchToJuegos();
@@ -1449,7 +1449,7 @@ import Icon from '../components/ui/Icon.astro';
     }
 
     function ordenTabs() {
-      return ['animalitos', 'tripletas', 'terminales'].filter(t => catalogo.juegos.some(j => j.tipo === t));
+      return ['animalitos', 'tripletas', 'terminales'].filter(t => catalogo.juegos.some(j => j.tipo === t && j.active && j.vendible));
     }
 
     function tabAnterior() {
@@ -1481,7 +1481,9 @@ import Icon from '../components/ui/Icon.astro';
 
     function renderJuegos() {
       const container = document.getElementById('juegos-list');
-      const juegos = catalogo.juegos.filter(j => j.tipo === activeTab);
+      // motor-premios: active=false/vendible=false no se ofrece (la-ricachona);
+      // el backend además rechaza la venta de un juego no vendible.
+      const juegos = catalogo.juegos.filter(j => j.tipo === activeTab && j.active && j.vendible);
       if (juegos.length === 0) {
         container.innerHTML = '<div class="empty-state">Sin juegos disponibles</div>';
         return;

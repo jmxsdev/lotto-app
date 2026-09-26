@@ -695,7 +695,7 @@ ok(normalizarNumeroTriple(trioNum.opciones[5].label) === '005', `opción label "
 console.log('\n== win-fixes2 FIX E: signo → sigla (value) en todos los zodiacales ==');
 // Mismo conjunto que el plugin Tripletas (Tripletas.php:10-13).
 const SIGLAS_TRIPLETAS = ['ARI', 'TAU', 'GEM', 'CAN', 'LEO', 'VIR', 'LIB', 'ESC', 'SAG', 'CAP', 'ACU', 'PIS'];
-const zodiacales = ['triple-zulia', 'triple-caliente', 'triple-chance', 'el-arrejuntado', 'la-ricachona', 'triple-tachira', 'triple-zamorano'];
+const zodiacales = ['triple-zulia', 'triple-caliente', 'triple-chance', 'el-arrejuntado', 'triple-tachira', 'triple-zamorano'];
 for (const slug of zodiacales) {
   const juego = catalogo.porSlug.get(slug);
   ok(juego.familia === 'zodiacal' && juego.opciones.length === 12, `${slug}: zodiacal con 12 signos`);
@@ -703,6 +703,12 @@ for (const slug of zodiacales) {
   ok(todosValidos, `${slug}: cada label mapea a una sigla válida del plugin`);
   ok(juego.opciones.every((o) => siglaDeSigno(juego, o.label) === o.value), `${slug}: siglaDeSigno(label) === value`);
 }
+// la-ricachona (motor-premios): inactiva y no vendible → el export no trae
+// opciones ni premios; el catálogo la conserva (21 juegos) pero la UI la filtra.
+const ricachona = catalogo.porSlug.get('la-ricachona');
+ok(ricachona.familia === 'zodiacal' && ricachona.opciones.length === 0, 'la-ricachona: inactiva, sin opciones (zodiacal por tipo)');
+ok(ricachona.active === false && ricachona.vendible === false, 'la-ricachona: active=false/vendible=false (motor-premios)');
+ok(ricachona.premio_multiplo === null, 'la-ricachona: premio_multiplo null (motor-premios)');
 ok(siglaDeSigno(catalogo.porSlug.get('triple-zulia'), 'Sagitario') === 'SAG', 'triple-zulia "Sagitario" → SAG');
 ok(siglaDeSigno(catalogo.porSlug.get('el-arrejuntado'), 'Aries') === 'ARI', 'el-arrejuntado "Aries" → ARI (cubierto)');
 ok(siglaDeSigno(catalogo.porSlug.get('triple-zulia'), 'Inexistente') === null, 'label inexistente → null');
@@ -792,7 +798,6 @@ const opcionesNoAnimal = catalogo.juegos.filter((j) => j.familia !== 'animalitos
 ok(
   opcionesNoAnimal.every((o) => o.icono === undefined || o.icono === null),
   'familias no animal: sin icono (sanitizarOpcion descarta null/vacío)',
-);
 );
 
 console.log('\n== Ticket impreso (formato multi-juego, 2026-09) ==');
