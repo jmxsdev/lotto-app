@@ -1,5 +1,6 @@
 ---
 import AdminLayout from '../layouts/AdminLayout.astro';
+import Icon from '../components/Icon.astro';
 ---
 
 <AdminLayout>
@@ -24,11 +25,11 @@ import AdminLayout from '../layouts/AdminLayout.astro';
           <span class="field-label">SHA-256</span>
           <div class="checksum-wrap">
             <code id="release-sha256">-</code>
-            <button class="btn btn-secondary" id="btn-copiar" type="button">📋 Copiar</button>
+            <button class="btn btn-secondary" id="btn-copiar" type="button"><Icon name="clipboard-list" size={14} /> Copiar</button>
           </div>
         </div>
         <div class="actions">
-          <button class="btn btn-primary" id="btn-descargar" type="button">⬇️ Descargar instalador</button>
+          <button class="btn btn-primary" id="btn-descargar" type="button"><Icon name="download" size={14} /> Descargar instalador</button>
           <span class="estado" id="estado-descarga"></span>
         </div>
         <p class="hint">Verifica el checksum después de la descarga: <code>sha256sum Taquilla-Setup-&lt;version&gt;.exe</code></p>
@@ -62,6 +63,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
 
   <script>
     import { apiFetch, API_ORIGIN } from '../utils/api.ts';
+    import { icono } from '../utils/iconos.ts';
 
     const loading = document.getElementById('release-loading');
     const info = document.getElementById('release-info');
@@ -111,8 +113,8 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     btnCopiar.addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(sha256El.textContent);
-        btnCopiar.textContent = '✅ Copiado';
-        setTimeout(() => { btnCopiar.textContent = '📋 Copiar'; }, 2000);
+        btnCopiar.innerHTML = '<span aria-hidden="true">' + icono('circle-check') + '</span> Copiado';
+        setTimeout(() => { btnCopiar.innerHTML = '<span aria-hidden="true">' + icono('clipboard-list') + '</span> Copiar'; }, 2000);
       } catch (_) {
         alert('No se pudo copiar el checksum.');
       }

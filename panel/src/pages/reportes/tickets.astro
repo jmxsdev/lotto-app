@@ -1,5 +1,6 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
+import Icon from '../../components/Icon.astro';
 ---
 
 <AdminLayout>
@@ -21,7 +22,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
         </select>
       </div>
       <div class="field" style="align-self:flex-end">
-        <button class="btn btn-primary" id="btn-buscar">🔍 Buscar</button>
+        <button class="btn btn-primary" id="btn-buscar"><Icon name="search" size={14} /> Buscar</button>
       </div>
     </div>
 
@@ -55,6 +56,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
 
   <script>
     import { apiFetch } from '../../utils/api.ts';
+    import { icono } from '../../utils/iconos.ts';
 
     let currentPage = 1;
     let lastPage = 1;
@@ -116,9 +118,9 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
       if (lastPage <= 1) { pag.style.display = 'none'; return; }
       pag.style.display = 'flex';
       pag.innerHTML = `
-        <button class="btn btn-secondary btn-sm" id="btn-prev" ${currentPage <= 1 ? 'disabled' : ''}>← Anterior</button>
+        <button class="btn btn-secondary btn-sm" id="btn-prev" ${currentPage <= 1 ? 'disabled' : ''}><span aria-hidden="true">${icono('arrow-left')}</span> Anterior</button>
         <span class="page-info">Página ${currentPage} de ${lastPage}</span>
-        <button class="btn btn-secondary btn-sm" id="btn-next" ${currentPage >= lastPage ? 'disabled' : ''}>Siguiente →</button>
+        <button class="btn btn-secondary btn-sm" id="btn-next" ${currentPage >= lastPage ? 'disabled' : ''}>Siguiente <span aria-hidden="true">${icono('arrow-right')}</span></button>
       `;
       document.getElementById('btn-prev')?.addEventListener('click', () => { if (currentPage > 1) load(currentPage - 1); });
       document.getElementById('btn-next')?.addEventListener('click', () => { if (currentPage < lastPage) load(currentPage + 1); });

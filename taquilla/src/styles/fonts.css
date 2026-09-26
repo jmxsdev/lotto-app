@@ -1,0 +1,33 @@
+/* Fuente emoji subseteada (decisión 3, A1 CBDT — iconografia-front R3).
+ *
+ * El subset se genera en build (taquilla/scripts/build-emoji-font.mjs) y se
+ * COMMITEA en src/assets/fonts/: el build de la app solo lo referencia.
+ *
+ * @font-face SIN unicode-range (decisión de diseño): el subset solo contiene
+ * los 69 codepoints del catálogo (+FE0F/200D); los caracteres fuera de ese
+ * rango caen a las familias de respaldo. font-display: swap evita FOIT.
+ *
+ * La regla está scoped a .animal-emoji: solo los emoji de animalitos (y la
+ * muestra de la auditoría) usan esta fuente; el resto de la UI usa Inter/Lucide.
+ *
+ * NOTA: no usar la fuente del SO como respaldo determinista — los fallbacks
+ * (Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji) solo aplican a
+ * glifos que el subset no cubre (caso imprevisto, inalcanzable con el check
+ * verde: el manifest cubre el 100% de los codepoints del catálogo).
+ */
+@font-face {
+  font-family: 'Noto Color Emoji Subset';
+  src: url('../assets/fonts/noto-emoji-subset.ttf') format('truetype');
+  font-display: swap;
+  font-weight: normal;
+  font-style: normal;
+}
+
+.animal-emoji {
+  font-family:
+    'Noto Color Emoji Subset',
+    'Segoe UI Emoji',
+    'Apple Color Emoji',
+    'Noto Color Emoji',
+    sans-serif;
+}

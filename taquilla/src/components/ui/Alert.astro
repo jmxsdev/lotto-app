@@ -1,49 +1,53 @@
 ---
+import Icon from './Icon.astro';
+import { icono } from '../../utils/iconos';
+
 interface Props {
   type?: 'success' | 'error' | 'warning' | 'info';
   message: string;
   dismissible?: boolean;
+  // Legado: Astro no puede pasar callbacks client-side por props; el cierre
+  // solo oculta el alert (onClose no se ejecuta desde el servidor).
   onClose?: () => void;
 }
 
 const { 
   type = 'info', 
   message, 
-  dismissible = true, 
-  onClose 
+  dismissible = true
 } = Astro.props;
+
+const ICONO_POR_TIPO = {
+  success: 'circle-check',
+  error: 'circle-x',
+  warning: 'triangle-alert',
+  info: 'info',
+} as const;
+
+// iconografia-front R1: SVG Lucide inline; decorativo (aria-hidden) porque el
+// mensaje visible + role="alert" ya aportan la semántica.
+const iconoSvg = icono(ICONO_POR_TIPO[type]);
 ---
 
 <div class={`alert alert-${type}`} role="alert">
-  <span class="alert-icon">{getTypeIcon()}</span>
+  <span class="alert-icon" set:html={iconoSvg} aria-hidden="true"></span>
   <span class="alert-message">{message}</span>
   {dismissible && (
-    <button class="alert-close" onclick={handleClose}>
-      &times;
+    <button class="alert-close" type="button" aria-label="Cerrar alerta">
+      <Icon name="x" size={16} />
     </button>
   )}
 </div>
 
 <script>
-  function getTypeIcon() {
-    switch (type) {
-      case 'success': return '✓';
-      case 'error': return '✕';
-      case 'warning': return '⚠';
-      case 'info': return 'ℹ';
-      default: return '';
-    }
-  }
-
-  function handleClose() {
-    const parent = document.querySelector('.alert');
-    if (parent) {
-      parent.style.display = 'none';
-    }
-    if (onClose) {
-      onClose();
-    }
-  }
+  // Cierre por botón (R1): botón real con aria-label; el icono X es decorativo.
+  // Los scripts de Astro corren tras el render, así que el listener es seguro.
+  document.querySelectorAll('.alert-close').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const parent = btn.closest('.alert');
+      if (parent) parent.style.display = 'none';
+    });
+  });
 </script>
 
 <style>
@@ -95,6 +99,12 @@ const {
   .alert-icon {
     font-size: 18px;
     font-weight: bold;
+    display: inline-flex;
+  }
+
+  .alert-icon svg {
+    width: 18px;
+    height: 18px;
   }
 
   .alert-message {
@@ -110,6 +120,13 @@ const {
     color: inherit;
     opacity: 0.6;
     padding: 0 4px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .alert-close svg {
+    width: 16px;
+    height: 16px;
   }
 
   .alert-close:hover {

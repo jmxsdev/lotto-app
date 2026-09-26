@@ -695,7 +695,7 @@ ok(normalizarNumeroTriple(trioNum.opciones[5].label) === '005', `opción label "
 console.log('\n== win-fixes2 FIX E: signo → sigla (value) en todos los zodiacales ==');
 // Mismo conjunto que el plugin Tripletas (Tripletas.php:10-13).
 const SIGLAS_TRIPLETAS = ['ARI', 'TAU', 'GEM', 'CAN', 'LEO', 'VIR', 'LIB', 'ESC', 'SAG', 'CAP', 'ACU', 'PIS'];
-const zodiacales = ['triple-zulia', 'triple-caliente', 'triple-chance', 'el-arrejuntado', 'la-ricachona', 'triple-tachira', 'triple-zamorano'];
+const zodiacales = ['triple-zulia', 'triple-caliente', 'triple-chance', 'el-arrejuntado', 'triple-tachira', 'triple-zamorano'];
 for (const slug of zodiacales) {
   const juego = catalogo.porSlug.get(slug);
   ok(juego.familia === 'zodiacal' && juego.opciones.length === 12, `${slug}: zodiacal con 12 signos`);
@@ -703,6 +703,12 @@ for (const slug of zodiacales) {
   ok(todosValidos, `${slug}: cada label mapea a una sigla válida del plugin`);
   ok(juego.opciones.every((o) => siglaDeSigno(juego, o.label) === o.value), `${slug}: siglaDeSigno(label) === value`);
 }
+// la-ricachona (motor-premios): inactiva y no vendible → el export no trae
+// opciones ni premios; el catálogo la conserva (21 juegos) pero la UI la filtra.
+const ricachona = catalogo.porSlug.get('la-ricachona');
+ok(ricachona.familia === 'zodiacal' && ricachona.opciones.length === 0, 'la-ricachona: inactiva, sin opciones (zodiacal por tipo)');
+ok(ricachona.active === false && ricachona.vendible === false, 'la-ricachona: active=false/vendible=false (motor-premios)');
+ok(ricachona.premio_multiplo === null, 'la-ricachona: premio_multiplo null (motor-premios)');
 ok(siglaDeSigno(catalogo.porSlug.get('triple-zulia'), 'Sagitario') === 'SAG', 'triple-zulia "Sagitario" → SAG');
 ok(siglaDeSigno(catalogo.porSlug.get('el-arrejuntado'), 'Aries') === 'ARI', 'el-arrejuntado "Aries" → ARI (cubierto)');
 ok(siglaDeSigno(catalogo.porSlug.get('triple-zulia'), 'Inexistente') === null, 'label inexistente → null');
@@ -764,6 +770,35 @@ for (const juego of catalogo.juegos) {
 }
 const huerfanos = Object.keys(logos).filter((slug) => !slugsCatalogo.has(slug));
 ok(huerfanos.length === 0, `sin entradas ajenas al catálogo (${huerfanos.join(', ') || 'ninguna'})`);
+
+console.log('\n== iconos-consistentes (slice 1): bundled == docs/juegos.json ==');
+const rutaDocs = join(AQUI, '..', '..', 'docs', 'juegos.json');
+const bytesBundled = readFileSync(rutaJson, 'utf8');
+const bytesDocs = readFileSync(rutaDocs, 'utf8');
+ok(bytesBundled === bytesDocs, 'taquilla/src/data/juegos.json es byte-idéntico a docs/juegos.json');
+
+console.log('\n== iconos-consistentes (slice 1): 106/106 slugs de animalitos con icono ==');
+const opcionesAnimal = catalogo.juegos.filter((j) => j.familia === 'animalitos').flatMap((j) => j.opciones);
+ok(opcionesAnimal.length === 643, `643 opciones de animalitos en el catálogo (${opcionesAnimal.length})`);
+const sinIcono = opcionesAnimal.filter((o) => typeof o.icono !== 'string' || o.icono === '');
+ok(
+  sinIcono.length === 0,
+  `toda opción de animalitos con icono no vacío (${opcionesAnimal.length - sinIcono.length}/643)` +
+    (sinIcono.length ? ` (sin icono: ${sinIcono.map((o) => o.value).join(', ')})` : ''),
+);
+const slugsDistintos = new Set(opcionesAnimal.map((o) => o.value));
+ok(slugsDistintos.size === 106, `106 slugs distintos de animalitos (${slugsDistintos.size})`);
+const inconsistencias = [];
+for (const slug of slugsDistintos) {
+  const iconos = new Set(opcionesAnimal.filter((o) => o.value === slug).map((o) => o.icono));
+  if (iconos.size !== 1) inconsistencias.push(slug);
+}
+ok(inconsistencias.length === 0, `mismo slug → mismo icono en todos los juegos (${inconsistencias.join(', ') || 'ninguna'})`);
+const opcionesNoAnimal = catalogo.juegos.filter((j) => j.familia !== 'animalitos').flatMap((j) => j.opciones);
+ok(
+  opcionesNoAnimal.every((o) => o.icono === undefined || o.icono === null),
+  'familias no animal: sin icono (sanitizarOpcion descarta null/vacío)',
+);
 
 console.log('\n== Ticket impreso (formato multi-juego, 2026-09) ==');
 ok(formatearJugada({ tipo: 'animalitos', animal: 'Perro', numero: '14' }) === 'Perro #14', 'animalitos: «Animal #N°»');

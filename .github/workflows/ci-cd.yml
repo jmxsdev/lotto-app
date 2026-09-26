@@ -67,6 +67,45 @@ jobs:
         working-directory: backend
         run: grep -m4 -A1 "<warning" junit.xml || echo "sin warnings en junit"
 
+  front-checks:
+    name: Front — checks de iconografía y builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: |
+            taquilla/pnpm-lock.yaml
+            panel/pnpm-lock.yaml
+
+      - name: Instalar dependencias taquilla
+        working-directory: taquilla
+        run: pnpm install --frozen-lockfile
+
+      - name: Instalar dependencias panel
+        working-directory: panel
+        run: pnpm install --frozen-lockfile
+
+      - name: Checks de iconografía (pure + icons)
+        run: |
+          node taquilla/scripts/check-pure.mjs
+          node taquilla/scripts/check-icons.mjs
+
+      - name: Build taquilla
+        working-directory: taquilla
+        run: pnpm build
+
+      - name: Build panel
+        working-directory: panel
+        run: pnpm build
+
   build:
     name: Build y push a GHCR
     needs: tests

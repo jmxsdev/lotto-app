@@ -15,8 +15,10 @@
     "vercel-build": "npm run build"
   },
   "dependencies": {
+    "@fontsource/inter": "^5.3.0",
     "astro": "^6.0.5",
-    "electron-pos-printer": "^1.4.0"
+    "electron-pos-printer": "^1.4.0",
+    "lucide-static": "^1.48.0"
   },
   "devDependencies": {
     "electron": "^41.7.1",
@@ -49,7 +51,9 @@
       {
         "from": "dist",
         "to": "dist",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       }
     ]
   }

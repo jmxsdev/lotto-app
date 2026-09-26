@@ -11,6 +11,8 @@
  * (limpiar/heredar se hace por DELETE por fila).
  */
 
+import { icono } from './iconos.ts';
+
 export interface DatosTablaLimites {
   juegos: { id: number; name: string; slug: string }[];
   limites: Record<string, any | null>; // "juego:moneda" (entidad) | "entidad:juego:moneda" (scope)
@@ -110,7 +112,7 @@ export function crearTablaLimites(opts: OpcionesTablaLimites) {
       nums += `<button class="pag-btn ${p === pagina + 1 ? 'pag-activa' : ''}" data-pag="${p}">${p}</button>`;
     }
     const cls = arriba ? 'pag-top' : 'pag-bottom';
-    return `<div class="${cls} pag-wrap">${btn(pagina, '◀ Anterior', pagina === 0)}${nums}${btn(pagina + 2, 'Siguiente ▶', pagina + 1 >= total)}</div>`;
+    return `<div class="${cls} pag-wrap">${btn(pagina, `<span aria-hidden="true">${icono('chevron-left')}</span> Anterior`, pagina === 0)}${nums}${btn(pagina + 2, `Siguiente <span aria-hidden="true">${icono('chevron-right')}</span>`, pagina + 1 >= total)}</div>`;
   }
 
   function pintarTabla(): string {
