@@ -48,6 +48,7 @@ Documentos complementarios del repo: `docs/deploy.md` (despliegue del VPS desde 
 | `caddy` | `caddy:2.9-alpine` | 80/443 públicos | TLS automático; `lotto.gzuz.dev` → `reverse_proxy api:10000` con headers de seguridad (`Caddyfile:9-19`). |
 | `api` | `ghcr.io/jmxsdev/lotto-app-api:${IMAGE_TAG:-latest}` | `127.0.0.1:10000` | FrankenPHP (PHP 8.3). `env_file: .env.production`. Volumen `taquilla_releases:/var/www/html/storage/app/releases`. Healthcheck interno contra `/api/v1/juegos` esperando `200|401` (`docker-compose.prod.yml:52-57`). |
 | `horizon` | Misma imagen que `api`, con `RUN_HORIZON=true` | interno | Worker de colas. **No ejecuta migraciones** (ver §3). Healthcheck: `php artisan horizon:status`. |
+| `scheduler` | Misma imagen que `api`, con `RUN_SCHEDULER=true` | interno | Agenda `php artisan schedule:work` (`docker-compose.prod.yml:70-86`, `entrypoint.sh:66-69`). **No ejecuta migraciones** (ver §3). Healthcheck: `php artisan schedule:list`. |
 | `mysql` | `mysql:8.0` | `127.0.0.1:3306` | Solo loopback (túneles SSH/GUI). Datos en volumen `mysql_prod_data`. |
 | `redis` | `redis:7.2-alpine` | interno | AOF `everysec`; datos en `redis_prod_data`. |
 
@@ -107,7 +108,7 @@ El contenedor **Horizon** se salta este bloque completo (condición `RUN_HORIZON
 |---|---|---|
 | Verificar el estado de la BD | `php artisan migrate:status` (dentro del contenedor API) | Único chequeo pasivo recomendado tras cada deploy con migraciones. |
 | Backfills de datos | `php artisan agencias:backfill --force` | Es un **comando de consola**, no una migración. En producción exige `--force` (`backend/app/Console/Commands/AgenciasBackfill.php:22-26`). Primer paso recomendado: `--dry-run` para ver qué haría sin escribir. |
-| Tasa BCV manual | `php artisan scrape:exchange-rate` | Scraping síncrono del BCV (`backend/app/Console/Commands/ScrapeExchangeRate.php`). |
+| Tasa BCV manual | `php artisan scrape:exchange-rate` | Scraping síncrono del BCV (`backend/app/Console/Commands/ScrapeExchangeRate.php`). Es **idempotente**: si la tasa parseada iguala la tasa activa (comparada a 4 decimales), NO inserta fila nueva y conserva la fila activa (ver §8.3). |
 | Cambio de BD sin redeploy (caso excepcional) | `docker compose --env-file .env.production -f docker-compose.prod.yml exec api php artisan migrate --force` | Es el mismo comando que corre el entrypoint (`entrypoint.sh:46`). Úsalo solo si realmente no puedes esperar al deploy; el código que la migración acompaña llegará con el siguiente `up -d`. |
 
 Publicar releases de Taquilla (releases:publish) es otro comando manual, pero pertenece al flujo de §4.
@@ -321,14 +322,14 @@ Orden recomendado de alta: banca → grupo → agencia → taquilla → usuario 
 | Dónde | Comando | Cuándo |
 |---|---|---|
 | Local | `grep -r "production.ERROR" backend/storage/logs/` | El canal de logs local es `stack/single` (`backend/.env.example:21-22`), escribe en `backend/storage/logs/laravel.log`. |
-| Producción | `docker logs -f lotto_api_prod`, `docker logs -f lotto_horizon_prod` y `docker logs -f lotto_scheduler_prod` | En el contenedor el canal es `stderr` (`entrypoint.sh:29`): los errores van a los logs de Docker, **no** a `storage/logs`. El scheduler (agenda de resultados) loguea las ejecuciones de scrape y del sweep. |
+| Producción | `docker logs -f lotto_api_prod`, `docker logs -f lotto_horizon_prod` y `docker logs -f lotto_scheduler_prod` | En el contenedor el canal es `stderr` (`entrypoint.sh:29`): los errores van a los logs de Docker, **no** a `storage/logs`. El scheduler (agenda de resultados y ventana de tasa BCV) loguea las ejecuciones de scrape, del sweep y de la tasa (incluida la omisión por idempotencia). |
 | Auditoría funcional | `GET /api/v1/logs` (roles `super_master|master`) | Tabla `logs` de la BD (activaciones, acciones de usuarios). |
 
 ### 8.3 Probar scrapers localmente
 
-- **Tasa BCV**: `php artisan scrape:exchange-rate` (ejecución síncrona; revisa el log al terminar) — `backend/app/Console/Commands/ScrapeExchangeRate.php`.
-- **Resultados de juegos**: endpoints del panel, roles `super_master|master`: `POST /api/v1/resultados/scrape` (un juego) y `POST /api/v1/resultados/scrape-all` (`backend/routes/api.php:117-120`). En local, autentícate con un usuario de seeder y llama los endpoints.
-- **Agenda automática de resultados** (producción): corre en el servicio `scheduler` (`schedule:work`). Para inspeccionarla: `docker exec lotto_scheduler_prod php artisan schedule:list` (pasadas por fuente `scrape_{sourceKey}_{H:i}[+15|+30|+45]`, sweep cada 15 min y cierre a las 23:45). Si siembras o editas horarios (`juego_horarios`), reinicia el scheduler para que tome la agenda: `docker restart lotto_scheduler_prod` (la agenda se congela al arrancar).
+- **Tasa BCV**: `php artisan scrape:exchange-rate` (ejecución síncrona; revisa el log al terminar) — `backend/app/Console/Commands/ScrapeExchangeRate.php`. Si el log dice `Tasa sin cambios (X.XXXX): se omite el INSERT`, la tasa parseada coincidía con la activa y no se creó fila (comportamiento esperado; re-ejecutar es seguro).
+- **Resultados de juegos**: endpoints del panel, roles `super_master|master`: `POST /api/v1/resultados/scrape` (un juego) y `POST /api/v1/resultados/scrape-all` (`backend/routes/api.php:117-120`). En local, autentícate con un usuario de seeder y llama los endpoints. `scrape-all` NO despacha el job de tasa BCV (independencia garantizada por test).
+- **Agenda automática de resultados y tasa** (producción): corre en el servicio `scheduler` (`schedule:work`). Para inspeccionarla: `docker exec lotto_scheduler_prod php artisan schedule:list` — debe mostrar 16 entradas de tasa `scrape_tasa_bcv_06:00` … `scrape_tasa_bcv_21:00` (cada hora, 06:00–21:00 INCLUSIVE, EN HORA LOCAL `America/Caracas`, sin conversión a UTC) más las pasadas por fuente `scrape_{sourceKey}_{H:i}[+15|+30|+45]`, el sweep cada 15 min y el cierre a las 23:45. Si siembras o editas horarios (`juego_horarios`), reinicia el scheduler para que tome la agenda: `docker restart lotto_scheduler_prod` (la agenda se congela al arrancar).
 
 ### 8.4 Diagnóstico de un HTTP 500 (checklist en orden)
 
