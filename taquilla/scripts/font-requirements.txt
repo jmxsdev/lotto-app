@@ -1,0 +1,16 @@
+# Toolchain pineada para generar el subset de Noto Color Emoji (spike A1, decisión 3).
+#
+# Instalar en un venv aislado (NUNCA commiteado) y regenerar el subset:
+#   python3 -m venv /tmp/opencode/font-spike-venv
+#   /tmp/opencode/font-spike-venv/bin/pip install -r taquilla/scripts/font-requirements.txt
+#   NOTO_EMOJI_SRC=/ruta/NotoColorEmoji.ttf node taquilla/scripts/build-emoji-font.mjs
+#
+# El build de las apps NO necesita esta toolchain: el TTF y el manifest se
+# commitean en taquilla/src/assets/fonts/ (decisión 3, §Pipeline del design).
+#
+# Versiones pineadas al 2026-09-26 (spike A1/A2 verificado con Electron 41.10.7):
+#   fonttools 4.66.0 — pyftsubset conserva CBDT/CBLC y cmap format 14 (VS16).
+#   brotli           — codec WOFF2 de fontTools (no usado para salida TTF, útil
+#                      para sondear webfonts COLRv1 de Google Fonts).
+fonttools==4.66.0
+brotli==1.1.0

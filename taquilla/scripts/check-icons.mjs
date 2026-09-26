@@ -32,6 +32,9 @@ const RUTAS_MAPA = {
   panel: join(RAIZ, 'panel', 'src', 'data', 'iconos.js'),
 };
 
+const RUTA_FUENTE = join(RAIZ, 'taquilla', 'src', 'assets', 'fonts', 'noto-emoji-subset.ttf');
+const RUTA_MANIFEST = join(RAIZ, 'taquilla', 'src', 'assets', 'fonts', 'emoji-subset.manifest.json');
+
 let checks = 0;
 let fallos = 0;
 
@@ -211,6 +214,56 @@ for (const app of Object.keys(RUTAS_MAPA)) {
   }
 }
 ok(refsANIMAL_EMOJIS === 0, `sin ANIMAL_EMOJIS hardcodeado (${refsANIMAL_EMOJIS} referencias)`);
+
+// --- Fuente emoji subseteada (4.2/4.4/4.5 — R3) -------------------------------
+
+// Codepoints usados por los `icono` del catálogo bundled (juegos.json).
+function codepointsCatalogo() {
+  const cps = new Set();
+  for (const j of catalogo.juegos) {
+    for (const o of j.opciones) {
+      if (typeof o.icono === 'string' && o.icono) {
+        for (const ch of o.icono) cps.add(ch.codePointAt(0));
+      }
+    }
+  }
+  // U+FE0F (VS16) y U+200D (ZWJ) se incluyen por diseño en el subset (el
+  // manifest debe declararlos aunque el catálogo no use ZWJ hoy).
+  cps.add(0xfe0f);
+  cps.add(0x200d);
+  return cps;
+}
+
+let fuenteOK = false;
+let fuenteSize = 0;
+try {
+  const stats = statSync(RUTA_FUENTE);
+  fuenteOK = stats.isFile() && stats.size > 0;
+  if (fuenteOK) fuenteSize = stats.size;
+} catch {
+  fuenteOK = false;
+}
+ok(fuenteOK, `existe taquilla/src/assets/fonts/noto-emoji-subset.ttf no vacío (${fuenteOK ? Math.round(fuenteSize / 1024) : 0} KB)`);
+
+let manifest = null;
+try {
+  manifest = JSON.parse(readFileSync(RUTA_MANIFEST, 'utf8'));
+} catch {
+  manifest = null;
+}
+ok(manifest !== null, 'existe emoji-subset.manifest.json válido (JSON parseable)');
+
+const delCatalogo = codepointsCatalogo();
+let ausentes = delCatalogo;
+if (manifest !== null) {
+  const declarados = new Set((manifest.codepoints ?? []).map((cp) => Number.parseInt(String(cp), 16)));
+  ausentes = [...delCatalogo].filter((cp) => !declarados.has(cp));
+}
+ok(
+  ausentes.length === 0,
+  `manifest cubre los ${delCatalogo.size} codepoints del catálogo (+FE0F/200D)` +
+    (ausentes.length ? ` (faltan: ${ausentes.map((c) => `U+${c.toString(16).toUpperCase()}`).join(', ')})` : ''),
+);
 
 console.log(`\n${checks} checks, ${fallos} fallos`);
 process.exit(fallos === 0 ? 0 : 1);
