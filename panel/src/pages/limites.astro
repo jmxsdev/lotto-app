@@ -1,5 +1,6 @@
 ---
 import AdminLayout from '../layouts/AdminLayout.astro';
+import Icon from '../components/Icon.astro';
 ---
 
 <AdminLayout>
@@ -27,7 +28,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     <div id="tabla-container"><div class="loading">Cargando límites...</div></div>
 
     <div class="acciones">
-      <button class="btn btn-primary" id="btn-guardar">💾 Guardar cambios</button>
+      <button class="btn btn-primary" id="btn-guardar"><Icon name="save" size={14} /> Guardar cambios</button>
       <span id="estado-guardado" class="estado"></span>
     </div>
   </div>
@@ -67,6 +68,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
   <script>
     import { apiFetch, getStoredUser } from '../utils/api.ts';
     import { crearTablaLimites } from '../utils/limites.ts';
+    import { icono } from '../utils/iconos.ts';
 
     const user = getStoredUser();
     const rol = user?.role;
@@ -160,7 +162,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
       estado.textContent = 'Guardando...';
       try {
         await tabla.guardar();
-        estado.textContent = '✅ Límites guardados.';
+        estado.innerHTML = '<span aria-hidden="true">' + icono('circle-check') + '</span> Límites guardados.';
         montarTabla(); // recargar para reflejar valores actuales
       } catch (e) {
         estado.textContent = '';

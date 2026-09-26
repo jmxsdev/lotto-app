@@ -15,14 +15,14 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     .type-badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; background: #e0e7ff; color: #3730a3; }
   </style>
   <script>
-    import { apiFetch } from '../utils/api.ts';
+    import { apiFetch } from '../utils/api.ts'; import { icono } from '../utils/iconos.ts';
     let games = [];
     async function load() {
       try { games = await apiFetch('GET','/juegos'); render(); } catch(e) { document.getElementById('content').innerHTML = '<div class="loading">Error: '+e.message+'</div>'; }
     }
     function render() {
       let html = '<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Slug</th><th>Tipo</th><th>Multiplicador</th><th>Scraper</th><th>Estado</th></tr></thead><tbody>';
-      games.forEach(j => { html += `<tr><td><strong>${j.name}</strong></td><td>${j.slug}</td><td><span class="type-badge">${j.type}</span></td><td>${j.config?.premio_multiplo||'-'}x</td><td>${j.requires_scraper?'✅':'❌'}</td><td><span class="badge ${j.active?'badge-active':'badge-inactive'}" data-id="${j.id}" data-active="${j.active}">${j.active?'Activo':'Inactivo'}</span></td></tr>`; });
+      games.forEach(j => { html += `<tr><td><strong>${j.name}</strong></td><td>${j.slug}</td><td><span class="type-badge">${j.type}</span></td><td>${j.config?.premio_multiplo||'-'}x</td><td>${j.requires_scraper ? '<span role="img" aria-label="Sí">' + icono('circle-check') + '</span>' : '<span role="img" aria-label="No">' + icono('circle-x') + '</span>'}</td><td><span class="badge ${j.active?'badge-active':'badge-inactive'}" data-id="${j.id}" data-active="${j.active}">${j.active?'Activo':'Inactivo'}</span></td></tr>`; });
       html += '</tbody></table></div>'; document.getElementById('content').innerHTML = html;
     }
     document.getElementById('content').addEventListener('click', async (e) => {

@@ -1,4 +1,5 @@
 ---
+import Icon from '../components/Icon.astro';
 const apiUrl = (import.meta.env.PUBLIC_API_URL || 'http://localhost:8000') + '/api/v1';
 ---
 <!DOCTYPE html>
@@ -31,7 +32,7 @@ const apiUrl = (import.meta.env.PUBLIC_API_URL || 'http://localhost:8000') + '/a
 </head>
 <body>
   <div class="login-card">
-    <div class="login-logo">🎰</div>
+    <div class="login-logo"><Icon name="dices" size={32} /></div>
     <h1 class="login-title">Lotto Panel</h1>
     <p class="login-subtitle">Panel de administración</p>
     <div id="alert" class="alert"></div>
