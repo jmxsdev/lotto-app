@@ -117,5 +117,6 @@ iteración del ciclo.
       backend (fuera de alcance del ciclo; no tocar backend en esta iteración).
 - [ ] **Fingerprint localStorage por origen**: el fingerprint del dispositivo
       puede diferir entre dev y empaquetado; evaluar separación por origen.
+- [ ] **Mapa de teclas configurable (operador)**: hoy el `KEYMAP` está centralizado en `taquilla/src/utils/keyboard.ts` (tecla → acción/nombre/guarda), la leyenda y la ayuda derivan de él y los handlers despachan por NOMBRE de acción — intercambiar funciones entre dos teclas (p. ej. F1 ↔ F11) es editar el mapa en un solo lugar. Una UI de configuración para que el operador reasigne teclas queda como mejora futura.
 - [ ] Cualquier otro deferral registrado en el ciclo `taquilla-venta-agil`
       (ver `docs/PENDIENTE.md` y las notas del cambio).
