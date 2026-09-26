@@ -28,6 +28,7 @@ class User extends Authenticatable
         'taquilla_id',
         'agencia_id',
         'active',
+        'clave_cierre',
     ];
 
     /**
@@ -38,6 +39,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'clave_cierre',
     ];
 
     /**

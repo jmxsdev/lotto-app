@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Apuesta;
+use App\Models\Pago;
 use App\Models\Resultado;
 use App\Models\Ticket;
 use App\Services\ApuestaService;
@@ -12,6 +13,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 
 class TicketController extends Controller
 {
@@ -112,6 +114,7 @@ class TicketController extends Controller
             'lines.*.amount_bs' => 'numeric|min:0',
             'lines.*.amount_usd' => 'numeric|min:0',
             'lines.*.combinacion' => 'nullable|array',
+            'metodo_pago' => ['nullable', Rule::in(Pago::METODOS_PAGO)],
         ]);
 
         // Validar monedas del ticket completo antes de entrar a la transacción
@@ -165,6 +168,8 @@ class TicketController extends Controller
                 $totalUsd = 0;
 
                 foreach ($request->lines as $line) {
+                    $line['metodo_pago'] = $request->input('metodo_pago');
+
                     $apuesta = $this->apuestaService->createApuesta(
                         $line,
                         $user->taquilla_id,

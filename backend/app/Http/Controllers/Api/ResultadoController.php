@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\ScrapeResultsJob;
+use App\Jobs\ScrapeSourceJob;
 use App\Models\Juego;
 use App\Models\Resultado;
 use App\Services\ApuestaService;
+use App\Services\ScraperSourceResolver;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 
 class ResultadoController extends Controller
@@ -109,23 +112,38 @@ class ResultadoController extends Controller
         $juegoId = $request->input('juego_id');
         $fecha = $request->input('fecha', now()->format('Y-m-d'));
 
-        $juegos = $juegoId
-            ? Juego::where('id', $juegoId)->where('requires_scraper', true)->get()
-            : Juego::where('requires_scraper', true)->get();
+        if ($juegoId) {
+            $juegos = Juego::where('id', $juegoId)->where('requires_scraper', true)->get();
+
+            if ($juegos->isEmpty()) {
+                return response()->json([
+                    'message' => 'El juego especificado no existe o no requiere scraper',
+                ], 404);
+            }
+
+            $resultados = [];
+
+            foreach ($juegos as $juego) {
+                $resultados[$juego->name] = $this->runScraperForJuego($juego->id, $fecha);
+            }
+
+            return response()->json([
+                'message' => 'Scrapers ejecutados',
+                'fecha' => $fecha,
+                'resultados' => $resultados,
+            ]);
+        }
+
+        // Sin juego_id → consolidar por fuente: un ScrapeSourceJob por feed.
+        $juegos = Juego::where('requires_scraper', true)->get();
 
         if ($juegos->isEmpty()) {
             return response()->json([
-                'message' => $juegoId
-                    ? 'El juego especificado no existe o no requiere scraper'
-                    : 'No hay juegos que requieran scraper',
+                'message' => 'No hay juegos que requieran scraper',
             ], 404);
         }
 
-        $resultados = [];
-
-        foreach ($juegos as $juego) {
-            $resultados[$juego->name] = $this->runScraperForJuego($juego->id, $fecha);
-        }
+        $resultados = $this->despacharPorFuente($juegos, $fecha);
 
         return response()->json([
             'message' => 'Scrapers ejecutados',
@@ -148,11 +166,7 @@ class ResultadoController extends Controller
             ], 404);
         }
 
-        $resultados = [];
-
-        foreach ($juegos as $juego) {
-            $resultados[$juego->name] = $this->runScraperForJuego($juego->id, $fecha);
-        }
+        $resultados = $this->despacharPorFuente($juegos, $fecha);
 
         return response()->json([
             'message' => 'Todos los scrapers ejecutados',
@@ -160,6 +174,64 @@ class ResultadoController extends Controller
             'total_juegos' => $juegos->count(),
             'resultados' => $resultados,
         ]);
+    }
+
+    /**
+     * Despacha un ScrapeSourceJob por fuente (1 fetch por feed) y mantiene la
+     * respuesta desglosada por juego (shape intacto).
+     *
+     * @param  Collection<int, Juego>  $juegos
+     * @return array<string, array<string, mixed>>
+     */
+    protected function despacharPorFuente(Collection $juegos, string $fecha): array
+    {
+        $resolver = app(ScraperSourceResolver::class);
+        $resultados = [];
+
+        foreach ($resolver->sources() as $fuente) {
+            $miembros = $juegos->whereIn('id', $fuente->juegoIds);
+
+            if ($miembros->isEmpty()) {
+                continue;
+            }
+
+            try {
+                ScrapeSourceJob::dispatch($fuente->key, $fecha, null);
+
+                foreach ($miembros as $juego) {
+                    $resultados[$juego->name] = [
+                        'status' => 'ok',
+                        'ganadoras_detectadas' => $this->ganadorasDe($juego, $fecha),
+                    ];
+                }
+            } catch (\Exception $e) {
+                Log::error("Error despachando la fuente {$fuente->key}: ".$e->getMessage());
+
+                foreach ($miembros as $juego) {
+                    $resultados[$juego->name] = [
+                        'status' => 'error',
+                        'error' => $e->getMessage(),
+                    ];
+                }
+            }
+        }
+
+        return $resultados;
+    }
+
+    protected function ganadorasDe(Juego $juego, string $fecha): int
+    {
+        $ultimosResultados = Resultado::where('juego_id', $juego->id)
+            ->whereDate('fecha_sorteo', $fecha)
+            ->get();
+
+        $ganadoras = 0;
+
+        foreach ($ultimosResultados as $resultado) {
+            $ganadoras += $this->apuestaService->verificarGanadores($resultado);
+        }
+
+        return $ganadoras;
     }
 
     protected function runScraperForJuego(int $juegoId, string $fecha): array

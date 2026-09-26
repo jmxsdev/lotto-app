@@ -1,4 +1,4 @@
-const { app, BrowserWindow, protocol, session } = require('electron');
+const { app, BrowserWindow, protocol, session, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { registerIpcHandlers } = require('./ipcHandlers.cjs');
@@ -255,6 +255,12 @@ app.whenReady().then(async () => {
     registerIpcHandlers(upstream);
     registerCustomProtocol();  // app://
     registerApiProtocol();     // api://
+
+    // win-fixes3: sin menú nativo. El menú por defecto de Electron asigna
+    // F11 a "Toggle Full Screen" y se lo roba al renderer, rompiendo la
+    // tecla F11 «Números» de la taquilla. Al desactivarlo, F11 llega al
+    // keydown del dashboard. openDevTools() en dev se mantiene programático.
+    Menu.setApplicationMenu(null);
 
     await createWindow();
 });

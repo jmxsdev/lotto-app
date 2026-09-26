@@ -21,10 +21,19 @@ http:
         "amount_bs": 300,
         "amount_usd": 300,
         "moneda": "mixto",
+        "metodo_pago": "punto_venta",
         "tipo": "egreso",
         "concepto": "Premio Animalitos"
       }
   auth: inherit
+
+docs:
+  - |
+    # Respuesta esperada: 201 Created
+    `metodo_pago` es opcional (`efectivo|transferencia|pago_movil|punto_venta`, default `efectivo`).
+    Nota: si `moneda` es `usd` o `amount_usd > 0` (como en este ejemplo mixto), el método
+    se fuerza a `efectivo` en el backend, sin importar el valor enviado.
+    Valor fuera del enum ⇒ 422 `{"errors": {"metodo_pago": [...]}}`.
 
 runtime:
   variables:

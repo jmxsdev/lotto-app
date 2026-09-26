@@ -21,6 +21,7 @@ http:
         "amount_bs": 150,
         "amount_usd": 0,
         "moneda": "bs",
+        "metodo_pago": "transferencia",
         "tipo": "egreso",
         "concepto": "Premio Animalitos (perdedora)"
       }

@@ -21,6 +21,7 @@ http:
         "amount_bs": 600,
         "amount_usd": 0,
         "moneda": "bs",
+        "metodo_pago": "pago_movil",
         "tipo": "egreso",
         "concepto": "Premio Triple Zulia"
       }

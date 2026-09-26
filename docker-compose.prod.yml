@@ -49,6 +49,9 @@ services:
     env_file: .env.production
     volumes:
       - taquilla_releases:/var/www/html/storage/app/releases
+      # Volumen textfile Prometheus: durante la transición/rollback el host cron
+      # ejecuta schedule:run dentro de la API y necesita escribir las métricas.
+      - /home/deploy/monitoring/textfile:/var/lib/lotto-metrics:rw
     healthcheck:
       test: ["CMD-SHELL", "curl -s -o /dev/null -w '%{http_code}' -H 'Accept: application/json' http://127.0.0.1:10000/api/v1/juegos | grep -qE '^(200|401)$' || exit 1"]
       interval: 30s
@@ -57,6 +60,31 @@ services:
       start_period: 40s
     ports:
       - "127.0.0.1:10000:10000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [lotto_net]
+
+  scheduler:
+    image: ghcr.io/jmxsdev/lotto-app-api:${IMAGE_TAG:-latest}
+    build:
+      context: ./backend
+    container_name: lotto_scheduler_prod
+    restart: unless-stopped
+    command: /usr/local/bin/entrypoint.sh
+    environment:
+      RUN_SCHEDULER: "true"
+    env_file: .env.production
+    volumes:
+      - /home/deploy/monitoring/textfile:/var/lib/lotto-metrics:rw
+    healthcheck:
+      test: ["CMD-SHELL", "php artisan schedule:list > /dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
     depends_on:
       mysql:
         condition: service_healthy
