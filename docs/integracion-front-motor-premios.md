@@ -32,6 +32,8 @@
 
 **Ticket**: `pendiente`, `pagada`, `anulada`, `ganador`, `vencido`. Se cierra cuando todas sus apuestas estan resueltas (`vencido` cuenta como resuelta; `ganadora` NO: falta pagar).
 
+> **Gap conocido — tickets sin ganadores**: NO existe estado "perdedor" de ticket. Un ticket cuyas apuestas perdieron todas **queda en `pendiente` de forma permanente** (ni `main` ni la rama lo cambian; la cascada a `pagada` solo ocurre al pagar el ultimo premio, y `ganador` solo se pone si hay premios). Para mostrarlo como "perdida" en la UI: derivar del payload de `GET /tickets` (ya incluye `apuestas.estado` + `apuestas.detalles` + `ganadoras_count`/`tiene_ganadores`) = "ticket resuelto sin ganadores" (sin apuestas `pendiente`/`ganadora` y con `tiene_ganadores=false`). Alternativa: mini-WU backend que exponga `resuelto`/`estado_display`. Verificar ademas que las apuestas pendientes de verdad (sin resultado que coincida en juego + fecha + HORA exacta de sorteo) no se confundan con este caso.
+
 > **Gap de front**: `taquilla/src/pages/historial.astro:91-100` solo conoce `pendiente/pagada/anulada/perdida` (+ badge `ganador` de ticket). `ganadora` cae al `default` sin estilo y `vencido` no existe. Los filtros (`:17-19`) solo ofrecen `pendiente/pagada/anulada`.
 
 ### 1.2 Monedas
