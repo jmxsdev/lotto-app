@@ -46,15 +46,24 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up -d <imag
 ## Scheduler de resultados (agenda por fuente)
 
 El servicio `scheduler` corre `php artisan schedule:work` (compose prod). Agenda:
+ventana de tasa BCV `scrape_tasa_bcv_06:00` … `scrape_tasa_bcv_21:00` (16 corridas,
+cada hora de 06:00 a 21:00 INCLUSIVE, EN HORA LOCAL `America/Caracas` — nunca UTC),
 pasadas por fuente `scrape_{sourceKey}_{H:i}[+15|+30|+45]`, sweep
 `resultados:reconciliar` cada 15 min y cierre `--day-close` a las 23:45.
 
 ```bash
 docker ps | grep lotto_scheduler_prod          # Up (healthy)
 docker exec lotto_scheduler_prod php artisan schedule:list   # agenda real (expresiones cron)
+# Debe mostrar 16 `scrape_tasa_bcv_*` (0 6 * * * … 0 21 * * *) y NINGUNA `0 */6 * * *`
 docker logs -f lotto_scheduler_prod            # ejecuciones por minuto
 docker restart lotto_scheduler_prod            # tras sembrar/editar horarios (agenda congelada al arrancar)
 ```
+
+La ventana de tasa se registra ANTES del guard de la tabla `juegos`: aparece en
+`schedule:list` aunque la BD esté vacía o el API aún esté migrando (el scheduler
+no migra). El job de tasa es idempotente: si la tasa parseada iguala la activa
+(redondeada a 4 decimales) omite el INSERT y conserva la fila activa — el log del
+scheduler muestra `Tasa sin cambios (X.XXXX): se omite el INSERT`.
 
 Rollback del scheduler (vuelve al cron del host):
 

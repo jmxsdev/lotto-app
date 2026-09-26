@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\ScrapeExchangeRateJob;
 use App\Jobs\ScrapeSourceJob;
 use App\Models\Juego;
 use App\Models\User;
@@ -54,6 +55,7 @@ class ResultadoControllerScrapeAllTest extends TestCase
         ]);
 
         Bus::assertDispatched(ScrapeSourceJob::class, count($fuentes));
+        Bus::assertNotDispatched(ScrapeExchangeRateJob::class);
 
         $resultados = $response->json('resultados');
         $this->assertCount($juegosConScraper, $resultados, 'La respuesta sigue desglosada por juego (shape intacto).');
