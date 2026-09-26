@@ -1,0 +1,131 @@
+---
+import MainLayout from '../layouts/MainLayout.astro';
+import Icon from '../components/ui/Icon.astro';
+import { ICONOS } from '../data/iconos.js';
+import juegosJson from '../data/juegos.json';
+
+// iconografia-front R5: inventario completo — iconos de UI (Lucide) y todos
+// los slugs animales con su `icono` del catálogo + fallback (R2: a.icono || 🐾).
+const iconosUI = Object.keys(ICONOS).sort();
+
+// Opciones de familia animalitos (tipo 'animalitos') con su icono resuelto.
+// Fallback documentado: opción sin `icono` (ausente/vacío) → 🐾; las de tipo
+// no-animal no tienen icono por contrato (null en el JSON).
+// Se deduplican por slug `value`: el inventario de la auditoría son los 106
+// slugs únicos del mapa (config/iconos-animales.php), no las 643 opciones.
+const porSlug = new Map();
+const iconosVistos = new Set();
+for (const juego of juegosJson.juegos) {
+  if (juego.tipo !== 'animalitos') continue;
+  for (const opcion of juego.opciones) {
+    const icono = typeof opcion.icono === 'string' && opcion.icono ? opcion.icono : null;
+    if (icono) iconosVistos.add(icono);
+    if (!porSlug.has(opcion.value)) {
+      porSlug.set(opcion.value, {
+        juego: juego.nombre,
+        numero: opcion.numero,
+        label: opcion.label,
+        value: opcion.value,
+        icono,
+        fallback: icono ?? '🐾',
+      });
+    }
+  }
+}
+const animalesOrdenados = [...porSlug.values()].sort((a, b) => (a.numero ?? 0) - (b.numero ?? 0));
+const totalIconosDistintos = [...iconosVistos].sort();
+const sinIcono = animalesOrdenados.filter((a) => a.icono === null).length;
+---
+
+<MainLayout currentPage="auditoria">
+  <div class="auditoria-page">
+    <h2 class="page-title">Auditoría de Iconografía</h2>
+    <p class="page-subtitle">
+      Inventario completo de iconos: UI (Lucide SVG inline, R1) y animalitos (subset de
+      Noto Color Emoji, R3). Verificación Windows: esta página debe renderizar los emoji
+      con la fuente empaquetada, no con la del sistema operativo.
+    </p>
+
+    <section class="aud-section">
+      <h3 class="aud-title">1. Iconos de UI (Lucide) — {iconosUI.length} canónicos</h3>
+      <div class="ui-grid">
+        {iconosUI.map((nombre) => (
+          <div class="ui-cell" title={nombre}>
+            <span class="ui-svg"><Icon name={nombre} size={24} /></span>
+            <span class="ui-name">{nombre}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <section class="aud-section">
+      <h3 class="aud-title">
+        2. Animalitos — {animalesOrdenados.length} opciones, {totalIconosDistintos.length} iconos
+        distintos{sinIcono > 0 ? `, ${sinIcono} sin icono &rarr; 🐾` : ''}
+      </h3>
+      <table class="aud-table">
+        <thead>
+          <tr>
+            <th>Nº</th>
+            <th>Label</th>
+            <th>Slug (value)</th>
+            <th>Icono (subset)</th>
+            <th>Fallback</th>
+          </tr>
+        </thead>
+        <tbody>
+          {animalesOrdenados.map((a) => (
+            <tr>
+              <td class="aud-num">{a.numero}</td>
+              <td>{a.label}</td>
+              <td><code>{a.value}</code></td>
+              <td class="aud-emoji-cell"><span class="animal-emoji">{a.icono ?? '—'}</span></td>
+              <td class="aud-emoji-cell"><span class="animal-emoji">{a.fallback}</span></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+
+    <section class="aud-section">
+      <h3 class="aud-title">3. Muestra de la fuente subseteada — {totalIconosDistintos.length} glifos</h3>
+      <div class="font-sample">
+        {totalIconosDistintos.map((emoji) => (
+          <span class="animal-emoji font-sample-glyph" title={`U+${[...emoji].map((ch) => ch.codePointAt(0).toString(16).toUpperCase()).join(' ')}`}>{emoji}</span>
+        ))}
+      </div>
+      <p class="aud-note">
+        Cada glifo usa <code>font-family: "Noto Color Emoji Subset"</code> (@font-face en
+        <code>src/styles/fonts.css</code>, <code>font-display: swap</code>). Si un glifo se ve
+        como cuadro (tofu), el subset no cubre ese codepoint o la fuente no se empaquetó:
+        regenerar con <code>build-emoji-font.mjs</code> y verificar con <code>check-icons.mjs</code>.
+      </p>
+    </section>
+  </div>
+
+  <style is:global>
+    .auditoria-page { max-width: 1100px; margin: 0 auto; }
+    .page-title { font-size: 26px; font-weight: 700; color: #333; margin-bottom: 6px; }
+    .page-subtitle { color: #666; font-size: 14px; margin-bottom: 24px; line-height: 1.5; }
+    .aud-section { margin-bottom: 28px; }
+    .aud-title { font-size: 18px; font-weight: 700; color: #1a2a6c; margin-bottom: 12px; }
+    .ui-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+    .ui-cell {
+      display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+      background: white; border: 1px solid #e2e8f0; border-radius: 8px;
+    }
+    .ui-svg { display: inline-flex; color: #334155; }
+    .ui-svg svg { width: 24px; height: 24px; }
+    .ui-name { font-size: 12px; color: #475569; font-family: monospace; }
+    .aud-table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
+    .aud-table th { background: #f8f9fb; padding: 10px 12px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; color: #444; border-bottom: 2px solid #dde; }
+    .aud-table td { padding: 8px 12px; border-bottom: 1px solid #eef0f4; font-size: 13px; color: #333; }
+    .aud-table tr:nth-child(even) td { background: #fafbfc; }
+    .aud-num { font-weight: 700; color: #667eea; }
+    .aud-emoji-cell { font-size: 22px; text-align: center; }
+    .font-sample { display: flex; flex-wrap: wrap; gap: 10px; padding: 16px; background: white; border: 1px solid #e2e8f0; border-radius: 10px; }
+    .font-sample-glyph { font-size: 36px; line-height: 1.2; }
+    .aud-note { font-size: 13px; color: #666; margin-top: 10px; }
+    .aud-note code, .aud-table code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  </style>
+</MainLayout>
