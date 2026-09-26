@@ -87,6 +87,13 @@ import MainLayout from '../layouts/MainLayout.astro';
 
     <script>
         import { apiFetch } from '../utils/apiFetch';
+        import { formatearJugada, nombresJuegos, labelModalidad } from '../utils/ticket';
+        import { cargarCatalogo, labelDeSigno } from '../utils/catalogo';
+        import juegosRaw from '../data/juegos.json';
+
+        // Catálogo bundled: resuelve el label del signo (sigla → nombre,
+        // "SAG" → "Sagitario") para el texto de la jugada en el ticket.
+        const catalogoTicket = cargarCatalogo(juegosRaw);
 
         function getStatusClass(estado) {
             switch(estado) {
@@ -243,22 +250,36 @@ import MainLayout from '../layouts/MainLayout.astro';
         }
 
         async function printTicket(ticket) {
+            // Ticket impreso (2026-09): texto de jugada por familia (animal,
+            // solo número en terminal, modalidad + número + signo en tripletas)
+            // y encabezado con TODOS los juegos del ticket.
             const lines = (ticket.apuestas || []).map(a => {
                 const c = typeof a.combinacion === 'string' ? JSON.parse(a.combinacion) : (a.combinacion || {});
+                const esTripleta = !!c.tipo;
+                const tipo = esTripleta ? 'tripletas' : (c.animal ? 'animalitos' : 'terminales');
+                const juego = catalogoTicket.porId.get(a.juego_id ?? a.juego?.id);
                 return {
-                    animal: c.animal || c.signo || '-',
-                    number: c.numero || '-',
+                    game: a.juego?.name || '',
+                    jugada: formatearJugada({
+                        tipo,
+                        animal: c.animal || null,
+                        numero: c.numero ?? null,
+                        modalidad: esTripleta ? labelModalidad(c.tipo) : null,
+                        signo: esTripleta && c.signo
+                            ? (juego ? (labelDeSigno(juego, c.signo) ?? c.signo) : c.signo)
+                            : null,
+                    }),
                     sorteo: a.sorteo_hora ? new Date(a.sorteo_hora).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }) : '',
                     amountBs: Number(a.amount_bs || 0),
-                    amountUsd: Number(a.amount_usd || 0)
+                    amountUsd: Number(a.amount_usd || 0),
                 };
             });
             const ticketData = {
                 ticketCode: ticket.ticket_code,
                 date: new Date(ticket.created_at).toLocaleDateString('es-VE'),
                 time: new Date(ticket.created_at).toLocaleTimeString('es-VE'),
-                game: getTicketJuegos(ticket),
-                lines: lines
+                game: nombresJuegos(lines).join(', '),
+                lines: lines,
             };
             try {
                 if (window.electron?.printTicket) {
