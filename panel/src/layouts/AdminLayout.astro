@@ -1,5 +1,6 @@
 ---
 import { getStoredUser } from '../utils/api.ts';
+import Icon from '../components/Icon.astro';
 
 const user = getStoredUser();
 const role = user?.role || '';
@@ -24,7 +25,8 @@ const name = user?.name || '';
       width: 220px; background: #1e293b; color: #cbd5e1; flex-shrink: 0;
       display: flex; flex-direction: column; padding: 16px 0;
     }
-    .sidebar-brand { padding: 12px 20px; font-size: 18px; font-weight: 700; color: #fff; border-bottom: 1px solid #334155; margin-bottom: 8px; }
+    .sidebar-brand { padding: 12px 20px; font-size: 18px; font-weight: 700; color: #fff; border-bottom: 1px solid #334155; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+    .sidebar-brand svg { width: 18px; height: 18px; }
     .sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 2px; padding: 0 8px; }
     .sidebar-link {
       display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px;
@@ -33,10 +35,12 @@ const name = user?.name || '';
     .sidebar-link:hover { background: #334155; color: #fff; }
     .sidebar-link.active { background: #3b82f6; color: #fff; }
     .sidebar-link-icon { font-size: 16px; width: 20px; text-align: center; }
+    .sidebar-link-icon svg { width: 16px; height: 16px; vertical-align: middle; }
     .sidebar-footer { padding: 12px 20px; border-top: 1px solid #334155; }
     .sidebar-user { font-size: 13px; color: #94a3b8; }
     .sidebar-user strong { display: block; color: #e2e8f0; margin-bottom: 2px; }
-    .sidebar-logout { margin-top: 8px; padding: 6px 12px; background: #334155; border: none; color: #cbd5e1; border-radius: 6px; cursor: pointer; font-size: 12px; width: 100%; }
+    .sidebar-logout { margin-top: 8px; padding: 6px 12px; background: #334155; border: none; color: #cbd5e1; border-radius: 6px; cursor: pointer; font-size: 12px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .sidebar-logout svg { width: 14px; height: 14px; }
     .sidebar-logout:hover { background: #475569; }
     .main-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
     .topbar {
@@ -50,9 +54,11 @@ const name = user?.name || '';
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999; animation: fadeIn .2s ease; }
     .modal-dialog { background: #fff; border-radius: 12px; padding: 28px 24px 20px; max-width: 400px; width: 90%; text-align: center; box-shadow: 0 8px 30px rgba(0,0,0,0.25); animation: slideIn .25s ease; }
     .modal-icon { font-size: 36px; margin-bottom: 10px; }
+    .modal-icon svg { width: 36px; height: 36px; }
     .modal-message { font-size: 15px; color: #333; margin-bottom: 22px; line-height: 1.5; word-wrap: break-word; }
     .modal-buttons { display: flex; gap: 8px; justify-content: center; }
-    .modal-btn { padding: 10px 22px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; }
+    .modal-btn { padding: 10px 22px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; display: inline-flex; align-items: center; gap: 6px; }
+    .modal-btn svg { width: 16px; height: 16px; }
     .modal-btn:hover { filter: brightness(0.9); transform: translateY(-1px); }
     .modal-btn-primary { background: #3b82f6; color: #fff; }
     .modal-btn-danger { background: #dc3545; color: #fff; }
@@ -76,6 +82,18 @@ const name = user?.name || '';
     .sidebar-dropdown .dropdown-item:hover { background: #334155; color: #fff; }
     .sidebar-dropdown .dropdown-item.active { background: #1d4ed8; color: #fff; }
     .sidebar-dropdown .dropdown-count { margin-left: auto; font-size: 11px; opacity: 0.7; }
+    .dropdown-item svg { width: 14px; height: 14px; }
+    .dropdown-arrow svg { width: 12px; height: 12px; }
+    /* Iconos SVG (Lucide) inyectados por icono() en innerHTML: el SVG no hereda font-size */
+    .btn svg { width: 14px; height: 14px; vertical-align: middle; }
+    .btn-sm svg { width: 14px; height: 14px; vertical-align: middle; }
+    .pag-btn svg { width: 12px; height: 12px; vertical-align: middle; }
+    .estado svg { width: 14px; height: 14px; vertical-align: middle; }
+    .banca-chip svg { width: 12px; height: 12px; }
+    .table-note svg { width: 14px; height: 14px; vertical-align: middle; }
+    .tab-btn svg { width: 14px; height: 14px; vertical-align: middle; }
+    .stat-icon svg { width: 28px; height: 28px; }
+    .field-section h4 svg { width: 14px; height: 14px; vertical-align: middle; }
     @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
     @keyframes slideIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
   </style>
@@ -84,7 +102,7 @@ const name = user?.name || '';
 <body>
   <div class="app-shell">
     <aside class="sidebar">
-      <div class="sidebar-brand">🎰 Lotto Panel</div>
+      <div class="sidebar-brand"><Icon name="dices" /> Lotto Panel</div>
       <nav class="sidebar-nav" id="sidebar-nav">
       </nav>
       <div class="sidebar-footer">
@@ -92,7 +110,7 @@ const name = user?.name || '';
           <strong>{name || 'Admin'}</strong>
           {role ? role.replace('_',' ').toUpperCase() : ''}
         </div>
-        <button class="sidebar-logout" id="logout-btn">🚪 Cerrar sesión</button>
+        <button class="sidebar-logout" id="logout-btn"><Icon name="log-out" /> Cerrar sesión</button>
       </div>
     </aside>
     <main class="main-area">
@@ -109,6 +127,8 @@ const name = user?.name || '';
   </div>
 
   <script>
+    import { icono } from '../utils/iconos.ts';
+
     const currentPath = window.location.pathname;
     const user = JSON.parse(localStorage.getItem('panel_user') || '{}');
     const role = user.role || '';
@@ -150,7 +170,7 @@ const name = user?.name || '';
       const a = document.createElement('a');
       a.className = 'sidebar-link' + (active ? ' active' : '');
       a.href = href;
-      a.innerHTML = `<span class="sidebar-link-icon">${icon}</span> ${label}`;
+      a.innerHTML = `<span class="sidebar-link-icon" aria-hidden="true">${icono(icon)}</span> ${label}`;
       return a;
     }
 
@@ -159,25 +179,25 @@ const name = user?.name || '';
       const a = document.createElement('a');
       a.className = 'dropdown-item' + (active ? ' active' : '');
       a.href = href;
-      a.innerHTML = `${icon} ${label}<span class="dropdown-count" data-entity="${entityKey}">${count !== undefined && count !== null ? count : '-'}</span>`;
+      a.innerHTML = `<span aria-hidden="true">${icono(icon)}</span> ${label}<span class="dropdown-count" data-entity="${entityKey}">${count !== undefined && count !== null ? count : '-'}</span>`;
       return a;
     }
 
     const sidebarNav = document.getElementById('sidebar-nav');
 
     // Dashboard (always visible)
-    sidebarNav.appendChild(addLink('Dashboard', '/dashboard', '📊'));
+    sidebarNav.appendChild(addLink('Dashboard', '/dashboard', 'chart-bar'));
 
     // Entidades dropdown — varies by role
     const entidades = [];
     // Masters: SOLO super_master. Los masters son pares entre sí (la relación es
     // bancas.master_id, no master→master); un master no gestiona a otros masters,
     // y el rol master solo lo asigna el super_master.
-    if (role === 'super_master') entidades.push({ label: 'Masters', href: '/masters', icon: '👑', count: entityCounts.masters, key: 'masters' });
-    if (role === 'super_master' || role === 'master') entidades.push({ label: 'Bancas', href: '/bancas', icon: '🏦', count: entityCounts.bancas, key: 'bancas' });
-    if (role === 'super_master' || role === 'master' || role === 'banca') entidades.push({ label: 'Grupos', href: '/grupos', icon: '📂', count: entityCounts.grupos, key: 'grupos' });
-    if (['super_master','master','banca','grupo'].includes(role)) entidades.push({ label: 'Agencias', href: '/agencias', icon: '🏪', count: entityCounts.agencias, key: 'agencias' });
-    if (['super_master','master','banca','grupo','agencia'].includes(role)) entidades.push({ label: 'Taquillas', href: '/taquillas', icon: '🖥️', count: entityCounts.taquillas, key: 'taquillas' });
+    if (role === 'super_master') entidades.push({ label: 'Masters', href: '/masters', icon: 'crown', count: entityCounts.masters, key: 'masters' });
+    if (role === 'super_master' || role === 'master') entidades.push({ label: 'Bancas', href: '/bancas', icon: 'landmark', count: entityCounts.bancas, key: 'bancas' });
+    if (role === 'super_master' || role === 'master' || role === 'banca') entidades.push({ label: 'Grupos', href: '/grupos', icon: 'folder', count: entityCounts.grupos, key: 'grupos' });
+    if (['super_master','master','banca','grupo'].includes(role)) entidades.push({ label: 'Agencias', href: '/agencias', icon: 'store', count: entityCounts.agencias, key: 'agencias' });
+    if (['super_master','master','banca','grupo','agencia'].includes(role)) entidades.push({ label: 'Taquillas', href: '/taquillas', icon: 'monitor', count: entityCounts.taquillas, key: 'taquillas' });
 
     if (entidades.length > 0) {
       const dropdown = document.createElement('div');
@@ -186,7 +206,7 @@ const name = user?.name || '';
 
       const header = document.createElement('div');
       header.className = 'dropdown-header';
-      header.innerHTML = `<span class="header-left"><span class="sidebar-link-icon">👥</span> Entidades</span><span class="dropdown-arrow">▼</span>`;
+      header.innerHTML = `<span class="header-left"><span class="sidebar-link-icon" aria-hidden="true">${icono('users')}</span> Entidades</span><span class="dropdown-arrow" aria-hidden="true">${icono('chevron-down')}</span>`;
 
       const menu = document.createElement('div');
       menu.className = 'dropdown-menu';
@@ -218,25 +238,25 @@ const name = user?.name || '';
     }
 
     // Juegos
-    if (['super_master','master'].includes(role)) sidebarNav.appendChild(addLink('Juegos', '/juegos', '🎲'));
+    if (['super_master','master'].includes(role)) sidebarNav.appendChild(addLink('Juegos', '/juegos', 'dices'));
 
     // Gráficos — todos los roles
-    sidebarNav.appendChild(addLink('Gráficos', '/rendimiento', '📈'));
+    sidebarNav.appendChild(addLink('Gráficos', '/rendimiento', 'trending-up'));
 
     // Resultados Loterías — todos los roles
-    sidebarNav.appendChild(addLink('Resultados Loterías', '/resultados-loterias', '🎫'));
+    sidebarNav.appendChild(addLink('Resultados Loterías', '/resultados-loterias', 'ticket'));
 
     // Descargar Taquilla — todos los roles (D2)
-    sidebarNav.appendChild(addLink('Descargar Taquilla', '/descargar', '⬇️'));
+    sidebarNav.appendChild(addLink('Descargar Taquilla', '/descargar', 'download'));
 
     // Límites — vista de auditoría de solo lectura, únicamente super_master
-    if (role === 'super_master') sidebarNav.appendChild(addLink('Límites', '/limites', '🎯'));
+    if (role === 'super_master') sidebarNav.appendChild(addLink('Límites', '/limites', 'target'));
 
     // Reportes dropdown — todos los roles
     const reportes = [
-      { label: 'Ventas Totales', href: '/reportes/ventas', icon: '💰' },
-      { label: 'Relación Tickets', href: '/reportes/tickets', icon: '🎫' },
-      { label: 'Premios Vencidos', href: '/reportes/vencidos', icon: '⏰' },
+      { label: 'Ventas Totales', href: '/reportes/ventas', icon: 'banknote' },
+      { label: 'Relación Tickets', href: '/reportes/tickets', icon: 'ticket' },
+      { label: 'Premios Vencidos', href: '/reportes/vencidos', icon: 'alarm-clock' },
     ];
 
     const rDropdown = document.createElement('div');
@@ -245,7 +265,7 @@ const name = user?.name || '';
 
     const rHeader = document.createElement('div');
     rHeader.className = 'dropdown-header';
-    rHeader.innerHTML = `<span class="header-left"><span class="sidebar-link-icon">📊</span> Reportes</span><span class="dropdown-arrow">▼</span>`;
+    rHeader.innerHTML = `<span class="header-left"><span class="sidebar-link-icon" aria-hidden="true">${icono('chart-bar')}</span> Reportes</span><span class="dropdown-arrow" aria-hidden="true">${icono('chevron-down')}</span>`;
 
     const rMenu = document.createElement('div');
     rMenu.className = 'dropdown-menu';
@@ -281,16 +301,16 @@ const name = user?.name || '';
     })();
 
     // Tasas
-    if (['super_master','master'].includes(role)) sidebarNav.appendChild(addLink('Tasas', '/tasas', '💱'));
+    if (['super_master','master'].includes(role)) sidebarNav.appendChild(addLink('Tasas', '/tasas', 'arrow-left-right'));
 
     // Usuarios — todos los roles (el backend limita los datos según jerarquía)
-    sidebarNav.appendChild(addLink('Usuarios', '/usuarios', '👤'));
+    sidebarNav.appendChild(addLink('Usuarios', '/usuarios', 'user'));
 
     // Clave de Cierre — solo roles elegibles (la clave autoriza el re-cierre)
-    if (['super_master','master','banca'].includes(role)) sidebarNav.appendChild(addLink('Clave de Cierre', '/clave-cierre', '🔑'));
+    if (['super_master','master','banca'].includes(role)) sidebarNav.appendChild(addLink('Clave de Cierre', '/clave-cierre', 'key'));
 
     // Logs
-    if (['super_master','master'].includes(role)) sidebarNav.appendChild(addLink('Logs', '/logs', '📋'));
+    if (['super_master','master'].includes(role)) sidebarNav.appendChild(addLink('Logs', '/logs', 'clipboard-list'));
 
     function updateClock() {
       const now = new Date();
