@@ -1,5 +1,6 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
+import Icon from '../../components/Icon.astro';
 ---
 
 <AdminLayout>
@@ -9,12 +10,12 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
         <h2 class="page-title" id="page-title">Local</h2>
         <p class="page-subtitle" id="page-subtitle"></p>
       </div>
-      <a class="btn btn-secondary" href="/agencias">← Volver a Agencias</a>
+      <a class="btn btn-secondary" href="/agencias"><Icon name="arrow-left" size={14} /> Volver a Agencias</a>
     </div>
 
     <div class="tab-bar" id="tabs">
-      <button type="button" class="tab-btn" data-tab="informacion">📋 Información</button>
-      <button type="button" class="tab-btn" data-tab="taquillas">🖥️ Taquillas</button>
+      <button type="button" class="tab-btn" data-tab="informacion"><Icon name="clipboard-list" size={14} /> Información</button>
+      <button type="button" class="tab-btn" data-tab="taquillas"><Icon name="monitor" size={14} /> Taquillas</button>
     </div>
 
     <!-- Pestaña 1: Información -->
@@ -35,8 +36,8 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
         <p class="user-hint">El usuario del local (rol Agencia) se gestiona desde <a href="/usuarios">Usuarios</a>, vinculado a este local.</p>
         <div class="panel-actions">
           <button type="submit" class="btn btn-primary">Guardar Información</button>
-          <button type="button" class="btn btn-secondary" id="btn-toggle" style="display:none">🔄 Activar/Desactivar</button>
-          <button type="button" class="btn btn-danger" id="btn-delete" style="display:none">🗑 Eliminar</button>
+          <button type="button" class="btn btn-secondary" id="btn-toggle" style="display:none"><Icon name="refresh-cw" size={14} /> Activar/Desactivar</button>
+          <button type="button" class="btn btn-danger" id="btn-delete" style="display:none"><Icon name="trash-2" size={14} /> Eliminar</button>
         </div>
       </form>
     </section>
@@ -86,6 +87,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
     import { apiFetch, getStoredUser } from '../../utils/api.ts';
     import { showModal } from '../../utils/modal.ts';
     import { getParam, initTabs } from '../../utils/tabs.ts';
+    import { icono } from '../../utils/iconos.ts';
 
     const TABS = ['informacion', 'taquillas'];
     const currentUser = getStoredUser() || {};
@@ -254,7 +256,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
       }
       let html = '<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Código</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>';
       taquillas.forEach(t => {
-        html += `<tr><td><strong>${t.name}</strong></td><td>${t.code}</td><td><span class="badge ${t.active?'badge-active':'badge-inactive'}">${t.active?'Activo':'Inactivo'}</span></td><td class="actions-cell"><a class="btn btn-sm btn-secondary" href="/taquillas/detalle?id=${t.id}">👁️ Ver/Editar</a></td></tr>`;
+        html += `<tr><td><strong>${t.name}</strong></td><td>${t.code}</td><td><span class="badge ${t.active?'badge-active':'badge-inactive'}">${t.active?'Activo':'Inactivo'}</span></td><td class="actions-cell"><a class="btn btn-sm btn-secondary" href="/taquillas/detalle?id=${t.id}"><span aria-hidden="true">${icono('eye')}</span> Ver/Editar</a></td></tr>`;
       });
       html += '</tbody></table></div>';
       document.getElementById('taquillas-content').innerHTML = html;
