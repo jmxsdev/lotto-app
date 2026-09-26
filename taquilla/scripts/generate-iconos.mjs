@@ -81,6 +81,9 @@ export const MAPEO_EMOJI = {
   '🔢': 'hash',            // pestaña Números
   '⇒': 'arrow-right',      // "entonces" / siguiente
   '↔': 'arrow-left-right', // intercambio
+  '🐾': 'paw-print',        // pestaña Animalitos (resultados; 🐾 también es
+                           // valor `icono` del catálogo, pero como etiqueta de
+                           // pestaña es UI y se resuelve con el icono Lucide)
   '🔍': 'search',          // buscar
   '🎫': 'ticket',          // ticket / boletos
   '🎲': 'dices',           // dados / resultados
