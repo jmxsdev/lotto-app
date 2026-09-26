@@ -1,12 +1,13 @@
 ---
 import MainLayout from '../layouts/MainLayout.astro';
+import Icon from '../components/ui/Icon.astro';
 ---
 
 <MainLayout currentPage="dashboard">
   <div class="dashboard">
     <div class="stats-grid">
       <div class="stat-card clock-card">
-        <div class="stat-icon">🕐</div>
+        <div class="stat-icon"><Icon name="clock" size={20} /></div>
         <div class="stat-content">
           <div class="stat-label">Hora Actual</div>
           <div class="stat-value" id="clock">--:--:--</div>
@@ -14,7 +15,7 @@ import MainLayout from '../layouts/MainLayout.astro';
       </div>
       
       <div class="stat-card">
-        <div class="stat-icon">🎯</div>
+        <div class="stat-icon"><Icon name="target" size={20} /></div>
         <div class="stat-content">
           <div class="stat-label">Jugadas</div>
           <div class="stat-value" id="jugadas">0</div>
@@ -22,7 +23,7 @@ import MainLayout from '../layouts/MainLayout.astro';
       </div>
       
       <div class="stat-card">
-        <div class="stat-icon">💰</div>
+        <div class="stat-icon"><Icon name="banknote" size={20} /></div>
         <div class="stat-content">
           <div class="stat-label">Total a Pagar (BS)</div>
           <div class="stat-value" id="total-pagar">Bs. 0,00</div>
@@ -30,7 +31,7 @@ import MainLayout from '../layouts/MainLayout.astro';
       </div>
       
       <div class="stat-card">
-        <div class="stat-icon">💱</div>
+        <div class="stat-icon"><Icon name="arrow-left-right" size={20} /></div>
         <div class="stat-content">
           <div class="stat-label">Tasa del Dólar</div>
           <div class="stat-value" id="tasa-dolar">--</div>
@@ -54,7 +55,7 @@ import MainLayout from '../layouts/MainLayout.astro';
           <option value="bs">Bs</option>
           <option value="usd">$</option>
         </select>
-        <button id="qt-add" class="qt-btn qt-btn-primary" title="Agregar línea" data-zona="anadir">➕</button>
+        <button id="qt-add" class="qt-btn qt-btn-primary" title="Agregar línea" aria-label="Agregar línea" data-zona="anadir"><Icon name="plus" size={16} /></button>
       </div>
 
       <div class="qt-body">
@@ -63,7 +64,7 @@ import MainLayout from '../layouts/MainLayout.astro';
           <div class="juegos-tabs" id="juegos-tabs" data-zona="juegos"></div>
           <div id="juegos-list" class="juegos-list" data-zona="juegos"></div>
           <div id="horario-mode" class="horario-mode-inner" style="display:none">
-            <button id="back-to-juegos" class="back-btn" tabindex="-1">← Volver</button>
+            <button id="back-to-juegos" class="back-btn" tabindex="-1"><Icon name="arrow-left" size={14} /> Volver</button>
             <div class="game-chips" id="game-chips"></div>
             <div id="qt-horario-aviso" class="qt-horario-aviso" role="alert" style="display:none"></div>
             <div class="horarios-grid" id="horarios-grid" data-zona="horarios"></div>
@@ -85,8 +86,8 @@ import MainLayout from '../layouts/MainLayout.astro';
             <span class="total-amount" id="qt-total-amount">Bs. 0,00</span>
           </div>
           <div class="qt-actions">
-            <button id="qt-clear" class="btn btn-clear" disabled tabindex="-1">🗑️ Limpiar</button>
-            <button id="qt-print" class="btn btn-primary" disabled tabindex="-1">🖨️ Imprimir</button>
+            <button id="qt-clear" class="btn btn-clear" disabled tabindex="-1"><Icon name="trash-2" size={16} /> Limpiar</button>
+            <button id="qt-print" class="btn btn-primary" disabled tabindex="-1"><Icon name="printer" size={16} /> Imprimir</button>
           </div>
         </div>
       </div>
@@ -170,9 +171,10 @@ import MainLayout from '../layouts/MainLayout.astro';
       font-variant-numeric: tabular-nums;
     }
 
-    .stat-icon {
-      font-size: 20px;
-    }
+.stat-icon {
+    font-size: 20px;
+    display: inline-flex;
+  }
 
     .stat-content {
       flex: 1;
@@ -321,6 +323,11 @@ import MainLayout from '../layouts/MainLayout.astro';
       justify-content: center;
       background: #e9ecef;
       transition: background 0.15s ease;
+    }
+
+    .qt-btn svg {
+      width: 16px;
+      height: 16px;
     }
 
     .qt-btn:hover {
@@ -509,9 +516,15 @@ import MainLayout from '../layouts/MainLayout.astro';
       font-style: italic;
     }
 
-    .juego-icon {
-      font-size: 20px;
-    }
+.juego-icon {
+    font-size: 20px;
+    display: inline-flex;
+  }
+
+  .juego-icon svg {
+    width: 20px;
+    height: 20px;
+  }
 
     .juego-name {
       font-size: 13px;
@@ -678,6 +691,9 @@ import MainLayout from '../layouts/MainLayout.astro';
       padding: 4px 0;
       text-align: left;
       font-family: inherit;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }
 
     .back-btn:hover {
@@ -907,6 +923,13 @@ import MainLayout from '../layouts/MainLayout.astro';
       font-size: 14px;
       padding: 2px;
       opacity: 0.5;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .resumen-table .btn-rm svg {
+      width: 14px;
+      height: 14px;
     }
 
     .resumen-table .btn-rm:hover {
@@ -948,6 +971,15 @@ import MainLayout from '../layouts/MainLayout.astro';
       font-weight: 600;
       cursor: pointer;
       transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .btn svg {
+      width: 16px;
+      height: 16px;
     }
 
     .btn:disabled {
@@ -1137,6 +1169,7 @@ import MainLayout from '../layouts/MainLayout.astro';
     import { alternarHorario, marcarTodosVisibles, expandirLineas, horarioExpirado, filtrarHorariosFuturos, seleccionadosExpirados, agruparPorGroupId, indiceSeleccionTrasEliminar } from '../utils/horarios';
     import { calcularVuelto } from '../utils/vuelto';
     import { indiceDestinoFila, indiceDestinoColumna } from '../utils/gridNav';
+    import { icono } from '../utils/iconos';
     import juegosRaw from '../data/juegos.json';
     import logosRaw from '../data/logos.json';
 
@@ -1165,8 +1198,6 @@ import MainLayout from '../layouts/MainLayout.astro';
     let selectedOpcion = null; // numérica/terminal: opción resaltada en la lista
     let columnMode = 'juegos';
     let zonaActual = 'juegos';
-
-    const ANIMAL_EMOJIS = ['🐬','🐏','🐂','🐆','🐸','🐕','🐈','🕊️','🦜','🐿️','🐅','🦁','🐄','🦅','🦊','🐒','🦚','🐎','🐻','🫏','🐓','🐪','🐈‍⬛','🐍','🦌','🐐','🐘','🐖','🦆','🐊','🦚','🐟','🦀','🦔','🐇','🐦','🐔'];
 
     // Apostado types de tripletas (A2): el JSON bundled NO trae apostado types
     // (sus "modalidades" son premios informativos: cola, zodiacal, punta…).
@@ -1328,7 +1359,7 @@ import MainLayout from '../layouts/MainLayout.astro';
         const btn = document.createElement('button');
         btn.className = 'juego-tab' + (activeTab === t ? ' active' : '');
         btn.dataset.tab = t;
-        btn.tabIndex = -1; // pestañas: con ←/→ en el borde del grid (KB-03)
+        btn.tabIndex = -1; // pestañas: con flechas laterales en el borde del grid (KB-03)
         btn.textContent = labels[t] || t;
         btn.addEventListener('click', () => activarTab(t));
         container.appendChild(btn);
@@ -1343,7 +1374,7 @@ import MainLayout from '../layouts/MainLayout.astro';
         return;
       }
       container.innerHTML = juegos.map(j => {
-        let icon = activeTab === 'animalitos' ? '🎰' : activeTab === 'tripletas' ? '🎯' : '🔢';
+        let icon = activeTab === 'animalitos' ? icono('dices') : activeTab === 'tripletas' ? icono('target') : icono('hash');
         const selected = selectedGames.some(g => g.id === j.id) ? ' selected' : '';
         const archivo = logos[j.slug];
         // feat/taquilla-logos-juegos: el logo reemplaza al nombre como contenido
@@ -1353,7 +1384,7 @@ import MainLayout from '../layouts/MainLayout.astro';
         const nombre = `<span class="juego-name"${archivo ? ' hidden' : ''}>${j.nombre}</span>`;
         // El emoji decorativo acompaña SOLO al fallback sin logo: junto al logo
         // era ruido visual (pedido del usuario).
-        const icono = archivo ? '' : `<span class="juego-icon">${icon}</span>`;
+        const icono = archivo ? '' : `<span class="juego-icon" aria-hidden="true">${icon}</span>`;
         // Caption del roving focus: con logos, el nombre solo se ve al enfocar
         // la tarjeta con ↑/↓ o al pasar el mouse (overlay, ver .juego-caption).
         // `alt`/`title` del <img> se mantienen como refuerzo accesible.
@@ -1406,7 +1437,7 @@ import MainLayout from '../layouts/MainLayout.astro';
       } else if (juego.familia === 'zodiacal') {
         renderTripleModalidades();
       } else if (juego.familia === 'numerica') {
-        tripleModalidad = 'triple_a'; // A2: triple-numérico → solo triple_a
+        tripleModalidad = 'triple_a'; // A2: triple-numérico va directo a triple_a
         tripleModalidadLabel = 'Triple A';
         renderOpcionesLista(juego);
       } else {
@@ -1419,7 +1450,9 @@ import MainLayout from '../layouts/MainLayout.astro';
       const juego = juegoActivo();
       const lista = juego ? juego.opciones : animalesCache;
       container.innerHTML = lista.map(a => {
-        const emoji = ANIMAL_EMOJIS[a.numero] || '🐾';
+        // iconografia-front R2: el icono del animalito viene del catálogo
+        // bundled (campo `icono` por slug); degrada a 🐾 si falta o es vacío.
+        const emoji = a.icono || '🐾';
         const sel = selectedAnimal && selectedAnimal.label === a.label ? ' selected' : '';
         return `<div class="animal-check${sel}" data-numero="${a.numero}" data-label="${a.label}" tabindex="-1">
           <span class="animal-num">${a.numero}</span>
@@ -1727,7 +1760,7 @@ import MainLayout from '../layouts/MainLayout.astro';
         const primera = grupo.lines[0];
         const montoClass = primera.moneda === 'bs' ? 'monto-bs' : 'monto-usd';
         const horariosStr = grupo.lines.map(l => l.horario).join(', ');
-        const sorteoDisplay = (primera.juegoName || '-') + ' → ' + horariosStr;
+        const sorteoDisplay = (primera.juegoName || '-') + ' &rarr; ' + horariosStr;
         const animalDisplay = primera.juegoType === 'tripletas'
           ? (primera.tripleModalidadLabel
               ? primera.tripleModalidadLabel + ' ' + (primera.numero || '-') + (primera.animal ? ' - ' + primera.animal : '')
@@ -1744,7 +1777,7 @@ import MainLayout from '../layouts/MainLayout.astro';
           <td>${sorteoDisplay}</td>
           <td>${animalDisplay}</td>
           <td class="${montoClass}">${montoStr}</td>
-          <td><button class="btn-rm" data-grupo="${grupo.groupId}" title="Eliminar grupo">✕</button></td>
+          <td><button class="btn-rm" data-grupo="${grupo.groupId}" title="Eliminar grupo" aria-label="Eliminar grupo">${icono('x')}</button></td>
         </tr>`;
       });
       html += '</tbody></table>';
@@ -2022,13 +2055,13 @@ import MainLayout from '../layouts/MainLayout.astro';
       const grafo = grafoActual();
       const zonasHtml = grafo.zonas
         .map((z) => '<span class="kbd">' + (NOMBRE_ZONA[z] ?? z) + '</span>')
-        .join('<span class="leg-arrow"> → </span>');
+        .join('<span class="leg-arrow"> &rarr; </span>');
       const fkeysHtml = teclasLegend()
         .map(t => '<li><span class="kbd">' + t.tecla + '</span> ' + t.nombre + '</li>')
         .join('');
       el.innerHTML =
         '<p class="help-zonas"><strong>Zonas (Tab / Shift+Tab):</strong> ' + zonasHtml + '</p>' +
-        '<p class="help-zonas"><strong>←/→ en Juegos:</strong> columnas; en el borde, pestañas.</p>' +
+        '<p class="help-zonas"><strong>&larr;/&rarr; en Juegos:</strong> columnas; en el borde, pestañas.</p>' +
         '<p class="help-zonas"><strong>Teclas:</strong></p><ul class="help-fkeys">' + fkeysHtml + '</ul>';
     }
 
@@ -2485,7 +2518,7 @@ import MainLayout from '../layouts/MainLayout.astro';
       const grafo = grafoActual();
       const zonasHtml = grafo.zonas
         .map(z => '<span class="kbd">' + (NOMBRE_ZONA[z] ?? z) + '</span>')
-        .join('<span class="leg-arrow"> → </span>');
+        .join('<span class="leg-arrow"> &rarr; </span>');
       // FIX-6 (REQ-KB-09): KEYMAP (F1–F12) + destinos globales no-F (Alt+D)
       // del NAV_GLOBAL vía teclasLegend — la leyenda refleja el mapa real.
       const fkeysHtml = teclasLegend()
