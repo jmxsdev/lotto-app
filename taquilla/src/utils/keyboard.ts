@@ -13,7 +13,7 @@
  *
  *     Mapa atajos-2026-09 (era → ahora):
  *       F1  repetir-ultima «Repetir última»    (era F4)
- *       F2  ir-monto «Monto»                   (NUEVO; foco a #qt-monto)
+ *       F2  ir-numero «Números»                (NUEVO; foco a #qt-numero; Tab→Monto, Enter→Añadir)
  *       F3  anular-ultima «Eliminar última»    (era F3, renombrada)
  *       F4  pagar-generar «Pagar / Generar»    (era F5)
  *       F5  ventas «Ventas»                    (era F7; nav /historial)
@@ -24,18 +24,18 @@
  *       F10 anular-ticket «Anular ticket»      (NUEVO; DELETE /tickets/{id} con serial)
  *       F11 limpiar «Limpiar todo»             (era F2)
  *       F12 vuelto «Vuelto»                    (era F9)
- *       Alt+Esc ayuda «Ayuda»                  (era F1; NUEVO combo, toggle del modal)
+ *       Alt+H ayuda «Ayuda»                    (era F1; NUEVO combo, toggle del modal)
  *       Backspace eliminar-item «Eliminar ítem» (era F6; fila del Resumen, solo fuera de inputs)
- *     `ir-numero` (viejo F11 «Números») se elimina sin tecla sustituta.
+ *     `ir-numero` (viejo F11 «Números») vuelve al mapa en F2.
  *
  *   - buildZoneGraph(familia, ctx): ciclo de zonas por familia de opciones
  *     (REQ-KB-01, REQ-KB-02, A2). Base: juegos→seleccion→horarios→numero→
  *     monto→añadir→resumen. Zodiacal inserta modalidad tras juegos y signo
  *     SOLO si ctx.triple_c (D1); animalitos omite numero; numérica/terminal
  *     usan la base.
- *   - routeKey(state): decisión pura consumir/pasar (A1): Alt+Esc (toggle del
- *     modal de ayuda; consume SIEMPRE para bloquear el atajo del SO en
- *     Windows), modal abierto → solo su toggle propio (F12↔vuelto) y Esc,
+ *   - routeKey(state): decisión pura consumir/pasar (A1): Alt+H (toggle del
+ *     modal de ayuda; consume SIEMPRE para preservar la guarda A12), modal
+ *     abierto → solo su toggle propio (F12↔vuelto) y Esc,
  *     F-keys con guardas de estado (F1/F3 sin historial, F4 sin líneas),
  *     e.repeat ignorado en F-keys, foco en INPUT/SELECT → no intercepta salvo
  *     F-keys/Escape, Backspace elimina el ítem seleccionado del Resumen (era
@@ -54,8 +54,8 @@
  *       NAV_GLOBAL + destinoNav.
  *     - win-fixes2: FIX B dígitos en Signo (triple_c); FIX C «Limpiar todo»
  *       sin guarda de líneas (desviación de A11).
- *     - win-fixes3: F11 «Números» (salto al input) — retirado por
- *       atajos-2026-09, que lo reemplaza por F2 «Monto».
+ *     - win-fixes3: F11 «Números» (salto al input) — retirado de F11 por
+ *       atajos-2026-09, que lo recupera como F2 «Números».
  */
 
 export type FamiliaOpciones = 'animalitos' | 'zodiacal' | 'numerica' | 'terminal';
@@ -108,9 +108,10 @@ export interface TeclaMapa {
  */
 export const KEYMAP: readonly TeclaMapa[] = [
   { tecla: 'F1', accion: 'repetir-ultima', nombre: 'Repetir última', guarda: 'historial', implementadaEn: 'atajos-2026-09' },
-  // F2 «Monto» (atajos-2026-09): reemplaza al viejo F11 «Números» (ir-numero,
-  // eliminado sin sustituto). Salta al input #qt-monto con guarda 'ninguno'.
-  { tecla: 'F2', accion: 'ir-monto', nombre: 'Monto', guarda: 'ninguno', implementadaEn: 'atajos-2026-09' },
+  // F2 «Números» (atajos-2026-09): recupera al viejo F11 «Números»
+  // (ir-numero). Salta al input #qt-numero con guarda 'ninguno'; desde ahí
+  // Tab→Monto y Enter→Añadir operan con el ruteo existente.
+  { tecla: 'F2', accion: 'ir-numero', nombre: 'Números', guarda: 'ninguno', implementadaEn: 'atajos-2026-09' },
   { tecla: 'F3', accion: 'anular-ultima', nombre: 'Eliminar última', guarda: 'historial', implementadaEn: 'atajos-2026-09' },
   { tecla: 'F4', accion: 'pagar-generar', nombre: 'Pagar / Generar', guarda: 'lineas', implementadaEn: 'atajos-2026-09' },
   { tecla: 'F5', accion: 'ventas', nombre: 'Ventas', guarda: 'ninguno', implementadaEn: 'atajos-2026-09' },
@@ -146,7 +147,7 @@ export interface NavDestino {
 /**
  * Mapa puro de navegación global (REQ-KB-07, FIX-6; atajos-2026-09): se
  * renderiza desde MainLayout.astro (cubre dashboard, historial, cierre,
- * resultados y ganadores). F1–F4/F9–F12 y Alt+Esc NO navegan: son acciones
+ * resultados y ganadores). F1–F4/F9–F12 y Alt+H NO navegan: son acciones
  * locales del dashboard (F10 «Anular ticket» incluido, atajos-2026-09).
  */
 export const NAV_GLOBAL: readonly NavDestino[] = [
@@ -176,17 +177,17 @@ export interface TeclaLegend {
 
 /**
  * Atajos extra que NO son F-keys ni navegación y viven en el glue del
- * dashboard (atajos-2026-09): Alt+Esc = toggle del modal de ayuda (era F1).
+ * dashboard (atajos-2026-09): Alt+H = toggle del modal de ayuda (era F1).
  * Se listan en la leyenda/ayuda junto al KEYMAP y a los destinos de NAV_GLOBAL.
  */
 export const ATAJOS_EXTRA: readonly TeclaLegend[] = [
-  { tecla: 'Alt+Esc', nombre: 'Ayuda' },
+  { tecla: 'Alt+H', nombre: 'Ayuda' },
 ];
 
 /**
  * Teclas mostradas en la leyenda/ayuda (REQ-KB-09, FIX-6; atajos-2026-09):
  * F1–F12 (KEYMAP) más los destinos globales no-F (Alt+D) del NAV_GLOBAL y los
- * combos extra del glue (Alt+Esc). Todo derivado de los mapas: la leyenda y el
+ * combos extra del glue (Alt+H). Todo derivado de los mapas: la leyenda y el
  * modal de ayuda reflejan el mapa real sin texto hardcodeado.
  */
 export function teclasLegend(): readonly TeclaLegend[] {
@@ -366,7 +367,7 @@ export interface EstadoRuteo {
   repeat: boolean;
   ctrlKey: boolean;
   shiftKey: boolean;
-  /** Alt pulsado: Alt+Esc (atajos-2026-09) toggles el modal de ayuda. */
+  /** Alt pulsado: Alt+H (atajos-2026-09) toggles el modal de ayuda. */
   altKey: boolean;
   /** Foco en INPUT/SELECT/TEXTAREA nativo (no intercepta typing, A1). */
   focoEditable: boolean;
@@ -374,7 +375,7 @@ export interface EstadoRuteo {
   zonaActual: NombreZona | null;
   /** Algún modal abierto (.modal-overlay o #help-overlay.abierto). */
   modalAbierto: boolean;
-  /** Modal propio abierto: 'ayuda' (Alt+Esc) o 'vuelto' (F12). null = modal genérico. */
+  /** Modal propio abierto: 'ayuda' (Alt+H) o 'vuelto' (F12). null = modal genérico. */
   modalPropio: 'ayuda' | 'vuelto' | null;
   /** Modo de la columna izquierda (juegos | horarios). */
   columnMode: 'juegos' | 'horarios';
@@ -411,9 +412,9 @@ export type RutaDecision =
 /**
  * Decisión pura de ruteo (A1): consumir (preventDefault en el glue) o dejar
  * pasar. Reglas, en orden de precedencia:
- *   0. Alt+Esc (atajos-2026-09) → toggle del modal de ayuda: se consume
- *      siempre (bloquea el atajo del SO en Windows) pero solo ejecuta si no
- *      hay otro modal visible (guarda estricta A12).
+ *   0. Alt+H (atajos-2026-09) → toggle del modal de ayuda: se consume
+ *      siempre (preserva la guarda A12) pero solo ejecuta si no hay otro modal
+ *      visible (guarda estricta A12).
  *   1. Modal abierto → solo su propio toggle (F12↔vuelto) y Esc; el resto pasa
  *      (REQ-KB-08).
  *   2. F-keys con e.repeat → se ignoran (no consumen).
@@ -435,12 +436,12 @@ export type RutaDecision =
 export function routeKey(state: EstadoRuteo): RutaDecision {
   const fkey = obtenerFKey(state.tecla);
 
-  // 0. Alt+Esc (atajos-2026-09, ex F1): toggle del modal de ayuda. Se consume
-  //    SIEMPRE para bloquear el atajo del SO en Windows (Alt+Esc minimiza la
-  //    ventana; pendiente prueba [Win]), pero solo ejecuta si NO hay otro modal
-  //    visible (guarda estricta A12): con ayuda abierta cierra; con otro modal
-  //    (p. ej. vuelto/anular) no abre nada. e.repeat no re-dispara el toggle.
-  if (state.altKey && !state.ctrlKey && state.tecla === 'Escape') {
+  // 0. Alt+H (atajos-2026-09, ex F1): toggle del modal de ayuda. Se consume
+  //    SIEMPRE (preserva la guarda A12: con otro modal consume sin abrir),
+  //    pero solo ejecuta si NO hay otro modal visible (guarda estricta A12):
+  //    con ayuda abierta cierra; con otro modal (p. ej. vuelto/anular) no abre
+  //    nada. e.repeat no re-dispara el toggle.
+  if (state.altKey && !state.ctrlKey && state.tecla.toLowerCase() === 'h') {
     if (state.repeat) return { consume: false, tipo: 'pasar' };
     const puedeToggle = !state.modalAbierto || state.modalPropio === 'ayuda';
     return { consume: true, tipo: 'toggle-modal', modal: 'ayuda', ejecutable: puedeToggle };

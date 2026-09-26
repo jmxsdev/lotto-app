@@ -296,7 +296,7 @@ ok(r.consume && r.ejecutable === true, 'F11 sin líneas → ejecutable (limpia l
 r = routeKey(est({ tecla: 'F11', tieneLineas: true }));
 ok(r.consume && r.ejecutable === true, 'F11 con líneas → ejecutable');
 r = routeKey(est({ tecla: 'F2', tieneLineas: false }));
-ok(r.consume && r.tipo === 'f-key' && r.accion === 'ir-monto' && r.ejecutable === true, 'F2 → f-key «ir-monto» ejecutable (atajos-2026-09)');
+ok(r.consume && r.tipo === 'f-key' && r.accion === 'ir-numero' && r.ejecutable === true, 'F2 → f-key «ir-numero» ejecutable (atajos-2026-09)');
 r = routeKey(est({ tecla: 'F10' }));
 ok(r.consume && r.tipo === 'f-key' && r.accion === 'anular-ticket' && r.ejecutable === true, 'F10 → f-key «anular-ticket» ejecutable (sin guarda de líneas)');
 r = routeKey(est({ tecla: 'F1', tieneHistorial: false }));
@@ -317,10 +317,10 @@ r = routeKey(est({ modalAbierto: true, tecla: 'F4', tieneLineas: true }));
 ok(!r.consume, 'modal abierto + F4 → pasa');
 r = routeKey(est({ modalAbierto: true, tecla: 'Escape' }));
 ok(r.consume && r.tipo === 'escape' && r.nivel === 'modal', 'modal abierto + Esc → cierra modal');
-r = routeKey(est({ modalAbierto: true, modalPropio: 'ayuda', altKey: true, tecla: 'Escape' }));
+r = routeKey(est({ modalAbierto: true, modalPropio: 'ayuda', altKey: true, tecla: 'h' }));
 ok(
   r.consume && r.tipo === 'toggle-modal' && r.modal === 'ayuda' && r.ejecutable === true,
-  'modal ayuda + Alt+Esc → toggle propio (atajos-2026-09)',
+  'modal ayuda + Alt+H → toggle propio (atajos-2026-09)',
 );
 r = routeKey(est({ modalAbierto: true, modalPropio: 'vuelto', tecla: 'F12' }));
 ok(
@@ -332,27 +332,29 @@ ok(!r.consume, 'modal genérico + F1 → pasa (sin toggle propio)');
 r = routeKey(est({ modalAbierto: true, tecla: 'Tab' }));
 ok(!r.consume, 'modal abierto + Tab → pasa');
 
-console.log('\n== atajos-2026-09: Alt+Esc = ayuda (toggle + guarda A12) ==');
-r = routeKey(est({ altKey: true, tecla: 'Escape' }));
+console.log('\n== atajos-2026-09: Alt+H = ayuda (toggle + guarda A12) ==');
+r = routeKey(est({ altKey: true, tecla: 'h' }));
 ok(
   r.consume && r.tipo === 'toggle-modal' && r.modal === 'ayuda' && r.ejecutable === true,
-  'Alt+Esc sin modal → toggle del modal de ayuda',
+  'Alt+H sin modal → toggle del modal de ayuda',
 );
-r = routeKey(est({ altKey: true, tecla: 'Escape', modalAbierto: true, modalPropio: 'ayuda' }));
-ok(r.consume && r.ejecutable === true, 'Alt+Esc con ayuda abierta → cierra (toggle propio)');
-r = routeKey(est({ altKey: true, tecla: 'Escape', modalAbierto: true, modalPropio: 'vuelto' }));
+r = routeKey(est({ altKey: true, tecla: 'h', modalAbierto: true, modalPropio: 'ayuda' }));
+ok(r.consume && r.ejecutable === true, 'Alt+H con ayuda abierta → cierra (toggle propio)');
+r = routeKey(est({ altKey: true, tecla: 'h', modalAbierto: true, modalPropio: 'vuelto' }));
 ok(
   r.consume && r.tipo === 'toggle-modal' && r.modal === 'ayuda' && r.ejecutable === false,
-  'Alt+Esc con vuelto abierto → consume pero NO abre ayuda (A12)',
+  'Alt+H con vuelto abierto → consume pero NO abre ayuda (A12)',
 );
-r = routeKey(est({ altKey: true, tecla: 'Escape', modalAbierto: true, modalPropio: null }));
-ok(r.consume && r.ejecutable === false, 'Alt+Esc con modal genérico → consume sin abrir ayuda (A12)');
-r = routeKey(est({ altKey: true, tecla: 'Escape', repeat: true }));
-ok(!r.consume, 'Alt+Esc con e.repeat → no re-dispara el toggle');
-r = routeKey(est({ altKey: true, tecla: 'Escape', focoEditable: true }));
-ok(r.consume && r.ejecutable === true, 'Alt+Esc en INPUT → abre ayuda (como el viejo F1)');
-r = routeKey(est({ altKey: true, ctrlKey: true, tecla: 'Escape' }));
-ok(r.consume && r.tipo === 'escape', 'Ctrl+Alt+Esc NO toggles ayuda (cae al Escape normal)');
+r = routeKey(est({ altKey: true, tecla: 'h', modalAbierto: true, modalPropio: null }));
+ok(r.consume && r.ejecutable === false, 'Alt+H con modal genérico → consume sin abrir ayuda (A12)');
+r = routeKey(est({ altKey: true, tecla: 'h', repeat: true }));
+ok(!r.consume, 'Alt+H con e.repeat → no re-dispara el toggle');
+r = routeKey(est({ altKey: true, tecla: 'h', focoEditable: true }));
+ok(r.consume && r.ejecutable === true, 'Alt+H en INPUT → abre ayuda (como el viejo F1)');
+r = routeKey(est({ altKey: true, tecla: 'H' }));
+ok(r.consume && r.ejecutable === true, 'Alt+Shift+H (mayúscula) → también toggles ayuda');
+r = routeKey(est({ altKey: true, ctrlKey: true, tecla: 'h' }));
+ok(!r.consume && r.tipo === 'pasar', 'Ctrl+Alt+H NO toggles ayuda (pasa, AltGr)');
 
 console.log('\n== A1: routeKey — inputs no se secuestran, navegación ==');
 r = routeKey(est({ focoEditable: true, tecla: 'a' }));
@@ -481,9 +483,9 @@ ok(esFKey('F1') && esFKey('F12') && esFKey('F9'), 'esFKey F1/F12/F9 → true');
 ok(!esFKey('F13') && !esFKey('f1') && !esFKey('Enter') && !esFKey('Backspace'), 'esFKey no-F → false');
 const accionDe = (tecla) => KEYMAP.find((k) => k.tecla === tecla)?.accion;
 ok(
-  accionDe('F1') === 'repetir-ultima' && accionDe('F2') === 'ir-monto' &&
+  accionDe('F1') === 'repetir-ultima' && accionDe('F2') === 'ir-numero' &&
     accionDe('F3') === 'anular-ultima' && accionDe('F4') === 'pagar-generar',
-  'F1–F4: repetir/monto/eliminar-última/pagar',
+  'F1–F4: repetir/números/eliminar-última/pagar',
 );
 ok(
   accionDe('F5') === 'ventas' && accionDe('F6') === 'resultados' &&
@@ -498,8 +500,8 @@ ok(
 const acciones = KEYMAP.map((k) => k.accion).filter(Boolean);
 ok(acciones.length === 12, `12 acciones mapeadas (F1–F12 completos, ${acciones.length})`);
 ok(KEYMAP.every((k) => k.implementadaEn === 'atajos-2026-09'), 'todo el KEYMAP marcado como batch «atajos-2026-09»');
-ok(!KEYMAP.some((k) => k.accion === 'ir-numero'), '«ir-numero» (viejo F11 «Números») eliminado sin sustituto');
-ok(!KEYMAP.some((k) => k.accion === 'ayuda'), '«ayuda» ya no es F-key: pasa al combo Alt+Esc');
+ok(KEYMAP.find((k) => k.tecla === 'F2')?.nombre === 'Números', 'F2 → «Números» en el KEYMAP');
+ok(!KEYMAP.some((k) => k.accion === 'ayuda'), '«ayuda» ya no es F-key: pasa al combo Alt+H');
 ok(
   KEYMAP.filter((k) => k.guarda === 'lineas').map((k) => k.tecla).join(',') === 'F4',
   'guarda de líneas: solo F4 (pagar/generar)',
@@ -727,16 +729,16 @@ ok(destinoNav('F9', { altKey: false, ctrlKey: false }) === null, 'F9 → sin des
 ok(destinoNav('F12', { altKey: false, ctrlKey: false }) === null, 'F12 → sin destino (local: vuelto)');
 ok(destinoNav('x', { altKey: false, ctrlKey: false }) === null, 'tecla no navegable → null');
 const legend = teclasLegend();
-ok(legend.length === 14, `teclasLegend: 14 teclas (F1–F12 + Alt+D + Alt+Esc) (${legend.length})`);
+ok(legend.length === 14, `teclasLegend: 14 teclas (F1–F12 + Alt+D + Alt+H) (${legend.length})`);
 ok(legend.some((t) => t.tecla === 'Alt+D' && t.nombre === 'Dashboard'), 'teclasLegend incluye Alt+D → Dashboard');
-ok(legend.some((t) => t.tecla === 'Alt+Esc' && t.nombre === 'Ayuda'), 'teclasLegend incluye Alt+Esc → Ayuda (era F1)');
+ok(legend.some((t) => t.tecla === 'Alt+H' && t.nombre === 'Ayuda'), 'teclasLegend incluye Alt+H → Ayuda (era F1)');
 ok(legend.find((t) => t.tecla === 'F1')?.nombre === 'Repetir última', 'F1 → Repetir última en la leyenda');
-ok(legend.find((t) => t.tecla === 'F2')?.nombre === 'Monto', 'F2 → Monto en la leyenda');
+ok(legend.find((t) => t.tecla === 'F2')?.nombre === 'Números', 'F2 → Números en la leyenda');
 ok(legend.find((t) => t.tecla === 'F4')?.nombre === 'Pagar / Generar', 'F4 → Pagar / Generar en la leyenda');
 ok(legend.find((t) => t.tecla === 'F10')?.nombre === 'Anular ticket', 'F10 → Anular ticket en la leyenda');
 ok(legend.find((t) => t.tecla === 'F11')?.nombre === 'Limpiar todo', 'F11 → Limpiar todo en la leyenda');
-ok(!legend.some((t) => t.nombre === 'Números'), 'la leyenda ya no lista «Números» (ir-numero eliminado)');
-ok(ATAJOS_EXTRA.length === 1 && ATAJOS_EXTRA[0].tecla === 'Alt+Esc' && ATAJOS_EXTRA[0].nombre === 'Ayuda', 'ATAJOS_EXTRA: solo Alt+Esc → Ayuda');
+ok(legend.some((t) => t.nombre === 'Números'), 'la leyenda lista «Números» (F2 recupera ir-numero)');
+ok(ATAJOS_EXTRA.length === 1 && ATAJOS_EXTRA[0].tecla === 'Alt+H' && ATAJOS_EXTRA[0].nombre === 'Ayuda', 'ATAJOS_EXTRA: solo Alt+H → Ayuda');
 
 console.log('\n== Logos de juegos (feat/taquilla-logos-juegos) ==');
 // Artefacto estático del dashboard: mapa slug → archivo generado desde

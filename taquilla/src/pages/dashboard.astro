@@ -92,9 +92,9 @@ import MainLayout from '../layouts/MainLayout.astro';
       </div>
     </div>
 
-    <!-- Modal de ayuda Alt+Esc (atajos-2026-09; era F1): reutiliza los estilos
+    <!-- Modal de ayuda Alt+H (atajos-2026-09; era F1): reutiliza los estilos
          globales .modal-overlay/.modal-dialog; la clase .abierto controla la
-         visibilidad. Su toggle (Alt+Esc) y Esc/Cerrar/click lo cierran; con él
+         visibilidad. Su toggle (Alt+H) y Esc/Cerrar/click lo cierran; con él
          abierto ninguna otra F-key ejecuta (guarda estricta A12). -->
     <div id="help-overlay" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Ayuda de teclado">
       <div class="modal-dialog help-dialog">
@@ -1015,7 +1015,7 @@ import MainLayout from '../layouts/MainLayout.astro';
       font-size: 13px;
     }
 
-    /* Modal de ayuda Alt+Esc (atajos-2026-09; era F1): mismo patrón de
+    /* Modal de ayuda Alt+H (atajos-2026-09; era F1): mismo patrón de
        visibilidad que el de vuelto; el ID gana especificidad sobre
        .modal-overlay. */
     #help-overlay {
@@ -1942,7 +1942,7 @@ import MainLayout from '../layouts/MainLayout.astro';
     }
 
     function clearTicket() {
-      // win-fixes2 FIX C (desviación de A11): F2 / 🗑️ «Limpiar todo» vacía el
+      // win-fixes2 FIX C (desviación de A11): F11 / 🗑️ «Limpiar todo» vacía el
       // ticket Y TODA la selección en curso — juego, animal, signo, opción,
       // modalidad, horarios y buffers de dígitos — y vuelve las zonas a Juegos
       // con foco inicial. A11 mantenía el juego activo y exigía líneas; el
@@ -2234,9 +2234,9 @@ import MainLayout from '../layouts/MainLayout.astro';
       }
     }
 
-    // ─── Modal de ayuda Alt+Esc (atajos-2026-09; REQ-KB-07/08, A12) ─────────
+    // ─── Modal de ayuda Alt+H (atajos-2026-09; REQ-KB-07/08, A12) ───────────
     // Contenido dinámico (grafo de zonas + mapa del KEYMAP) al abrir; se cierra
-    // con su toggle (Alt+Esc), Esc, botón Cerrar o click en el overlay.
+    // con su toggle (Alt+H), Esc, botón Cerrar o click en el overlay.
 
     function renderAyudaContenido() {
       const el = document.getElementById('help-content');
@@ -2372,13 +2372,14 @@ import MainLayout from '../layouts/MainLayout.astro';
     // repetir última (atómico), F3 anular último grupo, F4 pagar/generar
     // (= handlePrint), F9 reimprimir snapshot, F10 anular ticket (modal de
     // serial + DELETE), F11 limpiar todo (= clearTicket, reset TOTAL) y F12
-    // vuelto. F2 (Monto) y la ayuda (Alt+Esc) se rutean como decisiones puras
-    // (`f-key`/`toggle-modal`) y no viven en este mapa. F5/F6/F7/F8
+    // vuelto. F2 (Números) y la ayuda (Alt+H) se rutean como decisiones puras
+    // (`f-key`/`toggle-modal`) desde routeKey; el handler de F2 vive en este
+    // mapa. F5/F6/F7/F8
     // (ventas/resultados/ganadores/cuadre) NO viven aquí: la navegación es
     // GLOBAL en MainLayout.astro (evita doble dispatch en las 5 pantallas).
     // Las guardas de estado viven en routeKey (ejecutable=false) y la guarda
     // estricta de modales (A12) en la regla 1 del router: con un modal abierto
-    // solo el toggle de su dueño (Alt+Esc↔ayuda, F12↔vuelto) y Esc actúan.
+    // solo el toggle de su dueño (Alt+H↔ayuda, F12↔vuelto) y Esc actúan.
     const ACCIONES_FKEYS = {
       'repetir-ultima': repetirUltimaJugada,
       'anular-ultima': anularUltimaJugada,
@@ -2387,13 +2388,13 @@ import MainLayout from '../layouts/MainLayout.astro';
       'anular-ticket': () => { abrirAnularModal(); },
       'limpiar': clearTicket,
       'vuelto': toggleVueltoModal,
-      // F2 (atajos-2026-09): foco al input #qt-monto + zona `monto`; desde ahí
-      // Enter→Añadir ya opera con el ruteo existente (mismo patrón del viejo
-      // F11 «Números», eliminado en este re-mapeo).
-      'ir-monto': () => {
-        const input = document.getElementById('qt-monto');
+      // F2 (atajos-2026-09): foco al input #qt-numero + zona `numero`; desde
+      // ahí Tab→Monto y Enter→Añadir ya operan con el ruteo existente (mismo
+      // patrón del viejo F11 «Números» de win-fixes3).
+      'ir-numero': () => {
+        const input = document.getElementById('qt-numero');
         if (input) input.focus({ preventScroll: true });
-        enfocarZona('monto');
+        enfocarZona('numero');
       },
     };
 
@@ -2404,7 +2405,7 @@ import MainLayout from '../layouts/MainLayout.astro';
 
     // Guarda de modal (REQ-KB-08, A12 refined): cualquier .modal-overlay VISIBLE
     // (showModal de MainLayout es dinámico y siempre visible en el DOM; los
-    // modales propios Alt+Esc/F12/F10 son estáticos con display:none cerrados)
+    // modales propios Alt+H/F12/F10 son estáticos con display:none cerrados)
     // o el #help-overlay.abierto. La visibilidad evita que un modal propio
     // cerrado (aún en el DOM) bloquee las F-keys.
     function detectarModalAbierto() {
@@ -2413,7 +2414,7 @@ import MainLayout from '../layouts/MainLayout.astro';
       return document.querySelector('#help-overlay.abierto') !== null;
     }
 
-    // Modal propio abierto para routeKey (A12): 'ayuda' (Alt+Esc) o 'vuelto'
+    // Modal propio abierto para routeKey (A12): 'ayuda' (Alt+H) o 'vuelto'
     // (F12). El modal de anulación F10 no tiene toggle propio (se cierra con
     // Esc/Cancelar): con él abierto, modalPropio queda null y ninguna F-key
     // ejecuta. Con un modal abierto, routeKey solo permite el toggle de su
@@ -2667,7 +2668,7 @@ import MainLayout from '../layouts/MainLayout.astro';
     // Esc sube un nivel sin descartar selección ni líneas (KB-04, A1).
     function manejarEscape(nivel) {
       if (nivel === 'modal') {
-        // Cierra el modal superior: ayuda (Alt+Esc) → vuelto (F12) → anular
+        // Cierra el modal superior: ayuda (Alt+H) → vuelto (F12) → anular
         // (F10) → showModal genérico. La guarda A12 impide que haya más de uno
         // de los propios a la vez; el orden es defensivo.
         const ayuda = document.querySelector('#help-overlay.abierto');
@@ -2719,7 +2720,7 @@ import MainLayout from '../layouts/MainLayout.astro';
         .map(z => '<span class="kbd">' + (NOMBRE_ZONA[z] ?? z) + '</span>')
         .join('<span class="leg-arrow"> → </span>');
       // FIX-6 (REQ-KB-09; atajos-2026-09): KEYMAP (F1–F12) + destinos globales
-      // no-F (Alt+D) + combos extra (Alt+Esc) vía teclasLegend — leyenda y
+      // no-F (Alt+D) + combos extra (Alt+H) vía teclasLegend — leyenda y
       // ayuda derivan del mapa real, sin texto hardcodeado.
       const fkeysHtml = teclasLegend()
         .map(t => '<span><span class="kbd">' + t.tecla + '</span> ' + t.nombre + '</span>')
@@ -2846,7 +2847,7 @@ import MainLayout from '../layouts/MainLayout.astro';
       document.getElementById('qt-clear').addEventListener('click', clearTicket);
       document.getElementById('qt-print').addEventListener('click', handlePrint);
 
-      // Modal de ayuda Alt+Esc (atajos-2026-09): cierre por botón/overlay.
+      // Modal de ayuda Alt+H (atajos-2026-09): cierre por botón/overlay.
       const helpOverlay = document.getElementById('help-overlay');
       document.getElementById('help-cerrar').addEventListener('click', cerrarAyudaModal);
       helpOverlay.addEventListener('click', (e) => {
@@ -2920,7 +2921,7 @@ import MainLayout from '../layouts/MainLayout.astro';
           repeat: e.repeat,
           ctrlKey: e.ctrlKey,
           shiftKey: e.shiftKey,
-          altKey: e.altKey, // Alt+Esc = ayuda (atajos-2026-09)
+          altKey: e.altKey, // Alt+H = ayuda (atajos-2026-09)
           focoEditable: esEditable(e.target),
           zonaActual,
           modalAbierto: detectarModalAbierto(),
@@ -2960,10 +2961,10 @@ import MainLayout from '../layouts/MainLayout.astro';
           case 'digito': manejarDigitoEnSeleccion(decision.digito); break; // FIX-5
           case 'eliminar-item': eliminarItemSeleccionado(); break; // Backspace (era F6)
           case 'toggle-modal': {
-            // A12: toggle del modal propio (Alt+Esc↔ayuda, F12↔vuelto).
+            // A12: toggle del modal propio (Alt+H↔ayuda, F12↔vuelto).
             // routeKey solo lo emite si no hay modal abierto o si el abierto es
-            // el propio; `ejecutable=false` (Alt+Esc con OTRO modal visible) se
-            // consume pero no ejecuta: bloquea el atajo del SO sin abrir nada.
+            // el propio; `ejecutable=false` (Alt+H con OTRO modal visible) se
+            // consume pero no ejecuta: preserva la guarda A12 sin abrir nada.
             if (decision.ejecutable === false) break;
             if (decision.modal === 'ayuda') toggleAyudaModal();
             if (decision.modal === 'vuelto') toggleVueltoModal();
