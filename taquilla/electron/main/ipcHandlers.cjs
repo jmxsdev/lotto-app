@@ -21,11 +21,39 @@ function generateTicketHtml(ticketData) {
     // A7 (aditivo, retrocompatible): si alguna línea trae `sorteo`, se
     // muestra la columna Hora; sin `sorteo` la plantilla queda como hoy.
     const hasSorteo = lines.some(l => l.sorteo);
-    const horaTh = hasSorteo ? '<th>Hora</th>' : '';
+    const columnas = hasSorteo ? 5 : 4;
 
-    const rows = lines.map((l, i) =>
-        `<tr><td>${i + 1}.</td><td>${l.animal}</td><td>#${l.number}</td>${hasSorteo ? `<td>${l.sorteo || ''}</td>` : ''}<td>Bs. ${(l.amountBs || 0).toFixed(2)}</td><td>$${(l.amountUsd || 0).toFixed(2)}</td></tr>`
-    ).join('');
+    // Formato multi-juego (2026-09): el encabezado lista TODOS los juegos del
+    // ticket y, con más de uno, cada tramo de jugadas se agrupa bajo el nombre
+    // de su juego. `jugada` viene precompuesta por el renderer (ticket.ts);
+    // el fallback cubre snapshots F12 del formato anterior.
+    const juegos = [];
+    for (const l of lines) {
+        const nombre = String(l.game || '').trim();
+        if (nombre && !juegos.includes(nombre)) juegos.push(nombre);
+    }
+    const multiJuego = juegos.length > 1;
+    const juegoHeader = (typeof game === 'string' && game.trim()) || juegos.join(', ') || 'Apuesta';
+    const textoJugada = (l) => {
+        if (l.jugada) return String(l.jugada);
+        const numero = l.number !== undefined && l.number !== null && String(l.number) !== '' ? '#' + l.number : '';
+        return [l.animal, numero].filter(Boolean).join(' ') || '-';
+    };
+
+    const filas = [];
+    let ultimoJuego = null;
+    lines.forEach((l, i) => {
+        const nombre = String(l.game || '').trim();
+        if (multiJuego && nombre !== ultimoJuego) {
+            if (nombre) filas.push(`<tr class="grupo-juego"><td colspan="${columnas}">${escapeHtml(nombre)}</td></tr>`);
+            ultimoJuego = nombre;
+        }
+        filas.push(
+            `<tr><td>${i + 1}.</td><td>${escapeHtml(textoJugada(l))}</td>` +
+            `${hasSorteo ? `<td>${escapeHtml(l.sorteo || '')}</td>` : ''}` +
+            `<td>Bs. ${fmtMoney(l.amountBs)}</td><td>$${fmtMoney(l.amountUsd)}</td></tr>`
+        );
+    });
 
     return `
         <style>
@@ -36,23 +64,24 @@ function generateTicketHtml(ticketData) {
             table { width: 100%; border-collapse: collapse; font-size: 10px; }
             th, td { text-align: left; padding: 1px 0; }
             th { border-bottom: 1px solid #000; }
+            .grupo-juego td { font-weight: bold; padding-top: 4px; }
             .total { font-weight: bold; }
             .text-center { text-align: center; }
         </style>
         <div>
             <h2>LOTTO TICKET</h2>
-            <p class="text-center">${game}</p>
+            <p class="text-center">${escapeHtml(juegoHeader)}</p>
             <hr>
-            <p>Ticket: ${ticketCode}</p>
-            <p>Fecha: ${date} - ${time}</p>
+            <p>Ticket: ${escapeHtml(ticketCode)}</p>
+            <p>Fecha: ${escapeHtml(date)} - ${escapeHtml(time)}</p>
             <hr>
             <table>
-                <thead><tr><th>#</th><th>Animal</th><th>N</th>${horaTh}<th>BS</th><th>USD</th></tr></thead>
-                <tbody>${rows}</tbody>
+                <thead><tr><th>#</th><th>Jugada</th>${hasSorteo ? '<th>Hora</th>' : ''}<th>BS</th><th>USD</th></tr></thead>
+                <tbody>${filas.join('')}</tbody>
             </table>
             <hr>
-            <p class="total">Total BS: Bs. ${totalBs.toFixed(2)}</p>
-            <p class="total">Total USD: $${totalUsd.toFixed(2)}</p>
+            <p class="total">Total BS: Bs. ${fmtMoney(totalBs)}</p>
+            <p class="total">Total USD: $${fmtMoney(totalUsd)}</p>
             <hr>
             <p class="text-center">Gracias por su compra!</p>
         </div>
@@ -422,6 +451,7 @@ function registerIpcHandlers(upstream) {
 
 module.exports = {
     getMacAddress,
+    generateTicketHtml,
     generateCierreHtml,
     generateReporteHtml,
     registerIpcHandlers
