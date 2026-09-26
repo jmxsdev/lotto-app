@@ -1,5 +1,6 @@
 ---
 import { API_BASE } from '../config/api';
+import Icon from '../components/ui/Icon.astro';
 
 interface Props {
   taquillaName?: string;
@@ -66,24 +67,24 @@ try {
       <header class="top-header">
         <div class="header-nav">
           <a href="/dashboard" class={"nav-link" + (currentPage === 'dashboard' ? ' active' : '')} title="Dashboard">
-            <span class="nav-icon">🏠</span>
+            <span class="nav-icon"><Icon name="home" ariaLabel="Dashboard" size={18} /></span>
           </a>
           <a href="/historial" class={"nav-link" + (currentPage === 'historial' ? ' active' : '')} title="Historial">
-            <span class="nav-icon">📋</span>
+            <span class="nav-icon"><Icon name="clipboard-list" ariaLabel="Historial" size={18} /></span>
           </a>
           <a href="/resultados" class={"nav-link" + (currentPage === 'resultados' ? ' active' : '')} title="Resultados">
-            <span class="nav-icon">🏆</span>
+            <span class="nav-icon"><Icon name="trophy" ariaLabel="Resultados" size={18} /></span>
           </a>
           <a href="/ganadores" class={"nav-link" + (currentPage === 'ganadores' ? ' active' : '')} title="Ganadores">
-            <span class="nav-icon">💎</span>
+            <span class="nav-icon"><Icon name="gem" ariaLabel="Ganadores" size={18} /></span>
           </a>
           <a href="/cierre" class={"nav-link" + (currentPage === 'cierre' ? ' active' : '')} title="Cierre de Caja">
-            <span class="nav-icon">💰</span>
+            <span class="nav-icon"><Icon name="banknote" ariaLabel="Cierre de Caja" size={18} /></span>
           </a>
         </div>
 
         <div class="header-brand">
-          <h1 class="logo">🎰 Lotto Taquilla</h1>
+          <h1 class="logo"><Icon name="dices" size={16} /> Lotto Taquilla</h1>
         </div>
 
         <div class="header-info">
@@ -101,8 +102,8 @@ try {
           </div>
           <div class="user-section">
             {userName && <span class="user-name">{userName}</span>}
-            <button class="logout-btn" id="logout-btn" title="Cerrar sesión">
-              🚪
+            <button class="logout-btn" id="logout-btn" title="Cerrar sesión" aria-label="Cerrar sesión">
+              <Icon name="log-out" size={16} />
             </button>
           </div>
         </div>
@@ -118,6 +119,7 @@ try {
     <script>
       import { apiFetch } from '../utils/apiFetch';
       import { destinoNav } from '../utils/keyboard';
+      import { icono } from '../utils/iconos';
 
       let connected = navigator.onLine;
 
@@ -166,16 +168,24 @@ try {
       // Tipos info/success/error/confirm intactos (retrocompatible): resuelven boolean como antes.
       function showModal({ message, type = 'info', inputType = 'text', placeholder = '', minLength, maxLength, pattern, inputmode }) {
         return new Promise((resolve) => {
-          const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'confirm' ? '⚠️' : type === 'input' ? '🔑' : 'ℹ️';
+          // iconografia-front R1: el icono del modal es SVG Lucide inline
+          // (icono() devuelve '' para nombre desconocido; el check lo reporta).
+          const icon = icono(
+            type === 'success' ? 'circle-check'
+              : type === 'error' ? 'circle-x'
+              : type === 'confirm' ? 'triangle-alert'
+              : type === 'input' ? 'key'
+              : 'info'
+          );
           let buttons;
           if (type === 'confirm') {
-            buttons = `<button class="modal-btn modal-btn-secondary cancel-btn">✗ No</button>
-               <button class="modal-btn modal-btn-danger ok-btn">✓ Sí</button>`;
+            buttons = `<button class="modal-btn modal-btn-secondary cancel-btn">${icono('x')} No</button>
+               <button class="modal-btn modal-btn-danger ok-btn">${icono('check')} Sí</button>`;
           } else if (type === 'input') {
-            buttons = `<button class="modal-btn modal-btn-secondary cancel-btn">✗ Cancelar</button>
-               <button class="modal-btn modal-btn-primary ok-btn">✓ Aceptar</button>`;
+            buttons = `<button class="modal-btn modal-btn-secondary cancel-btn">${icono('x')} Cancelar</button>
+               <button class="modal-btn modal-btn-primary ok-btn">${icono('check')} Aceptar</button>`;
           } else {
-            buttons = `<button class="modal-btn modal-btn-primary ok-btn">✓ Aceptar</button>`;
+            buttons = `<button class="modal-btn modal-btn-primary ok-btn">${icono('check')} Aceptar</button>`;
           }
           const inputAttrs = type === 'input'
             ? ` type="${inputType}" placeholder="${placeholder}" autocomplete="off" autocapitalize="off" spellcheck="false"`
@@ -310,6 +320,12 @@ try {
 
   .nav-icon {
     font-size: 18px;
+    display: inline-flex;
+  }
+
+  .nav-icon svg {
+    width: 18px;
+    height: 18px;
   }
 
   .header-brand {
@@ -321,6 +337,9 @@ try {
     font-size: 16px;
     font-weight: 700;
     margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
 
   .header-info {
@@ -398,6 +417,11 @@ try {
     transition: background 0.15s ease;
   }
 
+  .logout-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+
   .logout-btn:hover {
     background: rgba(255, 255, 255, 0.3);
   }
@@ -416,6 +440,7 @@ try {
     animation: modalSlideIn .25s ease;
   }
   .modal-icon { font-size: 36px; margin-bottom: 10px; }
+  .modal-icon svg { width: 36px; height: 36px; }
   .modal-message { font-size: 15px; color: #333; margin-bottom: 22px; line-height: 1.5; word-wrap: break-word; }
   .modal-input {
     width: 100%;
@@ -433,7 +458,9 @@ try {
   .modal-btn {
     padding: 10px 22px; border-radius: 8px; font-size: 14px; font-weight: 600;
     cursor: pointer; border: none; transition: all .15s;
+    display: inline-flex; align-items: center; gap: 6px;
   }
+  .modal-btn svg { width: 16px; height: 16px; }
   .modal-btn:hover { filter: brightness(0.9); transform: translateY(-1px); }
   .modal-btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
   .modal-btn-danger { background: #dc3545; color: white; }
