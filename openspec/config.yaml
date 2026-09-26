@@ -1,0 +1,37 @@
+# OpenSpec — Configuración SDD del proyecto lotto-app
+# Bootstrap inicial generado por sdd-init (2026-08-21).
+
+schema: spec-driven
+
+context: |
+  Plataforma de loterías/taquillas (Super Master, Master, Banca, Grupo).
+  Monorepo: backend Laravel 13 (PHP 8.3, API /api/v1, Sanctum, Spatie Permission,
+  Horizon, FrankenPHP en producción) + frontends Astro (panel) y Astro+Electron
+  (taquilla) + colecciones de API en collections/. Despliegue: Docker Compose +
+  Caddy sobre VPS (alternativa Render). CI/CD: GitHub Actions -> GHCR -> deploy SSH.
+
+rules:
+  proposal:
+    - Definir alcance de negocio y objetivos de producto primero; el dominio usa español.
+    - Documentar decisiones de negocio, reglas y tradeoffs.
+  specs:
+    - Deltas por capability bajo openspec/changes/<change>/specs/.
+    - Usar escenarios Given/When/Then y palabras RFC 2119 (MUST, SHOULD, MAY).
+  design:
+    - Tabla de decisiones de arquitectura con opciones, elección y razón.
+    - Incluir flujo de datos y diagramas para flujos complejos.
+  tasks:
+    - Agrupar por fase con numeración jerárquica; commits por work unit.
+    - Commits convencionales en español (feat, fix, chore, docs, security...).
+  apply:
+    guidelines:
+      - Seguir los patrones existentes (Services, Plugins, Jobs, Policies).
+      - Estilo de código: Laravel Pint (enforced en CI con `pint --test`).
+    tdd: true
+    test_command: composer test
+  verify:
+    test_command: composer test
+    build_command: npm run build
+    coverage_threshold: 0
+  archive:
+    - Avisar antes de fusionar deltas destructivos.
