@@ -10,25 +10,22 @@ use App\Models\JuegoOpcion;
 use App\Models\PluginJuego;
 use App\Plugins\Juegos\Tripletas;
 use App\Plugins\Scrapers\TripleFacilScraper;
+use App\Support\PremiosOficiales;
 use Illuminate\Database\Seeder;
 
 class TripleFacilSeeder extends Seeder
 {
     public function run(): void
     {
-        $juego = Juego::firstOrCreate(
+        $juego = Juego::updateOrCreate(
             ['slug' => 'triple-facil'],
             [
                 'name' => 'Triple Fácil',
                 'type' => 'tripletas',
-                'config' => [
-                    'premio_multiplo' => 700,
-                    'modalidades' => [
-                        'terminal' => 60,
-                        'aproximacion' => 10,
-                    ],
-                    'modalidades_permitidas' => ['triple_a'],
-                ],
+                'config' => array_merge(
+                    PremiosOficiales::configPara('triple-facil'),
+                    ['modalidades_permitidas' => ['triple_a']]
+                ),
                 'requires_scraper' => true,
                 'scraper_url' => 'https://api.lotterly.co/v1/results/triple-facil/',
                 'scraper_class' => TripleFacilScraper::class,

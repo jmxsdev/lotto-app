@@ -8,6 +8,7 @@ use App\Models\JuegoHorario;
 use App\Models\JuegoLimite;
 use App\Models\PluginJuego;
 use App\Plugins\Juegos\Animalitos;
+use App\Support\PremiosOficiales;
 use Illuminate\Database\Seeder;
 
 class LottoActivoRDSDSeeder extends Seeder
@@ -19,7 +20,7 @@ class LottoActivoRDSDSeeder extends Seeder
             [
                 'name' => 'Lotto Activo República Dominicana',
                 'type' => 'animalitos',
-                'config' => ['premio_multiplo' => 30],
+                'config' => PremiosOficiales::configPara('lotto-activo-rep-dom'),
                 'requires_scraper' => true,
                 'scraper_url' => 'https://www.lottoactivo.com/resultados/animalitos/',
                 'active' => true,

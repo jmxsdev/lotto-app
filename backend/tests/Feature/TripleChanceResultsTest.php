@@ -49,14 +49,14 @@ class TripleChanceResultsTest extends TestCase
     {
         $juego = Juego::where('slug', 'triple-chance')->first();
 
-        // Premios oficiales del afiche de tuchance.com.ve (2025-04):
-        // TRIPLE A/B 600x, TRIPLE A+B 200.000x, SOLO A o B 100x,
-        // TERMINAL 60x, TRIPLE C + SIGNO 5.000x, SIGNO solo 6x.
+        // Premios oficiales del reglamento (spec §3.2/H23):
+        // TRIPLE A/B 600x, TRIPLE A+B 200.000x, SOLO A o B 150x,
+        // TERMINAL 60x, TRIPLE C + SIGNO 6.000x, SIGNO solo 6x.
         $this->assertEquals(600, $juego->config['premio_multiplo']);
         $this->assertEquals(200000, $juego->config['modalidades']['triple_a_b']);
-        $this->assertEquals(100, $juego->config['modalidades']['triple_a_o_b']);
+        $this->assertEquals(150, $juego->config['modalidades']['triple_a_o_b']);
         $this->assertEquals(60, $juego->config['modalidades']['terminal']);
-        $this->assertEquals(5000, $juego->config['modalidades']['triple_c_signo']);
+        $this->assertEquals(6000, $juego->config['modalidades']['triple_c_signo']);
         $this->assertEquals(6, $juego->config['modalidades']['signo']);
     }
 

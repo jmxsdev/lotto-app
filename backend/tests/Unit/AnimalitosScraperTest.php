@@ -276,4 +276,60 @@ class AnimalitosScraperTest extends TestCase
         $this->assertSame('República Dominicana', $resultados[5]['numeros_ganadores']['pais']);
         $this->assertSame('Venezuela', $resultados[0]['numeros_ganadores']['pais']);
     }
+
+    public function test_mapea_patronus_true_en_monje_cuando_special_result_es_1()
+    {
+        // H14: el feed real trae special_result="1" en Monje (id_game=7), el
+        // mismo criterio del front oficial (id_game==7 && special_result==1).
+        $json = file_get_contents(base_path('tests/Fixtures/lottoactivo_animalitos_response.json'));
+        $this->assertNotFalse($json, 'Fixture lottoactivo_animalitos_response.json requerido');
+
+        $reflection = new \ReflectionClass($this->scraper);
+        $method = $reflection->getMethod('parse');
+        $method->setAccessible(true);
+
+        $resultados = $method->invoke($this->scraper, $json);
+
+        $monje = Juego::where('slug', 'monje-millonario')->first()->id;
+        $lottoActivo = Juego::where('slug', 'lotto-activo')->first()->id;
+
+        $monjeResultados = array_values(array_filter($resultados, fn ($r) => $r['juego_id'] === $monje));
+        $lottoResultados = array_values(array_filter($resultados, fn ($r) => $r['juego_id'] === $lottoActivo));
+
+        $this->assertCount(3, $monjeResultados);
+        $this->assertCount(3, $lottoResultados);
+
+        foreach ($monjeResultados as $r) {
+            $this->assertTrue($r['numeros_ganadores']['patronus'], 'Monje con special_result=1 debe mapear patronus=true');
+        }
+
+        foreach ($lottoResultados as $r) {
+            $this->assertArrayNotHasKey('patronus', $r['numeros_ganadores'], 'Lotto Activo con special_result=0 no debe mapear patronus');
+        }
+    }
+
+    public function test_no_mapea_patronus_cuando_special_result_es_0()
+    {
+        // Caso sintético: Monje con special_result=0 (sorteo sin Patronus).
+        $json = json_encode(['datos' => [
+            [
+                'name' => 'Lotto Activo 2 Monje Millonario',
+                'pais' => '1',
+                'resultados' => [
+                    ['number_animal' => 5, 'name_animal' => 'León', 'time_s' => '08:00 AM', 'id_game' => '7', 'special_result' => '0'],
+                    ['number_animal' => 6, 'name_animal' => 'Rana', 'time_s' => '09:00 AM', 'id_game' => '7', 'special_result' => '1'],
+                ],
+            ],
+        ]]);
+
+        $reflection = new \ReflectionClass($this->scraper);
+        $method = $reflection->getMethod('parse');
+        $method->setAccessible(true);
+
+        $resultados = $method->invoke($this->scraper, $json);
+
+        $this->assertCount(2, $resultados);
+        $this->assertArrayNotHasKey('patronus', $resultados[0]['numeros_ganadores']);
+        $this->assertTrue($resultados[1]['numeros_ganadores']['patronus']);
+    }
 }

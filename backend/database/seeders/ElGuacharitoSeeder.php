@@ -10,6 +10,7 @@ use App\Models\JuegoOpcion;
 use App\Models\PluginJuego;
 use App\Plugins\Juegos\Animalitos;
 use App\Plugins\Scrapers\ElGuacharitoOficialScraper;
+use App\Support\PremiosOficiales;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -28,16 +29,7 @@ class ElGuacharitoSeeder extends Seeder
             [
                 'name' => 'El Guacharito Millonario',
                 'type' => 'animalitos',
-                'config' => [
-                    'premio_multiplo' => 70,
-                    'comodines' => [
-                        'guacharito-99' => [
-                            'nombre' => 'Guacharito',
-                            'numero' => 99,
-                            'premio_multiplo' => 150,
-                        ],
-                    ],
-                ],
+                'config' => PremiosOficiales::configPara('el-guacharito'),
                 'requires_scraper' => true,
                 'scraper_url' => 'https://api.lotterly.co/v1/results/el-guacharito-millonario/',
                 'scraper_class' => ElGuacharitoOficialScraper::class,

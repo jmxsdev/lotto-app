@@ -3,7 +3,21 @@
 namespace App\Plugins\Juegos;
 
 use App\Plugins\Contracts\JuegoInterface;
+use App\Support\Texto;
 
+/**
+ * Adaptador de FORMA del juego de animalitos (D1/C, design §3.3).
+ *
+ * El plugin NO decide dinero: expone la clave canónica del acierto
+ * (`evaluarAcierto`) y la modalidad para `premio_posible` (`modalidadDe`);
+ * el multiplicador lo resuelve PremiosEngine desde `config.premios` (REQ1).
+ *
+ * Comodines (REQ6): el plugin emite en `meta.comodines` las señales que trae
+ * el resultado (flag MEGA, letra Selva A/B, figura 75/99, palabra PATRONUS).
+ * Como el plugin no conoce el juego, emite el superset de claves por señal
+ * (p. ej. figura 75 → 'patronus-75' y 'guacharo-75'); el engine filtra por
+ * las comodines configuradas de ese juego (design §3.3 paso 4).
+ */
 class Animalitos implements JuegoInterface
 {
     protected array $map = [
@@ -58,18 +72,151 @@ class Animalitos implements JuegoInterface
 
     public function validarApuesta(array $data, ?array $opciones = null): bool
     {
-        if (! isset($data['combinacion']['animal'])) {
+        $animal = Texto::normalizar($data['combinacion']['animal'] ?? null);
+
+        if ($animal === '') {
             return false;
         }
-        $animal = strtolower(trim($data['combinacion']['animal']));
 
         if ($opciones !== null && ! empty($opciones)) {
-            $nombres = array_map('strtolower', array_column($opciones, 'label'));
+            $nombres = array_map(fn ($o) => Texto::normalizar((string) ($o['label'] ?? '')), $opciones);
+            $valores = array_map(fn ($o) => Texto::normalizar((string) ($o['value'] ?? '')), $opciones);
 
-            return in_array($animal, $nombres);
+            return in_array($animal, $nombres, true) || in_array($animal, $valores, true);
         }
 
-        return in_array($animal, $this->animales);
+        return in_array($animal, $this->animales, true);
+    }
+
+    /**
+     * Forma del acierto (design §3.3): compara el animal apostado contra el
+     * del resultado normalizando acentos en ambos lados (H13/N10, REQ2).
+     *
+     * F2 (D8/§3.4): con 3 `selecciones[]` de animal del MISMO sorteo evalúa la
+     * Tripleta (Cazalotón 200× / Loto Chaima 50×) contra las figuras del
+     * resultado (`numeros_ganadores.figuras[]`); la Dupleta (2 animales, 2
+     * sorteos) nunca se emite ni se liquida.
+     *
+     * @return array{coincide: bool, clave: string, meta: array<string, mixed>}
+     */
+    public function evaluarAcierto(array $apuesta, array $resultados): array
+    {
+        $combinacion = $apuesta['combinacion'] ?? [];
+        $numerosGanadores = $this->numerosGanadores($resultados);
+
+        $selecciones = $combinacion['selecciones'] ?? [];
+        if (count($selecciones) >= 3) {
+            return $this->evaluarTripleta($selecciones, $numerosGanadores);
+        }
+
+        $animalGanador = $numerosGanadores['nombre_animal'] ?? null;
+        $animalApostado = $combinacion['animal'] ?? null;
+
+        if (! $animalGanador || ! $animalApostado) {
+            return ['coincide' => false, 'clave' => 'base', 'meta' => []];
+        }
+
+        if (Texto::normalizar((string) $animalApostado) !== Texto::normalizar((string) $animalGanador)) {
+            return ['coincide' => false, 'clave' => 'base', 'meta' => []];
+        }
+
+        return [
+            'coincide' => true,
+            'clave' => 'base',
+            'meta' => ['comodines' => $this->comodinesDelResultado($numerosGanadores)],
+        ];
+    }
+
+    /**
+     * Modalidad canónica para `premio_posible` (D9/§3.1): el acierto simple de
+     * animalitos es siempre la base; con 3 selecciones del mismo sorteo deriva
+     * `tripleta` (F2/D8 §3.4).
+     */
+    public function modalidadDe(array $combinacion): string
+    {
+        $selecciones = $combinacion['selecciones'] ?? [];
+
+        return count($selecciones) >= 3 ? 'tripleta' : 'base';
+    }
+
+    /**
+     * Tripleta same-draw (F2/§3.2, §3.4): las 3 figuras apostadas deben estar
+     * entre las figuras del sorteo (`numeros_ganadores.figuras[]`), con acentos
+     * normalizados (REQ2). Clave canónica `tripleta`.
+     *
+     * @param  array<int, array<string, mixed>>  $selecciones
+     * @param  array<string, mixed>  $numeros
+     * @return array{coincide: bool, clave: string, meta: array<string, mixed>}
+     */
+    private function evaluarTripleta(array $selecciones, array $numeros): array
+    {
+        $figuras = $numeros['figuras'] ?? [];
+
+        if (! is_array($figuras) || count($figuras) < 3) {
+            return ['coincide' => false, 'clave' => 'tripleta', 'meta' => []];
+        }
+
+        $nombresResultado = array_map(
+            fn ($figura) => Texto::normalizar((string) ($figura['animal'] ?? $figura['nombre_animal'] ?? '')),
+            $figuras
+        );
+
+        foreach ($selecciones as $seleccion) {
+            $animal = Texto::normalizar((string) ($seleccion['animal'] ?? ''));
+
+            if ($animal === '' || ! in_array($animal, $nombresResultado, true)) {
+                return ['coincide' => false, 'clave' => 'tripleta', 'meta' => []];
+            }
+        }
+
+        return ['coincide' => true, 'clave' => 'tripleta', 'meta' => []];
+    }
+
+    private function numerosGanadores(array $resultados): array
+    {
+        $numeros = $resultados['numeros_ganadores'] ?? [];
+
+        if (is_string($numeros)) {
+            $numeros = json_decode($numeros, true) ?? [];
+        }
+
+        return is_array($numeros) ? $numeros : [];
+    }
+
+    /**
+     * Señales de comodines presentes en el resultado (REQ6/H1/H8b/H14).
+     * Superset por diseño: el engine filtra por `config.premios.comodines`.
+     *
+     * @return array<int, string>
+     */
+    private function comodinesDelResultado(array $numeros): array
+    {
+        $comodines = [];
+
+        if (in_array($numeros['comodin'] ?? null, [true, 'true', 1, '1'], true)) {
+            $comodines[] = 'mega';
+        }
+
+        $letra = strtoupper(trim((string) ($numeros['comodin'] ?? '')));
+        if ($letra === 'A') {
+            $comodines[] = 'comodin-a';
+        } elseif ($letra === 'B') {
+            $comodines[] = 'comodin-b';
+        }
+
+        $numero = (int) ($numeros['numero'] ?? -1);
+        if ($numero === 99) {
+            $comodines[] = 'guacharito-99';
+        } elseif ($numero === 75) {
+            $comodines[] = 'guacharo-75';
+            $comodines[] = 'patronus-75';
+        }
+
+        if (! empty($numeros['patronus'])) {
+            $comodines[] = 'patronus-palabra';
+        }
+
+        return $comodines;
     }
 
     public function calcularPremio(array $apuesta, array $resultados): array

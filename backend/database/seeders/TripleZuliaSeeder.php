@@ -9,6 +9,7 @@ use App\Models\JuegoLimite;
 use App\Models\JuegoOpcion;
 use App\Models\PluginJuego;
 use App\Plugins\Juegos\Tripletas;
+use App\Support\PremiosOficiales;
 use Illuminate\Database\Seeder;
 
 class TripleZuliaSeeder extends Seeder
@@ -32,14 +33,7 @@ class TripleZuliaSeeder extends Seeder
             [
                 'name' => 'Triple Zulia',
                 'type' => 'tripletas',
-                'config' => [
-                    'premio_multiplo' => 600,
-                    'modalidades' => [
-                        'cola' => 60,
-                        'zodiacal' => 6000,
-                        'terminal_zodiacal' => 600,
-                    ],
-                ],
+                'config' => PremiosOficiales::configPara('triple-zulia'),
                 'requires_scraper' => true,
                 'scraper_url' => 'https://resultadostriplezulia.com/',
                 'active' => true,

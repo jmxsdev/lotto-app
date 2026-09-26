@@ -9,6 +9,7 @@ use App\Models\JuegoLimite;
 use App\Models\JuegoOpcion;
 use App\Models\PluginJuego;
 use App\Plugins\Juegos\Tripletas;
+use App\Support\PremiosOficiales;
 use Illuminate\Database\Seeder;
 
 class TrioActivoSeeder extends Seeder
@@ -20,14 +21,10 @@ class TrioActivoSeeder extends Seeder
             [
                 'name' => 'Trío Activo',
                 'type' => 'tripletas',
-                'config' => [
-                    'premio_multiplo' => 600,
-                    'modalidades' => [
-                        'terminal' => 60,
-                        'punta' => 60,
-                    ],
-                    'modalidades_permitidas' => ['triple_a'],
-                ],
+                'config' => array_merge(
+                    PremiosOficiales::configPara('trio-activo'),
+                    ['modalidades_permitidas' => ['triple_a']]
+                ),
                 'requires_scraper' => true,
                 'scraper_url' => 'https://www.lottoactivo.com/resultados/trio_activo/',
                 'active' => true,

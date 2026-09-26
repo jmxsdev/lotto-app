@@ -119,4 +119,57 @@ class BaseScraperHelpersTest extends TestCase
         $this->scraper->saveResults([$resultado], '2026-07-25');
         $this->assertEquals(1, Resultado::count(), 'No debe duplicarse el resultado');
     }
+
+    public function test_save_results_normaliza_hora_antes_del_upsert(): void
+    {
+        // D6(c): saveResults normaliza la hora ("08:00 AM" → "08:00") para que
+        // el upsert por (juego, fecha, hora) no duplique por formato.
+        $juego = Juego::create([
+            'name' => 'Triple Zulia',
+            'slug' => 'triple-zulia',
+            'type' => 'tripletas',
+            'requires_scraper' => true,
+            'active' => true,
+        ]);
+
+        $en12h = [
+            'juego_id' => $juego->id,
+            'hora_sorteo' => '08:00 AM',
+            'numeros_ganadores' => ['triple_a' => '111', 'pais' => 'VE'],
+            'premios_detalle' => null,
+        ];
+
+        $this->scraper->saveResults([$en12h], '2026-07-25');
+        $this->assertEquals(1, Resultado::count());
+
+        $persistido = Resultado::first();
+        $this->assertSame('08:00', $persistido->hora_sorteo);
+
+        // Re-scrape con la hora ya normalizada: mismo sorteo, sin duplicar.
+        $en24h = array_merge($en12h, ['hora_sorteo' => '08:00']);
+        $this->scraper->saveResults([$en24h], '2026-07-25');
+        $this->assertEquals(1, Resultado::count(), 'La hora normalizada debe caer en el mismo sorteo');
+    }
+
+    public function test_save_results_normaliza_hora_con_segundos(): void
+    {
+        $juego = Juego::create([
+            'name' => 'Triple Zulia',
+            'slug' => 'triple-zulia',
+            'type' => 'tripletas',
+            'requires_scraper' => true,
+            'active' => true,
+        ]);
+
+        $resultado = [
+            'juego_id' => $juego->id,
+            'hora_sorteo' => '14:05:33',
+            'numeros_ganadores' => ['triple_a' => '111', 'pais' => 'VE'],
+            'premios_detalle' => null,
+        ];
+
+        $this->scraper->saveResults([$resultado], '2026-07-25');
+
+        $this->assertSame('14:05', Resultado::first()->hora_sorteo);
+    }
 }

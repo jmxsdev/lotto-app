@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -35,6 +36,15 @@ class JuegoLimite extends Model
     public function juego()
     {
         return $this->belongsTo(Juego::class);
+    }
+
+    /**
+     * Solo filas cuyo juego está activo: los límites de juegos inactivos
+     * (p. ej. la-ricachona, REQ7) no deben exponerse en la matriz de límites.
+     */
+    public function scopeDeJuegosActivos(Builder $query): Builder
+    {
+        return $query->whereHas('juego', fn (Builder $q) => $q->where('active', true));
     }
 
     public function banca()

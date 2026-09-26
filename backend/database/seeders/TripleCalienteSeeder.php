@@ -10,6 +10,7 @@ use App\Models\JuegoOpcion;
 use App\Models\PluginJuego;
 use App\Plugins\Juegos\Tripletas;
 use App\Plugins\Scrapers\TripleCalienteOficialScraper;
+use App\Support\PremiosOficiales;
 use Illuminate\Database\Seeder;
 
 class TripleCalienteSeeder extends Seeder
@@ -40,15 +41,10 @@ class TripleCalienteSeeder extends Seeder
             [
                 'name' => 'Triple Caliente',
                 'type' => 'tripletas',
-                'config' => [
-                    'premio_multiplo' => 600,
-                    'modalidades' => [
-                        'cola' => 60,
-                        'zodiacal' => 6000,
-                        'terminal_zodiacal' => 600,
-                    ],
-                    'scraper' => ['product_id' => '4'],
-                ],
+                'config' => array_merge(
+                    PremiosOficiales::configPara('triple-caliente'),
+                    ['scraper' => ['product_id' => '4']]
+                ),
                 'requires_scraper' => true,
                 'scraper_url' => 'https://triplecaliente.com/api/gaming/results/product',
                 'scraper_class' => TripleCalienteOficialScraper::class,

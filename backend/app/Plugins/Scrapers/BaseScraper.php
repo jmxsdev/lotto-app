@@ -175,6 +175,11 @@ abstract class BaseScraper
 
     /**
      * Persiste resultados con dedupe por juego + fecha + hora (upsert).
+     *
+     * D6(c): normaliza `hora_sorteo` ("08:00 AM"/"14:05:33" → "H:i") ANTES del
+     * upsert para que el mismo sorteo no se duplique por formato, y usa
+     * `updateOrCreate` sobre (juego_id, fecha_sorteo, hora_sorteo), respaldado
+     * por el índice único `resultados_juego_fecha_hora_unique`.
      */
     public function saveResults(array $resultados, string $fecha): int
     {
@@ -183,19 +188,19 @@ abstract class BaseScraper
         foreach ($resultados as $resultadoData) {
             $resultadoData['fecha_sorteo'] = $fecha;
 
-            $existing = Resultado::where('juego_id', $resultadoData['juego_id'])
-                ->whereDate('fecha_sorteo', $fecha)
-                ->where('hora_sorteo', $resultadoData['hora_sorteo'])
-                ->first();
+            $hora = $resultadoData['hora_sorteo'] ?? null;
+            $resultadoData['hora_sorteo'] = $this->normalizeHora((string) $hora) ?? $hora;
 
-            if ($existing) {
-                $existing->update($resultadoData);
-                $this->logInfo("Resultado actualizado: hora {$resultadoData['hora_sorteo']}");
-            } else {
-                Resultado::create($resultadoData);
-                $this->logInfo("Resultado creado: hora {$resultadoData['hora_sorteo']}");
-            }
+            Resultado::updateOrCreate(
+                [
+                    'juego_id' => $resultadoData['juego_id'],
+                    'fecha_sorteo' => $resultadoData['fecha_sorteo'],
+                    'hora_sorteo' => $resultadoData['hora_sorteo'],
+                ],
+                $resultadoData
+            );
 
+            $this->logInfo("Resultado guardado (upsert): hora {$resultadoData['hora_sorteo']}");
             $guardados++;
         }
 

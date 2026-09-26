@@ -14,6 +14,10 @@ use App\Models\JuegoOpcion;
  * Campos ADITIVOS y OPCIONALES (WU f27): `comodines` y `modalidades` se
  * exportan desde `config` cuando existen (null si no); no rompen el contrato
  * previo del front.
+ *
+ * Contrato del motor de premios (D10): `premios` ({base, modalidades,
+ * comodines} canónicos) se exporta desde `config.premios`; `active` y
+ * `vendible` (= active) reflejan el estado de venta/liquidación del juego.
  */
 class JuegoCatalogoService
 {
@@ -34,8 +38,11 @@ class JuegoCatalogoService
                 'nombre' => $juego->name,
                 'tipo' => $juego->type,
                 'premio_multiplo' => $juego->config['premio_multiplo'] ?? null,
-                'comodines' => $juego->config['comodines'] ?? null,
-                'modalidades' => $juego->config['modalidades'] ?? null,
+                'premios' => $juego->config['premios'] ?? null,
+                'active' => (bool) $juego->active,
+                'vendible' => (bool) $juego->active,
+                'comodines' => ! empty($juego->config['comodines']) ? $juego->config['comodines'] : null,
+                'modalidades' => ! empty($juego->config['modalidades']) ? $juego->config['modalidades'] : null,
                 'horarios' => $this->obtenerHorarios($juego),
                 'opciones' => $this->obtenerOpciones($juego),
             ])->values()->all(),

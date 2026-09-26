@@ -11,6 +11,7 @@ use App\Models\JuegoLimite;
 use App\Models\Taquilla;
 use App\Services\JuegoLimiteService;
 use App\Services\JuegoPluginManager;
+use App\Services\PremiosEngine;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -145,6 +146,11 @@ class JuegoController extends Controller
             $modalidades = array_filter($modalidades, fn ($m) => in_array($m['code'], $config['modalidades_permitidas']));
         }
         $reglas['modalidades'] = array_values($modalidades);
+
+        // F1d (D10/§3.3): expone `premios` del motor ({base, modalidades,
+        // comodines} desde config.premios) de forma ADITIVA sobre las reglas
+        // del plugin. El contrato previo no se rompe.
+        $reglas['premios'] = app(PremiosEngine::class)->reglas($juego);
 
         return response()->json($reglas);
     }
@@ -822,6 +828,7 @@ class JuegoController extends Controller
                 JuegoLimite::where('banca_id', $entidadId)
                     ->whereNull('grupo_id')
                     ->whereNull('taquilla_id')
+                    ->deJuegosActivos()
                     ->get(),
                 collect(),
             ];
@@ -831,11 +838,12 @@ class JuegoController extends Controller
             $grupo = Grupo::with('banca')->find($entidadId);
 
             return [
-                JuegoLimite::where('grupo_id', $entidadId)->whereNull('taquilla_id')->get(),
+                JuegoLimite::where('grupo_id', $entidadId)->whereNull('taquilla_id')->deJuegosActivos()->get(),
                 $grupo?->banca_id
                     ? JuegoLimite::where('banca_id', $grupo->banca_id)
                         ->whereNull('grupo_id')
                         ->whereNull('taquilla_id')
+                        ->deJuegosActivos()
                         ->get()
                     : collect(),
             ];
@@ -853,11 +861,12 @@ class JuegoController extends Controller
                 ->where(function ($q) use ($grupoId) {
                     $q->where('grupo_id', $grupoId)->orWhereNull('grupo_id');
                 })
+                ->deJuegosActivos()
                 ->get();
         }
 
         return [
-            JuegoLimite::where('taquilla_id', $entidadId)->get(),
+            JuegoLimite::where('taquilla_id', $entidadId)->deJuegosActivos()->get(),
             $filasPadre,
         ];
     }
@@ -891,7 +900,7 @@ class JuegoController extends Controller
         }
 
         if ($entidades->isNotEmpty()) {
-            $query = JuegoLimite::whereIn($tipo.'_id', $ids);
+            $query = JuegoLimite::whereIn($tipo.'_id', $ids)->deJuegosActivos();
             if ($tipo === 'banca') {
                 $query->whereNull('grupo_id')->whereNull('taquilla_id');
             } elseif ($tipo === 'grupo') {

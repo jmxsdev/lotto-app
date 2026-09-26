@@ -34,8 +34,15 @@ class ResultadoControllerScrapeAllTest extends TestCase
     {
         Bus::fake();
 
-        $juegosConScraper = Juego::where('requires_scraper', true)->count();
-        $fuentes = app(ScraperSourceResolver::class)->sources();
+        // El endpoint opera sobre juegos ACTIVOS (`scrapeAll` filtra active).
+        // El seed incluye juegos `requires_scraper` inactivos (La Ricachona,
+        // REQ7): sus fuentes no entran en la consolidación despachada.
+        $juegosActivos = Juego::where('requires_scraper', true)->where('active', true)->pluck('id')->all();
+        $juegosConScraper = count($juegosActivos);
+        $fuentes = collect(app(ScraperSourceResolver::class)->sources())
+            ->filter(fn ($fuente) => array_intersect($fuente->juegoIds, $juegosActivos) !== [])
+            ->values()
+            ->all();
 
         $this->assertGreaterThan(
             count($fuentes),

@@ -65,8 +65,11 @@ class PagoController extends Controller
             return response()->json(['message' => 'No autorizado.'], 403);
         }
 
-        // Verificar que la apuesta esté pendiente
-        if ($apuesta->estado !== 'pendiente') {
+        // Verificar estado pagable (D5/N11): `ganadora` (nuevo estado) o
+        // `pendiente` legacy con resultado_id ya liquidada. El egreso sin
+        // resultado se rechaza más abajo; la devolución de una `pendiente`
+        // sin resultado sigue permitida.
+        if (! in_array($apuesta->estado, ['pendiente', 'ganadora'], true)) {
             return response()->json([
                 'success' => false,
                 'message' => "No se puede pagar una apuesta {$apuesta->estado}.",
@@ -145,8 +148,12 @@ class PagoController extends Controller
         if ($apuesta->ticket_id) {
             $ticket = Ticket::with('apuestas')->find($apuesta->ticket_id);
             if ($ticket && $ticket->estado !== 'pagada') {
+                // D5: la cascada suma `vencido` a "resuelta"; `ganadora`
+                // (impaga) NO resuelve el ticket.
                 $todasResueltas = $ticket->apuestas->every(function ($a) {
-                    return $a->estado === 'pagada' || $a->estado === 'anulada' || $a->estado === 'perdida' || $a->trashed();
+                    return $a->estado === 'pagada' || $a->estado === 'anulada'
+                        || $a->estado === 'perdida' || $a->estado === 'vencido'
+                        || $a->trashed();
                 });
                 if ($todasResueltas) {
                     $ticket->update(['estado' => 'pagada']);
@@ -193,29 +200,24 @@ class PagoController extends Controller
     }
 
     /**
-     * Calcular premio usando el plugin del juego
+     * Calcular premio con el MOTOR corregido (REQ10/N11): config-driven,
+     * acentos, terminales y comodines. El manager delega en PremiosEngine;
+     * nunca se usa el plugin directo (que no normaliza ni lee config).
      */
     private function calcularPremio(Apuesta $apuesta, ?Resultado $resultado): array
     {
-        $plugin = app(JuegoPluginManager::class)->getPlugin($apuesta->juego);
-
-        if (! $plugin) {
-            return ['premio_bs' => 0, 'premio_usd' => 0];
-        }
-
         $combinacion = is_string($apuesta->combinacion)
             ? json_decode($apuesta->combinacion, true)
             : $apuesta->combinacion;
 
         $resultados = $resultado ? $resultado->toArray() : [];
 
-        return $plugin->calcularPremio(
+        return app(JuegoPluginManager::class)->calcularPremio(
+            $apuesta->juego,
             [
                 'combinacion' => $combinacion,
-                'total_bs_equivalent' => $apuesta->total_bs_equivalent,
-                'monto' => $apuesta->total_bs_equivalent,
-                'amount_bs' => $apuesta->amount_bs,
-                'amount_usd' => $apuesta->amount_usd,
+                'amount_bs' => (float) $apuesta->amount_bs,
+                'amount_usd' => (float) $apuesta->amount_usd,
             ],
             $resultados
         );
