@@ -90,6 +90,24 @@ iteración del ciclo.
 
 ---
 
+## Backlog de catálogo — Juegos de terminales
+
+- Estado: **ACLARADO** (no es un bug de la UI)
+- Consulta del usuario (test con logos): «en terminales solo tengo un solo juego, ¿debería ser así?»
+
+### Hallazgo (verificado contra el catálogo bundled `taquilla/src/data/juegos.json`)
+
+- El catálogo actual tiene **1 solo juego de tipo `terminales`**: `terminal-activo` (Terminal Activo). Los otros tipos: 11 animalitos, 9 tripletas.
+- La UI **no oculta** juegos por falta de logo: el render muestra todos los juegos del tipo activo y usa el nombre como respaldo si no hay imagen (todos tienen logo hoy).
+- Otros juegos de terminales vistos en el proveedor agregador **no están integrados** en nuestro catálogo todavía (ver `docs/comparacion-juegos.md`): `terminal-trio`, `terminal-la-granjita`, `triple-centena-terminal` (pendientes de integración).
+- Varios juegos de `tripletas` incluyen **modalidades** de terminal/punta (p. ej. trio-activo `punta`/`terminal`, triple-fácil `terminal`, la-ricachona terminal) pero pertenecen a la pestaña Tripletas según su `tipo`.
+
+### Próxima iteración (si el cliente quiere más terminales)
+
+- Integrar los juegos de terminales faltantes end-to-end: seeder/scraper backend + entrada en `docs/juegos.json` + copia bundled + logo en `public/images/juegos/` + manifest.
+
+---
+
 ## Deferrals conocidos
 
 - [ ] **F7/F8/F10 confirm-and-discard**: hoy solo navegan a

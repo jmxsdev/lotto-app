@@ -361,17 +361,25 @@ import MainLayout from '../layouts/MainLayout.astro';
       margin-bottom: 10px;
     }
 
+    /* Grid de 2 columnas (feat/taquilla-logos-juegos): los logos se navegan
+       con ↑/↓ por FILA (moverFila salta ±2 y conserva la columna). Se usa
+       minmax(0, 1fr) para que un logo ancho no desborde la columna izquierda. */
     .juegos-list {
-      display: flex;
-      flex-direction: column;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 6px;
+    }
+
+    /* El aviso de «sin juegos» ocupa las 2 columnas del grid. */
+    #juegos-list .empty-state {
+      grid-column: 1 / -1;
     }
 
     .juego-card {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 8px 10px;
+      padding: 6px 8px;
       border-radius: 8px;
       cursor: pointer;
       transition: all 0.15s ease;
@@ -508,6 +516,81 @@ import MainLayout from '../layouts/MainLayout.astro';
     .juego-name {
       font-size: 13px;
       font-weight: 500;
+    }
+
+    /* Logo del juego como contenido visible de la tarjeta
+       (feat/taquilla-logos-juegos): caja de altura fija + object-fit contain
+       para que todas las tarjetas midan igual sin importar el aspect ratio
+       del logo (hay de 723×747 a 2842×1100), sin recortes ni desbordes de la
+       columna. Altura 48px: cómoda con 2 tarjetas por fila. El <span> de
+       respaldo queda centrado si el logo falla. position:relative ancla el
+       caption de foco/hover (overlay) sin cambiar el alto de la tarjeta. */
+    .juego-logo-box {
+      position: relative;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 48px;
+      min-width: 0;
+    }
+
+    .juego-logo {
+      display: block;
+      max-height: 100%;
+      max-width: 100%;
+      object-fit: contain;
+      margin: 0 auto;
+    }
+
+    /* El display:block de .juego-logo gana al [hidden] del UA stylesheet:
+       sin esto, el onerror no podría ocultar el logo roto. */
+    .juego-logo[hidden] {
+      display: none;
+    }
+
+    /* Caption de refuerzo del roving focus (feat/taquilla-logos-juegos): con
+       logos, el nombre del juego solo se ve al enfocar con ↑/↓ o al pasar el
+       mouse. Overlay absoluto sobre la caja del logo (fondo oscuro
+       semitransparente, texto claro) para no alterar el alto de la tarjeta;
+       pointer-events:none para no interferir con click/selección. */
+    .juego-caption {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: rgba(17, 24, 39, 0.78);
+      color: #f8fafc;
+      font-size: 10px;
+      font-weight: 600;
+      line-height: 1.2;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.12s ease;
+    }
+
+    /* Ellipsis para nombres largos: el texto vive en un hijo block para que
+       text-overflow aplique dentro del overlay flex. */
+    .juego-caption > span {
+      display: block;
+      max-width: 100%;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .juego-card:hover .juego-caption,
+    .juego-card:focus .juego-caption {
+      opacity: 1;
+    }
+
+    /* Si el logo falló y el nombre de respaldo quedó visible, el caption se
+       oculta: nunca se duplica el nombre en la misma tarjeta. */
+    .juego-name:not([hidden]) + .juego-caption {
+      display: none;
     }
 
     .seleccion-content {
@@ -1053,12 +1136,20 @@ import MainLayout from '../layouts/MainLayout.astro';
     import { teclasLegend } from '../utils/keyboard';
     import { alternarHorario, marcarTodosVisibles, expandirLineas, horarioExpirado, filtrarHorariosFuturos, seleccionadosExpirados, agruparPorGroupId, indiceSeleccionTrasEliminar } from '../utils/horarios';
     import { calcularVuelto } from '../utils/vuelto';
+    import { indiceDestinoFila, indiceDestinoColumna } from '../utils/gridNav';
     import juegosRaw from '../data/juegos.json';
+    import logosRaw from '../data/logos.json';
 
     // Catálogo local bundled (REQ-CL-01): reemplaza GAMES_CONFIG. Los juegos,
     // horarios y opciones vienen del JSON; la familia de opciones (A5) define
     // la búsqueda/selección por juego activo (REQ-CL-02, REQ-KB-02).
     const catalogo = cargarCatalogo(juegosRaw);
+
+    // Mapa slug → archivo de logo (feat/taquilla-logos-juegos), generado desde
+    // public/images/juegos/manifest.json. Artefacto estático bundled: el
+    // dashboard no hace fetch en runtime para resolver el logo del juego.
+    /** @type {Record<string, string>} */
+    const logos = logosRaw;
 
     let tasaActiva = 36.50;
     // Disponibilidad de la tasa (A12): loadTasa() lo setea. Si falla, el modal
@@ -1169,6 +1260,8 @@ import MainLayout from '../layouts/MainLayout.astro';
     // marcados) ←/→ en la zona Juegos NO debe descartarla silenciosamente
     // (activarTab resetea TODO el avance). El cambio de pestaña solo se
     // permite con la selección vacía; las líneas ya añadidas no se tocan.
+    // feat/taquilla-logos-juegos: el guard solo aplica al BORDE del grid (el
+    // movimiento de columna con ←/→ nunca descarta la selección).
     function seleccionEnCurso() {
       return Boolean(
         selectedAnimal || selectedSigno || selectedOpcion ||
@@ -1235,7 +1328,7 @@ import MainLayout from '../layouts/MainLayout.astro';
         const btn = document.createElement('button');
         btn.className = 'juego-tab' + (activeTab === t ? ' active' : '');
         btn.dataset.tab = t;
-        btn.tabIndex = -1; // las pestañas se cambian con ←/→ (KB-03)
+        btn.tabIndex = -1; // pestañas: con ←/→ en el borde del grid (KB-03)
         btn.textContent = labels[t] || t;
         btn.addEventListener('click', () => activarTab(t));
         container.appendChild(btn);
@@ -1252,11 +1345,29 @@ import MainLayout from '../layouts/MainLayout.astro';
       container.innerHTML = juegos.map(j => {
         let icon = activeTab === 'animalitos' ? '🎰' : activeTab === 'tripletas' ? '🎯' : '🔢';
         const selected = selectedGames.some(g => g.id === j.id) ? ' selected' : '';
+        const archivo = logos[j.slug];
+        // feat/taquilla-logos-juegos: el logo reemplaza al nombre como contenido
+        // visible de la tarjeta. El nombre queda en un <span hidden> de
+        // respaldo: si el logo falla al cargar (onerror) o el slug no tiene
+        // entrada en logos.json, la tarjeta muestra el nombre (nunca vacía).
+        const nombre = `<span class="juego-name"${archivo ? ' hidden' : ''}>${j.nombre}</span>`;
+        // El emoji decorativo acompaña SOLO al fallback sin logo: junto al logo
+        // era ruido visual (pedido del usuario).
+        const icono = archivo ? '' : `<span class="juego-icon">${icon}</span>`;
+        // Caption del roving focus: con logos, el nombre solo se ve al enfocar
+        // la tarjeta con ↑/↓ o al pasar el mouse (overlay, ver .juego-caption).
+        // `alt`/`title` del <img> se mantienen como refuerzo accesible.
+        const caption = archivo
+          ? `<span class="juego-caption" aria-hidden="true"><span>${j.nombre}</span></span>`
+          : '';
+        const contenido = archivo
+          ? `<div class="juego-logo-box"><img class="juego-logo" src="/images/juegos/${archivo}" alt="${j.nombre}" title="${j.nombre}" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false;">${nombre}${caption}</div>`
+          : nombre;
         // tabindex="-1" (FIX-1, KB-01): las tarjetas son ítems del roving
         // focus (↑/↓ + Enter); sin esto moverFila().focus() era un no-op.
         return `<div class="juego-card${selected}" data-id="${j.id}" tabindex="-1">
-          <span class="juego-icon">${icon}</span>
-          <span class="juego-name">${j.nombre}</span>
+          ${icono}
+          ${contenido}
         </div>`;
       }).join('');
     }
@@ -1442,7 +1553,9 @@ import MainLayout from '../layouts/MainLayout.astro';
 
     function switchToJuegos() {
       columnMode = 'juegos';
-      document.getElementById('juegos-list').style.display = 'flex';
+      // display:grid explícito para restaurar el grid de 2 columnas (:none lo
+      // dejó oculto en switchToHorarios); el CSS define las columnas.
+      document.getElementById('juegos-list').style.display = 'grid';
       document.getElementById('horario-mode').style.display = 'none';
       document.getElementById('juegos-col-title').textContent = 'Juegos';
     }
@@ -1915,6 +2028,7 @@ import MainLayout from '../layouts/MainLayout.astro';
         .join('');
       el.innerHTML =
         '<p class="help-zonas"><strong>Zonas (Tab / Shift+Tab):</strong> ' + zonasHtml + '</p>' +
+        '<p class="help-zonas"><strong>←/→ en Juegos:</strong> columnas; en el borde, pestañas.</p>' +
         '<p class="help-zonas"><strong>Teclas:</strong></p><ul class="help-fkeys">' + fkeysHtml + '</ul>';
     }
 
@@ -2184,17 +2298,36 @@ import MainLayout from '../layouts/MainLayout.astro';
     }
 
     // ↑/↓ contextuales (KB-03): recorren la lista activa de la zona enfocada
-    // en orden DOM; sin wrap (el wrap es de zonas con Tab).
+    // en orden DOM; sin wrap (el wrap es de zonas con Tab). En la zona Juegos
+    // la lista es un grid de 2 columnas (feat/taquilla-logos-juegos): el salto
+    // es de una fila (±2) y conserva la columna; el resto de zonas sigue ±1.
+    // El cálculo de índice vive en el módulo puro utils/gridNav.ts.
     function moverFila(delta) {
       const items = itemsDeZona(zonaActual);
       if (items.length === 0) return;
-      const activo = document.activeElement;
-      let idx = items.indexOf(activo);
-      if (idx === -1) idx = delta > 0 ? -1 : items.length;
-      const objetivo = items[idx + delta];
-      if (!objetivo) return;
+      const paso = zonaActual === 'juegos' ? 2 : 1;
+      const idx = items.indexOf(document.activeElement);
+      const destino = indiceDestinoFila(idx, items.length, delta, paso);
+      if (destino === null) return;
+      const objetivo = items[destino];
       objetivo.focus();
       objetivo.scrollIntoView({ block: 'nearest' });
+    }
+
+    // ←/→ en el grid de Juegos (feat/taquilla-logos-juegos): primero la celda
+    // adyacente de la MISMA fila (columna ±1, sin wrap) — permitido aunque haya
+    // selección en curso; en el borde (null) el glue cae al cambio de pestaña
+    // con su guard (FIX-3c). Devuelve true si movió el foco.
+    function moverColumna(delta) {
+      const items = itemsDeZona('juegos');
+      if (items.length === 0) return false;
+      const idx = items.indexOf(document.activeElement);
+      const destino = indiceDestinoColumna(idx, items.length, delta);
+      if (destino === null) return false;
+      const objetivo = items[destino];
+      objetivo.focus();
+      objetivo.scrollIntoView({ block: 'nearest' });
+      return true;
     }
 
     // Enter activa el elemento de zona focalizado (tarjeta/opción/fila).
@@ -2561,11 +2694,15 @@ import MainLayout from '../layouts/MainLayout.astro';
           case 'tab-siguiente': moverZona(1); break;
           case 'tab-anterior': moverZona(-1); break;
           case 'pestana-anterior':
-            // FIX-3c: con selección en curso routeKey marca ejecutable=false;
-            // el guard real vive en activarTab (cubre también el click).
+            // feat/taquilla-logos-juegos: ← en Juegos primero mueve a la celda
+            // adyacente de la fila (permitido con selección en curso); solo si
+            // es borde (moverColumna false) cambia de pestaña. FIX-3c: con
+            // selección en curso routeKey marca ejecutable=false y se avisa.
+            if (moverColumna(-1)) break;
             if (!decision.ejecutable) { mostrarAvisoTab('Finalice la selección actual antes de cambiar de pestaña (F2 Limpiar todo)'); break; }
             activarTab(tabAnterior()); break;
           case 'pestana-siguiente':
+            if (moverColumna(1)) break;
             if (!decision.ejecutable) { mostrarAvisoTab('Finalice la selección actual antes de cambiar de pestaña (F2 Limpiar todo)'); break; }
             activarTab(tabSiguiente()); break;
           case 'zona-izquierda': moverHorizontal('izquierda'); break; // FIX-3a

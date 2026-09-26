@@ -1,0 +1,191 @@
+[
+  {
+    "slug": "lotto-activo",
+    "nombre": "Lotto Activo",
+    "file": "lotto-activo.webp",
+    "source_page": "https://www.lottoactivo.com/",
+    "image_url": "https://admin.lottoactivo.com/dist/files_img/Lotto_Activo.webp",
+    "fetched_at": "2026-09-25T11:54:42-04:00",
+    "notas": "Logo de producto oficial obtenido del endpoint de productos de lottoactivo.com (/core/process.php). 250x250."
+  },
+  {
+    "slug": "triple-zulia",
+    "nombre": "Triple Zulia",
+    "file": "triple-zulia.png",
+    "source_page": "https://resultadostriplezulia.com/",
+    "image_url": "https://resultadostriplezulia.com/images/zulia.png",
+    "fetched_at": "2026-09-25T11:48:52-04:00",
+    "notas": "og:image oficial del sitio del juego. 1085x1085."
+  },
+  {
+    "slug": "terminal-activo",
+    "nombre": "Terminal Activo",
+    "file": "terminal-activo.webp",
+    "source_page": "https://www.lottoactivo.com/",
+    "image_url": "https://admin.lottoactivo.com/dist/files_img/Terminal_Trio.webp",
+    "fetched_at": "2026-09-25T11:54:47-04:00",
+    "notas": "Logo de producto oficial (nombre en la API: 'Terminal Trio'). 277x160. Bytes idénticos a trio-activo.webp: la fuente oficial sirve el mismo archivo para ambos productos."
+  },
+  {
+    "slug": "lotto-activo-rd",
+    "nombre": "Lotto Activo RD Internacional",
+    "file": "lotto-activo-rd.webp",
+    "source_page": "https://www.lottoactivo.com/",
+    "image_url": "https://admin.lottoactivo.com/dist/files_img/Lotto_Activo_RD_Internacional.webp",
+    "fetched_at": "2026-09-25T11:54:43-04:00",
+    "notas": "Logo de producto oficial 'Lotto Activo RD Internacional' (endpoint de productos de lottoactivo.com). 250x250."
+  },
+  {
+    "slug": "lotto-activo-rep-dom",
+    "nombre": "Lotto Activo República Dominicana",
+    "file": "lotto-activo-rep-dom.jpg",
+    "source_page": "https://www.lottoactivo.com/",
+    "image_url": "https://admin.lottoactivo.com/dist/files_img/Lotto_Activo_RD.jpg",
+    "fetched_at": "2026-09-25T11:54:44-04:00",
+    "notas": "Logo de producto oficial 'Lotto Activo República Dominicana' (endpoint de productos de lottoactivo.com). Formato JPG original. 225x225."
+  },
+  {
+    "slug": "monje-millonario",
+    "nombre": "Monje Millonario",
+    "file": "monje-millonario.webp",
+    "source_page": "https://www.lottoactivo.com/",
+    "image_url": "https://admin.lottoactivo.com/dist/files_img/Lotto_Activo_2.webp",
+    "fetched_at": "2026-09-25T11:54:48-04:00",
+    "notas": "Logo de producto oficial 'Lotto Activo 2 (Monje Millonario)' (endpoint de productos de lottoactivo.com). 400x400."
+  },
+  {
+    "slug": "trio-activo",
+    "nombre": "Trío Activo",
+    "file": "trio-activo.webp",
+    "source_page": "https://www.lottoactivo.com/",
+    "image_url": "https://admin.lottoactivo.com/dist/files_img/Trio_Activo.webp",
+    "fetched_at": "2026-09-25T11:54:45-04:00",
+    "notas": "Logo de producto oficial 'Trío Activo' (endpoint de productos de lottoactivo.com). 277x160. Bytes idénticos a terminal-activo.webp (duplicación en la fuente oficial)."
+  },
+  {
+    "slug": "triple-caliente",
+    "nombre": "Triple Caliente",
+    "file": "triple-caliente.png",
+    "source_page": "https://triplecaliente.com/",
+    "image_url": "https://triplecaliente.com/images/logo.png",
+    "fetched_at": "2026-09-25T11:48:51-04:00",
+    "notas": "og:image oficial del sitio del juego. 400x304."
+  },
+  {
+    "slug": "cazaloton",
+    "nombre": "Cazaloton",
+    "file": "cazaloton.webp",
+    "source_page": "https://cazaloton.com/",
+    "image_url": "https://cazaloton.com/img/Logo_WebP.webp",
+    "fetched_at": "2026-09-25T11:48:55-04:00",
+    "notas": "Logo de marca del header oficial del sitio (versión WebP). 3515x3516 (2.4 MB)."
+  },
+  {
+    "slug": "triple-chance",
+    "nombre": "Triple Chance",
+    "file": "triple-chance.png",
+    "source_page": "https://tuchance.com.ve/",
+    "image_url": "https://tuchance.com.ve/wp-content/uploads/2024/05/logoChanceenlinea-1.png",
+    "fetched_at": "2026-09-25T11:52:13-04:00",
+    "notas": "Fallback de marca: logo oficial de 'Chance en línea' (tuchance.com.ve) asociado a la sección Triple (#tripleSig). No se encontró un logo específico del producto 'Triple Chance' publicado en el sitio. 197x89."
+  },
+  {
+    "slug": "el-arrejuntado",
+    "nombre": "El Arrejuntado",
+    "file": "el-arrejuntado.png",
+    "source_page": "https://www.elarrejuntao.com/",
+    "image_url": "https://www.elarrejuntao.com/images/logo.png",
+    "fetched_at": "2026-09-25T11:52:13-04:00",
+    "notas": "Logo de marca del sitio oficial del juego. 488x288."
+  },
+  {
+    "slug": "el-guacharito",
+    "nombre": "El Guacharito Millonario",
+    "file": "el-guacharito.png",
+    "source_page": "https://elguacharitomillonario.com/",
+    "image_url": "https://elguacharitomillonario.com/images/logo.png",
+    "fetched_at": "2026-09-25T11:59:24-04:00",
+    "notas": "Logo de marca del sitio oficial (indicado como fuente oficial en el seeder del backend). 806x670."
+  },
+  {
+    "slug": "guacharo-activo",
+    "nombre": "Guacharo Activo",
+    "file": "guacharo-activo.png",
+    "source_page": "https://guacharoactivo.com/",
+    "image_url": "https://guacharoactivo.com/images/logo.png",
+    "fetched_at": "2026-09-25T11:58:31-04:00",
+    "notas": "Logo del header oficial del sitio del juego (usado con alt 'Guácharo Activo'); también disponible en guacharoactivo.com.ve. 600x600."
+  },
+  {
+    "slug": "la-granjita",
+    "nombre": "La Granjita",
+    "file": "la-granjita.webp",
+    "source_page": "https://www.lagranjita.com/",
+    "image_url": "https://cdns2.premierpluss.com/assets_webpages/granjita/LogoLagra.webp",
+    "fetched_at": "2026-09-25T11:52:13-04:00",
+    "notas": "og:image oficial del sitio (CDN premierpluss). 384x384."
+  },
+  {
+    "slug": "la-ricachona",
+    "nombre": "La Ricachona",
+    "file": "la-ricachona.webp",
+    "source_page": "https://laricachona.com/",
+    "image_url": "https://laricachona.com/assets/images/logos/logoLaRicachona.webp",
+    "fetched_at": "2026-09-25T11:55:42-04:00",
+    "notas": "Logo oficial declarado en el CSS del header del sitio (#logo). 723x747."
+  },
+  {
+    "slug": "loto-chaima",
+    "nombre": "Loto Chaima",
+    "file": "loto-chaima.png",
+    "source_page": "https://lotochaima.com/",
+    "image_url": "https://lotochaima.com/images/logo.png",
+    "fetched_at": "2026-09-25T11:58:31-04:00",
+    "notas": "Logo del sitio oficial del juego (también disponible en lotochaima.com.ve). 1328x752."
+  },
+  {
+    "slug": "mega-animal-40",
+    "nombre": "Mega Animal 40",
+    "file": "mega-animal-40.png",
+    "source_page": "https://megaanimal40.com/",
+    "image_url": "https://megaanimal40.com/assets/images/graficos/logo.png",
+    "fetched_at": "2026-09-25T11:53:03-04:00",
+    "notas": "Logo del header oficial del sitio. 1081x1081."
+  },
+  {
+    "slug": "selva-plus",
+    "nombre": "Selva Plus",
+    "file": "selva-plus.png",
+    "source_page": "https://selvaplus.com/",
+    "image_url": "https://selvaplus.com/images/logo.png",
+    "fetched_at": "2026-09-25T11:58:32-04:00",
+    "notas": "Logo del sitio oficial del juego (también disponible en selvaplus.com.ve). 935x600."
+  },
+  {
+    "slug": "triple-tachira",
+    "nombre": "Triple Táchira",
+    "file": "triple-tachira.png",
+    "source_page": "https://tripletachira.com/",
+    "image_url": "https://tripletachira.com/img/logos/tachi1.png",
+    "fetched_at": "2026-09-25T11:53:07-04:00",
+    "notas": "Logo del header oficial del sitio. 2842x1100."
+  },
+  {
+    "slug": "triple-facil",
+    "nombre": "Triple Fácil",
+    "file": "triple-facil.png",
+    "source_page": "https://triplefacil.com/",
+    "image_url": "https://triplefacil.com/images/logo.png",
+    "fetched_at": "2026-09-25T11:58:32-04:00",
+    "notas": "Logo del sitio oficial del juego (también disponible en triplefacil.com.ve). 600x407."
+  },
+  {
+    "slug": "triple-zamorano",
+    "nombre": "Triple Zamorano",
+    "file": "triple-zamorano.png",
+    "source_page": "https://www.triplezamorano.com/",
+    "image_url": "https://www.triplezamorano.com/images/AstroZamorano.png",
+    "fetched_at": "2026-09-25T11:53:05-04:00",
+    "notas": "og:image oficial del sitio del juego. 1155x1155."
+  }
+]
