@@ -54,12 +54,13 @@ iteración del ciclo.
    efecto en runtime al navegar entre dígitos/zonas.
 2. El flujo esperado (dígito → foco al número) no se completaba en pantalla.
 
-### Workaround implementado (win-fixes3)
+### Workaround (histórico win-fixes3; actualizado en atajos-2026-09)
 
-- **F11** salta directo al input de Números (`#qt-numero`) y enfoca la zona
-  `numero`. Desde ahí el ruteo existente ya opera: Tab → Monto, Enter → Añadir.
-- Se desactivó el menú nativo de Electron (`Menu.setApplicationMenu(null)`) para
-  que F11 no dispare el fullscreen del navegador/Electron.
+- El viejo **F11 «Números»** (salto directo a `#qt-numero`) fue **eliminado del
+  mapa** en `atajos-2026-09`: F11 pasó a «Limpiar todo» y el salto a Números
+  quedó **sin tecla**. Evaluar si hace falta reasignarlo cuando se resuelva la
+  causa raíz.
+- Se mantiene `Menu.setApplicationMenu(null)` (menú Electron desactivado).
 
 ### Notas de investigación (para la próxima iteración)
 
@@ -73,9 +74,9 @@ iteración del ciclo.
 
 ## Implementado en esta iteración (win-fixes3)
 
-- [x] **F11 «Números»**: salto directo al input de Número desde cualquier
-      zona (foco `#qt-numero` + zona `numero`; Tab→Monto y Enter→Añadir ya
-      operan con el ruteo existente). — 2026-09-21
+- [x] **F11 «Números»** (win-fixes3): salto directo al input de Número desde cualquier
+      zona. **Reasignado en atajos-2026-09**: F11 = «Limpiar todo»; el salto a
+      Números quedó sin tecla (ver sección de remapeo). — 2026-09-21/26
 - [x] **Menú Electron desactivado**: `Menu.setApplicationMenu(null)` en
       `main.cjs` antes de `createWindow()` para que F11 no dispare fullscreen.
       Verificar en Windows que F11 ya no hace fullscreen. — 2026-09-21
@@ -87,6 +88,24 @@ iteración del ciclo.
       el label (win-fixes2 FIX E). — 2026-09-17
 - [x] **Padding `05`→`005`**: tripletas numéricas normalizadas a 3 cifras
       (win-fixes2 FIX D). — 2026-09-17
+
+---
+
+## Implementado (atajos-2026-09) — remapeo completo
+
+- [x] **Mapa nuevo**: F1 repetir última · F2 Monto (foco al input) · F3 eliminar
+      última · F4 pagar/generar · F5 ventas · F6 resultados · F7 ganadores ·
+      F8 cuadre · F9 reimprimir · F10 anular ticket · F11 limpiar todo ·
+      F12 vuelto · **Alt+Esc** ayuda · Alt+D dashboard · **Backspace** elimina
+      el ítem seleccionado del resumen.
+- [x] **F10 «Anular ticket»**: modal que exige teclear el serial del último
+      ticket pendiente (anti-tecleo) y llama `DELETE /tickets/{id}` — el backend
+      existente valida ventana efectiva por taquilla (default 5 min) y que el
+      sorteo no haya pasado (422 con mensaje).
+- [x] **`ir-numero` eliminado**: el viejo F11 «Números» quedó sin tecla en el
+      nuevo mapa.
+- Pendiente [Win]: **Alt+Esc es atajo del SO en Windows** — verificar que llega
+  a la app; si no, reasignar (p. ej. Alt+H).
 
 ---
 
@@ -110,9 +129,10 @@ iteración del ciclo.
 
 ## Deferrals conocidos
 
-- [ ] **F7/F8/F10 confirm-and-discard**: hoy solo navegan a
-      ventas/cuadre/resultados; la semántica de confirmación antes de
-      descartar líneas sin generar queda diferida.
+- [ ] **Confirm-and-discard en navegación (F5/F6/F8)**: hoy solo navegan a
+      ventas/resultados/cuadre; la semántica de confirmación antes de
+      descartar líneas sin generar queda diferida (F10 ya no aplica: es
+      anular ticket).
 - [ ] **Semántica de premios punta/terminal de trio-activo**: requiere plugin
       backend (fuera de alcance del ciclo; no tocar backend en esta iteración).
 - [ ] **Fingerprint localStorage por origen**: el fingerprint del dispositivo
