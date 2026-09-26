@@ -1135,6 +1135,7 @@ import MainLayout from '../layouts/MainLayout.astro';
     import { buildZoneGraph, routeKey, zonaHorizontal, zonaPendienteSeleccion } from '../utils/keyboard';
     import { teclasLegend } from '../utils/keyboard';
     import { alternarHorario, marcarTodosVisibles, expandirLineas, horarioExpirado, filtrarHorariosFuturos, seleccionadosExpirados, agruparPorGroupId, indiceSeleccionTrasEliminar } from '../utils/horarios';
+    import { formatearJugada, nombresJuegos } from '../utils/ticket';
     import { calcularVuelto } from '../utils/vuelto';
     import { indiceDestinoFila, indiceDestinoColumna } from '../utils/gridNav';
     import juegosRaw from '../data/juegos.json';
@@ -1916,12 +1917,32 @@ import MainLayout from '../layouts/MainLayout.astro';
 
         const result = await apiFetch('/tickets', { method: 'POST', body: { lines } });
 
+        // Ticket impreso (2026-09): cada línea lleva su juego y el texto de la
+        // jugada ya compuesto (modalidad en tripletas, solo número en
+        // terminales); el encabezado lista TODOS los juegos del ticket y no la
+        // selección actual del dashboard.
+        const ticketLinesData = ticketLines.map(l => {
+          const esTripleta = l.juegoType === 'tripletas';
+          return {
+            game: l.juegoName,
+            jugada: formatearJugada({
+              tipo: l.juegoType,
+              animal: esTripleta ? null : l.animal,
+              numero: l.numero,
+              modalidad: esTripleta ? l.tripleModalidadLabel : null,
+              signo: esTripleta ? l.animal : null,
+            }),
+            sorteo: l.horario,
+            amountBs: l.moneda === 'bs' ? l.monto : 0,
+            amountUsd: l.moneda === 'usd' ? l.monto : 0,
+          };
+        });
         const ticketData = {
           ticketCode: result.data.ticket_code,
           date: new Date().toLocaleDateString('es-VE'),
           time: new Date().toLocaleTimeString('es-VE'),
-          game: selectedGames.length > 0 ? selectedGames.map(g => g.nombre).join(', ') : 'Apuesta',
-          lines: ticketLines.map(l => ({ animal: l.animal || l.numero, number: l.numero, sorteo: l.horario, amountBs: l.moneda === 'bs' ? l.monto : 0, amountUsd: l.moneda === 'usd' ? l.monto : 0 })),
+          game: nombresJuegos(ticketLinesData).join(', '),
+          lines: ticketLinesData,
         };
         // Snapshot para F12 reimprimir (A6, REQ-TF-03): tras POST ok se guarda
         // el último ticket impreso; si la impresora falla, F12 reimprime sin

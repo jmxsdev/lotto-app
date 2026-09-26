@@ -20,6 +20,7 @@ import {
   signoPorPosicion,
   normalizarNumeroTriple,
   siglaDeSigno,
+  labelDeSigno,
 } from '../src/utils/catalogo.ts';
 import { buildZoneGraph, routeKey, KEYMAP, esFKey, zonaHorizontal, zonaPendienteSeleccion } from '../src/utils/keyboard.ts';
 import { destinoNav, NAV_GLOBAL, teclasLegend } from '../src/utils/keyboard.ts';
@@ -36,6 +37,7 @@ import {
 } from '../src/utils/horarios.ts';
 import { calcularVuelto } from '../src/utils/vuelto.ts';
 import { indiceDestinoFila, indiceDestinoColumna } from '../src/utils/gridNav.ts';
+import { formatearJugada, nombresJuegos, labelModalidad } from '../src/utils/ticket.ts';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const rutaJson = join(AQUI, '..', 'src', 'data', 'juegos.json');
@@ -688,6 +690,57 @@ for (const juego of catalogo.juegos) {
 }
 const huerfanos = Object.keys(logos).filter((slug) => !slugsCatalogo.has(slug));
 ok(huerfanos.length === 0, `sin entradas ajenas al catálogo (${huerfanos.join(', ') || 'ninguna'})`);
+
+console.log('\n== Ticket impreso (formato multi-juego, 2026-09) ==');
+ok(formatearJugada({ tipo: 'animalitos', animal: 'Perro', numero: '14' }) === 'Perro #14', 'animalitos: «Animal #N°»');
+ok(formatearJugada({ tipo: 'terminales', numero: '05' }) === '#05', 'terminal: solo el número (sin duplicar)');
+ok(formatearJugada({ tipo: 'tripletas', numero: '157', modalidad: 'Triple C', signo: 'Sagitario' }) === 'Triple C #157 Sagitario', 'tripleta zodiacal: modalidad + número + signo');
+ok(formatearJugada({ tipo: 'tripletas', numero: '005', modalidad: 'Triple A' }) === 'Triple A #005', 'tripleta numérica: modalidad + número');
+ok(formatearJugada({ tipo: 'animalitos', animal: null, numero: null }) === '-', 'sin datos → «-»');
+ok(labelModalidad('triple_b') === 'Triple B' && labelModalidad('triple_c') === 'Triple C', 'labelModalidad: códigos conocidos');
+ok(labelModalidad(null) === null && labelModalidad('otro') === null, 'labelModalidad: desconocidos → null');
+const juegosTicket = nombresJuegos([{ game: 'Triple Zulia' }, { game: 'Lotto Activo' }, { game: 'Triple Zulia' }, { game: '  ' }]);
+ok(juegosTicket.length === 2 && juegosTicket[0] === 'Triple Zulia' && juegosTicket[1] === 'Lotto Activo', 'nombresJuegos: únicos en orden de aparición');
+ok(labelDeSigno(catalogo.porSlug.get('triple-zulia'), 'SAG') === 'Sagitario', 'labelDeSigno: SAG → Sagitario');
+ok(labelDeSigno(catalogo.porSlug.get('triple-zulia'), 'sag') === 'Sagitario', 'labelDeSigno: case-insensitive');
+ok(labelDeSigno(catalogo.porSlug.get('triple-zulia'), 'XXX') === null, 'labelDeSigno: sigla inexistente → null');
+ok(labelDeSigno(lottoActivo, 'SAG') === null, 'labelDeSigno: familia no zodiacal → null');
+
+console.log('\n== atajos-2026-09: anulación F10 (serial + último pendiente) ==');
+ok(normalizarSerial('  tkt-000123 ') === 'TKT-000123', 'normalizarSerial: trim + mayúsculas');
+ok(normalizarSerial('tkt-000123') === 'TKT-000123', 'normalizarSerial: mayúsculas sin espacios');
+ok(normalizarSerial('') === '', 'normalizarSerial: vacío → vacío');
+ok(serialCoincide('tkt-000123', 'TKT-000123'), 'serialCoincide: ignora mayúsculas');
+ok(serialCoincide('  TKT-000123  ', 'TKT-000123'), 'serialCoincide: recorta extremos del tecleado');
+ok(!serialCoincide('TKT-000124', 'TKT-000123'), 'serialCoincide: serial distinto → false (anti-tecleo)');
+ok(!serialCoincide('TKT-000123', null), 'serialCoincide: ticket_code nulo → false');
+ok(!serialCoincide('TKT-000123', undefined), 'serialCoincide: ticket_code ausente → false');
+ok(!serialCoincide('', ''), 'serialCoincide: vacío vs vacío → false (sin código no hay match)');
+const ticketsApi = [
+  { id: 3, estado: 'anulada', ticket_code: 'T3', created_at: '2026-09-26T12:00:00Z' },
+  { id: 2, estado: 'pendiente', ticket_code: 'T2', created_at: '2026-09-26T11:00:00Z' },
+  { id: 1, estado: 'pendiente', ticket_code: 'T1', created_at: '2026-09-26T10:00:00Z' },
+  { id: 4, estado: 'pendiente', ticket_code: 'T4', created_at: '2026-09-26T09:00:00Z' },
+];
+ok(ultimoTicketPendiente(ticketsApi)?.ticket_code === 'T2', 'ultimoTicketPendiente: pendiente más reciente (T2)');
+ok(ultimoTicketPendiente(ticketsApi.filter((t) => t.estado !== 'pendiente')) === null, 'sin pendientes → null');
+ok(ultimoTicketPendiente([]) === null, 'lista vacía → null');
+ok(
+  ultimoTicketPendiente([
+    { id: 10, estado: 'pendiente', created_at: '2026-09-26T10:00:00Z' },
+    { id: 12, estado: 'pendiente', created_at: '2026-09-26T10:00:00Z' },
+  ]).id === 12,
+  'empate de created_at → desempate por id descendente',
+);
+ok(
+  ultimoTicketPendiente([
+    { id: 7, estado: 'pendiente' },
+    { id: 9, estado: 'pendiente' },
+  ]).id === 9,
+  'created_at ausente → id descendente',
+);
+ok(ultimoTicketPendiente([{ id: 5, estado: 'pendiente', created_at: 'fecha-inválida' }]).id === 5, 'created_at inválido → cae al id');
+ok(ticketsApi.length === 4 && ticketsApi[0].id === 3, 'ultimoTicketPendiente no muta la lista original');
 
 console.log(`\n${checks} checks, ${fallos} fallos`);
 process.exit(fallos === 0 ? 0 : 1);
