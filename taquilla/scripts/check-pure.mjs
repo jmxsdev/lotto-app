@@ -689,5 +689,34 @@ for (const juego of catalogo.juegos) {
 const huerfanos = Object.keys(logos).filter((slug) => !slugsCatalogo.has(slug));
 ok(huerfanos.length === 0, `sin entradas ajenas al catálogo (${huerfanos.join(', ') || 'ninguna'})`);
 
+console.log('\n== iconos-consistentes (slice 1): bundled == docs/juegos.json ==');
+const rutaDocs = join(AQUI, '..', '..', 'docs', 'juegos.json');
+const bytesBundled = readFileSync(rutaJson, 'utf8');
+const bytesDocs = readFileSync(rutaDocs, 'utf8');
+ok(bytesBundled === bytesDocs, 'taquilla/src/data/juegos.json es byte-idéntico a docs/juegos.json');
+
+console.log('\n== iconos-consistentes (slice 1): 106/106 slugs de animalitos con icono ==');
+const opcionesAnimal = catalogo.juegos.filter((j) => j.familia === 'animalitos').flatMap((j) => j.opciones);
+ok(opcionesAnimal.length === 643, `643 opciones de animalitos en el catálogo (${opcionesAnimal.length})`);
+const sinIcono = opcionesAnimal.filter((o) => typeof o.icono !== 'string' || o.icono === '');
+ok(
+  sinIcono.length === 0,
+  `toda opción de animalitos con icono no vacío (${opcionesAnimal.length - sinIcono.length}/643)` +
+    (sinIcono.length ? ` (sin icono: ${sinIcono.map((o) => o.value).join(', ')})` : ''),
+);
+const slugsDistintos = new Set(opcionesAnimal.map((o) => o.value));
+ok(slugsDistintos.size === 106, `106 slugs distintos de animalitos (${slugsDistintos.size})`);
+const inconsistencias = [];
+for (const slug of slugsDistintos) {
+  const iconos = new Set(opcionesAnimal.filter((o) => o.value === slug).map((o) => o.icono));
+  if (iconos.size !== 1) inconsistencias.push(slug);
+}
+ok(inconsistencias.length === 0, `mismo slug → mismo icono en todos los juegos (${inconsistencias.join(', ') || 'ninguna'})`);
+const opcionesNoAnimal = catalogo.juegos.filter((j) => j.familia !== 'animalitos').flatMap((j) => j.opciones);
+ok(
+  opcionesNoAnimal.every((o) => o.icono === undefined || o.icono === null),
+  'familias no animal: sin icono (sanitizarOpcion descarta null/vacío)',
+);
+
 console.log(`\n${checks} checks, ${fallos} fallos`);
 process.exit(fallos === 0 ? 0 : 1);

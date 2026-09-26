@@ -22,6 +22,13 @@ export interface OpcionCatalogo {
   numero: number | null;
   label: string;
   value: string;
+  /**
+   * Icono del animalito resuelto por slug desde el catálogo (aditivo,
+   * iconos-consistentes). El contrato JSON lo lleva en `null` para familias
+   * no animal; sanitizarOpcion conserva SOLO strings no vacíos y descarta el
+   * resto, por lo que aquí suele estar ausente (undefined) o ser el emoji.
+   */
+  icono?: string | null;
 }
 
 export interface JuegoCatalogo {
@@ -77,12 +84,21 @@ function sanitizarOpcion(raw: Record<string, unknown>, indice: number): OpcionCa
   const value = typeof raw.value === 'string' ? raw.value : '';
   if (!label) throw new Error(`opcion[${indice}]: falta "label"`);
   if (!value) throw new Error(`opcion[${indice}]: falta "value"`);
+  const opcion: OpcionCatalogo = { numero, label, value };
+  // Campo aditivo `icono` (iconos-consistentes): se conserva solo si es un
+  // string NO vacío; null/ausente/vacío se descartan (el contrato JSON lleva
+  // null en familias no animal, aquí no se propaga).
+  const icono = typeof raw.icono === 'string' && raw.icono !== '' ? raw.icono : undefined;
+  if (icono !== undefined) {
+    opcion.icono = icono;
+  }
   // Salvaguarda legado: el catálogo bundled ya dice "Cebra" (docs/juegos.json);
   // datos legacy pueden traer "Cobra" (el backend usa Cebra, Animalitos.php:34).
   if (normalizarLabel(label) === 'cobra') {
-    return { numero, label: 'Cebra', value: value === 'cobra' ? 'cebra' : value };
+    opcion.label = 'Cebra';
+    if (value === 'cobra') opcion.value = 'cebra';
   }
-  return { numero, label, value };
+  return opcion;
 }
 
 function derivarFamilia(tipo: TipoJuego, opciones: OpcionCatalogo[]): FamiliaOpciones {
