@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Services\JuegoCatalogoService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use RuntimeException;
 use Tests\TestCase;
 
 class JuegosJsonTest extends TestCase
@@ -424,5 +425,106 @@ class JuegosJsonTest extends TestCase
             $this->assertSame(1, $idsGenerados[$i] - $idsGenerados[$i - 1], 'Los ids generados deben ser estrictamente consecutivos.');
         }
         $this->assertSame(21, count($idsGenerados), 'Deben ser exactamente 21 juegos.');
+    }
+
+    /**
+     * Helper PURO de validación (catalogo-juegos R3): resuelve el icono de un
+     * slug contra el mapa `config('iconos-animales')` y LANZA si el slug no
+     * tiene entrada. Es la pieza que hace fallar la verificación en CI ante
+     * una opción de animalitos sin mapeo.
+     *
+     * @param  array<string, string>  $mapa
+     */
+    private function iconoDeSlug(array $mapa, string $slug): string
+    {
+        if (! array_key_exists($slug, $mapa)) {
+            throw new RuntimeException("Slug sin mapeo de icono: {$slug}");
+        }
+
+        $icono = $mapa[$slug];
+        if (! is_string($icono) || $icono === '') {
+            throw new RuntimeException("Icono vacío o inválido para el slug: {$slug}");
+        }
+
+        return $icono;
+    }
+
+    public function test_opciones_animalitos_resuelven_icono_no_vacio(): void
+    {
+        // Alcance documentado (descubrimiento emoji-cross-platform): 11 juegos
+        // de animalitos, 643 opciones, todas con slug. El assert de conteo da
+        // contexto real al "sin faltantes" posterior: si alguna opción no
+        // resuelve icono, la lista de faltantes deja de estar vacía.
+        $juegosAnimalitos = array_values(array_filter(
+            $this->generado['juegos'],
+            fn (array $juego) => $juego['tipo'] === 'animalitos'
+        ));
+        $this->assertCount(11, $juegosAnimalitos);
+        $totalOpciones = array_sum(array_map(fn (array $juego) => count($juego['opciones']), $juegosAnimalitos));
+        $this->assertSame(643, $totalOpciones);
+
+        $mapa = config('iconos-animales');
+        $this->assertIsArray($mapa, 'config/iconos-animales.php debe existir con el mapa de 106 slugs.');
+        $this->assertCount(106, $mapa, 'El mapa debe cubrir exactamente los 106 slugs distintos del catálogo.');
+
+        $faltantes = [];
+        foreach ($juegosAnimalitos as $juego) {
+            foreach ($juego['opciones'] as $opcion) {
+                if (! isset($opcion['icono']) || ! is_string($opcion['icono']) || $opcion['icono'] === '') {
+                    $faltantes[] = "{$juego['slug']}/{$opcion['value']}";
+
+                    continue;
+                }
+                // El icono de cada opción DEBE provenir del mapa (R2): mismo
+                // slug comparte la única entrada, y un slug sin mapeo lanza.
+                $this->assertSame(
+                    $this->iconoDeSlug($mapa, $opcion['value']),
+                    $opcion['icono'],
+                    "El icono de {$juego['slug']}/{$opcion['value']} debe venir del mapa."
+                );
+            }
+        }
+        $this->assertSame([], $faltantes, 'Todas las opciones de animalitos deben resolver icono no vacío.');
+
+        // Comodines (decisión de producto): Leoncito → 🦁, Selva Plus → 🐾.
+        $porSlug = collect($this->generado['juegos'])->keyBy('slug');
+        $comodinA = collect($porSlug['selva-plus']['opciones'])->firstWhere('value', 'comodin-a');
+        $comodinB = collect($porSlug['selva-plus']['opciones'])->firstWhere('value', 'comodin-b');
+        $this->assertSame('🦁', $comodinA['icono'], 'Comodín Leoncito (comodin-a) resuelve 🦁.');
+        $this->assertSame('🐾', $comodinB['icono'], 'Comodín Selva Plus (comodin-b) resuelve 🐾.');
+    }
+
+    public function test_opciones_no_animalitos_tienen_icono_null(): void
+    {
+        foreach ($this->generado['juegos'] as $juego) {
+            if ($juego['tipo'] === 'animalitos') {
+                continue;
+            }
+
+            foreach ($juego['opciones'] as $opcion) {
+                $this->assertArrayHasKey(
+                    'icono',
+                    $opcion,
+                    "Falta el campo icono en {$juego['slug']}/{$opcion['value']} (debe ir en null)."
+                );
+                $this->assertNull(
+                    $opcion['icono'],
+                    "{$juego['slug']}/{$opcion['value']} (familia no animal) debe tener icono null."
+                );
+            }
+        }
+    }
+
+    public function test_validacion_lanza_ante_slug_sin_mapeo(): void
+    {
+        $mapa = config('iconos-animales');
+
+        // Slugs mapeados resuelven (triangulación: uno con emoji fiel y uno con 🐾).
+        $this->assertSame('🐳', $this->iconoDeSlug($mapa, 'ballena'));
+        $this->assertSame('🐾', $this->iconoDeSlug($mapa, 'zamuro'));
+
+        // Slug sin entrada en el mapa → la validación LANZA (falla en CI).
+        $this->expectException(RuntimeException::class);
+        $this->iconoDeSlug($mapa, 'slug-inexistente');
     }
 }
