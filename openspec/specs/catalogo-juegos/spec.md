@@ -29,3 +29,21 @@ El sistema MUST mantener `docs/juegos.md` como fuente de referencia de los juego
 - GIVEN un seeder de un juego y `docs/juegos.md`
 - WHEN se comparan slug, type y fuente
 - THEN coinciden (la lista es la referencia; el seeder la materializa)
+
+### Requirement: Contrato de premiación en el catálogo
+
+El export del catálogo (`docs/juegos.json` vía `JuegoCatalogoService`) SHALL exponer el premio de cada
+juego como `premios: {base, modalidades, comodines}` en lugar de un único `premio_multiplo`. Los valores
+MUST coincidir con los oficiales de `docs/multiplicadores-juegos.md`.
+
+#### Scenario: Juego exportado con esquema completo
+
+- GIVEN un juego con `config.premios = {base, modalidades, comodines}`
+- WHEN se genera el catálogo JSON
+- THEN el export incluye `premios` con base, modalidades y comodines
+
+#### Scenario: Juego deshabilitado excluido de la venta
+
+- GIVEN un juego con `active=false` (sin fuente oficial de premios)
+- WHEN se genera el catálogo JSON
+- THEN el juego se exporta marcado como no vendible
