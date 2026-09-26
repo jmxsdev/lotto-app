@@ -16,7 +16,11 @@ use Illuminate\Validation\Rule;
 class PagoController extends Controller
 {
     /**
-     * Registrar un pago de premio
+     * Registrar un pago de premio.
+     *
+     * Backend AUTORITATIVO (WU pago-premio): en `egreso` los montos son
+     * OPCIONALES — sin montos se aplica el premio calculado por el motor
+     * (`config.premios`); con montos se mantiene la validacion +-0.01.
      */
     public function store(Request $request)
     {
@@ -95,11 +99,15 @@ class PagoController extends Controller
                 ], 422);
             }
 
-            $amountBsRequest = (float) ($request->amount_bs ?? 0);
-            $amountUsdRequest = (float) ($request->amount_usd ?? 0);
+            // Backend AUTORITATIVO (WU pago-premio): los montos son OPCIONALES.
+            // - Sin monto -> se aplica el premio calculado por el MOTOR (la
+            //   taquilla no calcula ni confirma nada).
+            // - Con monto -> se mantiene la validacion +-0.01 (compatibilidad).
+            $amountBsRequest = $request->filled('amount_bs') ? (float) $request->amount_bs : null;
+            $amountUsdRequest = $request->filled('amount_usd') ? (float) $request->amount_usd : null;
 
-            $diffBs = abs($amountBsRequest - $premio['premio_bs']);
-            $diffUsd = abs($amountUsdRequest - $premio['premio_usd']);
+            $diffBs = $amountBsRequest === null ? 0.0 : abs($amountBsRequest - $premio['premio_bs']);
+            $diffUsd = $amountUsdRequest === null ? 0.0 : abs($amountUsdRequest - $premio['premio_usd']);
 
             if ($diffBs > 0.01 || $diffUsd > 0.01) {
                 return response()->json([
@@ -109,8 +117,15 @@ class PagoController extends Controller
                     'premio_esperado_usd' => $premio['premio_usd'],
                     'monto_enviado_bs' => $amountBsRequest,
                     'monto_enviado_usd' => $amountUsdRequest,
+                    'sugerencia' => 'Omite amount_bs/amount_usd: el backend aplica el premio calculado.',
                 ], 422);
             }
+
+            // Fija los montos aplicados (los del request o los del motor).
+            $request->merge([
+                'amount_bs' => $amountBsRequest ?? $premio['premio_bs'],
+                'amount_usd' => $amountUsdRequest ?? $premio['premio_usd'],
+            ]);
         }
 
         // Guardar pago
@@ -177,11 +192,21 @@ class PagoController extends Controller
             'user_agent' => $request->header('User-Agent'),
         ]);
 
-        return response()->json([
+        $response = [
             'success' => true,
             'message' => 'Pago registrado exitosamente.',
             'data' => $pago->load(['apuesta', 'creador']),
-        ], 201);
+        ];
+
+        // WU pago-premio: devuelve el premio aplicado (request o motor).
+        if ($request->tipo === 'egreso') {
+            $response['premio'] = [
+                'premio_bs' => (float) $request->amount_bs,
+                'premio_usd' => (float) $request->amount_usd,
+            ];
+        }
+
+        return response()->json($response, 201);
     }
 
     /**
