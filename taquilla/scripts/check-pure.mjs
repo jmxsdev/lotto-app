@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
  * Harness [Lin] del módulo puro catalogo.ts — PR1 (REQ-CL-01..03, A5).
- * Crece en PR2 (grafos de zonas), PR3b (calcularVuelto) y atajos-2026-09
- * (re-mapeo del KEYMAP + helpers de la anulación F10).
+ * Crece en PR2 (grafos de zonas), PR3b (calcularVuelto), atajos-2026-09
+ * (re-mapeo del KEYMAP + helpers de la anulación F10) y S1 front-1-0-0
+ * (pagos.ts: payload egreso, moneda derivada, esPagableTicket, premio).
  *
  * Ejecutar desde la raíz del repo:
  *   node taquilla/scripts/check-pure.mjs
@@ -47,6 +48,13 @@ import {
 import { calcularVuelto } from '../src/utils/vuelto.ts';
 import { indiceDestinoFila, indiceDestinoColumna } from '../src/utils/gridNav.ts';
 import { formatearJugada, nombresJuegos, labelModalidad } from '../src/utils/ticket.ts';
+import {
+  monedaDeApuesta,
+  esPagableApuesta,
+  payloadPago,
+  esPagableTicket,
+  acumularPremio,
+} from '../src/utils/pagos.ts';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const rutaJson = join(AQUI, '..', 'src', 'data', 'juegos.json');
@@ -850,6 +858,81 @@ ok(
 );
 ok(ultimoTicketPendiente([{ id: 5, estado: 'pendiente', created_at: 'fecha-inválida' }]).id === 5, 'created_at inválido → cae al id');
 ok(ticketsApi.length === 4 && ticketsApi[0].id === 3, 'ultimoTicketPendiente no muta la lista original');
+
+console.log('\n== S1 pagos: monedaDeApuesta (D4: Bs→bs, $→usd, ambas→mixto) ==');
+ok(monedaDeApuesta({ amount_bs: 10, amount_usd: 0 }) === 'bs', 'solo Bs → bs');
+ok(monedaDeApuesta({ amount_bs: 0, amount_usd: 5 }) === 'usd', 'solo $ → usd');
+ok(monedaDeApuesta({ amount_bs: 10, amount_usd: 5 }) === 'mixto', 'Bs + $ → mixto');
+ok(monedaDeApuesta({ amount_bs: 0, amount_usd: 0 }) === 'bs', 'sin montos → bs (moneda base)');
+ok(monedaDeApuesta({}) === 'bs', 'apuesta sin montos → bs');
+ok(monedaDeApuesta(null) === 'bs', 'apuesta nula → bs (defensivo)');
+
+console.log('\n== S1 pagos: esPagableApuesta (ganadora o pendiente con resultado) ==');
+ok(esPagableApuesta({ estado: 'ganadora', resultado_id: 7 }) === true, 'ganadora con resultado → pagable');
+ok(esPagableApuesta({ estado: 'ganadora' }) === true, 'ganadora → pagable (P0: el backend la exige)');
+ok(esPagableApuesta({ estado: 'pendiente', resultado_id: 7 }) === true, 'pendiente con resultado_id → pagable (legacy)');
+ok(esPagableApuesta({ estado: 'pendiente' }) === false, 'pendiente sin resultado → NO pagable');
+ok(esPagableApuesta({ estado: 'perdida' }) === false, 'perdida → NO pagable');
+ok(esPagableApuesta({ estado: 'pagada' }) === false, 'pagada → NO pagable');
+ok(esPagableApuesta({ estado: 'vencido' }) === false, 'vencido → NO pagable');
+ok(esPagableApuesta(null) === false, 'apuesta nula → NO pagable');
+
+console.log('\n== S1 pagos: payloadPago exacto (D4: {apuesta_id, tipo:egreso, moneda}, SIN montos) ==');
+const payloadBs = payloadPago({ id: 123, amount_bs: 10, amount_usd: 0 });
+ok(
+  JSON.stringify(payloadBs) === JSON.stringify({ apuesta_id: 123, tipo: 'egreso', moneda: 'bs' }),
+  `payload exacto Bs (${JSON.stringify(payloadBs)})`,
+);
+ok(!('amount_bs' in payloadBs) && !('amount_usd' in payloadBs), 'payload sin montos (el backend aplica el premio del motor)');
+ok(
+  JSON.stringify(payloadPago({ id: 456, amount_bs: 0, amount_usd: 5 })) ===
+    JSON.stringify({ apuesta_id: 456, tipo: 'egreso', moneda: 'usd' }),
+  'payload exacto USD',
+);
+ok(
+  JSON.stringify(payloadPago({ id: 789, amount_bs: 10, amount_usd: 5 })) ===
+    JSON.stringify({ apuesta_id: 789, tipo: 'egreso', moneda: 'mixto' }),
+  'payload exacto mixto',
+);
+
+console.log('\n== S1 pagos: esPagableTicket (P0: ticket ganador con ganadora sin pagar) ==');
+ok(
+  esPagableTicket({ estado: 'ganador', apuestas: [{ estado: 'ganadora', resultado_id: 7 }, { estado: 'pagada' }] }) === true,
+  'ticket ganador con apuesta ganadora sin pagar → pagable (P0)',
+);
+ok(
+  esPagableTicket({ estado: 'pendiente', apuestas: [{ estado: 'ganadora', resultado_id: 7 }] }) === true,
+  'ticket pendiente con ganadora → pagable',
+);
+ok(
+  esPagableTicket({ estado: 'pendiente', apuestas: [{ estado: 'pendiente', resultado_id: 7 }] }) === true,
+  'ticket pendiente con apuesta pendiente+resultado → pagable (legacy)',
+);
+ok(esPagableTicket({ estado: 'pagada', apuestas: [{ estado: 'pagada' }] }) === false, 'ticket pagada → NO pagable');
+ok(
+  esPagableTicket({ estado: 'pendiente', apuestas: [{ estado: 'perdida' }] }) === false,
+  'ticket pendiente sin apuestas pagables → NO pagable',
+);
+ok(
+  esPagableTicket({ estado: 'ganador', apuestas: [{ estado: 'pagada' }] }) === false,
+  'ticket ganador con todas pagadas → NO pagable',
+);
+ok(esPagableTicket({ estado: 'ganador', apuestas: [] }) === false, 'ticket sin apuestas → NO pagable');
+ok(esPagableTicket({ estado: 'ganador' }) === false, 'ticket sin clave apuestas → NO pagable');
+ok(esPagableTicket(null) === false, 'ticket nulo → NO pagable');
+
+console.log('\n== S1 pagos: acumularPremio (suma response.premio) ==');
+const premioTotal = acumularPremio([
+  { premio: { premio_bs: 1500, premio_usd: 0 } },
+  { premio: { premio_bs: 0, premio_usd: 5 } },
+  { premio: { premio_bs: 500, premio_usd: 2.5 } },
+]);
+ok(premioTotal.premio_bs === 2000 && premioTotal.premio_usd === 7.5, `suma Bs y $ entre respuestas (${JSON.stringify(premioTotal)})`);
+ok(acumularPremio([]).premio_bs === 0 && acumularPremio([]).premio_usd === 0, 'sin respuestas → 0/0');
+ok(
+  acumularPremio([null, { premio: null }, { premio: { premio_bs: 10, premio_usd: 0 } }]).premio_bs === 10,
+  'respuestas sin premio se ignoran y no rompen la suma',
+);
 
 console.log(`\n${checks} checks, ${fallos} fallos`);
 process.exit(fallos === 0 ? 0 : 1);
