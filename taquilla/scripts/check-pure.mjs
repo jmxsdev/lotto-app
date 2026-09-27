@@ -58,6 +58,7 @@ import {
   esPagableTicket,
   acumularPremio,
 } from '../src/utils/pagos.ts';
+import { estadoTicket } from '../src/utils/estados.ts';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const rutaJson = join(AQUI, '..', 'src', 'data', 'juegos.json');
@@ -979,6 +980,43 @@ ok(
   acumularPremio([null, { premio: null }, { premio: { premio_bs: 10, premio_usd: 0 } }]).premio_bs === 10,
   'respuestas sin premio se ignoran y no rompen la suma',
 );
+
+console.log('\n== S3 TQ-02/TQ-03: estadoTicket — tabla de verdad (design §7) ==');
+// Chips `ganador`/`vencido`; "resuelto sin ganadores" SOLO si no hay apuestas
+// pendiente/ganadora Y tiene_ganadores=false; nunca inventa (cae al estado real).
+ok(
+  estadoTicket({ estado: 'ganador', tiene_ganadores: true, apuestas: [{ estado: 'ganadora' }] }) === 'ganador',
+  'ticket ganador con ganadora sin pagar → chip ganador (abierto, P0)',
+);
+ok(
+  estadoTicket({ estado: 'vencido', tiene_ganadores: true, apuestas: [{ estado: 'vencido' }] }) === 'vencido',
+  'ticket vencido con premio no cobrado (tiene_ganadores=true) → chip vencido, NO resuelto',
+);
+ok(
+  estadoTicket({ estado: 'pendiente', tiene_ganadores: false, apuestas: [{ estado: 'perdida' }, { estado: 'vencido' }] }) === 'resuelto-sin-ganadores',
+  'apuestas perdida/vencido + tiene_ganadores=false → resuelto sin ganadores',
+);
+ok(
+  estadoTicket({ estado: 'pendiente', tiene_ganadores: false, apuestas: [{ estado: 'pendiente' }] }) === 'pendiente',
+  'apuesta pendiente real → NO se deriva resuelto (estado real)',
+);
+ok(
+  estadoTicket({ estado: 'pendiente', tiene_ganadores: false, apuestas: [{ estado: 'ganadora' }] }) === 'pendiente',
+  'apuesta ganadora sin pagar → NO se deriva resuelto (ticket abierto)',
+);
+ok(
+  estadoTicket({ estado: 'pendiente' }) === 'pendiente',
+  'sin clave apuestas → cae al estado real (nunca inventa)',
+);
+ok(
+  estadoTicket({ estado: 'pagada', apuestas: [{ estado: 'pagada' }] }) === 'pagada',
+  'sin tiene_ganadores → cae al estado real (nunca inventa)',
+);
+ok(
+  estadoTicket({ estado: 'anulada', apuestas: [] }) === 'anulada',
+  'apuestas vacías → cae al estado real (nunca inventa)',
+);
+ok(estadoTicket(null) === '', 'ticket nulo → sin estado');
 
 console.log(`\n${checks} checks, ${fallos} fallos`);
 process.exit(fallos === 0 ? 0 : 1);
