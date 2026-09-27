@@ -17,7 +17,7 @@
  *     hardcodeado ANIMAL_EMOJIS. El escaneo de emoji excluye los valores
  *     `icono` del catálogo bundled (juegos.json) y descarta comentarios.
  */
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CANONICO } from './generate-iconos.mjs';
@@ -160,6 +160,29 @@ ok(svgHome.includes('currentColor'), 'SVG hereda color vía currentColor');
 ok(iconoTaquilla('nombre-inexistente-xyz') === '', "icono('nombre-inexistente-xyz') → '' (contrato)");
 ok(iconoPanel('home') === svgHome, 'icono() de panel devuelve el mismo markup (misma app duplicada)');
 ok(iconoPanel('nombre-inexistente-xyz') === '', "icono() panel con nombre desconocido → ''");
+
+console.log('\n== Grupo S4 (TQ-04): iconos de badges de resultados ==');
+
+// Los 5 iconos Lucide que `badgesResultado` usa (trophy/gem/crown/target/hash)
+// deben existir en el mapa canónico; `resultados.ts` no puede inventar emoji.
+const BADGES_S4 = ['trophy', 'gem', 'crown', 'target', 'hash'];
+const faltantesBadges = BADGES_S4.filter((n) => !(n in mapaTaquilla));
+ok(
+  faltantesBadges.length === 0,
+  `badges S4: trophy/gem/crown/target/hash en el mapa (${faltantesBadges.length ? `faltan: ${faltantesBadges.join(', ')}` : 'los 5 presentes'})`,
+);
+const rutaResultados = join(RAIZ, 'taquilla', 'src', 'utils', 'resultados.ts');
+let refsNoBadge = ['resultados.ts-ausente'];
+let refsResultados = [];
+if (existsSync(rutaResultados)) {
+  const txtResultados = readFileSync(rutaResultados, 'utf8');
+  refsResultados = [...txtResultados.matchAll(RE_ICONO_HELPER)].map((m) => m[1]);
+  refsNoBadge = refsResultados.filter((n) => !BADGES_S4.includes(n));
+}
+ok(
+  refsNoBadge.length === 0,
+  `resultados.ts solo referencia iconos de badges S4 (${refsNoBadge.length ? `extra: ${refsNoBadge.join(', ')}` : 'solo trophy/gem/crown/target/hash'})`,
+);
 
 console.log('\n== Grupo B: aceptación de migración (3a/3b/4.6) ==');
 

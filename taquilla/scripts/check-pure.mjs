@@ -59,6 +59,7 @@ import {
   acumularPremio,
 } from '../src/utils/pagos.ts';
 import { estadoTicket } from '../src/utils/estados.ts';
+import { badgesResultado } from '../src/utils/resultados.ts';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const rutaJson = join(AQUI, '..', 'src', 'data', 'juegos.json');
@@ -1017,6 +1018,58 @@ ok(
   'apuestas vacías → cae al estado real (nunca inventa)',
 );
 ok(estadoTicket(null) === '', 'ticket nulo → sin estado');
+
+console.log('\n== S4 TQ-04: badgesResultado — figuras (trophy + animal + #numero + emoji catálogo) ==');
+const monjeOpciones = catalogo.porSlug.get('monje-millonario').opciones;
+const bFiguras = badgesResultado(
+  { figuras: [{ animal: 'Delfín', numero: 0 }, { nombre_animal: 'Perro', numero: 27 }] },
+  monjeOpciones,
+);
+ok(bFiguras.length === 2, `2 figuras → 2 badges (${bFiguras.length})`);
+ok(bFiguras[0].icono === 'trophy' && bFiguras[0].texto === 'Delfín #0', `figura 1: trophy + 'Delfín #0' (${bFiguras[0].texto})`);
+ok(bFiguras[0].emoji === '🐬', `figura 1: emoji del catálogo para Delfín (${bFiguras[0].emoji})`);
+ok(bFiguras[1].icono === 'trophy' && bFiguras[1].texto === 'Perro #27' && bFiguras[1].emoji === '🐶', `figura 2: nombre_animal 'Perro #27' + emoji 🐶 (${bFiguras[1].texto})`);
+const bFigSinEmoji = badgesResultado({ figuras: [{ animal: 'Unicornio', numero: 88 }] }, monjeOpciones);
+ok(bFigSinEmoji.length === 1 && bFigSinEmoji[0].texto === 'Unicornio #88' && !('emoji' in bFigSinEmoji), 'figura cuyo label NO matchea opciones → sin emoji');
+const bFigSinOpciones = badgesResultado({ figuras: [{ animal: 'Delfín', numero: 0 }] });
+ok(bFigSinOpciones.length === 1 && !('emoji' in bFigSinOpciones[0]), 'sin opciones pasadas → sin emoji (defensivo)');
+ok(badgesResultado({ figuras: [{ numero: 7 }] }).length === 0, 'figura sin animal/nombre_animal → se omite');
+
+console.log('\n== S4 TQ-04: badgesResultado — comodín (gem: true→MEGA, A/B + nombre) ==');
+const bComodin = badgesResultado({ comodin: true });
+ok(bComodin.length === 1 && bComodin[0].icono === 'gem' && bComodin[0].texto === 'MEGA', `comodin true → gem 'MEGA' (${bComodin[0].texto})`);
+const bComodinA = badgesResultado({ comodin: 'A', comodin_nombre: 'Leoncito' });
+ok(bComodinA.length === 1 && bComodinA[0].icono === 'gem' && bComodinA[0].texto === 'COMODÍN A · Leoncito', `comodin A + nombre → 'COMODÍN A · Leoncito' (${bComodinA[0].texto})`);
+const bComodinB = badgesResultado({ comodin: 'B', comodin_nombre: 'Selva Plus' });
+ok(bComodinB[0].texto === 'COMODÍN B · Selva Plus', `comodin B + nombre → 'COMODÍN B · Selva Plus' (${bComodinB[0].texto})`);
+ok(badgesResultado({ comodin: false }).length === 0, 'comodin false → sin badge');
+ok(badgesResultado({ comodin: 'X' }).length === 0, 'comodin valor desconocido → sin badge');
+
+console.log('\n== S4 TQ-04: badgesResultado — patronus/arrimao/pegadito ==');
+const bPatronus = badgesResultado({ patronus: true });
+ok(bPatronus.length === 1 && bPatronus[0].icono === 'crown' && bPatronus[0].texto === 'PATRONUS', `patronus truthy → crown 'PATRONUS' (${bPatronus[0].texto})`);
+ok(badgesResultado({ patronus: false }).length === 0, 'patronus false → sin badge');
+const bArrimao = badgesResultado({ arrimao: '1825' });
+ok(bArrimao.length === 1 && bArrimao[0].icono === 'target' && bArrimao[0].texto === '#1825', `arrimao → target '#1825' (${bArrimao[0].texto})`);
+const bPegadito = badgesResultado({ pegadito: '12345' });
+ok(bPegadito.length === 1 && bPegadito[0].icono === 'hash' && bPegadito[0].texto === '#12345', `pegadito → hash '#12345' (${bPegadito[0].texto})`);
+
+console.log('\n== S4 TQ-04: badgesResultado — combinación, orden y vacíos ==');
+const bTodo = badgesResultado(
+  {
+    figuras: [{ animal: 'Delfín', numero: 0 }],
+    comodin: true,
+    patronus: true,
+    arrimao: '1825',
+    pegadito: '12345',
+  },
+  monjeOpciones,
+);
+ok(bTodo.length === 5, `todas las claves → 5 badges (${bTodo.length})`);
+ok(JSON.stringify(bTodo.map((b) => b.icono)) === JSON.stringify(['trophy', 'gem', 'crown', 'target', 'hash']), `orden: trophy→gem→crown→target→hash (${bTodo.map((b) => b.icono).join(',')})`);
+ok(badgesResultado({}).length === 0, 'resultado vacío → []');
+ok(badgesResultado(null).length === 0, 'resultado null → []');
+ok(badgesResultado({ numero: 5, nombre_animal: 'Perro' }).length === 0, 'claves legadas sin claves nuevas → [] (no inventa)');
 
 console.log(`\n${checks} checks, ${fallos} fallos`);
 process.exit(fallos === 0 ? 0 : 1);
