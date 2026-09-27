@@ -41,23 +41,45 @@ class Tripletas implements JuegoInterface
 
     public function validarApuesta(array $data, ?array $opciones = null): bool
     {
-        $tipo = $data['combinacion']['tipo'] ?? null;
+        $combinacion = $data['combinacion'] ?? [];
+        $numero = $combinacion['numero'] ?? null;
+        $signo = $combinacion['signo'] ?? null;
 
-        if ($tipo === 'triple_a' || $tipo === 'triple_b') {
-            $numero = $data['combinacion']['numero'] ?? null;
+        // D2 (design §4/§3.1): el vocabulario canónico de `modalidadDe` decide
+        // la FORMA a validar — triples, posiciones del triple (punta/terminal/
+        // uña/aproximacion), claves con signo (signo_terminal/signo_uña/
+        // signo_solo) y números exactos del Arrejuntado (arrimao 4 cifras,
+        // pegadito 5). 'base' (shape desconocido o `selecciones[]`, S6) → false.
+        return match ($this->modalidadDe($combinacion)) {
+            'triple_a', 'triple_b' => $this->digitosExactos($numero, 3),
+            'signo_triple' => $this->digitosExactos($numero, 3) && $this->signoValido($signo),
+            'punta', 'terminal', 'aproximacion' => $this->digitosHasta($numero, 2),
+            'signo_terminal' => $this->digitosHasta($numero, 2) && $this->signoValido($signo),
+            'uña' => $this->digitosHasta($numero, 1),
+            'signo_uña' => $this->digitosHasta($numero, 1) && $this->signoValido($signo),
+            'signo_solo' => $this->signoValido($signo),
+            'arrimao' => $this->digitosHasta($numero, 4),
+            'pegadito' => $this->digitosHasta($numero, 5),
+            default => false,
+        };
+    }
 
-            return $numero !== null && preg_match('/^\d{3}$/', (string) $numero);
-        }
+    /**
+     * Número con EXACTAMENTE $digitos cifras (contrato histórico de los
+     * triples: `^\d{3}$`; la taquilla normaliza con padStart antes del POST).
+     */
+    private function digitosExactos(mixed $numero, int $digitos): bool
+    {
+        return $numero !== null && preg_match('/^\d{'.$digitos.'}$/', (string) $numero);
+    }
 
-        if ($tipo === 'triple_c') {
-            $numero = $data['combinacion']['numero'] ?? null;
-            $signo = $data['combinacion']['signo'] ?? null;
-
-            return $numero !== null && preg_match('/^\d{3}$/', (string) $numero)
-                && $this->signoValido($signo);
-        }
-
-        return false;
+    /**
+     * Número de 1..$digitos cifras (contrato §2.1 nota: puede viajar sin
+     * padding y el motor normaliza "7" → "07" según la modalidad).
+     */
+    private function digitosHasta(mixed $numero, int $digitos): bool
+    {
+        return $numero !== null && preg_match('/^\d{1,'.$digitos.'}$/', (string) $numero);
     }
 
     /**
@@ -603,18 +625,68 @@ class Tripletas implements JuegoInterface
     {
         return [
             'combinacion' => 'required|array|min:1',
-            'combinacion.tipo' => ['required', Rule::in(['triple_a', 'triple_b', 'triple_c'])],
-            'combinacion.numero' => 'required|string|size:3',
-            'combinacion.signo' => 'required_if:combinacion.tipo,triple_c|nullable|string|max:20',
+            'combinacion.tipo' => ['required', Rule::in([
+                'triple_a', 'triple_b', 'triple_c',
+                'punta', 'terminal', 'uña', 'aproximacion',
+                'signo_terminal', 'signo_uña', 'signo_solo',
+                'arrimao', 'pegadito',
+            ])],
+            'combinacion.numero' => [
+                'nullable',
+                'string',
+                // signo_solo NO lleva número (contrato §2.1).
+                Rule::requiredIf(fn () => request('combinacion.tipo') !== 'signo_solo'),
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    $tipo = (string) request('combinacion.tipo');
+                    $digitos = $this->digitosDeModalidad($tipo);
+                    if ($digitos === null) {
+                        return; // signo_solo: sin número que validar
+                    }
+                    // Triples: exacto (contrato histórico ^\d{3}$); single-draw:
+                    // 1..N cifras sin padding (contrato §2.1 nota).
+                    $exacto = in_array($tipo, ['triple_a', 'triple_b', 'triple_c'], true);
+                    $patron = $exacto ? '/^\d{'.$digitos.'}$/' : '/^\d{1,'.$digitos.'}$/';
+                    if (! preg_match($patron, (string) $value)) {
+                        $fail($exacto
+                            ? "El número debe tener exactamente {$digitos} dígitos."
+                            : "El número debe tener entre 1 y {$digitos} dígitos.");
+                    }
+                },
+            ],
+            'combinacion.signo' => [
+                'nullable',
+                'string',
+                'max:20',
+                Rule::requiredIf(fn () => in_array(
+                    (string) request('combinacion.tipo'),
+                    ['triple_c', 'signo_terminal', 'signo_uña', 'signo_solo'],
+                    true
+                )),
+            ],
         ];
     }
 
     public function getValidationMessages(): array
     {
         return [
-            'combinacion.tipo.in' => 'La modalidad debe ser triple_a, triple_b o triple_c.',
-            'combinacion.numero.size' => 'El número debe tener exactamente 3 dígitos.',
-            'combinacion.signo.required_if' => 'El signo zodiacal es obligatorio para Triple C.',
+            'combinacion.tipo.in' => 'La modalidad debe ser triple_a, triple_b, triple_c o una modalidad simple (punta, terminal, uña, aproximacion, signo_terminal, signo_uña, signo_solo, arrimao, pegadito).',
+            'combinacion.signo.required_if' => 'El signo zodiacal es obligatorio para esta modalidad.',
         ];
+    }
+
+    /**
+     * Cifras exigidas por modalidad (design §4) para la regla de tamaño del
+     * número: null cuando la modalidad no lleva número (signo_solo).
+     */
+    private function digitosDeModalidad(?string $tipo): ?int
+    {
+        return match ($tipo) {
+            'triple_a', 'triple_b', 'triple_c', 'signo_triple' => 3,
+            'punta', 'terminal', 'aproximacion', 'signo_terminal' => 2,
+            'uña', 'signo_uña' => 1,
+            'arrimao' => 4,
+            'pegadito' => 5,
+            default => null,
+        };
     }
 }
