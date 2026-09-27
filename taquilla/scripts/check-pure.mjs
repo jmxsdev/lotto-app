@@ -23,6 +23,9 @@ import {
   normalizarNumeroTriple,
   siglaDeSigno,
   labelDeSigno,
+  premios,
+  modalidadesDe,
+  normalizarPremios,
 } from '../src/utils/catalogo.ts';
 import { buildZoneGraph, routeKey, KEYMAP, esFKey, zonaHorizontal, zonaPendienteSeleccion } from '../src/utils/keyboard.ts';
 import {
@@ -717,6 +720,49 @@ const ricachona = catalogo.porSlug.get('la-ricachona');
 ok(ricachona.familia === 'zodiacal' && ricachona.opciones.length === 0, 'la-ricachona: inactiva, sin opciones (zodiacal por tipo)');
 ok(ricachona.active === false && ricachona.vendible === false, 'la-ricachona: active=false/vendible=false (motor-premios)');
 ok(ricachona.premio_multiplo === null, 'la-ricachona: premio_multiplo null (motor-premios)');
+
+console.log('\n== S2 TQ-06: premios normalizados del catálogo (D1) ==');
+// D1: `catalogo.ts` expone `premios {base, modalidades, comodines}` normalizado
+// ([]/null → vacío). Los espejos legacy top-level (`cola`, `zodiacal`, `signo`,
+// `triple_a_o_b`…) NO son la fuente canónica de modalidades (design §3.1).
+const VACIO = { base: null, modalidades: {}, comodines: [] };
+ok(JSON.stringify(normalizarPremios(null)) === JSON.stringify(VACIO), 'normalizarPremios(null) → vacío');
+ok(JSON.stringify(normalizarPremios([])) === JSON.stringify(VACIO), 'normalizarPremios([]) → vacío');
+ok(JSON.stringify(normalizarPremios(undefined)) === JSON.stringify(VACIO), 'normalizarPremios(undefined) → vacío (legado sin premios)');
+ok(
+  JSON.stringify(normalizarPremios({ base: 30, modalidades: { punta: 60 }, comodines: [] })) ===
+    JSON.stringify({ base: 30, modalidades: { punta: 60 }, comodines: [] }),
+  'normalizarPremios: objeto canónico pasa intacto',
+);
+ok(
+  JSON.stringify(normalizarPremios({ base: 30, modalidades: [], comodines: [] }).modalidades) === '{}',
+  'normalizarPremios: modalidades [] → {}',
+);
+ok(premios(lottoActivo).base === 30 && premios(lottoActivo).base === lottoActivo.premio_multiplo, 'lotto-activo: premios(juego).base 30× (espejo de premio_multiplo)');
+const conBase = catalogo.juegos.filter((j) => typeof premios(j).base === 'number' && premios(j).base > 0).length;
+ok(conBase === 20, `20/21 juegos con premios.base no vacío (${conBase})`);
+ok(premios(ricachona).base === null && Object.keys(premios(ricachona).modalidades).length === 0, 'la-ricachona: premios normalizados vacíos (base null)');
+ok(ricachona.vendible === false && ricachona.premios === null, 'la-ricachona: vendible=false y premios crudo null (D1)');
+const zuliaPremios = premios(catalogo.porSlug.get('triple-zulia'));
+ok(
+  JSON.stringify(modalidadesDe(catalogo.porSlug.get('triple-zulia'))) === JSON.stringify(['terminal', 'signo_triple', 'signo_terminal']),
+  'modalidadesDe(zulia) → claves canónicas [terminal, signo_triple, signo_terminal]',
+);
+ok(zuliaPremios.modalidades.terminal === 60 && zuliaPremios.modalidades.signo_triple === 6000 && zuliaPremios.modalidades.signo_terminal === 600, 'zulia: multiplicadores canónicos desde premios.modalidades');
+ok(!('cola' in zuliaPremios.modalidades) && !('zodiacal' in zuliaPremios.modalidades), 'zulia: NO expone espejos legacy (cola/zodiacal)');
+const chanceMods = modalidadesDe(catalogo.porSlug.get('triple-chance'));
+ok(
+  chanceMods.includes('signo_solo') && chanceMods.includes('triple_a_b') &&
+    !chanceMods.includes('signo') && !chanceMods.includes('triple_a_o_b') && !chanceMods.includes('triple_c_signo'),
+  'chance: claves canónicas (signo_solo/triple_a_b) sin espejos legacy (signo/triple_a_o_b/triple_c_signo)',
+);
+ok(modalidadesDe(catalogo.porSlug.get('lotto-activo')).length === 0, 'lotto-activo: sin modalidades → []');
+const monje = catalogo.porSlug.get('monje-millonario');
+ok(modalidadesDe(monje).length === 0 && Object.keys(premios(monje).modalidades).length === 0, 'monje: premios.modalidades crudo [] → {} (modalidadesDe [])');
+ok(
+  premios(monje).comodines && typeof premios(monje).comodines === 'object' && !Array.isArray(premios(monje).comodines) && 'patronus-75' in premios(monje).comodines,
+  'monje: comodines objeto canónico conservado (patronus-75)',
+);
 ok(siglaDeSigno(catalogo.porSlug.get('triple-zulia'), 'Sagitario') === 'SAG', 'triple-zulia "Sagitario" → SAG');
 ok(siglaDeSigno(catalogo.porSlug.get('el-arrejuntado'), 'Aries') === 'ARI', 'el-arrejuntado "Aries" → ARI (cubierto)');
 ok(siglaDeSigno(catalogo.porSlug.get('triple-zulia'), 'Inexistente') === null, 'label inexistente → null');
