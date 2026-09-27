@@ -32,7 +32,9 @@
  *     (REQ-KB-01, REQ-KB-02, A2). Base: juegos→seleccion→horarios→numero→
  *     monto→añadir→resumen. Zodiacal inserta modalidad tras juegos y signo
  *     SOLO si ctx.triple_c (D1); animalitos omite numero; numérica/terminal
- *     usan la base.
+ *     usan la base. S5 (D3): ctx opt-in `{modalidad, signo, numero,
+ *     segundaSeleccion}` con `triple_c` como alias legacy de `signo` — sin
+ *     ctx los grafos quedan byte-idénticos (asserts A2 intactos).
  *   - routeKey(state): decisión pura consumir/pasar (A1): Alt+H (toggle del
  *     modal de ayuda; consume SIEMPRE para preservar la guarda A12), modal
  *     abierto → solo su toggle propio (F12↔vuelto) y Esc,
@@ -67,14 +69,36 @@ export type NombreZona =
   | 'signo'
   | 'horarios'
   | 'numero'
+  | 'numero_b'
   | 'monto'
   | 'anadir'
   | 'resumen';
 
-/** Contexto de construcción del grafo (A2). */
+/**
+ * Contexto de construcción del grafo (A2, D3). Sin contexto los grafos
+ * quedan byte-idénticos a los históricos (asserts A2 y navegación intactas);
+ * cada opción es opt-in y se combina:
+ *   - `modalidad: true`  → inserta la zona `modalidad` tras `juegos`
+ *     (en zodiacal ya existe por diseño; la agrega a numérica/terminal).
+ *   - `signo: true`      → inserta la zona `signo` antes de `horarios`
+ *     (alias moderno de `triple_c`, D3).
+ *   - `triple_c: true`   → alias LEGACY de `signo` (se conserva: el glue
+ *     histórico lo usa para Triple C).
+ *   - `numero: false`    → omite la zona `numero` (signo_solo, tripleta).
+ *   - `segundaSeleccion: true` → inserta `numero_b` entre `numero` y `monto`
+ *     (multi-selección same-draw, S6; S5 solo deja la zona declarada).
+ */
 export interface CtxZonas {
-  /** triple_c activa ⇒ se inserta la zona signo antes de horarios (D1). */
+  /** triple_c activa ⇒ se inserta la zona signo antes de horarios (D1, legacy). */
   triple_c?: boolean;
+  /** Modalidad single-draw elegida ⇒ zona `modalidad` presente (D3/S5). */
+  modalidad?: boolean;
+  /** La modalidad exige signo ⇒ zona `signo` presente (D3/S5). */
+  signo?: boolean;
+  /** false ⇒ la zona `numero` se omite (signo_solo, tripleta; S5/S6). */
+  numero?: boolean;
+  /** Multi-selección same-draw ⇒ `numero_b` entre numero y monto (S6). */
+  segundaSeleccion?: boolean;
 }
 
 export interface GrafoZonas {
@@ -285,15 +309,18 @@ export function zonaHorizontal(
 /**
  * Zona de selección PENDIENTE (FIX-3b, KB-01): con un juego activo, la zona
  * que todavía falta completar ANTES de numero/monto. animalitos sin animal →
- * seleccion; zodiacal sin modalidad → modalidad; triple_c sin signo → signo.
- * null = la selección está completa (o no aplica: numérica/terminal, cuyo
- * «pendiente» es la propia zona numero).
+ * seleccion; zodiacal sin modalidad → modalidad; triple_c o modalidad
+ * single-draw con signo obligatorio sin signo → signo. null = la selección
+ * está completa (o no aplica: numérica/terminal, cuyo «pendiente» es la
+ * propia zona numero).
  */
 export interface EstadoSeleccionPendiente {
   familia: FamiliaOpciones | null;
   tripleModalidad: string | null;
   signoElegido: boolean;
   animalElegido: boolean;
+  /** S5 (D3): la modalidad activa (single-draw) exige signo. */
+  signo?: boolean;
 }
 
 export function zonaPendienteSeleccion(estado: EstadoSeleccionPendiente): NombreZona | null {
@@ -301,8 +328,8 @@ export function zonaPendienteSeleccion(estado: EstadoSeleccionPendiente): Nombre
     return estado.animalElegido ? null : 'seleccion';
   }
   if (estado.familia === 'zodiacal') {
-    if (!estado.tripleModalidad) return 'modalidad';
-    if (estado.tripleModalidad === 'triple_c' && !estado.signoElegido) return 'signo';
+    if (!estado.tripleModalidad && !estado.signo) return 'modalidad';
+    if ((estado.tripleModalidad === 'triple_c' || estado.signo === true) && !estado.signoElegido) return 'signo';
     return null;
   }
   return null;
@@ -331,11 +358,16 @@ function crearGrafo(familia: FamiliaOpciones, zonas: readonly NombreZona[]): Gra
 }
 
 /**
- * Ciclo de zonas por familia de opciones (REQ-KB-02, A2):
+ * Ciclo de zonas por familia de opciones (REQ-KB-02, A2; D3):
  *   - animalitos: base SIN numero (los dígitos buscan en seleccion).
- *   - zodiacal: juegos → modalidad → seleccion → [signo si triple_c] →
- *     horarios → numero → monto → añadir → resumen.
- *   - numerica (100 opciones 00-99) y terminal (2 cifras): base.
+ *   - zodiacal: juegos → modalidad → seleccion → [signo si ctx.signo o
+ *     ctx.triple_c] → horarios → [numero salvo ctx.numero=false] →
+ *     [numero_b si ctx.segundaSeleccion] → monto → añadir → resumen.
+ *   - numerica (100 opciones 00-99) y terminal (2 cifras): base, con
+ *     `modalidad` tras juegos y `numero_b` si el ctx lo pide.
+ *
+ * Sin ctx los grafos son byte-idénticos a los históricos (A2): zodiacal
+ * SIEMPRE trae modalidad (diseño actual); las opciones son opt-in (D3).
  */
 export function buildZoneGraph(familia: FamiliaOpciones, ctx: CtxZonas = {}): GrafoZonas {
   if (familia === 'animalitos') {
@@ -343,11 +375,25 @@ export function buildZoneGraph(familia: FamiliaOpciones, ctx: CtxZonas = {}): Gr
   }
   if (familia === 'zodiacal') {
     const zonas: NombreZona[] = ['juegos', 'modalidad', 'seleccion'];
-    if (ctx.triple_c === true) zonas.push('signo');
-    zonas.push('horarios', 'numero', 'monto', 'anadir', 'resumen');
+    if (ctx.signo === true || ctx.triple_c === true) zonas.push('signo');
+    zonas.push('horarios');
+    if (ctx.numero !== false) zonas.push('numero');
+    if (ctx.segundaSeleccion === true) zonas.push('numero_b');
+    zonas.push('monto', 'anadir', 'resumen');
     return crearGrafo('zodiacal', zonas);
   }
-  return crearGrafo(familia, [...ZONAS_BASE]);
+  const zonas: NombreZona[] = [...ZONAS_BASE];
+  if (ctx.modalidad === true) {
+    zonas.splice(zonas.indexOf('juegos') + 1, 0, 'modalidad');
+  }
+  if (ctx.numero === false) {
+    const i = zonas.indexOf('numero');
+    if (i !== -1) zonas.splice(i, 1);
+  }
+  if (ctx.segundaSeleccion === true) {
+    zonas.splice(zonas.indexOf('monto'), 0, 'numero_b');
+  }
+  return crearGrafo(familia, zonas);
 }
 
 /** ¿Es una tecla de función F1..F12? */

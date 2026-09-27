@@ -60,6 +60,7 @@ import {
 } from '../src/utils/pagos.ts';
 import { estadoTicket } from '../src/utils/estados.ts';
 import { badgesResultado } from '../src/utils/resultados.ts';
+import { modalidadesDisponibles, validarDigitos, construirCombinacion, DEFS } from '../src/utils/modalidades.ts';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const rutaJson = join(AQUI, '..', 'src', 'data', 'juegos.json');
@@ -1070,6 +1071,103 @@ ok(JSON.stringify(bTodo.map((b) => b.icono)) === JSON.stringify(['trophy', 'gem'
 ok(badgesResultado({}).length === 0, 'resultado vacío → []');
 ok(badgesResultado(null).length === 0, 'resultado null → []');
 ok(badgesResultado({ numero: 5, nombre_animal: 'Perro' }).length === 0, 'claves legadas sin claves nuevas → [] (no inventa)');
+
+console.log('\n== S5 TQ-05a: modalidadesDisponibles desde premios.modalidades (D2) ==');
+// D2 (design §4): las opciones de modalidad salen del catálogo
+// (premios.modalidades), nunca hardcodeadas; DEFS aporta label/cifras/signo.
+const mTrio = modalidadesDisponibles(catalogo.porSlug.get('trio-activo'));
+ok(
+  JSON.stringify(mTrio.map((m) => m.clave)) === JSON.stringify(['punta', 'terminal']),
+  `trio-activo: [punta, terminal] (${mTrio.map((m) => m.clave).join(',')})`,
+);
+ok(mTrio[0].multiplicador === 60 && mTrio[1].multiplicador === 60, 'trio-activo: multiplicadores 60× del catálogo');
+ok(mTrio[0].label === 'Punta' && mTrio[1].label === 'Terminal', 'trio-activo: labels "Punta"/"Terminal"');
+const mChance = modalidadesDisponibles(catalogo.porSlug.get('triple-chance'));
+ok(
+  JSON.stringify(mChance.map((m) => m.clave)) === JSON.stringify(['punta', 'terminal', 'signo_solo', 'signo_triple', 'signo_terminal']),
+  `chance: single-draw sin multi-selección ni tiers (${mChance.map((m) => m.clave).join(',')})`,
+);
+ok(!mChance.some((m) => ['cruzado', 'cruzado_10', 'triple_a_b', 'solo_a_b'].includes(m.clave)), 'chance: cruzado/triple_a_b/tiers NO se ofrecen en S5 (S6)');
+ok(mChance.find((m) => m.clave === 'signo_solo').digitos === 0 && mChance.find((m) => m.clave === 'signo_solo').requiereSigno === true, 'signo_solo: 0 cifras + signo obligatorio');
+const mZam = modalidadesDisponibles(catalogo.porSlug.get('triple-zamorano'));
+ok(mZam.some((m) => m.clave === 'uña' && m.label === 'Una' && m.digitos === 1 && m.multiplicador === 5), 'zamorano: uña 1 cifra 5×');
+ok(mZam.some((m) => m.clave === 'signo_uña' && m.digitos === 1 && m.requiereSigno), 'zamorano: signo_uña 1 cifra + signo');
+const mArr = modalidadesDisponibles(catalogo.porSlug.get('el-arrejuntado'));
+ok(mArr.find((m) => m.clave === 'arrimao').digitos === 4 && mArr.find((m) => m.clave === 'pegadito').digitos === 5, 'arrejuntado: arrimao 4 cifras, pegadito 5');
+ok(mArr.some((m) => m.clave === 'triple_a' && m.tipo === 'triple_a' && m.label === 'Triple A'), 'arrejuntado: triple_a desde premios.modalidades (600×)');
+ok(modalidadesDisponibles(catalogo.porSlug.get('lotto-activo')).length === 0, 'lotto-activo: sin modalidades → []');
+const mZul = modalidadesDisponibles(catalogo.porSlug.get('triple-zulia'));
+ok(mZul.find((m) => m.clave === 'signo_triple').tipo === 'triple_c' && mZul.find((m) => m.clave === 'signo_triple').label === 'Triple C', 'zulia: signo_triple → payload tipo triple_c, label "Triple C"');
+ok('punta' in DEFS && 'arrimao' in DEFS && 'signo_solo' in DEFS && 'uña' in DEFS, 'DEFS cubre las claves single-draw (punta/arrimao/signo_solo/uña)');
+
+console.log('\n== S5: validarDigitos (^\\d{1,N}$ → padStart, design §4) ==');
+ok(validarDigitos('45', 2) === '45', '"45" (2 cifras) → "45"');
+ok(validarDigitos('5', 2) === '05', '"5" → "05" (padding a 2)');
+ok(validarDigitos('1825', 4) === '1825', '"1825" (4 cifras) → "1825"');
+ok(validarDigitos('10503', 5) === '10503', '"10503" (5 cifras) → "10503"');
+ok(validarDigitos('453', 2) === null, '"453" excede 2 cifras → null (sin POST)');
+ok(validarDigitos('abc', 2) === null, 'no numérico → null');
+ok(validarDigitos('', 2) === null, 'vacío → null');
+ok(validarDigitos(' 05 ', 2) === '05', 'con espacios alrededor se recorta');
+
+console.log('\n== S5: construirCombinacion single-draw (payload exacto contrato §2.1) ==');
+const comboDe = (slug, clave, entrada) =>
+  construirCombinacion(modalidadesDisponibles(catalogo.porSlug.get(slug)).find((m) => m.clave === clave), entrada);
+ok(JSON.stringify(comboDe('trio-activo', 'punta', { numero: '5' })) === JSON.stringify({ tipo: 'punta', numero: '05' }), 'punta "5" → {tipo:punta, numero:05}');
+ok(JSON.stringify(comboDe('trio-activo', 'terminal', { numero: '52' })) === JSON.stringify({ tipo: 'terminal', numero: '52' }), 'terminal "52" → payload exacto');
+ok(JSON.stringify(comboDe('triple-zamorano', 'uña', { numero: '2' })) === JSON.stringify({ tipo: 'uña', numero: '2' }), 'uña "2" → payload exacto');
+ok(JSON.stringify(comboDe('triple-facil', 'aproximacion', { numero: '51' })) === JSON.stringify({ tipo: 'aproximacion', numero: '51' }), 'aproximacion "51" → payload exacto');
+ok(JSON.stringify(comboDe('triple-zulia', 'signo_terminal', { numero: '59', signo: 'LEO' })) === JSON.stringify({ tipo: 'signo_terminal', numero: '59', signo: 'LEO' }), 'signo_terminal → {tipo, numero, signo}');
+ok(JSON.stringify(comboDe('triple-chance', 'signo_solo', { signo: 'LEO' })) === JSON.stringify({ tipo: 'signo_solo', signo: 'LEO' }), 'signo_solo → solo signo (sin numero)');
+ok(JSON.stringify(comboDe('el-arrejuntado', 'arrimao', { numero: '1825' })) === JSON.stringify({ tipo: 'arrimao', numero: '1825' }), 'arrimao 4 cifras → payload exacto');
+ok(JSON.stringify(comboDe('el-arrejuntado', 'pegadito', { numero: '10503' })) === JSON.stringify({ tipo: 'pegadito', numero: '10503' }), 'pegadito 5 cifras → payload exacto');
+ok(JSON.stringify(comboDe('triple-zulia', 'signo_triple', { numero: '259', signo: 'LEO' })) === JSON.stringify({ tipo: 'triple_c', numero: '259', signo: 'LEO' }), 'signo_triple → tipo triple_c (Triple C)');
+ok(comboDe('trio-activo', 'punta', { numero: '453' }) === null, 'dígitos inválidos → null (no se POSTea)');
+ok(comboDe('triple-zulia', 'signo_terminal', { numero: '59' }) === null, 'signo faltante → null');
+ok(comboDe('triple-chance', 'signo_solo', {}) === null, 'signo_solo sin signo → null');
+
+console.log('\n== S5: grafo de zonas con ctx single-draw (D3 — A2 intactos sin ctx) ==');
+ok(
+  JSON.stringify(buildZoneGraph('numerica', {}).zonas) === JSON.stringify(baseEsperada),
+  'numérica sin ctx: base idéntica a hoy (A2)',
+);
+ok(
+  JSON.stringify(buildZoneGraph('zodiacal', {}).zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'horarios', 'numero', 'monto', 'anadir', 'resumen']),
+  'zodiacal sin ctx: idéntico a hoy (A2)',
+);
+ok(
+  JSON.stringify(buildZoneGraph('zodiacal', { triple_c: true }).zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'signo', 'horarios', 'numero', 'monto', 'anadir', 'resumen']),
+  'zodiacal triple_c: idéntico a hoy (A2)',
+);
+const gPunta = buildZoneGraph('numerica', { modalidad: true });
+ok(
+  JSON.stringify(gPunta.zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'horarios', 'numero', 'monto', 'anadir', 'resumen']),
+  `numérica con modalidad: juegos → modalidad → seleccion (${gPunta.zonas.join('→')})`,
+);
+const gSignoSolo = buildZoneGraph('zodiacal', { modalidad: true, signo: true, numero: false });
+ok(!gSignoSolo.incluye('numero') && gSignoSolo.incluye('signo') && gSignoSolo.incluye('modalidad'), 'signo_solo: sin numero, con signo y modalidad');
+ok(
+  JSON.stringify(gSignoSolo.zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'signo', 'horarios', 'monto', 'anadir', 'resumen']),
+  `signo_solo: ${gSignoSolo.zonas.join('→')}`,
+);
+ok(
+  JSON.stringify(buildZoneGraph('zodiacal', { signo: true }).zonas) === JSON.stringify(buildZoneGraph('zodiacal', { triple_c: true }).zonas),
+  'alias: ctx.signo ≡ ctx.triple_c (legacy intacto, D3)',
+);
+const gSeg = buildZoneGraph('numerica', { segundaSeleccion: true });
+ok(
+  JSON.stringify(gSeg.zonas) === JSON.stringify(['juegos', 'seleccion', 'horarios', 'numero', 'numero_b', 'monto', 'anadir', 'resumen']),
+  `segundaSeleccion: numero_b entre numero y monto (${gSeg.zonas.join('→')})`,
+);
+ok(gSeg.incluye('numero_b'), 'numero_b incluida con ctx.segundaSeleccion (S6-ready)');
+ok(
+  zonaPendienteSeleccion({ familia: 'zodiacal', tripleModalidad: null, signoElegido: false, animalElegido: false, signo: true }) === 'signo',
+  'modalidad nueva con signo obligatorio sin elegir → pendiente signo',
+);
+ok(
+  zonaPendienteSeleccion({ familia: 'zodiacal', tripleModalidad: null, signoElegido: true, animalElegido: false, signo: true }) === null,
+  'con signo elegido → sin pendiente',
+);
 
 console.log(`\n${checks} checks, ${fallos} fallos`);
 process.exit(fallos === 0 ? 0 : 1);

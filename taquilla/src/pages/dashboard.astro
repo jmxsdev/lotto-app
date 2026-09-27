@@ -531,6 +531,15 @@ import Icon from '../components/ui/Icon.astro';
       color: #1e40af;
     }
 
+    /* S5: multiplicador del catálogo en el botón de modalidad (D2 — el
+       valor viene de premios.modalidades, nunca hardcodeado). */
+    .modalidad-mult {
+      font-size: 10px;
+      font-weight: 400;
+      color: #888;
+      margin-left: 2px;
+    }
+
     .triple-info {
       font-size: 11px;
       color: #999;
@@ -1263,6 +1272,7 @@ import Icon from '../components/ui/Icon.astro';
     import { buildZoneGraph, routeKey, zonaHorizontal, zonaPendienteSeleccion } from '../utils/keyboard';
     import { teclasLegend } from '../utils/keyboard';
     import { serialCoincide, ultimoTicketPendiente } from '../utils/keyboard';
+    import { modalidadesDisponibles, construirCombinacion } from '../utils/modalidades';
     import { alternarHorario, marcarTodosVisibles, expandirLineas, horarioExpirado, filtrarHorariosFuturos, seleccionadosExpirados, agruparPorGroupId, indiceSeleccionTrasEliminar } from '../utils/horarios';
     import { formatearJugada, nombresJuegos } from '../utils/ticket';
     import { calcularVuelto } from '../utils/vuelto';
@@ -1309,10 +1319,12 @@ import Icon from '../components/ui/Icon.astro';
 
     const NOMBRE_ZONA = {
       juegos: 'Juegos', modalidad: 'Modalidad', seleccion: 'Selección', signo: 'Signo',
-      horarios: 'Horario', numero: 'Número', monto: 'Monto', anadir: 'Añadir', resumen: 'Resumen',
+      horarios: 'Horario', numero: 'Número', numero_b: 'Segunda selección', monto: 'Monto', anadir: 'Añadir', resumen: 'Resumen',
     };
 
     // Objetivo de foco de cada zona (roving focus / tabindex explícito, KB-01).
+    // numero_b (multi-selección same-draw, S6) queda declarado (design §5):
+    // sin el input en el DOM, zonaVisible lo salta en el ciclo.
     const TARGETS_ZONA = {
       juegos: '#juegos-list',
       modalidad: '#modalidad-grid',
@@ -1320,6 +1332,7 @@ import Icon from '../components/ui/Icon.astro';
       signo: '#signos-triple-container',
       horarios: '#horarios-grid',
       numero: '#qt-numero',
+      numero_b: '#qt-numero-b',
       monto: '#qt-monto',
       anadir: '#qt-add',
       resumen: '#resumen-content',
@@ -1340,6 +1353,10 @@ import Icon from '../components/ui/Icon.astro';
     let activeTab = 'animalitos';
     let tripleModalidad = null;
     let tripleModalidadLabel = null;
+    // S5 (D2): modalidad single-draw elegida (punta/terminal/uña/aproximacion/
+    // signo_*/arrimao/pegadito). Alternativa a la legacy tripleModalidad
+    // (Triple A/B/C): se usa cuando el juego expone modalidades en el catálogo.
+    let modalidadNueva = null;
 
     function initClock() {
       function updateClock() {
@@ -1394,7 +1411,7 @@ import Icon from '../components/ui/Icon.astro';
     function seleccionEnCurso() {
       return Boolean(
         selectedAnimal || selectedSigno || selectedOpcion ||
-        tripleModalidad || tripleModalidadLabel ||
+        modalidadNueva || tripleModalidad || tripleModalidadLabel ||
         selectedHorarios.length > 0,
       );
     }
@@ -1423,6 +1440,7 @@ import Icon from '../components/ui/Icon.astro';
       selectedOpcion = null;
       tripleModalidad = null;
       tripleModalidadLabel = null;
+      modalidadNueva = null;
       selectedHorarios = [];
       horariosCache = [];
       buscadorDigitos = null; // FIX-5: el buffer de dígitos es por juego
@@ -1522,12 +1540,21 @@ import Icon from '../components/ui/Icon.astro';
       return selectedGames.length === 1 ? selectedGames[0] : null;
     }
 
-    // Grafo de zonas del juego activo (A2): se reconstruye al cambiar de
-    // juego o de modalidad (la zona signo existe solo con triple_c, D1).
+    // Grafo de zonas del juego activo (A2, D3): se reconstruye al cambiar de
+    // juego o de modalidad. S5: con modalidadNueva se activa la zona modalidad
+    // (en numérica/terminal), la zona signo si la modalidad la exige y se
+    // omite numero para signo_solo (digitos 0). La legacy triple_c sigue
+    // alimentando ctx.triple_c.
     function grafoActual() {
       const juego = juegoActivo();
       const familia = juego?.familia ?? 'animalitos';
-      return buildZoneGraph(familia, { triple_c: tripleModalidad === 'triple_c' });
+      const ctx = { triple_c: tripleModalidad === 'triple_c' };
+      if (modalidadNueva) {
+        ctx.modalidad = true;
+        if (modalidadNueva.requiereSigno) ctx.signo = true;
+        if (modalidadNueva.digitos === 0) ctx.numero = false;
+      }
+      return buildZoneGraph(familia, ctx);
     }
 
     function loadHorariosConfig() {
@@ -1539,6 +1566,10 @@ import Icon from '../components/ui/Icon.astro';
     }
 
     // Selección por FAMILIA DE OPCIONES del juego activo (REQ-CL-02, KB-02).
+    // S5 (D2): si el catálogo expone modalidades single-draw (premios.
+    // modalidades), se renderiza el selector NUEVO (renderModalidadesNuevas);
+    // la legacy renderTripleModalidades (Triple A/B/C) queda para juegos sin
+    // modalidades (y como red de seguridad).
     function renderSeleccion() {
       const juego = juegoActivo();
       const container = document.getElementById('seleccion-content');
@@ -1549,6 +1580,8 @@ import Icon from '../components/ui/Icon.astro';
       if (juego.familia === 'animalitos') {
         animalesCache = juego.opciones;
         renderAnimales();
+      } else if (modalidadesDisponibles(juego).length > 0) {
+        renderModalidadesNuevas();
       } else if (juego.familia === 'zodiacal') {
         renderTripleModalidades();
       } else if (juego.familia === 'numerica') {
@@ -1558,6 +1591,40 @@ import Icon from '../components/ui/Icon.astro';
       } else {
         renderOpcionesLista(juego); // terminal: 2 cifras
       }
+    }
+
+    // S5 (D2): selector de modalidades single-draw desde premios.modalidades
+    // del catálogo (nunca hardcodeadas). La selección alimenta modalidadNueva
+    // y el grafo de zonas (D3): signo solo con ctx.signo, sin numero para
+    // signo_solo (digitos 0).
+    function renderModalidadesNuevas() {
+      const container = document.getElementById('seleccion-content');
+      const mods = modalidadesDisponibles(juegoActivo());
+      let html = '<div class="modalidad-label">Seleccione modalidad:</div>';
+      html += '<div class="modalidad-grid" id="modalidad-grid" data-zona="modalidad">';
+      mods.forEach(m => {
+        const sel = modalidadNueva && modalidadNueva.clave === m.clave ? ' selected' : '';
+        const mult = m.multiplicador !== null ? ' <span class="modalidad-mult">' + m.multiplicador + '×</span>' : '';
+        html += '<button class="modalidad-btn' + sel + '" data-modalidad="' + m.clave + '" tabindex="-1">' + m.label + mult + '</button>';
+      });
+      html += '</div>';
+      html += '<div id="signos-triple-container" style="display:none" data-zona="signo"></div>';
+      container.innerHTML = html;
+      container.querySelectorAll('.modalidad-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          container.querySelectorAll('.modalidad-btn').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          const m = mods.find(x => x.clave === btn.dataset.modalidad);
+          modalidadNueva = m || null;
+          tripleModalidad = null;
+          tripleModalidadLabel = null;
+          selectedSigno = null;
+          document.getElementById('qt-numero').value = '';
+          renderSignosForModalidad();
+          renderLegend();
+          updateColumnMode();
+        });
+      });
     }
 
     function renderAnimales() {
@@ -1631,7 +1698,11 @@ import Icon from '../components/ui/Icon.astro';
     function renderSignosForModalidad() {
       const juego = juegoActivo();
       const container = document.getElementById('signos-triple-container');
-      if (!juego || tripleModalidad !== 'triple_c') {
+      // S5: la zona signo se muestra también para modalidades single-draw
+      // con signo obligatorio (signo_terminal, signo_uña, signo_solo,
+      // signo_triple), además de la legacy triple_c.
+      const requiereSigno = (modalidadNueva && modalidadNueva.requiereSigno) || tripleModalidad === 'triple_c';
+      if (!juego || !requiereSigno) {
         container.style.display = 'none';
         selectedSigno = null;
         return;
@@ -1668,7 +1739,10 @@ import Icon from '../components/ui/Icon.astro';
         return;
       }
       let listo = false;
-      if (juego.familia === 'animalitos') {
+      if (modalidadNueva) {
+        // S5: single-draw lista cuando no exige signo o el signo ya se eligió.
+        listo = !modalidadNueva.requiereSigno || selectedSigno !== null;
+      } else if (juego.familia === 'animalitos') {
         listo = selectedAnimal !== null;
       } else if (juego.familia === 'zodiacal') {
         listo = tripleModalidad !== null && (tripleModalidad !== 'triple_c' || selectedSigno !== null);
@@ -1877,8 +1951,8 @@ import Icon from '../components/ui/Icon.astro';
         const horariosStr = grupo.lines.map(l => l.horario).join(', ');
         const sorteoDisplay = (primera.juegoName || '-') + ' &rarr; ' + horariosStr;
         const animalDisplay = primera.juegoType === 'tripletas'
-          ? (primera.tripleModalidadLabel
-              ? primera.tripleModalidadLabel + ' ' + (primera.numero || '-') + (primera.animal ? ' - ' + primera.animal : '')
+          ? ((primera.tripleModalidadLabel || primera.modalidadLabel)
+              ? (primera.tripleModalidadLabel || primera.modalidadLabel) + ' ' + (primera.numero || '-') + (primera.animal ? ' - ' + primera.animal : '')
               : (primera.numero ?? '-'))
           : (primera.animal ? primera.animal + ' ' + (primera.numero || '-') : (primera.numero ?? '-'));
         const montoGrupo = Number(primera.monto) * grupo.lines.length;
@@ -1924,7 +1998,24 @@ import Icon from '../components/ui/Icon.astro';
       }
 
       const familia = juego.familia;
-      if (familia === 'zodiacal') {
+      // S5 (D2): modalidad single-draw — el payload `combinacion` lo arma el
+      // módulo puro (construirCombinacion): valida dígitos por modalidad
+      // (1..N → padStart) y exige el signo; null = línea inválida (sin POST).
+      let combinacionPayload = null;
+      if (modalidadNueva) {
+        combinacionPayload = construirCombinacion(modalidadNueva, {
+          numero,
+          signo: modalidadNueva.requiereSigno ? (selectedSigno ? selectedSigno.value : null) : undefined,
+        });
+        if (!combinacionPayload) {
+          const msg = modalidadNueva.digitos === 0
+            ? 'Seleccione un signo (obligatorio para esta modalidad)'
+            : 'Ingrese un número de 1 a ' + modalidadNueva.digitos + ' cifras' +
+              (modalidadNueva.requiereSigno ? ' y seleccione el signo' : '');
+          window.showModal({ message: msg, type: 'error' });
+          return;
+        }
+      } else if (familia === 'zodiacal') {
         if (!tripleModalidad) { window.showModal({ message: 'Seleccione una modalidad (Triple A/B/C)', type: 'error' }); return; }
         if (tripleModalidad === 'triple_c' && !selectedSigno) { window.showModal({ message: 'Seleccione un signo (obligatorio para Triple C)', type: 'error' }); return; }
         if (!numero || numero.length !== 3) { window.showModal({ message: 'Ingrese un número de exactamente 3 cifras', type: 'error' }); return; }
@@ -1955,14 +2046,18 @@ import Icon from '../components/ui/Icon.astro';
           juegoType: game.tipo,
           numero: numero,
           animal: animal,
+          // S5: payload single-draw ya armado (construirCombinacion); el POST
+          // lo manda tal cual (handlePrint) — sin re-derivar el shape aquí.
+          combinacion: combinacionPayload,
+          modalidadLabel: modalidadNueva ? modalidadNueva.label : null,
           // win-fixes2 FIX E: sigla (value, "SAG") para el POST; el label
           // ("Sagitario") es solo visual. Tripletas.php:44-47 valida
           // strtoupper($signo) ∈ siglas (ARI..PIS) — el label rompía el POST (hoy F4).
           signoSigla: familia === 'zodiacal' ? (selectedSigno ? selectedSigno.value : null) : null,
           monto: Number(monto),
           moneda: moneda,
-          tripleModalidad: familia === 'zodiacal' ? tripleModalidad : null,
-          tripleModalidadLabel: familia === 'zodiacal' ? tripleModalidadLabel : null,
+          tripleModalidad: familia === 'zodiacal' && !modalidadNueva ? tripleModalidad : null,
+          tripleModalidadLabel: familia === 'zodiacal' && !modalidadNueva ? tripleModalidadLabel : null,
         };
         ticketLines.push(...expandirLineas(baseLinea, [...selectedHorarios], groupId));
       });
@@ -1990,6 +2085,7 @@ import Icon from '../components/ui/Icon.astro';
       selectedOpcion = null;
       tripleModalidad = null;
       tripleModalidadLabel = null;
+      modalidadNueva = null;
       selectedHorarios = [];
       horariosCache = [];
       buscadorDigitos = null;
@@ -2016,6 +2112,7 @@ import Icon from '../components/ui/Icon.astro';
         selectedOpcion = null;
         tripleModalidad = null;
         tripleModalidadLabel = null;
+        modalidadNueva = null;
         selectedHorarios = [];
         document.getElementById('qt-numero').value = '';
         if (juegoActivo()) {
@@ -2035,13 +2132,18 @@ import Icon from '../components/ui/Icon.astro';
       try {
         const lines = ticketLines.map(line => ({
           juego_id: line.juegoId,
-          combinacion: line.tripleModalidad
-            // win-fixes2 FIX E: el signo viaja SIEMPRE como sigla (value),
-            // nunca el label — cubre todos los zodiacales (incl. el-arrejuntado).
-            ? { tipo: line.tripleModalidad, numero: line.numero, signo: line.signoSigla ?? null }
-            : (line.juegoType === 'terminales'
-              ? { numero: line.numero }
-              : { animal: line.animal || line.numero, numero: line.numero }),
+          // S5: si la línea lleva el payload single-draw ya armado
+          // (construirCombinacion en addLine), se manda tal cual; si no, se
+          // deriva el shape legacy (triple/terminal/animal).
+          combinacion: line.combinacion
+            ? line.combinacion
+            : (line.tripleModalidad
+              // win-fixes2 FIX E: el signo viaja SIEMPRE como sigla (value),
+              // nunca el label — cubre todos los zodiacales (incl. el-arrejuntado).
+              ? { tipo: line.tripleModalidad, numero: line.numero, signo: line.signoSigla ?? null }
+              : (line.juegoType === 'terminales'
+                ? { numero: line.numero }
+                : { animal: line.animal || line.numero, numero: line.numero })),
           amount_bs: line.moneda === 'bs' ? line.monto : 0,
           amount_usd: line.moneda === 'usd' ? line.monto : 0,
           sorteo_hora: line.horario ? formatDateWithHorario(line.horario) : new Date().toISOString(),
@@ -2060,9 +2162,11 @@ import Icon from '../components/ui/Icon.astro';
             jugada: formatearJugada({
               tipo: l.juegoType,
               animal: esTripleta ? null : l.animal,
-              numero: l.numero,
-              modalidad: esTripleta ? l.tripleModalidadLabel : null,
-              signo: esTripleta ? l.animal : null,
+              // S5: el número impreso es el normalizado del payload single-draw
+              // ("05" en vez del "5" tecleado); la modalidad nueva tiene label propio.
+              numero: l.combinacion?.numero ?? l.numero,
+              modalidad: esTripleta ? (l.tripleModalidadLabel || l.modalidadLabel) : null,
+              signo: esTripleta ? (l.animal || l.signoSigla) : null,
             }),
             sorteo: l.horario,
             amountBs: l.moneda === 'bs' ? l.monto : 0,
@@ -2475,7 +2579,8 @@ import Icon from '../components/ui/Icon.astro';
       Object.keys(TARGETS_ZONA).forEach(z => {
         const el = objetivoZona(z);
         if (!el) return;
-        if (z === 'numero' || z === 'monto') return; // inputs conservan tabindex nativo
+        // numero/monto (y numero_b, S6) conservan tabindex nativo (inputs).
+        if (z === 'numero' || z === 'monto' || z === 'numero_b') return;
         el.tabIndex = z === zona ? 0 : -1;
       });
     }
@@ -2516,6 +2621,8 @@ import Icon from '../components/ui/Icon.astro';
           tripleModalidad,
           signoElegido: selectedSigno !== null,
           animalElegido: selectedAnimal !== null,
+          // S5 (D3): la modalidad single-draw activa puede exigir signo.
+          signo: modalidadNueva?.requiereSigno === true,
         });
         if (pendiente && zonaVisible(pendiente)) {
           enfocarZona(pendiente);
@@ -2678,11 +2785,10 @@ import Icon from '../components/ui/Icon.astro';
         buscadorDigitos.teclear(digito);
         return;
       }
-      // win-fixes2 FIX B: zodiacal con triple_c (la zona signo está visible)
-      // → los dígitos 1-12 seleccionan el signo por posición, tanto desde la
-      // zona Signo como desde Selección con foco no editable. Para teclear el
-      // número de 3 cifras se Tab hasta la zona Número (foco editable).
-      if (juego.familia === 'zodiacal' && tripleModalidad === 'triple_c') {
+      // win-fixes2 FIX B: dígitos 1-12 → signo por posición (zodiacal triple_c).
+      // S5: aplica también a las modalidades single-draw con signo obligatorio
+      // (signo_terminal, signo_uña, signo_solo) — la zona signo está visible.
+      if (juego.familia === 'zodiacal' && (tripleModalidad === 'triple_c' || (modalidadNueva && modalidadNueva.requiereSigno))) {
         if (!buscadorSignos || buscadorSignos.juegoId !== juego.id) {
           buscadorSignos = crearBuscadorDigitos(juego, (_coincidencias, buffer) => aplicarSignoPorPosicion(buffer));
           buscadorSignos.juegoId = juego.id;
@@ -2691,11 +2797,13 @@ import Icon from '../components/ui/Icon.astro';
         return;
       }
       // numérica/terminal/zodiacal (triple_a/b): salta a Número y precarga el
-      // dígito (2 cifras numérica/terminal, 3 zodiacal); el resto se escribe
-      // nativo.
+      // dígito (2 cifras numérica/terminal, 3 zodiacal); S5: el tope de
+      // dígitos lo fija la modalidad single-draw elegida.
       const input = document.getElementById('qt-numero');
       if (!input) return;
-      const maxDigitos = juego.familia === 'zodiacal' ? 3 : 2;
+      const maxDigitos = modalidadNueva
+        ? modalidadNueva.digitos
+        : (juego.familia === 'zodiacal' ? 3 : 2);
       input.value = (input.value + digito).slice(0, maxDigitos);
       enfocarZona('numero');
     }
@@ -2838,6 +2946,7 @@ import Icon from '../components/ui/Icon.astro';
         selectedOpcion = null;
         tripleModalidad = null;
         tripleModalidadLabel = null;
+        modalidadNueva = null;
 
         renderJuegos();
         if (selectedGames.length > 0) {
