@@ -21,11 +21,11 @@ Delivery strategy: auto-chain
 
 ## S1a: Servicio + endpoint + espejos + auditoría (~180 líneas)
 
-- [ ] 1.1 **RED**: `JuegoPremiosApiTest` (~12 tests): unión plugin∪catálogo, clave inválida, la-ricachona, 200 body completo, 403 rol, 422 base/tipo/acumulativo/valor, clave canónica sin plugin, merge preserva scraper, auditoría before/after.
-- [ ] 1.2 **GREEN**: Crear `app/Services/PremiosConfigService.php` — `clavesModalidadValidas(Juego)`, `actualizar(Juego,array,int):Juego` (validar→merge→espejos→auditar `accion=premios`).
-- [ ] 1.3 **GREEN**: `PremiosOficiales::espejosLegacy(string,array):array` — extrae lógica de `configPara`; `configPara()` delega en este método.
-- [ ] 1.4 **GREEN**: `JuegoController::updatePremios()` + `PUT /api/v1/juegos/{juego}/premios` en `routes/api.php` L120-123 (grupo `role:super_master|master`).
-- [ ] 1.5 **REFACTOR**: `vendor/bin/pint --test`; `MotorPremiosRegresionTest`.
+- [x] 1.1 **RED**: `JuegoPremiosApiTest` (~12 tests): unión plugin∪catálogo, clave inválida, la-ricachona, 200 body completo, 403 rol, 422 base/tipo/acumulativo/valor, clave canónica sin plugin, merge preserva scraper, auditoría before/after.
+- [x] 1.2 **GREEN**: Crear `app/Services/PremiosConfigService.php` — `clavesModalidadValidas(Juego)`, `actualizar(Juego,array,int):Juego` (validar→merge→espejos→auditar `accion=premios`).
+- [x] 1.3 **GREEN**: `PremiosOficiales::espejosLegacy(string,array):array` — extrae lógica de `configPara`; `configPara()` delega en este método.
+- [x] 1.4 **GREEN**: `JuegoController::updatePremios()` + `PUT /api/v1/juegos/{juego}/premios` en `routes/api.php` L120-123 (grupo `role:super_master|master`).
+- [x] 1.5 **REFACTOR**: `vendor/bin/pint --test`; `MotorPremiosRegresionTest`.
 ## S1b: Tests de integración (~100 líneas)
 
 - [ ] 2.1 **RED**: `JuegoPremiosApiTest`: espejos (`premio_multiplo`=base, `config.modalidades` espejo, `config.comodines`), `/reglas`. `JuegosJsonTest`: export refleja premios editados.
