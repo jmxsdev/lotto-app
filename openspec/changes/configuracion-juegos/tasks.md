@@ -28,9 +28,9 @@ Delivery strategy: auto-chain
 - [x] 1.5 **REFACTOR**: `vendor/bin/pint --test`; `MotorPremiosRegresionTest`.
 ## S1b: Tests de integración (~100 líneas)
 
-- [ ] 2.1 **RED**: `JuegoPremiosApiTest`: espejos (`premio_multiplo`=base, `config.modalidades` espejo, `config.comodines`), `/reglas`. `JuegosJsonTest`: export refleja premios editados.
-- [ ] 2.2 **GREEN**: Tests integración: verificar `accion=premios` con `before/after`/`updated_by`; espejos sincronizados; reglas+export reflejan cambios.
-- [ ] 2.3 **REFACTOR**: `vendor/bin/pint --test` + suite S1a+S1b completa.
+- [x] 2.1 **RED**: `JuegoPremiosApiTest`: espejos (`premio_multiplo`=base, `config.modalidades` espejo, `config.comodines`), `/reglas`. `JuegosJsonTest`: export refleja premios editados.
+- [x] 2.2 **GREEN**: Tests integración: verificar `accion=premios` con `before/after`/`updated_by`; espejos sincronizados; reglas+export reflejan cambios.
+- [x] 2.3 **REFACTOR**: `vendor/bin/pint --test` + suite S1a+S1b completa.
 
 ## S2: Snapshot por apuesta (~250 líneas)
 
