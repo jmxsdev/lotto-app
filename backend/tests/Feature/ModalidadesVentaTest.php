@@ -221,4 +221,113 @@ class ModalidadesVentaTest extends TestCase
         $this->assertDatabaseCount('tickets', 0);
         $this->assertDatabaseCount('apuestas', 0);
     }
+
+    // ---------------- S6: multi-selección same-draw (contrato §2.2, design §4) ----------------
+
+    public function test_cruzado_chance_crea_ticket_con_premio_posible(): void
+    {
+        $this->assertPremioPosible('triple-chance', [
+            'modalidad' => 'cruzado',
+            'selecciones' => [
+                ['tipo' => 'punta', 'numero' => '75'],
+                ['tipo' => 'punta', 'numero' => '14'],
+            ],
+        ], 3000);
+    }
+
+    public function test_triple_a_b_chance_crea_ticket_con_premio_posible(): void
+    {
+        $this->assertPremioPosible('triple-chance', [
+            'modalidad' => 'triple_a_b',
+            'selecciones' => [
+                ['tipo' => 'triple_a', 'numero' => '756'],
+                ['tipo' => 'triple_b', 'numero' => '146'],
+            ],
+        ], 200000);
+    }
+
+    public function test_tripleta_cazaloton_crea_ticket_con_premio_posible(): void
+    {
+        $this->assertPremioPosible('cazaloton', [
+            'modalidad' => 'tripleta',
+            'selecciones' => [
+                ['animal' => 'Perro'],
+                ['animal' => 'Gato'],
+                ['animal' => 'León'],
+            ],
+        ], 200);
+    }
+
+    public function test_tripleta_loto_chaima_crea_ticket_con_premio_posible(): void
+    {
+        $this->assertPremioPosible('loto-chaima', [
+            'modalidad' => 'tripleta',
+            'selecciones' => [
+                ['animal' => 'Perro'],
+                ['animal' => 'Gato'],
+                ['animal' => 'León'],
+            ],
+        ], 50);
+    }
+
+    public function test_cruzado_con_punta_de_tres_cifras_se_rechaza(): void
+    {
+        $response = $this->postLinea('triple-chance', [
+            'modalidad' => 'cruzado',
+            'selecciones' => [
+                ['tipo' => 'punta', 'numero' => '753'],
+                ['tipo' => 'punta', 'numero' => '14'],
+            ],
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseCount('tickets', 0);
+        $this->assertDatabaseCount('apuestas', 0);
+    }
+
+    public function test_triple_a_b_con_triple_de_dos_cifras_se_rechaza(): void
+    {
+        $response = $this->postLinea('triple-chance', [
+            'modalidad' => 'triple_a_b',
+            'selecciones' => [
+                ['tipo' => 'triple_a', 'numero' => '75'],
+                ['tipo' => 'triple_b', 'numero' => '146'],
+            ],
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseCount('tickets', 0);
+        $this->assertDatabaseCount('apuestas', 0);
+    }
+
+    public function test_tripleta_con_dos_selecciones_se_rechaza(): void
+    {
+        $response = $this->postLinea('cazaloton', [
+            'modalidad' => 'tripleta',
+            'selecciones' => [
+                ['animal' => 'Perro'],
+                ['animal' => 'Gato'],
+            ],
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseCount('tickets', 0);
+        $this->assertDatabaseCount('apuestas', 0);
+    }
+
+    public function test_tripleta_con_animal_invalido_se_rechaza(): void
+    {
+        $response = $this->postLinea('cazaloton', [
+            'modalidad' => 'tripleta',
+            'selecciones' => [
+                ['animal' => 'Perro'],
+                ['animal' => 'Gato'],
+                ['animal' => 'Dragón'],
+            ],
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseCount('tickets', 0);
+        $this->assertDatabaseCount('apuestas', 0);
+    }
 }

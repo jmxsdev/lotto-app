@@ -48,8 +48,9 @@ class Tripletas implements JuegoInterface
         // D2 (design §4/§3.1): el vocabulario canónico de `modalidadDe` decide
         // la FORMA a validar — triples, posiciones del triple (punta/terminal/
         // uña/aproximacion), claves con signo (signo_terminal/signo_uña/
-        // signo_solo) y números exactos del Arrejuntado (arrimao 4 cifras,
-        // pegadito 5). 'base' (shape desconocido o `selecciones[]`, S6) → false.
+        // signo_solo), números exactos del Arrejuntado (arrimao 4 cifras,
+        // pegadito 5) y la multi-selección same-draw (cruzado, Par A+B, S6)
+        // vía `selecciones[]`. 'base' (shape desconocido) → false.
         return match ($this->modalidadDe($combinacion)) {
             'triple_a', 'triple_b' => $this->digitosExactos($numero, 3),
             'signo_triple' => $this->digitosExactos($numero, 3) && $this->signoValido($signo),
@@ -60,8 +61,70 @@ class Tripletas implements JuegoInterface
             'signo_solo' => $this->signoValido($signo),
             'arrimao' => $this->digitosHasta($numero, 4),
             'pegadito' => $this->digitosHasta($numero, 5),
+            'cruzado' => $this->seleccionesCruzadoValidas($combinacion['selecciones'] ?? []),
+            'triple_a_b' => $this->seleccionesParValidas($combinacion['selecciones'] ?? []),
             default => false,
         };
+    }
+
+    /**
+     * Multi-selección Cruzado (F2/§3.4, contrato §2.2): dos puntas del MISMO
+     * sorteo — `{modalidad:'cruzado', selecciones:[{tipo:'punta',numero}×2]}`.
+     * Cada punta acepta 1..2 cifras (sin padding, el motor normaliza).
+     */
+    private function seleccionesCruzadoValidas(array $selecciones): bool
+    {
+        return $this->seleccionesConForma($selecciones, [
+            ['tipo' => 'punta', 'digitos' => 2, 'exacto' => false],
+            ['tipo' => 'punta', 'digitos' => 2, 'exacto' => false],
+        ]);
+    }
+
+    /**
+     * Par Millonario A+B (F2/§3.4, contrato §2.2): triple A + triple B del
+     * MISMO sorteo — `{modalidad:'triple_a_b', selecciones:[{tipo:'triple_a',
+     * numero},{tipo:'triple_b',numero}]}`. Cada triple exige EXACTAMENTE 3
+     * cifras (contrato histórico `^\d{3}$`).
+     */
+    private function seleccionesParValidas(array $selecciones): bool
+    {
+        return $this->seleccionesConForma($selecciones, [
+            ['tipo' => 'triple_a', 'digitos' => 3, 'exacto' => true],
+            ['tipo' => 'triple_b', 'digitos' => 3, 'exacto' => true],
+        ]);
+    }
+
+    /**
+     * Valida la FORMA posicional de `selecciones[]` contra una plantilla de
+     * slots (tipo + cifras): mismo número de selecciones, mismo tipo en cada
+     * posición y número con la longitud exigida (exacta o 1..N).
+     *
+     * @param  array<int, array<string, mixed>>  $selecciones
+     * @param  array<int, array{tipo: string, digitos: int, exacto: bool}>  $forma
+     */
+    private function seleccionesConForma(array $selecciones, array $forma): bool
+    {
+        if (count($selecciones) !== count($forma)) {
+            return false;
+        }
+
+        foreach ($forma as $i => $slot) {
+            $seleccion = $selecciones[$i] ?? null;
+            if (! is_array($seleccion)) {
+                return false;
+            }
+            if ((string) ($seleccion['tipo'] ?? '') !== $slot['tipo']) {
+                return false;
+            }
+            $ok = $slot['exacto']
+                ? $this->digitosExactos($seleccion['numero'] ?? null, $slot['digitos'])
+                : $this->digitosHasta($seleccion['numero'] ?? null, $slot['digitos']);
+            if (! $ok) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -625,17 +688,23 @@ class Tripletas implements JuegoInterface
     {
         return [
             'combinacion' => 'required|array|min:1',
-            'combinacion.tipo' => ['required', Rule::in([
-                'triple_a', 'triple_b', 'triple_c',
-                'punta', 'terminal', 'uña', 'aproximacion',
-                'signo_terminal', 'signo_uña', 'signo_solo',
-                'arrimao', 'pegadito',
-            ])],
+            'combinacion.tipo' => [
+                'nullable',
+                // S6: con `selecciones[]` (multi-selección) no viaja `tipo` raíz.
+                Rule::requiredIf(fn () => empty(request('combinacion.selecciones'))),
+                Rule::in([
+                    'triple_a', 'triple_b', 'triple_c',
+                    'punta', 'terminal', 'uña', 'aproximacion',
+                    'signo_terminal', 'signo_uña', 'signo_solo',
+                    'arrimao', 'pegadito',
+                ]),
+            ],
             'combinacion.numero' => [
                 'nullable',
                 'string',
-                // signo_solo NO lleva número (contrato §2.1).
-                Rule::requiredIf(fn () => request('combinacion.tipo') !== 'signo_solo'),
+                // signo_solo NO lleva número (contrato §2.1); la multi-selección
+                // lleva los números en `selecciones[].numero` (contrato §2.2).
+                Rule::requiredIf(fn () => request('combinacion.tipo') !== 'signo_solo' && empty(request('combinacion.selecciones'))),
                 function (string $attribute, mixed $value, \Closure $fail): void {
                     $tipo = (string) request('combinacion.tipo');
                     $digitos = $this->digitosDeModalidad($tipo);
@@ -663,6 +732,28 @@ class Tripletas implements JuegoInterface
                     true
                 )),
             ],
+            // S6: multi-selección same-draw (contrato §2.2) — cruzado y Par
+            // A+B llevan exactamente 2 selecciones con su propio tipo y número.
+            'combinacion.selecciones' => ['nullable', 'array', 'size:2'],
+            'combinacion.selecciones.*.tipo' => ['required', Rule::in(['punta', 'triple_a', 'triple_b'])],
+            'combinacion.selecciones.*.numero' => [
+                'required',
+                'string',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    $partes = explode('.', $attribute);
+                    $i = (int) ($partes[2] ?? -1);
+                    $tipo = (string) request("combinacion.selecciones.{$i}.tipo");
+                    if ($tipo === 'punta') {
+                        if (! preg_match('/^\d{1,2}$/', (string) $value)) {
+                            $fail('La punta debe tener entre 1 y 2 dígitos.');
+                        }
+                    } elseif (in_array($tipo, ['triple_a', 'triple_b'], true)) {
+                        if (! preg_match('/^\d{3}$/', (string) $value)) {
+                            $fail('El triple debe tener exactamente 3 dígitos.');
+                        }
+                    }
+                },
+            ],
         ];
     }
 
@@ -671,6 +762,8 @@ class Tripletas implements JuegoInterface
         return [
             'combinacion.tipo.in' => 'La modalidad debe ser triple_a, triple_b, triple_c o una modalidad simple (punta, terminal, uña, aproximacion, signo_terminal, signo_uña, signo_solo, arrimao, pegadito).',
             'combinacion.signo.required_if' => 'El signo zodiacal es obligatorio para esta modalidad.',
+            'combinacion.selecciones.size' => 'La multi-selección debe llevar exactamente 2 selecciones.',
+            'combinacion.selecciones.*.tipo.in' => 'Cada selección debe ser de tipo punta, triple_a o triple_b.',
         ];
     }
 
