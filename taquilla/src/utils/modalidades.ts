@@ -59,16 +59,49 @@ function esNumero(valor: unknown): valor is number {
 }
 
 /**
- * Modalidades single-draw disponibles en el juego (D2, design §4): las claves
- * de `premios.modalidades` con forma en DEFS, en el orden del catálogo, con
- * el multiplicador del catálogo (nunca hardcodeado). Excluye claves
+ * Entradas BASE sintetizadas (design §4 fila "— (base)"): el producto base
+ * del juego NO viaja como clave en `premios.modalidades` para la mayoría de
+ * los juegos (zulia, caliente, chance, trio-activo, tachira, facil,
+ * zamorano) — la familia lo sintetiza ANTES de las claves del catálogo. El
+ * multiplicador es `premios(juego).base` (el motor resuelve
+ * `modalidades[clave] ?? base`, PremiosEngine::multiplicadorPara), nunca
+ * hardcodeado. `el-arrejuntado` SÍ lista `triple_a`/`triple_b` en el
+ * catálogo (600×): `modalidadesDisponibles` deduplica por clave y conserva
+ * la del catálogo.
+ */
+function entradasBase(juego: JuegoCatalogo): ModalidadDisponible[] {
+  const base = premios(juego).base;
+  // Sin premios (la-ricachona, no vendible) no hay producto base que ofrecer.
+  if (!esNumero(base)) return [];
+
+  if (juego.familia === 'zodiacal') {
+    return [
+      { ...DEFS.triple_a, multiplicador: base },
+      { ...DEFS.triple_b, multiplicador: base },
+    ];
+  }
+  if (juego.familia === 'numerica') {
+    // A2 (numérica 00-99): la base es el triple seco SOLO triple_a, con label
+    // "Triple" y la semántica legacy "05"→"005" (padding a 3 del plugin).
+    return [{ ...DEFS.triple_a, label: 'Triple', multiplicador: base }];
+  }
+  return [];
+}
+
+/**
+ * Modalidades single-draw disponibles en el juego (D2, design §4): la base
+ * sintetizada por familia (triple_a/triple_b del producto base) PRIMERO y
+ * luego las claves de `premios.modalidades` con forma en DEFS, en el orden
+ * del catálogo, con el multiplicador del catálogo (nunca hardcodeado).
+ * Deduplica por clave: si el catálogo ya lista la base (el-arrejuntado),
+ * NO se duplica y manda el multiplicador del catálogo. Excluye claves
  * multi-selección/tiers (cruzado, triple_a_b, solo_a_b, cruzado_10) y
  * espejos legacy.
  */
 export function modalidadesDisponibles(juego: JuegoCatalogo): ModalidadDisponible[] {
   const modalidades = premios(juego).modalidades;
 
-  return Object.keys(modalidades)
+  const delCatalogo = Object.keys(modalidades)
     .filter((clave) => clave in DEFS)
     .map((clave) => {
       const def = DEFS[clave];
@@ -78,6 +111,13 @@ export function modalidadesDisponibles(juego: JuegoCatalogo): ModalidadDisponibl
         multiplicador: esNumero(valor) ? (valor as number) : null,
       };
     });
+
+  const clavesCatalogo = new Set(delCatalogo.map((m) => m.clave));
+
+  return [
+    ...entradasBase(juego).filter((base) => !clavesCatalogo.has(base.clave)),
+    ...delCatalogo,
+  ];
 }
 
 /**

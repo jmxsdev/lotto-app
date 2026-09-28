@@ -1077,15 +1077,16 @@ console.log('\n== S5 TQ-05a: modalidadesDisponibles desde premios.modalidades (D
 // (premios.modalidades), nunca hardcodeadas; DEFS aporta label/cifras/signo.
 const mTrio = modalidadesDisponibles(catalogo.porSlug.get('trio-activo'));
 ok(
-  JSON.stringify(mTrio.map((m) => m.clave)) === JSON.stringify(['punta', 'terminal']),
-  `trio-activo: [punta, terminal] (${mTrio.map((m) => m.clave).join(',')})`,
+  JSON.stringify(mTrio.map((m) => m.clave)) === JSON.stringify(['triple_a', 'punta', 'terminal']),
+  `trio-activo: [triple_a(base), punta, terminal] (${mTrio.map((m) => m.clave).join(',')})`,
 );
-ok(mTrio[0].multiplicador === 60 && mTrio[1].multiplicador === 60, 'trio-activo: multiplicadores 60× del catálogo');
-ok(mTrio[0].label === 'Punta' && mTrio[1].label === 'Terminal', 'trio-activo: labels "Punta"/"Terminal"');
+ok(mTrio[0].clave === 'triple_a' && mTrio[0].label === 'Triple' && mTrio[0].multiplicador === 600, 'trio-activo: base sintetizada triple_a label "Triple" 600× (premios.base)');
+ok(mTrio[1].multiplicador === 60 && mTrio[2].multiplicador === 60, 'trio-activo: multiplicadores 60× del catálogo');
+ok(mTrio[1].label === 'Punta' && mTrio[2].label === 'Terminal', 'trio-activo: labels "Punta"/"Terminal"');
 const mChance = modalidadesDisponibles(catalogo.porSlug.get('triple-chance'));
 ok(
-  JSON.stringify(mChance.map((m) => m.clave)) === JSON.stringify(['punta', 'terminal', 'signo_solo', 'signo_triple', 'signo_terminal']),
-  `chance: single-draw sin multi-selección ni tiers (${mChance.map((m) => m.clave).join(',')})`,
+  JSON.stringify(mChance.map((m) => m.clave)) === JSON.stringify(['triple_a', 'triple_b', 'punta', 'terminal', 'signo_solo', 'signo_triple', 'signo_terminal']),
+  `chance: base triple_a/triple_b + single-draw sin multi-selección ni tiers (${mChance.map((m) => m.clave).join(',')})`,
 );
 ok(!mChance.some((m) => ['cruzado', 'cruzado_10', 'triple_a_b', 'solo_a_b'].includes(m.clave)), 'chance: cruzado/triple_a_b/tiers NO se ofrecen en S5 (S6)');
 ok(mChance.find((m) => m.clave === 'signo_solo').digitos === 0 && mChance.find((m) => m.clave === 'signo_solo').requiereSigno === true, 'signo_solo: 0 cifras + signo obligatorio');
@@ -1099,6 +1100,49 @@ ok(modalidadesDisponibles(catalogo.porSlug.get('lotto-activo')).length === 0, 'l
 const mZul = modalidadesDisponibles(catalogo.porSlug.get('triple-zulia'));
 ok(mZul.find((m) => m.clave === 'signo_triple').tipo === 'triple_c' && mZul.find((m) => m.clave === 'signo_triple').label === 'Triple C', 'zulia: signo_triple → payload tipo triple_c, label "Triple C"');
 ok('punta' in DEFS && 'arrimao' in DEFS && 'signo_solo' in DEFS && 'uña' in DEFS, 'DEFS cubre las claves single-draw (punta/arrimao/signo_solo/uña)');
+
+console.log('\n== S5 corrective (gate): base sintetizada por familia (design §4 "— (base)") ==');
+// Gate finding: los juegos con modalidades separadas perdieron el producto
+// BASE — el selector nuevo solo listaba claves de premios.modalidades. La
+// familia sintetiza la base ANTES de las claves del catálogo, deduplicando
+// por clave (el-arrejuntado ya lista triple_a/triple_b → no se duplican).
+const mZulBase = modalidadesDisponibles(catalogo.porSlug.get('triple-zulia'));
+ok(
+  JSON.stringify(mZulBase.map((m) => m.clave)) === JSON.stringify(['triple_a', 'triple_b', 'terminal', 'signo_triple', 'signo_terminal']),
+  `zulia: base triple_a/triple_b ANTES de las claves del catálogo (${mZulBase.map((m) => m.clave).join(',')})`,
+);
+ok(mZulBase[0].label === 'Triple A' && mZulBase[1].label === 'Triple B', 'zulia: labels base "Triple A"/"Triple B"');
+ok(
+  mZulBase[0].digitos === 3 && mZulBase[0].requiereSigno === false &&
+    mZulBase[1].digitos === 3 && mZulBase[1].requiereSigno === false,
+  'zulia: base 3 cifras, sin signo',
+);
+ok(mZulBase[0].multiplicador === 600 && mZulBase[1].multiplicador === 600, 'zulia: base 600× (premios.base del catálogo, no hardcode)');
+ok(
+  JSON.stringify(mZulBase.map((m) => m.clave)) === JSON.stringify(modalidadesDisponibles(catalogo.porSlug.get('triple-caliente')).map((m) => m.clave)),
+  'caliente: misma base sintetizada que zulia (misma familia)',
+);
+ok(
+  JSON.stringify(mArr.map((m) => m.clave)) === JSON.stringify(['arrimao', 'pegadito', 'triple_a', 'triple_b', 'signo_triple']),
+  `arrejuntado: SIN duplicar triple_a/triple_b (catálogo ya las lista) (${mArr.map((m) => m.clave).join(',')})`,
+);
+ok(
+  mArr.filter((m) => m.clave === 'triple_a').length === 1 && mArr.filter((m) => m.clave === 'triple_b').length === 1,
+  'arrejuntado: exactamente 1 entrada por clave base (dedupe por clave)',
+);
+ok(
+  JSON.stringify(modalidadesDisponibles(catalogo.porSlug.get('triple-facil')).map((m) => m.clave)) === JSON.stringify(['triple_a', 'terminal', 'aproximacion']),
+  'triple-facil (numérica): base triple_a + terminal + aproximacion',
+);
+ok(
+  JSON.stringify(modalidadesDisponibles(catalogo.porSlug.get('triple-tachira')).map((m) => m.clave)) === JSON.stringify(['triple_a', 'triple_b', 'terminal', 'signo_triple']),
+  'tachira (zodiacal): base triple_a/triple_b + terminal + signo_triple',
+);
+ok(
+  JSON.stringify(modalidadesDisponibles(catalogo.porSlug.get('triple-zamorano')).map((m) => m.clave)) ===
+    JSON.stringify(['triple_a', 'triple_b', 'uña', 'terminal', 'signo_uña', 'signo_triple', 'signo_terminal']),
+  `zamorano: base triple_a/triple_b + catálogo (${modalidadesDisponibles(catalogo.porSlug.get('triple-zamorano')).map((m) => m.clave).join(',')})`,
+);
 
 console.log('\n== S5: validarDigitos (^\\d{1,N}$ → padStart, design §4) ==');
 ok(validarDigitos('45', 2) === '45', '"45" (2 cifras) → "45"');
@@ -1125,6 +1169,43 @@ ok(JSON.stringify(comboDe('triple-zulia', 'signo_triple', { numero: '259', signo
 ok(comboDe('trio-activo', 'punta', { numero: '453' }) === null, 'dígitos inválidos → null (no se POSTea)');
 ok(comboDe('triple-zulia', 'signo_terminal', { numero: '59' }) === null, 'signo faltante → null');
 ok(comboDe('triple-chance', 'signo_solo', {}) === null, 'signo_solo sin signo → null');
+
+console.log('\n== S5 corrective (gate): payload de la base sintetizada (design §4 "— (base)") ==');
+// La base triple viaja como {tipo:'triple_a'|'triple_b', numero} con padding a
+// 3 cifras; la numérica mantiene la semántica legacy "05"→"005"; el signo solo
+// se exige cuando la modalidad lo requiere (base: nunca).
+ok(
+  JSON.stringify(comboDe('triple-zulia', 'triple_a', { numero: '005' })) === JSON.stringify({ tipo: 'triple_a', numero: '005' }),
+  'zulia base triple_a "005" → {tipo:triple_a, numero:005}',
+);
+ok(
+  JSON.stringify(comboDe('triple-zulia', 'triple_b', { numero: '157' })) === JSON.stringify({ tipo: 'triple_b', numero: '157' }),
+  'zulia base triple_b "157" → {tipo:triple_b, numero:157}',
+);
+ok(
+  JSON.stringify(comboDe('trio-activo', 'triple_a', { numero: '05' })) === JSON.stringify({ tipo: 'triple_a', numero: '005' }),
+  'trio-activo base triple_a "05" → "005" (semántica legacy FIX D)',
+);
+ok(
+  JSON.stringify(comboDe('triple-chance', 'triple_a', { numero: '5' })) === JSON.stringify({ tipo: 'triple_a', numero: '005' }),
+  'chance base triple_a "5" → "005" (padStart 3)',
+);
+ok(
+  comboDe('triple-zulia', 'triple_a', { numero: '45' }) !== null && comboDe('triple-zulia', 'triple_a', { numero: '45' }).signo === undefined,
+  'zulia base triple_a: sin signo en el payload (requiereSigno false)',
+);
+ok(
+  JSON.stringify(comboDe('el-arrejuntado', 'triple_a', { numero: '452' })) === JSON.stringify({ tipo: 'triple_a', numero: '452' }),
+  'arrejuntado triple_a (catálogo, no sintetizado) → payload idéntico',
+);
+ok(
+  comboDe('trio-activo', 'triple_a', { numero: '4531' }) === null,
+  'trio-activo base triple_a "4531" (4 cifras) → null (tope 3)',
+);
+ok(
+  JSON.stringify(comboDe('triple-facil', 'triple_a', { numero: '07' })) === JSON.stringify({ tipo: 'triple_a', numero: '007' }),
+  'triple-facil base triple_a "07" → "007" (numérica, legacy)',
+);
 
 console.log('\n== S5: grafo de zonas con ctx single-draw (D3 — A2 intactos sin ctx) ==');
 ok(
