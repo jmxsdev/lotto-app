@@ -274,4 +274,92 @@ class JuegoPremiosApiTest extends TestCase
 
         $this->assertSame($user->id, $juego->fresh()->updated_by, 'updated_by se registra en el juego.');
     }
+
+    // ==================================================
+    // S1b — Integración end-to-end (espejos vía GET,
+    // auditoría expuesta y reflejo en /reglas)
+    // ==================================================
+
+    public function test_put_premios_espejos_reflejados_en_get_juego(): void
+    {
+        // S1b: tras el PUT, GET /juegos/{id} refleja premios canónicos Y los
+        // espejos legacy sincronizados (premio_multiplo=base, modalidades
+        // espejo, comodines) — el contrato que consume el panel.
+        $juego = $this->juego('triple-zulia');
+
+        $payload = [
+            'base' => 700,
+            'modalidades' => ['terminal' => 70, 'signo_triple' => 7000],
+            'comodines' => [
+                'comodin-x' => ['tipo' => 'letra', 'premio_multiplo' => 100, 'valor' => 'X', 'nombre' => 'Comodín X'],
+            ],
+        ];
+
+        $this->actingAs($this->superUser(), 'sanctum')
+            ->putJson("/api/v1/juegos/{$juego->id}/premios", $payload)
+            ->assertStatus(200);
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->getJson("/api/v1/juegos/{$juego->id}");
+
+        $response->assertStatus(200);
+        $this->assertEqualsCanonicalizing($payload, $response->json('config.premios'));
+        $this->assertSame(700, $response->json('config.premio_multiplo'));
+        $this->assertEqualsCanonicalizing(
+            ['cola' => 70, 'zodiacal' => 7000],
+            $response->json('config.modalidades'),
+            'El espejo legacy de modalidades debe reflejarse en GET /juegos/{id}.'
+        );
+        $this->assertEqualsCanonicalizing($payload['comodines'], $response->json('config.comodines'));
+    }
+
+    public function test_put_premios_reflejados_en_reglas(): void
+    {
+        // S1b: GET /juegos/{id}/reglas refleja los premios nuevos del motor
+        // (aditivo, spec REQ "Reflejo en las reglas del juego").
+        $juego = $this->juego('triple-zulia');
+
+        $payload = $this->payload(['base' => 700, 'modalidades' => ['terminal' => 70]]);
+
+        $this->actingAs($this->superUser(), 'sanctum')
+            ->putJson("/api/v1/juegos/{$juego->id}/premios", $payload)
+            ->assertStatus(200);
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->getJson("/api/v1/juegos/{$juego->id}/reglas");
+
+        $response->assertStatus(200);
+        $this->assertArrayHasKey('premios', $response->json(), 'reglas debe exponer premios del motor.');
+        $this->assertEqualsCanonicalizing($payload, $response->json('premios'));
+        $this->assertSame(700, $response->json('premios.base'));
+    }
+
+    public function test_put_premios_auditoria_expuesta_en_get_juego(): void
+    {
+        // S1b: GET /juegos/{id} expone auditoria[] con la entrada `premios`
+        // (before/after) y el usuario editor (relación user cargada por show()).
+        $user = $this->superUser();
+        $juego = $this->juego('triple-zulia');
+        $premiosAntes = $juego->config['premios'];
+
+        $payload = $this->payload(['base' => 700, 'modalidades' => ['terminal' => 70]]);
+
+        $this->actingAs($user, 'sanctum')
+            ->putJson("/api/v1/juegos/{$juego->id}/premios", $payload)
+            ->assertStatus(200);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->getJson("/api/v1/juegos/{$juego->id}");
+
+        $response->assertStatus(200);
+
+        $entradas = collect($response->json('auditoria'))->where('accion', 'premios')->values();
+        $this->assertCount(1, $entradas, 'Debe existir exactamente una auditoría accion=premios expuesta.');
+
+        $entrada = $entradas->first();
+        $this->assertSame($user->id, $entrada['user_id']);
+        $this->assertEqualsCanonicalizing($premiosAntes, $entrada['cambios']['before']);
+        $this->assertEqualsCanonicalizing($payload, $entrada['cambios']['after']);
+        $this->assertSame($user->email, $entrada['user']['email'] ?? null, 'El usuario editor viaja en la relación user.');
+    }
 }

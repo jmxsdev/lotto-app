@@ -486,4 +486,52 @@ class JuegosJsonTest extends TestCase
         $this->assertSame(120, $data['premios']['comodines']['patronus-75']['premio_multiplo']);
         $this->assertSame(20, $data['premios']['comodines']['patronus-palabra']['premio_multiplo']);
     }
+
+    public function test_export_con_path_refleja_premios_editados_sin_tocar_docs(): void
+    {
+        // S1b (D6): `juegos:export --path=<tmp>` genera el catálogo con los
+        // premios editados y sus espejos, SIN reescribir docs/juegos.json del
+        // repo (JuegosJsonTest lo guarda; el side effect queda fuera del HTTP).
+        $user = User::where('email', 'super@lotto.com')->firstOrFail();
+        $juego = Juego::where('slug', 'triple-zulia')->firstOrFail();
+
+        $hashAntes = hash_file('sha256', base_path('../docs/juegos.json'));
+
+        $payload = [
+            'base' => 700,
+            'modalidades' => ['terminal' => 70],
+            'comodines' => [
+                'comodin-x' => ['tipo' => 'letra', 'premio_multiplo' => 100, 'valor' => 'X', 'nombre' => 'Comodín X'],
+            ],
+        ];
+
+        $this->actingAs($user, 'sanctum')
+            ->putJson("/api/v1/juegos/{$juego->id}/premios", $payload)
+            ->assertStatus(200);
+
+        $tmp = sys_get_temp_dir().'/juegos-export-'.uniqid().'.json';
+
+        try {
+            $this->artisan('juegos:export', ['--path' => $tmp])->assertExitCode(0);
+
+            $contenido = file_get_contents($tmp);
+            $this->assertNotFalse($contenido, 'El comando debe escribir el catálogo en la ruta --path.');
+            $export = json_decode($contenido, true);
+            $this->assertIsArray($export, 'El catálogo exportado debe ser JSON válido.');
+
+            $porSlug = collect($export['juegos'])->keyBy('slug');
+            $this->assertArrayHasKey('triple-zulia', $porSlug, 'El juego editado debe estar en el catálogo exportado.');
+
+            $exportado = $porSlug['triple-zulia'];
+            $this->assertEqualsCanonicalizing($payload, $exportado['premios']);
+            $this->assertSame(700, $exportado['premio_multiplo'], 'premio_multiplo = base editada.');
+            $this->assertEqualsCanonicalizing(['cola' => 70], $exportado['modalidades'], 'Espejo legacy de modalidades en el export.');
+            $this->assertEqualsCanonicalizing($payload['comodines'], $exportado['comodines']);
+        } finally {
+            @unlink($tmp);
+        }
+
+        $hashDespues = hash_file('sha256', base_path('../docs/juegos.json'));
+        $this->assertSame($hashAntes, $hashDespues, 'docs/juegos.json NO debe reescribirse con --path.');
+    }
 }
