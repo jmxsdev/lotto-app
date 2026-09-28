@@ -171,6 +171,7 @@ const name = user?.name || '';
       const a = document.createElement('a');
       a.className = 'sidebar-link' + (active ? ' active' : '');
       a.href = href;
+      a.dataset.title = label;
       a.innerHTML = `<span class="sidebar-link-icon" aria-hidden="true">${icono(icon)}</span> ${label}`;
       return a;
     }
@@ -180,6 +181,7 @@ const name = user?.name || '';
       const a = document.createElement('a');
       a.className = 'dropdown-item' + (active ? ' active' : '');
       a.href = href;
+      a.dataset.title = label;
       a.innerHTML = `<span aria-hidden="true">${icono(icon)}</span> ${label}<span class="dropdown-count" data-entity="${entityKey}">${count !== undefined && count !== null ? count : '-'}</span>`;
       return a;
     }
@@ -304,6 +306,9 @@ const name = user?.name || '';
     // Tasas
     if (['super_master','master'].includes(role)) sidebarNav.appendChild(addLink('Tasas', '/tasas', 'arrow-left-right'));
 
+    // Configuraciones (vencimiento de apuestas) — solo super_master y master
+    if (['super_master','master'].includes(role)) sidebarNav.appendChild(addLink('Configuraciones', '/configuraciones', 'clock'));
+
     // Usuarios — todos los roles (el backend limita los datos según jerarquía)
     sidebarNav.appendChild(addLink('Usuarios', '/usuarios', 'user'));
 
@@ -312,6 +317,12 @@ const name = user?.name || '';
 
     // Logs
     if (['super_master','master'].includes(role)) sidebarNav.appendChild(addLink('Logs', '/logs', 'clipboard-list'));
+
+    // Topbar dinámico: título del link activo (data-title); si no hay link
+    // activo, TITULOS por ruta exacta; último recurso 'Panel'.
+    const TITULOS = { '/cuadre': 'Cuadre' };
+    const activo = sidebarNav.querySelector('a.active[data-title]');
+    document.getElementById('topbar-title').textContent = activo?.dataset.title ?? TITULOS[currentPath] ?? 'Panel';
 
     function updateClock() {
       const now = new Date();
