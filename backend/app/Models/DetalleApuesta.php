@@ -13,6 +13,7 @@ class DetalleApuesta extends Model
         'apuesta_id', 'combinacion', 'monto',
         'premio_posible', 'premio_posible_usd',
         'premio_ganado', 'premio_ganado_usd',
+        'premios_snapshot',
     ];
 
     protected $casts = [
@@ -22,6 +23,7 @@ class DetalleApuesta extends Model
         'premio_posible_usd' => 'decimal:2',
         'premio_ganado' => 'decimal:2',
         'premio_ganado_usd' => 'decimal:2',
+        'premios_snapshot' => 'array',
     ];
 
     public function apuesta()

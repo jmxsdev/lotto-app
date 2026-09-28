@@ -34,9 +34,11 @@ class PremiosEngine
      *
      * @param  array<string, mixed>  $apuesta  (amount_bs, amount_usd, combinacion)
      * @param  array<string, mixed>  $resultados  (numeros_ganadores)
+     * @param  array<string, mixed>|null  $premios  Snapshot de `config.premios`
+     *                                              al vender (S2/D4); null = config actual
      * @return array{premio_bs: float, premio_usd: float}
      */
-    public function calcular(Juego $juego, array $apuesta, array $resultados): array
+    public function calcular(Juego $juego, array $apuesta, array $resultados, ?array $premios = null): array
     {
         if (! $juego->active) {
             return ['premio_bs' => 0.0, 'premio_usd' => 0.0];
@@ -53,7 +55,7 @@ class PremiosEngine
         }
 
         $clave = $acierto['clave'] ?? 'base';
-        $multiplicador = $this->multiplicadorConComodines($juego, $clave, $acierto['meta'] ?? []);
+        $multiplicador = $this->multiplicadorConComodines($juego, $clave, $acierto['meta'] ?? [], $premios);
 
         $montoBs = (float) ($apuesta['amount_bs'] ?? 0);
         $montoUsd = (float) ($apuesta['amount_usd'] ?? 0);
@@ -70,9 +72,11 @@ class PremiosEngine
      * no la deriva el plugin con `modalidadDe()`).
      *
      * @param  array<string, mixed>  $combinacion
+     * @param  array<string, mixed>|null  $premios  Snapshot de `config.premios`
+     *                                              (S2/D4); null = config actual
      * @return array{premio_bs: float, premio_usd: float}
      */
-    public function premioPosible(Juego $juego, array $combinacion, float $montoBs, float $montoUsd): array
+    public function premioPosible(Juego $juego, array $combinacion, float $montoBs, float $montoUsd, ?array $premios = null): array
     {
         if (! $juego->active) {
             return ['premio_bs' => 0.0, 'premio_usd' => 0.0];
@@ -84,7 +88,7 @@ class PremiosEngine
         // base por fallback (`multiplicadorPara`), como en F1d.
         if (isset($combinacion['modalidad'])) {
             $clave = (string) $combinacion['modalidad'];
-            $premios = $juego->config['premios'] ?? [];
+            $premios ??= $juego->config['premios'] ?? [];
             $modalidades = $premios['modalidades'] ?? [];
 
             if ($clave !== 'base' && ! array_key_exists($clave, $modalidades)) {
@@ -94,7 +98,7 @@ class PremiosEngine
             $clave = $this->modalidadDe($juego, $combinacion);
         }
 
-        $multiplicador = $this->multiplicadorPara($juego, (string) $clave);
+        $multiplicador = $this->multiplicadorPara($juego, (string) $clave, $premios);
 
         return [
             'premio_bs' => round($montoBs * $multiplicador, 2, PHP_ROUND_HALF_UP),
@@ -115,10 +119,13 @@ class PremiosEngine
     /**
      * Multiplicador de una clave canónica: `modalidades[clave] ?? base`, con
      * fallback transicional a `premio_multiplo` legacy SOLO para la base (D2).
+     *
+     * @param  array<string, mixed>|null  $premios  Snapshot de `config.premios`
+     *                                              (S2/D4); null = config actual
      */
-    public function multiplicadorPara(Juego $juego, string $clave): float
+    public function multiplicadorPara(Juego $juego, string $clave, ?array $premios = null): float
     {
-        $premios = $juego->config['premios'] ?? [];
+        $premios ??= $juego->config['premios'] ?? [];
         $base = $premios['base'] ?? ($juego->config['premio_multiplo'] ?? 0);
         $modalidades = $premios['modalidades'] ?? [];
 
@@ -127,11 +134,14 @@ class PremiosEngine
 
     /**
      * Overlay de comodines sobre el multiplicador vigente (REQ6, §3.3 paso 4).
+     *
+     * @param  array<string, mixed>|null  $premios  Snapshot de `config.premios`
+     *                                              (S2/D4); null = config actual
      */
-    private function multiplicadorConComodines(Juego $juego, string $clave, array $meta): float
+    private function multiplicadorConComodines(Juego $juego, string $clave, array $meta, ?array $premios = null): float
     {
-        $multiplicador = $this->multiplicadorPara($juego, $clave);
-        $premios = $juego->config['premios'] ?? [];
+        $multiplicador = $this->multiplicadorPara($juego, $clave, $premios);
+        $premios ??= $juego->config['premios'] ?? [];
         $comodines = $premios['comodines'] ?? [];
 
         foreach ($meta['comodines'] ?? [] as $comodinClave) {
