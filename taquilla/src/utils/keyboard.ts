@@ -321,10 +321,18 @@ export interface EstadoSeleccionPendiente {
   animalElegido: boolean;
   /** S5 (D3): la modalidad activa (single-draw) exige signo. */
   signo?: boolean;
+  /** S6: modo animalitos con tripleta ('base' | 'tripleta'). */
+  modalidadAnimalitos?: 'base' | 'tripleta' | null;
+  /** S6: nº de animales elegidos en la tripleta (tope 3, design §5). */
+  seleccionesAnimales?: number;
 }
 
 export function zonaPendienteSeleccion(estado: EstadoSeleccionPendiente): NombreZona | null {
   if (estado.familia === 'animalitos') {
+    // S6: en modo tripleta la selección está completa con 3/3 animales.
+    if (estado.modalidadAnimalitos === 'tripleta') {
+      return (estado.seleccionesAnimales ?? 0) >= 3 ? null : 'seleccion';
+    }
     return estado.animalElegido ? null : 'seleccion';
   }
   if (estado.familia === 'zodiacal') {

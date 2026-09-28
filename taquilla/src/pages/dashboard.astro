@@ -50,6 +50,7 @@ import Icon from '../components/ui/Icon.astro';
     <div class="quick-ticket">
       <div class="qt-bar">
         <input type="number" id="qt-numero" class="qt-input" placeholder="Número" min="0" step="1" data-zona="numero">
+        <input type="number" id="qt-numero-b" class="qt-input" placeholder="2ª selección" min="0" step="1" data-zona="numero_b" style="display:none">
         <input type="number" id="qt-monto" class="qt-input" placeholder="Monto" min="0" step="0.01" data-zona="monto">
         <select id="qt-moneda" class="qt-select" tabindex="-1">
           <option value="bs">Bs</option>
@@ -1272,7 +1273,7 @@ import Icon from '../components/ui/Icon.astro';
     import { buildZoneGraph, routeKey, zonaHorizontal, zonaPendienteSeleccion } from '../utils/keyboard';
     import { teclasLegend } from '../utils/keyboard';
     import { serialCoincide, ultimoTicketPendiente } from '../utils/keyboard';
-    import { modalidadesDisponibles, construirCombinacion } from '../utils/modalidades';
+    import { modalidadesDisponibles, construirCombinacion, construirCombinacionMulti, construirTripleta, alternarSeleccionAnimal } from '../utils/modalidades';
     import { alternarHorario, marcarTodosVisibles, expandirLineas, horarioExpirado, filtrarHorariosFuturos, seleccionadosExpirados, agruparPorGroupId, indiceSeleccionTrasEliminar } from '../utils/horarios';
     import { formatearJugada, nombresJuegos } from '../utils/ticket';
     import { calcularVuelto } from '../utils/vuelto';
@@ -1357,6 +1358,10 @@ import Icon from '../components/ui/Icon.astro';
     // signo_*/arrimao/pegadito). Alternativa a la legacy tripleModalidad
     // (Triple A/B/C): se usa cuando el juego expone modalidades en el catálogo.
     let modalidadNueva = null;
+    // S6 (D3/§5): multi-selección same-draw — modo animalitos con tripleta
+    // (base | tripleta) y los animales elegidos (tope 3, contador "n/3").
+    let modalidadAnimalitos = null;
+    let seleccionesAnimales = [];
 
     function initClock() {
       function updateClock() {
@@ -1412,6 +1417,9 @@ import Icon from '../components/ui/Icon.astro';
       return Boolean(
         selectedAnimal || selectedSigno || selectedOpcion ||
         modalidadNueva || tripleModalidad || tripleModalidadLabel ||
+        // S6: la tripleta en curso (modo + animales elegidos) también bloquea
+        // el cambio de pestaña (design §5: seleccionesAnimales en el guard).
+        modalidadAnimalitos === 'tripleta' || seleccionesAnimales.length > 0 ||
         selectedHorarios.length > 0,
       );
     }
@@ -1441,6 +1449,8 @@ import Icon from '../components/ui/Icon.astro';
       tripleModalidad = null;
       tripleModalidadLabel = null;
       modalidadNueva = null;
+      modalidadAnimalitos = null;
+      seleccionesAnimales = [];
       selectedHorarios = [];
       horariosCache = [];
       buscadorDigitos = null; // FIX-5: el buffer de dígitos es por juego
@@ -1543,8 +1553,9 @@ import Icon from '../components/ui/Icon.astro';
     // Grafo de zonas del juego activo (A2, D3): se reconstruye al cambiar de
     // juego o de modalidad. S5: con modalidadNueva se activa la zona modalidad
     // (en numérica/terminal), la zona signo si la modalidad la exige y se
-    // omite numero para signo_solo (digitos 0). La legacy triple_c sigue
-    // alimentando ctx.triple_c.
+    // omite numero para signo_solo (digitos 0). S6: la multi-selección
+    // (cruzado/Par A+B) activa la zona numero_b entre numero y monto
+    // (design §5). La legacy triple_c sigue alimentando ctx.triple_c.
     function grafoActual() {
       const juego = juegoActivo();
       const familia = juego?.familia ?? 'animalitos';
@@ -1553,6 +1564,7 @@ import Icon from '../components/ui/Icon.astro';
         ctx.modalidad = true;
         if (modalidadNueva.requiereSigno) ctx.signo = true;
         if (modalidadNueva.digitos === 0) ctx.numero = false;
+        if (modalidadNueva.selecciones) ctx.segundaSeleccion = true;
       }
       return buildZoneGraph(familia, ctx);
     }
@@ -1575,11 +1587,18 @@ import Icon from '../components/ui/Icon.astro';
       const container = document.getElementById('seleccion-content');
       if (!juego) {
         container.innerHTML = '<div class="seleccion-placeholder">Seleccione un juego</div>';
+        sincronizarNumeroB();
         return;
       }
       if (juego.familia === 'animalitos') {
         animalesCache = juego.opciones;
-        renderAnimales();
+        // S6: los juegos de animalitos con tripleta en el catálogo (Cazalotón,
+        // Loto Chaima) ofrecen el modo base + el modo Tripleta (contador n/3).
+        if (modalidadesDisponibles(juego).some((m) => m.clave === 'tripleta')) {
+          renderAnimalitosConTripleta();
+        } else {
+          renderAnimales();
+        }
       } else if (modalidadesDisponibles(juego).length > 0) {
         renderModalidadesNuevas();
       } else if (juego.familia === 'zodiacal') {
@@ -1591,6 +1610,85 @@ import Icon from '../components/ui/Icon.astro';
       } else {
         renderOpcionesLista(juego); // terminal: 2 cifras
       }
+    }
+
+    // S6 (design §5): el input numero_b (2ª selección de cruzado/Par A+B) solo
+    // se muestra con una modalidad multi-selección activa; oculto está fuera
+    // del ciclo de zonas (zonaVisible false) y no interfiere con el flujo.
+    function sincronizarNumeroB() {
+      const nb = document.getElementById('qt-numero-b');
+      if (!nb) return;
+      nb.style.display = modalidadNueva && modalidadNueva.selecciones ? '' : 'none';
+    }
+
+    // S6 (design §4/§5): selector de animalitos con Tripleta — modo base
+    // (animal simple, legacy) y modo tripleta (tope 3 animales, contador
+    // "n/3", toggle Space/Enter/click). El payload tripleta viaja como
+    // {modalidad:'tripleta', selecciones:[{animal}×3]} (contrato §2.2).
+    function renderAnimalitosConTripleta() {
+      const container = document.getElementById('seleccion-content');
+      const juego = juegoActivo();
+      if (!juego) return;
+      const mods = modalidadesDisponibles(juego);
+      const tripletaDef = mods.find((m) => m.clave === 'tripleta') ?? null;
+      if (!tripletaDef) { renderAnimales(); return; }
+      const modo = modalidadAnimalitos || 'base';
+      const mult = tripletaDef.multiplicador !== null ? ' ' + tripletaDef.multiplicador + '×' : '';
+      let html =
+        '<div class="modalidad-label">Seleccione modalidad:</div>' +
+        '<div class="modalidad-grid" data-zona="seleccion">' +
+        '<button class="modalidad-btn' + (modo === 'base' ? ' selected' : '') + '" data-modo="base" tabindex="-1">Animalito</button>' +
+        '<button class="modalidad-btn' + (modo === 'tripleta' ? ' selected' : '') + '" data-modo="tripleta" tabindex="-1">Tripleta' + mult + '</button>' +
+        '</div>' +
+        (modo === 'tripleta'
+          ? '<div class="tripleta-contador" id="tripleta-contador">Seleccionados: ' + seleccionesAnimales.length + '/3</div>'
+          : '');
+      html += '<div class="animalitos-list">' + juego.opciones.map((a) => {
+        const emoji = a.icono || '🐾';
+        const enTripleta = seleccionesAnimales.includes(a.label);
+        const sel = modo === 'tripleta'
+          ? (enTripleta ? ' selected' : '')
+          : (selectedAnimal && selectedAnimal.label === a.label ? ' selected' : '');
+        return '<div class="animal-check' + sel + '" data-numero="' + a.numero + '" data-label="' + a.label + '" tabindex="-1">' +
+          '<span class="animal-num">' + a.numero + '</span>' +
+          '<span class="animal-emoji">' + emoji + '</span>' +
+          '<span class="animal-label">' + a.label + '</span>' +
+          '</div>';
+      }).join('') + '</div>';
+      container.innerHTML = html;
+      container.querySelectorAll('.modalidad-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          container.querySelectorAll('.modalidad-btn').forEach((b) => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          modalidadAnimalitos = btn.dataset.modo === 'tripleta' ? 'tripleta' : 'base';
+          if (modalidadAnimalitos === 'tripleta') {
+            selectedAnimal = null;
+          } else {
+            seleccionesAnimales = [];
+          }
+          renderAnimalitosConTripleta();
+          renderLegend();
+          updateColumnMode();
+        });
+      });
+      container.querySelectorAll('.animal-check').forEach((el) => {
+        el.addEventListener('click', () => {
+          if (modalidadAnimalitos === 'tripleta') {
+            // design §5: toggle Space/Enter/click, tope 3, orden estable.
+            seleccionesAnimales = alternarSeleccionAnimal(seleccionesAnimales, el.dataset.label);
+            renderAnimalitosConTripleta();
+          } else {
+            const label = el.dataset.label;
+            if (selectedAnimal && selectedAnimal.label === label) {
+              selectedAnimal = null;
+            } else {
+              selectedAnimal = { numero: parseInt(el.dataset.numero), label: label };
+            }
+            renderAnimalitosConTripleta();
+          }
+          updateColumnMode();
+        });
+      });
     }
 
     // S5 (D2): selector de modalidades single-draw desde premios.modalidades
@@ -1620,6 +1718,11 @@ import Icon from '../components/ui/Icon.astro';
           tripleModalidadLabel = null;
           selectedSigno = null;
           document.getElementById('qt-numero').value = '';
+          // S6: la multi-selección (cruzado/Par A+B) muestra el input numero_b
+          // y lo limpia al cambiar de modalidad (design §5).
+          const nb = document.getElementById('qt-numero-b');
+          if (nb) nb.value = '';
+          sincronizarNumeroB();
           renderSignosForModalidad();
           renderLegend();
           updateColumnMode();
@@ -1740,10 +1843,20 @@ import Icon from '../components/ui/Icon.astro';
       }
       let listo = false;
       if (modalidadNueva) {
-        // S5: single-draw lista cuando no exige signo o el signo ya se eligió.
-        listo = !modalidadNueva.requiereSigno || selectedSigno !== null;
+        if (modalidadNueva.selecciones) {
+          // S6: multi-selección (cruzado/Par A+B) lista con ambas selecciones.
+          const nb = document.getElementById('qt-numero-b');
+          listo = document.getElementById('qt-numero').value.trim() !== '' &&
+            nb !== null && nb.value.trim() !== '';
+        } else {
+          // S5: single-draw lista cuando no exige signo o el signo ya se eligió.
+          listo = !modalidadNueva.requiereSigno || selectedSigno !== null;
+        }
       } else if (juego.familia === 'animalitos') {
-        listo = selectedAnimal !== null;
+        // S6: en modo tripleta la selección está completa con 3/3 animales.
+        listo = modalidadAnimalitos === 'tripleta'
+          ? seleccionesAnimales.length === 3
+          : selectedAnimal !== null;
       } else if (juego.familia === 'zodiacal') {
         listo = tripleModalidad !== null && (tripleModalidad !== 'triple_c' || selectedSigno !== null);
       } else if (juego.familia === 'numerica') {
@@ -2001,8 +2114,20 @@ import Icon from '../components/ui/Icon.astro';
       // S5 (D2): modalidad single-draw — el payload `combinacion` lo arma el
       // módulo puro (construirCombinacion): valida dígitos por modalidad
       // (1..N → padStart) y exige el signo; null = línea inválida (sin POST).
+      // S6: la multi-selección same-draw (cruzado/Par A+B) arma
+      // `{modalidad, selecciones[]}` con construirCombinacionMulti y la
+      // tripleta con construirTripleta (contrato §2.2).
       let combinacionPayload = null;
-      if (modalidadNueva) {
+      let numeroB = null;
+      if (modalidadNueva && modalidadNueva.selecciones) {
+        numeroB = document.getElementById('qt-numero-b').value.trim();
+        combinacionPayload = construirCombinacionMulti(modalidadNueva, { numero, numeroB });
+        if (!combinacionPayload) {
+          const cifras = modalidadNueva.selecciones[0].digitos;
+          window.showModal({ message: 'Ingrese ambas selecciones de ' + modalidadNueva.label + ' (' + cifras + ' cifras cada una)', type: 'error' });
+          return;
+        }
+      } else if (modalidadNueva) {
         combinacionPayload = construirCombinacion(modalidadNueva, {
           numero,
           signo: modalidadNueva.requiereSigno ? (selectedSigno ? selectedSigno.value : null) : undefined,
@@ -2028,8 +2153,18 @@ import Icon from '../components/ui/Icon.astro';
       } else if (familia === 'terminal') {
         if (!numero || numero.length !== 2) { window.showModal({ message: 'Ingrese un número de exactamente 2 cifras', type: 'error' }); return; }
       } else {
-        if (!selectedAnimal) { window.showModal({ message: 'Seleccione un animal', type: 'error' }); return; }
-        numero = String(selectedAnimal.numero).padStart(2, '0');
+        // S6: en modo tripleta el payload lo arma el módulo puro con los
+        // animales elegidos (tope 3); en base exige el animal simple.
+        if (modalidadAnimalitos === 'tripleta') {
+          combinacionPayload = construirTripleta(seleccionesAnimales);
+          if (!combinacionPayload) {
+            window.showModal({ message: 'Seleccione exactamente 3 animales para la tripleta', type: 'error' });
+            return;
+          }
+        } else {
+          if (!selectedAnimal) { window.showModal({ message: 'Seleccione un animal', type: 'error' }); return; }
+          numero = String(selectedAnimal.numero).padStart(2, '0');
+        }
       }
 
       // Expansión multi-horario (REQ-MH-02, REQ-TF-01, D2): N horarios ⇒ N líneas,
@@ -2049,7 +2184,9 @@ import Icon from '../components/ui/Icon.astro';
           // S5: payload single-draw ya armado (construirCombinacion); el POST
           // lo manda tal cual (handlePrint) — sin re-derivar el shape aquí.
           combinacion: combinacionPayload,
-          modalidadLabel: modalidadNueva ? modalidadNueva.label : null,
+          modalidadLabel: modalidadNueva
+            ? modalidadNueva.label
+            : (modalidadAnimalitos === 'tripleta' ? 'Tripleta' : null),
           // win-fixes2 FIX E: sigla (value, "SAG") para el POST; el label
           // ("Sagitario") es solo visual. Tripletas.php:44-47 valida
           // strtoupper($signo) ∈ siglas (ARI..PIS) — el label rompía el POST (hoy F4).
@@ -2086,6 +2223,8 @@ import Icon from '../components/ui/Icon.astro';
       tripleModalidad = null;
       tripleModalidadLabel = null;
       modalidadNueva = null;
+      modalidadAnimalitos = null;
+      seleccionesAnimales = [];
       selectedHorarios = [];
       horariosCache = [];
       buscadorDigitos = null;
@@ -2113,8 +2252,11 @@ import Icon from '../components/ui/Icon.astro';
         tripleModalidad = null;
         tripleModalidadLabel = null;
         modalidadNueva = null;
+        modalidadAnimalitos = null;
+        seleccionesAnimales = [];
         selectedHorarios = [];
         document.getElementById('qt-numero').value = '';
+        sincronizarNumeroB();
         if (juegoActivo()) {
           renderSeleccion();
         } else {
@@ -2623,6 +2765,10 @@ import Icon from '../components/ui/Icon.astro';
           animalElegido: selectedAnimal !== null,
           // S5 (D3): la modalidad single-draw activa puede exigir signo.
           signo: modalidadNueva?.requiereSigno === true,
+          // S6 (design §5): la tripleta en curso con <3 animales sigue
+          // pendiente en la zona seleccion.
+          modalidadAnimalitos,
+          seleccionesAnimales: seleccionesAnimales.length,
         });
         if (pendiente && zonaVisible(pendiente)) {
           enfocarZona(pendiente);
@@ -2947,6 +3093,9 @@ import Icon from '../components/ui/Icon.astro';
         tripleModalidad = null;
         tripleModalidadLabel = null;
         modalidadNueva = null;
+        modalidadAnimalitos = null;
+        seleccionesAnimales = [];
+        sincronizarNumeroB();
 
         renderJuegos();
         if (selectedGames.length > 0) {
@@ -3036,7 +3185,7 @@ import Icon from '../components/ui/Icon.astro';
         // Enter solo añade línea desde los inputs del ticket (qt-numero/
         // qt-monto); los inputs de los modales (p. ej. vuelto F12) no deben
         // disparar addLine, y con un modal abierto nada añade (guarda A12).
-        if (e.key === 'Enter' && (e.target.id === 'qt-numero' || e.target.id === 'qt-monto')) {
+        if (e.key === 'Enter' && (e.target.id === 'qt-numero' || e.target.id === 'qt-numero-b' || e.target.id === 'qt-monto')) {
           if (detectarModalAbierto()) return;
           e.preventDefault();
           if (addingLine) return;
