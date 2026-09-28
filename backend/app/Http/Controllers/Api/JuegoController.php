@@ -11,7 +11,9 @@ use App\Models\JuegoLimite;
 use App\Models\Taquilla;
 use App\Services\JuegoLimiteService;
 use App\Services\JuegoPluginManager;
+use App\Services\PremiosConfigService;
 use App\Services\PremiosEngine;
+use App\Support\PremiosOficiales;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -99,6 +101,62 @@ class JuegoController extends Controller
         ]);
 
         return response()->json($juego->load('pluginJuego'));
+    }
+
+    /**
+     * Edición atómica de premios (D1/D2/D3, spec configuracion-premios):
+     * PUT /api/v1/juegos/{juego}/premios.
+     *
+     * El body ES el objeto `premios` completo ({base, modalidades, comodines}).
+     * Validación estricta del esquema + claves de modalidad en plugin ∪
+     * catálogo oficial; el servicio hace el merge seguro, los espejos legacy
+     * y la auditoría `accion=premios`. Solo roles super_master|master (ruta).
+     */
+    public function updatePremios(Request $request, Juego $juego)
+    {
+        $user = $request->user();
+
+        // REQ7/D3: la-ricachona (y cualquier juego sin base oficial) no tiene
+        // premios configurables → 422 con mensaje claro.
+        $oficial = PremiosOficiales::para($juego->slug);
+        if ($oficial === null || ! isset($oficial['base'])) {
+            return response()->json(['message' => 'Este juego no tiene premios oficiales configurables.'], 422);
+        }
+
+        $request->validate([
+            'base' => 'required|integer|min:1',
+            'modalidades' => 'sometimes|array',
+            'modalidades.*' => 'integer|min:1',
+            'comodines' => 'sometimes|array',
+            'comodines.*.tipo' => 'required|in:flag,letra,numero,palabra',
+            'comodines.*.premio_multiplo' => 'required|integer|min:1',
+        ]);
+
+        // Reemplazo atómico: omitir modalidades/comodines los deja vacíos.
+        $premios = $request->only(['base', 'modalidades', 'comodines']);
+        $premios['modalidades'] ??= [];
+        $premios['comodines'] ??= [];
+
+        // D3: claves de modalidad válidas en plugin->obtenerModalidades() ∪
+        // catálogo oficial, sin bloquear claves canónicas que el plugin no liste.
+        $service = app(PremiosConfigService::class);
+        $clavesValidas = $service->clavesModalidadValidas($juego);
+        foreach (array_keys($premios['modalidades']) as $clave) {
+            if (! in_array($clave, $clavesValidas, true)) {
+                return response()->json(['message' => "La modalidad [{$clave}] no es válida para este juego."], 422);
+            }
+        }
+
+        // `acumulativo` solo es válido con tipo=palabra (spec).
+        foreach ($premios['comodines'] as $clave => $comodin) {
+            if (! empty($comodin['acumulativo']) && ($comodin['tipo'] ?? null) !== 'palabra') {
+                return response()->json(['message' => "El comodín [{$clave}] solo puede ser acumulativo con tipo 'palabra'."], 422);
+            }
+        }
+
+        $juego = $service->actualizar($juego, $premios, $user->id);
+
+        return response()->json($juego->load('pluginJuego', 'updatedByUser'));
     }
 
     public function opciones(Juego $juego)

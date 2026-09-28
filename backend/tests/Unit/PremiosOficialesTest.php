@@ -376,4 +376,45 @@ class PremiosOficialesTest extends TestCase
 
         $this->assertSame([], PremiosOficiales::configPara('juego-inexistente'));
     }
+
+    // ==================================================
+    // espejosLegacy(): espejos a partir de premios editados (D2)
+    // ==================================================
+
+    public function test_espejos_legacy_mapea_vocabulario_canonico_a_claves_historicas()
+    {
+        $espejo = PremiosOficiales::espejosLegacy('triple-zulia', [
+            'base' => 600,
+            'modalidades' => ['terminal' => 60, 'signo_triple' => 6000, 'signo_terminal' => 600],
+            'comodines' => [],
+        ]);
+
+        $this->assertSame(600, $espejo['premio_multiplo']);
+        $this->assertSame(['cola' => 60, 'zodiacal' => 6000, 'terminal_zodiacal' => 600], $espejo['modalidades']);
+        $this->assertSame([], $espejo['comodines']);
+    }
+
+    public function test_espejos_legacy_terminal_activo_deriva_clave_extra_de_base()
+    {
+        $espejo = PremiosOficiales::espejosLegacy('terminal-activo', [
+            'base' => 60,
+            'modalidades' => [],
+            'comodines' => [],
+        ]);
+
+        $this->assertSame(60, $espejo['premio_multiplo']);
+        $this->assertSame(['terminal' => 60], $espejo['modalidades']);
+    }
+
+    public function test_espejos_legacy_sin_base_no_emite_premio_multiplo()
+    {
+        $espejo = PremiosOficiales::espejosLegacy('la-ricachona', [
+            'modalidades' => [],
+            'comodines' => [],
+        ]);
+
+        $this->assertArrayNotHasKey('premio_multiplo', $espejo);
+        $this->assertSame([], $espejo['modalidades']);
+        $this->assertSame([], $espejo['comodines']);
+    }
 }
