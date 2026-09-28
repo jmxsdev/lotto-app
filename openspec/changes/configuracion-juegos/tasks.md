@@ -34,12 +34,12 @@ Delivery strategy: auto-chain
 
 ## S2: Snapshot por apuesta (~250 líneas)
 
-- [ ] 3.1 **RED**: `PremioSnapshotTest`: snapshot al vender, edición posterior no altera, pago usa snapshot, fallback legacy sin snapshot.
-- [ ] 3.2 **GREEN**: Migración `2026_09_28_000001_add_premios_snapshot_to_detalle_apuestas_table.php` — `premios_snapshot` JSON nullable `after('premio_ganado_usd')`. `DetalleApuesta`: fillable+cast `'array'`.
-- [ ] 3.3 **GREEN**: `ApuestaService::createApuesta()` persiste `premios_snapshot` en `DetalleApuesta::create`.
-- [ ] 3.4 **GREEN**: `PremiosEngine::calcular/premioPosible/multiplicadorPara/multiplicadorConComodines` + `JuegoPluginManager::calcularPremio` aceptan `?array $premios = null`.
-- [ ] 3.5 **GREEN**: `ApuestaService::verificarGanadores()` carga `with('detalles')`, pasa `premios_snapshot ?? null`. `PagoController::calcularPremio()` usa snapshot con fallback legacy.
-- [ ] 3.6 **REFACTOR**: `vendor/bin/pint --test` + `PremiosEngineTest` + `VerificarGanadoresTest` + `MotorPremiosRegresionTest`.
+- [x] 3.1 **RED**: `PremioSnapshotTest`: snapshot al vender, edición posterior no altera, pago usa snapshot, fallback legacy sin snapshot.
+- [x] 3.2 **GREEN**: Migración `2026_09_28_000001_add_premios_snapshot_to_detalle_apuestas_table.php` — `premios_snapshot` JSON nullable `after('premio_ganado_usd')`. `DetalleApuesta`: fillable+cast `'array'`.
+- [x] 3.3 **GREEN**: `ApuestaService::createApuesta()` persiste `premios_snapshot` en `DetalleApuesta::create`.
+- [x] 3.4 **GREEN**: `PremiosEngine::calcular/premioPosible/multiplicadorPara/multiplicadorConComodines` + `JuegoPluginManager::calcularPremio` aceptan `?array $premios = null`.
+- [x] 3.5 **GREEN**: `ApuestaService::verificarGanadores()` carga `with('detalles')`, pasa `premios_snapshot ?? null`. `PagoController::calcularPremio()` usa snapshot con fallback legacy.
+- [x] 3.6 **REFACTOR**: `vendor/bin/pint --test` + `PremiosEngineTest` + `VerificarGanadoresTest` + `MotorPremiosRegresionTest`.
 
 ## S3: Fix toggle + tests deuda + re-export (~100 líneas)
 

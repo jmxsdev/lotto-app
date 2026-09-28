@@ -1,12 +1,12 @@
-# Apply Progress: configuracion-juegos — Slices S1a + S1b
+# Apply Progress: configuracion-juegos — Slices S1a + S1b + S2
 
-**Cambio**: `configuracion-juegos` · **Slices completados**: S1a (servicio + endpoint + espejos + auditoría) y S1b (tests de integración end-to-end)
-**Ramas**: `feat/configuracion-juegos-s1a` (base: `feat/configuracion-juegos`, tracker con artefactos) · `feat/configuracion-juegos-s1b` (base: S1a)
+**Cambio**: `configuracion-juegos` · **Slices completados**: S1a (servicio + endpoint + espejos + auditoría), S1b (tests de integración end-to-end) y S2 (snapshot de premios por apuesta)
+**Ramas**: `feat/configuracion-juegos-s1a` (base: `feat/configuracion-juegos`, tracker con artefactos) · `feat/configuracion-juegos-s1b` (base: S1a) · `feat/configuracion-juegos-s2` (base: S1b)
 **Fecha**: 2026-09-28 · **Modo**: Strict TDD (RED → GREEN → REFACTOR)
 
 ## Estado
 
-`success` — S1a completo (5/5 tareas) + S1b completo (3/3 tareas). S2/S3/S4 sin tocar.
+`success` — S1a completo (5/5 tareas) + S1b completo (3/3 tareas) + S2 completo (6/6 tareas). S3/S4 sin tocar.
 
 ## TDD Cycle Evidence
 
@@ -140,3 +140,87 @@ NO push (regla del slice; PR #2 de la feature-branch-chain lo hará el orchestra
 
 - S2 (snapshot por apuesta): migración + venta con snapshot + override motor/manager + liquidación/pago + `PremioSnapshotTest`.
 - S3 (fix toggle + deuda tests + nota re-export), S4 (editor P2 en panel) — fuera de este slice.
+
+---
+
+# Slice S2 — Snapshot de premios por apuesta (sin retroactividad)
+
+**Rama**: `feat/configuracion-juegos-s2` (base: `feat/configuracion-juegos-s1b`)
+**Fecha**: 2026-09-28 · **Modo**: Strict TDD
+
+## Estado
+
+`success` — S2 completo (6/6 tareas). La venta persiste `config.premios` vigente como
+`detalle_apuestas.premios_snapshot`; el motor (`PremiosEngine`) y el manager (`JuegoPluginManager`)
+aceptan un override opcional `?array $premios = null` (null → `config.premios` actual); la liquidación
+(`verificarGanadores`) y el pago (`PagoController::calcularPremio`) resuelven contra el snapshot con
+fallback legacy. Cero cambios en S3/S4 (toggle/panel) — fuera de alcance.
+
+## TDD Cycle Evidence (S2)
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| 3.1 | `tests/Feature/PremioSnapshotTest.php` (nuevo, 5) + `tests/Unit/PremiosEngineTest.php` (+4) | Integration + Unit | ✅ 112/112 (PremiosEngineTest 21, VerificarGanadoresTest 5, ApuestaServiceTest 21, PagoPremioSinMontosTest 4, ModalidadesSingleDrawTest 21, JuegoPremiosApiTest 15, ApuestaTest 19, JuegosJsonTest 5, MotorPremiosRegresionTest subset 1) | ✅ 9 tests escritos primero; run inicial: 5 fallos + 2 errores (7 RED reales: columna ausente → null; override ignorado → config actual 600/2000 en vez de snapshot 500/3000/400; pago 201 en vez de 422) + 2 approval verdes (sin override = default; legacy sin snapshot = config actual) | ✅ 30/30 (25 engine + 5 snapshot) | ✅ 5 casos flujo completo: persistencia, edición→liquidación (50× no 60×), pago snapshot (422 monto nuevo / 201 sin montos), fallback legacy (600× config actual), comodines congelados (50+20=70× no 600); +3 casos unit override (base, comodines, premioPosible/multiplicadorPara) | ✅ Pint `--test` limpio (fix automático en migración + test nuevo) |
+| 3.2 | Migración (no test directo; cubierta por `PremioSnapshotTest`) | — | ✅ N/A (columna nueva) | ✅ RED 3.1 depende de la columna (`null does not match expected type array`) | ✅ Migración `2026_09_28_000001_add_premios_snapshot_to_detalle_apuestas_table.php` (json nullable `after('premio_ganado_usd')`, down drop) + `DetalleApuesta` fillable+cast `array` | ✅ Verificada por los 5 tests del flujo real (RefreshDatabase migra y siembra) | ✅ Pint |
+| 3.3 | `tests/Unit/ApuestaServiceTest.php` (approval, sin modificar) + `PremioSnapshotTest::test_venta_persiste_snapshot...` | Integration | ✅ 21/21 (ApuestaServiceTest) | ✅ `premios_snapshot` null al vender (RED 3.1) | ✅ `createApuesta()` añade `'premios_snapshot' => $juego->config['premios'] ?? null` en `DetalleApuesta::create` | ✅ Monje (con premios) snapshot completo; null cuando no hay premios (legacy-safe) | ✅ Pint |
+| 3.4 | `tests/Unit/PremiosEngineTest.php` (+4) | Unit | ✅ 21/21 previos del archivo | ✅ override ignorado: `calcular` devolvía 600 (config) en vez de 500 (snapshot); comodín 600 en vez de 400; `premioPosible` 2000 en vez de 3000 | ✅ `calcular/premioPosible/multiplicadorPara/multiplicadorConComodines` + `JuegoPluginManager::calcularPremio` aceptan `?array $premios = null`; con valor reemplaza `config.premios` (incl. comodines); default intacto | ✅ 3 casos override + 1 approval default (600 sin override) | ✅ Pint |
+| 3.5 | `tests/Feature/VerificarGanadoresTest.php` (approval 5/5) + `PremioSnapshotTest` (flujo) + `PagoPremioSinMontosTest` (approval 4/4) | Integration | ✅ 5/5 + 4/4 | ✅ pago con monto del config nuevo → 201 (debía 422: el snapshot no manda aún) | ✅ `verificarGanadores` con `with('detalles')` pasa `premios_snapshot ?? null`; `PagoController::store` eager-loads `detalles` y `calcularPremio()` usa `detalles->first()?->premios_snapshot` | ✅ 3 vías: liquidación snapshot (500), pago snapshot (422/201), legacy (600) | ✅ Pint |
+| 3.6 | Suite S2 completa + regresión | REFACTOR | ✅ 112/112 baseline | N/A | N/A | N/A | ✅ Pint `--test` passed; focused `PremioSnapshotTest\|PremiosEngineTest` 30/30; regresión `JuegoPremiosApiTest\|JuegosJsonTest\|ModalidadesSingleDrawTest\|VerificarGanadoresTest\|PremioSnapshotTest` 51/51 (874 assertions); `MotorPremiosRegresionTest` 30/30; `ApuestaTest` 19/19; `ApuestaServiceTest` 21/21; `PagoPremioSinMontosTest` 4/4 |
+
+## Test Summary (S2)
+
+- **Total tests escritos en S2**: 9 (5 `PremioSnapshotTest` + 4 `PremiosEngineTest`)
+- **Total tests pasando (focused)**: 30/30 — `PremioSnapshotTest` (5) + `PremiosEngineTest` (25) — 51 assertions
+- **Regresión**: 51/51 — `JuegoPremiosApiTest\|JuegosJsonTest\|ModalidadesSingleDrawTest\|VerificarGanadoresTest\|PremioSnapshotTest` — 874 assertions
+- **MotorPremiosRegresionTest**: 30/30 — 59 assertions (contrato del motor intacto con override default)
+- **Layers**: Integration (5), Unit (4)
+- **Approval tests**: 3 — default sin override (engine), fallback legacy (snapshot), pago legacy (PagoPremioSinMontosTest re-verde)
+- **Pure functions creadas**: 0 — el override es un parámetro opcional propagado (D4)
+
+## Files Changed (S2)
+
+| File | Action | What Was Done |
+|------|--------|---------------|
+| `backend/database/migrations/2026_09_28_000001_add_premios_snapshot_to_detalle_apuestas_table.php` | Created | `premios_snapshot` json nullable `after('premio_ganado_usd')`; `down()` drop |
+| `backend/app/Models/DetalleApuesta.php` | Modified | fillable + cast `array` para `premios_snapshot` |
+| `backend/app/Services/ApuestaService.php` | Modified | `createApuesta()` persiste `premios_snapshot`; `verificarGanadores()` con `with('detalles')` pasa `premios_snapshot ?? null` al motor |
+| `backend/app/Services/PremiosEngine.php` | Modified | `calcular/premioPosible/multiplicadorPara/multiplicadorConComodines` aceptan `?array $premios = null` (override de `config.premios`, incl. comodines) |
+| `backend/app/Services/JuegoPluginManager.php` | Modified | `calcularPremio()` acepta `?array $premios = null` y lo propaga al engine |
+| `backend/app/Http/Controllers/Api/PagoController.php` | Modified | `store()` eager-loads `detalles`; `calcularPremio()` usa `detalles->first()?->premios_snapshot` (fallback legacy null) |
+| `backend/tests/Feature/PremioSnapshotTest.php` | Created | 5 tests flujo completo (persistencia, liquidación snapshot, pago snapshot, legacy, comodines congelados) |
+| `backend/tests/Unit/PremiosEngineTest.php` | Modified | +4 tests override de premios (base, comodines, premioPosible/multiplicadorPara, default) |
+| `openspec/changes/configuracion-juegos/tasks.md` | Modified | S2 marcada `[x]` (3.1–3.6) |
+| `openspec/changes/configuracion-juegos/apply-progress.md` | Modified | Merge: secciones S1a/S1b intactas + sección S2 añadida |
+
+## Work Unit Evidence (S2)
+
+| Evidence | Required value |
+|---|---|
+| Focused test command and exact result | `DB_DATABASE=lotto_test_motor php artisan test --filter='PremioSnapshotTest\|PremiosEngineTest'` → `passed`, 30 tests, 51 assertions |
+| Runtime harness command/scenario and exact result | Flujo real HTTP + servicio + BD sembrada (DatabaseSeeder): vender (ApuestaService::createApuesta, snapshot base 50) → `PUT /api/v1/juegos/{id}/premios` base 60 (S1a) → resultado → `verificarGanadores` liquida 500 (10×50 snapshot, NO 600) → pago egreso con monto 600 → 422 `premio_esperado_bs=500`; sin montos → 201 premio 500. Legacy sin snapshot → 600 (config actual). Comodín PATRONUS del snapshot → 700 (50+20×) tras edición sin comodines. 5 escenarios end-to-end ejecutados |
+| Rollback boundary | `php artisan migrate:rollback --step=1` (drop `premios_snapshot`) + revertir call sites (`createApuesta`/`verificarGanadores`/`PagoController`/engine/manager): el parámetro es opcional y null → comportamiento legacy exacto (probado por approval tests) |
+
+## Commits (S2)
+
+| Hash | Mensaje | Contenido |
+|------|---------|-----------|
+| (ver `git log`) | `feat(premios): snapshot por apuesta` | Migración + modelo + servicio + motor/manager + pago + 9 tests (8 archivos) |
+| (ver `git log`) | `docs(sdd): cierre del slice S2 de configuracion-juegos` | `tasks.md` `[x]` + `apply-progress.md` merge |
+
+NO push (regla del slice; PR #3 de la feature-branch-chain lo hará el orchestrator).
+
+## Deviations (S2)
+
+- Ninguna de diseño (D4 respetado: nombre de migración, JSON nullable, parámetro opcional, comodines incluidos en el override). El prompt resumía `PremiosEngine::calcular(..., ?array $premios = null)`; tasks.md exige también `premioPosible/multiplicadorPara/multiplicadorConComodines` — implementado según tasks/design (los 4 métodos).
+- Nombre del test: `PremioSnapshotTest` (contrato tasks.md 3.1), no `JuegoPremiosSnapshotTest` (el prompt pedía ajustar al set real definido en tasks — el filtro de regresión usa el nombre real).
+- `multiplicadorPara` con override sin `base` cae al fallback transicional `premio_multiplo` legacy (mismo criterio que el default); los snapshots siempre traen base validada, así que no afecta.
+
+## Issues (S2)
+
+- Ninguno. Los 7 fallos/errores RED fueron el estado esperado (columna ausente + override ignorado). Pint corrigió estilo en la migración y el test nuevo (class_definition, EOF) — sin cambio de comportamiento.
+- Nota de runtime: `MotorPremiosRegresionTest` (30 tests, RefreshDatabase+DatabaseSeeder por test) tarda ~3,5 min; los runs individuales pueden variar según caché.
+
+## Next Steps (tras S2)
+
+- S3 (fix toggle + deuda tests + nota re-export), S4 (editor P2 en panel) — fuera de este slice.
+- S2 listo para el PR #3 de la feature-branch-chain (base: PR #2 S1b).
