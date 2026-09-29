@@ -15,7 +15,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     .type-badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; background: #e0e7ff; color: #3730a3; }
   </style>
   <script>
-    import { apiFetch } from '../utils/api.ts'; import { icono } from '../utils/iconos.ts';
+    import { apiFetch } from '../utils/api.ts'; import { icono } from '../utils/iconos.ts'; import { showModal } from '../utils/modal.ts';
     let games = [];
     async function load() {
       try { games = await apiFetch('GET','/juegos'); render(); } catch(e) { document.getElementById('content').innerHTML = '<div class="loading">Error: '+e.message+'</div>'; }
@@ -28,7 +28,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     document.getElementById('content').addEventListener('click', async (e) => {
       const badge = e.target.closest('.badge'); if (!badge) return;
       const id = parseInt(badge.dataset.id); const active = badge.dataset.active === 'true';
-      try { await apiFetch('PATCH','/juegos/'+id+'/toggle'); load(); } catch(err) {}
+      try { await apiFetch('PATCH','/juegos/'+id+'/toggle',{active:!active}); load(); } catch (err) { await showModal({ message: err.message, type: 'error' }); }
     });
     load();
   </script>

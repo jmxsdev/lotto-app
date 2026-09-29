@@ -66,6 +66,11 @@ import Icon from '../components/ui/Icon.astro';
         .triple-badge.triple-c { background: #fff3e0; color: #e65100; border: 1px solid #ffcc80; }
         .signo-badge { display: inline-block; padding: 3px 10px; border-radius: 6px; font-weight: 700; font-size: 13px; background: #f3e5f5; color: #7b1fa2; border: 1px solid #ce93d8; }
         .color-swatch { display: inline-block; width: 24px; height: 24px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.15); vertical-align: middle; }
+        .result-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 6px; font-weight: 700; font-size: 13px; margin-right: 4px; margin-bottom: 2px; border: 1px solid #d8dbe8; background: #f4f6fb; color: #4a4f63; }
+        .result-badge svg { width: 14px; height: 14px; flex-shrink: 0; }
+        .result-badge .badge-emoji { font-size: 14px; line-height: 1; }
+        .result-badge.badge-mega { background: #fff8e1; color: #8a6d00; border-color: #f0df9e; }
+        .result-badge.badge-patronus { background: #f3e5f5; color: #6a1b9a; border-color: #ce93d8; }
         .btn-ganadores { background: none; border: 1px solid transparent; cursor: pointer; font-size: 20px; padding: 4px 8px; border-radius: 8px; transition: all .2s ease; display: inline-flex; }
         .btn-ganadores svg { width: 18px; height: 18px; }
         .resultados-table thead svg { width: 16px; height: 16px; vertical-align: -2px; }
@@ -79,6 +84,11 @@ import Icon from '../components/ui/Icon.astro';
     <script>
         import { apiFetch } from '../utils/apiFetch';
         import { icono } from '../utils/iconos';
+        import { badgesResultado } from '../utils/resultados';
+        import { cargarCatalogo } from '../utils/catalogo';
+        import juegosRaw from '../data/juegos.json';
+
+        const catalogo = cargarCatalogo(juegosRaw);
 
         let currentPage = 1;
         let lastPage = 1;
@@ -149,7 +159,9 @@ import Icon from '../components/ui/Icon.astro';
                     const juego = (r.juego?.name || '').toLowerCase();
                     const triples = ['triple_a','triple_b','triple_c'].map(k => g[k] || '').join(' ');
                     const nums = String(g.numero ?? '');
-                    const all = [juego, animal, signo, nums, triples].join(' ');
+                    const opciones = catalogo.porSlug.get(r.juego?.slug)?.opciones ?? [];
+                    const badges = badgesResultado(g, opciones).map(b => b.texto).join(' ');
+                    const all = [juego, animal, signo, nums, triples, badges].join(' ');
                     return all.includes(searchTerm);
                 });
             }
@@ -190,6 +202,18 @@ import Icon from '../components/ui/Icon.astro';
                         numerosHtml = parts.length > 0 ? parts.join('') : '<span style="color:#999;font-style:italic">Pendiente</span>';
                     } else {
                         numerosHtml = g.numero !== undefined ? `<span class="numero-ganador">#${String(g.numero).padStart(2,'0')}</span>` : '<span style="color:#999;font-style:italic">Pendiente</span>';
+                    }
+
+                    // Claves nuevas del motor (TQ-04): figuras[]/comodín/patronus/arrimao/pegadito.
+                    const opciones = catalogo.porSlug.get(r.juego?.slug)?.opciones ?? [];
+                    const badges = badgesResultado(g, opciones);
+                    if (badges.length > 0) {
+                        const badgesHtml = badges.map(b => {
+                            const clase = b.icono === 'gem' ? ' badge-mega' : (b.icono === 'crown' ? ' badge-patronus' : '');
+                            const emoji = b.emoji ? `<span class="badge-emoji">${b.emoji}</span>` : '';
+                            return `<span class="result-badge${clase}">${b.svg}${emoji} ${b.texto}</span>`;
+                        }).join('');
+                        numerosHtml = numerosHtml.replace('Pendiente', '') + badgesHtml;
                     }
 
                     html += `<tr>

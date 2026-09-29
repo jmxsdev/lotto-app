@@ -49,6 +49,14 @@ export interface JuegoCatalogo {
    */
   active: boolean;
   vendible: boolean;
+  /**
+   * `premios` crudo del contrato del motor (D1): `null` en juegos no
+   * activos/vendibles (la-ricachona). NO es la vista normalizada: consultar
+   * SIEMPRE vía `premios(juego)`/`modalidadesDe(juego)` (`[]`/`null`→vacío).
+   * Los espejos legacy top-level (`modalidades`, `comodines`) usan otras
+   * claves (`cola`, `zodiacal`, `signo`…) y no sirven para modalidades.
+   */
+  premios: unknown;
   comodines: Record<string, unknown> | null;
   modalidades: Record<string, unknown> | null;
   horarios: string[];
@@ -62,6 +70,19 @@ export interface Catalogo {
   juegos: JuegoCatalogo[];
   porId: Map<number, JuegoCatalogo>;
   porSlug: Map<string, JuegoCatalogo>;
+}
+
+/**
+ * Premios canónicos del motor (D1, design §4): `{base, modalidades, comodines}`.
+ * `base` es el multiplicador del juego (null sin premios); `modalidades` mapea
+ * la clave canónica → multiplicador; `comodines` es array (sin comodines) o
+ * mapa de comodines (patronus, MEGA, comodin-a…). Resultado de
+ * `normalizarPremios` ([]/null → vacío); NO incluye espejos legacy.
+ */
+export interface PremiosCatalogo {
+  base: number | null;
+  modalidades: Record<string, unknown>;
+  comodines: unknown[] | Record<string, unknown>;
 }
 
 export interface BuscadorDigitos {
@@ -187,6 +208,7 @@ export function cargarCatalogo(raw: unknown): Catalogo {
       premio_multiplo: juego.premio_multiplo as number | null,
       active,
       vendible,
+      premios: juego.premios,
       comodines: (juego.comodines as Record<string, unknown> | null) ?? null,
       modalidades: (juego.modalidades as Record<string, unknown> | null) ?? null,
       horarios: juego.horarios as string[],
@@ -198,6 +220,44 @@ export function cargarCatalogo(raw: unknown): Catalogo {
   const porId = new Map<number, JuegoCatalogo>(juegos.map((j) => [j.id, j]));
   const porSlug = new Map<string, JuegoCatalogo>(juegos.map((j) => [j.slug, j]));
   return { version: fuente.version as number, juegos, porId, porSlug };
+}
+
+/**
+ * Normaliza el campo `premios` del contrato del motor (D1): `null`, `[]`,
+ * ausente o no-objeto → vacío `{base: null, modalidades: {}, comodines: []}`;
+ * `modalidades` en `[]` (p. ej. monje-millonario) → `{}`. NO inventa
+ * multiplicadores: `base` se conserva tal cual (null si no es número).
+ */
+export function normalizarPremios(raw: unknown): PremiosCatalogo {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return { base: null, modalidades: {}, comodines: [] };
+  }
+  const fuente = raw as Record<string, unknown>;
+  const base = esNumero(fuente.base) ? (fuente.base as number) : null;
+  const modalidades =
+    typeof fuente.modalidades === 'object' && fuente.modalidades !== null && !Array.isArray(fuente.modalidades)
+      ? (fuente.modalidades as Record<string, unknown>)
+      : {};
+  const comodines =
+    typeof fuente.comodines === 'object' && fuente.comodines !== null
+      ? (fuente.comodines as unknown[] | Record<string, unknown>)
+      : [];
+  return { base, modalidades, comodines };
+}
+
+/**
+ * Premios normalizados del juego (D1): `[]`/`null` → vacío. Fuente canónica
+ * de multiplicadores y opciones de modalidad (design §3.1); los espejos
+ * legacy top-level (`cola`, `zodiacal`, `signo`, `triple_a_o_b`…) no sirven.
+ */
+export function premios(juego: JuegoCatalogo): PremiosCatalogo {
+  return normalizarPremios(juego.premios);
+}
+
+/** Claves canónicas de modalidad del juego (design §4): las de
+ * `premios.modalidades` normalizado. NO incluye espejos legacy. */
+export function modalidadesDe(juego: JuegoCatalogo): string[] {
+  return Object.keys(premios(juego).modalidades);
 }
 
 /**

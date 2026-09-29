@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
  * Harness [Lin] del módulo puro catalogo.ts — PR1 (REQ-CL-01..03, A5).
- * Crece en PR2 (grafos de zonas), PR3b (calcularVuelto) y atajos-2026-09
- * (re-mapeo del KEYMAP + helpers de la anulación F10).
+ * Crece en PR2 (grafos de zonas), PR3b (calcularVuelto), atajos-2026-09
+ * (re-mapeo del KEYMAP + helpers de la anulación F10) y S1 front-1-0-0
+ * (pagos.ts: payload egreso, moneda derivada, esPagableTicket, premio).
  *
  * Ejecutar desde la raíz del repo:
  *   node taquilla/scripts/check-pure.mjs
@@ -22,6 +23,9 @@ import {
   normalizarNumeroTriple,
   siglaDeSigno,
   labelDeSigno,
+  premios,
+  modalidadesDe,
+  normalizarPremios,
 } from '../src/utils/catalogo.ts';
 import { buildZoneGraph, routeKey, KEYMAP, esFKey, zonaHorizontal, zonaPendienteSeleccion } from '../src/utils/keyboard.ts';
 import {
@@ -47,6 +51,24 @@ import {
 import { calcularVuelto } from '../src/utils/vuelto.ts';
 import { indiceDestinoFila, indiceDestinoColumna } from '../src/utils/gridNav.ts';
 import { formatearJugada, nombresJuegos, labelModalidad } from '../src/utils/ticket.ts';
+import {
+  monedaDeApuesta,
+  esPagableApuesta,
+  payloadPago,
+  esPagableTicket,
+  acumularPremio,
+} from '../src/utils/pagos.ts';
+import { estadoTicket } from '../src/utils/estados.ts';
+import { badgesResultado } from '../src/utils/resultados.ts';
+import {
+  modalidadesDisponibles,
+  validarDigitos,
+  construirCombinacion,
+  construirCombinacionMulti,
+  construirTripleta,
+  alternarSeleccionAnimal,
+  DEFS,
+} from '../src/utils/modalidades.ts';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const rutaJson = join(AQUI, '..', 'src', 'data', 'juegos.json');
@@ -709,6 +731,49 @@ const ricachona = catalogo.porSlug.get('la-ricachona');
 ok(ricachona.familia === 'zodiacal' && ricachona.opciones.length === 0, 'la-ricachona: inactiva, sin opciones (zodiacal por tipo)');
 ok(ricachona.active === false && ricachona.vendible === false, 'la-ricachona: active=false/vendible=false (motor-premios)');
 ok(ricachona.premio_multiplo === null, 'la-ricachona: premio_multiplo null (motor-premios)');
+
+console.log('\n== S2 TQ-06: premios normalizados del catálogo (D1) ==');
+// D1: `catalogo.ts` expone `premios {base, modalidades, comodines}` normalizado
+// ([]/null → vacío). Los espejos legacy top-level (`cola`, `zodiacal`, `signo`,
+// `triple_a_o_b`…) NO son la fuente canónica de modalidades (design §3.1).
+const VACIO = { base: null, modalidades: {}, comodines: [] };
+ok(JSON.stringify(normalizarPremios(null)) === JSON.stringify(VACIO), 'normalizarPremios(null) → vacío');
+ok(JSON.stringify(normalizarPremios([])) === JSON.stringify(VACIO), 'normalizarPremios([]) → vacío');
+ok(JSON.stringify(normalizarPremios(undefined)) === JSON.stringify(VACIO), 'normalizarPremios(undefined) → vacío (legado sin premios)');
+ok(
+  JSON.stringify(normalizarPremios({ base: 30, modalidades: { punta: 60 }, comodines: [] })) ===
+    JSON.stringify({ base: 30, modalidades: { punta: 60 }, comodines: [] }),
+  'normalizarPremios: objeto canónico pasa intacto',
+);
+ok(
+  JSON.stringify(normalizarPremios({ base: 30, modalidades: [], comodines: [] }).modalidades) === '{}',
+  'normalizarPremios: modalidades [] → {}',
+);
+ok(premios(lottoActivo).base === 30 && premios(lottoActivo).base === lottoActivo.premio_multiplo, 'lotto-activo: premios(juego).base 30× (espejo de premio_multiplo)');
+const conBase = catalogo.juegos.filter((j) => typeof premios(j).base === 'number' && premios(j).base > 0).length;
+ok(conBase === 20, `20/21 juegos con premios.base no vacío (${conBase})`);
+ok(premios(ricachona).base === null && Object.keys(premios(ricachona).modalidades).length === 0, 'la-ricachona: premios normalizados vacíos (base null)');
+ok(ricachona.vendible === false && ricachona.premios === null, 'la-ricachona: vendible=false y premios crudo null (D1)');
+const zuliaPremios = premios(catalogo.porSlug.get('triple-zulia'));
+ok(
+  JSON.stringify(modalidadesDe(catalogo.porSlug.get('triple-zulia'))) === JSON.stringify(['terminal', 'signo_triple', 'signo_terminal']),
+  'modalidadesDe(zulia) → claves canónicas [terminal, signo_triple, signo_terminal]',
+);
+ok(zuliaPremios.modalidades.terminal === 60 && zuliaPremios.modalidades.signo_triple === 6000 && zuliaPremios.modalidades.signo_terminal === 600, 'zulia: multiplicadores canónicos desde premios.modalidades');
+ok(!('cola' in zuliaPremios.modalidades) && !('zodiacal' in zuliaPremios.modalidades), 'zulia: NO expone espejos legacy (cola/zodiacal)');
+const chanceMods = modalidadesDe(catalogo.porSlug.get('triple-chance'));
+ok(
+  chanceMods.includes('signo_solo') && chanceMods.includes('triple_a_b') &&
+    !chanceMods.includes('signo') && !chanceMods.includes('triple_a_o_b') && !chanceMods.includes('triple_c_signo'),
+  'chance: claves canónicas (signo_solo/triple_a_b) sin espejos legacy (signo/triple_a_o_b/triple_c_signo)',
+);
+ok(modalidadesDe(catalogo.porSlug.get('lotto-activo')).length === 0, 'lotto-activo: sin modalidades → []');
+const monje = catalogo.porSlug.get('monje-millonario');
+ok(modalidadesDe(monje).length === 0 && Object.keys(premios(monje).modalidades).length === 0, 'monje: premios.modalidades crudo [] → {} (modalidadesDe [])');
+ok(
+  premios(monje).comodines && typeof premios(monje).comodines === 'object' && !Array.isArray(premios(monje).comodines) && 'patronus-75' in premios(monje).comodines,
+  'monje: comodines objeto canónico conservado (patronus-75)',
+);
 ok(siglaDeSigno(catalogo.porSlug.get('triple-zulia'), 'Sagitario') === 'SAG', 'triple-zulia "Sagitario" → SAG');
 ok(siglaDeSigno(catalogo.porSlug.get('el-arrejuntado'), 'Aries') === 'ARI', 'el-arrejuntado "Aries" → ARI (cubierto)');
 ok(siglaDeSigno(catalogo.porSlug.get('triple-zulia'), 'Inexistente') === null, 'label inexistente → null');
@@ -850,6 +915,426 @@ ok(
 );
 ok(ultimoTicketPendiente([{ id: 5, estado: 'pendiente', created_at: 'fecha-inválida' }]).id === 5, 'created_at inválido → cae al id');
 ok(ticketsApi.length === 4 && ticketsApi[0].id === 3, 'ultimoTicketPendiente no muta la lista original');
+
+console.log('\n== S1 pagos: monedaDeApuesta (D4: Bs→bs, $→usd, ambas→mixto) ==');
+ok(monedaDeApuesta({ amount_bs: 10, amount_usd: 0 }) === 'bs', 'solo Bs → bs');
+ok(monedaDeApuesta({ amount_bs: 0, amount_usd: 5 }) === 'usd', 'solo $ → usd');
+ok(monedaDeApuesta({ amount_bs: 10, amount_usd: 5 }) === 'mixto', 'Bs + $ → mixto');
+ok(monedaDeApuesta({ amount_bs: 0, amount_usd: 0 }) === 'bs', 'sin montos → bs (moneda base)');
+ok(monedaDeApuesta({}) === 'bs', 'apuesta sin montos → bs');
+ok(monedaDeApuesta(null) === 'bs', 'apuesta nula → bs (defensivo)');
+
+console.log('\n== S1 pagos: esPagableApuesta (ganadora o pendiente con resultado) ==');
+ok(esPagableApuesta({ estado: 'ganadora', resultado_id: 7 }) === true, 'ganadora con resultado → pagable');
+ok(esPagableApuesta({ estado: 'ganadora' }) === true, 'ganadora → pagable (P0: el backend la exige)');
+ok(esPagableApuesta({ estado: 'pendiente', resultado_id: 7 }) === true, 'pendiente con resultado_id → pagable (legacy)');
+ok(esPagableApuesta({ estado: 'pendiente' }) === false, 'pendiente sin resultado → NO pagable');
+ok(esPagableApuesta({ estado: 'perdida' }) === false, 'perdida → NO pagable');
+ok(esPagableApuesta({ estado: 'pagada' }) === false, 'pagada → NO pagable');
+ok(esPagableApuesta({ estado: 'vencido' }) === false, 'vencido → NO pagable');
+ok(esPagableApuesta(null) === false, 'apuesta nula → NO pagable');
+
+console.log('\n== S1 pagos: payloadPago exacto (D4: {apuesta_id, tipo:egreso, moneda}, SIN montos) ==');
+const payloadBs = payloadPago({ id: 123, amount_bs: 10, amount_usd: 0 });
+ok(
+  JSON.stringify(payloadBs) === JSON.stringify({ apuesta_id: 123, tipo: 'egreso', moneda: 'bs' }),
+  `payload exacto Bs (${JSON.stringify(payloadBs)})`,
+);
+ok(!('amount_bs' in payloadBs) && !('amount_usd' in payloadBs), 'payload sin montos (el backend aplica el premio del motor)');
+ok(
+  JSON.stringify(payloadPago({ id: 456, amount_bs: 0, amount_usd: 5 })) ===
+    JSON.stringify({ apuesta_id: 456, tipo: 'egreso', moneda: 'usd' }),
+  'payload exacto USD',
+);
+ok(
+  JSON.stringify(payloadPago({ id: 789, amount_bs: 10, amount_usd: 5 })) ===
+    JSON.stringify({ apuesta_id: 789, tipo: 'egreso', moneda: 'mixto' }),
+  'payload exacto mixto',
+);
+
+console.log('\n== S1 pagos: esPagableTicket (P0: ticket ganador con ganadora sin pagar) ==');
+ok(
+  esPagableTicket({ estado: 'ganador', apuestas: [{ estado: 'ganadora', resultado_id: 7 }, { estado: 'pagada' }] }) === true,
+  'ticket ganador con apuesta ganadora sin pagar → pagable (P0)',
+);
+ok(
+  esPagableTicket({ estado: 'pendiente', apuestas: [{ estado: 'ganadora', resultado_id: 7 }] }) === true,
+  'ticket pendiente con ganadora → pagable',
+);
+ok(
+  esPagableTicket({ estado: 'pendiente', apuestas: [{ estado: 'pendiente', resultado_id: 7 }] }) === true,
+  'ticket pendiente con apuesta pendiente+resultado → pagable (legacy)',
+);
+ok(esPagableTicket({ estado: 'pagada', apuestas: [{ estado: 'pagada' }] }) === false, 'ticket pagada → NO pagable');
+ok(
+  esPagableTicket({ estado: 'pendiente', apuestas: [{ estado: 'perdida' }] }) === false,
+  'ticket pendiente sin apuestas pagables → NO pagable',
+);
+ok(
+  esPagableTicket({ estado: 'ganador', apuestas: [{ estado: 'pagada' }] }) === false,
+  'ticket ganador con todas pagadas → NO pagable',
+);
+ok(esPagableTicket({ estado: 'ganador', apuestas: [] }) === false, 'ticket sin apuestas → NO pagable');
+ok(esPagableTicket({ estado: 'ganador' }) === false, 'ticket sin clave apuestas → NO pagable');
+ok(esPagableTicket(null) === false, 'ticket nulo → NO pagable');
+
+console.log('\n== S1 pagos: acumularPremio (suma response.premio) ==');
+const premioTotal = acumularPremio([
+  { premio: { premio_bs: 1500, premio_usd: 0 } },
+  { premio: { premio_bs: 0, premio_usd: 5 } },
+  { premio: { premio_bs: 500, premio_usd: 2.5 } },
+]);
+ok(premioTotal.premio_bs === 2000 && premioTotal.premio_usd === 7.5, `suma Bs y $ entre respuestas (${JSON.stringify(premioTotal)})`);
+ok(acumularPremio([]).premio_bs === 0 && acumularPremio([]).premio_usd === 0, 'sin respuestas → 0/0');
+ok(
+  acumularPremio([null, { premio: null }, { premio: { premio_bs: 10, premio_usd: 0 } }]).premio_bs === 10,
+  'respuestas sin premio se ignoran y no rompen la suma',
+);
+
+console.log('\n== S3 TQ-02/TQ-03: estadoTicket — tabla de verdad (design §7) ==');
+// Chips `ganador`/`vencido`; "resuelto sin ganadores" SOLO si no hay apuestas
+// pendiente/ganadora Y tiene_ganadores=false; nunca inventa (cae al estado real).
+ok(
+  estadoTicket({ estado: 'ganador', tiene_ganadores: true, apuestas: [{ estado: 'ganadora' }] }) === 'ganador',
+  'ticket ganador con ganadora sin pagar → chip ganador (abierto, P0)',
+);
+ok(
+  estadoTicket({ estado: 'vencido', tiene_ganadores: true, apuestas: [{ estado: 'vencido' }] }) === 'vencido',
+  'ticket vencido con premio no cobrado (tiene_ganadores=true) → chip vencido, NO resuelto',
+);
+ok(
+  estadoTicket({ estado: 'pendiente', tiene_ganadores: false, apuestas: [{ estado: 'perdida' }, { estado: 'vencido' }] }) === 'resuelto-sin-ganadores',
+  'apuestas perdida/vencido + tiene_ganadores=false → resuelto sin ganadores',
+);
+ok(
+  estadoTicket({ estado: 'pendiente', tiene_ganadores: false, apuestas: [{ estado: 'pendiente' }] }) === 'pendiente',
+  'apuesta pendiente real → NO se deriva resuelto (estado real)',
+);
+ok(
+  estadoTicket({ estado: 'pendiente', tiene_ganadores: false, apuestas: [{ estado: 'ganadora' }] }) === 'pendiente',
+  'apuesta ganadora sin pagar → NO se deriva resuelto (ticket abierto)',
+);
+ok(
+  estadoTicket({ estado: 'pendiente' }) === 'pendiente',
+  'sin clave apuestas → cae al estado real (nunca inventa)',
+);
+ok(
+  estadoTicket({ estado: 'pagada', apuestas: [{ estado: 'pagada' }] }) === 'pagada',
+  'sin tiene_ganadores → cae al estado real (nunca inventa)',
+);
+ok(
+  estadoTicket({ estado: 'anulada', apuestas: [] }) === 'anulada',
+  'apuestas vacías → cae al estado real (nunca inventa)',
+);
+ok(estadoTicket(null) === '', 'ticket nulo → sin estado');
+
+console.log('\n== S4 TQ-04: badgesResultado — figuras (trophy + animal + #numero + emoji catálogo) ==');
+const monjeOpciones = catalogo.porSlug.get('monje-millonario').opciones;
+const bFiguras = badgesResultado(
+  { figuras: [{ animal: 'Delfín', numero: 0 }, { nombre_animal: 'Perro', numero: 27 }] },
+  monjeOpciones,
+);
+ok(bFiguras.length === 2, `2 figuras → 2 badges (${bFiguras.length})`);
+ok(bFiguras[0].icono === 'trophy' && bFiguras[0].texto === 'Delfín #0', `figura 1: trophy + 'Delfín #0' (${bFiguras[0].texto})`);
+ok(bFiguras[0].emoji === '🐬', `figura 1: emoji del catálogo para Delfín (${bFiguras[0].emoji})`);
+ok(bFiguras[1].icono === 'trophy' && bFiguras[1].texto === 'Perro #27' && bFiguras[1].emoji === '🐶', `figura 2: nombre_animal 'Perro #27' + emoji 🐶 (${bFiguras[1].texto})`);
+const bFigSinEmoji = badgesResultado({ figuras: [{ animal: 'Unicornio', numero: 88 }] }, monjeOpciones);
+ok(bFigSinEmoji.length === 1 && bFigSinEmoji[0].texto === 'Unicornio #88' && !('emoji' in bFigSinEmoji), 'figura cuyo label NO matchea opciones → sin emoji');
+const bFigSinOpciones = badgesResultado({ figuras: [{ animal: 'Delfín', numero: 0 }] });
+ok(bFigSinOpciones.length === 1 && !('emoji' in bFigSinOpciones[0]), 'sin opciones pasadas → sin emoji (defensivo)');
+ok(badgesResultado({ figuras: [{ numero: 7 }] }).length === 0, 'figura sin animal/nombre_animal → se omite');
+
+console.log('\n== S4 TQ-04: badgesResultado — comodín (gem: true→MEGA, A/B + nombre) ==');
+const bComodin = badgesResultado({ comodin: true });
+ok(bComodin.length === 1 && bComodin[0].icono === 'gem' && bComodin[0].texto === 'MEGA', `comodin true → gem 'MEGA' (${bComodin[0].texto})`);
+const bComodinA = badgesResultado({ comodin: 'A', comodin_nombre: 'Leoncito' });
+ok(bComodinA.length === 1 && bComodinA[0].icono === 'gem' && bComodinA[0].texto === 'COMODÍN A · Leoncito', `comodin A + nombre → 'COMODÍN A · Leoncito' (${bComodinA[0].texto})`);
+const bComodinB = badgesResultado({ comodin: 'B', comodin_nombre: 'Selva Plus' });
+ok(bComodinB[0].texto === 'COMODÍN B · Selva Plus', `comodin B + nombre → 'COMODÍN B · Selva Plus' (${bComodinB[0].texto})`);
+ok(badgesResultado({ comodin: false }).length === 0, 'comodin false → sin badge');
+ok(badgesResultado({ comodin: 'X' }).length === 0, 'comodin valor desconocido → sin badge');
+
+console.log('\n== S4 TQ-04: badgesResultado — patronus/arrimao/pegadito ==');
+const bPatronus = badgesResultado({ patronus: true });
+ok(bPatronus.length === 1 && bPatronus[0].icono === 'crown' && bPatronus[0].texto === 'PATRONUS', `patronus truthy → crown 'PATRONUS' (${bPatronus[0].texto})`);
+ok(badgesResultado({ patronus: false }).length === 0, 'patronus false → sin badge');
+const bArrimao = badgesResultado({ arrimao: '1825' });
+ok(bArrimao.length === 1 && bArrimao[0].icono === 'target' && bArrimao[0].texto === '#1825', `arrimao → target '#1825' (${bArrimao[0].texto})`);
+const bPegadito = badgesResultado({ pegadito: '12345' });
+ok(bPegadito.length === 1 && bPegadito[0].icono === 'hash' && bPegadito[0].texto === '#12345', `pegadito → hash '#12345' (${bPegadito[0].texto})`);
+
+console.log('\n== S4 TQ-04: badgesResultado — combinación, orden y vacíos ==');
+const bTodo = badgesResultado(
+  {
+    figuras: [{ animal: 'Delfín', numero: 0 }],
+    comodin: true,
+    patronus: true,
+    arrimao: '1825',
+    pegadito: '12345',
+  },
+  monjeOpciones,
+);
+ok(bTodo.length === 5, `todas las claves → 5 badges (${bTodo.length})`);
+ok(JSON.stringify(bTodo.map((b) => b.icono)) === JSON.stringify(['trophy', 'gem', 'crown', 'target', 'hash']), `orden: trophy→gem→crown→target→hash (${bTodo.map((b) => b.icono).join(',')})`);
+ok(badgesResultado({}).length === 0, 'resultado vacío → []');
+ok(badgesResultado(null).length === 0, 'resultado null → []');
+ok(badgesResultado({ numero: 5, nombre_animal: 'Perro' }).length === 0, 'claves legadas sin claves nuevas → [] (no inventa)');
+
+console.log('\n== S5 TQ-05a: modalidadesDisponibles desde premios.modalidades (D2) ==');
+// D2 (design §4): las opciones de modalidad salen del catálogo
+// (premios.modalidades), nunca hardcodeadas; DEFS aporta label/cifras/signo.
+const mTrio = modalidadesDisponibles(catalogo.porSlug.get('trio-activo'));
+ok(
+  JSON.stringify(mTrio.map((m) => m.clave)) === JSON.stringify(['triple_a', 'punta', 'terminal']),
+  `trio-activo: [triple_a(base), punta, terminal] (${mTrio.map((m) => m.clave).join(',')})`,
+);
+ok(mTrio[0].clave === 'triple_a' && mTrio[0].label === 'Triple' && mTrio[0].multiplicador === 600, 'trio-activo: base sintetizada triple_a label "Triple" 600× (premios.base)');
+ok(mTrio[1].multiplicador === 60 && mTrio[2].multiplicador === 60, 'trio-activo: multiplicadores 60× del catálogo');
+ok(mTrio[1].label === 'Punta' && mTrio[2].label === 'Terminal', 'trio-activo: labels "Punta"/"Terminal"');
+const mChance = modalidadesDisponibles(catalogo.porSlug.get('triple-chance'));
+ok(
+  JSON.stringify(mChance.map((m) => m.clave)) === JSON.stringify(['triple_a', 'triple_b', 'punta', 'cruzado', 'terminal', 'signo_solo', 'triple_a_b', 'signo_triple', 'signo_terminal']),
+  `chance: base + single-draw + multi-selección (S6) sin tiers (${mChance.map((m) => m.clave).join(',')})`,
+);
+ok(!mChance.some((m) => ['cruzado_10', 'solo_a_b'].includes(m.clave)), 'chance: tiers cruzado_10/solo_a_b NO se ofrecen (derivados)');
+ok(mChance.find((m) => m.clave === 'signo_solo').digitos === 0 && mChance.find((m) => m.clave === 'signo_solo').requiereSigno === true, 'signo_solo: 0 cifras + signo obligatorio');
+const mZam = modalidadesDisponibles(catalogo.porSlug.get('triple-zamorano'));
+ok(mZam.some((m) => m.clave === 'uña' && m.label === 'Una' && m.digitos === 1 && m.multiplicador === 5), 'zamorano: uña 1 cifra 5×');
+ok(mZam.some((m) => m.clave === 'signo_uña' && m.digitos === 1 && m.requiereSigno), 'zamorano: signo_uña 1 cifra + signo');
+const mArr = modalidadesDisponibles(catalogo.porSlug.get('el-arrejuntado'));
+ok(mArr.find((m) => m.clave === 'arrimao').digitos === 4 && mArr.find((m) => m.clave === 'pegadito').digitos === 5, 'arrejuntado: arrimao 4 cifras, pegadito 5');
+ok(mArr.some((m) => m.clave === 'triple_a' && m.tipo === 'triple_a' && m.label === 'Triple A'), 'arrejuntado: triple_a desde premios.modalidades (600×)');
+ok(modalidadesDisponibles(catalogo.porSlug.get('lotto-activo')).length === 0, 'lotto-activo: sin modalidades → []');
+const mZul = modalidadesDisponibles(catalogo.porSlug.get('triple-zulia'));
+ok(mZul.find((m) => m.clave === 'signo_triple').tipo === 'triple_c' && mZul.find((m) => m.clave === 'signo_triple').label === 'Triple C', 'zulia: signo_triple → payload tipo triple_c, label "Triple C"');
+ok('punta' in DEFS && 'arrimao' in DEFS && 'signo_solo' in DEFS && 'uña' in DEFS, 'DEFS cubre las claves single-draw (punta/arrimao/signo_solo/uña)');
+
+console.log('\n== S5 corrective (gate): base sintetizada por familia (design §4 "— (base)") ==');
+// Gate finding: los juegos con modalidades separadas perdieron el producto
+// BASE — el selector nuevo solo listaba claves de premios.modalidades. La
+// familia sintetiza la base ANTES de las claves del catálogo, deduplicando
+// por clave (el-arrejuntado ya lista triple_a/triple_b → no se duplican).
+const mZulBase = modalidadesDisponibles(catalogo.porSlug.get('triple-zulia'));
+ok(
+  JSON.stringify(mZulBase.map((m) => m.clave)) === JSON.stringify(['triple_a', 'triple_b', 'terminal', 'signo_triple', 'signo_terminal']),
+  `zulia: base triple_a/triple_b ANTES de las claves del catálogo (${mZulBase.map((m) => m.clave).join(',')})`,
+);
+ok(mZulBase[0].label === 'Triple A' && mZulBase[1].label === 'Triple B', 'zulia: labels base "Triple A"/"Triple B"');
+ok(
+  mZulBase[0].digitos === 3 && mZulBase[0].requiereSigno === false &&
+    mZulBase[1].digitos === 3 && mZulBase[1].requiereSigno === false,
+  'zulia: base 3 cifras, sin signo',
+);
+ok(mZulBase[0].multiplicador === 600 && mZulBase[1].multiplicador === 600, 'zulia: base 600× (premios.base del catálogo, no hardcode)');
+ok(
+  JSON.stringify(mZulBase.map((m) => m.clave)) === JSON.stringify(modalidadesDisponibles(catalogo.porSlug.get('triple-caliente')).map((m) => m.clave)),
+  'caliente: misma base sintetizada que zulia (misma familia)',
+);
+ok(
+  JSON.stringify(mArr.map((m) => m.clave)) === JSON.stringify(['arrimao', 'pegadito', 'triple_a', 'triple_b', 'signo_triple']),
+  `arrejuntado: SIN duplicar triple_a/triple_b (catálogo ya las lista) (${mArr.map((m) => m.clave).join(',')})`,
+);
+ok(
+  mArr.filter((m) => m.clave === 'triple_a').length === 1 && mArr.filter((m) => m.clave === 'triple_b').length === 1,
+  'arrejuntado: exactamente 1 entrada por clave base (dedupe por clave)',
+);
+ok(
+  JSON.stringify(modalidadesDisponibles(catalogo.porSlug.get('triple-facil')).map((m) => m.clave)) === JSON.stringify(['triple_a', 'terminal', 'aproximacion']),
+  'triple-facil (numérica): base triple_a + terminal + aproximacion',
+);
+ok(
+  JSON.stringify(modalidadesDisponibles(catalogo.porSlug.get('triple-tachira')).map((m) => m.clave)) === JSON.stringify(['triple_a', 'triple_b', 'terminal', 'signo_triple']),
+  'tachira (zodiacal): base triple_a/triple_b + terminal + signo_triple',
+);
+ok(
+  JSON.stringify(modalidadesDisponibles(catalogo.porSlug.get('triple-zamorano')).map((m) => m.clave)) ===
+    JSON.stringify(['triple_a', 'triple_b', 'uña', 'terminal', 'signo_uña', 'signo_triple', 'signo_terminal']),
+  `zamorano: base triple_a/triple_b + catálogo (${modalidadesDisponibles(catalogo.porSlug.get('triple-zamorano')).map((m) => m.clave).join(',')})`,
+);
+
+console.log('\n== S5: validarDigitos (^\\d{1,N}$ → padStart, design §4) ==');
+ok(validarDigitos('45', 2) === '45', '"45" (2 cifras) → "45"');
+ok(validarDigitos('5', 2) === '05', '"5" → "05" (padding a 2)');
+ok(validarDigitos('1825', 4) === '1825', '"1825" (4 cifras) → "1825"');
+ok(validarDigitos('10503', 5) === '10503', '"10503" (5 cifras) → "10503"');
+ok(validarDigitos('453', 2) === null, '"453" excede 2 cifras → null (sin POST)');
+ok(validarDigitos('abc', 2) === null, 'no numérico → null');
+ok(validarDigitos('', 2) === null, 'vacío → null');
+ok(validarDigitos(' 05 ', 2) === '05', 'con espacios alrededor se recorta');
+
+console.log('\n== S5: construirCombinacion single-draw (payload exacto contrato §2.1) ==');
+const comboDe = (slug, clave, entrada) =>
+  construirCombinacion(modalidadesDisponibles(catalogo.porSlug.get(slug)).find((m) => m.clave === clave), entrada);
+ok(JSON.stringify(comboDe('trio-activo', 'punta', { numero: '5' })) === JSON.stringify({ tipo: 'punta', numero: '05' }), 'punta "5" → {tipo:punta, numero:05}');
+ok(JSON.stringify(comboDe('trio-activo', 'terminal', { numero: '52' })) === JSON.stringify({ tipo: 'terminal', numero: '52' }), 'terminal "52" → payload exacto');
+ok(JSON.stringify(comboDe('triple-zamorano', 'uña', { numero: '2' })) === JSON.stringify({ tipo: 'uña', numero: '2' }), 'uña "2" → payload exacto');
+ok(JSON.stringify(comboDe('triple-facil', 'aproximacion', { numero: '51' })) === JSON.stringify({ tipo: 'aproximacion', numero: '51' }), 'aproximacion "51" → payload exacto');
+ok(JSON.stringify(comboDe('triple-zulia', 'signo_terminal', { numero: '59', signo: 'LEO' })) === JSON.stringify({ tipo: 'signo_terminal', numero: '59', signo: 'LEO' }), 'signo_terminal → {tipo, numero, signo}');
+ok(JSON.stringify(comboDe('triple-chance', 'signo_solo', { signo: 'LEO' })) === JSON.stringify({ tipo: 'signo_solo', signo: 'LEO' }), 'signo_solo → solo signo (sin numero)');
+ok(JSON.stringify(comboDe('el-arrejuntado', 'arrimao', { numero: '1825' })) === JSON.stringify({ tipo: 'arrimao', numero: '1825' }), 'arrimao 4 cifras → payload exacto');
+ok(JSON.stringify(comboDe('el-arrejuntado', 'pegadito', { numero: '10503' })) === JSON.stringify({ tipo: 'pegadito', numero: '10503' }), 'pegadito 5 cifras → payload exacto');
+ok(JSON.stringify(comboDe('triple-zulia', 'signo_triple', { numero: '259', signo: 'LEO' })) === JSON.stringify({ tipo: 'triple_c', numero: '259', signo: 'LEO' }), 'signo_triple → tipo triple_c (Triple C)');
+ok(comboDe('trio-activo', 'punta', { numero: '453' }) === null, 'dígitos inválidos → null (no se POSTea)');
+ok(comboDe('triple-zulia', 'signo_terminal', { numero: '59' }) === null, 'signo faltante → null');
+ok(comboDe('triple-chance', 'signo_solo', {}) === null, 'signo_solo sin signo → null');
+
+console.log('\n== S5 corrective (gate): payload de la base sintetizada (design §4 "— (base)") ==');
+// La base triple viaja como {tipo:'triple_a'|'triple_b', numero} con padding a
+// 3 cifras; la numérica mantiene la semántica legacy "05"→"005"; el signo solo
+// se exige cuando la modalidad lo requiere (base: nunca).
+ok(
+  JSON.stringify(comboDe('triple-zulia', 'triple_a', { numero: '005' })) === JSON.stringify({ tipo: 'triple_a', numero: '005' }),
+  'zulia base triple_a "005" → {tipo:triple_a, numero:005}',
+);
+ok(
+  JSON.stringify(comboDe('triple-zulia', 'triple_b', { numero: '157' })) === JSON.stringify({ tipo: 'triple_b', numero: '157' }),
+  'zulia base triple_b "157" → {tipo:triple_b, numero:157}',
+);
+ok(
+  JSON.stringify(comboDe('trio-activo', 'triple_a', { numero: '05' })) === JSON.stringify({ tipo: 'triple_a', numero: '005' }),
+  'trio-activo base triple_a "05" → "005" (semántica legacy FIX D)',
+);
+ok(
+  JSON.stringify(comboDe('triple-chance', 'triple_a', { numero: '5' })) === JSON.stringify({ tipo: 'triple_a', numero: '005' }),
+  'chance base triple_a "5" → "005" (padStart 3)',
+);
+ok(
+  comboDe('triple-zulia', 'triple_a', { numero: '45' }) !== null && comboDe('triple-zulia', 'triple_a', { numero: '45' }).signo === undefined,
+  'zulia base triple_a: sin signo en el payload (requiereSigno false)',
+);
+ok(
+  JSON.stringify(comboDe('el-arrejuntado', 'triple_a', { numero: '452' })) === JSON.stringify({ tipo: 'triple_a', numero: '452' }),
+  'arrejuntado triple_a (catálogo, no sintetizado) → payload idéntico',
+);
+ok(
+  comboDe('trio-activo', 'triple_a', { numero: '4531' }) === null,
+  'trio-activo base triple_a "4531" (4 cifras) → null (tope 3)',
+);
+ok(
+  JSON.stringify(comboDe('triple-facil', 'triple_a', { numero: '07' })) === JSON.stringify({ tipo: 'triple_a', numero: '007' }),
+  'triple-facil base triple_a "07" → "007" (numérica, legacy)',
+);
+
+console.log('\n== S5: grafo de zonas con ctx single-draw (D3 — A2 intactos sin ctx) ==');
+ok(
+  JSON.stringify(buildZoneGraph('numerica', {}).zonas) === JSON.stringify(baseEsperada),
+  'numérica sin ctx: base idéntica a hoy (A2)',
+);
+ok(
+  JSON.stringify(buildZoneGraph('zodiacal', {}).zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'horarios', 'numero', 'monto', 'anadir', 'resumen']),
+  'zodiacal sin ctx: idéntico a hoy (A2)',
+);
+ok(
+  JSON.stringify(buildZoneGraph('zodiacal', { triple_c: true }).zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'signo', 'horarios', 'numero', 'monto', 'anadir', 'resumen']),
+  'zodiacal triple_c: idéntico a hoy (A2)',
+);
+const gPunta = buildZoneGraph('numerica', { modalidad: true });
+ok(
+  JSON.stringify(gPunta.zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'horarios', 'numero', 'monto', 'anadir', 'resumen']),
+  `numérica con modalidad: juegos → modalidad → seleccion (${gPunta.zonas.join('→')})`,
+);
+const gSignoSolo = buildZoneGraph('zodiacal', { modalidad: true, signo: true, numero: false });
+ok(!gSignoSolo.incluye('numero') && gSignoSolo.incluye('signo') && gSignoSolo.incluye('modalidad'), 'signo_solo: sin numero, con signo y modalidad');
+ok(
+  JSON.stringify(gSignoSolo.zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'signo', 'horarios', 'monto', 'anadir', 'resumen']),
+  `signo_solo: ${gSignoSolo.zonas.join('→')}`,
+);
+ok(
+  JSON.stringify(buildZoneGraph('zodiacal', { signo: true }).zonas) === JSON.stringify(buildZoneGraph('zodiacal', { triple_c: true }).zonas),
+  'alias: ctx.signo ≡ ctx.triple_c (legacy intacto, D3)',
+);
+const gSeg = buildZoneGraph('numerica', { segundaSeleccion: true });
+ok(
+  JSON.stringify(gSeg.zonas) === JSON.stringify(['juegos', 'seleccion', 'horarios', 'numero', 'numero_b', 'monto', 'anadir', 'resumen']),
+  `segundaSeleccion: numero_b entre numero y monto (${gSeg.zonas.join('→')})`,
+);
+ok(gSeg.incluye('numero_b'), 'numero_b incluida con ctx.segundaSeleccion (S6-ready)');
+ok(
+  zonaPendienteSeleccion({ familia: 'zodiacal', tripleModalidad: null, signoElegido: false, animalElegido: false, signo: true }) === 'signo',
+  'modalidad nueva con signo obligatorio sin elegir → pendiente signo',
+);
+ok(
+  zonaPendienteSeleccion({ familia: 'zodiacal', tripleModalidad: null, signoElegido: true, animalElegido: false, signo: true }) === null,
+  'con signo elegido → sin pendiente',
+);
+
+console.log('\n== S6 TQ-05b: multi-selección same-draw (design §4, contrato §2.2) ==');
+// DEFS ahora cubre las claves multi-selección: se OFRECEN desde el catálogo
+// (cruzado/triple_a_b en Chance; tripleta en Cazalotón/Chaima). Los tiers
+// derivados (cruzado_10, solo_a_b) NO entran a DEFS: siguen excluidos.
+const mChanceS6 = modalidadesDisponibles(catalogo.porSlug.get('triple-chance'));
+ok(mChanceS6.some((m) => m.clave === 'cruzado'), 'chance: cruzado SE ofrece en S6');
+ok(mChanceS6.some((m) => m.clave === 'triple_a_b'), 'chance: triple_a_b SE ofrece en S6');
+ok(!mChanceS6.some((m) => ['cruzado_10', 'solo_a_b'].includes(m.clave)), 'chance: tiers cruzado_10/solo_a_b siguen excluidos (derivados)');
+const mCruzado = mChanceS6.find((m) => m.clave === 'cruzado');
+ok(mCruzado.multiplicador === 3000 && mCruzado.digitos === 2, 'cruzado: 3000× desde el catálogo, 2 cifras por punta');
+const mPar = mChanceS6.find((m) => m.clave === 'triple_a_b');
+ok(mPar.multiplicador === 200000 && mPar.digitos === 3, 'triple_a_b: 200000× desde el catálogo, 3 cifras por triple');
+const mCaza = modalidadesDisponibles(catalogo.porSlug.get('cazaloton'));
+ok(JSON.stringify(mCaza.map((m) => m.clave)) === JSON.stringify(['tripleta']), `cazaloton: solo tripleta (${mCaza.map((m) => m.clave).join(',')})`);
+ok(mCaza[0].multiplicador === 200, 'cazaloton: tripleta 200× desde el catálogo');
+ok(modalidadesDisponibles(catalogo.porSlug.get('loto-chaima')).find((m) => m.clave === 'tripleta').multiplicador === 50, 'loto-chaima: tripleta 50× desde el catálogo');
+
+// Payloads exactos multi-selección (contrato §2.2)
+ok(
+  JSON.stringify(construirCombinacionMulti(mCruzado, { numero: '75', numeroB: '14' })) ===
+    JSON.stringify({ modalidad: 'cruzado', selecciones: [{ tipo: 'punta', numero: '75' }, { tipo: 'punta', numero: '14' }] }),
+  'cruzado "75/14" → {modalidad:cruzado, selecciones:[{punta,75},{punta,14}]}',
+);
+ok(
+  JSON.stringify(construirCombinacionMulti(mPar, { numero: '756', numeroB: '146' })) ===
+    JSON.stringify({ modalidad: 'triple_a_b', selecciones: [{ tipo: 'triple_a', numero: '756' }, { tipo: 'triple_b', numero: '146' }] }),
+  'triple_a_b "756/146" → payload exacto',
+);
+ok(
+  JSON.stringify(construirCombinacionMulti(mCruzado, { numero: '7', numeroB: '5' })) ===
+    JSON.stringify({ modalidad: 'cruzado', selecciones: [{ tipo: 'punta', numero: '07' }, { tipo: 'punta', numero: '05' }] }),
+  'cruzado sin padding "7/5" → "07"/"05" (el motor normaliza)',
+);
+ok(construirCombinacionMulti(mCruzado, { numero: '753', numeroB: '14' }) === null, 'cruzado con punta de 3 cifras → null (sin POST)');
+ok(construirCombinacionMulti(mPar, { numero: '75', numeroB: '146' }) === null, 'triple_a_b con triple de 2 cifras → null');
+ok(construirCombinacionMulti(null, { numero: '75', numeroB: '14' }) === null, 'sin modalidad multi → null');
+
+ok(
+  JSON.stringify(construirTripleta(['Perro', 'Gato', 'León'])) ===
+    JSON.stringify({ modalidad: 'tripleta', selecciones: [{ animal: 'Perro' }, { animal: 'Gato' }, { animal: 'León' }] }),
+  'tripleta 3 animales → {modalidad:tripleta, selecciones:[{animal}×3]}',
+);
+ok(construirTripleta(['Perro', 'Gato']) === null, 'tripleta con 2 animales → null');
+ok(construirTripleta([]) === null, 'tripleta sin animales → null');
+
+// Contador tripleta (design §5: tope 3, toggle Space/Enter, contador "n/3")
+ok(JSON.stringify(alternarSeleccionAnimal([], 'Perro')) === JSON.stringify(['Perro']), 'toggle agrega el primer animal');
+ok(JSON.stringify(alternarSeleccionAnimal(['Perro'], 'Perro')) === JSON.stringify([]), 'toggle quita el animal repetido');
+ok(
+  JSON.stringify(alternarSeleccionAnimal(['Perro', 'Gato', 'León'], 'Toro')) === JSON.stringify(['Perro', 'Gato', 'León']),
+  'tope 3: el 4º animal NO se añade',
+);
+ok(
+  JSON.stringify(alternarSeleccionAnimal(['Perro', 'Gato'], 'León')) === JSON.stringify(['Perro', 'Gato', 'León']),
+  'con 2 añade el 3º conservando el orden de selección',
+);
+
+// Grafos multi-selección (design §5)
+const gMulti = buildZoneGraph('zodiacal', { modalidad: true, segundaSeleccion: true });
+ok(
+  JSON.stringify(gMulti.zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'horarios', 'numero', 'numero_b', 'monto', 'anadir', 'resumen']),
+  `multi (cruzado/par): numero_b entre numero y monto (${gMulti.zonas.join('→')})`,
+);
+const gTripleta = buildZoneGraph('animalitos', {});
+ok(!gTripleta.incluye('numero') && gTripleta.incluye('seleccion'), 'tripleta (animalitos): sin numero, seleccion presente (A2 intacto)');
+ok(
+  zonaPendienteSeleccion({ familia: 'animalitos', tripleModalidad: null, signoElegido: false, animalElegido: true, modalidadAnimalitos: 'tripleta', seleccionesAnimales: 2 }) === 'seleccion',
+  'tripleta con 2/3 animales → pendiente seleccion',
+);
+ok(
+  zonaPendienteSeleccion({ familia: 'animalitos', tripleModalidad: null, signoElegido: false, animalElegido: false, modalidadAnimalitos: 'tripleta', seleccionesAnimales: 3 }) === null,
+  'tripleta con 3/3 → sin pendiente',
+);
+ok(
+  zonaPendienteSeleccion({ familia: 'animalitos', tripleModalidad: null, signoElegido: false, animalElegido: true }) === null,
+  'animalitos base con animal → sin pendiente (compat)',
+);
 
 console.log(`\n${checks} checks, ${fallos} fallos`);
 process.exit(fallos === 0 ? 0 : 1);

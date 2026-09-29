@@ -67,6 +67,7 @@ import Icon from '../components/ui/Icon.astro';
     <script>
         import { apiFetch } from '../utils/apiFetch';
         import { icono } from '../utils/iconos';
+        import { payloadPago, esPagableApuesta, esPagableTicket, acumularPremio } from '../utils/pagos';
 
         function formatHora(iso) {
             if (!iso) return '-';
@@ -155,20 +156,29 @@ import Icon from '../components/ui/Icon.astro';
                 const tickets = await apiFetch('/tickets?ticket_code=' + ticketCode);
                 const ticket = tickets.data?.data?.[0];
                 if (!ticket) { await window.showModal({ message: 'Ticket no encontrado', type: 'error' }); return; }
-                for (const apuesta of ticket.apuestas) {
-                    if (apuesta.estado === 'pendiente') {
-                        await apiFetch('/pagos', {
-                            method: 'POST',
-                            body: {
-                                apuesta_id: apuesta.id,
-                                amount_bs: Number(apuesta.amount_bs || 0),
-                                amount_usd: Number(apuesta.amount_usd || 0),
-                                tipo: 'bs'
-                            }
-                        });
+                if (!esPagableTicket(ticket)) {
+                    await window.showModal({ message: 'Este ticket no tiene premios pendientes por pagar.', type: 'error' });
+                    return;
+                }
+                const respuestas = [];
+                for (const apuesta of (ticket.apuestas || [])) {
+                    if (!esPagableApuesta(apuesta)) continue;
+                    try {
+                        respuestas.push(await apiFetch('/pagos', { method: 'POST', body: payloadPago(apuesta) }));
+                    } catch (e) {
+                        // Error REAL del backend (p. ej. 422): sin "éxito" falso.
+                        await window.showModal({ message: 'Error en jugada #' + apuesta.id + ': ' + e.message, type: 'error' });
+                        document.getElementById('btn-buscar').click();
+                        return;
                     }
                 }
-                await window.showModal({ message: 'Pago registrado exitosamente!', type: 'success' });
+                if (respuestas.length > 0) {
+                    const premio = acumularPremio(respuestas);
+                    const partes = [];
+                    if (premio.premio_bs > 0) partes.push('Bs. ' + premio.premio_bs.toLocaleString('es-VE', { minimumFractionDigits: 2 }));
+                    if (premio.premio_usd > 0) partes.push('$' + premio.premio_usd.toLocaleString('en-US', { minimumFractionDigits: 2 }));
+                    await window.showModal({ message: 'Premio pagado: ' + partes.join(' / '), type: 'success' });
+                }
                 document.getElementById('btn-buscar').click();
             } catch (e) {
                 await window.showModal({ message: 'Error: ' + e.message, type: 'error' });

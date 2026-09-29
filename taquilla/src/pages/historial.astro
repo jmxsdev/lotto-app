@@ -17,6 +17,8 @@ import MainLayout from '../layouts/MainLayout.astro';
                 <button data-filter="pendiente" class="filter-btn"> Pendientes</button>
                 <button data-filter="pagada" class="filter-btn"> Pagadas</button>
                 <button data-filter="anulada" class="filter-btn"> Anuladas</button>
+                <button data-filter="ganador" class="filter-btn"> Ganadores</button>
+                <button data-filter="vencido" class="filter-btn"> Vencidos</button>
                 <button id="btn-refresh" class="btn-refresh"> Actualizar</button>
             </div>
         </div>
@@ -57,6 +59,9 @@ import MainLayout from '../layouts/MainLayout.astro';
         .badge-pagada { background: #d4edda; color: #155724; }
         .badge-anulada { background: #f8d7da; color: #721c24; }
         .badge-ganador { background: linear-gradient(135deg, #fff9c4, #fff176); color: #6d4c00; border: 1px solid #ffd54f; font-weight: 700; }
+        .badge-ganadora { background: linear-gradient(135deg, #fff9c4, #fff176); color: #6d4c00; border: 1px solid #ffd54f; font-weight: 700; }
+        .badge-vencido { background: #e2e3e5; color: #383d41; border: 1px solid #d6d8db; }
+        .badge-resuelto { background: #f0f0f0; color: #666; border: 1px solid #ddd; }
         .badge-perdida { background: #f0f0f0; color: #888; }
         .ticket-actions { display: flex; gap: 6px; margin-left: 8px; }
         .btn-action { padding: 6px 12px; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all .15s; background: white; display: inline-flex; align-items: center; gap: 5px; }
@@ -93,6 +98,8 @@ import MainLayout from '../layouts/MainLayout.astro';
         import { icono } from '../utils/iconos';
         import { formatearJugada, nombresJuegos, labelModalidad } from '../utils/ticket';
         import { cargarCatalogo, labelDeSigno } from '../utils/catalogo';
+        import { payloadPago, esPagableApuesta, esPagableTicket, acumularPremio } from '../utils/pagos';
+        import { estadoTicket } from '../utils/estados';
         import juegosRaw from '../data/juegos.json';
 
         // Catálogo bundled: resuelve el label del signo (sigla → nombre,
@@ -105,9 +112,18 @@ import MainLayout from '../layouts/MainLayout.astro';
                 case 'pagada': return 'badge-pagada';
                 case 'anulada': return 'badge-anulada';
                 case 'ganador': return 'badge-ganador';
+                case 'ganadora': return 'badge-ganadora';
+                case 'vencido': return 'badge-vencido';
+                case 'resuelto-sin-ganadores': return 'badge-resuelto';
                 case 'perdida': return 'badge-perdida';
                 default: return '';
             }
+        }
+
+        // Chip del ticket: `estadoTicket` deriva "resuelto sin ganadores" y
+        // nunca inventa estados; el label legible es glue de UI (S3/D5).
+        function chipLabel(estado) {
+            return estado === 'resuelto-sin-ganadores' ? 'RESUELTO SIN GANADORES' : estado.toUpperCase();
         }
 
         function canDeleteTicket(ticket) {
@@ -139,7 +155,7 @@ import MainLayout from '../layouts/MainLayout.astro';
                 const totalBs = Number(t.total_bs || 0);
                 const totalUsd = Number(t.total_usd || 0);
                 const jugadasCount = t.apuestas?.length || 0;
-                const esGanador = t.tiene_ganadores === true;
+                const chipEstado = estadoTicket(t);
                 const fechaHora = new Date(t.created_at);
                 const fechaStr = fechaHora.toLocaleDateString('es-VE', {day:'2-digit',month:'2-digit',year:'numeric'});
                 const horaStr = fechaHora.toLocaleTimeString('es-VE', {hour:'2-digit',minute:'2-digit'});
@@ -152,9 +168,9 @@ import MainLayout from '../layouts/MainLayout.astro';
                         <span class="ticket-juego">${getTicketJuegos(t)}</span>
                         <span class="ticket-info">${jugadasCount} jug.</span>
                         <span class="ticket-total">Bs. ${totalBs.toLocaleString('es-VE', {minimumFractionDigits:2})} ${totalUsd > 0 ? '/ $'+totalUsd.toFixed(2) : ''}</span>
-                        <span class="badge ${getStatusClass(t.estado)}">${t.estado.toUpperCase()}</span>
+                        <span class="badge ${getStatusClass(chipEstado)}">${chipLabel(chipEstado)}</span>
                         <div class="ticket-actions">
-                            ${t.estado === 'pendiente' && esGanador ? `
+                            ${esPagableTicket(t) ? `
                                 <button class="btn-action btn-pay" data-action="pay" data-id="${t.id}">${icono('banknote')} Pagar</button>
                             ` : ''}
                             ${t.estado === 'pendiente' && canDeleteTicket(t) ? `
@@ -231,26 +247,30 @@ import MainLayout from '../layouts/MainLayout.astro';
                 type: 'confirm'
             });
             if (!ok) return;
-            let success = true;
+            if (!esPagableTicket(ticket)) {
+                await window.showModal({ message: 'Este ticket no tiene premios pendientes por pagar.', type: 'error' });
+                return;
+            }
+            const respuestas = [];
             for (const apuesta of (ticket.apuestas || [])) {
-                if (apuesta.estado !== 'pendiente') continue;
+                if (!esPagableApuesta(apuesta)) continue;
                 try {
-                    await apiFetch('/pagos', {
-                        method: 'POST',
-                        body: {
-                            apuesta_id: apuesta.id,
-                            amount_bs: Number(apuesta.amount_bs || 0),
-                            amount_usd: Number(apuesta.amount_usd || 0),
-                            tipo: 'bs'
-                        }
-                    });
+                    respuestas.push(await apiFetch('/pagos', { method: 'POST', body: payloadPago(apuesta) }));
                 } catch (e) {
-                    success = false;
+                    // Error REAL del backend (p. ej. 422): sin "éxito" falso.
                     await window.showModal({ message: 'Error en jugada #' + apuesta.id + ': ' + e.message, type: 'error' });
+                    loadTickets();
+                    return;
                 }
             }
-            if (success) loadTickets();
-            await window.showModal({ message: 'Pago registrado exitosamente!', type: 'success' });
+            if (respuestas.length > 0) {
+                const premio = acumularPremio(respuestas);
+                const partes = [];
+                if (premio.premio_bs > 0) partes.push('Bs. ' + premio.premio_bs.toLocaleString('es-VE', { minimumFractionDigits: 2 }));
+                if (premio.premio_usd > 0) partes.push('$' + premio.premio_usd.toLocaleString('en-US', { minimumFractionDigits: 2 }));
+                await window.showModal({ message: 'Premio pagado: ' + partes.join(' / '), type: 'success' });
+            }
+            loadTickets();
         }
 
         async function printTicket(ticket) {
