@@ -43,11 +43,11 @@ Delivery strategy: auto-chain
 
 ## S3: Fix toggle + tests deuda + re-export (~100 líneas)
 
-- [ ] 4.1 **RED**: `JuegoToggleTest` (toggle 200/422/audita/plugin sincronizado) + `JuegoUpdateTest` (update audita `accion=actualizar`).
-- [ ] 4.2 **GREEN**: `panel/src/pages/juegos.astro` L31: `apiFetch('PATCH','/juegos/'+id+'/toggle', {active: !active})` + `catch(err){alert('Error: '+err.message)}`.
-- [ ] 4.3 **GREEN**: `JuegoToggleTest` y `JuegoUpdateTest` pasan; `npm run build` verde.
-- [ ] 4.4 **GREEN**: Nota en `docs/motor-premios.md` §9.1: "Tras editar premios, `juegos:export` y coordinar copia `docs/juegos.json` → `taquilla/src/data/juegos.json`."
-- [ ] 4.5 **REFACTOR**: `vendor/bin/pint --test` + `npm run build`.
+- [x] 4.1 **RED**: `JuegoToggleTest` (toggle 200/422/audita/plugin sincronizado) + `JuegoUpdateTest` (update audita `accion=actualizar`).
+- [x] 4.2 **GREEN**: `panel/src/pages/juegos.astro` L31: `apiFetch('PATCH','/juegos/'+id+'/toggle', {active: !active})` + `catch(err){alert('Error: '+err.message)}`.
+- [x] 4.3 **GREEN**: `JuegoToggleTest` y `JuegoUpdateTest` pasan; `npm run build` verde.
+- [x] 4.4 **GREEN**: Nota en `docs/motor-premios.md` §9.1: "Tras editar premios, `juegos:export` y coordinar copia `docs/juegos.json` → `taquilla/src/data/juegos.json`."
+- [x] 4.5 **REFACTOR**: `vendor/bin/pint --test` + `npm run build`.
 ## S4: Editor P2 premios en panel (~180 líneas)
 
 - [ ] 5.1 **RED**: `npm run build` + smoke: editor no existe al expandir fila.

@@ -224,3 +224,84 @@ NO push (regla del slice; PR #3 de la feature-branch-chain lo hará el orchestra
 
 - S3 (fix toggle + deuda tests + nota re-export), S4 (editor P2 en panel) — fuera de este slice.
 - S2 listo para el PR #3 de la feature-branch-chain (base: PR #2 S1b).
+
+---
+
+# Slice S3 — Fix toggle + tests deuda + nota de re-export
+
+**Rama**: `feat/configuracion-juegos-s3` (base: `feat/configuracion-juegos-s2`)
+**Fecha**: 2026-09-28 · **Modo**: Strict TDD
+
+## Estado
+
+`success` — S3 completo (5/5 tareas). El panel envía `{active: !actual}` en el toggle y muestra el error
+del backend; los tests de deuda de `docs/PENDIENTE.md` §7 (`JuegoToggleTest` + `JuegoUpdateTest`)
+quedan cubiertos; la nota de re-export/taquilla está en `docs/motor-premios.md` §9.1. El test RED de
+reactivación del plugin destapó y corrigió un defecto real de producción en `toggle()` (la relación
+`pluginJuego` filtra por `active=true` → al reactivar el juego el plugin no se reactivaba).
+
+## TDD Cycle Evidence (S3)
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| 4.1 | `tests/Feature/JuegoToggleTest.php` (nuevo, 4) + `tests/Feature/JuegoUpdateTest.php` (nuevo, 3) | Integration | ✅ 20/20 (JuegoPremiosApiTest 15 + JuegosJsonTest 5; 795 assertions) | ✅ 7 tests escritos primero; run inicial 6/7 (1 fallo REAL de producción: `test_toggle_plugin_sincronizado_en_ambos_sentidos` — al reactivar, el plugin quedaba false porque `pluginJuego` filtra `active=true`) | ✅ 7/7 (34 assertions) tras fix mínimo en `toggle()` | ✅ 3 casos toggle (422 sin body; desactivar; activar) + 1 de sincronización bidireccional; update 3 casos (persistencia+auditoría; reemplazo completo no merge; 403 banca) | ✅ Pint fix (EOF en 2 tests) + `--test` passed; focused 22/22; regresión 35/35 |
+| 4.2 | `panel/src/pages/juegos.astro` (sin runner de panel; verificación = build + lectura) | — | ✅ Build previo no aplicable (cambio de script inline) | ✅ Estado previo leído: `apiFetch('PATCH','/juegos/'+id+'/toggle')` sin body + `catch(err){}` silencioso | ✅ L31: `{active: !active}` + `catch(err){alert('Error: '+err.message)}` | ✅ Verificación honesta: lectura del diff + `pnpm run build` verde (25 páginas, incluye `/juegos`) | ✅ Build verde |
+| 4.3 | `JuegoToggleTest` + `JuegoUpdateTest` (GREEN 4.1) + build panel | Integration | ✅ 20/20 baseline | ✅ RED 4.1 (1 fallo de producción) | ✅ 7/7; focused 22/22 (con `JuegoPremiosApiTest`); `pnpm run build` verde | ✅ 7 casos distribuidos en 2 archivos | ✅ Pint `--test` passed |
+| 4.4 | Nota en `docs/motor-premios.md` §9.1 (docs; sin test) | — | N/A (docs) | N/A — tarea documental, contrato literal de tasks.md 4.4 | ✅ Nota añadida: tras editar premios, `juegos:export` + coordinar copia `docs/juegos.json` → `taquilla/src/data/juegos.json` (sin tocar `taquilla/`) | ✅ Verificación: contenido exacto del contrato presente en §9.1 | ✅ Pint `--test` (repo completo) |
+| 4.5 | Suite S3 completa + regresión | REFACTOR | ✅ 20/20 baseline | N/A | N/A | N/A | ✅ Pint `--test` passed; focused `JuegoToggleTest\|JuegoUpdateTest\|JuegoPremiosApiTest` 22/22 (88 assertions); regresión `MotorPremiosRegresionTest\|JuegosJsonTest` 35/35 (800 assertions); check extra `PluginIntegrationTest\|ActivacionTest` 16/16 (1 skipped preexistente) |
+
+## Test Summary (S3)
+
+- **Total tests escritos en S3**: 7 (4 `JuegoToggleTest` + 3 `JuegoUpdateTest`)
+- **Total tests pasando (focused)**: 22/22 — `JuegoToggleTest\|JuegoUpdateTest\|JuegoPremiosApiTest` — 88 assertions
+- **Regresión**: 35/35 — `MotorPremiosRegresionTest` + `JuegosJsonTest` — 800 assertions (contrato del motor y export intactos)
+- **Layers**: Integration (7)
+- **Approval tests**: 3 — toggle 422 (estado vigente intacto), update reemplazo completo no merge (docs §8), 403 banca (ruta)
+- **Pure functions creadas**: 0 — fix de una línea de producción + script inline del panel
+
+## Files Changed (S3)
+
+| File | Action | What Was Done |
+|------|--------|---------------|
+| `backend/tests/Feature/JuegoToggleTest.php` | Created | 4 tests: 422 sin body, desactivar persiste+audita (`accion=desactivar` before/after + updated_by), activar audita (`accion=activar`), plugin sincronizado en ambos sentidos |
+| `backend/tests/Feature/JuegoUpdateTest.php` | Created | 3 tests: update persiste name/config + audita `accion=actualizar` (before/after + updated_by), config reemplazo completo no merge, 403 rol banca |
+| `backend/app/Http/Controllers/Api/JuegoController.php` | Modified | `toggle()`: sincroniza el plugin vía `pluginJuegos()` (hasMany sin filtro) en vez de `pluginJuego` (filtra `active=true`) — el plugin se reactiva al reactivar el juego |
+| `panel/src/pages/juegos.astro` | Modified | L31: envía `{active: !active}` en `PATCH /juegos/{id}/toggle` y reemplaza `catch(err){}` por `alert('Error: '+err.message)` |
+| `docs/motor-premios.md` | Modified | §9.1: nota de re-export tras editar premios + coordinación de la copia bundled de taquilla |
+| `openspec/changes/configuracion-juegos/tasks.md` | Modified | S3 marcada `[x]` (4.1–4.5) |
+| `openspec/changes/configuracion-juegos/apply-progress.md` | Modified | Merge: secciones S1a/S1b/S2 intactas + sección S3 añadida |
+
+## Work Unit Evidence (S3)
+
+| Evidence | Required value |
+|---|---|
+| Focused test command and exact result | `DB_DATABASE=lotto_test_motor php artisan test --filter='JuegoToggleTest\|JuegoUpdateTest\|JuegoPremiosApiTest'` → `passed`, 22 tests, 88 assertions |
+| Runtime harness command/scenario and exact result | Endpoint real sobre BD sembrada (DatabaseSeeder): `PATCH /api/v1/juegos/{id}/toggle` con body `{active}` (200 + persistencia + plugin + auditoría before/after), sin body (422), reactivación tras desactivar (plugin reactivado — defecto corregido); `PUT /api/v1/juegos/{id}` (name/config + auditoría, 403 banca) — 7 escenarios vía HTTP; panel: `pnpm run build` verde (25 páginas) |
+| Rollback boundary | Revertir `feat/configuracion-juegos-s3`: panel (1 línea), `toggle()` (vuelve a `pluginJuego` con el defecto de reactivación), 2 archivos de test nuevos, 1 línea de docs. El fix del toggle es aditivo (no cambia contrato de respuesta) |
+
+## Commits (S3)
+
+| Hash | Mensaje | Contenido |
+|------|---------|-----------|
+| `5f67077` | `fix(panel): toggle con active y error visible` | `panel/src/pages/juegos.astro` (1 línea) |
+| `09abcfa` | `test(juegos): update y toggle` | `JuegoToggleTest` + `JuegoUpdateTest` + fix `toggle()` (defecto reactivación plugin) |
+| `15ac158` | `docs(juegos): nota de re-export` | `docs/motor-premios.md` §9.1 (1 línea) |
+| (siguiente) | `docs(sdd): cierre del slice S3 de configuracion-juegos` | `tasks.md` `[x]` + `apply-progress.md` merge |
+
+NO push (regla del slice; PR #4 de la feature-branch-chain lo hará el orchestrator).
+
+## Deviations (S3)
+
+- **Defecto de producción destapado por el test**: `toggle()` usaba `$juego->pluginJuego` (relación con filtro `where('active', true)`), por lo que al REACTIVAR un juego desactivado el plugin quedaba `active=false` (la relación devolvía `null`). Fix mínimo: `$juego->pluginJuegos()->update(...)` (hasMany sin filtro). Es el GREEN del test `test_toggle_plugin_sincronizado_en_ambos_sentidos` — la spec REQ "Toggle del juego" exige persistir el estado, y tasks.md 4.1 exige "plugin sincronizado". Ninguna desviación de diseño.
+- Panel: sin runner de tests en `panel/` (solo build). La verificación del cambio es lectura del diff + `pnpm run build` verde — reportado honestamente en la evidencia (no hay check ligero de tests del panel en el repo).
+- Nota de la copia bundled: se dejó la nota en §9.1 (contrato literal de tasks.md 4.4); NO se tocó `taquilla/src/data/juegos.json` ni código de `taquilla/` (regla del slice).
+
+## Issues (S3)
+
+- El único fallo RED fue el defecto real de `toggle()` descrito arriba (no un fallo del test). Corregido con el cambio mínimo.
+- `pnpm install` del panel regeneró/actualizó `node_modules/` local (ignorado por git; `dist/` también ignorado) — sin cambios versionados.
+
+## Next Steps (tras S3)
+
+- S4 (editor P2 de premios en `juegos.astro`: base/modalidades/comodines, errores junto al campo, `PUT /juegos/{id}/premios`) — fuera de este slice.
+- S3 listo para el PR #4 de la feature-branch-chain (base: PR #3 S2).
