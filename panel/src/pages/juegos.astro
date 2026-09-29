@@ -28,7 +28,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     document.getElementById('content').addEventListener('click', async (e) => {
       const badge = e.target.closest('.badge'); if (!badge) return;
       const id = parseInt(badge.dataset.id); const active = badge.dataset.active === 'true';
-      try { await apiFetch('PATCH','/juegos/'+id+'/toggle'); load(); } catch(err) {}
+      try { await apiFetch('PATCH','/juegos/'+id+'/toggle', {active: !active}); load(); } catch(err) { alert('Error: '+err.message); }
     });
     load();
   </script>
