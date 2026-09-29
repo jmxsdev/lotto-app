@@ -47,11 +47,11 @@ Commit note: `*.md` is `.gitignore:44`-ignored — commit openspec artifacts wit
 
 ## Phase 2: Readers (S2)
 
-- [ ] 2.1 RED `tests/Unit/ComisionServiceTest.php` (cascada): override gana, NULL cede, fallback global, hijo>padre permitido (S1, S2, S3).
-- [ ] 2.2 `ComisionService::tasaPropia(nivel, entidadId, juegoId, moneda): float` — fila propia del nivel; NULL/ausente = 0.
-- [ ] 2.3 `ComisionService::tasaEfectiva(nivel, entidadId, juegoId, moneda): float` — cascada taquilla>grupo>banca>global; NULL cede; sin definir ⇒ 0.00 (D2).
-- [ ] 2.4 RED cap D11 `ComisionServiceTest`: (a) banca 10 + taquilla 100 ⇒ 90; (b) acumulado ≤ 100 conserva (20+40 ⇒ 40); (c) tope independiente por moneda; (d) NULL/herencia (banca propia 60, grupo NULL, taquilla NULL ⇒ resuelve 60, liquidable 40).
-- [ ] 2.5 `ComisionService::tasaLiquidable(nivel, entidadId, juegoId, moneda): float` — D11 `min(tasaEfectiva, max(0, 100 − Σ tasas propias ancestros))`; grupo ⇒ {banca}; taquilla ⇒ {grupo, banca}; por moneda; piso 0.
+- [x] 2.1 RED `tests/Unit/ComisionServiceTest.php` (cascada): override gana, NULL cede, fallback global, hijo>padre permitido (S1, S2, S3).
+- [x] 2.2 `ComisionService::tasaPropia(nivel, entidadId, juegoId, moneda): float` — fila propia del nivel; NULL/ausente = 0.
+- [x] 2.3 `ComisionService::tasaEfectiva(nivel, entidadId, juegoId, moneda): float` — cascada taquilla>grupo>banca>global; NULL cede; sin definir ⇒ 0.00 (D2).
+- [x] 2.4 RED cap D11 `ComisionServiceTest`: (a) banca 10 + taquilla 100 ⇒ 90; (b) acumulado ≤ 100 conserva (20+40 ⇒ 40); (c) tope independiente por moneda; (d) NULL/herencia (banca propia 60, grupo NULL, taquilla NULL ⇒ resuelve 60, liquidable 40).
+- [x] 2.5 `ComisionService::tasaLiquidable(nivel, entidadId, juegoId, moneda): float` — D11 `min(tasaEfectiva, max(0, 100 − Σ tasas propias ancestros))`; grupo ⇒ {banca}; taquilla ⇒ {grupo, banca}; por moneda; piso 0.
 
 ## Phase 3: Calculation/preview (S3)
 
