@@ -305,3 +305,74 @@ NO push (regla del slice; PR #4 de la feature-branch-chain lo hará el orchestra
 
 - S4 (editor P2 de premios en `juegos.astro`: base/modalidades/comodines, errores junto al campo, `PUT /juegos/{id}/premios`) — fuera de este slice.
 - S3 listo para el PR #4 de la feature-branch-chain (base: PR #3 S2).
+
+---
+
+# Slice S4 — Editor P2 de premios en el panel (último slice del cambio)
+
+**Rama**: `feat/configuracion-juegos-s4` (base: `feat/configuracion-juegos-s3`, HEAD `a2ca9aa`)
+**Fecha**: 2026-09-28 · **Modo**: Strict TDD — con la honestidad de que el panel NO tiene runner de tests: el RED de 5.1 es el smoke de estado (build verde + editor ausente) y la verificación del GREEN es build + lectura del flujo compilado.
+
+## Estado
+
+`success` — S4 completo (3/3 tareas). Con este slice quedan TODOS los slices del cambio (S1a, S1b, S2, S3, S4) completos; el cambio `configuracion-juegos` está listo para `sdd-verify`.
+
+## TDD Cycle Evidence (S4)
+
+| Tarea | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|-------|-----------|-------|------------|-----|-------|-------------|----------|
+| 5.1 | — (panel sin runner; smoke = build + lectura) | — | ✅ Build previo verde (25 páginas) | ✅ Smoke: `juegos.astro` no tenía editor (solo tabla + toggle); build verde sin editor | N/A (estado previo confirmado) | N/A | N/A |
+| 5.2 | — (panel sin runner; verificación = build + lectura del flujo) | — | ✅ Build previo verde | ✅ Estado previo leído: tabla sin editor, `apiFetch` descartaba `errors` del body 422 | ✅ Editor en `juegos.astro` (modal por clic en fila): base (number), modalidades (clave:valor con sugerencias de `/reglas`), comodines (tipo/valor/acumulativo solo con palabra), Guardar → `PUT /juegos/{id}/premios` con set completo, errores del backend junto al campo (`message` + `errors`), auditoría (`auditoria[].user`, before/after para `accion=premios`), `vendible` espejo de solo lectura de `active` (D5) | ✅ 5 caminos: carga desde `config.premios` (GET /juegos/{id}); sugerencias plugin ∪ claves configuradas (D3); payload plano `{base, modalidades, comodines}` (contrato verificado del endpoint); errores 422 mapeados a base/fila; auditoría before/after | ✅ `pnpm run build` verde; sin cambios de estilo pendientes (Pint no aplica a panel) |
+| 5.3 | `pnpm run build` | Build | ✅ 25 páginas baseline | N/A | ✅ `pnpm run build` → `25 page(s) built in ~1.9s` · Complete! | ✅ Bundle `/juegos` inspeccionado: contiene `editor-modal`, `premios-form`, PUT `/juegos/{id}/premios`, `showErrors(err.message, err.errors)`, filas kv de modalidades/comodines, auditoría | ✅ Sin refactor adicional |
+
+## Test Summary (S4)
+
+- **Panel sin runner de tests** (hecho conocido y reportado honestamente, igual que en S3): la verificación del slice es (a) `pnpm run build` verde y (b) lectura del flujo — tanto del fuente como del bundle compilado (`dist/_astro/hoisted.*.js`).
+- **Evidencia de lectura del flujo (contrato del PUT)**:
+  - Payload enviado: `{base, modalidades: {clave: valor}, comodines: {clave: {tipo, premio_multiplo, acumulativo?}}}` — body PLANO, idéntico al contrato verificado de `JuegoController::updatePremios()` (`$request->only(['base','modalidades','comodines'])`; `base required|integer|min:1`; `comodines.*.tipo in:flag,letra,numero,palabra`; `comodines.*.premio_multiplo required|integer|min:1`; `acumulativo` solo con `tipo=palabra`).
+  - Errores: `apiFetch` ahora adjunta `errors` + `status` al `Error` lanzado (cambio aditivo, `err.message` intacto); el editor muestra `message` en la caja general y mapea `errors` por campo (`base` → bajo el input; `modalidades.<clave>` / `comodines.<clave>.<campo>` → bajo la fila correspondiente; el resto se lista en la caja).
+  - Auditoría: `GET /juegos/{id}` → `auditoria[]` con `user` (name/email); render por entrada con `accion`, usuario y fecha; las de `accion=premios` expanden `cambios.before`/`after` en JSON.
+  - Sugerencias de modalidad: `GET /juegos/{id}/reglas` → `modalidades[].code` ∪ claves ya configuradas (canónicas sin plugin, D3).
+  - `vendible` mostrado como espejo de solo lectura de `active` (D5/REQ6) — sin columna ni semántica nueva.
+
+## Files Changed (S4)
+
+| File | Action | What Was Done |
+|------|--------|---------------|
+| `panel/src/pages/juegos.astro` | Modified | Editor de premios completo (modal por clic en fila, ~300 líneas): base, modalidades (clave/valor + datalist de sugerencias), comodines (tipo/valor/acumulativo condicional), guardar → PUT con set completo, errores `message`+`errors` junto al campo, auditoría (user, before/after), `vendible` espejo de solo lectura |
+| `panel/src/utils/api.ts` | Modified | `apiFetch` adjunta `errors` + `status` al Error lanzado en respuestas no-OK (Laravel 422); `err.message` intacto para el resto del panel |
+| `openspec/changes/configuracion-juegos/tasks.md` | Modified | S4 marcada `[x]` (5.1–5.3) |
+| `openspec/changes/configuracion-juegos/apply-progress.md` | Modified | Merge: secciones S1a/S1b/S2/S3 intactas + sección S4 añadida |
+
+## Work Unit Evidence (S4)
+
+| Evidence | Required value |
+|---|---|
+| Focused test command and exact result | `pnpm run build` (panel) → `25 page(s) built in ~1.9s` · `Complete!` (2 runs: baseline pre-editor y post-editor; ambos verdes). No hay comando de tests del panel en el repo (hecho reportado) |
+| Runtime harness command/scenario and exact result | No hay runtime boundary automatizable del panel (sin runner, sin e2e). Verificación por lectura del flujo compilado: `dist/_astro/hoisted.*.js` del bundle de `/juegos` contiene `PUT "/juegos/"+id+"/premios"` con payload `{base, modalidades:{}, comodines:{}}`, `showErrors(err.message, err.errors)`, `GET /juegos/{id}` + `GET /juegos/{id}/reglas` en paralelo, render de auditoría con before/after. Smoke manual descrito en Next Steps. |
+| Rollback boundary | Revertir `feat/configuracion-juegos-s4`: 2 archivos del panel (`juegos.astro`, `api.ts`) + docs sdd. `apiFetch` es aditivo (el resto del panel no depende de `errors`); sin cambios de backend ni de contrato |
+
+## Commits (S4)
+
+| Hash | Mensaje | Contenido |
+|------|---------|-----------|
+| (ver `git log`) | `feat(panel): editor de premios` | `juegos.astro` (editor modal) + `api.ts` (errores 422 con `errors`) |
+| (ver `git log`) | `docs(sdd): cierre del slice S4 de configuracion-juegos` | `tasks.md` `[x]` + `apply-progress.md` merge |
+
+NO push (regla del slice; PR #5 de la feature-branch-chain lo hará el orchestrator).
+
+## Deviations (S4)
+
+- **Forma del payload**: el prompt del orchestrator decía "set completo `{premios:{...}}`"; el contrato VERIFICADO del endpoint (design D1, spec REQ "el body ES el objeto premios completo", y tests S1a) es el body PLANO `{base, modalidades, comodines}` (el controlador hace `$request->only([...])`). Se envió el body plano; envolverlo en `premios:` habría roto el contrato (422 `base required`).
+- **P2 del doc integración sugería checkbox `vendible` editable**; el alcance y D5 exigen `vendible` como espejo de solo lectura de `active` (sin columna). Se muestra en modo lectura.
+- Panel sin runner de tests: la verificación es build + lectura del flujo compilado (misma honestidad que S3); no hay tests de panel que escribir.
+
+## Issues (S4)
+
+- Ninguno. El build pasó a la primera en ambos runs. `.codegraph/` queda como único artefacto no versionado (ignorado).
+
+## Next Steps (tras S4 — fin del cambio)
+
+- **Cambio completo**: S1a (5/5) + S1b (3/3) + S2 (6/6) + S3 (5/5) + S4 (3/3) = 22/22 tareas `[x]` en `tasks.md`.
+- `sdd-verify` (orquestador): verificar el cambio completo contra spec/design/tasks; smoke manual sugerido del editor (abrir `/juegos`, clic en fila, editar base/modalidades/comodines, guardar, ver errores 422 junto al campo, ver auditoría nueva).
+- PR #5 de la feature-branch-chain (base: PR #4 S3) con este slice; al cerrar el tracker `feat/configuracion-juegos` → `main`, ejecutar `php artisan juegos:export` y coordinar la copia bundled de taquilla (nota §9.1 de `docs/motor-premios.md`).

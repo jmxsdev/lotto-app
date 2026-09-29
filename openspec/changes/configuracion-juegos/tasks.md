@@ -50,6 +50,6 @@ Delivery strategy: auto-chain
 - [x] 4.5 **REFACTOR**: `vendor/bin/pint --test` + `npm run build`.
 ## S4: Editor P2 premios en panel (~180 líneas)
 
-- [ ] 5.1 **RED**: `npm run build` + smoke: editor no existe al expandir fila.
-- [ ] 5.2 **GREEN**: Editor en `panel/src/pages/juegos.astro` (clic en fila): `base`(number), `modalidades`(clave:valor), `comodines`(tipo/valor/acumulativo), guardar→`PUT /juegos/{id}/premios`, errores 422 junto al campo.
-- [ ] 5.3 **GREEN**: `npm run build` verde.
+- [x] 5.1 **RED**: `npm run build` + smoke: editor no existe al expandir fila.
+- [x] 5.2 **GREEN**: Editor en `panel/src/pages/juegos.astro` (clic en fila): `base`(number), `modalidades`(clave:valor), `comodines`(tipo/valor/acumulativo), guardar→`PUT /juegos/{id}/premios`, errores 422 junto al campo.
+- [x] 5.3 **GREEN**: `npm run build` verde.
