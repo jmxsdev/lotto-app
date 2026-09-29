@@ -51,12 +51,13 @@ class JuegoController extends Controller
             'updated_by' => $user->id,
         ]);
 
-        if ($juego->pluginJuego) {
-            $juego->pluginJuego->update([
-                'active' => $newActive,
-                'updated_by' => $user->id,
-            ]);
-        }
+        // Sincroniza el plugin en AMBOS sentidos: la relación `pluginJuego`
+        // filtra por active=true (devuelve null al reactivar), así que se
+        // actualiza por la relación sin filtro (pluginJuegos).
+        $juego->pluginJuegos()->update([
+            'active' => $newActive,
+            'updated_by' => $user->id,
+        ]);
 
         JuegoAuditoria::create([
             'juego_id' => $juego->id,
