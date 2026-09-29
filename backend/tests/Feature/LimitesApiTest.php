@@ -250,6 +250,56 @@ class LimitesApiTest extends TestCase
     }
 
     // ==================================================
+    // CAMPOS DORMIDOS — fraccion / limite_tiempo (WU1)
+    // ==================================================
+
+    public function test_put_ignora_campos_dormidos()
+    {
+        $juego = $this->juegoNuevo();
+        $banca = $this->bancaSeeded();
+
+        $response = $this->actingAs($this->masterUser(), 'sanctum')
+            ->putJson('/api/v1/limites/'.$juego->id, [
+                'banca_id' => $banca->id,
+                'moneda' => 'bs',
+                'limite_maximo' => 500,
+                'fraccion' => true,
+                'limite_tiempo' => 30,
+            ]);
+
+        $response->assertSuccessful();
+        // La respuesta (modelo crudo) no expone los campos dormidos (decisión A2)
+        $this->assertArrayNotHasKey('fraccion', $response->json());
+        $this->assertArrayNotHasKey('limite_tiempo', $response->json());
+
+        $limite = JuegoLimite::where('juego_id', $juego->id)
+            ->where('banca_id', $banca->id)
+            ->where('moneda', 'bs')
+            ->first();
+
+        $this->assertNotNull($limite);
+        $this->assertSame(500.0, (float) $limite->limite_maximo);
+        // Los dormidos no se persisten
+        $this->assertFalse((bool) $limite->fraccion);
+        $this->assertNull($limite->limite_tiempo);
+    }
+
+    public function test_get_limites_legacy_no_expone_dormidos()
+    {
+        $juego = $this->juegoNuevo();
+        $this->crearLimite($juego, ['limite_maximo' => 100, 'fraccion' => true, 'limite_tiempo' => 30]);
+
+        $response = $this->actingAs($this->masterUser(), 'sanctum')
+            ->getJson('/api/v1/limites/'.$juego->id.'?banca_id='.$this->bancaSeeded()->id);
+
+        $response->assertStatus(200);
+
+        $this->assertNotEmpty($response->json());
+        $this->assertArrayNotHasKey('fraccion', $response->json()[0]);
+        $this->assertArrayNotHasKey('limite_tiempo', $response->json()[0]);
+    }
+
+    // ==================================================
     // DELETE /limites/{limite}
     // ==================================================
 

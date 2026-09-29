@@ -390,8 +390,6 @@ class JuegoController extends Controller
             'limite_maximo' => 'nullable|numeric|min:0',
             'porcentaje_pago' => 'nullable|numeric|min:0|max:100',
             'participacion' => 'nullable|numeric|min:0|max:100',
-            'fraccion' => 'boolean',
-            'limite_tiempo' => 'nullable|integer|min:1',
         ]);
 
         // Validar jerarquía de restricción: hijo ≤ padre
@@ -419,8 +417,7 @@ class JuegoController extends Controller
                 'moneda' => $request->moneda,
             ],
             $request->only([
-                'limite_minimo', 'limite_maximo', 'porcentaje_pago',
-                'participacion', 'fraccion', 'limite_tiempo',
+                'limite_minimo', 'limite_maximo', 'porcentaje_pago', 'participacion',
             ])
         );
 
@@ -455,8 +452,6 @@ class JuegoController extends Controller
             'limites.*.limite_maximo' => 'nullable|numeric|min:0',
             'limites.*.porcentaje_pago' => 'nullable|numeric|min:0|max:100',
             'limites.*.participacion' => 'nullable|numeric|min:0|max:100',
-            'limites.*.fraccion' => 'boolean',
-            'limites.*.limite_tiempo' => 'nullable|integer|min:1',
         ]);
 
         $scope = $request->scope;
@@ -1017,8 +1012,6 @@ class JuegoController extends Controller
             'limite_maximo' => $limite->limite_maximo !== null ? (float) $limite->limite_maximo : null,
             'porcentaje_pago' => $limite->porcentaje_pago !== null ? (float) $limite->porcentaje_pago : null,
             'participacion' => $limite->participacion !== null ? (float) $limite->participacion : null,
-            'fraccion' => (bool) $limite->fraccion,
-            'limite_tiempo' => $limite->limite_tiempo !== null ? (int) $limite->limite_tiempo : null,
         ];
     }
 
@@ -1029,14 +1022,10 @@ class JuegoController extends Controller
     {
         $valores = [];
 
-        foreach (['limite_minimo', 'limite_maximo', 'porcentaje_pago', 'participacion', 'limite_tiempo'] as $campo) {
+        foreach (['limite_minimo', 'limite_maximo', 'porcentaje_pago', 'participacion'] as $campo) {
             if ($limite->{$campo} !== null) {
                 $valores[$campo] = (float) $limite->{$campo};
             }
-        }
-
-        if ($limite->fraccion !== null) {
-            $valores['fraccion'] = (bool) $limite->fraccion;
         }
 
         return $valores;
