@@ -42,7 +42,7 @@ Commit note: `*.md` is `.gitignore:44`-ignored — commit openspec artifacts wit
 - [x] 1.2 Create `backend/app/Models/ComisionDefault.php` (fillable + `decimal:2` cast).
 - [x] 1.3 RED `tests/Feature/ComisionesApiTest.php`: 2 default rows persist; PUT override; 403 without `manage_comisiones` (scenarios S4, S6).
 - [x] 1.4 `backend/app/Http/Controllers/Api/ComisionController.php` + routes `GET/PUT /api/v1/comisiones/defaults` (super_master; PUT + `permission:manage_comisiones`).
-- [ ] 1.5 `panel/src/pages/limites.astro` additive 2-row global block (super_master); coordinate §D; no matrix restructure (S4, S5).
+- [x] 1.5 `panel/src/pages/limites.astro` additive 2-row global block (super_master); coordinate §D; no matrix restructure (S4, S5).
 - [x] 1.6 `./vendor/bin/pint --test`.
 
 ## Phase 2: Readers (S2)
