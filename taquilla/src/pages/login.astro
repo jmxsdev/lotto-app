@@ -1,6 +1,6 @@
 ---
 
-
+import Icon from '../components/ui/Icon.astro';
 
 ---
 
@@ -40,6 +40,10 @@
         color: #333;
         font-size: 2rem;
         margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
       }
       .logo p {
         color: #666;
@@ -111,6 +115,11 @@
         color: #004085;
         line-height: 1.5;
       }
+      .info-box strong {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
       .spinner {
         display: inline-block;
         width: 16px;
@@ -130,7 +139,7 @@
   <body>
     <div class="login-container">
       <div class="logo">
-        <h1>🎰 Lotto Taquilla</h1>
+        <h1><Icon name="dices" size={32} /> Lotto Taquilla</h1>
         <p>Sistema de Loterías Multi-Moneda</p>
       </div>
       
@@ -165,7 +174,7 @@
       </form>
       
       <div class="info-box">
-        <strong>ℹ️ Información:</strong><br/>
+        <strong><Icon name="info" size={14} /> Información:</strong><br/>
         Use las credenciales proporcionadas por su administrador para acceder al sistema. La taquilla debe estar activada previamente.
       </div>
 

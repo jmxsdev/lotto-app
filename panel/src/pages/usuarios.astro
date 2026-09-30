@@ -36,7 +36,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     .checkbox-group { display: flex; gap: 20px; padding-top: 4px; } .checkbox-group label { display: flex; align-items: center; gap: 6px; font-weight: 400; cursor: pointer; } .checkbox-group input[type="checkbox"] { width: auto; margin: 0; }
   </style>
   <script>
-    import { apiFetch } from '../utils/api.ts'; import { showModal } from '../utils/modal.ts';
+    import { apiFetch } from '../utils/api.ts'; import { showModal } from '../utils/modal.ts'; import { icono } from '../utils/iconos.ts';
 
     const currentUser = JSON.parse(localStorage.getItem('panel_user') || '{}');
     const currentRole = currentUser.role || '';
@@ -113,8 +113,8 @@ import AdminLayout from '../layouts/AdminLayout.astro';
         let html = '<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Entidad</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>';
         items.forEach(u => {
           const entidad = u.agencia_id ? (localPorId.get(u.agencia_id) || '—') : (u.taquilla?.name || u.grupo?.name || u.banca?.name || '—');
-          const del = (currentRole === 'super_master' || currentRole === 'master') ? `<button class="btn btn-sm btn-danger del-btn" data-id="${u.id}">🗑</button>` : '';
-          html += `<tr><td><strong>${u.name}</strong></td><td>${u.email}</td><td>${ROLE_LABELS[u.role] || u.role}</td><td>${entidad}</td><td><span class="badge ${u.active ? 'badge-active' : 'badge-inactive'}">${u.active ? 'Activo' : 'Inactivo'}</span></td><td class="actions-cell"><button class="btn btn-sm btn-secondary edit-btn" data-id="${u.id}">✏️</button>${del}</td></tr>`;
+          const del = (currentRole === 'super_master' || currentRole === 'master') ? `<button class="btn btn-sm btn-danger del-btn" data-id="${u.id}" aria-label="Eliminar">${icono('trash-2')}</button>` : '';
+          html += `<tr><td><strong>${u.name}</strong></td><td>${u.email}</td><td>${ROLE_LABELS[u.role] || u.role}</td><td>${entidad}</td><td><span class="badge ${u.active ? 'badge-active' : 'badge-inactive'}">${u.active ? 'Activo' : 'Inactivo'}</span></td><td class="actions-cell"><button class="btn btn-sm btn-secondary edit-btn" data-id="${u.id}" aria-label="Editar">${icono('pencil')}</button>${del}</td></tr>`;
         });
         html += '</tbody></table></div>';
         document.getElementById('content').innerHTML = html;

@@ -1,5 +1,6 @@
 ---
 import AdminLayout from '../layouts/AdminLayout.astro';
+import Icon from '../components/Icon.astro';
 ---
 
 <AdminLayout>
@@ -14,8 +15,8 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     </div>
     <div class="resultados-tabs" id="resultados-tabs">
       <button class="result-tab active" data-tab="animalitos">🐾 Animalitos</button>
-      <button class="result-tab" data-tab="tripletas">🎲 Tripletas</button>
-      <button class="result-tab" data-tab="terminales">🎯 Terminales</button>
+      <button class="result-tab" data-tab="tripletas"><Icon name="dices" size={14} /> Tripletas</button>
+      <button class="result-tab" data-tab="terminales"><Icon name="target" size={14} /> Terminales</button>
     </div>
     <div id="content"><div class="loading">Cargando resultados...</div></div>
   </div>
@@ -24,7 +25,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     <div class="modal-card">
       <div class="modal-header">
         <h3 id="tracker-title">Apariciones previas</h3>
-        <button class="modal-close" id="tracker-close" aria-label="Cerrar">✕</button>
+        <button class="modal-close" id="tracker-close" aria-label="Cerrar"><Icon name="x" size={18} /></button>
       </div>
       <div id="tracker-body"></div>
     </div>

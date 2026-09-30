@@ -1,5 +1,6 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
+import Icon from '../../components/Icon.astro';
 ---
 
 <AdminLayout>
@@ -9,14 +10,14 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
         <h2 class="page-title" id="page-title">Taquilla</h2>
         <p class="page-subtitle" id="page-subtitle"></p>
       </div>
-      <a class="btn btn-secondary" href="/taquillas">← Volver a Taquillas</a>
+      <a class="btn btn-secondary" href="/taquillas"><Icon name="arrow-left" size={14} /> Volver a Taquillas</a>
     </div>
 
     <div class="tab-bar" id="tabs">
-      <button type="button" class="tab-btn" data-tab="informacion">📋 Información</button>
-      <button type="button" class="tab-btn" data-tab="monedas">💱 Monedas y Vigencia</button>
-      <button type="button" class="tab-btn" data-tab="limites">🎯 Límites</button>
-      <button type="button" class="tab-btn" data-tab="usuarios">👤 Usuarios</button>
+      <button type="button" class="tab-btn" data-tab="informacion"><Icon name="clipboard-list" size={14} /> Información</button>
+      <button type="button" class="tab-btn" data-tab="monedas"><Icon name="arrow-left-right" size={14} /> Monedas y Vigencia</button>
+      <button type="button" class="tab-btn" data-tab="limites"><Icon name="target" size={14} /> Límites</button>
+      <button type="button" class="tab-btn" data-tab="usuarios"><Icon name="user" size={14} /> Usuarios</button>
     </div>
 
     <!-- Pestaña 1: Información -->
@@ -38,7 +39,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
         </div>
         <div class="field checkbox-line" id="active-line" style="display:none"><label><input type="checkbox" name="active" /> Taquilla activa</label></div>
         <div class="field-section" id="user-section">
-          <h4>👤 Usuario Jefe</h4>
+          <h4><Icon name="user" size={14} /> Usuario Jefe</h4>
           <div class="form-grid">
             <div class="field"><label>Nombre de Usuario</label><input name="user_name" /></div>
             <div class="field"><label>Email de Usuario</label><input name="user_email" type="email" /></div>
@@ -87,7 +88,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
       </div>
       <div id="limites-content"><div class="loading">Cargando límites...</div></div>
       <div class="panel-actions">
-        <button type="button" class="btn btn-primary" id="btn-limite-guardar">💾 Guardar cambios</button>
+        <button type="button" class="btn btn-primary" id="btn-limite-guardar"><Icon name="save" size={14} /> Guardar cambios</button>
         <span id="limite-estado" class="estado"></span>
       </div>
     </section>
@@ -175,6 +176,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
     import { showModal } from '../../utils/modal.ts';
     import { getParam, initTabs } from '../../utils/tabs.ts';
     import { crearTablaLimites } from '../../utils/limites.ts';
+    import { icono } from '../../utils/iconos.ts';
 
     const TABS = ['informacion', 'monedas', 'limites', 'usuarios'];
     const currentUser = getStoredUser() || {};
@@ -447,6 +449,11 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
 
     async function initLimites() {
       limitesInited = true;
+      // WU4: roles de solo lectura (grupo/agencia) no ven las acciones del panel
+      if (!canEditLimites) {
+        const acciones = document.querySelector('[data-panel="limites"] .panel-actions');
+        if (acciones) acciones.style.display = 'none';
+      }
       if (!taquillaId) { montarLimites(); return; }
       montarLimites();
     }
@@ -467,6 +474,8 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
         entidadId: taquillaId,
         mostrarOrigen: true,
         filasPorPagina: 15,
+        puedeEditar: canEditLimites,
+        eliminar: isCreate ? undefined : (id: number) => apiFetch('DELETE', '/limites/' + id),
         cargarDatos: async () => {
           if (isCreate) {
             // Create mode: base editable = límites efectivos del grupo seleccionado
@@ -517,7 +526,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
       estado.textContent = 'Guardando...';
       try {
         await limitesTabla.guardar();
-        estado.textContent = '✅ Límites guardados.';
+        estado.innerHTML = '<span aria-hidden="true">' + icono('circle-check') + '</span> Límites guardados.';
         montarLimites();
       } catch (err) {
         estado.textContent = '';
@@ -554,8 +563,8 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
       let html = '<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Entidad</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>';
       usuarios.forEach(u => {
         const entidad = u.taquilla?.name || u.grupo?.name || u.banca?.name || '—';
-        const del = canDeleteUser ? `<button class="btn btn-sm btn-danger del-user-btn" data-id="${u.id}">🗑</button>` : '';
-        html += `<tr><td><strong>${u.name}</strong></td><td>${u.email}</td><td>${ROLE_LABELS[u.role] || u.role}</td><td>${entidad}</td><td><span class="badge ${u.active ? 'badge-active' : 'badge-inactive'}">${u.active ? 'Activo' : 'Inactivo'}</span></td><td class="actions-cell"><button class="btn btn-sm btn-secondary edit-user-btn" data-id="${u.id}">✏️</button>${del}</td></tr>`;
+        const del = canDeleteUser ? `<button class="btn btn-sm btn-danger del-user-btn" data-id="${u.id}" aria-label="Eliminar">${icono('trash-2')}</button>` : '';
+        html += `<tr><td><strong>${u.name}</strong></td><td>${u.email}</td><td>${ROLE_LABELS[u.role] || u.role}</td><td>${entidad}</td><td><span class="badge ${u.active ? 'badge-active' : 'badge-inactive'}">${u.active ? 'Activo' : 'Inactivo'}</span></td><td class="actions-cell"><button class="btn btn-sm btn-secondary edit-user-btn" data-id="${u.id}" aria-label="Editar">${icono('pencil')}</button>${del}</td></tr>`;
       });
       html += '</tbody></table></div>';
       document.getElementById('users-content').innerHTML = html;

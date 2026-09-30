@@ -44,7 +44,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     .checkbox-group { display: flex; gap: 20px; padding-top: 4px; } .checkbox-group label { display: flex; align-items: center; gap: 6px; font-weight: 400; cursor: pointer; } .checkbox-group input[type="checkbox"] { width: auto; margin: 0; }
   </style>
   <script>
-    import { apiFetch } from '../utils/api.ts'; import { showModal } from '../utils/modal.ts';
+    import { apiFetch } from '../utils/api.ts'; import { showModal } from '../utils/modal.ts'; import { icono } from '../utils/iconos.ts';
 
     async function load() {
       try {
@@ -53,7 +53,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
         let html = '<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Email</th><th>Bancas</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>';
         items.forEach(u => {
           const bancas = (u.bancas || []).map(b =>
-            `<span class="banca-chip"><a href="/bancas/detalle?id=${b.id}">🏦 ${b.name}</a><button class="unlink-btn" data-banca="${b.id}" data-master="${u.name}" title="Desvincular banca">✕</button></span>`
+            `<span class="banca-chip"><a href="/bancas/detalle?id=${b.id}"><span aria-hidden="true">${icono('landmark')}</span> ${b.name}</a><button class="unlink-btn" data-banca="${b.id}" data-master="${u.name}" title="Desvincular banca" aria-label="Desvincular banca">${icono('x')}</button></span>`
           ).join('') || '<span class="sin-bancas">Sin bancas</span>';
           const toggleLabel = u.active ? 'Desactivar' : 'Activar';
           html += `<tr><td><strong>${u.name}</strong></td><td>${u.email}</td><td>${bancas}</td><td><span class="badge ${u.active ? 'badge-active' : 'badge-inactive'}">${u.active ? 'Activo' : 'Inactivo'}</span></td><td class="actions-cell"><button class="btn btn-sm ${u.active ? 'btn-danger' : 'btn-success'} toggle-btn" data-id="${u.id}" data-active="${u.active ? '1' : '0'}">${toggleLabel}</button></td></tr>`;

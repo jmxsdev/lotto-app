@@ -18,6 +18,7 @@ jobs:
         image: mysql:8.0
         env:
           MYSQL_ROOT_PASSWORD: root
+          MYSQL_ROOT_HOST: "%"
           MYSQL_DATABASE: lotto_test
           MYSQL_USER: lotto_test
           MYSQL_PASSWORD: test_secret
@@ -58,14 +59,55 @@ jobs:
         working-directory: backend
         env:
           COLUMNS: 300
-        run: php artisan test --display-warnings --log-junit junit.xml
-        # Suite completa ~35 min (1036 tests, motor-premios + main); 30 min quedaba corto
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: php artisan test --parallel --processes=4 --display-warnings --log-junit junit.xml
+        # Suite completa ~35 min secuencial; paralela con 4 procesos (paratest)
         timeout-minutes: 60
 
       - name: Warnings de PHPUnit (junit)
         if: always()
         working-directory: backend
         run: grep -m4 -A1 "<warning" junit.xml || echo "sin warnings en junit"
+
+  front-checks:
+    name: Front — checks de iconografía y builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: |
+            taquilla/pnpm-lock.yaml
+            panel/pnpm-lock.yaml
+
+      - name: Instalar dependencias taquilla
+        working-directory: taquilla
+        run: pnpm install --frozen-lockfile
+
+      - name: Instalar dependencias panel
+        working-directory: panel
+        run: pnpm install --frozen-lockfile
+
+      - name: Checks de iconografía (pure + icons)
+        run: |
+          node taquilla/scripts/check-pure.mjs
+          node taquilla/scripts/check-icons.mjs
+
+      - name: Build taquilla
+        working-directory: taquilla
+        run: pnpm build
+
+      - name: Build panel
+        working-directory: panel
+        run: pnpm build
 
   build:
     name: Build y push a GHCR
