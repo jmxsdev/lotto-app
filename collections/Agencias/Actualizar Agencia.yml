@@ -1,0 +1,36 @@
+info:
+  name: Actualizar Agencia
+  type: http
+  seq: 4
+
+http:
+  method: PUT
+  url: "{{baseUrl}}/api/v1/agencias/1"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Agencia Centro Renovada",
+        "active": true,
+        "telefono": "0414-5559999"
+      }
+  auth: inherit
+
+docs:
+  - |
+    # Actualizar agencia
+    - Roles: SM | M | B | G (agencia → 403: solo lectura de su local)
+    - Autenticación: Sanctum + verify.mac — auth: inherit
+    - Todos los campos opcionales (`sometimes`); `code` único ignora su propio id
+    - Respuesta: 200 con la agencia actualizada
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

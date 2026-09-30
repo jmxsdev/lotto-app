@@ -1,0 +1,27 @@
+info:
+  name: Eliminar Agencia
+  type: http
+  seq: 6
+
+http:
+  method: DELETE
+  url: "{{baseUrl}}/api/v1/agencias/1"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+  auth: inherit
+
+docs:
+  - |
+    # Eliminar agencia (soft delete con CASCADA)
+    - Roles: SM | M | B | G (agencia → 403: solo lectura de su local)
+    - Autenticación: Sanctum + verify.mac — auth: inherit
+    - CASCADA: taquillas del local soft-deleteadas; usuarios rol taquilla desactivados;
+      historial de apuestas/pagos/cierres intacto (trazable en reportes)
+    - Respuesta: 200 con `{ "message": "Agencia eliminada correctamente." }`
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

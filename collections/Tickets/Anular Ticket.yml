@@ -1,0 +1,27 @@
+info:
+  name: Anular Ticket
+  type: http
+  seq: 5
+
+http:
+  method: DELETE
+  url: "{{baseUrl}}/api/v1/tickets/1"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+  auth: inherit
+
+docs:
+  - |
+    # Anular ticket
+    - Roles: SM | M | B | G | T (sin agencia)
+    - Autenticación: Sanctum + verify.mac — auth: inherit
+    - Solo tickets `pendiente` (422 si otro estado); validado contra la ventana de
+      eliminación configurada y el sorteo (422 si el sorteo ya ocurrió o excedió los minutos)
+    - Respuesta: 200 con `{ "message": "Ticket anulado correctamente." }`
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

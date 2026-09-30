@@ -1,0 +1,44 @@
+info:
+  name: Crear Ticket
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/v1/tickets"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "lines": [
+          {
+            "juego_id": 1,
+            "amount_bs": 500,
+            "amount_usd": 0,
+            "combinacion": { "animal": "perro" }
+          }
+        ],
+        "metodo_pago": "efectivo"
+      }
+  auth: inherit
+
+docs:
+  - |
+    # Crear ticket (solo taquillas)
+    - Roles: T (403 si el usuario no tiene `taquilla_id`; el resto de roles no crean tickets)
+    - Autenticación: Sanctum + verify.mac — auth: inherit
+    - `lines` required (min 1); cada línea: `juego_id` required, `amount_bs`/`amount_usd` min 0,
+      `combinacion` opcional; `metodo_pago` ∈ efectivo|transferencia|pago_movil|punto_venta
+    - Monedas validadas contra las habilitadas de la taquilla (422 si no permitidas)
+    - Respuesta: 201 con `{ "message", "data": ticket }` (estado `pendiente`)
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

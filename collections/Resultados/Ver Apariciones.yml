@@ -1,0 +1,33 @@
+info:
+  name: Ver Apariciones
+  type: http
+  seq: 4
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/v1/resultados/1/apariciones"
+  params:
+    - name: posicion
+      value: triple_a
+      type: query
+      disabled: true
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+  auth: inherit
+
+docs:
+  - |
+    # Historial de apariciones de un resultado
+    - Roles: SM | M | B | G | T | A (todos los autenticados)
+    - Autenticación: Sanctum + verify.mac — auth: inherit
+    - `posicion` (triple_a|triple_b|triple_c): REQUERIDO para juegos tripletas (422 si falta);
+      ignorado en juegos de un solo número
+    - Respuesta: array de hasta 5 resultados previos (`id`, `fecha_sorteo`, `hora_sorteo`)
+      que coinciden con el número/signo ganador
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

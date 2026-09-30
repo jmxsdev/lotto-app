@@ -1,0 +1,25 @@
+info:
+  name: Ultima Release
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/v1/releases/latest"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+  auth: inherit
+
+docs:
+  - |
+    # Última release publicada (D3: sin historial)
+    - Roles: SM | M | B | G | A (taquilla → 403)
+    - Autenticación: Sanctum + verify.mac — auth: inherit
+    - Respuesta: `{ "version", "sha256", "published_at" }`; 404 si no hay releases
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

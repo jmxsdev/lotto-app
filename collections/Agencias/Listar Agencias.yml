@@ -1,0 +1,25 @@
+info:
+  name: Listar Agencias
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/v1/agencias"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+  auth: inherit
+
+docs:
+  - |
+    # Listar agencias (locales físicos)
+    - Roles: SM | M | B | G | A (agencia solo lee su propio local)
+    - Autenticación: Sanctum + verify.mac — auth: inherit
+    - Respuesta: array de agencias con relación `grupo.banca`, ordenadas por `name`
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

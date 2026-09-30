@@ -1,0 +1,26 @@
+info:
+  name: Listar Tickets
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/v1/tickets"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+  auth: inherit
+
+docs:
+  - |
+    # Listar tickets
+    - Roles: SM | M | B | G | T (sin agencia; alcance jerárquico por taquilla)
+    - Autenticación: Sanctum + verify.mac — auth: inherit
+    - Filtros opcionales: `estado`, `ticket_code`, `fecha_desde`, `fecha_hasta`, `per_page` (default 25)
+    - Respuesta: `{ "data": paginator }` con apuestas y `tiene_ganadores` por ticket
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,26 @@
+info:
+  name: Listar Logs
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/v1/logs?per_page=50"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+  auth: inherit
+
+docs:
+  - |
+    # Listar logs de auditoría
+    - Roles: SM | M (403 a otros roles)
+    - Autenticación: Sanctum + verify.mac — auth: inherit
+    - `per_page` opcional (default 50); paginado con relación `user`
+    - Respuesta: paginator Laravel de `App\Models\Log` con `user`
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

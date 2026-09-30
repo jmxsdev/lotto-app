@@ -1,0 +1,25 @@
+info:
+  name: Update Check
+  type: http
+  seq: 4
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/v1/update-check"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+  auth: inherit
+
+docs:
+  - |
+    # Update-check para la taquilla instalada (REQ-B1, D1)
+    - Roles: público (throttle `30,1`); notify-only — nunca auto-instala ni expone URL de descarga
+    - Autenticación: ninguna (sin Sanctum; el root hereda headers pero no son exigidos)
+    - Respuesta: `{ "version", "sha256" }`; 404 si no hay releases publicadas
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
