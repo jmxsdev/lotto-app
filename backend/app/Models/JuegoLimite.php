@@ -33,6 +33,16 @@ class JuegoLimite extends Model
         'limite_tiempo' => 'integer',
     ];
 
+    /**
+     * Campos dormidos (WU1): se retiran de la API pero las columnas quedan
+     * en BD. Ocultos de la serialización porque `limites()`, `updateLimites`
+     * y `batchLimites` devuelven el modelo crudo (decisión A2 del design).
+     */
+    protected $hidden = [
+        'fraccion',
+        'limite_tiempo',
+    ];
+
     public function juego()
     {
         return $this->belongsTo(Juego::class);
