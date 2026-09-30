@@ -1,15 +1,17 @@
+import { icono } from './iconos.ts';
+
 export function showModal({ message, type = 'info' }) {
   return new Promise((resolve) => {
-    const icons = { success: '✅', error: '❌', confirm: '⚠️', info: 'ℹ️' };
+    const icons = { success: 'circle-check', error: 'circle-x', confirm: 'triangle-alert', info: 'info' };
     const icon = icons[type] || icons.info;
     const buttons = type === 'confirm'
-      ? `<button class="modal-btn modal-btn-secondary cancel-btn">✗ No</button>
-         <button class="modal-btn modal-btn-danger ok-btn">✓ Sí</button>`
-      : `<button class="modal-btn modal-btn-primary ok-btn">✓ Aceptar</button>`;
+      ? `<button class="modal-btn modal-btn-secondary cancel-btn">${icono('x')} No</button>
+         <button class="modal-btn modal-btn-danger ok-btn">${icono('check')} Sí</button>`
+      : `<button class="modal-btn modal-btn-primary ok-btn">${icono('check')} Aceptar</button>`;
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.innerHTML = `<div class="modal-dialog">
-      <div class="modal-icon">${icon}</div>
+      <div class="modal-icon">${icono(icon)}</div>
       <p class="modal-message">${message}</p>
       <div class="modal-buttons">${buttons}</div>
     </div>`;
