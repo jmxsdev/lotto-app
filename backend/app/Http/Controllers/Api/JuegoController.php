@@ -175,7 +175,6 @@ class JuegoController extends Controller
         $filtros = $request->validate([
             'banca_id' => 'nullable|integer|exists:bancas,id',
             'grupo_id' => 'nullable|integer|exists:grupos,id',
-            'agencia_id' => 'nullable|integer|exists:agencias,id',
             'taquilla_id' => 'nullable|integer|exists:taquillas,id',
         ]);
 
@@ -211,7 +210,7 @@ class JuegoController extends Controller
             });
         }
 
-        // Filtros explícitos por banca, grupo, agencia o taquilla (validados previamente).
+        // Filtros explícitos por banca, grupo o taquilla (validados previamente).
         // Se aplican DESPUÉS del alcance jerárquico: intersectan, nunca amplían.
         if (isset($filtros['banca_id'])) {
             $query->where('banca_id', $filtros['banca_id']);
@@ -219,10 +218,6 @@ class JuegoController extends Controller
 
         if (isset($filtros['grupo_id'])) {
             $query->where('grupo_id', $filtros['grupo_id']);
-        }
-
-        if (isset($filtros['agencia_id'])) {
-            $query->where('agencia_id', $filtros['agencia_id']);
         }
 
         if (isset($filtros['taquilla_id'])) {
@@ -705,16 +700,6 @@ class JuegoController extends Controller
     // ==================================================
     // MÉTODOS PRIVADOS DE AUTORIZACIÓN Y VALIDACIÓN
     // ==================================================
-
-    /**
-     * Solo super_master y master pueden escribir límites.
-     */
-    private function authorizeLimitesWrite($user): void
-    {
-        if (! in_array($user->role, ['super_master', 'master'])) {
-            abort(403, 'No tienes permiso para configurar límites.');
-        }
-    }
 
     /**
      * Verificar que el usuario tenga acceso a la banca.

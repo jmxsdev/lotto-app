@@ -39,9 +39,9 @@ Chain strategy: stacked-to-main
 
 ## WU2 — `agencia_id` ignorado + código muerto (backend)
 
-- [ ] 2.1 RED — nuevos `LimitesApiTest::test_get_limites_ignora_agencia_id` (agencia REAL: hoy 500 SQL) y `test_get_limites_agencia_id_inexistente_es_ignorado` (999999: hoy 422 exists).
-- [ ] 2.2 GREEN — `JuegoController` quitar rule `:178`, comentario `:214`, filtro `:224-226`; borrar `authorizeLimitesWrite` `:714-722`.
-- [ ] 2.3 VERIFY — `DB_DATABASE=lotto_test_limites php artisan test --filter=LimitesApiTest`; `rg authorizeLimitesWrite` → 0; `test_delete_elimina_el_limite` intacto.
+- [x] 2.1 RED — nuevos `LimitesApiTest::test_get_limites_ignora_agencia_id` (agencia REAL: hoy 500 SQL) y `test_get_limites_agencia_id_inexistente_es_ignorado` (999999: hoy 422 exists).
+- [x] 2.2 GREEN — `JuegoController` quitar rule `:178`, comentario `:214`, filtro `:224-226`; borrar `authorizeLimitesWrite` `:714-722`.
+- [x] 2.3 VERIFY — `DB_DATABASE=lotto_test_limites php artisan test --filter=LimitesApiTest` → 16/16 (42 assertions); `rg authorizeLimitesWrite` → 0; `test_delete_elimina_el_limite` intacto.
 
 ## WU3 — Acción "Limpiar" por fila (panel)
 
