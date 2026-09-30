@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Agencia;
 use App\Models\Banca;
 use App\Models\Grupo;
 use App\Models\Juego;
@@ -247,6 +248,43 @@ class LimitesApiTest extends TestCase
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors('grupo_id');
+    }
+
+    public function test_get_limites_ignora_agencia_id()
+    {
+        $juego = $this->juegoNuevo();
+        $banca = $this->bancaSeeded();
+
+        // Fila en la banca sembrada: debe aparecer SIEMPRE (agencia_id se ignora)
+        $this->crearLimite($juego, ['limite_maximo' => 100]);
+
+        $agencia = Agencia::where('code', 'LT001')->first();
+        $this->assertNotNull($agencia, 'La agencia LT001 debe existir en el seeder.');
+
+        $response = $this->actingAs($this->masterUser(), 'sanctum')
+            ->getJson('/api/v1/limites/'.$juego->id.'?banca_id='.$banca->id.'&agencia_id='.$agencia->id);
+
+        // Hoy: 500 (juego_limites no tiene columna agencia_id). Fix: 200 sin filtrar.
+        $response->assertStatus(200);
+
+        $ids = collect($response->json())->pluck('banca_id')->all();
+        $this->assertEquals([$banca->id], $ids);
+    }
+
+    public function test_get_limites_agencia_id_inexistente_es_ignorado()
+    {
+        $juego = $this->juegoNuevo();
+        $banca = $this->bancaSeeded();
+        $this->crearLimite($juego, ['limite_maximo' => 100]);
+
+        $response = $this->actingAs($this->masterUser(), 'sanctum')
+            ->getJson('/api/v1/limites/'.$juego->id.'?banca_id='.$banca->id.'&agencia_id=999999');
+
+        // Hoy: 422 (exists:agencias,id). Fix: 200 ignorado.
+        $response->assertStatus(200);
+
+        $ids = collect($response->json())->pluck('banca_id')->all();
+        $this->assertEquals([$banca->id], $ids);
     }
 
     // ==================================================
