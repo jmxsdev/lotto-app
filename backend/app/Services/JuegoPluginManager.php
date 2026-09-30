@@ -83,10 +83,13 @@ class JuegoPluginManager
      * El dinero lo decide PremiosEngine (D1/C, REQ1): la forma del acierto
      * llega vía `evaluarAcierto` del plugin y el multiplicador desde
      * `config.premios`. Sin circularidad: el engine solo llama `getPlugin`.
+     *
+     * @param  array<string, mixed>|null  $premios  Snapshot de `config.premios`
+     *                                              al vender (S2/D4); null = config actual
      */
-    public function calcularPremio(Juego $juego, array $apuesta, array $resultados): array
+    public function calcularPremio(Juego $juego, array $apuesta, array $resultados, ?array $premios = null): array
     {
-        return (new PremiosEngine($this))->calcular($juego, $apuesta, $resultados);
+        return (new PremiosEngine($this))->calcular($juego, $apuesta, $resultados, $premios);
     }
 
     public function getOpciones(Juego $juego): array

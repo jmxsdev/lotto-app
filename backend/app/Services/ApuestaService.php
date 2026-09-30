@@ -454,6 +454,9 @@ class ApuestaService
             $amountUsd
         );
 
+        // S2/D4: snapshot de premios por apuesta (sin retroactividad). Se
+        // persiste `config.premios` VIGENTE al vender; una edición posterior
+        // no altera esta apuesta. null = legacy → fallback config actual.
         DetalleApuesta::create([
             'apuesta_id' => $apuesta->id,
             'combinacion' => json_encode($combinacion),
@@ -462,6 +465,7 @@ class ApuestaService
             'premio_posible_usd' => $premioPosible['premio_usd'],
             'premio_ganado' => null,
             'premio_ganado_usd' => null,
+            'premios_snapshot' => $juego->config['premios'] ?? null,
         ]);
 
         // Crear pago
@@ -983,7 +987,7 @@ class ApuestaService
             $horaSorteo = Carbon::createFromFormat('h:i A', trim($horaSorteo))->format('H:i:s');
         }
 
-        $apuestas = Apuesta::with('ticket')
+        $apuestas = Apuesta::with(['ticket', 'detalles'])
             ->where('juego_id', $resultado->juego_id)
             ->where('estado', 'pendiente')
             ->whereNull('resultado_id') // N5: no reprocesar lo ya liquidado
@@ -1004,6 +1008,10 @@ class ApuestaService
             // REQ10/D5 (design §4): el dinero lo decide el MOTOR
             // (manager → PremiosEngine, acentos/comodines/config), nunca el
             // plugin legacy directo (que no normaliza ni lee config.premios).
+            // S2/D4: con snapshot persistido al vender, se resuelve contra él
+            // (override); null → config.premios actual (fallback legacy).
+            $premiosSnapshot = $apuesta->detalles->first()?->premios_snapshot;
+
             $premio = $pluginManager->calcularPremio(
                 $resultado->juego,
                 [
@@ -1011,7 +1019,8 @@ class ApuestaService
                     'amount_bs' => (float) $apuesta->amount_bs,
                     'amount_usd' => (float) $apuesta->amount_usd,
                 ],
-                ['numeros_ganadores' => $resultado->numeros_ganadores]
+                ['numeros_ganadores' => $resultado->numeros_ganadores],
+                $premiosSnapshot
             );
 
             $premioBs = $premio['premio_bs'] ?? 0;

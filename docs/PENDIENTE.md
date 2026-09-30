@@ -42,15 +42,19 @@
 
 > Registrados al mergear `feat/motor-premios-f3-estados` a `main`. Referencias: `docs/integracion-front-motor-premios.md`, `docs/motor-premios.md`.
 
-### A. Tickets sin ganadores ("perdidos")
+### A. Tickets sin ganadores ("perdidos") — ✅ RESUELTA por front 1.0.0 (en main)
 
-- Un ticket cuyas apuestas perdieron todas **queda en `pendiente` para siempre**: no existe estado "perdedor" de ticket (ni en main ni tras el merge).
-- Front (taquilla/panel): mostrar "perdida" derivando de `GET /tickets` (ya trae `apuestas.estado` + `ganadoras_count`/`tiene_ganadores`); o mini-WU backend que exponga `resuelto`/`estado_display`.
+> **Resuelta 2026-09-30** (verificada en código): el historial de taquilla deriva el chip `resuelto-sin-ganadores` desde `GET /tickets` (`tiene_ganadores=false` sin apuestas abiertas) en `taquilla/src/utils/estados.ts`; si faltan datos no inventa estado. Introducida en front 1.0.0 (`77f3c19`, PR #33).
 
-### B. Pago de premios de la taquilla (ROTO tambien en main)
+- ~~Un ticket cuyas apuestas perdieron todas **queda en `pendiente` para siempre**: no existe estado "perdedor" de ticket (ni en main ni tras el merge).~~
+- ~~Front (taquilla/panel): mostrar "perdida" derivando de `GET /tickets` (ya trae `apuestas.estado` + `ganadoras_count`/`tiene_ganadores`); o mini-WU backend que exponga `resuelto`/`estado_display`.~~
 
-- Payload actual de la taquilla: `{ apuesta_id, amount_bs, amount_usd, tipo:'bs' }` — invalido (el enum es `ingreso|egreso|devolucion`). Fix: `{ apuesta_id, tipo:'egreso', moneda }` (montos OPCIONALES: el backend aplica el premio del motor). Ver `docs/integracion-front-motor-premios.md` seccion 1.3.
-- Ademas, con el motor mergeado las ganadoras quedan en `ganadora`: el flujo de pago debe aceptar ese estado.
+### B. Pago de premios de la taquilla (ROTO tambien en main) — ✅ RESUELTA por front 1.0.0 (en main)
+
+> **Resuelta 2026-09-30** (verificada en código): `taquilla/src/utils/pagos.ts` arma el payload exacto `{ apuesta_id, tipo:'egreso', moneda }` con montos OPCIONALES (el backend aplica el premio del motor) y `esPagableApuesta` acepta `ganadora` y `pendiente` con resultado. Introducida en front 1.0.0 (`fa34aa4`, PR #33).
+
+- ~~Payload actual de la taquilla: `{ apuesta_id, amount_bs, amount_usd, tipo:'bs' }` — invalido (el enum es `ingreso|egreso|devolucion`). Fix: `{ apuesta_id, tipo:'egreso', moneda }` (montos OPCIONALES: el backend aplica el premio del motor). Ver `docs/integracion-front-motor-premios.md` seccion 1.3.~~
+- ~~Ademas, con el motor mergeado las ganadoras quedan en `ganadora`: el flujo de pago debe aceptar ese estado.~~
 
 ### C. Apuestas sin resultado (matching)
 
@@ -67,3 +71,7 @@
 ### F. Menor
 
 - `figuras[]` de Tripleta: los scrapers aun no la persisten (2a sugerencia del verify-report).
+
+## Tooling (2026-09-30)
+
+- ✅ **Suite backend en paralelo** (`mejoras-tooling`, entregado en main): `composer test:parallel` corre PHPUnit en 4 procesos (~8-10 min vs ~35-50 min secuencial). Prerrequisitos de permisos MySQL y overrides documentados en `docs/runbook-ops.md` (§ Suite en paralelo).

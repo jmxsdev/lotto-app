@@ -192,6 +192,7 @@ Resumen de claves canonicas por juego (valores en `config.premios.modalidades`):
 - Hoy NO hay UI en el panel ni endpoint dedicado: `PUT /juegos/{id}` acepta `config` pero **reemplaza el array completo** (mandar solo `premios` borraria `scraper`, espejos, etc.).
 - Backlog acordado (Engram #352): `PUT /juegos/{juego}/premios` con merge seguro + sincronizacion de espejos + auditoria. Pertenece al ciclo "configuracion de juegos".
 - Fuente canonica en codigo para seeders/migracion: `PremiosOficiales::configPara($slug)`.
+- **Tras editar premios** (`PUT /juegos/{juego}/premios`): correr `php artisan juegos:export` para que `docs/juegos.json` refleje base/modalidades/comodines/espejos nuevos, y **coordinar la copia bundled de la taquilla**: copiar `docs/juegos.json` → `taquilla/src/data/juegos.json` (sin cambios de codigo en `taquilla/`).
 
 ### 9.2 Despliegue
 
