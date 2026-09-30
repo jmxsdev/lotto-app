@@ -429,6 +429,8 @@ import Icon from '../../components/Icon.astro';
         entidadId: grupoId,
         mostrarOrigen: true,
         filasPorPagina: 15,
+        puedeEditar: canEditLimites,
+        eliminar: isCreate ? undefined : (id: number) => apiFetch('DELETE', '/limites/' + id),
         cargarDatos: async () => {
           if (isCreate) {
             // Create mode: base editable = límites efectivos de la banca seleccionada
