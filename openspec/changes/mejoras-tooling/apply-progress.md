@@ -61,3 +61,25 @@ Triangulación: N/A — tarea puramente de configuración/herramienta (D5 del de
 
 - RED con usuario temporal `sdd_red_user` (creado y eliminado tras la prueba): `SQLSTATE[42000] 1044 Access denied for user 'sdd_red_user'@'%' ... SQL: create database \`lotto_test_test_1\``.
 - CI real (REQ-3): no corre en PRs (solo push a main + dispatch) — evidencia post-merge, según design Verificación.
+
+---
+
+## Remediación (flaky fix)
+
+**Origen**: verify-report `b47ca01` — CRITICAL: `AgenciaScopeTest::test_agencia_reporte_ventas_solo_sus_taquillas` flaky preexistente por colisión de nombres en `TaquillaFactory` (`$this->faker->word.' Taquilla'` sin `unique()`; P≈0.894 %/corrida). El reporte `ventas-totales?nivel=taquilla` agrupa por `taquillas.name` (`Entidad` = `taquillas.name`, `ApuestaService::ventasTotales`), y si `taquillaAjena` colisiona de nombre con `taquilla1`, `assertNotContains` falla en falso.
+
+**Fix aplicado (aprobado por el usuario, alcance SOLO este)**: `backend/database/factories/TaquillaFactory.php` → `'name' => $this->faker->unique()->word().' Taquilla'`.
+
+**Revisión del MISMO patrón en factories que alimentan el test/flujo** (verificado, NO expandido):
+- `AgenciaFactory` (`word.' Local'`) y `GrupoFactory` (`word.' Group'`) comparten el patrón `faker->word` sin `unique()` y alimentan el flujo (`jerarquiaLocal()`), pero **ninguna aserción del flujo compara sus nombres**: `AgenciaScopeTest` asevera IDs/emails/status (nunca nombres de agencia/grupo) y `AgenciaDestroyCascadaTest` usa nombres explícitos (`"Local {$prefijo}"`, `"Taquilla {$prefijo}"`). `SuperBancaScopeTest`/`CuadreCajaReportTest`/`ReporteTest` aseveran nombres explícitos creados en el test, no faker. Por eso el arreglo NO se expande a más factories (regla "NO expandas a más lugares").
+- Riesgo de overflow del pool `unique()` (182 palabras) descartado: el Generator es singleton con `unique(true)` en cada resolución de app, y cada test method refresca la app (PHPUnit instancia nueva + `refreshApplication`) → el pool se resetea por test; máximo 2 `Taquilla::factory` por test method directo (+ las de `jerarquiaLocal`, ≤ 5-6 por test) vs 182 palabras. Sin riesgo de `OverflowException`.
+
+**Evidencia (todas VERDES tras el fix)**:
+- Test aislado 2×+ (mínimo exigido 2): `DB_DATABASE=lotto_test_motor php artisan test --filter='AgenciaScopeTest'` → 3/3 pasadas: 23 tests, 23 passed, 55 assertions (185.0 s, 165.9 s, 159.2 s).
+- **2 corridas consecutivas `composer test:parallel` VERDES** (criterio REQ-2 esc 2 del spec):
+  - Corrida 1: 1071 tests, 1069 passed, 2 skipped, 6396 assertions, **474 701 ms** (~7.9 min), exit 0.
+  - Corrida 2: 1071 tests, 1069 passed, 2 skipped, 6396 assertions, **478 549 ms** (~8.0 min), exit 0.
+  - Counts idénticos a las GREEN previas (apply ×2 y verify corrida 2) → sin flakiness; el fix elimina la colisión de nombres.
+- `vendor/bin/pint --test` → `{"tool":"pint","result":"passed"}` (proyecto completo).
+
+**Commit**: `3c98464` — `fix(tests): nombre unico en TaquillaFactory (flaky preexistente)` (rama `feat/mejoras-tooling`, sin push). Único archivo: `backend/database/factories/TaquillaFactory.php` (1 línea). Sin cambios en `tasks.md` ni en `panel/`/`taquilla/`; worktree limpio al final.
