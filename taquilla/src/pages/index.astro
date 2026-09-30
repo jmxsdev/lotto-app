@@ -1,5 +1,6 @@
 ---
 // Splash screen que verifica autenticación y redirige
+import Icon from '../components/ui/Icon.astro';
 const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
 ---
 
@@ -31,6 +32,10 @@ const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
       h1 {
         font-size: 3rem;
         margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
       }
       .subtitle {
         font-size: 1.2rem;
@@ -73,7 +78,7 @@ const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
   </head>
   <body>
     <div class="container">
-      <h1>🎰 {appName}</h1>
+      <h1><Icon name="dices" size={48} /> {appName}</h1>
       <p class="subtitle">Sistema de Loterías Multi-Moneda</p>
       <div class="spinner"></div>
       <p id="splash-status">Iniciando taquilla...</p>

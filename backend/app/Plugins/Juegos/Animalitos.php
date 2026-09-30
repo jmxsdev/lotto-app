@@ -4,6 +4,7 @@ namespace App\Plugins\Juegos;
 
 use App\Plugins\Contracts\JuegoInterface;
 use App\Support\Texto;
+use Illuminate\Validation\Rule;
 
 /**
  * Adaptador de FORMA del juego de animalitos (D1/C, design §3.3).
@@ -72,7 +73,16 @@ class Animalitos implements JuegoInterface
 
     public function validarApuesta(array $data, ?array $opciones = null): bool
     {
-        $animal = Texto::normalizar($data['combinacion']['animal'] ?? null);
+        $combinacion = $data['combinacion'] ?? [];
+
+        // F2 (D8/§3.4, contrato §2.2): Tripleta same-draw —
+        // `{modalidad:'tripleta', selecciones:[{animal}×3]}`.
+        $selecciones = $combinacion['selecciones'] ?? [];
+        if (! empty($selecciones)) {
+            return $this->seleccionesTripletaValidas($selecciones, $opciones);
+        }
+
+        $animal = Texto::normalizar($combinacion['animal'] ?? null);
 
         if ($animal === '') {
             return false;
@@ -86,6 +96,41 @@ class Animalitos implements JuegoInterface
         }
 
         return in_array($animal, $this->animales, true);
+    }
+
+    /**
+     * Tripleta same-draw (F2/§3.4, contrato §2.2): EXACTAMENTE 3 selecciones
+     * de animal del MISMO sorteo. Cada animal se valida igual que el simple
+     * (label o valor, acentos normalizados — REQ2/H13).
+     *
+     * @param  array<int, array<string, mixed>>  $selecciones
+     */
+    private function seleccionesTripletaValidas(array $selecciones, ?array $opciones): bool
+    {
+        if (count($selecciones) !== 3) {
+            return false;
+        }
+
+        foreach ($selecciones as $seleccion) {
+            $animal = Texto::normalizar((string) ($seleccion['animal'] ?? ''));
+
+            if ($animal === '') {
+                return false;
+            }
+
+            if ($opciones !== null && ! empty($opciones)) {
+                $nombres = array_map(fn ($o) => Texto::normalizar((string) ($o['label'] ?? '')), $opciones);
+                $valores = array_map(fn ($o) => Texto::normalizar((string) ($o['value'] ?? '')), $opciones);
+
+                if (! in_array($animal, $nombres, true) && ! in_array($animal, $valores, true)) {
+                    return false;
+                }
+            } elseif (! in_array($animal, $this->animales, true)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -295,8 +340,18 @@ class Animalitos implements JuegoInterface
     {
         return [
             'combinacion' => 'required|array|min:1',
-            'combinacion.animal' => ['required', 'string', 'max:50'],
+            'combinacion.animal' => [
+                'nullable',
+                'string',
+                'max:50',
+                // S6: con `selecciones[]` (tripleta) no viaja `animal` raíz;
+                // los animales van en `selecciones[].animal` (contrato §2.2).
+                Rule::requiredIf(fn () => empty(request('combinacion.selecciones'))),
+            ],
             'combinacion.numero' => 'nullable|integer|min:0|max:99',
+            // S6: Tripleta same-draw — exactamente 3 animales.
+            'combinacion.selecciones' => ['nullable', 'array', 'size:3'],
+            'combinacion.selecciones.*.animal' => ['required', 'string', 'max:50'],
         ];
     }
 
@@ -304,6 +359,8 @@ class Animalitos implements JuegoInterface
     {
         return [
             'combinacion.animal.in' => 'El animal seleccionado no es válido.',
+            'combinacion.selecciones.size' => 'La tripleta debe llevar exactamente 3 animales.',
+            'combinacion.selecciones.*.animal.required' => 'Cada selección de la tripleta debe indicar un animal.',
         ];
     }
 
