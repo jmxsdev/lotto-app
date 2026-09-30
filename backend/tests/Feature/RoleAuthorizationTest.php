@@ -227,4 +227,21 @@ class RoleAuthorizationTest extends TestCase
             ])
             ->assertStatus(403);
     }
+
+    public function test_grupo_no_configura_limites()
+    {
+        $grupo = User::where('email', 'grupo@lotto.com')->first();
+        $grupo->assignRole('grupo');
+
+        $juego = Juego::first();
+        $banca = Banca::where('code', 'BT001')->first();
+
+        $this->actingAs($grupo, 'sanctum')
+            ->putJson('/api/v1/limites/'.$juego->id, [
+                'banca_id' => $banca->id,
+                'moneda' => 'bs',
+                'limite_maximo' => 100,
+            ])
+            ->assertStatus(403);
+    }
 }

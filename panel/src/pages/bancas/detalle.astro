@@ -188,6 +188,7 @@ import Icon from '../../components/Icon.astro';
     const currentUser = getStoredUser() || {};
     const role = currentUser.role || '';
     const canEditBanca = role === 'super_master' || role === 'master';
+    const canEditLimites = role === 'super_master' || role === 'master' || role === 'banca';
     const canDeleteUser = role === 'super_master' || role === 'master';
     const bancaId = getParam('id') ? parseInt(getParam('id'), 10) : null;
     const isCreate = !bancaId;
@@ -376,6 +377,11 @@ import Icon from '../../components/Icon.astro';
 
     async function initLimites() {
       limitesInited = true;
+      // WU4: roles de solo lectura (grupo/agencia) no ven las acciones del panel
+      if (!canEditLimites) {
+        const acciones = document.querySelector('[data-panel="limites"] .panel-actions');
+        if (acciones) acciones.style.display = 'none';
+      }
       if (!bancaId) { montarLimites(); return; }
       montarLimites();
     }
@@ -396,6 +402,8 @@ import Icon from '../../components/Icon.astro';
         entidadId: bancaId,
         mostrarOrigen: false,
         filasPorPagina: 15,
+        puedeEditar: canEditLimites,
+        eliminar: isCreate ? undefined : (id: number) => apiFetch('DELETE', '/limites/' + id),
         cargarDatos: async () => {
           if (isCreate) {
             // Create mode: matriz de juegos con celdas vacías (la banca no tiene padre)

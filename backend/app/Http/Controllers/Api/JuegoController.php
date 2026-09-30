@@ -11,7 +11,9 @@ use App\Models\JuegoLimite;
 use App\Models\Taquilla;
 use App\Services\JuegoLimiteService;
 use App\Services\JuegoPluginManager;
+use App\Services\PremiosConfigService;
 use App\Services\PremiosEngine;
+use App\Support\PremiosOficiales;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -49,12 +51,13 @@ class JuegoController extends Controller
             'updated_by' => $user->id,
         ]);
 
-        if ($juego->pluginJuego) {
-            $juego->pluginJuego->update([
-                'active' => $newActive,
-                'updated_by' => $user->id,
-            ]);
-        }
+        // Sincroniza el plugin en AMBOS sentidos: la relación `pluginJuego`
+        // filtra por active=true (devuelve null al reactivar), así que se
+        // actualiza por la relación sin filtro (pluginJuegos).
+        $juego->pluginJuegos()->update([
+            'active' => $newActive,
+            'updated_by' => $user->id,
+        ]);
 
         JuegoAuditoria::create([
             'juego_id' => $juego->id,
@@ -99,6 +102,62 @@ class JuegoController extends Controller
         ]);
 
         return response()->json($juego->load('pluginJuego'));
+    }
+
+    /**
+     * Edición atómica de premios (D1/D2/D3, spec configuracion-premios):
+     * PUT /api/v1/juegos/{juego}/premios.
+     *
+     * El body ES el objeto `premios` completo ({base, modalidades, comodines}).
+     * Validación estricta del esquema + claves de modalidad en plugin ∪
+     * catálogo oficial; el servicio hace el merge seguro, los espejos legacy
+     * y la auditoría `accion=premios`. Solo roles super_master|master (ruta).
+     */
+    public function updatePremios(Request $request, Juego $juego)
+    {
+        $user = $request->user();
+
+        // REQ7/D3: la-ricachona (y cualquier juego sin base oficial) no tiene
+        // premios configurables → 422 con mensaje claro.
+        $oficial = PremiosOficiales::para($juego->slug);
+        if ($oficial === null || ! isset($oficial['base'])) {
+            return response()->json(['message' => 'Este juego no tiene premios oficiales configurables.'], 422);
+        }
+
+        $request->validate([
+            'base' => 'required|integer|min:1',
+            'modalidades' => 'sometimes|array',
+            'modalidades.*' => 'integer|min:1',
+            'comodines' => 'sometimes|array',
+            'comodines.*.tipo' => 'required|in:flag,letra,numero,palabra',
+            'comodines.*.premio_multiplo' => 'required|integer|min:1',
+        ]);
+
+        // Reemplazo atómico: omitir modalidades/comodines los deja vacíos.
+        $premios = $request->only(['base', 'modalidades', 'comodines']);
+        $premios['modalidades'] ??= [];
+        $premios['comodines'] ??= [];
+
+        // D3: claves de modalidad válidas en plugin->obtenerModalidades() ∪
+        // catálogo oficial, sin bloquear claves canónicas que el plugin no liste.
+        $service = app(PremiosConfigService::class);
+        $clavesValidas = $service->clavesModalidadValidas($juego);
+        foreach (array_keys($premios['modalidades']) as $clave) {
+            if (! in_array($clave, $clavesValidas, true)) {
+                return response()->json(['message' => "La modalidad [{$clave}] no es válida para este juego."], 422);
+            }
+        }
+
+        // `acumulativo` solo es válido con tipo=palabra (spec).
+        foreach ($premios['comodines'] as $clave => $comodin) {
+            if (! empty($comodin['acumulativo']) && ($comodin['tipo'] ?? null) !== 'palabra') {
+                return response()->json(['message' => "El comodín [{$clave}] solo puede ser acumulativo con tipo 'palabra'."], 422);
+            }
+        }
+
+        $juego = $service->actualizar($juego, $premios, $user->id);
+
+        return response()->json($juego->load('pluginJuego', 'updatedByUser'));
     }
 
     public function opciones(Juego $juego)
@@ -175,7 +234,6 @@ class JuegoController extends Controller
         $filtros = $request->validate([
             'banca_id' => 'nullable|integer|exists:bancas,id',
             'grupo_id' => 'nullable|integer|exists:grupos,id',
-            'agencia_id' => 'nullable|integer|exists:agencias,id',
             'taquilla_id' => 'nullable|integer|exists:taquillas,id',
         ]);
 
@@ -211,7 +269,7 @@ class JuegoController extends Controller
             });
         }
 
-        // Filtros explícitos por banca, grupo, agencia o taquilla (validados previamente).
+        // Filtros explícitos por banca, grupo o taquilla (validados previamente).
         // Se aplican DESPUÉS del alcance jerárquico: intersectan, nunca amplían.
         if (isset($filtros['banca_id'])) {
             $query->where('banca_id', $filtros['banca_id']);
@@ -219,10 +277,6 @@ class JuegoController extends Controller
 
         if (isset($filtros['grupo_id'])) {
             $query->where('grupo_id', $filtros['grupo_id']);
-        }
-
-        if (isset($filtros['agencia_id'])) {
-            $query->where('agencia_id', $filtros['agencia_id']);
         }
 
         if (isset($filtros['taquilla_id'])) {
@@ -390,8 +444,6 @@ class JuegoController extends Controller
             'limite_maximo' => 'nullable|numeric|min:0',
             'porcentaje_pago' => 'nullable|numeric|min:0|max:100',
             'participacion' => 'nullable|numeric|min:0|max:100',
-            'fraccion' => 'boolean',
-            'limite_tiempo' => 'nullable|integer|min:1',
         ]);
 
         // Validar jerarquía de restricción: hijo ≤ padre
@@ -419,8 +471,7 @@ class JuegoController extends Controller
                 'moneda' => $request->moneda,
             ],
             $request->only([
-                'limite_minimo', 'limite_maximo', 'porcentaje_pago',
-                'participacion', 'fraccion', 'limite_tiempo',
+                'limite_minimo', 'limite_maximo', 'porcentaje_pago', 'participacion',
             ])
         );
 
@@ -455,8 +506,6 @@ class JuegoController extends Controller
             'limites.*.limite_maximo' => 'nullable|numeric|min:0',
             'limites.*.porcentaje_pago' => 'nullable|numeric|min:0|max:100',
             'limites.*.participacion' => 'nullable|numeric|min:0|max:100',
-            'limites.*.fraccion' => 'boolean',
-            'limites.*.limite_tiempo' => 'nullable|integer|min:1',
         ]);
 
         $scope = $request->scope;
@@ -710,16 +759,6 @@ class JuegoController extends Controller
     // ==================================================
     // MÉTODOS PRIVADOS DE AUTORIZACIÓN Y VALIDACIÓN
     // ==================================================
-
-    /**
-     * Solo super_master y master pueden escribir límites.
-     */
-    private function authorizeLimitesWrite($user): void
-    {
-        if (! in_array($user->role, ['super_master', 'master'])) {
-            abort(403, 'No tienes permiso para configurar límites.');
-        }
-    }
 
     /**
      * Verificar que el usuario tenga acceso a la banca.
@@ -1017,8 +1056,6 @@ class JuegoController extends Controller
             'limite_maximo' => $limite->limite_maximo !== null ? (float) $limite->limite_maximo : null,
             'porcentaje_pago' => $limite->porcentaje_pago !== null ? (float) $limite->porcentaje_pago : null,
             'participacion' => $limite->participacion !== null ? (float) $limite->participacion : null,
-            'fraccion' => (bool) $limite->fraccion,
-            'limite_tiempo' => $limite->limite_tiempo !== null ? (int) $limite->limite_tiempo : null,
         ];
     }
 
@@ -1029,14 +1066,10 @@ class JuegoController extends Controller
     {
         $valores = [];
 
-        foreach (['limite_minimo', 'limite_maximo', 'porcentaje_pago', 'participacion', 'limite_tiempo'] as $campo) {
+        foreach (['limite_minimo', 'limite_maximo', 'porcentaje_pago', 'participacion'] as $campo) {
             if ($limite->{$campo} !== null) {
                 $valores[$campo] = (float) $limite->{$campo};
             }
-        }
-
-        if ($limite->fraccion !== null) {
-            $valores['fraccion'] = (bool) $limite->fraccion;
         }
 
         return $valores;
