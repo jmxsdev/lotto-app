@@ -18,18 +18,15 @@ request:
   auth:
     type: bearer
     token: "{{token}}"
-  variables:
-    - name: baseUrlWeb
-      value: https://lotto-api-6nrc.onrender.com
-    - name: token
-      value: ""
-    - name: macAddress
-      value: d8:f3:bc:65:d1:c5
-    - name: baseUrl
-      value: http://localhost:8000
+  headers:
+    - name: X-Device-MAC
+      value: "{{macAddress}}"
+    - name: X-Device-Fingerprint
+      value: "{{deviceFingerprint}}"
 bundled: false
 extensions:
   bruno:
+    defaultEnvironment: Local
     ignore:
       - node_modules
       - .git

@@ -5,7 +5,7 @@ info:
 
 http:
   method: POST
-  url: "{{baseUrl}}/api/limites/batch"
+  url: "{{baseUrl}}/api/v1/limites/batch"
   headers:
     - name: Authorization
       value: Bearer {{token}}
@@ -23,9 +23,7 @@ http:
             "limite_minimo": 100,
             "limite_maximo": 5000,
             "porcentaje_pago": 80.00,
-            "participacion": 5.00,
-            "fraccion": false,
-            "limite_tiempo": 60
+            "participacion": 5.00
           },
           {
             "juego_id": 1,
@@ -34,13 +32,23 @@ http:
             "limite_minimo": 1,
             "limite_maximo": 100,
             "porcentaje_pago": 80.00,
-            "participacion": 5.00,
-            "fraccion": false,
-            "limite_tiempo": 60
+            "participacion": 5.00
           }
         ]
       }
   auth: inherit
+
+docs:
+  - |
+    # Configuración masiva de límites (batch)
+    - Roles: SM | M | B (403 a otros roles)
+    - Autenticación: Sanctum (Bearer) — auth: inherit
+    - Modo legacy (body de ejemplo): cada ítem lleva su `banca_id` (y opcional `grupo_id`/`taquilla_id`)
+    - Modo scope (opt-in, ejemplo): `"scope": {"tipo": "bancas"}` aplica a TODAS las entidades
+      visibles del tipo — los ítems NO deben incluir entidades (422 si las llevan); el tipo
+      singular (`banca`/`grupo`/`taquilla`) exige `id` (422 si falta)
+    - Guard: errores de validación se responden 422 (no 500)
+    - Respuesta: 201 con array de límites actualizados (upsert atómico por transacción)
 
 settings:
   encodeUrl: true

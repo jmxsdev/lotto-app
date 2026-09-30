@@ -5,11 +5,19 @@ info:
 
 http:
   method: GET
-  url: "{{baseUrl}}/api/limites/1"
+  url: "{{baseUrl}}/api/v1/limites/1"
   headers:
     - name: Authorization
       value: Bearer {{token}}
   auth: inherit
+
+docs:
+  - |
+    # Listar límites de un juego
+    - Roles: SM | M | B | G | A (herencia por nivel: cada rol ve solo los límites de su jerarquía)
+    - Autenticación: Sanctum (Bearer) — auth: inherit
+    - Filtros opcionales: `banca_id`, `grupo_id`, `taquilla_id` (intersectan el alcance, nunca lo amplían)
+    - Respuesta: array de límites del juego con relaciones `banca`, `grupo`, `taquilla`
 
 settings:
   encodeUrl: true

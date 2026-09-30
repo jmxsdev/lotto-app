@@ -5,18 +5,18 @@ info:
 
 http:
   method: POST
-  url: "{{baseUrl}}/api/login"
+  url: "{{baseUrl}}/api/v1/login"
   headers:
     - name: Content-Type
       value: application/json
     - name: X-Panel
-      value: true
+      value: "true"
   body:
     type: json
     data: |-
       {
-        "email": "grupo@lotto.com",
-        "password": "password"
+        "email": "{{grupoEmail}}",
+        "password": "{{grupoPassword}}"
       }
   auth: none
 
@@ -26,7 +26,8 @@ runtime:
       code: |-
         const response = res.getBody();
         if (res.getStatus() === 200 && response.token) {
-            bru.setVar('token', response.token);
+            bru.setEnvVar('token', response.token);
+            console.log('Token guardado en el entorno activo');
         }
 
 settings:

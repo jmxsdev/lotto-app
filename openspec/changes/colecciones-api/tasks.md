@@ -59,23 +59,23 @@ Totales: **27 faltantes = 2 (F1) + 25 (F2.2)**; F2.2 = 25 requests + 5 `folder.y
 
 ## Fase 1 — WU-F1 (PR 1 → `main`)
 
-- [ ] 1.1 Crear `collections/environments/Local.yml` (YAML exacto design §Entornos).
-- [ ] 1.2 Crear `collections/environments/Produccion.yml` (YAML exacto design §Entornos).
-- [ ] 1.3 Modificar `collections/opencollection.yml`: quitar `baseUrlWeb` y `request.variables`; añadir `request.headers` (X-Device-MAC/Fingerprint) y `extensions.bruno.defaultEnvironment: Local`.
-- [ ] 1.4 Modificar `collections/Auth/Login.yml`: url `{{baseUrl}}/api/v1/login`, `auth: none`, body `{{superEmail}}/{{superPassword}}`, `X-Panel: "true"`, `bru.setEnvVar('token', …)`, log sin token.
-- [ ] 1.5 Modificar `Auth/Login (Master).yml` (masterEmail/masterPassword).
-- [ ] 1.6 Modificar `Auth/Login (Banca).yml` (bancaEmail/bancaPassword).
-- [ ] 1.7 Modificar `Auth/Login (Grupo).yml` (grupoEmail/grupoPassword).
-- [ ] 1.8 Modificar `Auth/Login (Taquilla).yml`: sin `X-Panel`, taquillaEmail/taquillaPassword, `auth: none`, `setEnvVar`.
-- [ ] 1.9 Modificar `Limites/Listar Limites por Juego.yml`: url `/v1` + `docs:` roles SM|M|B|G|A.
-- [ ] 1.10 Modificar `Limites/Configurar Limite.yml`: url `/v1`; body sin `fraccion`/`limite_tiempo`; `banca_id` required.
-- [ ] 1.11 Modificar `Limites/Configurar Limite (Batch).yml`: url `/v1`; body legacy; `docs:` ejemplo `scope`.
-- [ ] 1.12 Crear `Limites/Listar Limites (Matriz).yml`: `GET /limites?banca_id=1`; `docs:` XOR entidad/scope.
-- [ ] 1.13 Crear `Limites/Eliminar Limite.yml`: `DELETE /limites/1`; `docs:` roles SM|M|B.
-- [ ] 1.14 Modificar `Cierre de Caja/Listar Cierres (Token required).yml`: url `/v1`.
-- [ ] 1.15 Modificar `Cierre de Caja/Ver Cierre (Token required).yml`: url `/v1` y reemplaza `{id}` → `/cierre/1`.
-- [ ] 1.16 Modificar `Cierre de Caja/Crear Cierre (Token required).yml`: eliminar header `X-Device-MAC` deshabilitado.
-- [ ] 1.17 Modificar `Juegos/Ver Juego.yml`: url `{{baseUrl}}/api/v1/juegos/1` (deshardcode; apunta a `show`).
+- [x] 1.1 Crear `collections/environments/Local.yml` (YAML exacto design §Entornos).
+- [x] 1.2 Crear `collections/environments/Produccion.yml` (YAML exacto design §Entornos).
+- [x] 1.3 Modificar `collections/opencollection.yml`: quitar `baseUrlWeb` y `request.variables`; añadir `request.headers` (X-Device-MAC/Fingerprint) y `extensions.bruno.defaultEnvironment: Local`.
+- [x] 1.4 Modificar `collections/Auth/Login.yml`: url `{{baseUrl}}/api/v1/login`, `auth: none`, body `{{superEmail}}/{{superPassword}}`, `X-Panel: "true"`, `bru.setEnvVar('token', …)`, log sin token.
+- [x] 1.5 Modificar `Auth/Login (Master).yml` (masterEmail/masterPassword).
+- [x] 1.6 Modificar `Auth/Login (Banca).yml` (bancaEmail/bancaPassword).
+- [x] 1.7 Modificar `Auth/Login (Grupo).yml` (grupoEmail/grupoPassword).
+- [x] 1.8 Modificar `Auth/Login (Taquilla).yml`: sin `X-Panel`, taquillaEmail/taquillaPassword, `auth: none`, `setEnvVar`.
+- [x] 1.9 Modificar `Limites/Listar Limites por Juego.yml`: url `/v1` + `docs:` roles SM|M|B|G|A.
+- [x] 1.10 Modificar `Limites/Configurar Limite.yml`: url `/v1`; body sin `fraccion`/`limite_tiempo`; `banca_id` required.
+- [x] 1.11 Modificar `Limites/Configurar Limite (Batch).yml`: url `/v1`; body legacy; `docs:` ejemplo `scope`.
+- [x] 1.12 Crear `Limites/Listar Limites (Matriz).yml`: `GET /limites?banca_id=1`; `docs:` XOR entidad/scope.
+- [x] 1.13 Crear `Limites/Eliminar Limite.yml`: `DELETE /limites/1`; `docs:` roles SM|M|B.
+- [x] 1.14 Modificar `Cierre de Caja/Listar Cierres (Token required).yml`: url `/v1`.
+- [x] 1.15 Modificar `Cierre de Caja/Ver Cierre (Token required).yml`: url `/v1` y reemplaza `{id}` → `/cierre/1`.
+- [x] 1.16 Modificar `Cierre de Caja/Crear Cierre (Token required).yml`: eliminar header `X-Device-MAC` deshabilitado.
+- [x] 1.17 Modificar `Juegos/Ver Juego.yml`: url `{{baseUrl}}/api/v1/juegos/1` (deshardcode; apunta a `show`).
 
 ## Fase 2 — WU-F2.1 (PR 2 → PR 1)
 
