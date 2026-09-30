@@ -24,7 +24,7 @@ use Illuminate\Validation\Rule;
  */
 class JuegoLimiteService
 {
-    private const CAMPOS = ['limite_minimo', 'limite_maximo', 'porcentaje_pago', 'participacion', 'fraccion', 'limite_tiempo'];
+    private const CAMPOS = ['limite_minimo', 'limite_maximo', 'porcentaje_pago', 'participacion'];
 
     /**
      * Validar los ítems de límites recibidos (lanza ValidationException → 422).
@@ -42,8 +42,6 @@ class JuegoLimiteService
                 'limites.*.limite_maximo' => ['nullable', 'numeric', 'min:0'],
                 'limites.*.porcentaje_pago' => ['nullable', 'numeric', 'min:0', 'max:100'],
                 'limites.*.participacion' => ['nullable', 'numeric', 'min:0', 'max:100'],
-                'limites.*.fraccion' => ['boolean'],
-                'limites.*.limite_tiempo' => ['nullable', 'integer', 'min:1'],
             ]
         )->validate();
     }

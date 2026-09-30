@@ -124,7 +124,9 @@ class LimitesScopedApiTest extends TestCase
         $this->assertNotNull($data['limites'][$clave]);
         $this->assertEquals(3600.0, $data['limites'][$clave]['limite_minimo']);
         $this->assertNull($data['limites'][$clave]['limite_maximo']);
-        $this->assertFalse($data['limites'][$clave]['fraccion']);
+        // WU1: la serialización no expone los campos dormidos
+        $this->assertArrayNotHasKey('fraccion', $data['limites'][$clave]);
+        $this->assertArrayNotHasKey('limite_tiempo', $data['limites'][$clave]);
 
         // La banca no tiene padre: origen todo null
         foreach ($data['origen'] as $origen) {
@@ -139,6 +141,15 @@ class LimitesScopedApiTest extends TestCase
         $lotto = $this->juegoLotto();
         $clave = $lotto->id.':bs';
 
+        // La fila padre (banca) lleva campos dormidos: no deben filtrarse
+        // al origen heredado (WU1, decisión A3 del design).
+        JuegoLimite::where('juego_id', $lotto->id)
+            ->where('banca_id', $banca->id)
+            ->whereNull('grupo_id')
+            ->whereNull('taquilla_id')
+            ->where('moneda', 'bs')
+            ->update(['fraccion' => true, 'limite_tiempo' => 30]);
+
         // Sin fila propia del grupo: el origen hereda de la banca
         $response = $this->actingAs($this->masterUser(), 'sanctum')
             ->getJson('/api/v1/limites?grupo_id='.$grupo->id);
@@ -152,6 +163,9 @@ class LimitesScopedApiTest extends TestCase
         $this->assertEquals('banca', $data['origen'][$clave]['nivel']);
         $this->assertEquals($banca->id, $data['origen'][$clave]['entidad_id']);
         $this->assertEquals(3600.0, $data['origen'][$clave]['valor']['limite_minimo']);
+        // WU1: valoresPresentes no expone los campos dormidos
+        $this->assertArrayNotHasKey('fraccion', $data['origen'][$clave]['valor']);
+        $this->assertArrayNotHasKey('limite_tiempo', $data['origen'][$clave]['valor']);
 
         // Con fila propia del grupo: aparece en límites y el origen queda null
         JuegoLimite::create([
@@ -777,6 +791,38 @@ class LimitesScopedApiTest extends TestCase
             'juego_id' => $lotto->id, 'banca_id' => $banca->id, 'moneda' => 'bs',
             'limite_minimo' => 200, 'limite_maximo' => 900,
         ]);
+    }
+
+    public function test_batch_ignora_campos_dormidos()
+    {
+        $banca = $this->bancaSeeded();
+        $lotto = $this->juegoLotto();
+
+        $response = $this->actingAs($this->masterUser(), 'sanctum')
+            ->postJson('/api/v1/limites/batch', [
+                'limites' => [
+                    ['juego_id' => $lotto->id, 'banca_id' => $banca->id, 'moneda' => 'bs', 'limite_minimo' => 100, 'fraccion' => true, 'limite_tiempo' => 30],
+                ],
+            ]);
+
+        $response->assertStatus(201);
+
+        // La respuesta (modelos crudos) no expone los campos dormidos (decisión A2)
+        $this->assertArrayNotHasKey('fraccion', $response->json()[0]);
+        $this->assertArrayNotHasKey('limite_tiempo', $response->json()[0]);
+
+        $limite = JuegoLimite::where('juego_id', $lotto->id)
+            ->where('banca_id', $banca->id)
+            ->whereNull('grupo_id')
+            ->whereNull('taquilla_id')
+            ->where('moneda', 'bs')
+            ->first();
+
+        $this->assertNotNull($limite);
+        $this->assertSame(100.0, (float) $limite->limite_minimo);
+        // Los dormidos no se persisten
+        $this->assertFalse((bool) $limite->fraccion);
+        $this->assertNull($limite->limite_tiempo);
     }
 
     public function test_batch_hierarquia_violacion_422_rollback()

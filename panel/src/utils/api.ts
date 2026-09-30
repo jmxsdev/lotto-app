@@ -28,8 +28,8 @@ export async function apiFetch(method, url, body) {
     };
     if (parsed && typeof parsed === 'object') {
       err.errors = parsed.errors;
-      err.status = res.status;
     }
+    err.status = res.status;
     throw err;
   }
   if (res.status === 204) return null;

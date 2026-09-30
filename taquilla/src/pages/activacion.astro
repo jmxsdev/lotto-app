@@ -1,5 +1,6 @@
 ---
 import { formatBs } from '../utils/currency';
+import Icon from '../components/ui/Icon.astro';
 ---
 
 <!DOCTYPE html>
@@ -34,6 +35,10 @@ import { formatBs } from '../utils/currency';
         color: #333;
         margin-bottom: 10px;
         text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
       }
       .subtitle {
         color: #666;
@@ -106,6 +111,11 @@ import { formatBs } from '../utils/currency';
         font-size: 14px;
         color: #004085;
       }
+      .info strong {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
       .mac-info {
         margin-top: 10px;
         font-size: 12px;
@@ -115,7 +125,7 @@ import { formatBs } from '../utils/currency';
   </head>
   <body>
     <div class="container">
-      <h1>🔐 Activar Taquilla</h1>
+      <h1><Icon name="shield-check" size={28} /> Activar Taquilla</h1>
       <p class="subtitle">Ingrese su código de activación para comenzar</p>
       
       <div id="alert" class="alert"></div>
@@ -138,7 +148,7 @@ import { formatBs } from '../utils/currency';
       </form>
       
       <div class="info">
-        <strong>ℹ️ Información:</strong><br/>
+        <strong><Icon name="info" size={14} /> Información:</strong><br/>
         El código de activación fue proporcionado por su administrador. Este código vincula su taquilla a una PC específica mediante su dirección MAC.
       </div>
       

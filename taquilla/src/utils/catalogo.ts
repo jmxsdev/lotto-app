@@ -22,6 +22,13 @@ export interface OpcionCatalogo {
   numero: number | null;
   label: string;
   value: string;
+  /**
+   * Icono del animalito resuelto por slug desde el catálogo (aditivo,
+   * iconos-consistentes). El contrato JSON lo lleva en `null` para familias
+   * no animal; sanitizarOpcion conserva SOLO strings no vacíos y descarta el
+   * resto, por lo que aquí suele estar ausente (undefined) o ser el emoji.
+   */
+  icono?: string | null;
 }
 
 export interface JuegoCatalogo {
@@ -29,7 +36,27 @@ export interface JuegoCatalogo {
   slug: string;
   nombre: string;
   tipo: TipoJuego;
-  premio_multiplo: number;
+  /**
+   * Espejo legacy de `premios.base` (motor-premios). `null` cuando el juego no
+   * está activo/vendible (p. ej. la-ricachona): el catálogo exportado lo lleva
+   * así y la taquilla debe aceptarlo sin romper la carga.
+   */
+  premio_multiplo: number | null;
+  /**
+   * Estado del motor (motor-premios): `active=false`/`vendible=false` significa
+   * que el juego no se ofrece ni permite vender (el backend lo rechaza). Se
+   * conserva en el catálogo (21 juegos) y la UI filtra por `vendible`.
+   */
+  active: boolean;
+  vendible: boolean;
+  /**
+   * `premios` crudo del contrato del motor (D1): `null` en juegos no
+   * activos/vendibles (la-ricachona). NO es la vista normalizada: consultar
+   * SIEMPRE vía `premios(juego)`/`modalidadesDe(juego)` (`[]`/`null`→vacío).
+   * Los espejos legacy top-level (`modalidades`, `comodines`) usan otras
+   * claves (`cola`, `zodiacal`, `signo`…) y no sirven para modalidades.
+   */
+  premios: unknown;
   comodines: Record<string, unknown> | null;
   modalidades: Record<string, unknown> | null;
   horarios: string[];
@@ -43,6 +70,19 @@ export interface Catalogo {
   juegos: JuegoCatalogo[];
   porId: Map<number, JuegoCatalogo>;
   porSlug: Map<string, JuegoCatalogo>;
+}
+
+/**
+ * Premios canónicos del motor (D1, design §4): `{base, modalidades, comodines}`.
+ * `base` es el multiplicador del juego (null sin premios); `modalidades` mapea
+ * la clave canónica → multiplicador; `comodines` es array (sin comodines) o
+ * mapa de comodines (patronus, MEGA, comodin-a…). Resultado de
+ * `normalizarPremios` ([]/null → vacío); NO incluye espejos legacy.
+ */
+export interface PremiosCatalogo {
+  base: number | null;
+  modalidades: Record<string, unknown>;
+  comodines: unknown[] | Record<string, unknown>;
 }
 
 export interface BuscadorDigitos {
@@ -77,12 +117,21 @@ function sanitizarOpcion(raw: Record<string, unknown>, indice: number): OpcionCa
   const value = typeof raw.value === 'string' ? raw.value : '';
   if (!label) throw new Error(`opcion[${indice}]: falta "label"`);
   if (!value) throw new Error(`opcion[${indice}]: falta "value"`);
+  const opcion: OpcionCatalogo = { numero, label, value };
+  // Campo aditivo `icono` (iconos-consistentes): se conserva solo si es un
+  // string NO vacío; null/ausente/vacío se descartan (el contrato JSON lleva
+  // null en familias no animal, aquí no se propaga).
+  const icono = typeof raw.icono === 'string' && raw.icono !== '' ? raw.icono : undefined;
+  if (icono !== undefined) {
+    opcion.icono = icono;
+  }
   // Salvaguarda legado: el catálogo bundled ya dice "Cebra" (docs/juegos.json);
   // datos legacy pueden traer "Cobra" (el backend usa Cebra, Animalitos.php:34).
   if (normalizarLabel(label) === 'cobra') {
-    return { numero, label: 'Cebra', value: value === 'cobra' ? 'cebra' : value };
+    opcion.label = 'Cebra';
+    if (value === 'cobra') opcion.value = 'cebra';
   }
-  return { numero, label, value };
+  return opcion;
 }
 
 function derivarFamilia(tipo: TipoJuego, opciones: OpcionCatalogo[]): FamiliaOpciones {
@@ -124,14 +173,25 @@ export function cargarCatalogo(raw: unknown): Catalogo {
     if (typeof juego.tipo !== 'string' || !TIPOS_VALIDOS.includes(juego.tipo as TipoJuego)) {
       throw new Error(`juegos[${indice}]: "tipo" inválido`);
     }
-    if (!esNumero(juego.premio_multiplo)) {
-      throw new Error(`juegos[${indice}]: falta "premio_multiplo" numérico`);
+    // Motor-premios: el espejo legacy puede ser null en juegos inactivos/no
+    // vendibles (la-ricachona); la clave debe existir con número o null.
+    if (juego.premio_multiplo !== null && !esNumero(juego.premio_multiplo)) {
+      throw new Error(`juegos[${indice}]: falta "premio_multiplo" numérico o null`);
     }
+    // Motor-premios: sin campo (pre-motor) se asume activo/vendible; con campo
+    // se respeta el estado exportado (vendible cae a active si falta).
+    const active = typeof juego.active === 'boolean' ? juego.active : true;
+    const vendible = typeof juego.vendible === 'boolean' ? juego.vendible : active;
     if (!Array.isArray(juego.horarios) || juego.horarios.length === 0) {
       throw new Error(`juegos[${indice}]: faltan "horarios"`);
     }
-    if (!Array.isArray(juego.opciones) || juego.opciones.length === 0) {
+    if (!Array.isArray(juego.opciones)) {
       throw new Error(`juegos[${indice}]: faltan "opciones"`);
+    }
+    // Un juego vendible no puede quedar sin opciones; uno inactivo/no vendible
+    // sí (la-ricachona en el contrato del motor).
+    if (vendible && juego.opciones.length === 0) {
+      throw new Error(`juegos[${indice}]: juego vendible sin "opciones"`);
     }
 
     const opciones = juego.opciones.map((o, i) => {
@@ -145,7 +205,10 @@ export function cargarCatalogo(raw: unknown): Catalogo {
       slug: juego.slug,
       nombre: juego.nombre,
       tipo,
-      premio_multiplo: juego.premio_multiplo as number,
+      premio_multiplo: juego.premio_multiplo as number | null,
+      active,
+      vendible,
+      premios: juego.premios,
       comodines: (juego.comodines as Record<string, unknown> | null) ?? null,
       modalidades: (juego.modalidades as Record<string, unknown> | null) ?? null,
       horarios: juego.horarios as string[],
@@ -157,6 +220,44 @@ export function cargarCatalogo(raw: unknown): Catalogo {
   const porId = new Map<number, JuegoCatalogo>(juegos.map((j) => [j.id, j]));
   const porSlug = new Map<string, JuegoCatalogo>(juegos.map((j) => [j.slug, j]));
   return { version: fuente.version as number, juegos, porId, porSlug };
+}
+
+/**
+ * Normaliza el campo `premios` del contrato del motor (D1): `null`, `[]`,
+ * ausente o no-objeto → vacío `{base: null, modalidades: {}, comodines: []}`;
+ * `modalidades` en `[]` (p. ej. monje-millonario) → `{}`. NO inventa
+ * multiplicadores: `base` se conserva tal cual (null si no es número).
+ */
+export function normalizarPremios(raw: unknown): PremiosCatalogo {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return { base: null, modalidades: {}, comodines: [] };
+  }
+  const fuente = raw as Record<string, unknown>;
+  const base = esNumero(fuente.base) ? (fuente.base as number) : null;
+  const modalidades =
+    typeof fuente.modalidades === 'object' && fuente.modalidades !== null && !Array.isArray(fuente.modalidades)
+      ? (fuente.modalidades as Record<string, unknown>)
+      : {};
+  const comodines =
+    typeof fuente.comodines === 'object' && fuente.comodines !== null
+      ? (fuente.comodines as unknown[] | Record<string, unknown>)
+      : [];
+  return { base, modalidades, comodines };
+}
+
+/**
+ * Premios normalizados del juego (D1): `[]`/`null` → vacío. Fuente canónica
+ * de multiplicadores y opciones de modalidad (design §3.1); los espejos
+ * legacy top-level (`cola`, `zodiacal`, `signo`, `triple_a_o_b`…) no sirven.
+ */
+export function premios(juego: JuegoCatalogo): PremiosCatalogo {
+  return normalizarPremios(juego.premios);
+}
+
+/** Claves canónicas de modalidad del juego (design §4): las de
+ * `premios.modalidades` normalizado. NO incluye espejos legacy. */
+export function modalidadesDe(juego: JuegoCatalogo): string[] {
+  return Object.keys(premios(juego).modalidades);
 }
 
 /**

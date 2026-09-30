@@ -1,16 +1,17 @@
 ---
 import MainLayout from '../layouts/MainLayout.astro';
+import Icon from '../components/ui/Icon.astro';
 ---
 
 <MainLayout currentPage="cierre">
   <div class="cierre-page">
-    <h2 class="page-title">💰 Cierre de Caja</h2>
+    <h2 class="page-title"><Icon name="banknote" size={24} /> Cierre de Caja</h2>
 
     <!-- Resumen del período actual (GET /cierre/actual, AD-8) -->
     <section class="card" id="resumen-card">
       <div class="card-header">
         <h3 class="card-title">Resumen del período actual</h3>
-        <button id="btn-refresh-preview" class="btn-refresh">🔄 Refrescar</button>
+        <button id="btn-refresh-preview" class="btn-refresh"><Icon name="refresh-cw" size={16} /> Refrescar</button>
       </div>
       <div id="preview-content">
         <div class="loading">Cargando resumen...</div>
@@ -40,8 +41,8 @@ import MainLayout from '../layouts/MainLayout.astro';
       <div class="card-header">
         <h3 class="card-title">Resultado del cierre</h3>
         <div class="result-actions">
-          <button id="btn-print-resultado" class="btn-action btn-print">🖨️ Imprimir</button>
-          <button id="btn-refresh-resultado" class="btn-refresh">🔄 Refrescar</button>
+          <button id="btn-print-resultado" class="btn-action btn-print"><Icon name="printer" size={16} /> Imprimir</button>
+          <button id="btn-refresh-resultado" class="btn-refresh"><Icon name="refresh-cw" size={16} /> Refrescar</button>
         </div>
       </div>
       <div id="resultado-content"></div>
@@ -59,7 +60,7 @@ import MainLayout from '../layouts/MainLayout.astro';
     <section class="card">
       <div class="card-header">
         <h3 class="card-title">Reportes por rangos</h3>
-        <button id="btn-print-reporte" class="btn-action btn-print" disabled>🖨️ Imprimir reporte</button>
+        <button id="btn-print-reporte" class="btn-action btn-print" disabled><Icon name="printer" size={16} /> Imprimir reporte</button>
       </div>
       <div class="filters">
         <label class="range-label">
@@ -80,7 +81,7 @@ import MainLayout from '../layouts/MainLayout.astro';
 
   <style is:global>
     .cierre-page { max-width: 1200px; margin: 0 auto; }
-    .page-title { font-size: 28px; font-weight: 700; color: #333; margin-bottom: 24px; }
+    .page-title { font-size: 28px; font-weight: 700; color: #333; margin-bottom: 24px; display: flex; align-items: center; gap: 8px; }
 
     .card {
       background: white;
@@ -125,7 +126,11 @@ import MainLayout from '../layouts/MainLayout.astro';
       cursor: pointer;
       font-weight: 500;
       transition: background .15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
+    .btn-refresh svg { width: 16px; height: 16px; }
     .btn-refresh:hover { background: #218838; }
     .btn-primary {
       padding: 12px 26px;
@@ -158,7 +163,11 @@ import MainLayout from '../layouts/MainLayout.astro';
       margin-bottom: 12px;
       font-size: 13px;
       font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
+    .warn-banner svg { width: 14px; height: 14px; flex-shrink: 0; }
     .breakdown-title { font-size: 13px; font-weight: 700; color: #555; margin: 14px 0 6px; }
 
     .totals-table, .method-table {
@@ -241,7 +250,8 @@ import MainLayout from '../layouts/MainLayout.astro';
       flex-wrap: wrap;
     }
     .cierre-row:hover { background: #f8f9fa; }
-    .cierre-expand { width: 22px; font-size: 13px; color: #999; flex-shrink: 0; }
+    .cierre-expand { width: 22px; font-size: 13px; color: #999; flex-shrink: 0; display: inline-flex; align-items: center; }
+    .cierre-expand svg { width: 14px; height: 14px; }
     .cierre-expand.expanded { color: #667eea; }
     .cierre-fecha { font-weight: 600; color: #333; min-width: 160px; font-size: 13px; }
     .cierre-taquilla { color: #444; flex: 1; font-size: 13px; min-width: 100px; }
@@ -260,7 +270,11 @@ import MainLayout from '../layouts/MainLayout.astro';
       font-weight: 500;
       transition: all .15s;
       background: white;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
     }
+    .btn-action svg { width: 14px; height: 14px; }
     .btn-action:hover { transform: translateY(-1px); }
     .btn-print { color: #6c757d; border-color: #6c757d; }
     .btn-print:hover { background: #e9ecef; }
@@ -273,6 +287,7 @@ import MainLayout from '../layouts/MainLayout.astro';
 
   <script>
     import { apiFetch, ApiError } from '../utils/apiFetch';
+    import { icono } from '../utils/iconos';
 
     const METODOS = ['efectivo', 'transferencia', 'pago_movil', 'punto_venta'];
     const METODO_LABELS = {
@@ -402,9 +417,9 @@ import MainLayout from '../layouts/MainLayout.astro';
     function renderPreview(p) {
       const el = document.getElementById('preview-content');
       // Período ABIERTO explícito (5.2): rango visible desde el último cierre → ahora + badge.
-      let html = `<div class="preview-period">Período: <span class="badge badge-abierto">ABIERTO</span> desde <strong>${fmtFecha(p.fecha_inicio)}</strong> → <strong>ahora (${fmtFecha(p.fecha_fin)})</strong> · Tasa: <strong>${fmtMoney(p.exchange_rate)}</strong></div>`;
+      let html = `<div class="preview-period">Período: <span class="badge badge-abierto">ABIERTO</span> desde <strong>${fmtFecha(p.fecha_inicio)}</strong> &rarr; <strong>ahora (${fmtFecha(p.fecha_fin)})</strong> · Tasa: <strong>${fmtMoney(p.exchange_rate)}</strong></div>`;
       if (p.cierre_hoy) {
-        html += `<div class="warn-banner">⚠️ Cierre del día <strong>${fmtFecha(p.cierre_hoy.fecha_fin)}</strong> ya registrado: un nuevo cierre lo actualizará (requiere clave)</div>`;
+        html += `<div class="warn-banner">${icono('triangle-alert')} Cierre del día <strong>${fmtFecha(p.cierre_hoy.fecha_fin)}</strong> ya registrado: un nuevo cierre lo actualizará (requiere clave)</div>`;
       }
       html += '<table class="totals-table"><thead><tr><th>Concepto</th><th>BS</th><th>USD</th></tr></thead><tbody>';
       html += `<tr><td>Ventas</td><td>Bs. ${fmtMoney(p.total_ventas_bs)}</td><td>$ ${fmtMoney(p.total_ventas_usd)}</td></tr>`;
@@ -470,7 +485,7 @@ import MainLayout from '../layouts/MainLayout.astro';
       } else {
         resumen = `¿Ejecutar el cierre de caja? Se creará el cierre del día ${fmtFechaDia(preview ? preview.fecha_fin : null)}.`;
       }
-      if (preview) resumen += `<br>Período: ${fmtFecha(preview.fecha_inicio)} → ${fmtFecha(preview.fecha_fin)}`;
+      if (preview) resumen += `<br>Período: ${fmtFecha(preview.fecha_inicio)} &rarr; ${fmtFecha(preview.fecha_fin)}`;
       resumen += `<br>Efectivo esperado: Bs. ${fmtMoney(espBs)} / $ ${fmtMoney(espUsd)}`;
       if (body.arqueo_efectivo_bs !== undefined) {
         const d = body.arqueo_efectivo_bs - espBs;
@@ -528,7 +543,7 @@ import MainLayout from '../layouts/MainLayout.astro';
       document.getElementById('resultado-card').style.display = '';
       const diffBs = c.faltante_sobrante_bs;
       const diffUsd = c.faltante_sobrante_usd;
-      let html = `<div class="result-period">${c.reclosed ? '<span class="badge badge-reclosed">RE-CIERRE</span> ' : ''}Período: <strong>${fmtFecha(c.fecha_inicio)}</strong> → <strong>${fmtFecha(c.fecha_fin)}</strong> · Tasa: <strong>${fmtMoney(c.exchange_rate_cierre)}</strong></div>`;
+      let html = `<div class="result-period">${c.reclosed ? '<span class="badge badge-reclosed">RE-CIERRE</span> ' : ''}Período: <strong>${fmtFecha(c.fecha_inicio)}</strong> &rarr; <strong>${fmtFecha(c.fecha_fin)}</strong> · Tasa: <strong>${fmtMoney(c.exchange_rate_cierre)}</strong></div>`;
       html += '<table class="totals-table"><thead><tr><th>Concepto</th><th>BS</th><th>USD</th></tr></thead><tbody>';
       html += `<tr><td>Ventas</td><td>Bs. ${fmtMoney(c.total_ventas_bs)}</td><td>$ ${fmtMoney(c.total_ventas_usd)}</td></tr>`;
       html += `<tr><td>Egresos</td><td>Bs. ${fmtMoney(c.total_egresos_bs)}</td><td>$ ${fmtMoney(c.total_egresos_usd)}</td></tr>`;
@@ -582,7 +597,7 @@ import MainLayout from '../layouts/MainLayout.astro';
     function cierreDetailHtml(c) {
       const diffBs = c.faltante_sobrante_bs;
       const diffUsd = c.faltante_sobrante_usd;
-      let html = `<div class="result-period">Período: <strong>${fmtFecha(c.fecha_inicio)}</strong> → <strong>${fmtFecha(c.fecha_fin)}</strong> · Tasa: <strong>${fmtMoney(c.exchange_rate_cierre)}</strong></div>`;
+      let html = `<div class="result-period">Período: <strong>${fmtFecha(c.fecha_inicio)}</strong> &rarr; <strong>${fmtFecha(c.fecha_fin)}</strong> · Tasa: <strong>${fmtMoney(c.exchange_rate_cierre)}</strong></div>`;
       html += '<table class="totals-table"><thead><tr><th>Concepto</th><th>BS</th><th>USD</th></tr></thead><tbody>';
       html += `<tr><td>Ventas</td><td>Bs. ${fmtMoney(c.total_ventas_bs)}</td><td>$ ${fmtMoney(c.total_ventas_usd)}</td></tr>`;
       html += `<tr><td>Egresos</td><td>Bs. ${fmtMoney(c.total_egresos_bs)}</td><td>$ ${fmtMoney(c.total_egresos_usd)}</td></tr>`;
@@ -609,14 +624,14 @@ import MainLayout from '../layouts/MainLayout.astro';
         html += `
         <div class="cierre-card" data-cierre-id="${c.id}">
           <div class="cierre-row" data-toggle="${c.id}">
-            <span class="cierre-expand">▶</span>
+            <span class="cierre-expand" aria-hidden="true">${icono('chevron-right')}</span>
             <span class="cierre-fecha">${fmtFecha(c.fecha_fin)}</span>
             <span class="cierre-taquilla">${c.taquilla?.nombre || 'Taquilla #' + c.taquilla_id}</span>
             <span class="cierre-total">Bs. ${fmtMoney(c.total_efectivo_bs)}</span>
             <span class="cierre-usd">$ ${fmtMoney(c.total_efectivo_usd)}</span>
             <span class="badge ${badgeClass(c.faltante_sobrante_bs)}">${badgeText(c.faltante_sobrante_bs)}</span>
             <div class="cierre-actions">
-              <button class="btn-action btn-print" data-action="print" data-id="${c.id}">🖨️ Imprimir</button>
+              <button class="btn-action btn-print" data-action="print" data-id="${c.id}">${icono('printer')} Imprimir</button>
             </div>
           </div>
           <div class="cierre-detail" data-detail="${c.id}">${cierreDetailHtml(c)}</div>
@@ -630,7 +645,7 @@ import MainLayout from '../layouts/MainLayout.astro';
       const expand = document.querySelector(`[data-toggle="${id}"] .cierre-expand`);
       if (!detail) return;
       detail.classList.toggle('open');
-      if (expand) expand.textContent = detail.classList.contains('open') ? '▼' : '▶';
+      if (expand) expand.innerHTML = detail.classList.contains('open') ? icono('chevron-down') : icono('chevron-right');
     }
 
     // --- Impresión (IPC print-cierre; fuera de Electron → showModal) ---
@@ -712,9 +727,9 @@ import MainLayout from '../layouts/MainLayout.astro';
       const incluidos = ventana.cierres_incluidos || 0;
       const cierres = r.cierres || [];
 
-      let html = `<div class="semanal-header">Rango: <strong>${fmtFechaSola(r.fecha_desde)}</strong> → <strong>${fmtFechaSola(r.fecha_hasta)}</strong></div>`;
+      let html = `<div class="semanal-header">Rango: <strong>${fmtFechaSola(r.fecha_desde)}</strong> &rarr; <strong>${fmtFechaSola(r.fecha_hasta)}</strong></div>`;
       html += `<div class="ventana-info">Cierres incluidos: <strong>${incluidos}</strong>`;
-      if (ventana.desde) html += ` · Cubierto: ${fmtFecha(ventana.desde)} → ${fmtFecha(ventana.hasta)}`;
+      if (ventana.desde) html += ` · Cubierto: ${fmtFecha(ventana.desde)} &rarr; ${fmtFecha(ventana.hasta)}`;
       html += '</div>';
 
       if (incluidos === 0) {
@@ -739,7 +754,7 @@ import MainLayout from '../layouts/MainLayout.astro';
         html += `
         <div class="cierre-card" data-rango-id="${c.id}">
           <div class="cierre-row" data-rango-toggle="${c.id}">
-            <span class="cierre-expand">▶</span>
+            <span class="cierre-expand" aria-hidden="true">${icono('chevron-right')}</span>
             <span class="cierre-fecha">${fmtFecha(c.fecha_fin)}</span>
             <span class="cierre-taquilla">Taquilla #${c.taquilla_id}</span>
             <span class="cierre-total">Bs. ${fmtMoney(c.total_efectivo_bs)}</span>
@@ -757,7 +772,7 @@ import MainLayout from '../layouts/MainLayout.astro';
       const expand = document.querySelector(`[data-rango-toggle="${id}"] .cierre-expand`);
       if (!detail) return;
       detail.classList.toggle('open');
-      if (expand) expand.textContent = detail.classList.contains('open') ? '▼' : '▶';
+      if (expand) expand.innerHTML = detail.classList.contains('open') ? icono('chevron-down') : icono('chevron-right');
     }
 
     // --- Imprimir reporte por rango (IPC print-reporte, AD-13): payload del estado en memoria, sin re-fetch ---
