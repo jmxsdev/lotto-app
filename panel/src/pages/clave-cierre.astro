@@ -11,20 +11,20 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     <div id="content"><div class="loading">Cargando...</div></div>
     <div class="card" id="clave-card" style="display:none">
       <p class="hint">La clave de cierre autoriza el re-cierre del día en las taquillas de tu cadena. Usa un PIN numérico de 4 a 8 dígitos.</p>
-      <form id="clave-form">
+      <form id="clave-form" novalidate>
         <div class="field" id="actual-field" style="display:none">
           <label>Clave actual</label>
-          <input name="clave_actual" type="password" inputmode="numeric" minlength="4" maxlength="8" pattern="\d{4,8}" autocomplete="off" />
+          <input name="clave_actual" type="password" inputmode="numeric" minlength="4" maxlength="8" pattern="\d{4,8}" autocomplete="new-password" />
           <small>Ingresa tu clave actual para poder cambiarla.</small>
         </div>
         <div class="field">
           <label>Clave nueva</label>
-          <input name="clave_nueva" type="password" inputmode="numeric" minlength="4" maxlength="8" pattern="\d{4,8}" required autocomplete="off" />
+          <input name="clave_nueva" type="password" inputmode="numeric" minlength="4" maxlength="8" pattern="\d{4,8}" required autocomplete="new-password" />
           <small>PIN numérico de 4 a 8 dígitos.</small>
         </div>
         <div class="field">
           <label>Confirmar clave nueva</label>
-          <input name="confirmacion" type="password" inputmode="numeric" minlength="4" maxlength="8" pattern="\d{4,8}" required autocomplete="off" />
+          <input name="confirmacion" type="password" inputmode="numeric" minlength="4" maxlength="8" pattern="\d{4,8}" required autocomplete="new-password" />
           <small>Debe coincidir con la clave nueva.</small>
         </div>
         <button type="submit" class="btn btn-primary" id="btn-save">Guardar clave</button>
@@ -71,8 +71,13 @@ import AdminLayout from '../layouts/AdminLayout.astro';
         claveConfigurada = !!d.clave_configurada;
         badge.textContent = claveConfigurada ? 'Clave configurada' : 'Sin clave configurada';
         badge.className = 'badge ' + (claveConfigurada ? 'badge-active' : 'badge-inactive');
-        document.getElementById('actual-field').style.display = claveConfigurada ? 'block' : 'none';
+        const actualField = document.getElementById('actual-field');
+        actualField.style.display = claveConfigurada ? 'block' : 'none';
         f.clave_actual.required = claveConfigurada;
+        // Campo oculto → fuera de la validación nativa y del submit: evita el bloqueo
+        // "invalid form control ... not focusable" cuando el gestor autocompleta el PIN.
+        f.clave_actual.disabled = !claveConfigurada;
+        if (!claveConfigurada) f.clave_actual.value = '';
         content.innerHTML = '';
         card.style.display = 'block';
       } catch (e) {

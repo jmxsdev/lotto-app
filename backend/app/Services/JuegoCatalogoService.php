@@ -85,7 +85,7 @@ class JuegoCatalogoService
      * filas de juego_opciones si existen (orden sort_order -> numero); si no,
      * las del plugin tal como las devuelve. Siempre mapeadas a {numero,label,value}.
      *
-     * @return array<int, array{numero: int|null, label: string, value: string}>
+     * @return array<int, array{numero: int|null, label: string, value: string, icono: string|null}>
      */
     private function obtenerOpciones(Juego $juego): array
     {
@@ -111,7 +111,7 @@ class JuegoCatalogoService
 
     /**
      * @param  JuegoOpcion|array<string, mixed>  $opcion
-     * @return array{numero: int|null, label: string, value: string}
+     * @return array{numero: int|null, label: string, value: string, icono: string|null}
      */
     private function mapearOpcion(JuegoOpcion|array $opcion): array
     {
@@ -120,6 +120,7 @@ class JuegoCatalogoService
                 'numero' => $opcion->numero,
                 'label' => $opcion->label,
                 'value' => $opcion->value,
+                'icono' => config('iconos-animales')[$opcion->value] ?? null,
             ];
         }
 
@@ -127,6 +128,7 @@ class JuegoCatalogoService
             'numero' => $opcion['numero'] ?? null,
             'label' => $opcion['label'] ?? '',
             'value' => $opcion['value'] ?? '',
+            'icono' => config('iconos-animales')[$opcion['value'] ?? ''] ?? null,
         ];
     }
 

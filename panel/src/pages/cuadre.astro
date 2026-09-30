@@ -1,5 +1,6 @@
 ---
 import AdminLayout from '../layouts/AdminLayout.astro';
+import Icon from '../components/Icon.astro';
 ---
 
 <AdminLayout>
@@ -38,7 +39,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
         </select>
       </div>
       <div class="field" style="align-self:flex-end">
-        <button class="btn btn-primary" id="btn-buscar">🔍 Buscar</button>
+        <button class="btn btn-primary" id="btn-buscar"><Icon name="search" size={14} /> Buscar</button>
       </div>
     </div>
 

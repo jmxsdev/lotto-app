@@ -233,7 +233,6 @@ class JuegoController extends Controller
         $filtros = $request->validate([
             'banca_id' => 'nullable|integer|exists:bancas,id',
             'grupo_id' => 'nullable|integer|exists:grupos,id',
-            'agencia_id' => 'nullable|integer|exists:agencias,id',
             'taquilla_id' => 'nullable|integer|exists:taquillas,id',
         ]);
 
@@ -269,7 +268,7 @@ class JuegoController extends Controller
             });
         }
 
-        // Filtros explícitos por banca, grupo, agencia o taquilla (validados previamente).
+        // Filtros explícitos por banca, grupo o taquilla (validados previamente).
         // Se aplican DESPUÉS del alcance jerárquico: intersectan, nunca amplían.
         if (isset($filtros['banca_id'])) {
             $query->where('banca_id', $filtros['banca_id']);
@@ -277,10 +276,6 @@ class JuegoController extends Controller
 
         if (isset($filtros['grupo_id'])) {
             $query->where('grupo_id', $filtros['grupo_id']);
-        }
-
-        if (isset($filtros['agencia_id'])) {
-            $query->where('agencia_id', $filtros['agencia_id']);
         }
 
         if (isset($filtros['taquilla_id'])) {
@@ -448,8 +443,6 @@ class JuegoController extends Controller
             'limite_maximo' => 'nullable|numeric|min:0',
             'porcentaje_pago' => 'nullable|numeric|min:0|max:100',
             'participacion' => 'nullable|numeric|min:0|max:100',
-            'fraccion' => 'boolean',
-            'limite_tiempo' => 'nullable|integer|min:1',
         ]);
 
         // Validar jerarquía de restricción: hijo ≤ padre
@@ -477,8 +470,7 @@ class JuegoController extends Controller
                 'moneda' => $request->moneda,
             ],
             $request->only([
-                'limite_minimo', 'limite_maximo', 'porcentaje_pago',
-                'participacion', 'fraccion', 'limite_tiempo',
+                'limite_minimo', 'limite_maximo', 'porcentaje_pago', 'participacion',
             ])
         );
 
@@ -513,8 +505,6 @@ class JuegoController extends Controller
             'limites.*.limite_maximo' => 'nullable|numeric|min:0',
             'limites.*.porcentaje_pago' => 'nullable|numeric|min:0|max:100',
             'limites.*.participacion' => 'nullable|numeric|min:0|max:100',
-            'limites.*.fraccion' => 'boolean',
-            'limites.*.limite_tiempo' => 'nullable|integer|min:1',
         ]);
 
         $scope = $request->scope;
@@ -768,16 +758,6 @@ class JuegoController extends Controller
     // ==================================================
     // MÉTODOS PRIVADOS DE AUTORIZACIÓN Y VALIDACIÓN
     // ==================================================
-
-    /**
-     * Solo super_master y master pueden escribir límites.
-     */
-    private function authorizeLimitesWrite($user): void
-    {
-        if (! in_array($user->role, ['super_master', 'master'])) {
-            abort(403, 'No tienes permiso para configurar límites.');
-        }
-    }
 
     /**
      * Verificar que el usuario tenga acceso a la banca.
@@ -1075,8 +1055,6 @@ class JuegoController extends Controller
             'limite_maximo' => $limite->limite_maximo !== null ? (float) $limite->limite_maximo : null,
             'porcentaje_pago' => $limite->porcentaje_pago !== null ? (float) $limite->porcentaje_pago : null,
             'participacion' => $limite->participacion !== null ? (float) $limite->participacion : null,
-            'fraccion' => (bool) $limite->fraccion,
-            'limite_tiempo' => $limite->limite_tiempo !== null ? (int) $limite->limite_tiempo : null,
         ];
     }
 
@@ -1087,14 +1065,10 @@ class JuegoController extends Controller
     {
         $valores = [];
 
-        foreach (['limite_minimo', 'limite_maximo', 'porcentaje_pago', 'participacion', 'limite_tiempo'] as $campo) {
+        foreach (['limite_minimo', 'limite_maximo', 'porcentaje_pago', 'participacion'] as $campo) {
             if ($limite->{$campo} !== null) {
                 $valores[$campo] = (float) $limite->{$campo};
             }
-        }
-
-        if ($limite->fraccion !== null) {
-            $valores['fraccion'] = (bool) $limite->fraccion;
         }
 
         return $valores;

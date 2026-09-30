@@ -11,6 +11,9 @@
  * (limpiar/heredar se hace por DELETE por fila).
  */
 
+import { icono } from './iconos.ts';
+import { showModal } from './modal.ts';
+
 export interface DatosTablaLimites {
   juegos: { id: number; name: string; slug: string }[];
   limites: Record<string, any | null>; // "juego:moneda" (entidad) | "entidad:juego:moneda" (scope)
@@ -26,6 +29,8 @@ export interface OpcionesTablaLimites {
   alcance?: { tipo: 'banca' | 'grupo' | 'taquilla'; id: number } | null;
   mostrarOrigen?: boolean;
   filasPorPagina?: number;
+  puedeEditar?: boolean;                    // default true; false ⇒ inputs disabled y sin columna Acciones
+  eliminar?: (id: number) => Promise<any>;  // ausente ⇒ sin botón Limpiar (create mode y modo scope)
   cargarDatos: () => Promise<DatosTablaLimites>;
   guardar: (payload: {
     scope?: { tipo: string; id: number } | null;
@@ -43,17 +48,17 @@ interface Linea {
   mixto: boolean;
 }
 
-const CAMPOS: { campo: string; etiqueta: string; tipo: string }[] = [
-  { campo: 'limite_minimo', etiqueta: 'Mínimo', tipo: 'number' },
-  { campo: 'limite_maximo', etiqueta: 'Máximo', tipo: 'number' },
-  { campo: 'porcentaje_pago', etiqueta: '% Pago', tipo: 'number' },
-  { campo: 'participacion', etiqueta: 'Particip.', tipo: 'number' },
-  { campo: 'fraccion', etiqueta: 'Fracción', tipo: 'checkbox' },
-  { campo: 'limite_tiempo', etiqueta: 'T. Límite', tipo: 'number' },
+const CAMPOS: { campo: string; etiqueta: string }[] = [
+  { campo: 'limite_minimo', etiqueta: 'Mínimo' },
+  { campo: 'limite_maximo', etiqueta: 'Máximo' },
+  { campo: 'porcentaje_pago', etiqueta: '% Pago' },
+  { campo: 'participacion', etiqueta: 'Particip.' },
 ];
 
 export function crearTablaLimites(opts: OpcionesTablaLimites) {
   const filasPorPagina = opts.filasPorPagina ?? 15;
+  const puedeEditar = opts.puedeEditar ?? true;
+  const mostrarAcciones = opts.modo === 'entidad' && puedeEditar && !!opts.eliminar;
   let datos: DatosTablaLimites = { juegos: [], limites: {} };
   let lineas: Linea[] = [];
   let pagina = 0;
@@ -95,9 +100,6 @@ export function crearTablaLimites(opts: OpcionesTablaLimites) {
   function valorInicial(linea: Linea, campo: string): any {
     const tocada = tocadas.get(linea.clave);
     if (tocada && campo in tocada) return tocada[campo];
-    if (campo === 'fraccion') {
-      return linea.valor?.fraccion ? '1' : '';
-    }
     return linea.valor?.[campo] ?? '';
   }
 
@@ -110,7 +112,7 @@ export function crearTablaLimites(opts: OpcionesTablaLimites) {
       nums += `<button class="pag-btn ${p === pagina + 1 ? 'pag-activa' : ''}" data-pag="${p}">${p}</button>`;
     }
     const cls = arriba ? 'pag-top' : 'pag-bottom';
-    return `<div class="${cls} pag-wrap">${btn(pagina, '◀ Anterior', pagina === 0)}${nums}${btn(pagina + 2, 'Siguiente ▶', pagina + 1 >= total)}</div>`;
+    return `<div class="${cls} pag-wrap">${btn(pagina, `<span aria-hidden="true">${icono('chevron-left')}</span> Anterior`, pagina === 0)}${nums}${btn(pagina + 2, `Siguiente <span aria-hidden="true">${icono('chevron-right')}</span>`, pagina + 1 >= total)}</div>`;
   }
 
   function pintarTabla(): string {
@@ -126,6 +128,7 @@ export function crearTablaLimites(opts: OpcionesTablaLimites) {
     html += `<div class="table-wrap"><table><thead><tr><th>Juego</th><th>Moneda</th>`;
     for (const c of CAMPOS) html += `<th>${c.etiqueta}</th>`;
     if (opts.mostrarOrigen) html += '<th>Origen</th>';
+    if (mostrarAcciones) html += '<th>Acciones</th>';
     html += '</tr></thead><tbody>';
 
     let juegoActual = 0;
@@ -145,11 +148,8 @@ export function crearTablaLimites(opts: OpcionesTablaLimites) {
         const inicial = valorInicial(linea, c.campo);
         const mixto = linea.mixto && !(linea.clave in tocadas);
         const ph = mixto ? 'placeholder="mixto"' : '';
-        if (c.tipo === 'checkbox') {
-          html += `<td><input type="checkbox" data-clave="${linea.clave}" data-campo="${c.campo}" ${inicial === '1' ? 'checked' : ''}></td>`;
-        } else {
-          html += `<td><input type="number" step="0.01" min="0" data-clave="${linea.clave}" data-campo="${c.campo}" value="${inicial}" ${ph}></td>`;
-        }
+        const disabled = !puedeEditar ? 'disabled' : '';
+        html += `<td><input type="number" step="0.01" min="0" data-clave="${linea.clave}" data-campo="${c.campo}" value="${inicial}" ${ph} ${disabled}></td>`;
       }
 
       if (opts.mostrarOrigen) {
@@ -158,6 +158,15 @@ export function crearTablaLimites(opts: OpcionesTablaLimites) {
           ? `<span class="origen-tag">hereda de ${origen.nivel === 'banca' ? 'Banca' : origen.nivel === 'grupo' ? 'Grupo' : 'Taquilla'}: ${origen.valor ? Object.values(origen.valor)[0] : 'valor'}</span>`
           : '';
         html += `<td>${txt}</td>`;
+      }
+
+      if (mostrarAcciones) {
+        // Limpiar solo en filas propias (con id): las celdas heredadas vuelven
+        // a heredar del nivel superior vía DELETE (decisión A6 del design).
+        const boton = linea.valor?.id
+          ? `<button class="limpiar-btn" data-id="${linea.valor.id}" data-clave="${linea.clave}" type="button">Limpiar</button>`
+          : '';
+        html += `<td>${boton}</td>`;
       }
 
       html += '</tr>';
@@ -195,13 +204,40 @@ export function crearTablaLimites(opts: OpcionesTablaLimites) {
       input.addEventListener('input', () => {
         const clave = input.dataset.clave!;
         const campo = input.dataset.campo!;
-        const valor = input.type === 'checkbox' ? (input.checked ? '1' : '') : input.value;
+        const valor = input.value;
         if (!tocadas.has(clave)) tocadas.set(clave, {});
         const entrada = tocadas.get(clave)!;
         if (valor === '') {
           delete entrada[campo];
         } else {
-          entrada[campo] = campo === 'fraccion' ? true : parseFloat(valor);
+          entrada[campo] = parseFloat(valor);
+        }
+      });
+    });
+    el.querySelectorAll<HTMLButtonElement>('.limpiar-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = parseInt(btn.dataset.id || '0', 10);
+        const clave = btn.dataset.clave!;
+        const ok = await showModal({
+          message: '¿Eliminar este límite? La celda volverá a heredar del nivel superior.',
+          type: 'confirm',
+        });
+        if (!ok) return;
+        try {
+          await opts.eliminar!(id);
+          // Fila borrada: descartar ediciones pendientes y recalcular el origen heredado
+          tocadas.delete(clave);
+          datos = await opts.cargarDatos();
+          lineas = construirLineas();
+          pintar();
+        } catch (err) {
+          await showModal({ message: err.message, type: 'error' });
+          // Carrera 404 (fila ya borrada en otro lugar): refrescar sin tocar tocadas
+          if ((err as any)?.status === 404) {
+            datos = await opts.cargarDatos();
+            lineas = construirLineas();
+            pintar();
+          }
         }
       });
     });

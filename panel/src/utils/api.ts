@@ -22,7 +22,9 @@ export async function apiFetch(method, url, body) {
     const text = await res.text();
     let msg = text;
     try { msg = JSON.parse(text).message || msg; } catch (_) {}
-    throw new Error(msg || res.statusText);
+    const err = new Error(msg || res.statusText) as Error & { status?: number };
+    err.status = res.status;
+    throw err;
   }
   if (res.status === 204) return null;
   try {
