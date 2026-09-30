@@ -94,12 +94,12 @@ Totales: **27 faltantes = 2 (F1) + 25 (F2.2)**; F2.2 = 25 requests + 5 `folder.y
 
 ## Fase 4 — WU-F2.3 (PR 4 → PR 3)
 
-- [ ] 4.1 Apuestas: crear `Crear Apuesta (Animalitos - Tripleta).yml` (`selecciones[]`); filtros en `Listar Apuestas` + `Historial`.
-- [ ] 4.2 Pagos: `Registrar Pago (Token required)` → egreso sin montos (premio autoritativo); `docs:` estados `pendiente|ganadora`.
-- [ ] 4.3 Usuarios: `agencia_id` + rol `agencia`; Taquillas: `agencia_id` required.
-- [ ] 4.4 Juegos: `Reglas (×3)` `docs:` respuesta con `premios` + `modalidades`.
-- [ ] 4.5 Auth/Cierre: `docs:` roles/estados por archivo (convención 4 líneas).
-- [ ] 4.6 Reparar/verificar los 2 YAML inválidos (`Crear Apuesta (Terminales).yml`, `Crear Apuesta (Triple Zulia).yml` — clave `value:` duplicada en `X-Device-Fingerprint`).
+- [x] 4.1 Apuestas: crear `Crear Apuesta (Animalitos - Tripleta).yml` (`selecciones[]`); filtros en `Listar Apuestas` + `Historial`.
+- [x] 4.2 Pagos: `Registrar Pago (Token required)` → egreso sin montos (premio autoritativo); `docs:` estados `pendiente|ganadora`.
+- [x] 4.3 Usuarios: `agencia_id` + rol `agencia`; Taquillas: `agencia_id` required.
+- [x] 4.4 Juegos: `Reglas (×3)` `docs:` respuesta con `premios` + `modalidades`.
+- [x] 4.5 Auth/Cierre: `docs:` roles/estados por archivo (convención 4 líneas).
+- [x] 4.6 Reparar/verificar los 2 YAML inválidos (`Crear Apuesta (Terminales).yml`, `Crear Apuesta (Triple Zulia).yml` — clave `value:` duplicada en `X-Device-Fingerprint`).
 
 ## Verificación por WU (comandos reales)
 

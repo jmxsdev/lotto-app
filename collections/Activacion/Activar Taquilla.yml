@@ -14,9 +14,19 @@ http:
     data: |-
       {
         "activation_code": "ABCDE",
-        "mac_address": "d8:f3:bc:65:d1:c5",
-        "device_fingerprint": "550e8400-e29b-41d4-a716-446655440000"
+        "mac_address": "{{macAddress}}",
+        "device_fingerprint": "{{deviceFingerprint}}"
       }
+
+docs:
+  - |
+    # Activar taquilla con código + MAC (público, sin auth)
+    - Roles: sin autenticación (endpoint público; throttle `10,60`)
+    - `activation_code` required; `mac_address` required (regex MAC, se normaliza a MAYÚSCULAS);
+      `device_fingerprint` required
+    - MAC/Fingerprint se resuelven del entorno activo (`{{macAddress}}`/`{{deviceFingerprint}}`);
+      la MAC debe estar registrada en `taquillas.mac_address` (activación o reactivación)
+    - 404 si el código no existe; 403 si la taquilla ya está activa con otra MAC (anti-hijacking)
 
 settings:
   encodeUrl: true

@@ -18,11 +18,23 @@ http:
         "name": "Taquilla 01",
         "code": "TT001",
         "grupo_id": 1,
+        "agencia_id": 1,
         "user_name": "Admin Taquilla 01",
         "user_email": "taquilla@test.com",
         "user_password": "password123"
       }
   auth: inherit
+
+docs:
+  - |
+    # Crear taquilla
+    - Roles: SM | M | B | G | A (rol agencia deriva `agencia_id`/`grupo_id` de su sesión;
+      valores ajenos → 403)
+    - Autenticación: Sanctum + verify.mac — auth: inherit
+    - `agencia_id` REQUIRED (la taquilla SIEMPRE tiene local asignado); `grupo_id` required
+      salvo rol agencia (lo deriva); credenciales del usuario taquilla requeridas
+    - `limites` opcional (límites iniciales en la misma transacción)
+    - Respuesta: 201 con la taquilla creada
 
 settings:
   encodeUrl: true

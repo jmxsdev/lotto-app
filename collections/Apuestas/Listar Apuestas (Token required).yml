@@ -5,15 +5,39 @@ info:
 
 http:
   method: GET
-  url: "{{baseUrl}}/api/v1/apuestas?fecha=2026-07-10"
+  url: "{{baseUrl}}/api/v1/apuestas?fecha_desde=2026-07-01&fecha_hasta=2026-07-31"
   headers:
     - name: Authorization
       value: Bearer {{token}}
   params:
-    - name: fecha
-      value: 2026-07-10
+    - name: fecha_desde
+      value: 2026-07-01
       type: query
+    - name: fecha_hasta
+      value: 2026-07-31
+      type: query
+    - name: estado
+      value: pendiente
+      type: query
+      disabled: true
+    - name: juego_id
+      value: "1"
+      type: query
+      disabled: true
+    - name: sorteo_hora
+      value: 2026-07-30
+      type: query
+      disabled: true
   auth: inherit
+
+docs:
+  - |
+    # Listar apuestas (paginado)
+    - Roles: SM | M | B | G | T | A (todos los autenticados; alcance jerárquico)
+    - Autenticación: Sanctum + verify.mac — auth: inherit
+    - Filtros opcionales: `fecha_desde`/`fecha_hasta` (sobre `fecha_hora`), `estado`,
+      `juego_id`, `sorteo_hora` (por día), `per_page` (default 50)
+    - Respuesta: paginator Laravel de apuestas
 
 settings:
   encodeUrl: true

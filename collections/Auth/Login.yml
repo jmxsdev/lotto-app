@@ -35,6 +35,13 @@ runtime:
             expect(res.getBody()).to.have.property('token');
         });
 
+docs:
+  - |
+    # Login de panel (Super Master)
+    - Roles: SM (super_master) · Autenticación: `auth: none` + X-Panel: "true" (panel)
+    - Guarda `token` en el entorno activo con `bru.setEnvVar` (Bearer en el root)
+    - Sin credenciales rellenas → 401 (vacío falla ruidoso, no autentica otro rol)
+
 settings:
   encodeUrl: true
   timeout: 0

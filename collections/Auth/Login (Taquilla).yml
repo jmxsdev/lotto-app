@@ -28,6 +28,14 @@ runtime:
             console.log('Token guardado en el entorno activo');
         }
 
+docs:
+  - |
+    # Login de taquilla (dispositivo)
+    - Roles: T (taquilla) · Autenticación: `auth: none` SIN X-Panel (403 si lo envía)
+    - X-Device-MAC/Fingerprint heredados del root (verify.mac); exige MAC registrada en BD
+    - Guarda `token` en el entorno activo con `bru.setEnvVar` (Bearer en el root)
+    - Sin credenciales rellenas → 401 (vacío falla ruidoso, no autentica otro rol)
+
 settings:
   encodeUrl: true
   timeout: 0

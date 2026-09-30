@@ -21,6 +21,13 @@ runtime:
             expect(res.getBody()).to.have.property('email');
         });
 
+docs:
+  - |
+    # Usuario autenticado (self)
+    - Roles: todos los autenticados · Autenticación: Sanctum (Bearer) — auth: inherit
+    - Fuera de verify.mac (no exige headers de dispositivo)
+    - Respuesta: 200 con `id`, `email`, `name` y datos del usuario actual
+
 settings:
   encodeUrl: true
   timeout: 0

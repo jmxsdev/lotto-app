@@ -15,13 +15,24 @@ http:
     type: json
     data: |-
       {
-        "user_name": "Nuevo Master",
-        "user_email": "nuevomaer@test.com",
+        "user_name": "Encargado Agencia Centro",
+        "user_email": "encargado.centro@lotto.com",
         "user_password": "password123",
-        "role": "master",
+        "role": "agencia",
+        "agencia_id": 1,
         "active": true
       }
   auth: inherit
+
+docs:
+  - |
+    # Crear usuario
+    - Roles: SM | M (jerárquico: solo pueden asignar roles/vínculos dentro de su alcance)
+    - Autenticación: Sanctum + verify.mac — auth: inherit
+    - `role` ∈ super_master|master|banca|grupo|agencia|taquilla; `agencia_id` opcional
+      (required para rol `agencia`); vínculos `banca_id`/`grupo_id`/`taquilla_id` opcionales
+      según rol; consistencia rol↔vínculo validada (422 si incoherente)
+    - Respuesta: 201 con el usuario creado (roles cargados)
 
 settings:
   encodeUrl: true
