@@ -5,7 +5,7 @@ info:
 
 http:
   method: GET
-  url: "{{baseUrl}}/api/taquillas/1"
+  url: "{{baseUrl}}/api/v1/taquillas/1"
   headers:
     - name: Authorization
       value: Bearer {{token}}

@@ -5,7 +5,7 @@ info:
 
 http:
   method: GET
-  url: "{{baseUrl}}/api/exchange-rate/active"
+  url: "{{baseUrl}}/api/v1/exchange-rate/active"
   auth: inherit
 
 settings:

@@ -5,7 +5,7 @@ info:
 
 http:
   method: POST
-  url: "{{baseUrl}}/api/taquillas"
+  url: "{{baseUrl}}/api/v1/taquillas"
   headers:
     - name: Authorization
       value: Bearer {{token}}

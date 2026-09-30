@@ -5,12 +5,10 @@ info:
 
 http:
   method: GET
-  url: "{{baseUrl}}/api/juegos/2/horarios"
+  url: "{{baseUrl}}/api/v1/juegos/2/horarios"
   headers:
     - name: Authorization
       value: Bearer {{token}}
-    - name: X-Device-MAC
-      value: "{{macAddress}}"
   auth: inherit
 
 settings:

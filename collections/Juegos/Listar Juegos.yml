@@ -5,12 +5,10 @@ info:
 
 http:
   method: GET
-  url: "{{baseUrl}}/api/juegos"
+  url: "{{baseUrl}}/api/v1/juegos"
   headers:
     - name: Authorization
       value: Bearer {{token}}
-    - name: X-Device-MAC
-      value: "{{macAddress}}"
   body:
     type: json
     data: ""

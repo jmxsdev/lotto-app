@@ -5,16 +5,12 @@ info:
 
 http:
   method: POST
-  url: "{{baseUrl}}/api/apuestas"
+  url: "{{baseUrl}}/api/v1/apuestas"
   headers:
     - name: Authorization
       value: Bearer {{token}}
     - name: Content-Type
       value: application/json
-    - name: X-Device-MAC
-    - name: X-Device-Fingerprint
-      value: "demo-device-001"
-      value: "{{macAddress}}"
   body:
     type: json
     data: |-
@@ -26,11 +22,6 @@ http:
         "sorteo_hora": "2026-07-30 14:00:00"
       }
   auth: inherit
-
-runtime:
-  variables:
-    - name: macAddress
-      value: 00:1A:2B:3C:4D:5E
 
 settings:
   encodeUrl: true

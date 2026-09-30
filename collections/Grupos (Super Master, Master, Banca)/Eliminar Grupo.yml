@@ -5,7 +5,7 @@ info:
 
 http:
   method: DELETE
-  url: "{{baseUrl}}/api/grupos/1"
+  url: "{{baseUrl}}/api/v1/grupos/1"
   headers:
     - name: Authorization
       value: Bearer {{token}}
