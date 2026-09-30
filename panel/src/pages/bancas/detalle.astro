@@ -188,6 +188,7 @@ import Icon from '../../components/Icon.astro';
     const currentUser = getStoredUser() || {};
     const role = currentUser.role || '';
     const canEditBanca = role === 'super_master' || role === 'master';
+    const canEditLimites = role === 'super_master' || role === 'master' || role === 'banca';
     const canDeleteUser = role === 'super_master' || role === 'master';
     const bancaId = getParam('id') ? parseInt(getParam('id'), 10) : null;
     const isCreate = !bancaId;
@@ -396,6 +397,8 @@ import Icon from '../../components/Icon.astro';
         entidadId: bancaId,
         mostrarOrigen: false,
         filasPorPagina: 15,
+        puedeEditar: canEditLimites,
+        eliminar: isCreate ? undefined : (id: number) => apiFetch('DELETE', '/limites/' + id),
         cargarDatos: async () => {
           if (isCreate) {
             // Create mode: matriz de juegos con celdas vacías (la banca no tiene padre)

@@ -45,11 +45,11 @@ Chain strategy: stacked-to-main
 
 ## WU3 — Acción "Limpiar" por fila (panel)
 
-- [ ] 3.1 `utils/limites.ts` — `CAMPOS` a 4 columnas (sin `fraccion`/`limite_tiempo`); `valorInicial` sin rama `fraccion`; handler inputs sin checkbox.
-- [ ] 3.2 `utils/limites.ts` — opciones `puedeEditar?`/`eliminar?`; inputs `disabled` si `!puedeEditar`; columna "Acciones" solo `modo==='entidad' && puedeEditar && eliminar`; botón solo si `valor?.id`.
-- [ ] 3.3 `utils/limites.ts` — `pintar()` enlaza `.limpiar-btn` → `showModal(confirm)` → `eliminar(id)` → 200: `tocadas.delete(clave)` + recarga; error: `showModal(error)` (404 recarga). Import `showModal`.
-- [ ] 3.4 Detalle (bancas/grupos/taquillas) — pasar `puedeEditar: canEditLimites` y `eliminar: isCreate ? undefined : (id) => apiFetch('DELETE','/limites/'+id)`.
-- [ ] 3.5 VERIFY — `pnpm run build` + QA: fila propia→Limpiar, heredada→sin botón, create→sin botón, 403/404→modal.
+- [x] 3.1 `utils/limites.ts` — `CAMPOS` a 4 columnas (sin `fraccion`/`limite_tiempo`); `valorInicial` sin rama `fraccion`; handler inputs sin checkbox.
+- [x] 3.2 `utils/limites.ts` — opciones `puedeEditar?`/`eliminar?`; inputs `disabled` si `!puedeEditar`; columna "Acciones" solo `modo==='entidad' && puedeEditar && eliminar`; botón solo si `valor?.id`.
+- [x] 3.3 `utils/limites.ts` — `pintar()` enlaza `.limpiar-btn` → `showModal(confirm)` → `eliminar(id)` → 200: `tocadas.delete(clave)` + recarga; error: `showModal(error)` (404 recarga). Import `showModal`.
+- [x] 3.4 Detalle (bancas/grupos/taquillas) — pasar `puedeEditar: canEditLimites` y `eliminar: isCreate ? undefined : (id) => apiFetch('DELETE','/limites/'+id)`.
+- [x] 3.5 VERIFY — `pnpm run build` (26 páginas, 2.43s) ✅ + QA manual PENDIENTE (sin runner de panel): fila propia→Limpiar, heredada→sin botón, create→sin botón, 403/404→modal.
 
 ## WU4 — Roles/nav/componente muerto (panel)
 
