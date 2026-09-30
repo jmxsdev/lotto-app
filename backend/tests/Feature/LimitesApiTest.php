@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Agencia;
 use App\Models\Banca;
 use App\Models\Grupo;
 use App\Models\Juego;
@@ -247,6 +248,93 @@ class LimitesApiTest extends TestCase
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors('grupo_id');
+    }
+
+    public function test_get_limites_ignora_agencia_id()
+    {
+        $juego = $this->juegoNuevo();
+        $banca = $this->bancaSeeded();
+
+        // Fila en la banca sembrada: debe aparecer SIEMPRE (agencia_id se ignora)
+        $this->crearLimite($juego, ['limite_maximo' => 100]);
+
+        $agencia = Agencia::where('code', 'LT001')->first();
+        $this->assertNotNull($agencia, 'La agencia LT001 debe existir en el seeder.');
+
+        $response = $this->actingAs($this->masterUser(), 'sanctum')
+            ->getJson('/api/v1/limites/'.$juego->id.'?banca_id='.$banca->id.'&agencia_id='.$agencia->id);
+
+        // Hoy: 500 (juego_limites no tiene columna agencia_id). Fix: 200 sin filtrar.
+        $response->assertStatus(200);
+
+        $ids = collect($response->json())->pluck('banca_id')->all();
+        $this->assertEquals([$banca->id], $ids);
+    }
+
+    public function test_get_limites_agencia_id_inexistente_es_ignorado()
+    {
+        $juego = $this->juegoNuevo();
+        $banca = $this->bancaSeeded();
+        $this->crearLimite($juego, ['limite_maximo' => 100]);
+
+        $response = $this->actingAs($this->masterUser(), 'sanctum')
+            ->getJson('/api/v1/limites/'.$juego->id.'?banca_id='.$banca->id.'&agencia_id=999999');
+
+        // Hoy: 422 (exists:agencias,id). Fix: 200 ignorado.
+        $response->assertStatus(200);
+
+        $ids = collect($response->json())->pluck('banca_id')->all();
+        $this->assertEquals([$banca->id], $ids);
+    }
+
+    // ==================================================
+    // CAMPOS DORMIDOS — fraccion / limite_tiempo (WU1)
+    // ==================================================
+
+    public function test_put_ignora_campos_dormidos()
+    {
+        $juego = $this->juegoNuevo();
+        $banca = $this->bancaSeeded();
+
+        $response = $this->actingAs($this->masterUser(), 'sanctum')
+            ->putJson('/api/v1/limites/'.$juego->id, [
+                'banca_id' => $banca->id,
+                'moneda' => 'bs',
+                'limite_maximo' => 500,
+                'fraccion' => true,
+                'limite_tiempo' => 30,
+            ]);
+
+        $response->assertSuccessful();
+        // La respuesta (modelo crudo) no expone los campos dormidos (decisión A2)
+        $this->assertArrayNotHasKey('fraccion', $response->json());
+        $this->assertArrayNotHasKey('limite_tiempo', $response->json());
+
+        $limite = JuegoLimite::where('juego_id', $juego->id)
+            ->where('banca_id', $banca->id)
+            ->where('moneda', 'bs')
+            ->first();
+
+        $this->assertNotNull($limite);
+        $this->assertSame(500.0, (float) $limite->limite_maximo);
+        // Los dormidos no se persisten
+        $this->assertFalse((bool) $limite->fraccion);
+        $this->assertNull($limite->limite_tiempo);
+    }
+
+    public function test_get_limites_legacy_no_expone_dormidos()
+    {
+        $juego = $this->juegoNuevo();
+        $this->crearLimite($juego, ['limite_maximo' => 100, 'fraccion' => true, 'limite_tiempo' => 30]);
+
+        $response = $this->actingAs($this->masterUser(), 'sanctum')
+            ->getJson('/api/v1/limites/'.$juego->id.'?banca_id='.$this->bancaSeeded()->id);
+
+        $response->assertStatus(200);
+
+        $this->assertNotEmpty($response->json());
+        $this->assertArrayNotHasKey('fraccion', $response->json()[0]);
+        $this->assertArrayNotHasKey('limite_tiempo', $response->json()[0]);
     }
 
     // ==================================================

@@ -74,7 +74,7 @@ class CrearEntidadConLimitesTest extends TestCase
                 'user_email' => 'banca-limites@test.com',
                 'user_password' => 'password123',
                 'limites' => [
-                    ['juego_id' => $lotto->id, 'moneda' => 'bs', 'limite_maximo' => 100, 'porcentaje_pago' => 80, 'fraccion' => true],
+                    ['juego_id' => $lotto->id, 'moneda' => 'bs', 'limite_maximo' => 100, 'porcentaje_pago' => 80],
                 ],
             ]);
 
@@ -93,7 +93,6 @@ class CrearEntidadConLimitesTest extends TestCase
         $this->assertNotNull($limite, 'El límite de la nueva banca debe persistir.');
         $this->assertSame(100.0, (float) $limite->limite_maximo);
         $this->assertSame(80.0, (float) $limite->porcentaje_pago);
-        $this->assertTrue((bool) $limite->fraccion);
     }
 
     public function test_store_banca_sin_limites_crea_sin_limites()
