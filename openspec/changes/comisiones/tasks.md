@@ -75,8 +75,8 @@ Commit note: `*.md` is `.gitignore:44`-ignored — commit openspec artifacts wit
 - [x] 5.2 Modify `ApuestaService::ventasTotales`/`cuadreCaja` — additive Comision via `app(ComisionService::class)`; preserve grouping.
 - [x] 5.3 RED `tests/Feature/ComisionCierreTest.php`: breakdown present; `total_efectivo_*`, arqueo, faltante/sobrante intact (S20, S21).
 - [x] 5.4 Modify `CierreService` (`calcularTotales`/`previsualizar`/`reporteSemanal`) — inject `ComisionService`, add `comision_bs_equivalent` (D10).
-- [ ] 5.5 `panel/src/pages/reportes/ventas.astro` + `panel/src/pages/cuadre.astro` commission column/breakdown (finding F2).
-- [ ] 5.6 `./vendor/bin/pint --test` + `cd panel && pnpm run build`.
+- [x] 5.5 `panel/src/pages/reportes/ventas.astro` + `panel/src/pages/cuadre.astro` commission column/breakdown (finding F2).
+- [x] 5.6 `./vendor/bin/pint --test` + `cd panel && pnpm run build`.
 
 ## Phase 6: Regression verification
 
