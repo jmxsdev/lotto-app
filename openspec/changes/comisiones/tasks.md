@@ -16,14 +16,12 @@ Chained PRs recommended: Yes
 Chain strategy: pending
 400-line budget risk: High
 
-### Pre-apply confirmations (guard lines)
-- [x] **Independence CONFIRMED**: child `porcentaje_pago` MAY exceed parent; the cumulative cap (D11) tops each level to `100 − Σ tasas propias de ancestros`. No longer an assumption.
-- [ ] **ASSUMPTION (spec i, per-currency cap)**: the cap applies per currency; each currency chain is capped independently — confirm before apply.
-- [ ] **ASSUMPTION (spec ii, banca retention)**: banca stays excluded from ledger rows; its rate acts only as retention/cap over descendants — confirm before apply.
-- [ ] **ASSUMPTION (spec iii, Σ own rates floor 0)**: Σ ancestros = ancestors' **own** configured rates (NULL/absent = 0), floor 0, `min(child, max(0, 100 − Σ))` — confirm before apply.
-- [ ] **Chain strategy**: stacked-to-main vs feature-branch-chain — orchestrator asks user (plan splits independently either way).
-- [ ] **§D coordination**: `limites.astro` global block is additive only; no `limites.ts`/matrix restructure.
-- [ ] **Note**: `tasaEfectiva` unset ⇒ `0.00` only when the chain AND the global default are both unset.
+### Resolved process notes
+- **Independence CONFIRMED**: child `porcentaje_pago` MAY exceed parent; the cumulative cap (D11) tops each level to `100 − Σ tasas propias de ancestros`. No longer an assumption.
+- **Chain**: all commits on `feat/comisiones`, then merge to `main`.
+- **§D coordination**: `limites.astro` global block is additive only; no `limites.ts`/matrix restructure — integrated, coordinate at merge.
+- **Assumptions i–iii (spec)**: adopted by orchestrator and disclosed — per-currency cap (each currency chain capped independently); banca stays excluded from ledger rows (its rate acts only as retention/cap over descendants); Σ ancestros = ancestors' **own** configured rates (NULL/absent = 0), floor 0, `min(child, max(0, 100 − Σ))`. Reconfirm at archive/PR.
+- **Note**: `tasaEfectiva` unset ⇒ `0.00` only when the chain AND the global default are both unset.
 
 ### Suggested Work Units
 
@@ -84,4 +82,4 @@ Commit note: `*.md` is `.gitignore:44`-ignored — commit openspec artifacts wit
   - Chunk 1: `DB_DATABASE=lotto_test_motor php artisan test --filter='ApuestaServiceTest|ReporteTest|CuadreCajaReportTest'` → passed, 46 tests, 243 assertions.
   - Chunk 2: `DB_DATABASE=lotto_test_motor php artisan test --filter='CierreCajaTest|ClaveCierreTest'` → passed, 64 tests, 394 assertions. *(Primera corrida inválida: colisión con suite paralela de otro worktree sobre la DB compartida — `migrate:fresh` concurrente borró tablas a mitad de corrida; re-ejecutada en ventana limpia.)*
   - Chunk 3: `DB_DATABASE=lotto_test_motor php artisan test --filter='LimitesApiTest|MotorPremiosRegresionTest'` → passed, 42 tests, 85 assertions.
-- [ ] 6.2 Full suite `DB_DATABASE=lotto_test_motor php artisan test` green. *(evidencia: corrida completa de sdd-verify)*
+- [x] 6.2 Full suite `DB_DATABASE=lotto_test_motor php artisan test` → **passed, 1128 tests, 1126 passed, 2 skipped, 0 failed, 6587 assertions, 3215755 ms (~53.6 min)**. *(Corrida en cierre S7; sin colisión de DB — ventana limpia verificada con `pgrep` antes de arrancar; primera corrida cortada por timeout del runner a los 40 min, re-ejecutada detached hasta completar.)*
