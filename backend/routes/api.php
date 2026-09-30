@@ -120,6 +120,7 @@ Route::prefix('v1')->group(function () {
         Route::middleware(['role:super_master|master'])->group(function () {
             Route::put('/juegos/{juego}', [JuegoController::class, 'update']);
             Route::patch('/juegos/{juego}/toggle', [JuegoController::class, 'toggle'])->name('juegos.toggle');
+            Route::put('/juegos/{juego}/premios', [JuegoController::class, 'updatePremios'])->name('juegos.premios');
         });
 
         Route::get('/juegos/{juego}/opciones', [JuegoController::class, 'opciones']);
