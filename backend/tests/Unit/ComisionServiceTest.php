@@ -2,7 +2,9 @@
 
 namespace Tests\Unit;
 
+use App\Models\Apuesta;
 use App\Models\Banca;
+use App\Models\Comision;
 use App\Models\ComisionDefault;
 use App\Models\Grupo;
 use App\Models\Juego;
@@ -10,6 +12,7 @@ use App\Models\JuegoLimite;
 use App\Models\Taquilla;
 use App\Services\ComisionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 /**
@@ -74,6 +77,27 @@ class ComisionServiceTest extends TestCase
     {
         ComisionDefault::where('moneda', $moneda)
             ->update(['porcentaje_pago' => $porcentajePago]);
+    }
+
+    private function apuesta(
+        int $juegoId,
+        int $taquillaId,
+        float $amountBs,
+        float $amountUsd,
+        float $tasaCambio,
+        string $estado = 'pendiente',
+        ?string $fechaHora = null
+    ): Apuesta {
+        return Apuesta::create([
+            'taquilla_id' => $taquillaId,
+            'juego_id' => $juegoId,
+            'amount_bs' => $amountBs,
+            'amount_usd' => $amountUsd,
+            'exchange_rate_applied' => $tasaCambio,
+            'total_bs_equivalent' => round($amountBs + ($amountUsd * $tasaCambio), 2),
+            'estado' => $estado,
+            'fecha_hora' => $fechaHora ?? now(),
+        ]);
     }
 
     // ==================================================
@@ -238,5 +262,391 @@ class ComisionServiceTest extends TestCase
         $tasa = $service->tasaLiquidable('grupo', $grupo->id, $juego->id, 'bs');
 
         $this->assertSame(70.0, $tasa);
+    }
+
+    // ==================================================
+    // 3.1 Cálculo de comisión (S3, D6)
+    // ==================================================
+
+    public function test_comision_entidad_suma_por_tasa_liquidable_redondeada()
+    {
+        [$juego, $banca, $grupo, $taquilla] = $this->crearCadena();
+        $this->limite($juego->id, $banca->id, null, null, 'bs', 10);
+        $this->limite($juego->id, $banca->id, $grupo->id, $taquilla->id, 'bs', 100);
+
+        $this->apuesta($juego->id, $taquilla->id, 100.0, 0.0, 36.5, 'pendiente', '2026-09-15 10:00:00');
+        $this->apuesta($juego->id, $taquilla->id, 50.0, 0.0, 36.5, 'pendiente', '2026-09-15 11:00:00');
+
+        $service = new ComisionService;
+        $comision = $service->comisionEntidad(
+            'taquilla',
+            $taquilla->id,
+            Carbon::parse('2026-09-01'),
+            Carbon::parse('2026-09-30')
+        );
+
+        // SUM 150 × liquidable 90% (banca 10 + taquilla 100) = 135.00
+        $this->assertSame(135.0, $comision);
+    }
+
+    public function test_comision_redondea_a_dos_decimales()
+    {
+        [$juego, $banca, $grupo, $taquilla] = $this->crearCadena();
+        $this->limite($juego->id, $banca->id, $grupo->id, null, 'bs', 12.5);
+
+        $this->apuesta($juego->id, $taquilla->id, 11.11, 0.0, 36.5, 'pendiente', '2026-09-15 10:00:00');
+
+        $service = new ComisionService;
+        $comision = $service->comisionEntidad(
+            'taquilla',
+            $taquilla->id,
+            Carbon::parse('2026-09-01'),
+            Carbon::parse('2026-09-30')
+        );
+
+        // 11.11 × 12.5% = 1.38875 → 1.39
+        $this->assertSame(1.39, $comision);
+    }
+
+    public function test_comision_excluye_anuladas()
+    {
+        [$juego, $banca, $grupo, $taquilla] = $this->crearCadena();
+        $this->limite($juego->id, $banca->id, $grupo->id, null, 'bs', 10);
+
+        $this->apuesta($juego->id, $taquilla->id, 100.0, 0.0, 36.5, 'pendiente', '2026-09-15 10:00:00');
+        $this->apuesta($juego->id, $taquilla->id, 200.0, 0.0, 36.5, 'anulada', '2026-09-15 11:00:00');
+
+        $service = new ComisionService;
+        $comision = $service->comisionEntidad(
+            'taquilla',
+            $taquilla->id,
+            Carbon::parse('2026-09-01'),
+            Carbon::parse('2026-09-30')
+        );
+
+        // Solo la venta no anulada (100) × 10% = 10.00
+        $this->assertSame(10.0, $comision);
+    }
+
+    public function test_comision_rango_inclusivo()
+    {
+        [$juego, $banca, $grupo, $taquilla] = $this->crearCadena();
+        $this->limite($juego->id, $banca->id, $grupo->id, null, 'bs', 10);
+
+        // Venta exactamente en el inicio (00:00:00) y otra en el fin (23:59:59)
+        $this->apuesta($juego->id, $taquilla->id, 100.0, 0.0, 36.5, 'pendiente', '2026-09-01 00:00:00');
+        $this->apuesta($juego->id, $taquilla->id, 50.0, 0.0, 36.5, 'pendiente', '2026-09-30 23:59:59');
+
+        // Fuera del rango
+        $this->apuesta($juego->id, $taquilla->id, 999.0, 0.0, 36.5, 'pendiente', '2026-08-31 23:59:59');
+        $this->apuesta($juego->id, $taquilla->id, 999.0, 0.0, 36.5, 'pendiente', '2026-10-01 00:00:00');
+
+        $service = new ComisionService;
+        $comision = $service->comisionEntidad(
+            'taquilla',
+            $taquilla->id,
+            Carbon::parse('2026-09-01'),
+            Carbon::parse('2026-09-30')
+        );
+
+        // 150 × 10% = 15.00 (las de fuera no cuentan)
+        $this->assertSame(15.0, $comision);
+    }
+
+    public function test_comision_rango_vacio_es_cero()
+    {
+        [$juego, $banca, $grupo, $taquilla] = $this->crearCadena();
+        $this->limite($juego->id, $banca->id, $grupo->id, null, 'bs', 10);
+
+        $service = new ComisionService;
+        $comision = $service->comisionEntidad(
+            'taquilla',
+            $taquilla->id,
+            Carbon::parse('2026-09-01'),
+            Carbon::parse('2026-09-30')
+        );
+
+        $this->assertSame(0.0, $comision);
+    }
+
+    public function test_comision_buckets_por_moneda_mixto()
+    {
+        [$juego, $banca, $grupo, $taquilla] = $this->crearCadena();
+        $this->limite($juego->id, $banca->id, $grupo->id, null, 'bs', 10);
+        $this->limite($juego->id, $banca->id, $grupo->id, null, 'usd', 5);
+
+        // Venta mixta: contribuye a ambos buckets
+        $this->apuesta($juego->id, $taquilla->id, 100.0, 50.0, 36.5, 'pendiente', '2026-09-15 10:00:00');
+
+        $service = new ComisionService;
+        $comision = $service->comisionEntidad(
+            'taquilla',
+            $taquilla->id,
+            Carbon::parse('2026-09-01'),
+            Carbon::parse('2026-09-30')
+        );
+
+        // bs: 100 × 10% = 10.00; usd: (50 × 36.5) × 5% = 91.25 → total 101.25
+        $this->assertSame(101.25, $comision);
+    }
+
+    public function test_comision_moneda_especifica_solo_usa_ese_bucket()
+    {
+        [$juego, $banca, $grupo, $taquilla] = $this->crearCadena();
+        $this->limite($juego->id, $banca->id, $grupo->id, null, 'bs', 10);
+        $this->limite($juego->id, $banca->id, $grupo->id, null, 'usd', 5);
+
+        $this->apuesta($juego->id, $taquilla->id, 100.0, 50.0, 36.5, 'pendiente', '2026-09-15 10:00:00');
+
+        $service = new ComisionService;
+        $desde = Carbon::parse('2026-09-01');
+        $hasta = Carbon::parse('2026-09-30');
+
+        $this->assertSame(10.0, $service->comisionEntidad('taquilla', $taquilla->id, $desde, $hasta, null, 'bs'));
+        $this->assertSame(91.25, $service->comisionEntidad('taquilla', $taquilla->id, $desde, $hasta, null, 'usd'));
+    }
+
+    public function test_comision_agrega_todos_los_juegos_con_su_propia_tasa()
+    {
+        [$juego, $banca, $grupo, $taquilla] = $this->crearCadena();
+
+        $juego2 = Juego::create([
+            'name' => 'Juego Comisiones 2',
+            'slug' => 'juego-comisiones-2-'.uniqid(),
+            'type' => 'animalitos',
+            'active' => true,
+        ]);
+
+        $this->limite($juego->id, $banca->id, $grupo->id, null, 'bs', 10);
+        $this->limite($juego2->id, $banca->id, $grupo->id, null, 'bs', 20);
+
+        $this->apuesta($juego->id, $taquilla->id, 100.0, 0.0, 36.5, 'pendiente', '2026-09-15 10:00:00');
+        $this->apuesta($juego2->id, $taquilla->id, 200.0, 0.0, 36.5, 'pendiente', '2026-09-15 11:00:00');
+
+        $service = new ComisionService;
+        $desde = Carbon::parse('2026-09-01');
+        $hasta = Carbon::parse('2026-09-30');
+
+        // Todos los juegos: 100×10% + 200×20% = 50.00
+        $this->assertSame(50.0, $service->comisionEntidad('taquilla', $taquilla->id, $desde, $hasta));
+
+        // Solo juego1: 100×10% = 10.00
+        $this->assertSame(10.0, $service->comisionEntidad('taquilla', $taquilla->id, $desde, $hasta, $juego->id));
+    }
+
+    public function test_comision_nivel_grupo_suma_ventas_de_sus_taquillas()
+    {
+        [$juego, $banca, $grupo, $taquilla] = $this->crearCadena();
+
+        $taquilla2 = Taquilla::create([
+            'name' => 'Taquilla Comisiones 2',
+            'code' => 'TCOM2',
+            'grupo_id' => $grupo->id,
+            'active' => true,
+        ]);
+
+        $this->limite($juego->id, $banca->id, $grupo->id, null, 'bs', 15);
+
+        $this->apuesta($juego->id, $taquilla->id, 100.0, 0.0, 36.5, 'pendiente', '2026-09-15 10:00:00');
+        $this->apuesta($juego->id, $taquilla2->id, 200.0, 0.0, 36.5, 'pendiente', '2026-09-15 11:00:00');
+
+        $service = new ComisionService;
+        $comision = $service->comisionEntidad(
+            'grupo',
+            $grupo->id,
+            Carbon::parse('2026-09-01'),
+            Carbon::parse('2026-09-30')
+        );
+
+        // SUM 300 (ambas taquillas) × 15% = 45.00
+        $this->assertSame(45.0, $comision);
+    }
+
+    // ==================================================
+    // 3.3 Reporte bulk y previsualización (S3, D7)
+    // ==================================================
+
+    public function test_comisiones_reporte_devuelve_montos_por_entidad()
+    {
+        [$juego, $banca, $grupo, $taquilla] = $this->crearCadena();
+
+        $grupo2 = Grupo::create([
+            'name' => 'Grupo Comisiones 2',
+            'code' => 'GCOM2',
+            'banca_id' => $banca->id,
+            'active' => true,
+        ]);
+
+        $taquilla2 = Taquilla::create([
+            'name' => 'Taquilla Comisiones 2',
+            'code' => 'TCOM2',
+            'grupo_id' => $grupo2->id,
+            'active' => true,
+        ]);
+
+        $this->limite($juego->id, $banca->id, $grupo->id, $taquilla->id, 'bs', 10);
+        $this->limite($juego->id, $banca->id, $grupo2->id, $taquilla2->id, 'bs', 20);
+
+        $this->apuesta($juego->id, $taquilla->id, 100.0, 0.0, 36.5, 'pendiente', '2026-09-15 10:00:00');
+        $this->apuesta($juego->id, $taquilla2->id, 100.0, 0.0, 36.5, 'pendiente', '2026-09-15 11:00:00');
+
+        $service = new ComisionService;
+        $montos = $service->comisionesReporte(
+            'taquilla',
+            [$taquilla->id, $taquilla2->id],
+            Carbon::parse('2026-09-01'),
+            Carbon::parse('2026-09-30')
+        );
+
+        $this->assertSame([
+            $taquilla->id => 10.0,
+            $taquilla2->id => 20.0,
+        ], $montos);
+    }
+
+    public function test_previsualizar_devuelve_rows_solo_grupo_y_taquilla()
+    {
+        [$juego, $banca, $grupo, $taquilla] = $this->crearCadena();
+
+        $grupoVacio = Grupo::create([
+            'name' => 'Grupo Vacio',
+            'code' => 'GVAC1',
+            'banca_id' => $banca->id,
+            'active' => true,
+        ]);
+
+        Taquilla::create([
+            'name' => 'Taquilla Vacia',
+            'code' => 'TVAC1',
+            'grupo_id' => $grupoVacio->id,
+            'active' => true,
+        ]);
+
+        // banca 0 + grupo 10 + taquilla 100 ⇒ taquilla liquida 90, grupo 10
+        $this->limite($juego->id, $banca->id, $grupo->id, null, 'bs', 10);
+        $this->limite($juego->id, $banca->id, $grupo->id, $taquilla->id, 'bs', 100);
+
+        $this->apuesta($juego->id, $taquilla->id, 100.0, 0.0, 36.5, 'pendiente', '2026-09-15 10:00:00');
+
+        $service = new ComisionService;
+        $resultado = $service->previsualizar(Carbon::parse('2026-09-01'), Carbon::parse('2026-09-30'));
+
+        $rows = $resultado['rows'];
+        $conflictos = $resultado['conflictos'];
+
+        // Sin filas de comisiones previas ⇒ sin conflictos
+        $this->assertSame([], $conflictos);
+
+        // Solo grupo y taquilla con ventas (sin banca, sin entidades con base 0)
+        $this->assertCount(2, $rows);
+
+        $filaGrupo = collect($rows)->firstWhere('nivel', 'grupo');
+        $this->assertNotNull($filaGrupo);
+        $this->assertSame($grupo->id, $filaGrupo['entidad_id']);
+        $this->assertSame('Grupo Comisiones', $filaGrupo['entidad']);
+        $this->assertSame(10.0, $filaGrupo['monto_comision']);
+
+        $filaTaquilla = collect($rows)->firstWhere('nivel', 'taquilla');
+        $this->assertNotNull($filaTaquilla);
+        $this->assertSame($taquilla->id, $filaTaquilla['entidad_id']);
+        $this->assertSame('Taquilla Comisiones', $filaTaquilla['entidad']);
+        $this->assertSame(90.0, $filaTaquilla['monto_comision']);
+
+        // Entidades sin ventas no generan fila (ids por tabla pueden colisionar;
+        // se busca por nivel + entidad_id)
+        $this->assertNull(collect($rows)->firstWhere(
+            fn ($fila) => $fila['nivel'] === 'grupo' && $fila['entidad_id'] === $grupoVacio->id
+        ));
+        $this->assertNull(collect($rows)->firstWhere(
+            fn ($fila) => $fila['nivel'] === 'taquilla' && $fila['entidad_id'] === 999999
+        ));
+    }
+
+    public function test_previsualizar_detecta_conflictos_por_rango_solapado()
+    {
+        [$juego, $banca, $grupo, $taquilla] = $this->crearCadena();
+
+        // Fila existente que se solapa con [2026-09-10, 2026-09-20]
+        Comision::create([
+            'grupo_id' => $grupo->id,
+            'periodo' => '2026-09-01..2026-09-15',
+            'monto_comision' => 50.00,
+            'estado' => 'pendiente',
+            'fecha_inicio' => '2026-09-01',
+            'fecha_fin' => '2026-09-15',
+        ]);
+
+        // Fila fuera del rango (después) — no debe conflictuar
+        Comision::create([
+            'taquilla_id' => $taquilla->id,
+            'periodo' => '2026-10-01..2026-10-15',
+            'monto_comision' => 20.00,
+            'estado' => 'pendiente',
+            'fecha_inicio' => '2026-10-01',
+            'fecha_fin' => '2026-10-15',
+        ]);
+
+        $service = new ComisionService;
+        $resultado = $service->previsualizar(Carbon::parse('2026-09-10'), Carbon::parse('2026-09-20'));
+
+        $this->assertSame([
+            ['nivel' => 'grupo', 'entidad_id' => $grupo->id],
+        ], $resultado['conflictos']);
+    }
+
+    public function test_previsualizar_filtra_por_banca_ids()
+    {
+        [$juego, $banca, $grupo, $taquilla] = $this->crearCadena();
+
+        $banca2 = Banca::create([
+            'name' => 'Banca Comisiones 2',
+            'code' => 'BCOM2',
+            'active' => true,
+        ]);
+
+        $grupo2 = Grupo::create([
+            'name' => 'Grupo Comisiones 2',
+            'code' => 'GCOM3',
+            'banca_id' => $banca2->id,
+            'active' => true,
+        ]);
+
+        $taquilla2 = Taquilla::create([
+            'name' => 'Taquilla Comisiones 3',
+            'code' => 'TCOM3',
+            'grupo_id' => $grupo2->id,
+            'active' => true,
+        ]);
+
+        $this->limite($juego->id, $banca->id, $grupo->id, null, 'bs', 10);
+        $this->limite($juego->id, $banca2->id, $grupo2->id, null, 'bs', 25);
+
+        $this->apuesta($juego->id, $taquilla->id, 100.0, 0.0, 36.5, 'pendiente', '2026-09-15 10:00:00');
+        $this->apuesta($juego->id, $taquilla2->id, 100.0, 0.0, 36.5, 'pendiente', '2026-09-15 11:00:00');
+
+        $service = new ComisionService;
+        $resultado = $service->previsualizar(
+            Carbon::parse('2026-09-01'),
+            Carbon::parse('2026-09-30'),
+            [$banca->id]
+        );
+
+        $rows = $resultado['rows'];
+
+        // Solo la jerarquía de la banca 1 (ids por tabla pueden colisionar;
+        // se busca por nivel + entidad_id)
+        $this->assertCount(2, $rows);
+        $this->assertNotNull(collect($rows)->firstWhere(
+            fn ($fila) => $fila['nivel'] === 'grupo' && $fila['entidad_id'] === $grupo->id
+        ));
+        $this->assertNotNull(collect($rows)->firstWhere(
+            fn ($fila) => $fila['nivel'] === 'taquilla' && $fila['entidad_id'] === $taquilla->id
+        ));
+        $this->assertNull(collect($rows)->firstWhere(
+            fn ($fila) => $fila['nivel'] === 'grupo' && $fila['entidad_id'] === $grupo2->id
+        ));
+        $this->assertNull(collect($rows)->firstWhere(
+            fn ($fila) => $fila['nivel'] === 'taquilla' && $fila['entidad_id'] === $taquilla2->id
+        ));
     }
 }
