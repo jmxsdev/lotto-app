@@ -170,6 +170,17 @@ Nota: la copia bundled es data (no código autorado) y conserva `version` y
 10. `cp .env.testing.example .env.testing && composer install && npm install` (si aplica)
 11. `php artisan migrate --seed` y verificar: `php artisan test` (214 passed / 2 skipped) y `vendor/bin/pint --test`
 
+Suite en paralelo (paratest):
+
+- Ejecutar la suite en paralelo (4 procesos): `composer test:parallel`. Los procesos se distribuyen la suite y cada worker crea su propia base `lotto_test_test_{token}` (1..4), así que el usuario MySQL necesita privilegios `CREATE`/`DROP DATABASE` y DML sobre `lotto_test_test_%`:
+  ```sql
+  GRANT ALL PRIVILEGES ON `lotto_test_test\_%`.* TO 'lotto_user'@'%';
+  FLUSH PRIVILEGES;
+  ```
+  Sin ese privilegio la corrida falla con `Access denied ... CREATE DATABASE`.
+- Override de procesos: `composer test:parallel -- --processes=2` (los args tras `--` van al comando `test`). Usar siempre `--processes=N`; el flag corto `-p N` NO funciona (lo filtra el runner y falla).
+- Las bases `lotto_test_test_*` persisten entre corridas; se reutilizan mientras las migraciones no cambien. Solo tras cambiar migraciones/seeders usar `php artisan test --parallel --recreate-databases`.
+
 ### Verificación de producción
 
 12. Smoke: `ssh deploy@166.1.88.100 'curl -s -o /dev/null -w "%{http_code}" -H "Accept: application/json" http://127.0.0.1:10000/api/v1/juegos'` → 401
