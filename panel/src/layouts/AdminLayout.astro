@@ -251,9 +251,9 @@ const name = user?.name || '';
 
     // Descargar Taquilla — todos los roles (D2)
     sidebarNav.appendChild(addLink('Descargar Taquilla', '/descargar', 'download'));
+// Límites — configuración y auditoría: super_master, master y banca
 
-    // Límites — vista de auditoría de solo lectura, únicamente super_master
-    if (role === 'super_master') sidebarNav.appendChild(addLink('Límites', '/limites', 'target'));
+    if (['super_master', 'master', 'banca'].includes(role)) sidebarNav.appendChild(addLink('Límites', '/limites', 'target'));
 
     // Reportes dropdown — todos los roles
     const reportes = [

@@ -53,8 +53,8 @@ Chain strategy: stacked-to-main
 
 ## WU4 — Roles/nav/componente muerto (panel)
 
-- [ ] 4.1 RED — checklist QA en rojo (grupo/agencia ven Guardar; nav solo super_master). Pin: `test_agencia_no_configura_limites` (`RoleAuthorizationTest:214`, ya verde). SHOULD nuevo `test_grupo_no_configura_limites` (PUT grupo→403).
-- [ ] 4.2 GREEN — `limites.astro` :94-110: `canEditLimites` (sin `grupo`) reemplaza `puedeConfigurar`; grupo/agencia tabla en lectura; `.acciones` oculta si `!canEditLimites`; taquilla "Sin acceso".
-- [ ] 4.3 GREEN — detalle pages: fijar `canEditLimites` (grupos `:200` alias muerto; taquillas `:185` sin uso; bancas nuevo) y ocultar `[data-panel="limites"] .panel-actions` si `!canEditLimites`.
-- [ ] 4.4 GREEN — `AdminLayout.astro` :255-256 nav `/limites` a 3 roles; borrar `LimitesTable.astro`.
-- [ ] 4.5 VERIFY — `DB_DATABASE=lotto_test_limites php artisan test --filter=RoleAuthorization` + `pnpm run build` + QA gates.
+- [x] 4.1 RED — checklist QA en rojo (grupo/agencia ven Guardar; nav solo super_master). Pin: `test_agencia_no_configura_limites` (`RoleAuthorizationTest:214`, ya verde). NUEVO `test_grupo_no_configura_limites` (PUT grupo→403; pasa por middleware existente).
+- [x] 4.2 GREEN — `limites.astro` :94-110: `puedeConfigurar` sin `grupo` (sm|master|banca) + `puedeVer` (sm|master|banca|grupo|agencia); grupo/agencia tabla en lectura (`puedeEditar: false`); `.acciones` oculta si `!puedeConfigurar`; taquilla "Sin acceso".
+- [x] 4.3 GREEN — detalle pages: `canEditLimites` verificado en las 3 (bancas local NUEVO, grupos :200 = canEditGrupo sm|master|banca, taquillas :185) y `[data-panel="limites"] .panel-actions` oculto si `!canEditLimites`.
+- [x] 4.4 GREEN — `AdminLayout.astro` :255-256 nav `/limites` a `['super_master','master','banca']` + comentario; borrado `LimitesTable.astro` (0 imports).
+- [x] 4.5 VERIFY — `DB_DATABASE=lotto_test_limites php artisan test --filter=RoleAuthorization` → 8/8 (19 assertions) + `pnpm run build` → 26 páginas, 3.80s. QA manual PENDIENTE: grupo/agencia sin Guardar/Limpiar (tabla en lectura); nav `/limites` visible a sm/master/banca y oculta a grupo/agencia.
