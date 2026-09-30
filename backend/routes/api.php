@@ -229,6 +229,22 @@ Route::prefix('v1')->group(function () {
         });
 
         // ==================================================
+        // COMISIONES — ledger (S4, D7/D8)
+        // GET lista paginada: super_master|master (master scoped a
+        // masterBancaIds en el controlador). POST liquidar y PATCH pagar:
+        // + manage_comisiones. Rutas estáticas ANTES de {comision} para que
+        // el route-model binding no capture "liquidar".
+        // ==================================================
+        Route::middleware(['role:super_master|master'])->group(function () {
+            Route::get('/comisiones', [ComisionController::class, 'index']);
+        });
+
+        Route::middleware(['role:super_master|master', 'permission:manage_comisiones'])->group(function () {
+            Route::post('/comisiones/liquidar', [ComisionController::class, 'liquidar']);
+            Route::patch('/comisiones/{comision}/pagar', [ComisionController::class, 'pagar']);
+        });
+
+        // ==================================================
         // REPORTES (todos los roles autenticados)
         // ==================================================
         Route::middleware(['role:super_master|master|banca|grupo|taquilla|agencia'])->group(function () {

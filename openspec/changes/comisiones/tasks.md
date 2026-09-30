@@ -63,9 +63,9 @@ Commit note: `*.md` is `.gitignore:44`-ignored — commit openspec artifacts wit
 
 - [x] 4.1 Migrations `…_000002_add_rango_fechas_to_comisiones_table.php` (nullable `fecha_inicio`/`fecha_fin` + index) and `…_000003_add_comision_to_cierres_caja_table.php` (`comision_bs_equivalent` nullable decimal). *(Split confirmado: slice 2 adelantó `_000002` + `$table='comisiones'` y fillable/casts en `Comision.php`; slice 3a completa `_000003` + `CierreCaja.php`.)*
 - [x] 4.2 Update `backend/app/Models/Comision.php` (range fillable/casts — hecho en slice 2) + `CierreCaja.php` (comision fillable/cast — hecho en slice 3a).
-- [ ] 4.3 RED `ComisionesApiTest`: Grupo+Taquilla rows only, pendiente→pagado, frozen non-retroactive, overlap 422 (S11–S14).
-- [ ] 4.4 `ComisionService::liquidar(...)` — D4 `DB::transaction` + `lockForUpdate`, D5 idempotent PATCH, D7 one row per (nivel, entidad, rango).
-- [ ] 4.5 Routes `GET /comisiones`, `POST /comisiones/liquidar`, `PATCH /comisiones/{comision}/pagar` (D8: `manage_comisiones` + super_master|master, master scoped `masterBancaIds()`).
+- [x] 4.3 RED `ComisionesApiTest`: Grupo+Taquilla rows only, pendiente→pagado, frozen non-retroactive, overlap 422 (S11–S14).
+- [x] 4.4 `ComisionService::liquidar(...)` — D4 `DB::transaction` + `lockForUpdate`, D5 idempotent PATCH, D7 one row per (nivel, entidad, rango).
+- [x] 4.5 Routes `GET /comisiones`, `POST /comisiones/liquidar`, `PATCH /comisiones/{comision}/pagar` (D8: `manage_comisiones` + super_master|master, master scoped `masterBancaIds()`).
 - [ ] 4.6 Create `panel/src/pages/comisiones.astro` + `AdminLayout.astro` nav link (super_master|master).
 - [ ] 4.7 `./vendor/bin/pint --test` + `cd panel && pnpm run build`.
 
