@@ -6,6 +6,7 @@ use App\Models\Agencia;
 use App\Models\Apuesta;
 use App\Models\DetalleApuesta;
 use App\Models\ExchangeRate;
+use App\Models\Grupo;
 use App\Models\Juego;
 use App\Models\JuegoHorario;
 use App\Models\JuegoLimite;
@@ -545,10 +546,20 @@ class ApuestaService
             default => 'bancas.name',
         };
 
+        // Columna de id de la entidad: necesaria para unir la comisión
+        // por entidad (S5, D9) sin cambiar la agrupación existente.
+        $idCol = match ($nivel) {
+            'agencia' => 'agencias.id',
+            'taquilla' => 'taquillas.id',
+            'grupo' => 'grupos.id',
+            default => 'bancas.id',
+        };
+
         $filas = $base
             ->groupBy(...$groupCols)
             ->selectRaw("
                 {$labelCol} as Entidad,
+                {$idCol} as EntidadId,
                 SUM(apuestas.total_bs_equivalent) as Venta,
                 COALESCE(SUM(detalle_apuestas.premio_ganado), 0) as Premio,
                 COUNT(DISTINCT apuestas.id) as Total
@@ -557,7 +568,12 @@ class ApuestaService
 
         $totalVenta = $filas->sum('Venta');
 
-        return $filas->map(function ($fila) use ($totalVenta) {
+        // Comisión por entidad del período (S5, D9): settleable para
+        // taquilla/grupo; rollup Σgrupo + Σtaquilla para banca/agencia.
+        $entidadIds = $filas->pluck('EntidadId')->map(fn ($id) => (int) $id)->all();
+        $comisiones = $this->comisionesPorEntidad($nivel, $entidadIds, $filters);
+
+        return $filas->map(function ($fila) use ($totalVenta, $comisiones) {
             $venta = (float) $fila->Venta;
             $premio = (float) $fila->Premio;
             $porcentaje = $venta > 0 ? round(($premio / $venta) * 100, 2) : 0;
@@ -572,6 +588,7 @@ class ApuestaService
                 'Utilidad' => $utilidad,
                 'Participación' => $participacion,
                 'Total' => (int) $fila->Total,
+                'Comision' => round((float) ($comisiones[(int) $fila->EntidadId] ?? 0.0), 2),
             ];
         })->values()->toArray();
     }
@@ -678,6 +695,15 @@ class ApuestaService
             default => 'apuestas.total_bs_equivalent',
         };
 
+        // Columna de id de la entidad: necesaria para unir la comisión
+        // por entidad (S5, D9) sin cambiar la agrupación existente.
+        $idCol = match ($nivel) {
+            'agencia' => 'agencias.id',
+            'taquilla' => 'taquillas.id',
+            'grupo' => 'grupos.id',
+            default => 'bancas.id',
+        };
+
         // 1. Ventas + Vencidos: un query agrupado por nivel (excluye anuladas)
         $base = (clone $query)
             ->join('taquillas', 'apuestas.taquilla_id', '=', 'taquillas.id')
@@ -713,11 +739,17 @@ class ApuestaService
             ->groupBy(...$groupCols)
             ->selectRaw("
                 {$labelCol} as Entidad,
+                {$idCol} as EntidadId,
                 SUM(CASE WHEN apuestas.estado != 'anulada' THEN {$sumColumn} ELSE 0 END) as Venta,
                 SUM(CASE WHEN apuestas.estado = 'vencido' THEN {$sumColumn} ELSE 0 END) as Vencidos
             ")
             ->get()
             ->keyBy('Entidad');
+
+        // Comisión por entidad del período (S5, D9): settleable para
+        // taquilla/grupo; rollup Σgrupo + Σtaquilla para banca/agencia.
+        $entidadIds = $filas->pluck('EntidadId')->map(fn ($id) => (int) $id)->all();
+        $comisiones = $this->comisionesPorEntidad($nivel, $entidadIds, $filters);
 
         // 2. Pagados (egreso) y Devoluciones: queries separados sobre pagos,
         // acotados por las taquillas del alcance jerárquico
@@ -744,6 +776,10 @@ class ApuestaService
             $pagados = (float) ($egresos[$entidad] ?? 0);
             $devolucionesTotal = (float) ($devoluciones[$entidad] ?? 0);
 
+            // Entidades con pagos pero sin ventas no tienen EntidadId
+            // (no aparecen en la agrupación de ventas): comisión 0.
+            $entidadId = isset($filas[$entidad]) ? (int) $filas[$entidad]->EntidadId : null;
+
             $rows[$entidad] = [
                 'Entidad' => $entidad,
                 'Venta' => $venta,
@@ -751,6 +787,9 @@ class ApuestaService
                 'Devoluciones' => $devolucionesTotal,
                 'Vencidos' => $vencidos,
                 'Efectivo' => $venta - $pagados - $devolucionesTotal - $vencidos,
+                'Comision' => $entidadId !== null
+                    ? round((float) ($comisiones[$entidadId] ?? 0.0), 2)
+                    : 0.0,
             ];
         }
 
@@ -772,6 +811,7 @@ class ApuestaService
             'Efectivo' => round(array_sum(array_column($rows, 'Efectivo')), 2),
             'PesoVenta' => round(array_sum(array_column($rows, 'PesoVenta')), 2),
             'Participacion' => round(array_sum(array_column($rows, 'Participacion')), 2),
+            'Comision' => round(array_sum(array_column($rows, 'Comision')), 2),
         ];
 
         return [
@@ -815,6 +855,157 @@ class ApuestaService
             ->groupBy(...$groupCols)
             ->selectRaw("{$labelCol} as Entidad, {$sumExpr} as Total")
             ->pluck('Total', 'Entidad');
+    }
+
+    // ============================================
+    // S5 — Comisión por entidad en reportes (D9)
+    // ============================================
+
+    /**
+     * Rango del reporte para el cálculo de comisión: usa los filtros de
+     * fecha (inclusivos por día, misma semántica que comisionesReporte);
+     * sin filtros abarca todo el histórico (misma ventana que el reporte
+     * sin filtrar).
+     *
+     * @return array{0: \Illuminate\Support\Carbon, 1: \Illuminate\Support\Carbon}
+     */
+    private function rangoComision(array $filters): array
+    {
+        $desde = ! empty($filters['fecha_desde'])
+            ? \Illuminate\Support\Carbon::parse($filters['fecha_desde'])
+            : \Illuminate\Support\Carbon::create(1970, 1, 1);
+        $hasta = ! empty($filters['fecha_hasta'])
+            ? \Illuminate\Support\Carbon::parse($filters['fecha_hasta'])
+            : \Illuminate\Support\Carbon::create(2099, 12, 31);
+
+        return [$desde, $hasta];
+    }
+
+    /**
+     * Juego del filtro tipo_juego (slug) para acotar la comisión; null sin filtro.
+     */
+    private function comisionJuegoId(array $filters): ?int
+    {
+        if (empty($filters['tipo_juego'])) {
+            return null;
+        }
+
+        return Juego::where('slug', $filters['tipo_juego'])->value('id');
+    }
+
+    /**
+     * Comisión settleable por entidad (bulk) para niveles recipient
+     * (taquilla/grupo), respetando los filtros del reporte.
+     *
+     * `moneda = 'mixto'` no es expresable en comisionesReporte (buckets
+     * bs/usd independientes, D6): se evalúa igual que sin filtro (bs + usd).
+     *
+     * @return array<int, float> keyed por entidad_id
+     */
+    private function comisionesParaNivel(string $nivel, array $entidadIds, array $filters): array
+    {
+        if ($entidadIds === []) {
+            return [];
+        }
+
+        [$desde, $hasta] = $this->rangoComision($filters);
+        $juegoId = $this->comisionJuegoId($filters);
+        $moneda = $filters['moneda'] ?? null;
+
+        if ($moneda === 'mixto') {
+            $moneda = null;
+        }
+
+        return app(ComisionService::class)
+            ->comisionesReporte($nivel, $entidadIds, $desde, $hasta, $juegoId, $moneda);
+    }
+
+    /**
+     * Comisión por entidad del reporte (D9):
+     * - taquilla/grupo: monto settleable propio (tasa liquidable).
+     * - banca/agencia: rollup informativo Σgrupo + Σtaquilla del subárbol
+     *   (la tasa propia de la banca es retención, nunca una fila de pago).
+     *
+     * @return array<int, float> keyed por entidad_id
+     */
+    private function comisionesPorEntidad(string $nivel, array $entidadIds, array $filters): array
+    {
+        if ($entidadIds === []) {
+            return [];
+        }
+
+        if ($nivel === 'taquilla' || $nivel === 'grupo') {
+            return $this->comisionesParaNivel($nivel, $entidadIds, $filters);
+        }
+
+        return $this->comisionesRollup($nivel, $entidadIds, $filters);
+    }
+
+    /**
+     * Rollup informativo para banca/agencia: Σ settleable de los grupos y
+     * taquillas del subárbol.
+     *
+     * - banca: grupos de la banca + taquillas de esos grupos (exacto: todo
+     *   el subárbol pertenece a la banca).
+     * - agencia (local): taquillas del local + grupos de esas taquillas.
+     *   CAVEAT: si un grupo tiene taquillas en varios locales, su monto
+     *   settleable se contabiliza en el rollup de cada local (informativo).
+     *
+     * @return array<int, float> keyed por entidad_id
+     */
+    private function comisionesRollup(string $nivel, array $entidadIds, array $filters): array
+    {
+        if ($nivel === 'banca') {
+            $grupos = Grupo::whereIn('banca_id', $entidadIds)->get(['id', 'banca_id']);
+            $taquillas = Taquilla::whereIn('grupo_id', $grupos->pluck('id'))->get(['id', 'grupo_id']);
+
+            $montosGrupos = $this->comisionesParaNivel('grupo', $grupos->pluck('id')->all(), $filters);
+            $montosTaquillas = $this->comisionesParaNivel('taquilla', $taquillas->pluck('id')->all(), $filters);
+
+            $rollup = [];
+
+            foreach ($grupos as $grupo) {
+                $padre = (int) $grupo->banca_id;
+                $rollup[$padre] = ($rollup[$padre] ?? 0.0) + (float) ($montosGrupos[$grupo->id] ?? 0.0);
+            }
+
+            foreach ($taquillas as $taquilla) {
+                $padre = (int) ($grupos->firstWhere('id', $taquilla->grupo_id)?->banca_id ?? 0);
+                if ($padre === 0) {
+                    continue;
+                }
+                $rollup[$padre] = ($rollup[$padre] ?? 0.0) + (float) ($montosTaquillas[$taquilla->id] ?? 0.0);
+            }
+
+            return $rollup;
+        }
+
+        // agencia: taquillas del local + grupos de esas taquillas
+        $taquillas = Taquilla::whereIn('agencia_id', $entidadIds)->get(['id', 'grupo_id', 'agencia_id']);
+        $grupoIds = $taquillas->pluck('grupo_id')->unique()->values()->all();
+
+        $montosGrupos = $this->comisionesParaNivel('grupo', $grupoIds, $filters);
+        $montosTaquillas = $this->comisionesParaNivel('taquilla', $taquillas->pluck('id')->all(), $filters);
+
+        $gruposDeLocal = [];
+        foreach ($taquillas as $taquilla) {
+            $gruposDeLocal[(int) $taquilla->agencia_id][(int) $taquilla->grupo_id] = true;
+        }
+
+        $rollup = [];
+        foreach ($gruposDeLocal as $agenciaId => $gruposIds) {
+            $rollup[$agenciaId] = 0.0;
+            foreach (array_keys($gruposIds) as $grupoId) {
+                $rollup[$agenciaId] += (float) ($montosGrupos[$grupoId] ?? 0.0);
+            }
+        }
+
+        foreach ($taquillas as $taquilla) {
+            $rollup[(int) $taquilla->agencia_id] = ($rollup[(int) $taquilla->agencia_id] ?? 0.0)
+                + (float) ($montosTaquillas[$taquilla->id] ?? 0.0);
+        }
+
+        return $rollup;
     }
 
     // ============================================

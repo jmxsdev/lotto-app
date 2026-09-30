@@ -71,8 +71,8 @@ Commit note: `*.md` is `.gitignore:44`-ignored — commit openspec artifacts wit
 
 ## Phase 5: Reports/cierre + panel columns (S5)
 
-- [ ] 5.1 RED `tests/Feature/ComisionReporteTest.php`: commission column per level, grouping intact (S18, S19); note D9: recipient rows settleable, banca/agencia subtree rollup; juego-filtered cells ≠ unfiltered ledger (finding F4).
-- [ ] 5.2 Modify `ApuestaService::ventasTotales`/`cuadreCaja` — additive Comision via `app(ComisionService::class)`; preserve grouping.
+- [x] 5.1 RED `tests/Feature/ComisionReporteTest.php`: commission column per level, grouping intact (S18, S19); note D9: recipient rows settleable, banca/agencia subtree rollup; juego-filtered cells ≠ unfiltered ledger (finding F4).
+- [x] 5.2 Modify `ApuestaService::ventasTotales`/`cuadreCaja` — additive Comision via `app(ComisionService::class)`; preserve grouping.
 - [ ] 5.3 RED `tests/Feature/ComisionCierreTest.php`: breakdown present; `total_efectivo_*`, arqueo, faltante/sobrante intact (S20, S21).
 - [ ] 5.4 Modify `CierreService` (`calcularTotales`/`previsualizar`/`reporteSemanal`) — inject `ComisionService`, add `comision_bs_equivalent` (D10).
 - [ ] 5.5 `panel/src/pages/reportes/ventas.astro` + `panel/src/pages/cuadre.astro` commission column/breakdown (finding F2).
