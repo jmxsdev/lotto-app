@@ -80,5 +80,8 @@ Commit note: `*.md` is `.gitignore:44`-ignored — commit openspec artifacts wit
 
 ## Phase 6: Regression verification
 
-- [ ] 6.1 `DB_DATABASE=lotto_test_motor php artisan test --filter='ApuestaServiceTest|MotorPremiosRegresionTest|CierreCajaTest|CuadreCajaReportTest|LimitesApiTest'` — limits/premios untouched (S16, S17).
-- [ ] 6.2 Full suite `DB_DATABASE=lotto_test_motor php artisan test` green.
+- [x] 6.1 Regression en chunks secuenciales (S16, S17 — limits/premios untouched):
+  - Chunk 1: `DB_DATABASE=lotto_test_motor php artisan test --filter='ApuestaServiceTest|ReporteTest|CuadreCajaReportTest'` → passed, 46 tests, 243 assertions.
+  - Chunk 2: `DB_DATABASE=lotto_test_motor php artisan test --filter='CierreCajaTest|ClaveCierreTest'` → passed, 64 tests, 394 assertions. *(Primera corrida inválida: colisión con suite paralela de otro worktree sobre la DB compartida — `migrate:fresh` concurrente borró tablas a mitad de corrida; re-ejecutada en ventana limpia.)*
+  - Chunk 3: `DB_DATABASE=lotto_test_motor php artisan test --filter='LimitesApiTest|MotorPremiosRegresionTest'` → passed, 42 tests, 85 assertions.
+- [ ] 6.2 Full suite `DB_DATABASE=lotto_test_motor php artisan test` green. *(evidencia: corrida completa de sdd-verify)*
