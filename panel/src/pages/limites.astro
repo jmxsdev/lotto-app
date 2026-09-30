@@ -91,11 +91,23 @@ import Icon from '../components/Icon.astro';
       alcanceActual = 'taquillas';
     }
 
-    const puedeConfigurar = ['super_master', 'master', 'banca', 'grupo'].includes(rol);
-    if (!puedeConfigurar) {
+    // WU4: grupo/agencia auditan en solo lectura; solo sm/master/banca configuran.
+    // Taquilla (GET 403 en la API) y otros roles: sin acceso.
+    const puedeVer = ['super_master', 'master', 'banca', 'grupo', 'agencia'].includes(rol);
+    const puedeConfigurar = ['super_master', 'master', 'banca'].includes(rol);
+
+    if (!puedeVer) {
       contenedor.innerHTML = '<div class="loading">Sin acceso a la configuración de límites.</div>';
       btnGuardar.disabled = true;
+      const acciones = document.querySelector<HTMLElement>('.acciones');
+      if (acciones) acciones.style.display = 'none';
     } else {
+      // Solo lectura: sin botón Guardar
+      if (!puedeConfigurar) {
+        btnGuardar.disabled = true;
+        const acciones = document.querySelector<HTMLElement>('.acciones');
+        if (acciones) acciones.style.display = 'none';
+      }
       // Leer alcance inicial de la URL (?scope=)
       const params = new URLSearchParams(window.location.search);
       const scopeInicial = params.get('scope');
@@ -113,12 +125,13 @@ import Icon from '../components/Icon.astro';
       contenedor.innerHTML = '<div class="loading">Cargando límites...</div>';
       impacto.textContent = '';
       estado.textContent = '';
-      btnGuardar.disabled = false;
+      btnGuardar.disabled = !puedeConfigurar;
 
       tabla = crearTablaLimites({
         modo: 'scope',
         alcance: null, // el alcance por tipo se maneja en cargarDatos/guardar
         filasPorPagina: 15,
+        puedeEditar: puedeConfigurar,
         cargarDatos: async () => {
           const data = await apiFetch('GET', '/limites?scope=' + alcanceActual);
           const resultado = data?.data || { juegos: [], limites: {} };

@@ -449,6 +449,11 @@ import Icon from '../../components/Icon.astro';
 
     async function initLimites() {
       limitesInited = true;
+      // WU4: roles de solo lectura (grupo/agencia) no ven las acciones del panel
+      if (!canEditLimites) {
+        const acciones = document.querySelector('[data-panel="limites"] .panel-actions');
+        if (acciones) acciones.style.display = 'none';
+      }
       if (!taquillaId) { montarLimites(); return; }
       montarLimites();
     }
