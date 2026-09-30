@@ -275,6 +275,43 @@ class PremioSnapshotTest extends TestCase
         $this->assertSame('pagada', $apuesta->fresh()->estado);
     }
 
+    public function test_fallback_legacy_sin_detalle_paga_sin_romper_el_flujo(): void
+    {
+        [$taquilla, $user] = $this->crearTaquillaUsuario();
+        $juego = $this->juego();
+
+        // Anomalia de datos cubierta por el guard null-safe de PagoController:
+        // apuesta liquidable SIN fila de detalle (la invariante createApuesta
+        // crea una; el guard no debe romper si falta). La liquidacion persiste
+        // por query-builder (no-op sin detalle) y el pago cae al config actual.
+        $apuesta = Apuesta::create([
+            'taquilla_id' => $taquilla->id,
+            'juego_id' => $juego->id,
+            'combinacion' => json_encode(['animal' => 'Tucán', 'numero' => 42]),
+            'amount_bs' => 10,
+            'amount_usd' => 0,
+            'exchange_rate_applied' => 36.50,
+            'total_bs_equivalent' => 10,
+            'estado' => 'pendiente',
+            'fecha_hora' => $this->fechaSorteoFutura().' 13:00:00',
+            'sorteo_hora' => $this->fechaSorteoFutura().' 13:00:00',
+        ]);
+
+        $resultado = $this->resultadoDe($juego, ['numero' => 42, 'nombre_animal' => 'Tucán']);
+        $ganadoras = (new ApuestaService)->verificarGanadores($resultado);
+
+        $this->assertSame(1, $ganadoras, 'La apuesta gana aunque no tenga detalle persistido.');
+        $this->assertSame('ganadora', $apuesta->fresh()->estado);
+        $this->assertNull($apuesta->fresh()->detalles()->first(), 'Escenario: apuesta sin detalle.');
+
+        // Sin montos: el backend aplica el premio del config actual (50× = 500)
+        // sin romper por el detalle ausente (fallback legacy).
+        $pago = $this->pagar($apuesta, $user);
+        $pago->assertStatus(201);
+        $this->assertEquals(500.0, $pago->json('premio.premio_bs'));
+        $this->assertSame('pagada', $apuesta->fresh()->estado);
+    }
+
     // ==================================================
     // Comodines del snapshot congelados (REQ snapshot, REQ6)
     // ==================================================

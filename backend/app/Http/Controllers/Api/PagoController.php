@@ -238,7 +238,14 @@ class PagoController extends Controller
             : $apuesta->combinacion;
 
         $resultados = $resultado ? $resultado->toArray() : [];
-        $premiosSnapshot = $apuesta->detalles->first()?->premios_snapshot;
+
+        // Guard null-safe (verify SUGGESTION#1): la invariante vigente es UN
+        // detalle por apuesta (createApuesta). Sin detalle — o con el detalle
+        // sin snapshot — la resolucion cae al config.premios actual (fallback
+        // legacy) y el flujo de pago sigue. Multi-detalle futuro: se usa el
+        // primero, documentado aqui para cuando exista multi-seleccion.
+        $detalle = $apuesta->detalles->first();
+        $premiosSnapshot = $detalle?->premios_snapshot;
 
         return app(JuegoPluginManager::class)->calcularPremio(
             $apuesta->juego,
