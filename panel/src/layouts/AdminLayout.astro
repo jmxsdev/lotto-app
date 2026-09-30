@@ -255,6 +255,9 @@ const name = user?.name || '';
     // Límites — vista de auditoría de solo lectura, únicamente super_master
     if (role === 'super_master') sidebarNav.appendChild(addLink('Límites', '/limites', 'target'));
 
+    // Comisiones — ledger de comisiones (liquidar y pagar), super_master|master
+    if (['super_master','master'].includes(role)) sidebarNav.appendChild(addLink('Comisiones', '/comisiones', 'banknote'));
+
     // Reportes dropdown — todos los roles
     const reportes = [
       { label: 'Ventas Totales', href: '/reportes/ventas', icon: 'banknote' },
