@@ -4,7 +4,7 @@ Objetivo: tener en un solo lugar la **fuente oficial** de cada juego (para scrap
 opciones/premios) y su **página informativa** de referencia. En cada WU de juego se verifica la fuente
 oficial y se compara contra la informativa para detectar desajustes (patrón validado con Selva Plus).
 
-> Política completa en `docs/estrategia-scrapers-premios.md`:
+> Política completa en `docs/dev/estrategia-scrapers-premios.md`:
 > scrapers SIEMPRE desde fuentes oficiales; la informativa (resultadosvenezuela.com) solo como consulta.
 
 ## Registro
@@ -39,6 +39,6 @@ oficial y se compara contra la informativa para detectar desajustes (patrón val
   cliente la proporcione; mientras tanto el scraper funciona, pero la fidelidad de reglas/opciones se
   verifica contra su fuente oficial si existe.
 - La verificación oficial vs informativa se completa **en cada WU de juego** (opciones, horarios,
-  premiación) y los desajustes se registran en `docs/comparacion-juegos.md`.
+  premiación) y los desajustes se registran en `docs/cliente/comparacion-juegos.md`.
 - Extraoficialmente también sirven como referencia las plataformas multi-juego ya mapeadas en
-  `docs/plataformas-juegos.md` (premierpluss, lotterly, resultadosvenezuela, laricachona).
+  `docs/cliente/plataformas-juegos.md` (premierpluss, lotterly, resultadosvenezuela, laricachona).

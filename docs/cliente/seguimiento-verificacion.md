@@ -2,8 +2,8 @@
 
 Estado de la verificación de cada juego contra su **fuente oficial**: horarios, opciones,
 comodines, premiación y **reglamento oficial**. Complementa a:
-- `docs/fuentes-oficiales.md` → URLs de cada fuente (registro).
-- `docs/comparacion-juegos.md` → hallazgos H1–H11 (desajustes oficial vs informativa).
+- `docs/cliente/fuentes-oficiales.md` → URLs de cada fuente (registro).
+- `docs/cliente/comparacion-juegos.md` → hallazgos H1–H11 (desajustes oficial vs informativa).
 
 > Actualizado: 2026-09-14 (WU f26 — CACERÍA DE REGLAMENTOS: reglamentos oficiales obtenidos para
 > Triple Zulia, Triple Caliente y Triple Zamorano (PDF parseables desde los sitios oficiales),
@@ -324,4 +324,4 @@ User-Agent de navegador, robots.txt respetado (los sitios no lo prohíben para e
 ### E. Fuera del catálogo (candidatos — decisión del cliente)
 
 La Ricachona animalitos · Granjita Plus · Terminal La Granjita · Zoológico Activo · Ruleta Activa ·
-LottoMax · y el resto mapeado en `docs/plataformas-juegos.md`.
+LottoMax · y el resto mapeado en `docs/cliente/plataformas-juegos.md`.

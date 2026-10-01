@@ -1,5 +1,10 @@
 # 📋 Planificación del Proyecto LottoApp - Monorepo
 
+> ⚠️ **Documento histórico (stale).** Los sprints 9–12 y los porcentajes de esta planificación
+> están desactualizados: el motor de premios, límites, comisiones y buena parte de los fronts ya se
+> entregaron. Para el estado vigente usar **`docs/dev/pendientes-front.md`** (fuente única).
+> Se conserva por contexto de arquitectura y de decisiones originales.
+
 **Pila de Tareas (Backlog) priorizada y granular**, dividida en **14 Sprints** o bloques de trabajo.
 
 Cada bloque incluye **Entregables** y su respectiva **Estrategia de Pruebas** (QA). Las tareas están ordenadas para minimizar el bloqueo entre backend y frontend.

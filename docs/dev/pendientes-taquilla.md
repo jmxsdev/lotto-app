@@ -1,5 +1,7 @@
 # Pendientes de la Taquilla — Accesibilidad y Teclado
 
+> Índice consolidado de pendientes de ambos fronts: **`docs/dev/pendientes-front.md`** (fuente única). Este documento conserva el detalle del ciclo.
+
 > Documento vivo del ciclo `taquilla-venta-agil` (primer merge a main).
 > Recopila los pendientes abiertos de accesibilidad/teclado reportados en el
 > test [Win], lo implementado en cada iteración y los deferrals conocidos.
@@ -119,7 +121,7 @@ iteración del ciclo.
 
 - El catálogo actual tiene **1 solo juego de tipo `terminales`**: `terminal-activo` (Terminal Activo). Los otros tipos: 11 animalitos, 9 tripletas.
 - La UI **no oculta** juegos por falta de logo: el render muestra todos los juegos del tipo activo y usa el nombre como respaldo si no hay imagen (todos tienen logo hoy).
-- Otros juegos de terminales vistos en el proveedor agregador **no están integrados** en nuestro catálogo todavía (ver `docs/comparacion-juegos.md`): `terminal-trio`, `terminal-la-granjita`, `triple-centena-terminal` (pendientes de integración).
+- Otros juegos de terminales vistos en el proveedor agregador **no están integrados** en nuestro catálogo todavía (ver `docs/cliente/comparacion-juegos.md`): `terminal-trio`, `terminal-la-granjita`, `triple-centena-terminal` (pendientes de integración).
 - Varios juegos de `tripletas` incluyen **modalidades** de terminal/punta (p. ej. trio-activo `punta`/`terminal`, triple-fácil `terminal`, la-ricachona terminal) pero pertenecen a la pestaña Tripletas según su `tipo`.
 
 ### Próxima iteración (si el cliente quiere más terminales)
@@ -140,4 +142,4 @@ iteración del ciclo.
       puede diferir entre dev y empaquetado; evaluar separación por origen.
 - [ ] **Mapa de teclas configurable (operador)**: hoy el `KEYMAP` está centralizado en `taquilla/src/utils/keyboard.ts` (tecla → acción/nombre/guarda), la leyenda y la ayuda derivan de él y los handlers despachan por NOMBRE de acción — intercambiar funciones entre dos teclas (p. ej. F1 ↔ F11) es editar el mapa en un solo lugar. Una UI de configuración para que el operador reasigne teclas queda como mejora futura.
 - [ ] Cualquier otro deferral registrado en el ciclo `taquilla-venta-agil`
-      (ver `docs/PENDIENTE.md` y las notas del cambio).
+      (ver `docs/dev/pendientes-front.md` y las notas del cambio).

@@ -2,7 +2,7 @@
 
 > Documento para el cliente. Explica, con ejemplos concretos, **cómo se juega, qué se apuesta,
 > cuándo se gana y cuánto se paga** en cada uno de los 21 juegos del sistema.
-> Los valores de pago (multiplicadores) provienen de `docs/multiplicadores-juegos.md`, que consolida
+> Los valores de pago (multiplicadores) provienen de `docs/cliente/multiplicadores-juegos.md`, que consolida
 > los **reglamentos oficiales** y la operación real de cada juego. No se inventa ningún valor: si un
 > juego no tiene fuente oficial con valores, queda **deshabilitado** (ver `la-ricachona`).
 

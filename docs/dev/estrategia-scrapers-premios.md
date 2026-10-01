@@ -1,5 +1,10 @@
 # Estrategia: ciclo de scrapers y motor de premios
 
+> ⚠️ **Documento histórico (2026-09-12).** El ciclo de scrapers y el **motor de premios ya se
+> entregaron** (este último config-driven: `PremiosOficiales` + `PremiosEngine`). Lo que sigue
+> describe la estrategia de aquel momento; el estado vigente está en `docs/dev/pendientes-front.md`
+> y en `docs/dev/motor-premios.md`.
+
 > Actualizado: 2026-09-12. Decisiones del cliente + hallazgos del equipo.
 
 ## Decisión de ciclos
@@ -15,7 +20,7 @@
 
 - Se inicia DESPUÉS de cerrar el ciclo de scrapers, con estrategia comunicada y diseñada
   junto al cliente, basada en los hallazgos.
-- Base de trabajo: `docs/comparacion-juegos.md` (hallazgos H1–H7) + análisis del motor
+- Base de trabajo: `docs/cliente/comparacion-juegos.md` (hallazgos H1–H7) + análisis del motor
   (Engram `architecture/motor-premios`).
 - **Hallazgo clave**: los multiplicadores están **hardcodeados en los plugins**
   (`Animalitos` 30×, `Tripletas` 30×, `Terminales` 20×) y `config.premio_multiplo` **no se usa

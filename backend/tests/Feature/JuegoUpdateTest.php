@@ -10,11 +10,11 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * S3 — PUT /api/v1/juegos/{juego} (deuda docs/PENDIENTE.md §7).
+ * S3 — PUT /api/v1/juegos/{juego} (deuda docs/dev/pendientes-front.md §7).
  *
  * `update()` persiste name/config, audita `accion=actualizar` con before/after
  * y updated_by, y está limitado a super_master|master (ruta) → 403 para otros
- * roles. La `config` es reemplazo COMPLETO, no merge (docs/motor-premios.md §8).
+ * roles. La `config` es reemplazo COMPLETO, no merge (docs/dev/motor-premios.md §8).
  */
 class JuegoUpdateTest extends TestCase
 {
@@ -72,7 +72,7 @@ class JuegoUpdateTest extends TestCase
 
     public function test_update_config_es_reemplazo_completo_no_merge(): void
     {
-        // docs/motor-premios.md §8: PUT /juegos/{id} con `config` es reemplazo
+        // docs/dev/motor-premios.md §8: PUT /juegos/{id} con `config` es reemplazo
         // COMPLETO (por eso existe el endpoint /premios con merge seguro).
         $juego = $this->juego('triple-zulia');
 

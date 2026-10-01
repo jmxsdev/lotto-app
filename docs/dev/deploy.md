@@ -439,7 +439,7 @@ repo (drift repo↔producción). Pasos para migrar (usuario, en el VPS):
 
 ## Fase 10 — DNS Cloudflare y certificados TLS
 
-El runbook (`docs/runbook-ops.md`) tiene el detalle; aquí el resumen ejecutable
+El runbook (`docs/dev/runbook-ops.md`) tiene el detalle; aquí el resumen ejecutable
 (requiere navegador):
 
 1. **dash.cloudflare.com → Add a site → `gzuz.dev`** (plan Free). Cloudflare importa

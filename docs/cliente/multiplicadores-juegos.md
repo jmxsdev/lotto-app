@@ -2,9 +2,9 @@
 
 Lista consolidada de premios **oficiales** por juego, la base para el ciclo del motor de premios.
 Fuentes: reglamentos oficiales (PDF texto / escaneado), webs y bundles oficiales, y verificación
-en vivo documentada en `docs/seguimiento-verificacion.md` / `docs/comparacion-juegos.md`.
+en vivo documentada en `docs/cliente/seguimiento-verificacion.md` / `docs/cliente/comparacion-juegos.md`.
 
-> Actualizado: 2026-09-17. Reglamentos nuevos cosechados en `docs/reglamentos/` (ver notas al pie).
+> Actualizado: 2026-09-30 (movido a `docs/cliente/`; estados de aplicación corregidos).
 
 ## Tabla de multiplicadores
 
@@ -15,32 +15,35 @@ en vivo documentada en `docs/seguimiento-verificacion.md` / `docs/comparacion-ju
 | 3 | `terminal-activo` (Terminal Trío) | terminales | **60×** | — (FAQ oficial dice 70× + 5× aprox → H12) | Reglamento oficial | ✅ aplicado (60×) |
 | 4 | `lotto-activo-rd` | animalitos | **30×** | — | FAQ oficial | ✅ aplicado |
 | 5 | `lotto-activo-rep-dom` | animalitos | **30×** | — | FAQ oficial | ✅ aplicado |
-| 6 | `monje-millonario` | animalitos | **50×** | **Patronus (figura 75) 120×** · palabra PATRONUS +20× (acumula 70× con figura) | **Reglamento oficial "Lotto Activo 2" Art. 22** | 🔄 **por aplicar** (hoy 30×) |
+| 6 | `monje-millonario` | animalitos | **50×** | **Patronus (figura 75) 120×** · palabra PATRONUS +20× (acumula 70× con figura) | **Reglamento oficial "Lotto Activo 2" Art. 22** | ✅ aplicado (50× / Patronus 120× / palabra +20×) |
 | 7 | `trio-activo` | tripletas | **600×** | Terminal 60× · Punta 60× | Reglamento oficial | ✅ aplicado |
 | 8 | `triple-caliente` | tripletas | **600×** | Modalidades del reglamento (Lotería de Cojedes) | Reglamento oficial | ✅ aplicado |
 | 9 | `cazaloton` | animalitos | **30×** | Dupleta 800× · Tripleta 200× | Reglamento oficial (Lotería del Mar) | ✅ aplicado |
-| 10 | `triple-chance` | tripletas | Triple Fijo **600×** | A+B **200.000×** · solo A/B **150×** · Punta 60× · Terminal 60× · Cruzado 3.000×/10× · C+Signo **6.000×** · Terminal+Signo 600× | **Reglamento oficial** (el afiche decía 100× y 5.000× → H23) | 🔄 revisar (afiche vs reglamento) |
-| 11 | `el-arrejuntado` | tripletas | Animalito **40×** | Triple A 600× · Triple B 600× · Triple+Signo 6.000× · El Arrimao 6.000× · El Pegadito **60.000×** | **Sitio oficial (#premios)** | 🔄 **por aplicar** (hoy 30× + modalidades) |
+| 10 | `triple-chance` | tripletas | Triple Fijo **600×** | A+B **200.000×** · solo A/B **150×** · Punta 60× · Terminal 60× · Cruzado 3.000×/10× · C+Signo **6.000×** · Terminal+Signo 600× | **Reglamento oficial** (el afiche decía 100× y 5.000× → H23) | ✅ aplicado (valores del reglamento) · ⚠️ decisión H23 pendiente |
+| 11 | `el-arrejuntado` | tripletas | Animalito **40×** | Triple A 600× · Triple B 600× · Triple+Signo 6.000× · El Arrimao 6.000× · El Pegadito **60.000×** | **Sitio oficial (#premios)** | ✅ aplicado (40× + modalidades) |
 | 12 | `el-guacharito` | animalitos | **70×** | Guacharito (figura 99) **150×** | Bundle oficial (SPA) | ✅ aplicado |
 | 13 | `guacharo-activo` | animalitos | **60×** | Guácharo (figura 75) **120×** | **Reglamento oficial (texto)** | ✅ aplicado |
 | 14 | `la-granjita` | animalitos | **30×** | — | **Reglamento oficial (texto)** | ✅ aplicado |
 | 15 | `la-ricachona` | tripletas | **?** | Terminal · Aproximación (valores ?) | ⚠️ **sin fuente con valores** (reglamento 2022 no los trae; copia escaneada) | ⏳ **PENDIENTE** |
-| 16 | `loto-chaima` | animalitos | **40×** | Tripleta Loto Chaima **50×** | **Reglamento oficial (texto)** | 🔄 **por aplicar** (hoy 30×) |
+| 16 | `loto-chaima` | animalitos | **40×** | Tripleta Loto Chaima **50×** | **Reglamento oficial (texto)** | ✅ aplicado (40× + tripleta 50×) |
 | 17 | `mega-animal-40` | animalitos | **30×** | **Comodín MEGA 40×** | Web oficial | ✅ aplicado (comodín capturado) |
 | 18 | `selva-plus` | animalitos | **80×** | Comodín A "Leoncito" **160×** · Comodín B "Selva Plus" **200×** | Web oficial (operación) — el reglamento dice 30× → H24 | ✅ aplicado (comodines capturados) |
 | 19 | `triple-tachira` | tripletas | **500×** | Terminal 50× · Zodiacal 5.000× | **Reglamento oficial 2026 (G-20004065-3)** (mirror 2018 dice 600× → doc obsoleto) | ✅ aplicado |
 | 20 | `triple-facil` | tripletas | **700×** | Terminal 60× · Aproximación 10× | **Reglamento oficial (texto)** | ✅ aplicado |
 | 21 | `triple-zamorano` | tripletas | **600×** | Cola 60× · Uña 5× · Zodiacal 6.000× · Cola+Signo 600× · Uña+Signo 60× | Reglamento oficial (Lotería del Zulia) | ✅ aplicado |
 
-## Cambios a aplicar en el ciclo del motor
+## Estado de aplicación (motor-premios) — actualizado 2026-09-30
 
-1. **Monje**: 30× → **50×** + Patronus 120× + palabra +20× (reglamento oficial nuevo).
-2. **El Arrejuntado**: 30× → **40× base** + modalidades (Triple 600×, Triple+Signo 6.000×, Arrimao 6.000×, Pegadito 60.000×) — hoy solo paga 30× genérico.
-3. **Loto Chaima**: 30× → **40×** + Tripleta 50×.
-4. **Chance**: revisar 150× (reglamento) vs 100× (afiche) y C+Signo 6.000× vs 5.000×.
-5. **Comodines a liquidar**: MEGA 40× (mega), Selva A/B 160×/200×, Guacharito 99→150×, Guácharo 75→120×, Patronus 75→120×, palabra PATRONUS +20×.
-6. **H13**: normalización de acentos (bug crítico transversal).
-7. **`premio_multiplo` config-driven** + modalidades por juego (motor).
+> El motor de premios está **entregado**: lo de abajo está aplicado en `config.premios`
+> (`backend/app/Support/PremiosOficiales.php`) salvo lo indicado.
+
+1. ✅ **Monje**: 50× + Patronus 120× + palabra +20×.
+2. ✅ **El Arrejuntado**: 40× base + modalidades (Triple 600×, Triple+Signo 6.000×, Arrimao 6.000×, Pegadito 60.000×).
+3. ✅ **Loto Chaima**: 40× + Tripleta 50×.
+4. ⚠️ **Chance**: aplicado con los valores del **reglamento**; falta decisión 150× vs 100× (afiche) y C+Signo 6.000× vs 5.000× (**H23**).
+5. ✅ **Comodines liquidados**: MEGA 40×, Selva A/B 160×/200×, Guacharito 99→150×, Guácharo 75→120×, Patronus 75→120×, palabra PATRONUS +20×.
+6. ✅ **H13 (acentos)**: resuelto con `App\Support\Texto::normalizar()` ("Delfín" ≡ "Delfin").
+7. ✅ **`premio_multiplo` config-driven + modalidades por juego**: implementado.
 
 ## Discrepancias nuevas (registradas)
 

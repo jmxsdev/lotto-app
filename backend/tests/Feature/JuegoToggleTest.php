@@ -11,7 +11,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * S3 — PATCH /api/v1/juegos/{juego}/toggle (deuda docs/PENDIENTE.md §7;
+ * S3 — PATCH /api/v1/juegos/{juego}/toggle (deuda docs/dev/pendientes-front.md §7;
  * spec configuracion-premios REQ "Toggle del juego").
  *
  * El endpoint requiere body `{active: bool}` (422 si falta), persiste el

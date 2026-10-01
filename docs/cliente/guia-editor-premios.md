@@ -20,6 +20,10 @@
 
 ## Modalidades — claves por juego (valores oficiales actuales)
 
+**Para qué sirven**: cada clave es una forma **alternativa** de jugar que tiene su propio multiplicador
+(distinto del base). Se tocan cuando querés cambiar cuánto paga una jugada específica **sin mover el
+resto**. El cliente apuesta esa modalidad de forma explícita.
+
 | Juego | Claves de modalidad (multiplicador) |
 |---|---|
 | Trio Activo | `punta` (2 primeras cifras) 60 · `terminal` (2 últimas) 60 |
@@ -33,10 +37,20 @@
 | Cazalotón | `tripleta` (3 figuras del sorteo) 200 |
 | Loto Chaima | `tripleta` 50 |
 
-**Cómo se usa**:
-- **Cambiar un valor** (lo más común): ej. subir el `cruzado` del Chance de 3000 → 3500 ⇒ Bs 10 apostados a Cruzado (ambas puntas) pasan a pagar Bs 35.000.
-- **Agregar una clave** solo si el juego realmente la liquida en la venta (el editor te sugiere las válidas: las del plugin + el catálogo oficial; una clave desconocida es rechazada con 422).
-- **Quitar una clave** = ese tipo de apuesta deja de tener premio configurado (cae al base si el juego la deriva así; no lo uses para "desactivar" ventas — para eso está `Activo`).
+**Cómo se usan — ejemplos concretos**:
+
+1. **Subir la punta del Trio Activo** de 60 → 70: editar el valor de `punta` `60 → 70` → Guardar. Una
+   apuesta de Bs 10 a la punta pasa a pagar **Bs 700** (antes Bs 600). Lo ya vendido sigue a 60.
+2. **Subir el Cruzado del Chance** de 3.000 → 3.500: Bs 10 con ambas puntas → **Bs 35.000** en los
+   próximos sorteos.
+3. **Restaurar**: mismo procedimiento con el valor anterior (todo queda auditado).
+
+**Reglas**:
+- Solo claves que el editor te sugiere (plugin ∪ catálogo oficial) — una clave que el juego **no
+  liquida** se rechaza (**422**); no inventes claves.
+- **Agregar** una clave solo si el juego realmente la liquida en la venta.
+- **Quitar** una modalidad deja esa jugada **sin premio propio** (cae al base si el juego la deriva
+  así). No la borres para "desactivarla": para eso está el `Activo` del juego.
 
 ## Comodines — tipos, mecánica y claves reales
 
@@ -56,6 +70,8 @@ El comodín **depende del resultado** (scrapers lo capturan). Regla del motor:
 | Monje Millonario | `patronus-palabra` | palabra (acumulativo) | SUMA **+20×** al vigente | figura normal: 50+20 = **70×**; figura 75: 120+20 = **140×** |
 
 Campos de cada comodín en el editor: `tipo` (flag | letra | numero | palabra), `premio_multiplo` (entero ≥ 1) y `acumulativo` (solo visible/válido con `palabra`).
+
+**Ejemplo combinado (Monje Millonario)**: figura normal sin palabra = **50×**; figura normal + palabra PATRONUS = **70×**; figura Patronus 75 = **120×**; y 75 + palabra = **140×** → Bs 10 a la figura 75 en un sorteo con palabra = **Bs 1.400**.
 
 **Ejemplo concreto de cambio**: si el cliente decide que MEGA pague **45×**: editar `mega` → `premio_multiplo` 45 → Guardar. Aplica a los sorteos siguientes; lo ya vendido conserva 40.
 

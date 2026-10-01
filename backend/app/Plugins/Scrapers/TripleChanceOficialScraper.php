@@ -31,7 +31,7 @@ use Illuminate\Support\Carbon;
  *     • CHANCE AYB    → Triple A (`numA`) + Triple B (`numB`)
  *     • CHANCE ASTRAL → Triple C (`numA`) + signo (`simA`)
  *   CHANCE ANIMALITO (2 animalitos) pertenece a otro juego (chance-animalitos,
- *   candidato en `docs/plataformas-juegos.md`) y se ignora aquí.
+ *   candidato en `docs/cliente/plataformas-juegos.md`) y se ignora aquí.
  * - Los campos `numA`/`numB` vienen en base64 de un string con padding
  *   ("492   ") → se decodifica y recorta. `simA` en base64 del signo en
  *   nombre completo ("VIRGO", "SAGITARIO") → se mapea a la sigla de 3 letras

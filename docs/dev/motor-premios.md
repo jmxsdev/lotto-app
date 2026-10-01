@@ -4,7 +4,7 @@
 > Ciclo SDD: `openspec/changes/archive/2026-09-26-motor-premios/` (proposal, design, 3 specs, tasks 24/24, verify-report PASS).
 > Rama: `feat/motor-premios-f3-estados` (42 commits sobre `main`; **pendiente de merge** al momento de escribir este documento).
 > Este documento reemplaza la nota de trabajo del 2026-09-14 (describía la arquitectura previa y los gaps, ya resueltos).
-> Contrato para los fronts (taquilla/panel): `docs/integracion-front-motor-premios.md`.
+> Contrato para los fronts (taquilla/panel): `docs/dev/integracion-front-motor-premios.md`.
 
 ## 1. La idea central
 
@@ -99,7 +99,7 @@ Ticket: `premio_total_bs/usd` se **acumula** (increment) entre sorteos; estado d
 
 - Migraciones: `2026_09_17_000001_add_ganadora_to_apuestas_estado`, `2026_09_17_000002_backfill_premios_config_juegos`, `2026_09_17_000003_dedupe_resultados_sorteo_duplicado`.
 - Seeders: uno por juego leyendo `PremiosOficiales::configPara($slug)` (`backend/database/seeders/`: `MonjeMillonarioSeeder`, `SelvaPlusSeeder`, `TripleChanceSeeder`, `LaRicachonaSeeder` (off), ...) + `DatabaseSeeder` que orquesta.
-- **Vistas**: el motor no tiene vistas Blade; su interfaz es la **API** + `docs/juegos.json`. Las pantallas viven en `panel/` y `taquilla/` -> contrato en `docs/integracion-front-motor-premios.md`.
+- **Vistas**: el motor no tiene vistas Blade; su interfaz es la **API** + `docs/juegos.json`. Las pantallas viven en `panel/` y `taquilla/` -> contrato en `docs/dev/integracion-front-motor-premios.md`.
 
 ## 5. `config.premios` — forma exacta
 
@@ -142,7 +142,7 @@ Ticket: `premio_total_bs/usd` se **acumula** (increment) entre sorteos; estado d
 
 ## 7. Modalidades soportadas (vista backend)
 
-Los payloads exactos de `combinacion` para el front estan en `docs/integracion-front-motor-premios.md` (seccion 2).
+Los payloads exactos de `combinacion` para el front estan en `docs/dev/integracion-front-motor-premios.md` (seccion 2).
 Resumen de claves canonicas por juego (valores en `config.premios.modalidades`):
 
 | Juego | Base | Claves de modalidad | Comodines |

@@ -346,7 +346,7 @@ class JuegosJsonTest extends TestCase
 
         // mega-animal-40 sin tabla: 38 animales canónicos desde el plugin Animalitos
         // (zoológico canónico del proveedor: Delfín/Ballena 0 ... Culebra 36; el comodín
-        // "MEGA" de 40x NO se modela — premio_multiplo estático 30, ver docs/comparacion-juegos.md).
+        // "MEGA" de 40x NO se modela — premio_multiplo estático 30, ver docs/cliente/comparacion-juegos.md).
         // Las labels del plugin son SIN acentos ('Delfin', 'Caiman'), a diferencia de la
         // tabla propia de loto-chaima ('Delfín').
         $this->assertCount(38, $porSlug['mega-animal-40']['opciones']);

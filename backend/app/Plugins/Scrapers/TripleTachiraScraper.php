@@ -38,7 +38,7 @@ use Symfony\Component\DomCrawler\Crawler;
  *   toda `--------` devuelve `[]` (estado VÁLIDO: el sitio renderiza la tabla
  *   completa para fechas sin datos, p. ej. 2020-01-01; los domingos suelen
  *   tener menos sorteos — 06-sep solo 22:10, 13-sep ninguno — ver
- *   docs/comparacion-juegos.md H9). Solo un cuerpo vacío o un HTML sin la
+ *   docs/cliente/comparacion-juegos.md H9). Solo un cuerpo vacío o un HTML sin la
  *   tabla esperada es un error (RuntimeException, fail-fast).
  * - ZODI: la celda trae el triple + signo de 3 letras + punto ("160 <br>PIC.")
  *   → `triple_c` + `signo` mapeado con `mapearSigno` (PIC→PIS, resto igual;

@@ -75,7 +75,7 @@ class TrioActivoSeeder extends Seeder
 
         // Horarios 08:00–19:00 (:00 cada hora, 12 sorteos al día — confirmado
         // por el feed oficial 2026-09-10..14; el reglamento de 2020 declara 3
-        // sorteos pero la operación real es de 12 — ver docs/seguimiento-verificacion.md).
+        // sorteos pero la operación real es de 12 — ver docs/cliente/seguimiento-verificacion.md).
         foreach (range(8, 19) as $h) {
             $hora = str_pad($h, 2, '0', STR_PAD_LEFT).':00';
             JuegoHorario::firstOrCreate(
