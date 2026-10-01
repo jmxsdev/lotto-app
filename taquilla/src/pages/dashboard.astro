@@ -2964,6 +2964,8 @@ import Icon from '../components/ui/Icon.astro';
       // S4 taquilla-operativa (spec taquilla-navegacion §2): foco DIRECTO al
       // input Número, espejo síncrono de F2 — sin re-render en el mismo tick
       // que invalide el foco. zonaActual + focus() explícito + enfocarZona.
+      zonaActual = 'numero';
+      input.focus({ preventScroll: true });
       enfocarZona('numero');
     }
 
