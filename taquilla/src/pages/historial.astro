@@ -99,6 +99,7 @@ import MainLayout from '../layouts/MainLayout.astro';
         import { formatearJugada, nombresJuegos, labelModalidad } from '../utils/ticket';
         import { cargarCatalogo, labelDeSigno } from '../utils/catalogo';
         import { payloadPago, esPagableApuesta, esPagableTicket, acumularPremio } from '../utils/pagos';
+        import { buildReciboLines } from '../utils/recibos';
         import { estadoTicket } from '../utils/estados';
         import juegosRaw from '../data/juegos.json';
 
@@ -269,42 +270,76 @@ import MainLayout from '../layouts/MainLayout.astro';
                 if (premio.premio_bs > 0) partes.push('Bs. ' + premio.premio_bs.toLocaleString('es-VE', { minimumFractionDigits: 2 }));
                 if (premio.premio_usd > 0) partes.push('$' + premio.premio_usd.toLocaleString('en-US', { minimumFractionDigits: 2 }));
                 await window.showModal({ message: 'Premio pagado: ' + partes.join(' / '), type: 'success' });
+                // S1: comprobante impreso automáticamente tras el pago. El
+                // builder usa SOLO las respuestas de POST /pagos (nunca detalles).
+                const respuestasPorId = new Map(respuestas.map(r => [r.data?.apuesta_id, r]));
+                const pagosPorApuesta = (ticket.apuestas || []).map(a => respuestasPorId.get(a.id) ?? null);
+                const recibo = buildReciboLines(ticket, pagosPorApuesta);
+                if (window.electron?.printTicket) {
+                    await window.electron.printTicket({
+                        ticketData: {
+                            kind: 'recibo',
+                            ticketCode: ticket.ticket_code,
+                            date: new Date(ticket.created_at).toLocaleDateString('es-VE'),
+                            time: new Date(ticket.created_at).toLocaleTimeString('es-VE'),
+                            lines: recibo.lines,
+                            premioTotalBs: recibo.premioTotalBs,
+                            premioTotalUsd: recibo.premioTotalUsd,
+                        },
+                    });
+                }
             }
             loadTickets();
         }
 
         async function printTicket(ticket) {
-            // Ticket impreso (2026-09): texto de jugada por familia (animal,
-            // solo número en terminal, modalidad + número + signo en tripletas)
-            // y encabezado con TODOS los juegos del ticket.
-            const lines = (ticket.apuestas || []).map(a => {
-                const c = typeof a.combinacion === 'string' ? JSON.parse(a.combinacion) : (a.combinacion || {});
-                const esTripleta = !!c.tipo;
-                const tipo = esTripleta ? 'tripletas' : (c.animal ? 'animalitos' : 'terminales');
-                const juego = catalogoTicket.porId.get(a.juego_id ?? a.juego?.id);
-                return {
-                    game: a.juego?.name || '',
-                    jugada: formatearJugada({
-                        tipo,
-                        animal: c.animal || null,
-                        numero: c.numero ?? null,
-                        modalidad: esTripleta ? labelModalidad(c.tipo) : null,
-                        signo: esTripleta && c.signo
-                            ? (juego ? (labelDeSigno(juego, c.signo) ?? c.signo) : c.signo)
-                            : null,
-                    }),
-                    sorteo: a.sorteo_hora ? new Date(a.sorteo_hora).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }) : '',
-                    amountBs: Number(a.amount_bs || 0),
-                    amountUsd: Number(a.amount_usd || 0),
+            // S1: ticket pagado/resuelto (no pendiente) → comprobante de pago
+            // (spec taquilla-comprobante-pago §3); pendiente → ticket de venta.
+            let ticketData;
+            if (ticket.estado !== 'pendiente') {
+                const recibo = buildReciboLines(ticket, []);
+                ticketData = {
+                    kind: 'recibo',
+                    ticketCode: ticket.ticket_code,
+                    date: new Date(ticket.created_at).toLocaleDateString('es-VE'),
+                    time: new Date(ticket.created_at).toLocaleTimeString('es-VE'),
+                    lines: recibo.lines,
+                    premioTotalBs: recibo.premioTotalBs,
+                    premioTotalUsd: recibo.premioTotalUsd,
                 };
-            });
-            const ticketData = {
-                ticketCode: ticket.ticket_code,
-                date: new Date(ticket.created_at).toLocaleDateString('es-VE'),
-                time: new Date(ticket.created_at).toLocaleTimeString('es-VE'),
-                game: nombresJuegos(lines).join(', '),
-                lines: lines,
-            };
+            } else {
+                // Ticket impreso (2026-09): texto de jugada por familia (animal,
+                // solo número en terminal, modalidad + número + signo en tripletas)
+                // y encabezado con TODOS los juegos del ticket.
+                const lines = (ticket.apuestas || []).map(a => {
+                    const c = typeof a.combinacion === 'string' ? JSON.parse(a.combinacion) : (a.combinacion || {});
+                    const esTripleta = !!c.tipo;
+                    const tipo = esTripleta ? 'tripletas' : (c.animal ? 'animalitos' : 'terminales');
+                    const juego = catalogoTicket.porId.get(a.juego_id ?? a.juego?.id);
+                    return {
+                        game: a.juego?.name || '',
+                        jugada: formatearJugada({
+                            tipo,
+                            animal: c.animal || null,
+                            numero: c.numero ?? null,
+                            modalidad: esTripleta ? labelModalidad(c.tipo) : null,
+                            signo: esTripleta && c.signo
+                                ? (juego ? (labelDeSigno(juego, c.signo) ?? c.signo) : c.signo)
+                                : null,
+                        }),
+                        sorteo: a.sorteo_hora ? new Date(a.sorteo_hora).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }) : '',
+                        amountBs: Number(a.amount_bs || 0),
+                        amountUsd: Number(a.amount_usd || 0),
+                    };
+                });
+                ticketData = {
+                    ticketCode: ticket.ticket_code,
+                    date: new Date(ticket.created_at).toLocaleDateString('es-VE'),
+                    time: new Date(ticket.created_at).toLocaleTimeString('es-VE'),
+                    game: nombresJuegos(lines).join(', '),
+                    lines: lines,
+                };
+            }
             try {
                 if (window.electron?.printTicket) {
                     await window.electron.printTicket({ ticketData });

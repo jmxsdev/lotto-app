@@ -59,6 +59,7 @@ import {
   acumularPremio,
 } from '../src/utils/pagos.ts';
 import { estadoTicket } from '../src/utils/estados.ts';
+import { buildReciboLines, estadoRecibo } from '../src/utils/recibos.ts';
 import { badgesResultado } from '../src/utils/resultados.ts';
 import {
   modalidadesDisponibles,
@@ -1335,6 +1336,72 @@ ok(
   zonaPendienteSeleccion({ familia: 'animalitos', tripleModalidad: null, signoElegido: false, animalElegido: true }) === null,
   'animalitos base con animal → sin pendiente (compat)',
 );
+
+console.log('\n== S1 comprobante: buildReciboLines (spec taquilla-comprobante-pago) ==');
+const ticketRecibo = {
+  ticket_code: 'TKT-999',
+  apuestas: [
+    {
+      id: 1,
+      estado: 'ganadora',
+      amount_bs: 10,
+      amount_usd: 0,
+      juego: { name: 'Lotto Activo' },
+      combinacion: JSON.stringify({ animal: 'Perro', numero: 14 }),
+    },
+    {
+      id: 2,
+      estado: 'perdida',
+      amount_bs: 5,
+      amount_usd: 0,
+      juego: { name: 'Lotto Activo' },
+      combinacion: { animal: 'Gato', numero: 3 },
+    },
+    {
+      id: 3,
+      estado: 'pendiente',
+      amount_bs: 0,
+      amount_usd: 2,
+      juego: { name: 'Triple Zulia' },
+      combinacion: JSON.stringify({ tipo: 'triple_c', numero: '157', signo: 'SAG' }),
+    },
+  ],
+};
+// Lote: solo la jugada 1 se pagó en este batch → PAGADA + premio; el resto
+// conserva su estado real y premio 0 (no pagadas en el lote).
+const recibo = buildReciboLines(ticketRecibo, [
+  { premio: { premio_bs: 300, premio_usd: 0 } },
+  null,
+  null,
+]);
+ok(recibo.lines.length === 3, `1 línea por apuesta (${recibo.lines.length})`);
+ok(recibo.lines[0].estado === 'PAGADA', 'jugada pagada en el lote → PAGADA');
+ok(recibo.lines[1].estado === 'PERDIDA', 'apuesta perdida no pagada → PERDIDA');
+ok(recibo.lines[2].estado === 'PENDIENTE', 'apuesta pendiente no pagada → PENDIENTE');
+ok(recibo.lines[0].premioBs === 300 && recibo.lines[0].premioUsd === 0, 'premio por jugada desde la respuesta de pago');
+ok(recibo.lines[1].premioBs === 0 && recibo.lines[2].premioBs === 0, 'jugadas no pagadas → premio 0');
+ok(recibo.lines[0].jugada === 'Perro #14', `jugada animalitos: «Perro #14» (${recibo.lines[0].jugada})`);
+ok(recibo.lines[2].jugada === 'Triple C #157 SAG', `jugada tripleta zodiacal (${recibo.lines[2].jugada})`);
+ok(recibo.lines[0].game === 'Lotto Activo' && recibo.lines[2].game === 'Triple Zulia', 'game por apuesta');
+ok(recibo.lines[2].amountUsd === 2, 'amountUsd de la apuesta');
+// Totales SOLO desde respuestas de pago (nunca de detalles).
+ok(recibo.premioTotalBs === 300 && recibo.premioTotalUsd === 0, `total Bs desde POST /pagos (${recibo.premioTotalBs})`);
+// Ticket ya pagado + Imprimir (sin lote): estados reales → PAGADA previa.
+const reciboPagado = buildReciboLines(
+  { apuestas: [{ estado: 'pagada', combinacion: { animal: 'Perro', numero: 14 } }] },
+  []
+);
+ok(reciboPagado.lines[0].estado === 'PAGADA', 'apuesta ya pagada (ticket pagado) → PAGADA sin lote');
+ok(reciboPagado.premioTotalBs === 0 && reciboPagado.premioTotalUsd === 0, 'sin lote → totales 0 (no se recalculan de detalles)');
+// Vacio / defensivos.
+ok(buildReciboLines(null, []).lines.length === 0, 'ticket nulo → 0 líneas');
+ok(buildReciboLines({}, null).lines.length === 0 && buildReciboLines({}, null).premioTotalBs === 0, 'ticket sin apuestas → 0/0');
+ok(
+  buildReciboLines({ apuestas: [{ combinacion: 'json-invalido', estado: 'ganadora' }] }, [null]).lines[0].jugada === '-',
+  'combinacion inválida → jugada «-» sin crash',
+);
+ok(estadoRecibo('ganadora') === 'GANADA' && estadoRecibo('perdida') === 'PERDIDA', 'estadoRecibo: mapa directo');
+ok(estadoRecibo('pagada') === 'PAGADA' && estadoRecibo(null) === 'PENDIENTE' && estadoRecibo('anulada') === 'PENDIENTE', 'estadoRecibo: fuera del mapa → PENDIENTE');
 
 console.log(`\n${checks} checks, ${fallos} fallos`);
 process.exit(fallos === 0 ? 0 : 1);
