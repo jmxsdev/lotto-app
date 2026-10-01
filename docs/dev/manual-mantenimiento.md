@@ -33,13 +33,13 @@ Guía de mantenimiento y operación del monorepo `lotto-app` (API Laravel + desp
 | **7. Secrets** | Reglas de dónde (no) viven los secretos, rotación y protocolo ante fugas. |
 | **8. Operación diaria** | Crear entidades (jerarquía), revisar errores, probar scrapers y diagnosticar un HTTP 500. |
 
-Documentos complementarios del repo: `docs/deploy.md` (despliegue del VPS desde cero), `docs/runbook-ops.md` (runbook de operaciones y acceso SSH), `docs/estructura.md` (estructura del repo).
+Documentos complementarios del repo: `docs/dev/deploy.md` (despliegue del VPS desde cero), `docs/dev/runbook-ops.md` (runbook de operaciones y acceso SSH), `docs/dev/estructura.md` (estructura del repo).
 
 ---
 
 ## 2. Arquitectura de despliegue (producción)
 
-> Estado: verificado en el repo al 2026-09-07. Fuentes: `docker-compose.prod.yml`, `.github/workflows/ci-cd.yml`, `backend/entrypoint.sh`, `Caddyfile`, `deploy.sh`, `docs/deploy.md`.
+> Estado: verificado en el repo al 2026-09-07. Fuentes: `docker-compose.prod.yml`, `.github/workflows/ci-cd.yml`, `backend/entrypoint.sh`, `Caddyfile`, `deploy.sh`, `docs/dev/deploy.md`.
 
 ### 2.1 Stack del VPS (docker-compose.prod.yml)
 
@@ -243,7 +243,7 @@ Cada intento (exitoso o no) se registra en la tabla `logs` con acción `activaci
 1. Crear (o localizar) la taquilla en el panel — el alta de taquillas está en `routes/api.php` (`apiResource taquillas`, roles `super_master|master|banca|grupo|agencia`) — y obtener su `activation_code`.
 2. En la PC de la taquilla: instalar el instalador publicado (§4.4) y abrir la app. La splash mostrará "Dispositivo no registrado" y llevará a la pantalla de activación.
 3. Entregar el código al operador de la taquilla; este lo ingresa en la pantalla y confirma.
-4. Verificar: la app redirige a `/login` y el login exige los headers de dispositivo (`X-Device-Fingerprint` / `X-Device-MAC`, ver `docs/runbook-ops.md`).
+4. Verificar: la app redirige a `/login` y el login exige los headers de dispositivo (`X-Device-Fingerprint` / `X-Device-MAC`, ver `docs/dev/runbook-ops.md`).
 
 ### 5.4 Fallos comunes
 
@@ -272,12 +272,12 @@ Cada intento (exitoso o no) se registra en la tabla `logs` con acción `activaci
 
 ## 7. Higiene de secrets
 
-> Estado: verificado en el repo al 2026-09-07. Fuentes: `backend/.env.example`, `taquilla/.gitignore:15-21`, `.github/workflows/ci-cd.yml:97-110`, `docs/deploy.md:21-23`.
+> Estado: verificado en el repo al 2026-09-07. Fuentes: `backend/.env.example`, `taquilla/.gitignore:15-21`, `.github/workflows/ci-cd.yml:97-110`, `docs/dev/deploy.md:21-23`.
 
 ### 7.1 Reglas
 
 1. **Los secretos nunca se commitean.** Viven solo en:
-   - El VPS: `.env.production` (permiso 600) — contraseñas de BD, `APP_KEY`, `SEEDER_PASSWORD`, CORS de prod, etc. (`docs/deploy.md:21-23`, `docs/runbook-ops.md:9`).
+   - El VPS: `.env.production` (permiso 600) — contraseñas de BD, `APP_KEY`, `SEEDER_PASSWORD`, CORS de prod, etc. (`docs/dev/deploy.md:21-23`, `docs/dev/runbook-ops.md:9`).
    - GitHub Actions secrets: `VPS_SSH_KEY`, `VPS_HOST`, `VPS_USER`, `VPS_PATH` (consumidos en `ci-cd.yml:97-110`). El push de imágenes usa el `GITHUB_TOKEN` del propio workflow.
 2. **`.env.example` debe contener solo placeholders vacíos.** Desviación conocida a corregir: `backend/.env.example:31` lleva hoy un valor concreto en `DB_PASSWORD` en lugar de un placeholder. Fix pendiente: sustituirlo por `DB_PASSWORD=` (vacío). No lo repliques en ningún otro archivo.
 3. **Excepción documentada**: `taquilla/.env.production` se commitea a propósito y contiene solo `PUBLIC_API_URL` (valor público, decisión D5 — ver comentario en `taquilla/.gitignore:20-21`).
@@ -287,9 +287,9 @@ Cada intento (exitoso o no) se registra en la tabla `logs` con acción `activaci
 
 | Secret | Dónde rotar |
 |---|---|
-| `VPS_SSH_KEY` (CI) | Generar llave nueva sin passphrase → `gh secret set VPS_SSH_KEY` → autorizar la `.pub` en `authorized_keys` del VPS. Procedimiento completo en `docs/deploy.md` (Fase 1-2). |
+| `VPS_SSH_KEY` (CI) | Generar llave nueva sin passphrase → `gh secret set VPS_SSH_KEY` → autorizar la `.pub` en `authorized_keys` del VPS. Procedimiento completo en `docs/dev/deploy.md` (Fase 1-2). |
 | Credenciales de BD (`MYSQL_ROOT_PASSWORD`, `DB_PASSWORD`) | Editar `.env.production` del VPS + recrear contenedores afectados; ojo: cambiar la password de MySQL requiere también `ALTER USER` en la BD o re-crear el volumen con backup. |
-| `SEEDER_PASSWORD` | Rotar en `.env.production` y re-ejecutar la rotación de passwords de los usuarios del seeder (ver "Pendientes conocidos" en `docs/runbook-ops.md`). |
+| `SEEDER_PASSWORD` | Rotar en `.env.production` y re-ejecutar la rotación de passwords de los usuarios del seeder (ver "Pendientes conocidos" en `docs/dev/runbook-ops.md`). |
 
 ### 7.3 Protocolo si un secret aparece en un diff
 

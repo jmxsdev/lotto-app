@@ -3,7 +3,10 @@
 Todas las inconsistencias encontradas durante la integración y verificación del catálogo, en tres
 familias: **(1)** fuente informativa vs fuente oficial, **(2)** contradicciones internas de una misma
 fuente oficial, **(3)** gaps de nuestro sistema. Evidencia detallada por juego en
-`docs/seguimiento-verificacion.md`; narrativa completa de hallazgos en `docs/comparacion-juegos.md`.
+`docs/cliente/seguimiento-verificacion.md`; narrativa completa de hallazgos en `docs/cliente/comparacion-juegos.md`.
+
+> **Rol en el set**: este es el **registro canónico de las referencias H (H1–H24)**. Si buscás una
+> H, es este archivo; la evidencia extensa vive en `comparacion-juegos.md` y `seguimiento-verificacion.md`.
 
 > Actualizado: 2026-09-14.
 
@@ -30,14 +33,14 @@ fuente oficial, **(3)** gaps de nuestro sistema. Evidencia detallada por juego e
 | H19 | `triple-zamorano` | Reglamento NOV2025: sorteos **todos los días** (5 horarios). API oficial: **domingos solo 19:00** (consistente en 87 días de muestra) | Se mantiene la operación real (domingos solo 19:00); confirmar con la Operadora 1923 (WU f26) |
 | H20 | `mega-animal-40` | **Sitio oficial encontrado**: megaanimal40.com (CONALOT + Big Data Tecnology + Lotería de Cojedes) publica premios (30×/40×), horarios (12, 09:00–20:00) y resultados; el scraper actual usa resultadosvenezuela.com (excepción autorizada de f14) | ✅ **RESUELTO (WU f27)**: scraper **MIGRADO al sitio oficial** (`MegaAnimal40OficialScraper` → `POST megaanimal40.com/core/process.php` con token; seeder `updateOrCreate` con `scraper_url`/`scraper_class`/comodín MEGA en config). El scraper del proveedor (`MegaAnimal40Scraper`) queda como clase durmiente (no borrado) |
 | — | `lotto-activo` | Reglamento PDF es imagen no parseable; la modalidad Dupleta 1.000× no tiene respaldo | Pendiente de reglamento legible (la Dupleta 1.000× sí aparece en el reglamento de la familia "Lotto Activo") |
-| **H23** | `triple-chance` | **Reglamento oficial vs afiche oficial**: solo A/B **150×** (reglamento) vs 100× (afiche); C+Signo **6.000×** vs 5.000×; Cruzado 3.000×/10× | Pendiente decisión (se prioriza reglamento; ver `docs/multiplicadores-juegos.md`) |
+| **H23** | `triple-chance` | **Reglamento oficial vs afiche oficial**: solo A/B **150×** (reglamento) vs 100× (afiche); C+Signo **6.000×** vs 5.000×; Cruzado 3.000×/10× | Pendiente decisión (se prioriza reglamento; ver `docs/cliente/multiplicadores-juegos.md`) |
 | **H24** | `selva-plus` | **Reglamento oficial (30×) vs operación/web oficial (80× base + comodines 160×/200×)** | Se prioriza la operación (80× + comodines); discrepancia documentada |
 
 ## 3. Gaps de nuestro sistema
 
 | Ref | Área | Inconsistencia | Estado |
 |---|---|---|---|
-| **H13** | Motor de premios | `Animalitos::calcularPremio` no normaliza acentos: "Delfin" (feed) ≠ "Delfín" (opción) → **premio 0** en animales acentuados | **Anotado en `docs/motor-premios.md`** — pendiente del ciclo del motor (fix propuesto) |
+| **H13** | Motor de premios | `Animalitos::calcularPremio` no normaliza acentos: "Delfin" (feed) ≠ "Delfín" (opción) → **premio 0** en animales acentuados | **Anotado en `docs/dev/motor-premios.md`** — pendiente del ciclo del motor (fix propuesto) |
 | H1 | Motor/datos | Comodín MEGA 40× sin representación en los datos de la fuente | ✅ **RESUELTO (WU f27)**: la fuente oficial megaanimal40.com trae el campo **`mega` por sorteo** (`"1"` sin comodín / `"2"` SALIÓ MEGA — JS oficial del sitio) → se captura en **`numeros_ganadores.comodin`** (bool) y queda documentado en config (`comodines.mega` 40×). Fixture sintético + captura real pendiente del primer comodín; la **liquidación 40×** es del ciclo del motor |
 | H8b | Datos | Comodines de Selva (A 160× / B 200×) documentados; representación en los datos **RESUELTA**: viaja como **LETRA `"A"`/`"B"`** en `result` (observado en producción 2026-09-15 09:15 → Comodín A) | ✅ Captura estructurada implementada (`comodin` + `comodin_nombre` en `numeros_ganadores`); liquidación → ciclo del motor |
 | H14 | Datos | Monje: 7 figuras sin nombre oficial (37, 39, 57, 65, 67, 68, 75) + semántica de `special_result` sin documentar | **ZOO RESUELTO (WU f25)**: muestreo del histórico oficial de **75 días (2026-07-02..09-14, ~900 sorteos)** confirmó 37 Tortuga, 39 Lechuza, 57 Pato, 65 Araña, 67 Avestruz, 68 Jaguar y **75 Patronus** → **77 figuras completas, sin pendientes**. Queda abierto: **premio de El Patronus** (reglamento 404) y la **semántica de `special_result`** (NO es siempre 1: varía 1/0 ~9/12 por día, horas no fijas, solo en Monje — ver seguimiento-verificacion.md) |

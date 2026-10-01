@@ -102,7 +102,7 @@ GET https://api.lotterly.co/v1/results/{product_slug}/?exact_date=YYYY-MM-DD
   DEFENSIVO (valor crudo en `numeros_ganadores` + warning, sin mapeos inventados).
   ⚠️ El agregador resultadosvenezuela.com declara datos EQUIVOCADOS para este juego
   (38 animalitos/30×/11 sorteos; la verdad oficial es 101+2 comodines/80×/13 sorteos) —
-  ver `docs/comparacion-juegos.md` (hallazgo H8).
+  ver `docs/cliente/comparacion-juegos.md` (hallazgo H8).
 
 **Cómo reconocer este patrón**: API REST con `product_slug` en la ruta, filtro `exact_date`,
 resultados en 24h y string con padding; se detecta al recibir URLs de tipo
@@ -115,7 +115,7 @@ resultados en 24h y string con padding; se detecta al recibir URLs de tipo
 **Naturaleza**: AGREGADOR de resultados (no la fuente oficial de ningún juego). El cliente no
 encontró página oficial para Mega Animal 40 y eligió este agregador; el sitio publica datos
 "directamente desde fuentes oficiales" según su propio texto, pero para el resto de los juegos
-conviene preferir las fuentes oficiales cuando existan (ver `docs/comparacion-juegos.md`).
+conviene preferir las fuentes oficiales cuando existan (ver `docs/cliente/comparacion-juegos.md`).
 
 **Patrón de datos** (HTML server-rendered por fecha, SIN API JSON pública — verificados 404:
 `/api*`, `*.json`, `lottery_stats.php` es HTML):

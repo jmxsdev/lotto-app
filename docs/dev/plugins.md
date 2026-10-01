@@ -400,16 +400,20 @@ $this->assertEquals('Delfin', $resultados[0]['nombre_animal']);
 
 ---
 
-## 4. Pendiente: Scraper Triple Zulia
+## 4. ✅ Resuelto: Scraper Triple Zulia
 
-Actualmente no tiene scraper (`requires_scraper = false`, `scraper_url = null`). Para implementarlo:
+> **Ya implementado.** `TripletasScraper` (`backend/app/Plugins/Scrapers/TripletasScraper.php`)
+> consume `resultadostriplezulia.com` y el `TripleZuliaSeeder` ya tiene `requires_scraper = true`
+> + `scraper_url`. Lo que sigue se conserva como referencia histórica del plan original.
 
-1. Investigar dónde publica resultados Triple Zulia (fuente oficial)
-2. Crear `TripleZuliaScraper extends BaseScraper`
-3. Crear `FetchTripleZuliaResultsJob`
-4. Actualizar `TripleZuliaSeeder` con `requires_scraper = true` y `scraper_url`
-5. Agregar al scheduler en `routes/console.php`
-6. Crear fixtures y tests
+Pasos del plan (ya aplicados):
+
+1. ~~Investigar dónde publica resultados Triple Zulia (fuente oficial)~~ → `resultadostriplezulia.com`
+2. ~~Crear `TripleZuliaScraper extends BaseScraper`~~ → implementado como `TripletasScraper`
+3. ~~Crear `FetchTripleZuliaResultsJob`~~
+4. ~~Actualizar `TripleZuliaSeeder` con `requires_scraper = true` y `scraper_url`~~
+5. ~~Agregar al scheduler en `routes/console.php`~~
+6. ~~Crear fixtures y tests~~
 
 Formato de `numeros_ganadores` que espera el plugin TripleZulia:
 

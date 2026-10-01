@@ -1,8 +1,10 @@
 # Integración de los fronts con el motor de premios — contrato y plan de implementación
 
+> **Índice consolidado de pendientes de ambos fronts**: `docs/dev/pendientes-front.md` (fuente única). Este documento conserva el contrato detallado por front.
+
 > **Para**: agentes/devs de `taquilla/` y `panel/`.
 > **Backend**: rama `feat/motor-premios-f3-estados` (42 commits sobre `main`; **al momento de este documento NO está mergeada ni desplegada** — coordinar merge/deploy antes de probar contra producción).
-> **Referencias**: `docs/motor-premios.md` (como funciona el motor por dentro) · `docs/juegos.json` (catalogo exportado; version 1) · `openspec/changes/archive/2026-09-26-motor-premios/` (spec verificada) · `docs/multiplicadores-juegos.md` (valores oficiales).
+> **Referencias**: `docs/dev/motor-premios.md` (como funciona el motor por dentro) · `docs/juegos.json` (catalogo exportado; version 1) · `openspec/changes/archive/2026-09-26-motor-premios/` (spec verificada) · `docs/cliente/multiplicadores-juegos.md` (valores oficiales).
 > **Fecha**: 2026-09-26.
 
 ---
@@ -139,7 +141,7 @@ Notas:
 
 ### 2.3 Valores por juego (para mostrar en UI)
 
-NO hardcodear multiplicadores en el front: leer `premios` de `GET /juegos/{id}/reglas` o del catalogo. Tabla oficial completa: `docs/multiplicadores-juegos.md` y spec archivada (seccion "Valores oficiales"). Ejemplos clave: Monje base 50x (+comodines 70/120/140x), Terminal Activo 60x, Trio Activo 600x, Zulia/Caliente/Zamorano 600x, Tachira 500x, Chance 600x (con 200.000x en Par A+B), Facil 700x, Arrejuntado 40x (Pegadito 60.000x), Guacharito 70x (99 -> 150x), Guacharo 60x (75 -> 120x), Mega 30x (MEGA 40x), Selva 80x (A 160x / B 200x), Cazaloton 30x (Tripleta 200x), Chaima 40x (Tripleta 50x).
+NO hardcodear multiplicadores en el front: leer `premios` de `GET /juegos/{id}/reglas` o del catalogo. Tabla oficial completa: `docs/cliente/multiplicadores-juegos.md` y spec archivada (seccion "Valores oficiales"). Ejemplos clave: Monje base 50x (+comodines 70/120/140x), Terminal Activo 60x, Trio Activo 600x, Zulia/Caliente/Zamorano 600x, Tachira 500x, Chance 600x (con 200.000x en Par A+B), Facil 700x, Arrejuntado 40x (Pegadito 60.000x), Guacharito 70x (99 -> 150x), Guacharo 60x (75 -> 120x), Mega 30x (MEGA 40x), Selva 80x (A 160x / B 200x), Cazaloton 30x (Tripleta 200x), Chaima 40x (Tripleta 50x).
 
 ---
 
