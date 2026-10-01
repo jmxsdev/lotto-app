@@ -20,10 +20,11 @@ use Tests\TestCase;
  * S5 (slice 4a) — columna de comisión en reportes de ventas (D9).
  *
  * Cada fila del reporte expone `Comision` (bs-equivalente del período):
- * - niveles recipient (taquilla/grupo): monto settleable del rango,
+ * - niveles recipient (banca/grupo/taquilla): monto settleable del rango,
  *   calculado a la tasa liquidable (D11: tope acumulado por ancestros).
- * - banca/agencia: rollup informativo Σgrupo + Σtaquilla del subárbol
- *   (la tasa propia de la banca es retención, NUNCA una fila de pago).
+ *   La banca no tiene ancestros con tasa ⇒ su monto es su propia tasa.
+ * - agencia: rollup informativo Σgrupo + Σtaquilla del subárbol (el local
+ *   no cobra comisión propia; es passthrough).
  * - La agrupación existente (nivel agencia/taquilla/grupo/banca) y todas
  *   las columnas previas quedan intactas (cambio aditivo).
  *
@@ -182,15 +183,15 @@ class ComisionReporteTest extends TestCase
     }
 
     /**
-     * D9 — nivel banca: la fila muestra el rollup informativo del subárbol
-     * Σgrupo + Σtaquilla (nunca la tasa propia de la banca).
+     * D9 — nivel banca: la fila muestra SU monto settleable propio (tasa
+     * liquidable sin ancestros), ya no un rollup del subárbol.
      */
-    public function test_ventas_totales_nivel_banca_muestra_rollup_del_subarbol()
+    public function test_ventas_totales_nivel_banca_muestra_su_monto_liquidable()
     {
         $super = $this->superUser();
         [$juego, $banca, $grupo, $taquilla] = $this->jerarquia('Tres');
 
-        // banca 10, grupo 20, taquilla 40: settleables grupo 20 + taquilla 40
+        // banca 10 (propia), grupo 20, taquilla 40: la banca liquida 10
         $this->limite($juego->id, $banca->id, null, null, 'bs', 10);
         $this->limite($juego->id, $banca->id, $grupo->id, null, 'bs', 20);
         $this->limite($juego->id, $banca->id, $grupo->id, $taquilla->id, 'bs', 40);
@@ -208,8 +209,8 @@ class ComisionReporteTest extends TestCase
         $this->assertSame('Banca Tres', $fila['Entidad']);
         $this->assertEquals(100.0, $fila['Venta'], 'Venta intacta');
         $this->assertArrayHasKey('Comision', $fila);
-        $this->assertEquals(60.0, $fila['Comision'], 'Rollup = grupo 20 + taquilla 40');
-        $this->assertNotEquals(10.0, $fila['Comision'], 'La tasa propia de la banca nunca es una fila de pago');
+        $this->assertEquals(10.0, $fila['Comision'], 'Banca = 100 × su tasa liquidable 10%');
+        $this->assertNotEquals(60.0, $fila['Comision'], 'Ya no es el rollup del subárbol (grupo 20 + taquilla 40)');
     }
 
     /**
@@ -306,9 +307,10 @@ class ComisionReporteTest extends TestCase
     // ==================================================
 
     /**
-     * S19 — cuadre-caja: la fila incluye Comision (rollup para banca) y las
-     * columnas existentes (Venta, Pagados, Devoluciones, Vencidos, Efectivo,
-     * PesoVenta, Participacion) y la barra de totales quedan intactas.
+     * S19 — cuadre-caja: la fila incluye Comision (liquidable propio de la
+     * banca) y las columnas existentes (Venta, Pagados, Devoluciones,
+     * Vencidos, Efectivo, PesoVenta, Participacion) y la barra de totales
+     * quedan intactas.
      */
     public function test_cuadre_caja_incluye_comision_sin_alterar_columnas_existentes()
     {
@@ -321,7 +323,7 @@ class ComisionReporteTest extends TestCase
 
         $this->apuesta($juego->id, $taquilla->id, 100.0);
 
-        Pago::create([
+        $pago = Pago::create([
             'taquilla_id' => $taquilla->id,
             'amount_bs' => 100.0,
             'amount_usd' => 0.0,
@@ -331,6 +333,8 @@ class ComisionReporteTest extends TestCase
             'concepto' => 'Pago de premio',
             'created_by' => $super->id,
         ]);
+        // El egreso pertenece al rango del reporte (evita dependencia de now())
+        $pago->forceFill(['created_at' => '2026-09-15 10:00:00'])->save();
 
         $response = $this->actingAs($super, 'sanctum')
             ->getJson('/api/v1/reportes/cuadre-caja?fecha_desde=2026-09-01&fecha_hasta=2026-09-30');
@@ -344,10 +348,10 @@ class ComisionReporteTest extends TestCase
         $this->assertEquals(0.0, $fila['Devoluciones'], 'Devoluciones intacto');
         $this->assertEquals(0.0, $fila['Vencidos'], 'Vencidos intacto');
         $this->assertEquals(0.0, $fila['Efectivo'], 'Efectivo intacto (100 − 100)');
-        $this->assertEquals(60.0, $fila['Comision'], 'Rollup banca = grupo 20 + taquilla 40');
+        $this->assertEquals(10.0, $fila['Comision'], 'Banca = 100 × su tasa liquidable 10% (ya no rollup)');
 
         $totales = $response->json('totales');
-        $this->assertEquals(60.0, $totales['Comision'], 'Total de comisión = suma de filas');
+        $this->assertEquals(10.0, $totales['Comision'], 'Total de comisión = suma de filas');
         $this->assertEquals(100.0, $totales['Venta'], 'Total de venta intacto');
         $this->assertEquals(0.0, $totales['Efectivo'], 'Total de efectivo intacto');
     }

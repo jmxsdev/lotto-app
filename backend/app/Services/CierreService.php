@@ -270,11 +270,12 @@ class CierreService
 
         $desglose = $this->armarDesglose($ventasDesglose, $egresosDesglose);
 
-        // Comisión del período (D10): settleable de la taquilla a la tasa
-        // liquidable (D11). El rango se normaliza a días (startOfDay/
-        // endOfDay en comisionesReporte); los totales previos no cambian.
-        $comision = $this->comisionService->comisionEntidad(
-            'taquilla',
+        // Comisión del período (D10 + enmienda 2026-10-01): total de la
+        // cadena que cobra sobre las ventas de la taquilla — banca + grupo +
+        // taquilla — cada nivel a su tasa liquidable (D11). El rango se
+        // normaliza a días (startOfDay/endOfDay en comisionesReporte); los
+        // totales previos no cambian.
+        $comision = $this->comisionCadena(
             $taquillaId,
             Carbon::parse($fechaInicio),
             Carbon::parse($fechaFin)
@@ -291,6 +292,28 @@ class CierreService
             'desglose_metodos' => $desglose,
             'comision_bs_equivalent' => round($comision, 2),
         ];
+    }
+
+    /**
+     * Total de comisión de la cadena que cobra sobre las ventas de una
+     * taquilla: banca + grupo + taquilla, cada nivel a su tasa liquidable
+     * (D11). Sin grupo/banca asociados solo computa la taquilla.
+     */
+    private function comisionCadena(int $taquillaId, Carbon $desde, Carbon $hasta): float
+    {
+        $taquilla = Taquilla::with('grupo')->find($taquillaId);
+
+        $total = $this->comisionService->comisionEntidad('taquilla', $taquillaId, $desde, $hasta);
+
+        if ($taquilla?->grupo_id) {
+            $total += $this->comisionService->comisionEntidad('grupo', $taquilla->grupo_id, $desde, $hasta);
+        }
+
+        if ($taquilla?->grupo?->banca_id) {
+            $total += $this->comisionService->comisionEntidad('banca', $taquilla->grupo->banca_id, $desde, $hasta);
+        }
+
+        return round($total, 2);
     }
 
     /**

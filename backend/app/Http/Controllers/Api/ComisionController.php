@@ -79,14 +79,15 @@ class ComisionController extends Controller
                 $query->whereRaw('1=0');
             } else {
                 $query->where(function ($q) use ($bancaIds) {
-                    $q->whereHas('grupo', fn ($g) => $g->whereIn('banca_id', $bancaIds))
+                    $q->whereIn('banca_id', $bancaIds)
+                        ->orWhereHas('grupo', fn ($g) => $g->whereIn('banca_id', $bancaIds))
                         ->orWhereHas('taquilla', fn ($t) => $t->whereHas('grupo', fn ($g) => $g->whereIn('banca_id', $bancaIds)));
                 });
             }
         }
 
         return response()->json(
-            $query->with(['grupo', 'taquilla'])
+            $query->with(['banca', 'grupo', 'taquilla'])
                 ->latest('id')
                 ->paginate((int) $request->input('per_page', 15))
         );
@@ -184,6 +185,7 @@ class ComisionController extends Controller
 
     /**
      * ¿La comisión pertenece a una banca administrada por este master?
+     * Cubre los tres niveles del ledger (banca, grupo y taquilla).
      */
     private function comisionEnAlcanceMaster(User $user, Comision $comision): bool
     {
@@ -191,6 +193,10 @@ class ComisionController extends Controller
 
         if ($bancaIds->isEmpty()) {
             return false;
+        }
+
+        if ($comision->banca_id !== null) {
+            return $bancaIds->contains((int) $comision->banca_id);
         }
 
         if ($comision->grupo_id !== null) {

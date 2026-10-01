@@ -572,8 +572,8 @@ class ApuestaService
 
         $totalVenta = $filas->sum('Venta');
 
-        // Comisión por entidad del período (S5, D9): settleable para
-        // taquilla/grupo; rollup Σgrupo + Σtaquilla para banca/agencia.
+        // Comisión por entidad del período (S5, D9): settleable propio para
+        // banca/grupo/taquilla; rollup Σgrupo + Σtaquilla para agencia.
         $entidadIds = $filas->pluck('EntidadId')->map(fn ($id) => (int) $id)->all();
         $comisiones = $this->comisionesPorEntidad($nivel, $entidadIds, $filters);
 
@@ -750,8 +750,8 @@ class ApuestaService
             ->get()
             ->keyBy('Entidad');
 
-        // Comisión por entidad del período (S5, D9): settleable para
-        // taquilla/grupo; rollup Σgrupo + Σtaquilla para banca/agencia.
+        // Comisión por entidad del período (S5, D9): settleable propio para
+        // banca/grupo/taquilla; rollup Σgrupo + Σtaquilla para agencia.
         $entidadIds = $filas->pluck('EntidadId')->map(fn ($id) => (int) $id)->all();
         $comisiones = $this->comisionesPorEntidad($nivel, $entidadIds, $filters);
 
@@ -898,8 +898,9 @@ class ApuestaService
     }
 
     /**
-     * Comisión settleable por entidad (bulk) para niveles recipient
-     * (taquilla/grupo), respetando los filtros del reporte.
+     * Comisión settleable por entidad (bulk) para niveles que cobran su
+     * propia comisión (banca/grupo/taquilla), respetando los filtros del
+     * reporte.
      *
      * `moneda = 'mixto'` no es expresable en comisionesReporte (buckets
      * bs/usd independientes, D6): se evalúa igual que sin filtro (bs + usd).
@@ -926,9 +927,10 @@ class ApuestaService
 
     /**
      * Comisión por entidad del reporte (D9):
-     * - taquilla/grupo: monto settleable propio (tasa liquidable).
-     * - banca/agencia: rollup informativo Σgrupo + Σtaquilla del subárbol
-     *   (la tasa propia de la banca es retención, nunca una fila de pago).
+     * - banca/grupo/taquilla: monto settleable propio (tasa liquidable).
+     *   La banca no tiene ancestros con tasa ⇒ su monto es su propia tasa.
+     * - agencia: rollup informativo Σgrupo + Σtaquilla del subárbol (el
+     *   local no cobra comisión propia; es passthrough).
      *
      * @return array<int, float> keyed por entidad_id
      */
@@ -938,7 +940,7 @@ class ApuestaService
             return [];
         }
 
-        if ($nivel === 'taquilla' || $nivel === 'grupo') {
+        if (in_array($nivel, ['taquilla', 'grupo', 'banca'], true)) {
             return $this->comisionesParaNivel($nivel, $entidadIds, $filters);
         }
 
@@ -946,11 +948,9 @@ class ApuestaService
     }
 
     /**
-     * Rollup informativo para banca/agencia: Σ settleable de los grupos y
-     * taquillas del subárbol.
+     * Rollup informativo para agencia (local): Σ settleable de los grupos y
+     * taquillas de su subárbol.
      *
-     * - banca: grupos de la banca + taquillas de esos grupos (exacto: todo
-     *   el subárbol pertenece a la banca).
      * - agencia (local): taquillas del local + grupos de esas taquillas.
      *   CAVEAT: si un grupo tiene taquillas en varios locales, su monto
      *   settleable se contabiliza en el rollup de cada local (informativo).
@@ -959,31 +959,6 @@ class ApuestaService
      */
     private function comisionesRollup(string $nivel, array $entidadIds, array $filters): array
     {
-        if ($nivel === 'banca') {
-            $grupos = Grupo::whereIn('banca_id', $entidadIds)->get(['id', 'banca_id']);
-            $taquillas = Taquilla::whereIn('grupo_id', $grupos->pluck('id'))->get(['id', 'grupo_id']);
-
-            $montosGrupos = $this->comisionesParaNivel('grupo', $grupos->pluck('id')->all(), $filters);
-            $montosTaquillas = $this->comisionesParaNivel('taquilla', $taquillas->pluck('id')->all(), $filters);
-
-            $rollup = [];
-
-            foreach ($grupos as $grupo) {
-                $padre = (int) $grupo->banca_id;
-                $rollup[$padre] = ($rollup[$padre] ?? 0.0) + (float) ($montosGrupos[$grupo->id] ?? 0.0);
-            }
-
-            foreach ($taquillas as $taquilla) {
-                $padre = (int) ($grupos->firstWhere('id', $taquilla->grupo_id)?->banca_id ?? 0);
-                if ($padre === 0) {
-                    continue;
-                }
-                $rollup[$padre] = ($rollup[$padre] ?? 0.0) + (float) ($montosTaquillas[$taquilla->id] ?? 0.0);
-            }
-
-            return $rollup;
-        }
-
         // agencia: taquillas del local + grupos de esas taquillas
         $taquillas = Taquilla::whereIn('agencia_id', $entidadIds)->get(['id', 'grupo_id', 'agencia_id']);
         $grupoIds = $taquillas->pluck('grupo_id')->unique()->values()->all();

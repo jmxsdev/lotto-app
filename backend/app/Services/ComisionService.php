@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Apuesta;
+use App\Models\Banca;
 use App\Models\Comision;
 use App\Models\ComisionDefault;
 use App\Models\Grupo;
@@ -23,8 +24,10 @@ use Illuminate\Support\Facades\DB;
  *   sin definir en la cadena Y sin default global ⇒ 0.00.
  * - tasaLiquidable: tasa efectiva topada por el tope acumulado (D11):
  *   `min(tasaEfectiva, max(0, 100 − Σ tasas propias de ancestros))`,
- *   calculada por (entidad, moneda). Grupo ⇒ Σ{banca}; taquilla ⇒
- *   Σ{grupo, banca}; banca no tiene ancestros.
+ *   calculada por (entidad, moneda). Banca ⇒ sin ancestros con tasa
+ *   (liquidable = su tasa); Grupo ⇒ Σ{banca}; taquilla ⇒ Σ{grupo, banca}.
+ *   Banca, Grupo y Taquilla cobran su propia comisión (suma cero: la suma
+ *   de las tasas liquidables de la cadena ≤ 100% de las ventas).
  *
  * El path de venta (createApuesta/validarMonedaYLimites/getEffectiveLimit)
  * NO se toca: este servicio es de solo lectura sobre las mismas tablas.
@@ -489,9 +492,10 @@ class ComisionService
     }
 
     /**
-     * Previsualización de liquidación (D7): filas candidatas (grupo +
-     * taquilla; sin filas para entidades con base 0) y conflictos (entidades
-     * con filas `comisiones` cuyo rango se solapa con [desde, hasta]).
+     * Previsualización de liquidación (D7): filas candidatas (banca +
+     * grupo + taquilla; sin filas para entidades con base 0) y conflictos
+     * (entidades con filas `comisiones` cuyo rango se solapa con
+     * [desde, hasta]).
      *
      * @return array{rows: array<int, array<string, mixed>>, conflictos: array<int, array<string, int>>}
      */
@@ -504,18 +508,24 @@ class ComisionService
 
         return [
             'rows' => $filas['rows'],
-            'conflictos' => $this->conflictosPorRango($filas['grupoIds'], $filas['taquillaIds'], $desde, $hasta),
+            'conflictos' => $this->conflictosPorRango(
+                $filas['bancaIds'],
+                $filas['grupoIds'],
+                $filas['taquillaIds'],
+                $desde,
+                $hasta
+            ),
         ];
     }
 
     /**
      * Liquidar comisiones del rango en el ledger (D4/D7).
      *
-     * Escribe UNA fila por (nivel, entidad, rango) para Grupo y Taquilla
-     * con base > 0 (nunca banca); `banca_id` siempre null; `estado`
-     * pendiente; rango persistido en `fecha_inicio`/`fecha_fin` y etiqueta
-     * `periodo` `YYYY-MM-DD..YYYY-MM-DD`. Si alguna entidad en alcance ya
-     * tiene filas con rango solapado (`fecha_inicio <= hasta AND
+     * Escribe UNA fila por (nivel, entidad, rango) para Banca, Grupo y
+     * Taquilla con base > 0 (todos los niveles cobran su propia comisión);
+     * `estado` pendiente; rango persistido en `fecha_inicio`/`fecha_fin` y
+     * etiqueta `periodo` `YYYY-MM-DD..YYYY-MM-DD`. Si alguna entidad en
+     * alcance ya tiene filas con rango solapado (`fecha_inicio <= hasta AND
      * fecha_fin >= desde`), rechaza TODO el lote y devuelve los ids en
      * conflicto (el controlador responde 422); la re-liquidación idéntica
      * también es solapamiento (sin doble conteo). Todo dentro de
@@ -533,6 +543,7 @@ class ComisionService
             $filas = $this->filasLiquidables($desde, $hasta, $bancaIds);
 
             $conflictos = $this->conflictosPorRango(
+                $filas['bancaIds'],
                 $filas['grupoIds'],
                 $filas['taquillaIds'],
                 $desde,
@@ -555,7 +566,9 @@ class ComisionService
                     'fecha_fin' => $hasta->toDateString(),
                 ];
 
-                if ($fila['nivel'] === 'grupo') {
+                if ($fila['nivel'] === 'banca') {
+                    $data['banca_id'] = $fila['entidad_id'];
+                } elseif ($fila['nivel'] === 'grupo') {
                     $data['grupo_id'] = $fila['entidad_id'];
                 } else {
                     $data['taquilla_id'] = $fila['entidad_id'];
@@ -585,31 +598,38 @@ class ComisionService
      * Filas candidatas de liquidación (D7) + ids de las entidades en
      * alcance (para el query de solapamiento).
      *
-     * Entidades con base de ventas > 0; la banca nunca genera fila.
+     * Entidades con base de ventas > 0; Banca, Grupo y Taquilla generan
+     * fila (todos los niveles cobran su propia comisión).
      * `desde`/`hasta` deben venir normalizados (startOfDay/endOfDay).
      *
-     * @return array{rows: array<int, array<string, mixed>>, grupoIds: array<int, int>, taquillaIds: array<int, int>}
+     * @return array{rows: array<int, array<string, mixed>>, bancaIds: array<int, int>, grupoIds: array<int, int>, taquillaIds: array<int, int>}
      */
     private function filasLiquidables(Carbon $desde, Carbon $hasta, ?array $bancaIds): array
     {
+        $bancaQuery = Banca::query();
         $grupoQuery = Grupo::query();
         $taquillaQuery = Taquilla::query();
 
         if ($bancaIds !== null) {
             $gruposDeBancas = Grupo::whereIn('banca_id', $bancaIds)->pluck('id');
+            $bancaQuery->whereIn('id', $bancaIds);
             $grupoQuery->whereIn('banca_id', $bancaIds);
             $taquillaQuery->whereIn('grupo_id', $gruposDeBancas);
         }
 
-        $grupos = $grupoQuery->get();
-        $taquillas = $taquillaQuery->get();
+        $entidadesPorNivel = [
+            'banca' => $bancaQuery->get(),
+            'grupo' => $grupoQuery->get(),
+            'taquilla' => $taquillaQuery->get(),
+        ];
 
-        $grupoIds = $grupos->pluck('id')->all();
-        $taquillaIds = $taquillas->pluck('id')->all();
+        $bancaIdsEnAlcance = $entidadesPorNivel['banca']->pluck('id')->all();
+        $grupoIds = $entidadesPorNivel['grupo']->pluck('id')->all();
+        $taquillaIds = $entidadesPorNivel['taquilla']->pluck('id')->all();
 
         $rows = [];
 
-        foreach (['grupo' => $grupos, 'taquilla' => $taquillas] as $nivel => $entidades) {
+        foreach ($entidadesPorNivel as $nivel => $entidades) {
             if ($entidades->isEmpty()) {
                 continue;
             }
@@ -648,6 +668,7 @@ class ComisionService
 
         return [
             'rows' => $rows,
+            'bancaIds' => $bancaIdsEnAlcance,
             'grupoIds' => $grupoIds,
             'taquillaIds' => $taquillaIds,
         ];
@@ -663,23 +684,26 @@ class ComisionService
      *
      * @return array<int, array<string, int>>
      */
-    private function conflictosPorRango(array $grupoIds, array $taquillaIds, Carbon $desde, Carbon $hasta, bool $lock = false): array
+    private function conflictosPorRango(array $bancaIds, array $grupoIds, array $taquillaIds, Carbon $desde, Carbon $hasta, bool $lock = false): array
     {
         $conflictos = [];
 
-        if ($grupoIds === [] && $taquillaIds === []) {
+        if ($bancaIds === [] && $grupoIds === [] && $taquillaIds === []) {
             return $conflictos;
         }
 
         $query = Comision::where('fecha_inicio', '<=', $hasta->toDateString())
             ->where('fecha_fin', '>=', $desde->toDateString())
-            ->where(function ($q) use ($grupoIds, $taquillaIds) {
-                if ($grupoIds !== []) {
-                    $q->whereIn('grupo_id', $grupoIds);
-                }
+            ->where(function ($q) use ($bancaIds, $grupoIds, $taquillaIds) {
+                $primera = true;
 
-                if ($taquillaIds !== []) {
-                    $q->orWhereIn('taquilla_id', $taquillaIds);
+                foreach ([['banca_id', $bancaIds], ['grupo_id', $grupoIds], ['taquilla_id', $taquillaIds]] as [$columna, $ids]) {
+                    if ($ids === []) {
+                        continue;
+                    }
+
+                    $primera ? $q->whereIn($columna, $ids) : $q->orWhereIn($columna, $ids);
+                    $primera = false;
                 }
             });
 
@@ -687,9 +711,13 @@ class ComisionService
             $query->lockForUpdate();
         }
 
-        $solapadas = $query->get(['grupo_id', 'taquilla_id']);
+        $solapadas = $query->get(['banca_id', 'grupo_id', 'taquilla_id']);
 
         foreach ($solapadas as $comision) {
+            if ($comision->banca_id !== null) {
+                $conflictos[] = ['nivel' => 'banca', 'entidad_id' => $comision->banca_id];
+            }
+
             if ($comision->grupo_id !== null) {
                 $conflictos[] = ['nivel' => 'grupo', 'entidad_id' => $comision->grupo_id];
             }

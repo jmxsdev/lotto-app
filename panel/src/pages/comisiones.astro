@@ -10,7 +10,7 @@ import Icon from '../components/Icon.astro';
     <div class="liquidar-card">
       <div class="liquidar-header">
         <h3 class="liquidar-title">Liquidar período</h3>
-        <p class="liquidar-hint">Genera filas de comisión para Grupos y Taquillas con ventas en el rango. Un rango ya liquidado se rechaza.</p>
+        <p class="liquidar-hint">Genera filas de comisión para Bancas, Grupos y Taquillas con ventas en el rango. Un rango ya liquidado se rechaza.</p>
       </div>
       <div class="liquidar-filas">
         <div class="field">
@@ -50,6 +50,7 @@ import Icon from '../components/Icon.astro';
         <label>Nivel</label>
         <select id="filter-nivel">
           <option value="">Todos</option>
+          <option value="banca">Banca</option>
           <option value="grupo">Grupo</option>
           <option value="taquilla">Taquilla</option>
         </select>
@@ -98,6 +99,7 @@ import Icon from '../components/Icon.astro';
     .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
     .badge-pendiente { background: #fef3c7; color: #92400e; }
     .badge-pagado { background: #dcfce7; color: #166534; }
+    .nivel-banca { background: #ccfbf1; color: #115e59; }
     .nivel-grupo { background: #dbeafe; color: #1e40af; }
     .nivel-taquilla { background: #ede9fe; color: #5b21b6; }
     .pag-wrap { display: flex; gap: 6px; align-items: center; justify-content: center; padding: 10px 0; flex-wrap: wrap; }
@@ -196,11 +198,12 @@ import Icon from '../components/Icon.astro';
         // Rango de fechas: solapamiento con [desde, hasta] (misma semántica que D4)
         if (f.desde && r.fecha_fin && r.fecha_fin < f.desde) return false;
         if (f.hasta && r.fecha_inicio && r.fecha_inicio > f.hasta) return false;
+        if (f.nivel === 'banca' && !r.banca_id) return false;
         if (f.nivel === 'grupo' && !r.grupo_id) return false;
         if (f.nivel === 'taquilla' && !r.taquilla_id) return false;
         if (f.q) {
-          const nombre = (r.grupo?.name || r.taquilla?.name || '').toLowerCase();
-          const code = (r.grupo?.code || r.taquilla?.code || '').toLowerCase();
+          const nombre = (r.banca?.name || r.grupo?.name || r.taquilla?.name || '').toLowerCase();
+          const code = (r.banca?.code || r.grupo?.code || r.taquilla?.code || '').toLowerCase();
           if (!nombre.includes(f.q) && !code.includes(f.q)) return false;
         }
         return true;
@@ -225,14 +228,16 @@ import Icon from '../components/Icon.astro';
         '<th>Estado</th><th>Liquidada</th><th>Acción</th></tr></thead><tbody>';
 
       visibles.forEach(r => {
-        const esGrupo = r.grupo_id !== null && r.grupo_id !== undefined;
-        const nivel = esGrupo ? 'Grupo' : 'Taquilla';
-        const nombre = r.grupo?.name || r.taquilla?.name || '-';
-        const code = r.grupo?.code || r.taquilla?.code || '';
+        const esBanca = r.banca_id !== null && r.banca_id !== undefined;
+        const esGrupo = !esBanca && r.grupo_id !== null && r.grupo_id !== undefined;
+        const nivel = esBanca ? 'Banca' : esGrupo ? 'Grupo' : 'Taquilla';
+        const claseNivel = esBanca ? 'nivel-banca' : esGrupo ? 'nivel-grupo' : 'nivel-taquilla';
+        const nombre = r.banca?.name || r.grupo?.name || r.taquilla?.name || '-';
+        const code = r.banca?.code || r.grupo?.code || r.taquilla?.code || '';
         const periodo = r.fecha_inicio && r.fecha_fin ? `${r.fecha_inicio} → ${r.fecha_fin}` : (r.periodo || '-');
         const pagado = r.estado === 'pagado';
         html += `<tr>
-          <td><span class="badge ${esGrupo ? 'nivel-grupo' : 'nivel-taquilla'}">${nivel}</span></td>
+          <td><span class="badge ${claseNivel}">${nivel}</span></td>
           <td><strong>${nombre}</strong>${code ? ` <span style="color:#94a3b8">(${code})</span>` : ''}</td>
           <td>${periodo}</td>
           <td class="number">${fmt(r.monto_comision)}</td>
@@ -329,31 +334,33 @@ import Icon from '../components/Icon.astro';
     }
 
     // Resuelve los ids de `conflictos` ({nivel, entidad_id}) a nombres
-    // consultando los catálogos de grupos/taquillas (best-effort).
+    // consultando los catálogos de bancas/grupos/taquillas (best-effort).
     async function renderConflictos(conflictos, message) {
       const box = document.getElementById('conflictos');
       if (!conflictos || conflictos.length === 0) {
         box.hidden = true;
         return;
       }
+      let bancas = [];
       let grupos = [];
       let taquillas = [];
       try {
-        const [g, t] = await Promise.all([
+        const [b, g, t] = await Promise.all([
+          apiFetch('GET', '/bancas?per_page=100').then(r => (Array.isArray(r) ? r : r?.data || [])).catch(() => []),
           apiFetch('GET', '/grupos?per_page=100').then(r => (Array.isArray(r) ? r : r?.data || [])).catch(() => []),
           apiFetch('GET', '/taquillas?per_page=100').then(r => (Array.isArray(r) ? r : r?.data || [])).catch(() => []),
         ]);
-        grupos = g; taquillas = t;
+        bancas = b; grupos = g; taquillas = t;
       } catch (_) {}
 
       const nombre = (nivel, id) => {
-        const lista = nivel === 'grupo' ? grupos : taquillas;
+        const lista = nivel === 'banca' ? bancas : nivel === 'grupo' ? grupos : taquillas;
         const ent = lista.find(x => x.id === id);
         return ent ? `${ent.name} (${ent.code || id})` : `#${id}`;
       };
 
       const items = conflictos.map(c => {
-        const etiqueta = c.nivel === 'grupo' ? 'Grupo' : 'Taquilla';
+        const etiqueta = c.nivel === 'banca' ? 'Banca' : c.nivel === 'grupo' ? 'Grupo' : 'Taquilla';
         return `<li>${etiqueta} ${nombre(c.nivel, c.entidad_id)}</li>`;
       }).join('');
 

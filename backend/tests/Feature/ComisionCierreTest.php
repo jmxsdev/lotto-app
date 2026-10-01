@@ -21,8 +21,9 @@ use Tests\TestCase;
  * S5 (slice 4a) — desglose de comisión en el cierre/cuadre (D10, S20/S21).
  *
  * El cierre de una taquilla persiste y expone `comision_bs_equivalent`
- * (bs-equivalente del período, calculado con la capability comisiones a la
- * tasa liquidable de la taquilla) en:
+ * (bs-equivalente del período, calculado con la capability comisiones como
+ * la suma de los montos liquidables de la cadena banca + grupo + taquilla
+ * a la tasa liquidable de cada nivel) en:
  * - POST /api/v1/cierre (snapshot persistido en cierres_caja),
  * - GET /api/v1/cierre/actual (previsualización),
  * - GET /api/v1/cierre/semanal (rollup de los diarios).
@@ -163,22 +164,29 @@ class ComisionCierreTest extends TestCase
     }
 
     /**
-     * D11 — el cierre respeta el tope acumulado (banca 10 + taquilla 100
-     * ⇒ la taquilla liquida 90).
+     * D11 + enmienda 2026-10-01 — el total de comisión del cierre incluye
+     * la banca: suma de los liquidables de la cadena (banca + grupo +
+     * taquilla). Con banca 10 + grupo 20 + taquilla 100 ⇒ 10 + 20 + 70 = 100
+     * (suma cero sobre la venta).
      */
-    public function test_cierre_aplica_tope_acumulado_d11()
+    public function test_cierre_total_incluye_banca_grupo_y_taquilla_con_suma_cero()
     {
         $super = $this->superUser();
         [$juego, $banca, $grupo, $taquilla] = $this->jerarquia('Dos');
 
         $this->limite($juego->id, $banca->id, null, null, 'bs', 10);
+        $this->limite($juego->id, $banca->id, $grupo->id, null, 'bs', 20);
         $this->limite($juego->id, $banca->id, $grupo->id, $taquilla->id, 'bs', 100);
         $this->apuesta($juego->id, $taquilla->id, 100.0);
 
         $response = $this->crearCierre($super, $taquilla->id);
 
         $response->assertStatus(201);
-        $this->assertEquals(90.0, (float) $response->json('comision_bs_equivalent'), 'D11: taquilla liquida 90%');
+        $this->assertEquals(100.0, (float) $response->json('comision_bs_equivalent'), 'D11 + banca: 10 (banca) + 20 (grupo) + 70 (taquilla) = 100');
+        $this->assertDatabaseHas('cierres_caja', [
+            'taquilla_id' => $taquilla->id,
+            'comision_bs_equivalent' => '100.00',
+        ]);
     }
 
     /**

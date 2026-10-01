@@ -22,10 +22,15 @@ use Tests\TestCase;
  * PUT las sobreescribe; roles sin manage_comisiones reciben 403.
  *
  * PR 3 (S4, slice 3a) — ledger y liquidación (D4/D5/D7/D8):
- * POST /api/v1/comisiones/liquidar escribe filas SOLO para Grupo y
- * Taquilla (nunca banca), congeladas; PATCH /{comision}/pagar transiciona
- * pendiente→pagado (idempotente); rangos solapados → 422 con ids; el
+ * POST /api/v1/comisiones/liquidar escribe filas para Banca, Grupo y
+ * Taquilla (todos los niveles cobran su propia comisión, suma cero),
+ * congeladas; PATCH /{comision}/pagar transiciona pendiente→pagado
+ * (idempotente); rangos solapados → 422 con ids (banca incluida); el
  * listado GET /comisiones es paginado y con alcance por rol.
+ *
+ * Enmienda (2026-10-01) — el rol `grupo` escribe la matriz de SUS
+ * taquillas (PUT/batch de límites) dentro de su subárbol; fuera de
+ * alcance ⇒ 403.
  */
 class ComisionesApiTest extends TestCase
 {
@@ -196,13 +201,14 @@ class ComisionesApiTest extends TestCase
         $response->assertStatus(422);
     }
 
-    public function test_liquidar_crea_filas_solo_para_grupo_y_taquilla_sin_banca()
+    public function test_liquidar_crea_filas_para_banca_grupo_y_taquilla_con_suma_cero()
     {
         [$juego, $banca, $grupo, $taquilla] = $this->crearJerarquia();
 
-        // banca 10 (propia) + taquilla 100 ⇒ taquilla liquida 90;
-        // grupo sin fila propia ⇒ efectiva 10 (fallback banca) ⇒ liquida 10.
+        // Suma cero 3 niveles: banca 10 + grupo 20 + taquilla 100
+        // ⇒ liquidables 10 / 20 / 70 (10 + 20 + 70 = 100% de la venta).
         $this->limite($juego->id, $banca->id, null, null, 'bs', 10);
+        $this->limite($juego->id, $banca->id, $grupo->id, null, 'bs', 20);
         $this->limite($juego->id, $banca->id, $grupo->id, $taquilla->id, 'bs', 100);
 
         $this->apuesta($juego->id, $taquilla->id, 100.0, 0.0, 36.5, '2026-09-15 10:00:00');
@@ -213,13 +219,14 @@ class ComisionesApiTest extends TestCase
         ]);
 
         $response->assertStatus(201);
+        $response->assertJsonCount(3, 'data');
 
-        $this->assertSame(2, Comision::count());
+        $this->assertSame(3, Comision::count());
 
-        // Fila del Grupo: monto 10.00, estado pendiente, rango persistido
+        // Fila de la Banca: banca_id seteado, grupo/taquilla null, monto 10.00
         $this->assertDatabaseHas('comisiones', [
-            'grupo_id' => $grupo->id,
-            'banca_id' => null,
+            'banca_id' => $banca->id,
+            'grupo_id' => null,
             'taquilla_id' => null,
             'periodo' => '2026-09-01..2026-09-30',
             'monto_comision' => '10.00',
@@ -228,18 +235,27 @@ class ComisionesApiTest extends TestCase
             'fecha_fin' => '2026-09-30',
         ]);
 
-        // Fila de la Taquilla: monto 90.00 (D11)
+        // Fila del Grupo: monto 20.00, estado pendiente, rango persistido
+        $this->assertDatabaseHas('comisiones', [
+            'grupo_id' => $grupo->id,
+            'banca_id' => null,
+            'taquilla_id' => null,
+            'periodo' => '2026-09-01..2026-09-30',
+            'monto_comision' => '20.00',
+            'estado' => 'pendiente',
+            'fecha_inicio' => '2026-09-01',
+            'fecha_fin' => '2026-09-30',
+        ]);
+
+        // Fila de la Taquilla: monto 70.00 (tope D11 sobre banca + grupo)
         $this->assertDatabaseHas('comisiones', [
             'taquilla_id' => $taquilla->id,
             'banca_id' => null,
             'grupo_id' => null,
             'periodo' => '2026-09-01..2026-09-30',
-            'monto_comision' => '90.00',
+            'monto_comision' => '70.00',
             'estado' => 'pendiente',
         ]);
-
-        // La banca NUNCA genera fila (D7): ninguna fila con banca asignada
-        $this->assertDatabaseMissing('comisiones', ['banca_id' => $banca->id]);
     }
 
     public function test_patch_pagar_transiciona_pendiente_a_pagado()
@@ -318,14 +334,16 @@ class ComisionesApiTest extends TestCase
     public function test_liquidar_rango_solapado_422_con_ids_de_entidades_conflictivas()
     {
         [$juego, $banca, $grupo, $taquilla] = $this->crearJerarquia();
-        $this->limite($juego->id, $banca->id, $grupo->id, $taquilla->id, 'bs', 50);
+        $this->limite($juego->id, $banca->id, null, null, 'bs', 10);
+        $this->limite($juego->id, $banca->id, $grupo->id, null, 'bs', 20);
+        $this->limite($juego->id, $banca->id, $grupo->id, $taquilla->id, 'bs', 100);
         $this->apuesta($juego->id, $taquilla->id, 100.0, 0.0, 36.5, '2026-09-15 10:00:00');
 
         $this->liquidar($this->superUser(), [
             'desde' => '2026-09-01',
             'hasta' => '2026-09-30',
         ])->assertStatus(201);
-        $this->assertSame(2, Comision::count());
+        $this->assertSame(3, Comision::count());
 
         // Rango solapado [09-15, 10-15]: rechaza TODO el lote (D4)
         $response = $this->liquidar($this->superUser(), [
@@ -336,12 +354,13 @@ class ComisionesApiTest extends TestCase
         $response->assertStatus(422);
 
         $conflictos = $response->json('conflictos');
-        $this->assertCount(2, $conflictos);
+        $this->assertCount(3, $conflictos);
+        $this->assertContains(['nivel' => 'banca', 'entidad_id' => $banca->id], $conflictos);
         $this->assertContains(['nivel' => 'grupo', 'entidad_id' => $grupo->id], $conflictos);
         $this->assertContains(['nivel' => 'taquilla', 'entidad_id' => $taquilla->id], $conflictos);
 
         // Sin doble conteo: ninguna fila nueva
-        $this->assertSame(2, Comision::count());
+        $this->assertSame(3, Comision::count());
     }
 
     public function test_liquidar_mismo_rango_rechazado_sin_doble_conteo()
@@ -362,7 +381,7 @@ class ComisionesApiTest extends TestCase
         ]);
 
         $response->assertStatus(422);
-        $this->assertSame(2, Comision::count());
+        $this->assertSame(3, Comision::count());
     }
 
     public function test_liquidar_403_para_rol_sin_manage_comisiones()
@@ -424,8 +443,8 @@ class ComisionesApiTest extends TestCase
             ->getJson('/api/v1/comisiones?per_page=10');
 
         $response->assertStatus(200);
-        $this->assertSame(2, $response->json('total'));
-        $this->assertCount(2, $response->json('data'));
+        $this->assertSame(3, $response->json('total'));
+        $this->assertCount(3, $response->json('data'));
         $this->assertSame(10, $response->json('per_page'));
     }
 
@@ -482,30 +501,32 @@ class ComisionesApiTest extends TestCase
         $this->apuesta($juego->id, $taquillaMia->id, 100.0, 0.0, 36.5, '2026-09-15 10:00:00');
         $this->apuesta($juego->id, $taquillaAjena->id, 100.0, 0.0, 36.5, '2026-09-15 11:00:00');
 
-        // Master liquida SOLO su banca (default banca_ids = masterBancaIds)
+        // Master liquida SOLO su banca (default banca_ids = masterBancaIds):
+        // 3 filas (banca + grupo + taquilla)
         $this->liquidar($master, [
             'desde' => '2026-09-01',
             'hasta' => '2026-09-30',
         ])->assertStatus(201);
-        $this->assertSame(2, Comision::count());
+        $this->assertSame(3, Comision::count());
 
-        // Super Master liquida la banca ajena (alcance explícito)
+        // Super Master liquida la banca ajena (alcance explícito): 3 filas más
         $this->liquidar($this->superUser(), [
             'desde' => '2026-09-01',
             'hasta' => '2026-09-30',
             'banca_ids' => [$bancaAjena->id],
         ])->assertStatus(201);
-        $this->assertSame(4, Comision::count());
+        $this->assertSame(6, Comision::count());
 
-        // El master solo ve sus 2 filas (grupo + taquilla de su banca)
+        // El master solo ve sus 3 filas (banca + grupo + taquilla de su banca)
         $response = $this->actingAs($master, 'sanctum')
             ->getJson('/api/v1/comisiones?per_page=50');
 
         $response->assertStatus(200);
-        $this->assertSame(2, $response->json('total'));
+        $this->assertSame(3, $response->json('total'));
 
         $visibles = collect($response->json('data'));
-        $this->assertCount(2, $visibles);
+        $this->assertCount(3, $visibles);
+        $this->assertNotNull($visibles->firstWhere('banca_id', $bancaMia->id));
         $this->assertNotNull($visibles->firstWhere('taquilla_id', $taquillaMia->id));
         $this->assertNotNull($visibles->firstWhere('grupo_id', $grupoMio->id));
         $this->assertNull($visibles->firstWhere('taquilla_id', $taquillaAjena->id));
@@ -598,6 +619,54 @@ class ComisionesApiTest extends TestCase
 
         $response->assertStatus(403);
         $this->assertDatabaseHas('comisiones', ['id' => $filaAjena->id, 'estado' => 'pendiente']);
+    }
+
+    public function test_master_puede_pagar_fila_de_banca_dentro_de_su_alcance()
+    {
+        $master = $this->masterUser();
+
+        $bancaMia = Banca::create([
+            'name' => 'Banca del Master',
+            'code' => 'BM'.uniqid(),
+            'master_id' => $master->id,
+            'active' => true,
+        ]);
+        $grupoMio = Grupo::create([
+            'name' => 'Grupo del Master',
+            'code' => 'GM'.uniqid(),
+            'banca_id' => $bancaMia->id,
+            'active' => true,
+        ]);
+        $taquillaMia = Taquilla::create([
+            'name' => 'Taquilla del Master',
+            'code' => 'TM'.uniqid(),
+            'grupo_id' => $grupoMio->id,
+            'active' => true,
+        ]);
+
+        $juego = Juego::create([
+            'name' => 'Juego Pagar Banca',
+            'slug' => 'juego-pagar-banca-'.uniqid(),
+            'type' => 'animalitos',
+            'active' => true,
+        ]);
+        $this->limite($juego->id, $bancaMia->id, $grupoMio->id, $taquillaMia->id, 'bs', 50);
+        $this->apuesta($juego->id, $taquillaMia->id, 100.0, 0.0, 36.5, '2026-09-15 10:00:00');
+
+        $this->liquidar($this->superUser(), [
+            'desde' => '2026-09-01',
+            'hasta' => '2026-09-30',
+        ])->assertStatus(201);
+
+        // La fila de la banca es una fila de pago más: el master la ve y la paga
+        $filaBanca = Comision::where('banca_id', $bancaMia->id)->firstOrFail();
+
+        $response = $this->actingAs($master, 'sanctum')
+            ->patchJson("/api/v1/comisiones/{$filaBanca->id}/pagar");
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('estado', 'pagado');
+        $this->assertDatabaseHas('comisiones', ['id' => $filaBanca->id, 'estado' => 'pagado']);
     }
 
     public function test_liquidar_403_para_master_con_banca_ids_fuera_de_su_alcance()
