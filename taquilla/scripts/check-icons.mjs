@@ -288,5 +288,59 @@ ok(
     (ausentes.length ? ` (faltan: ${ausentes.map((c) => `U+${c.toString(16).toUpperCase()}`).join(', ')})` : ''),
 );
 
+// --- Grupo C (S0 taquilla-operativa): sombra TDZ del renderer `icono()` ------
+//
+// Un binding local `const/let/var icono` en una página que importa el renderer
+// `icono()` de `../utils/iconos` rompe el render en runtime: el callback llama
+// al renderer antes de que el binding local esté inicializado (ReferenceError,
+// TDZ). El guard falla SOLO cuando conviven import + shadow; una página con un
+// `icono` local pero SIN el import (p. ej. auditoria-iconos.astro) no se marca.
+
+const RE_IMPORT_ICONO = /import\s*\{[^}]*\bicono\b[^}]*\}\s*from\s*['"][^'"]*utils\/iconos['"]/;
+const RE_SOMBRA_ICONO = /\b(?:const|let|var)\s+icono\b/;
+
+function detectaSombraIcono(txt) {
+  return RE_IMPORT_ICONO.test(txt) && RE_SOMBRA_ICONO.test(txt);
+}
+
+console.log('\n== Grupo C: guard de sombra TDZ de icono() (S0) ==');
+
+// Autochequeo inline positivo: import + shadow → detectado.
+const casoSombra = [
+  "import { icono } from '../utils/iconos';",
+  "const icono = archivo ? '' : '<span>';",
+].join('\n');
+ok(detectaSombraIcono(casoSombra) === true, 'positivo: import + const icono local → sombra detectada');
+
+// Autochequeo inline negativo: shadow SIN import → NO se marca.
+const casoSinImport = [
+  "const icono = 'decorativo';",
+  'document.body.textContent = icono;',
+].join('\n');
+ok(detectaSombraIcono(casoSinImport) === false, 'negativo: const icono sin import del renderer → no marcado');
+
+// El rename S0 (`iconoDecorativo`) no dispara el patrón (sin límite de palabra).
+ok(RE_SOMBRA_ICONO.test('const iconoDecorativo = 1;') === false, 'iconoDecorativo no matchea el patrón de sombra');
+
+// Escaneo real: solo páginas taquilla que importan el renderer.
+const sombrasIcono = [];
+const dirTaquilla = join(RAIZ, 'taquilla', 'src');
+for (const f of archivosBajo(dirTaquilla, ['.astro', '.ts', '.js', '.mjs', '.tsx', '.jsx'])) {
+  if (f.endsWith('data/iconos.js')) continue;
+  const txt = readFileSync(f, 'utf8');
+  if (detectaSombraIcono(txt)) sombrasIcono.push(f.replace(RAIZ + '/', ''));
+}
+ok(
+  sombrasIcono.length === 0,
+  `0 páginas con sombra TDZ de icono() (${sombrasIcono.length ? `sombra en: ${sombrasIcono.join(', ')}` : 'scan limpio'})`,
+);
+
+const rutaAuditoria = join(RAIZ, 'taquilla', 'src', 'pages', 'auditoria-iconos.astro');
+const txtAuditoria = existsSync(rutaAuditoria) ? readFileSync(rutaAuditoria, 'utf8') : '';
+ok(
+  existsSync(rutaAuditoria) && detectaSombraIcono(txtAuditoria) === false,
+  'auditoria-iconos.astro (sin import del renderer) sigue sin marca',
+);
+
 console.log(`\n${checks} checks, ${fallos} fallos`);
 process.exit(fallos === 0 ? 0 : 1);
