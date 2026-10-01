@@ -234,7 +234,7 @@ import Icon from '../components/Icon.astro';
         const claseNivel = esBanca ? 'nivel-banca' : esGrupo ? 'nivel-grupo' : 'nivel-taquilla';
         const nombre = r.banca?.name || r.grupo?.name || r.taquilla?.name || '-';
         const code = r.banca?.code || r.grupo?.code || r.taquilla?.code || '';
-        const periodo = r.fecha_inicio && r.fecha_fin ? `${r.fecha_inicio} → ${r.fecha_fin}` : (r.periodo || '-');
+        const periodo = r.fecha_inicio && r.fecha_fin ? `${r.fecha_inicio} a ${r.fecha_fin}` : (r.periodo || '-');
         const pagado = r.estado === 'pagado';
         html += `<tr>
           <td><span class="badge ${claseNivel}">${nivel}</span></td>
