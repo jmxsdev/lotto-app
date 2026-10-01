@@ -27,15 +27,15 @@ import AdminLayout from '../layouts/AdminLayout.astro';
         </div>
 
         <div class="field-section">
-          <h4>🎯 Modalidades</h4>
-          <p class="section-hint">Clave canónica → multiplicador propio (si se omite, usa la base). Claves sugeridas del plugin.</p>
+          <h4>Modalidades</h4>
+          <p class="section-hint">Clave canónica = multiplicador propio (si se omite, usa la base). Claves sugeridas del plugin.</p>
           <div id="modalidades-list"></div>
           <datalist id="modalidad-sugerencias"></datalist>
           <button type="button" class="btn btn-secondary btn-sm" id="btn-add-modalidad">＋ Añadir modalidad</button>
         </div>
 
         <div class="field-section">
-          <h4>🃏 Comodines</h4>
+          <h4>Comodines</h4>
           <p class="section-hint">flag / letra / numero reemplazan el multiplicador vigente; palabra con "acumulativo" suma sobre él.</p>
           <div id="comodines-list"></div>
           <button type="button" class="btn btn-secondary btn-sm" id="btn-add-comodin">＋ Añadir comodín</button>
@@ -49,13 +49,13 @@ import AdminLayout from '../layouts/AdminLayout.astro';
         <div class="error-box" id="form-error" style="display:none"></div>
 
         <div class="panel-actions">
-          <button type="submit" class="btn btn-primary" id="btn-save">💾 Guardar premios</button>
+          <button type="submit" class="btn btn-primary" id="btn-save">Guardar premios</button>
           <span class="estado" id="save-estado"></span>
         </div>
       </form>
 
       <div class="field-section">
-        <h4>📜 Auditoría del juego</h4>
+        <h4>Auditoría del juego</h4>
         <div id="auditoria-content"><div class="loading">Cargando...</div></div>
       </div>
     </div>
@@ -299,7 +299,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
       estado.textContent = 'Guardando...';
       try {
         await apiFetch('PUT', '/juegos/' + editorJuego.id + '/premios', premios);
-        estado.textContent = '✅ Premios guardados.';
+        estado.textContent = 'Premios guardados.';
         load(); // refresca la tabla (premio_multiplo)
         await refreshEditor(); // auditoría nueva + form con lo persistido
       } catch (err) {
