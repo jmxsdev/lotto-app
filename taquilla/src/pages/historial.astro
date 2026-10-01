@@ -305,7 +305,26 @@ import MainLayout from '../layouts/MainLayout.astro';
             // (spec taquilla-comprobante-pago §3); pendiente → ticket de venta.
             let ticketData;
             if (ticket.estado !== 'pendiente') {
-                const recibo = buildReciboLines(ticket, []);
+                // S5: la reimpresión NO tiene las respuestas de POST /pagos
+                // (solo el auto-print tras pagar). Se consultan los pagos
+                // REGISTRADOS por apuesta (GET /pagos/{apuesta}) para que cada
+                // jugada ganadora muestre el monto REAL pagado y los totales
+                // salgan bien. Si la consulta falla, se imprime con los datos
+                // disponibles (estados reales, totales sin montos): nunca
+                // bloquea la impresión.
+                const pagosPorApuesta = {};
+                for (const apuesta of (ticket.apuestas || [])) {
+                    if (!apuesta?.id) continue;
+                    try {
+                        const res = await apiFetch('/pagos/' + apuesta.id);
+                        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+                            pagosPorApuesta[apuesta.id] = res.data;
+                        }
+                    } catch {
+                        // Fallback: estado real de la apuesta, premio 0.
+                    }
+                }
+                const recibo = buildReciboLines(ticket, [], pagosPorApuesta);
                 ticketData = {
                     kind: 'recibo',
                     ticketCode: ticket.ticket_code,

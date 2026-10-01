@@ -1403,5 +1403,41 @@ ok(
 ok(estadoRecibo('ganadora') === 'GANADA' && estadoRecibo('perdida') === 'PERDIDA', 'estadoRecibo: mapa directo');
 ok(estadoRecibo('pagada') === 'PAGADA' && estadoRecibo(null) === 'PENDIENTE' && estadoRecibo('anulada') === 'PENDIENTE', 'estadoRecibo: fuera del mapa → PENDIENTE');
 
+console.log('\n== S5 reimpresión: montos REALES desde GET /pagos/{apuesta} (map por apuesta) ==');
+// La reimpresión de un ticket pagado consulta los pagos registrados por
+// apuesta y los pasa al builder; el comprobante muestra el monto REAL pagado
+// por jugada y totales correctos (antes: 0 por falta de respuestas POST).
+const reprint = buildReciboLines(ticketRecibo, [], {
+  1: [{ amount_bs: '300.00', amount_usd: '0.00', tipo: 'egreso', moneda: 'bs' }],
+});
+ok(reprint.lines[0].estado === 'PAGADA', 'reimpresión: jugada con pago registrado → PAGADA');
+ok(
+  reprint.lines[0].premioBs === 300 && reprint.lines[0].premioUsd === 0,
+  `reimpresión: premio por jugada = monto REAL pagado (decimal:2 string) (${reprint.lines[0].premioBs})`,
+);
+ok(reprint.lines[1].estado === 'PERDIDA' && reprint.lines[2].estado === 'PENDIENTE', 'reimpresión: jugadas sin pago conservan su estado');
+ok(reprint.lines[1].premioBs === 0 && reprint.lines[2].premioBs === 0, 'reimpresión: jugada sin pago → premio 0');
+ok(reprint.premioTotalBs === 300 && reprint.premioTotalUsd === 0, `reimpresión: total Bs desde pagos registrados (${reprint.premioTotalBs})`);
+// Varios pagos por apuesta (pagos parciales) → se suman por moneda.
+const reprintMulti = buildReciboLines(
+  { apuestas: [{ id: 7, estado: 'ganadora', combinacion: { animal: 'Perro', numero: 1 } }] },
+  [],
+  { 7: [{ amount_bs: 100, amount_usd: 0 }, { amount_bs: 50, amount_usd: 2.5 }] },
+);
+ok(reprintMulti.lines[0].premioBs === 150 && reprintMulti.lines[0].premioUsd === 2.5, 'varios pagos por apuesta → se suman por moneda');
+ok(reprintMulti.premioTotalBs === 150 && reprintMulti.premioTotalUsd === 2.5, 'totales = suma de pagos registrados');
+// Fallback: GET falló / sin pagos → estados reales, totales 0, sin crash
+// (el reciboPagado previo ya cubre "sin lote → totales 0").
+ok(reciboPagado.premioTotalBs === 0 && reciboPagado.premioTotalUsd === 0, 'reimpresión sin datos de pago → totales 0 (fallback, no bloquea)');
+// data: [] → no cuenta como pago registrado.
+const reprintVacio = buildReciboLines(
+  { apuestas: [{ id: 1, estado: 'ganadora', combinacion: { animal: 'Perro', numero: 14 } }] },
+  [],
+  { 1: [] },
+);
+ok(reprintVacio.lines[0].estado === 'GANADA' && reprintVacio.premioTotalBs === 0, 'data: [] → no es pago registrado (estado real, totales 0)');
+// Sin map (tercer arg omitido) → mismo comportamiento que antes (retrocompat).
+ok(buildReciboLines(ticketRecibo, [null, null, null]).premioTotalBs === 0, 'tercer arg omitido → comportamiento previo intacto');
+
 console.log(`\n${checks} checks, ${fallos} fallos`);
 process.exit(fallos === 0 ? 0 : 1);
