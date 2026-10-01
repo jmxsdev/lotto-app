@@ -660,6 +660,20 @@ ok(indiceDestinoFila(-1, 4, 1, 2) === 0 && indiceDestinoFila(-1, 4, -1, 2) === 3
 ok(indiceDestinoFila(0, 0, 1, 2) === null, 'total 0 → null');
 ok(indiceDestinoFila(2, 10, 1, 1) === 3, 'paso 1 (listas simples) → ±1');
 
+console.log('\n== fix/taquilla-fixes: grilla 2 columnas de modalidades ==');
+// 4 modalidades → 2 filas × 2 columnas: ↑/↓ salta ±2 conservando la columna;
+// ←/→ mueve la celda de la MISMA fila y en el borde devuelve null (el glue
+// cae al cambio de zona: juegos/horarios o resumen).
+ok(indiceDestinoFila(0, 4, 1, 2) === 2 && indiceDestinoFila(1, 4, 1, 2) === 3, 'modalidades ↓: 0→2 y 1→3');
+ok(indiceDestinoFila(2, 4, -1, 2) === 0 && indiceDestinoFila(3, 4, -1, 2) === 1, 'modalidades ↑: 2→0 y 3→1');
+ok(indiceDestinoFila(2, 4, 1, 2) === null && indiceDestinoFila(3, 4, 1, 2) === null, 'modalidades ↓ en la última fila → null');
+ok(indiceDestinoColumna(0, 4, 1) === 1 && indiceDestinoColumna(1, 4, -1) === 0, 'modalidades →/← dentro de la fila 1');
+ok(indiceDestinoColumna(2, 4, 1) === 3 && indiceDestinoColumna(3, 4, -1) === 2, 'modalidades →/← dentro de la fila 2');
+ok(indiceDestinoColumna(1, 4, 1) === null && indiceDestinoColumna(3, 4, 1) === null, 'modalidades → en el borde derecho → null (cambio de zona)');
+ok(indiceDestinoColumna(0, 4, -1) === null && indiceDestinoColumna(2, 4, -1) === null, 'modalidades ← en el borde izquierdo → null (cambio de zona)');
+ok(indiceDestinoFila(0, 3, 1, 2) === 2, 'modalidades impares (3): ↓ 0→2 conserva la columna');
+ok(indiceDestinoFila(1, 3, 1, 2) === null, 'modalidades impares (3): ↓ 1→null sin cambiar de columna');
+
 console.log('\n== win-fixes FIX-5: ruteo de dígitos en la zona Selección ==');
 r = routeKey(est({ zonaActual: 'seleccion', tecla: '5' }));
 ok(r.consume && r.tipo === 'digito' && r.digito === '5', 'dígito en seleccion → decisión digito');

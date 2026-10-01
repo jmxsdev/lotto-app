@@ -28,7 +28,15 @@ class TicketController extends Controller
     {
         $user = $request->user();
 
-        $query = Ticket::with(['apuestas.juego', 'apuestas.detalles', 'taquilla'])
+        $query = Ticket::withTrashed()
+            ->where(function ($q) {
+                // fix/taquilla-fixes: los anulados se soft-deletean con
+                // estado='anulada' y deben seguir VISIBLES en el historial
+                // (badge ANULADA, filtro ?estado=anulada); cualquier otro
+                // soft-delete del ticket permanece oculto.
+                $q->whereNull('deleted_at')->orWhere('estado', 'anulada');
+            })
+            ->with(['apuestas.juego', 'apuestas.detalles', 'taquilla'])
             ->withCount(['apuestas as ganadoras_count' => function ($q) {
                 $q->whereHas('detalles', function ($q2) {
                     $q2->whereNotNull('premio_ganado')

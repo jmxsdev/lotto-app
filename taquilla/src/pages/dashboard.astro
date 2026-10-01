@@ -501,14 +501,16 @@ import Icon from '../components/ui/Icon.astro';
       font-style: italic;
     }
 
+    /* fix/taquilla-fixes: grilla de 2 columnas — las modalidades se reparten
+       en filas parejas (sin scroll horizontal) y ↑/↓ navega ±2. */
     .modalidad-grid {
-      display: flex;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 6px;
       margin-bottom: 10px;
     }
 
     .modalidad-btn {
-      flex: 1;
       padding: 8px 4px;
       border: 2px solid #ddd;
       border-radius: 6px;
@@ -2822,14 +2824,16 @@ import Icon from '../components/ui/Icon.astro';
     }
 
     // ↑/↓ contextuales (KB-03): recorren la lista activa de la zona enfocada
-    // en orden DOM; sin wrap (el wrap es de zonas con Tab). En la zona Juegos
-    // la lista es un grid de 2 columnas (feat/taquilla-logos-juegos): el salto
-    // es de una fila (±2) y conserva la columna; el resto de zonas sigue ±1.
+    // en orden DOM; sin wrap (el wrap es de zonas con Tab). En las grillas de
+    // 2 columnas (Juegos y modalidades, incl. el fallback de `seleccion`) el
+    // salto es de una fila (±2) y conserva la columna; el resto de zonas ±1.
     // El cálculo de índice vive en el módulo puro utils/gridNav.ts.
     function moverFila(delta) {
       const items = itemsDeZona(zonaActual);
       if (items.length === 0) return;
-      const paso = zonaActual === 'juegos' ? 2 : 1;
+      const primero = items[0];
+      const esGrilla = primero.classList?.contains('juego-card') || primero.classList?.contains('modalidad-btn');
+      const paso = esGrilla ? 2 : 1;
       const idx = items.indexOf(document.activeElement);
       const destino = indiceDestinoFila(idx, items.length, delta, paso);
       if (destino === null) return;
@@ -2838,13 +2842,17 @@ import Icon from '../components/ui/Icon.astro';
       objetivo.scrollIntoView({ block: 'nearest' });
     }
 
-    // ←/→ en el grid de Juegos (feat/taquilla-logos-juegos): primero la celda
-    // adyacente de la MISMA fila (columna ±1, sin wrap) — permitido aunque haya
-    // selección en curso; en el borde (null) el glue cae al cambio de pestaña
-    // con su guard (FIX-3c). Devuelve true si movió el foco.
+    // ←/→ en las grillas de 2 columnas (Juegos y modalidades): primero la
+    // celda adyacente de la MISMA fila (columna ±1, sin wrap) — permitido
+    // aunque haya selección en curso; en el borde (null) el glue cae al
+    // cambio de pestaña (Juegos) o de zona (modalidad/seleccion). Devuelve
+    // true si movió el foco.
     function moverColumna(delta) {
-      const items = itemsDeZona('juegos');
+      const items = itemsDeZona(zonaActual);
       if (items.length === 0) return false;
+      const primero = items[0];
+      const esGrilla = primero.classList?.contains('juego-card') || primero.classList?.contains('modalidad-btn');
+      if (!esGrilla) return false;
       const idx = items.indexOf(document.activeElement);
       const destino = indiceDestinoColumna(idx, items.length, delta);
       if (destino === null) return false;
@@ -3260,8 +3268,11 @@ import Icon from '../components/ui/Icon.astro';
             if (moverColumna(1)) break;
             if (!decision.ejecutable) { mostrarAvisoTab('Finalice la selección actual antes de cambiar de pestaña (F11 Limpiar todo)'); break; }
             activarTab(tabSiguiente()); break;
-          case 'zona-izquierda': moverHorizontal('izquierda'); break; // FIX-3a
-          case 'zona-derecha': moverHorizontal('derecha'); break; // FIX-3a
+          // fix/taquilla-fixes: en modalidad (y el fallback de seleccion) ←/→
+          // mueven primero la celda de la grilla 2 columnas; en el borde caen
+          // al cambio de zona (FIX-3a).
+          case 'zona-izquierda': if (!moverColumna(-1)) moverHorizontal('izquierda'); break;
+          case 'zona-derecha': if (!moverColumna(1)) moverHorizontal('derecha'); break;
           case 'fila-anterior': moverFila(-1); break;
           case 'fila-siguiente': moverFila(1); break;
           case 'marcar-todos': marcarTodosHorarios(); break;
