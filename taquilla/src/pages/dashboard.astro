@@ -2808,7 +2808,17 @@ import Icon from '../components/ui/Icon.astro';
       };
       const el = objetivoZona(zona);
       if (!el) return [];
-      return Array.from(el.querySelectorAll(selectores[zona] || ''));
+      const items = Array.from(el.querySelectorAll(selectores[zona] || ''));
+      // S3 taquilla-operativa (spec taquilla-navegacion §1): en tripletas
+      // zodiacales la zona `seleccion` está INERTE (sin .animal-check ni
+      // .opcion-item) y el selector de modalidad vive DENTRO de ella
+      // (#modalidad-grid). Fallback: ↑/↓ navegan sus .modalidad-btn para que
+      // el foco no se atasque en una zona sin ítems (Triple A/B/C alcanzable).
+      if (zona === 'seleccion' && items.length === 0) {
+        const modalidadGrid = el.querySelector('#modalidad-grid');
+        if (modalidadGrid) return Array.from(modalidadGrid.querySelectorAll('.modalidad-btn'));
+      }
+      return items;
     }
 
     // ↑/↓ contextuales (KB-03): recorren la lista activa de la zona enfocada
@@ -2951,6 +2961,9 @@ import Icon from '../components/ui/Icon.astro';
         ? modalidadNueva.digitos
         : (juego.familia === 'zodiacal' ? 3 : 2);
       input.value = (input.value + digito).slice(0, maxDigitos);
+      // S4 taquilla-operativa (spec taquilla-navegacion §2): foco DIRECTO al
+      // input Número, espejo síncrono de F2 — sin re-render en el mismo tick
+      // que invalide el foco. zonaActual + focus() explícito + enfocarZona.
       enfocarZona('numero');
     }
 
