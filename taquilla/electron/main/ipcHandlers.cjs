@@ -14,6 +14,12 @@ function getMacAddress() {
 }
 
 function generateTicketHtml(ticketData) {
+    // S1 taquilla-operativa (aditivo): `kind:'recibo'` imprime el comprobante
+    // de pago de premios. Los callers sin `kind` siguen el flujo de venta
+    // byte-idéntico al anterior. TODO campo nuevo pasa por escapeHtml.
+    if (ticketData && ticketData.kind === 'recibo') {
+        return generateReciboHtml(ticketData);
+    }
     const { ticketCode, date, time, game, lines } = ticketData;
     const totalBs = lines.reduce((s, l) => s + (l.amountBs || 0), 0);
     const totalUsd = lines.reduce((s, l) => s + (l.amountUsd || 0), 0);
@@ -84,6 +90,60 @@ function generateTicketHtml(ticketData) {
             <p class="total">Total USD: $${fmtMoney(totalUsd)}</p>
             <hr>
             <p class="text-center">Gracias por su compra!</p>
+        </div>
+    `;
+}
+
+/**
+ * Comprobante de pago de premios (S1 taquilla-operativa). Recibe las líneas
+ * del modelo puro `buildReciboLines` (utils/recibos.ts) y los totales
+ * acumulados SOLO desde las respuestas de `POST /pagos`. Todo campo derivado
+ * del usuario pasa por escapeHtml (threat-matrix: sin canal nuevo, sin
+ * interpolación cruda).
+ */
+function generateReciboHtml(ticketData) {
+    const { ticketCode, date, time, lines, premioTotalBs, premioTotalUsd } = ticketData;
+    const filas = (lines || []).map((l, i) =>
+        `<tr>` +
+        `<td>${i + 1}.</td>` +
+        `<td>${escapeHtml(l.game)}</td>` +
+        `<td>${escapeHtml(l.jugada)}</td>` +
+        `<td>${escapeHtml(l.estado)}</td>` +
+        `<td>Bs. ${fmtMoney(l.amountBs)}</td>` +
+        `<td>$${fmtMoney(l.amountUsd)}</td>` +
+        `<td>Bs. ${fmtMoney(l.premioBs)}</td>` +
+        `<td>$${fmtMoney(l.premioUsd)}</td>` +
+        `</tr>`
+    );
+
+    return `
+        <style>
+            @page { margin: 0; size: 80mm auto; }
+            body { font-family: 'Courier New', monospace; font-size: 11px; width: 72mm; margin: 0 auto; padding: 4px 2mm; }
+            h2 { text-align: center; font-size: 14px; margin: 0 0 4px; }
+            hr { border: none; border-top: 1px dashed #000; margin: 4px 0; }
+            table { width: 100%; border-collapse: collapse; font-size: 10px; }
+            th, td { text-align: left; padding: 1px 0; }
+            th { border-bottom: 1px solid #000; }
+            .total { font-weight: bold; }
+            .text-center { text-align: center; }
+        </style>
+        <div>
+            <h2>COMPROBANTE DE PAGO</h2>
+            <p class="text-center">${escapeHtml(ticketCode)}</p>
+            <hr>
+            <p>Ticket: ${escapeHtml(ticketCode)}</p>
+            <p>Fecha: ${escapeHtml(date)} - ${escapeHtml(time)}</p>
+            <hr>
+            <table>
+                <thead><tr><th>#</th><th>Juego</th><th>Jugada</th><th>Estado</th><th>Monto BS</th><th>Monto USD</th><th>Premio BS</th><th>Premio USD</th></tr></thead>
+                <tbody>${filas.join('')}</tbody>
+            </table>
+            <hr>
+            <p class="total">Total premio BS: Bs. ${fmtMoney(premioTotalBs)}</p>
+            <p class="total">Total premio USD: $${fmtMoney(premioTotalUsd)}</p>
+            <hr>
+            <p class="text-center">Premio pagado - Gracias!</p>
         </div>
     `;
 }
