@@ -9,13 +9,17 @@ class Comision extends Model
 {
     use HasFactory;
 
+    protected $table = 'comisiones';
+
     protected $fillable = [
         'banca_id', 'grupo_id', 'taquilla_id', 'periodo',
-        'monto_comision', 'estado',
+        'monto_comision', 'estado', 'fecha_inicio', 'fecha_fin',
     ];
 
     protected $casts = [
         'monto_comision' => 'decimal:2',
+        'fecha_inicio' => 'date',
+        'fecha_fin' => 'date',
     ];
 
     public function banca()

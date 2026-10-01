@@ -2,7 +2,7 @@
 
 > **Fuente de verdad única** de los ajustes pendientes en `panel/` (admin web) y `taquilla/` (POS Astro+Electron).
 > Consolida lo disperso en los demás `.md` de `docs/` (incluye el ex `docs/dev/pendientes-front.md`, fusionado aquí en §7), la memoria Engram del proyecto y el estado real de ramas/worktrees/openspec.
-> Última actualización: 2026-09-30. Al cerrar un ítem: marcarlo aquí y no re-abrirlo en otros docs.
+> Última actualización: 2026-10-01. Al cerrar un ítem: marcarlo aquí y no re-abrirlo en otros docs.
 
 ## Leyenda
 
@@ -58,7 +58,6 @@
 | PN-05 | P2 | Topbar estático | El topbar siempre dice "Dashboard" (`#topbar-title` sin JS que lo actualice) | `panel/src/layouts/AdminLayout.astro:100` · obs #12/#57 |
 | PN-06 | P2 | Iconos duplicados del sidebar (📈/📊) | Verificar si queda resuelto por la rama `iconos-consistentes` (migra todo el chrome del panel a Lucide); si persiste, unificar | obs #12 · VL-01 |
 | PN-07 | P2 | Gaps de límites | Sin DELETE para limpiar/volver a heredar; la UI habilita `grupo` pero la API responde 403; `agencia_id` en `GET /limites/{juego}` no existe en `juego_limites`; `LimitesTable.astro` muerto (existe, nadie lo importa) | `panel/src/utils/limites.ts` · `components/LimitesTable.astro` · contrato §4.2-P5 · obs #376 |
-| PN-08 | P3 | Comisiones | Nada operativo: `porcentaje_pago`/`participacion` sin lectores de negocio, tabla `comisiones` muerta, permiso huérfano. Requiere decisión de producto (H1/H2/H3 + dónde se edita) y **ciclo aparte** | `docs/dev/integracion-front-motor-premios.md` §5 · obs #365/#376 |
 | PN-09 | P3 | Cierre del ciclo activación-taquilla | Falta verificación manual en `panel.gzuz.dev`, dry-run/apply de `taquillas:sanear-activas` en VPS y archivar el ciclo (PR #7 ya mergeado) | obs #217 |
 
 ---
@@ -97,6 +96,7 @@
 - **taquilla-venta-agil** (PR #14), **atajos/anulación F10 + ticket multi-juego** (PR #19), **multientorno core** (PR #10), **cierre-caja base+ajustes** (PR #12), **activación de taquilla backend** (PR #7), **resultados-loterías panel**, **resultados-parciales (código)**, **descargar/releases**, **compatibilidad-dashboard-legacy (páginas)**: mergeados en `main`.
 - `docs/dev/planificacion.md` sprints 9–12 y `docs/dev/plugins.md` "Scraper Triple Zulia": **stale**, no perseguir.
 - `docs/cliente/multiplicadores-juegos.md` "por aplicar" (Monje 50×, Arrejuntado 40×, Chaima 40×): ya aplicado por el motor.
+- **Comisiones** (PN-08/BE-06, PR #50, mergeado 2026-10-01): banca, grupo y taquilla cobran su % con **suma cero** (tope acumulado por moneda: `min(tasaEfectiva, max(0, 100 − Σ tasas propias de ancestros))`); configuración en la matriz de límites (master→bancas, banca→grupos, grupos→sus taquillas; rol `grupo` habilitado con scope); página `/comisiones`, columnas en reportes/cuadre y `comision_bs_equivalent` en cierre; default global 2 filas bs/usd (`super_master`).
 
 ---
 
@@ -117,7 +117,6 @@
 | BE-03 | Scrapers | **Scraper por juego** para los `requires_scraper = true`: generalizar el patrón de `ScrapeExchangeRateJob` | `abierto` |
 | BE-04 | Permisos | **Permisos finos (Spatie)**: reemplazar middleware `role:` por `permission:` (`view_juegos`, `manage_juegos`, `view_apuestas`, `manage_apuestas`) | `abierto` |
 | BE-05 | Tooling | **Bruno collection**: request para `PUT /api/v1/juegos/{juego}/premios` (pendiente del ciclo `colecciones-api`, ver §6 / PRs #45–48) y `GET /auditoria` cuando exista | `abierto` (parcial) |
-| BE-06 | Negocio | **Comisiones**: decisión de producto (H1/H2/H3) y dónde se edita — ver §3 PN-08 y `docs/dev/integracion-front-motor-premios.md` §5 | `bloqueado` (decisión) |
 
 **Ya resuelto (no re-implementar)**: plugin `TripleZulia` (`TripleZuliaSeeder` registrado en `DatabaseSeeder`); cierre de caja (`/api/v1/cierre*`); tests de `JuegoController::update()`/`toggle()` (`JuegoUpdateTest`, `JuegoToggleTest`).
 

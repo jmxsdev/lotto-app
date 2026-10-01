@@ -426,12 +426,15 @@ class JuegoController extends Controller
     /**
      * Upsert de límites para un juego.
      * PUT /api/limites/{juego}
+     *
+     * super_master/master/banca escriben según su alcance; el rol grupo
+     * solo dentro de su subárbol (su grupo y sus taquillas).
      */
     public function updateLimites(Request $request, Juego $juego)
     {
         $user = $request->user();
 
-        if (! in_array($user->role, ['super_master', 'master', 'banca'])) {
+        if (! in_array($user->role, ['super_master', 'master', 'banca', 'grupo'])) {
             return response()->json(['message' => 'No tienes permiso para configurar límites.'], 403);
         }
 
@@ -459,8 +462,13 @@ class JuegoController extends Controller
             );
         }
 
-        // Verificar acceso a la banca
-        $this->authorizeBancaLimitAccess($user, $request->banca_id);
+        // Verificar alcance de escritura (grupo solo dentro de su subárbol)
+        $this->authorizeEscrituraLimite(
+            $user,
+            (int) $request->banca_id,
+            $request->grupo_id !== null ? (int) $request->grupo_id : null,
+            $request->taquilla_id !== null ? (int) $request->taquilla_id : null,
+        );
 
         $limite = JuegoLimite::updateOrCreate(
             [
@@ -488,7 +496,7 @@ class JuegoController extends Controller
     {
         $user = $request->user();
 
-        if (! in_array($user->role, ['super_master', 'master', 'banca'])) {
+        if (! in_array($user->role, ['super_master', 'master', 'banca', 'grupo'])) {
             return response()->json(['message' => 'No tienes permiso para configuración masiva de límites.'], 403);
         }
 
@@ -538,6 +546,12 @@ class JuegoController extends Controller
                     ], 422);
                 }
             }
+
+            // El rol grupo solo expande dentro de su subárbol (su grupo y
+            // sus taquillas); cualquier objetivo fuera ⇒ 403.
+            if ($user->role === 'grupo') {
+                $this->assertObjetivosDentroDelGrupo($user, $objetivos);
+            }
         }
 
         $resultados = [];
@@ -548,7 +562,12 @@ class JuegoController extends Controller
 
                 if ($objetivos === null) {
                     // Modo legacy: cada ítem con su banca_id (y opcional grupo/taquilla)
-                    $this->authorizeBancaLimitAccess($user, $item['banca_id']);
+                    $this->authorizeEscrituraLimite(
+                        $user,
+                        (int) $item['banca_id'],
+                        ! empty($item['grupo_id']) ? (int) $item['grupo_id'] : null,
+                        ! empty($item['taquilla_id']) ? (int) $item['taquilla_id'] : null,
+                    );
 
                     if (! empty($item['grupo_id']) || ! empty($item['taquilla_id'])) {
                         $this->limites->validarRestrictividadLimite(
@@ -732,14 +751,15 @@ class JuegoController extends Controller
      * Eliminar un límite configurado.
      * DELETE /api/limites/{limite}
      *
-     * super_master/master eliminan cualquier límite; banca solo los de su banca.
+     * super_master/master eliminan cualquier límite; banca solo los de su
+     * banca; grupo solo los de su grupo o sus taquillas.
      * El modelo se resuelve por binding implícito (404 si no existe).
      */
     public function destroyLimite(Request $request, JuegoLimite $limite)
     {
         $user = $request->user();
 
-        if (! in_array($user->role, ['super_master', 'master', 'banca'])) {
+        if (! in_array($user->role, ['super_master', 'master', 'banca', 'grupo'])) {
             return response()->json(['message' => 'No tienes permiso para eliminar límites.'], 403);
         }
 
@@ -749,6 +769,10 @@ class JuegoController extends Controller
 
         if ($user->role === 'banca' && (! $user->banca_id || $user->banca_id != $limite->banca_id)) {
             return response()->json(['message' => 'No tienes acceso a los límites de esta banca.'], 403);
+        }
+
+        if ($user->role === 'grupo' && ! $this->limiteDentroDelGrupo($user, $limite)) {
+            return response()->json(['message' => 'No tienes acceso a los límites de esta entidad.'], 403);
         }
 
         $limite->delete();
@@ -782,6 +806,113 @@ class JuegoController extends Controller
         }
 
         abort(403, 'No tienes acceso a esta banca.');
+    }
+
+    /**
+     * Verificar el alcance de ESCRITURA de un límite para el rol.
+     *
+     * - super_master: todo.
+     * - master: bancas que administra.
+     * - banca: su propia banca.
+     * - grupo: su propio grupo y sus taquillas (nunca nivel banca ni otro
+     *   grupo/taquilla).
+     */
+    private function authorizeEscrituraLimite($user, int $bancaId, ?int $grupoId, ?int $taquillaId): void
+    {
+        if ($user->role === 'super_master') {
+            return;
+        }
+
+        if ($user->role === 'master') {
+            $this->authorizeBancaLimitAccess($user, $bancaId);
+
+            return;
+        }
+
+        if ($user->role === 'banca') {
+            if ($user->banca_id == $bancaId) {
+                return;
+            }
+
+            abort(403, 'No tienes acceso a esta banca.');
+        }
+
+        if ($user->role === 'grupo') {
+            if ((int) $user->banca_id !== $bancaId || (int) $user->grupo_id !== $grupoId) {
+                abort(403, 'No tienes acceso a esta entidad.');
+            }
+
+            if ($taquillaId !== null) {
+                $enGrupo = Taquilla::whereKey($taquillaId)
+                    ->where('grupo_id', $user->grupo_id)
+                    ->exists();
+
+                if (! $enGrupo) {
+                    abort(403, 'No tienes acceso a esta taquilla.');
+                }
+            }
+
+            return;
+        }
+
+        abort(403, 'No tienes acceso a esta banca.');
+    }
+
+    /**
+     * ¿La fila de límite pertenece al subárbol del rol grupo (su grupo o
+     * una de sus taquillas)? El nivel banca queda fuera.
+     */
+    private function limiteDentroDelGrupo($user, JuegoLimite $limite): bool
+    {
+        if ($limite->grupo_id !== null) {
+            return (int) $limite->grupo_id === (int) $user->grupo_id;
+        }
+
+        if ($limite->taquilla_id !== null) {
+            return Taquilla::whereKey($limite->taquilla_id)
+                ->where('grupo_id', $user->grupo_id)
+                ->exists();
+        }
+
+        return false;
+    }
+
+    /**
+     * El rol grupo solo expande dentro de su subárbol: su propio grupo y
+     * sus taquillas. Cualquier objetivo a nivel banca u otra entidad ⇒ 403.
+     *
+     * @param  array<int, array{nivel: string, id: int}>  $objetivos
+     */
+    private function assertObjetivosDentroDelGrupo($user, array $objetivos): void
+    {
+        foreach ($objetivos as $objetivo) {
+            if ($objetivo['nivel'] === 'grupo' && (int) $objetivo['id'] === (int) $user->grupo_id) {
+                continue;
+            }
+
+            if ($objetivo['nivel'] === 'taquilla') {
+                continue; // se valida en bloque abajo
+            }
+
+            abort(403, 'No tienes acceso a la entidad raíz del alcance.');
+        }
+
+        $taquillaIds = collect($objetivos)
+            ->where('nivel', 'taquilla')
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id);
+
+        if ($taquillaIds->isEmpty()) {
+            return;
+        }
+
+        $propias = Taquilla::whereIn('id', $taquillaIds)
+            ->where('grupo_id', $user->grupo_id)
+            ->count();
+
+        if ($propias !== $taquillaIds->count()) {
+            abort(403, 'No tienes acceso a la entidad raíz del alcance.');
+        }
     }
 
     /**
