@@ -66,6 +66,10 @@ class TicketController extends Controller
 
         $tickets->getCollection()->transform(function ($ticket) {
             $ticket->tiene_ganadores = $ticket->ganadoras_count > 0;
+            // S2 taquilla-operativa: ventana de anulación EFECTIVA (cascada
+            // taquilla → grupo → banca → 5); el front la usa tal cual, sin
+            // hardcodear 5.
+            $ticket->tiempo_eliminacion_efectivo = $this->apuestaService->getEffectiveTiempoEliminacion($ticket->taquilla_id);
 
             return $ticket;
         });
@@ -94,6 +98,8 @@ class TicketController extends Controller
             });
         }]);
         $ticket->tiene_ganadores = $ticket->ganadoras_count > 0;
+        // S2 taquilla-operativa: ventana de anulación efectiva en show también.
+        $ticket->tiempo_eliminacion_efectivo = $this->apuestaService->getEffectiveTiempoEliminacion($ticket->taquilla_id);
 
         return response()->json(['data' => $ticket]);
     }
