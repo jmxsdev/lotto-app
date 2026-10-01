@@ -94,13 +94,25 @@ Los tests que fijan `nivel=agencia`≡taquillas (`CuadreCajaReportTest`, `Report
 
 ### Requirement: Columna de comisión en ventasTotales
 
-`ventasTotales` MUST exponer una columna de comisión (bs-equivalente) por fila de reporte, calculada según la capability `comisiones`. La columna SHALL ser aditiva y MUST NOT alterar la agrupación existente por `nivel` (agencia=local, taquilla=máquina).
+`ventasTotales` MUST exponer una columna de comisión (bs-equivalente) por fila de reporte, calculada según la capability `comisiones`. Los niveles que cobran (`banca`/`grupo`/`taquilla`) MUST exponer su monto liquidable propio (la banca, sin ancestros con tasa, expone su propia tasa). El nivel `agencia` (local) SHALL exponer un rollup informativo Σgrupo + Σtaquilla de su subárbol, porque el local no cobra comisión propia. La columna SHALL ser aditiva y MUST NOT alterar la agrupación existente por `nivel` (agencia=local, taquilla=máquina).
 
 #### Scenario: Columna de comisión presente
 
 - GIVEN un reporte `ventasTotales` para un rango
 - WHEN se calcula
 - THEN cada fila incluye la comisión bs-equivalente del período
+
+#### Scenario: Banca con monto liquidable propio
+
+- GIVEN un reporte con `nivel=banca` y una banca con tasa propia
+- WHEN se calcula la comisión de su fila
+- THEN muestra el monto liquidable de la banca (no el rollup de sus descendientes)
+
+#### Scenario: Agencia con rollup informativo
+
+- GIVEN un reporte con `nivel=agencia`
+- WHEN se calcula la comisión de cada local
+- THEN muestra Σgrupo + Σtaquilla de su subárbol (el local no cobra comisión propia)
 
 #### Scenario: Agrupación intacta
 

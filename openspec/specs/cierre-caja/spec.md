@@ -305,13 +305,19 @@ La UI `cierre.astro` MUST permitir imprimir el resultado de un cierre usando la 
 
 ### Requirement: Desglose de comisión en el cuadre/cierre
 
-El cierre/cuadre MUST exponer un desglose de comisión (bs-equivalente) calculado según la capability `comisiones`. El desglose SHALL ser aditivo y MUST NOT alterar `ventas − egresos`, el arqueo ni la diferencia por moneda existentes.
+El cierre/cuadre MUST exponer un desglose de comisión (bs-equivalente) calculado según la capability `comisiones`. El total MUST incluir a todos los niveles que cobran sobre las ventas de la taquilla: **banca + grupo + taquilla**, cada uno a su tasa liquidable (D11), y SHALL ser aditivo: MUST NOT alterar `ventas − egresos`, el arqueo ni la diferencia por moneda existentes.
 
 #### Scenario: Desglose de comisión presente
 
 - GIVEN un cierre/cuadre para un período
 - WHEN se calcula
 - THEN la respuesta incluye el desglose de comisión bs-equivalente
+
+#### Scenario: El total incluye la banca
+
+- GIVEN banca 10, grupo 20 y taquilla 100 (misma moneda) con ventas en el período
+- WHEN se calcula el cierre de la taquilla
+- THEN el total de comisión es la suma de los liquidables de la cadena (10 + 20 + 70 = 100)
 
 #### Scenario: Totales existentes intactos
 

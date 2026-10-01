@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Comisión = participación (%) de un nivel (banca/grupo/taquilla) sobre sus ventas, liquidada como filas del ledger `comisiones` (estado `pendiente`→`pagado`). La tasa es `juego_limites.porcentaje_pago`; el monto es bs-equivalente desde `apuestas.total_bs_equivalent`.
+Comisión = participación (%) de un nivel (banca/grupo/taquilla) sobre sus ventas, liquidada como filas del ledger `comisiones` (estado `pendiente`→`pagado`). Banca, Grupo y Taquilla cobran su propia comisión; la suma de las tasas liquidables de la cadena MUST ser ≤ 100% de las ventas (suma cero). La tasa es `juego_limites.porcentaje_pago`; el monto es bs-equivalente desde `apuestas.total_bs_equivalent`.
 
 ## Requirements
 
@@ -36,7 +36,7 @@ La tasa efectiva para (entidad, juego, moneda) MUST resolverse por cascada `taqu
 
 ### Requirement: Superficie de configuración
 
-El default global MUST ser una matriz de 2 filas (una por moneda bs/usd), editable solo por `super_master` en la página de límites como bloque aditivo, y SHALL aplicar a todos los juegos. Los overrides por juego/entidad SHALL usar la matriz de límites existente. Los roles de escritura MUST permanecer (`super_master`/`master`/`banca`). Los endpoints nuevos MUST reutilizar el permiso `manage_comisiones` (ya asignado a `super_master` y `master`; sin cambio de seeder). La ubicación de almacenamiento del default global es decisión de diseño (no especificada aquí).
+El default global MUST ser una matriz de 2 filas (una por moneda bs/usd), editable solo por `super_master` en la página de límites como bloque aditivo, y SHALL aplicar a todos los juegos. Los overrides por juego/entidad SHALL usar la matriz de límites existente. Los roles de escritura de la matriz MUST ser `super_master`/`master`/`banca`/`grupo`; el `grupo` SHALL escribir solo dentro de su subárbol (su grupo y sus taquillas) y MUST recibir 403 fuera de alcance. Los endpoints nuevos MUST reutilizar el permiso `manage_comisiones` (ya asignado a `super_master` y `master`; sin cambio de seeder). La ubicación de almacenamiento del default global es decisión de diseño (no especificada aquí).
 
 #### Scenario: Default global por moneda
 
@@ -46,9 +46,21 @@ El default global MUST ser una matriz de 2 filas (una por moneda bs/usd), editab
 
 #### Scenario: Override por juego/entidad
 
-- GIVEN un rol con escritura (`super_master`/`master`/`banca`)
-- WHEN define `porcentaje_pago` en la matriz para un juego/entidad
+- GIVEN un rol con escritura (`super_master`/`master`/`banca`/`grupo`)
+- WHEN define `porcentaje_pago` en la matriz para un juego/entidad dentro de su alcance
 - THEN ese override pisa el default global solo para esa combinación
+
+#### Scenario: Grupo escribe la matriz de sus taquillas
+
+- GIVEN un usuario `grupo` y una taquilla de su grupo
+- WHEN define `porcentaje_pago`/mín/máx para esa taquilla
+- THEN la fila persiste (sin 403)
+
+#### Scenario: Grupo fuera de su alcance
+
+- GIVEN un usuario `grupo` y una taquilla de otro grupo (o el nivel banca)
+- WHEN intenta escribir esa fila
+- THEN responde 403
 
 #### Scenario: Permiso de comisiones
 
@@ -86,13 +98,13 @@ La comisión MUST ser `SUM(apuestas.total_bs_equivalent)` de las ventas NO anula
 
 ### Requirement: Liquidación en el ledger
 
-La liquidación MUST escribir filas en `comisiones` SOLO para `Grupo` y `Taquilla` (la `banca` queda excluida), con `monto_comision decimal(12,2)` en bs-equivalente y `estado` `pendiente`→`pagado`. Al liquidar, el monto MUST quedar congelado (no retroactivo): ediciones posteriores de `porcentaje_pago` MUST NOT alterar filas ya liquidadas. Rangos que se solapan MUST NOT contar la misma venta dos veces.
+La liquidación MUST escribir filas en `comisiones` para `Banca`, `Grupo` y `Taquilla` (todos los niveles cobran su propia comisión), con `monto_comision decimal(12,2)` en bs-equivalente y `estado` `pendiente`→`pagado`. La fila de cada nivel MUST quedar identificada por su columna de entidad (`banca_id`, `grupo_id` o `taquilla_id`) con las demás en NULL. Al liquidar, el monto MUST quedar congelado (no retroactivo): ediciones posteriores de `porcentaje_pago` MUST NOT alterar filas ya liquidadas. Rangos que se solapan MUST NOT contar la misma venta dos veces (el solapamiento se evalúa sobre los tres niveles).
 
-#### Scenario: Filas para Grupo y Taquilla
+#### Scenario: Filas para Banca, Grupo y Taquilla
 
 - GIVEN una liquidación sobre un rango
 - WHEN se ejecuta
-- THEN crea filas `comisiones` para Grupo y Taquilla, y NINGUNA para banca
+- THEN crea filas `comisiones` para Banca, Grupo y Taquilla (una por entidad con ventas)
 
 #### Scenario: Transición pendiente→pagado
 
@@ -114,14 +126,14 @@ La liquidación MUST escribir filas en `comisiones` SOLO para `Grupo` y `Taquill
 
 ### Requirement: Independencia entre niveles y tope acumulado
 
-`porcentaje_pago` SHALL ser independiente por nivel (un hijo MAY exceder el valor del padre; sin guarda hijo≤padre). Cuando la suma acumulada de porcentajes a lo largo de la cadena NO supera 100%, cada nivel SHALL conservar su propia tasa sin cambios. Cuando la suma acumulada SÍ supera 100%, MUST aplicar el tope acumulado: **siempre se respeta el porcentaje del mayor** — el porcentaje del padre tiene prioridad y la tasa liquidable del hijo se topa al remanente.
+`porcentaje_pago` SHALL ser independiente por nivel (un hijo MAY exceder el valor del padre; sin guarda hijo≤padre). Cuando la suma acumulada de porcentajes a lo largo de la cadena NO supera 100%, cada nivel SHALL conservar su propia tasa sin cambios. Cuando la suma acumulada SÍ supera 100%, MUST aplicar el tope acumulado: **siempre se respeta el porcentaje del mayor** — el porcentaje del padre tiene prioridad y la tasa liquidable del hijo se topa al remanente. La suma de las tasas liquidables de la cadena (banca + grupo + taquilla) MUST ser ≤ 100% de las ventas (suma cero). La banca no tiene ancestros con tasa: su liquidable SHALL ser su propia tasa (validada ≤ 100).
 
 **Ejemplo oficial**: banca 10% y su única taquilla 100% ⇒ la taquilla liquida 90%.
 
-ASUNCIONES a confirmar antes de `apply`:
+Reglas confirmadas (2026-09-30; banca beneficiaria 2026-10-01):
 
 1. El tope aplica **por moneda**: cada cadena de moneda se topa de forma independiente.
-2. La banca permanece excluida de las filas del ledger (decisión existente): su tasa actúa como retención/tope sobre los pagos de sus descendientes, no como fila del ledger.
+2. La banca cobra su propia comisión: sin ancestros con tasa, su liquidable = su tasa propia (validada ≤ 100) y recibe fila en el ledger. La suma de las tasas liquidables de la cadena no supera 100% (suma cero).
 3. Σ ancestros = suma de las tasas **propias** configuradas de los ancestros (NULL/ausente = 0), con piso en 0; tasa liquidable del hijo = `min(tasa resuelta del hijo, max(0, 100 − Σ tasas propias de ancestros))`.
 
 #### Scenario: Hijo excede al padre con tope
@@ -129,6 +141,18 @@ ASUNCIONES a confirmar antes de `apply`:
 - GIVEN una banca con 10% y su única taquilla con 100% (misma moneda)
 - WHEN se resuelve la tasa liquidable de la taquilla
 - THEN la taquilla liquida 90%
+
+#### Scenario: Banca sin ancestros cobra su propia tasa
+
+- GIVEN una banca con 10% propia y ventas de su subárbol
+- WHEN se resuelve la tasa liquidable de la banca
+- THEN liquida 10% (sin tope de ancestros)
+
+#### Scenario: Suma cero con tres niveles
+
+- GIVEN banca 10%, grupo 20% y taquilla 100% (misma moneda)
+- WHEN se resuelven las tasas liquidables de la cadena
+- THEN banca 10%, grupo 20% y taquilla 70% (suma 100%)
 
 #### Scenario: Suma acumulada ≤ 100 conserva tasas
 
