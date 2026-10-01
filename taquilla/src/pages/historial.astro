@@ -129,10 +129,16 @@ import MainLayout from '../layouts/MainLayout.astro';
 
         function canDeleteTicket(ticket) {
             if (ticket.estado !== 'pendiente') return false;
+            const ventana = ticket.tiempo_eliminacion_efectivo;
+            // S2 taquilla-operativa: la ventana viene del backend (cascada
+            // taquilla → grupo → banca → 5). Si el backend NO la expone, NO
+            // se pre-bloquea: se intenta el DELETE y el mensaje real del
+            // backend (422) se muestra verbatim. Nunca se asume 5.
+            if (typeof ventana !== 'number') return true;
             const ahora = new Date();
             const created = new Date(ticket.created_at);
             const diffMinutes = (ahora - created) / (1000 * 60);
-            if (diffMinutes >= 5) return false;
+            if (diffMinutes >= ventana) return false;
             const sorteoVencido = (ticket.apuestas || []).some(a => {
                 if (!a.sorteo_hora) return false;
                 return new Date(a.sorteo_hora) < ahora;
@@ -238,7 +244,9 @@ import MainLayout from '../layouts/MainLayout.astro';
                 await window.showModal({ message: 'Ticket anulado', type: 'success' });
             } catch (e) {
                 restoreActions(ticket.id);
-                await window.showModal({ message: 'Error al anular: ' + e.message, type: 'error' });
+                // S2: el mensaje REAL del backend (422) verbatim, sin prefijos
+                // locales que lo adulteren.
+                await window.showModal({ message: e.message, type: 'error' });
             }
         }
 
