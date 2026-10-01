@@ -117,10 +117,11 @@ import Icon from '../components/Icon.astro';
       alcanceActual = 'taquillas';
     }
 
-    // WU4: grupo/agencia auditan en solo lectura; solo sm/master/banca configuran.
+    // Enmienda 2026-10-01: grupo escribe la matriz de SUS taquillas
+    // (comisión + mín/máx); agencia audita en solo lectura.
     // Taquilla (GET 403 en la API) y otros roles: sin acceso.
     const puedeVer = ['super_master', 'master', 'banca', 'grupo', 'agencia'].includes(rol);
-    const puedeConfigurar = ['super_master', 'master', 'banca'].includes(rol);
+    const puedeConfigurar = ['super_master', 'master', 'banca', 'grupo'].includes(rol);
 
     if (!puedeVer) {
       contenedor.innerHTML = '<div class="loading">Sin acceso a la configuración de límites.</div>';

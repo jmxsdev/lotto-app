@@ -251,9 +251,10 @@ const name = user?.name || '';
 
     // Descargar Taquilla — todos los roles (D2)
     sidebarNav.appendChild(addLink('Descargar Taquilla', '/descargar', 'download'));
-// Límites — configuración y auditoría: super_master, master y banca
+// Límites — configuración y auditoría: super_master, master, banca y grupo
+// (el grupo configura su propia matriz desde 2026-10-01)
 
-    if (['super_master', 'master', 'banca'].includes(role)) sidebarNav.appendChild(addLink('Límites', '/limites', 'target'));
+    if (['super_master', 'master', 'banca', 'grupo'].includes(role)) sidebarNav.appendChild(addLink('Límites', '/limites', 'target'));
 
     // Comisiones — ledger de comisiones (liquidar y pagar), super_master|master
     if (['super_master','master'].includes(role)) sidebarNav.appendChild(addLink('Comisiones', '/comisiones', 'banknote'));

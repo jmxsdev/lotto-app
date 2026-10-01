@@ -66,6 +66,14 @@ class ComisionesApiTest extends TestCase
         return $user;
     }
 
+    private function grupoUser(): User
+    {
+        $user = User::where('email', 'grupo@lotto.com')->first();
+        $user->assignRole('grupo');
+
+        return $user;
+    }
+
     // ==================================================
     // Helpers del ledger
     // ==================================================
@@ -693,5 +701,90 @@ class ComisionesApiTest extends TestCase
 
         $response->assertStatus(403);
         $this->assertSame(0, Comision::count());
+    }
+
+    // ==================================================
+    // Enmienda (2026-10-01) — el rol grupo escribe SU matriz
+    // ==================================================
+
+    public function test_grupo_escribe_matriz_de_sus_taquillas()
+    {
+        $grupoUser = $this->grupoUser();
+        $banca = Banca::findOrFail($grupoUser->banca_id);
+        $grupo = Grupo::findOrFail($grupoUser->grupo_id);
+        $taquilla = Taquilla::where('grupo_id', $grupo->id)->firstOrFail();
+
+        $juego = Juego::create([
+            'name' => 'Juego Matriz Grupo',
+            'slug' => 'juego-matriz-grupo-'.uniqid(),
+            'type' => 'animalitos',
+            'active' => true,
+        ]);
+
+        // Comisión + mín/máx sobre una taquilla propia: sin 403 en su scope
+        $response = $this->actingAs($grupoUser, 'sanctum')
+            ->putJson('/api/v1/limites/'.$juego->id, [
+                'banca_id' => $banca->id,
+                'grupo_id' => $grupo->id,
+                'taquilla_id' => $taquilla->id,
+                'moneda' => 'bs',
+                'porcentaje_pago' => 15,
+                'limite_minimo' => 10,
+                'limite_maximo' => 500,
+            ]);
+
+        $response->assertStatus(201);
+
+        $this->assertDatabaseHas('juego_limites', [
+            'juego_id' => $juego->id,
+            'banca_id' => $banca->id,
+            'grupo_id' => $grupo->id,
+            'taquilla_id' => $taquilla->id,
+            'moneda' => 'bs',
+            'porcentaje_pago' => 15,
+            'limite_minimo' => 10,
+            'limite_maximo' => 500,
+        ]);
+    }
+
+    public function test_grupo_403_al_escribir_matriz_fuera_de_su_scope()
+    {
+        $grupoUser = $this->grupoUser();
+        $banca = Banca::findOrFail($grupoUser->banca_id);
+
+        $otroGrupo = Grupo::create([
+            'name' => 'Grupo Ajeno Matriz',
+            'code' => 'GAM'.uniqid(),
+            'banca_id' => $banca->id,
+            'active' => true,
+        ]);
+        $taquillaAjena = Taquilla::create([
+            'name' => 'Taquilla Ajena Matriz',
+            'code' => 'TAM'.uniqid(),
+            'grupo_id' => $otroGrupo->id,
+            'active' => true,
+        ]);
+
+        $juego = Juego::create([
+            'name' => 'Juego Matriz Ajena',
+            'slug' => 'juego-matriz-ajena-'.uniqid(),
+            'type' => 'animalitos',
+            'active' => true,
+        ]);
+
+        $response = $this->actingAs($grupoUser, 'sanctum')
+            ->putJson('/api/v1/limites/'.$juego->id, [
+                'banca_id' => $banca->id,
+                'grupo_id' => $otroGrupo->id,
+                'taquilla_id' => $taquillaAjena->id,
+                'moneda' => 'bs',
+                'porcentaje_pago' => 15,
+            ]);
+
+        $response->assertStatus(403);
+        $this->assertDatabaseMissing('juego_limites', [
+            'juego_id' => $juego->id,
+            'taquilla_id' => $taquillaAjena->id,
+        ]);
     }
 }

@@ -204,15 +204,16 @@ Route::prefix('v1')->group(function () {
             Route::get('/limites/{juego}', [JuegoController::class, 'limites']);
         });
 
-        // PUT: super_master, master, banca (upsert individual)
-        // DELETE: super_master, master, banca (autorización jerárquica en el controlador)
-        Route::middleware(['role:super_master|master|banca'])->group(function () {
+        // PUT: super_master, master, banca, grupo (upsert individual; el
+        // grupo solo escribe dentro de su subárbol, validado en el controlador)
+        // DELETE: idem (autorización jerárquica en el controlador)
+        Route::middleware(['role:super_master|master|banca|grupo'])->group(function () {
             Route::put('/limites/{juego}', [JuegoController::class, 'updateLimites']);
             Route::delete('/limites/{limite}', [JuegoController::class, 'destroyLimite']);
         });
 
-        // POST batch: super_master, master, banca (el alcance se valida por jerarquía en el controlador)
-        Route::middleware(['role:super_master|master|banca'])->group(function () {
+        // POST batch: super_master, master, banca, grupo (el alcance se valida por jerarquía en el controlador)
+        Route::middleware(['role:super_master|master|banca|grupo'])->group(function () {
             Route::post('/limites/batch', [JuegoController::class, 'batchLimites']);
         });
 
