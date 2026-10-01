@@ -1,0 +1,4 @@
+# Colecciones Bruno — entornos personales con credenciales reales.
+# Crea <Entorno>.local.yml (p. ej. Local.local.yml o Produccion.local.yml)
+# para tus valores reales; estos archivos NO se commitean.
+*.local.yml
