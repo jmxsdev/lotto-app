@@ -5,11 +5,27 @@ info:
 
 http:
   method: GET
-  url: "{{baseUrl}}/api/v1/apuestas/historial"
+  url: "{{baseUrl}}/api/v1/apuestas/historial?ticket_code=TC-001&per_page=100"
   headers:
     - name: Authorization
       value: Bearer {{token}}
+  params:
+    - name: ticket_code
+      value: TC-001
+      type: query
+    - name: per_page
+      value: "100"
+      type: query
   auth: inherit
+
+docs:
+  - |
+    # Historial de apuestas (paginado)
+    - Roles: SM | M | B | G | T | A (todos los autenticados; alcance jerárquico)
+    - Autenticación: Sanctum + verify.mac — auth: inherit
+    - Mismos filtros que Listar (`fecha_desde`/`fecha_hasta`/`estado`/`juego_id`/`sorteo_hora`)
+      más `ticket_code` (búsqueda LIKE parcial) y `per_page` (default 100)
+    - Respuesta: paginator Laravel de apuestas con `ticket_code`
 
 settings:
   encodeUrl: true

@@ -1,0 +1,39 @@
+info:
+  name: Actualizar Defaults
+  type: http
+  seq: 2
+
+http:
+  method: PUT
+  url: "{{baseUrl}}/api/v1/comisiones/defaults"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "defaults": [
+          { "moneda": "bs", "porcentaje_pago": 2.5 },
+          { "moneda": "usd", "porcentaje_pago": 3.0 }
+        ]
+      }
+  auth: inherit
+
+docs:
+  - |
+    # Sobrescribir el default global de comisión
+    - Roles: SM + permiso `manage_comisiones` (403 a otros roles/sin permiso)
+    - Autenticación: Sanctum (Bearer) — auth: inherit
+    - `defaults` required: array min 1, max 2; `moneda` required, distinct, ∈ bs|usd;
+      `porcentaje_pago` nullable numérico 0..100
+    - Upsert por moneda (cada ítem se actualiza de forma independiente)
+    - Respuesta: 200 con el array completo de defaults (2 filas ordenadas por moneda)
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

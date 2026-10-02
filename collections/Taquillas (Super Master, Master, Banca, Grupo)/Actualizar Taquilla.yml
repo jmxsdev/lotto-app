@@ -16,10 +16,20 @@ http:
     data: |-
       {
         "name": "Taquilla 01 Actualizada",
+        "agencia_id": 1,
         "mac_address": "00:1A:2B:3C:4D:5E",
         "active": true
       }
   auth: inherit
+
+docs:
+  - |
+    # Actualizar taquilla
+    - Roles: SM | M | B | G | A (autorización jerárquica de acceso)
+    - Autenticación: Sanctum + verify.mac — auth: inherit
+    - `agencia_id` en el body (opcional en update); `mac_address`/toggle para registro
+      del dispositivo; `vigencia_premios`/`tiempo_eliminacion` opcionales
+    - Respuesta: 200 con la taquilla actualizada
 
 settings:
   encodeUrl: true

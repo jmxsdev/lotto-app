@@ -11,6 +11,14 @@ http:
       value: Bearer {{token}}
   auth: inherit
 
+docs:
+  - |
+    # Listar cierres de caja
+    - Roles: SM | M | B | G | T | A (alcance jerárquico: admin filtra por taquilla;
+      rol taquilla solo su propia caja)
+    - Autenticación: Sanctum + verify.mac — auth: inherit
+    - Respuesta: array de cierres con `reclosed` (re-cierre del día) en cada fila
+
 settings:
   encodeUrl: true
   timeout: 0

@@ -15,10 +15,22 @@ http:
     type: json
     data: |-
       {
-        "name": "Master original",
+        "name": "Encargado Agencia Centro",
+        "role": "agencia",
+        "agencia_id": 1,
         "active": true
       }
   auth: inherit
+
+docs:
+  - |
+    # Actualizar usuario
+    - Roles: SM | M (autorización jerárquica; destroy solo SM | M)
+    - Autenticación: Sanctum + verify.mac — auth: inherit
+    - Campos opcionales (`sometimes`); `agencia_id`/`banca_id`/`grupo_id`/`taquilla_id`
+      actualizan los vínculos de entidad; cambiar rol/vínculos revalida consistencia y
+      autorización jerárquica (422/403 si incoherente o fuera de alcance)
+    - Respuesta: 200 con el usuario actualizado
 
 settings:
   encodeUrl: true

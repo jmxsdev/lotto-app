@@ -11,6 +11,15 @@ http:
       value: Bearer {{token}}
   auth: inherit
 
+docs:
+  - |
+    # Reglas del juego Tripletas
+    - Roles: SM | M | B | G | T | A (todos los autenticados)
+    - Autenticación: Sanctum + verify.mac — auth: inherit
+    - Respuesta: reglas del plugin + `modalidades` filtradas por `config.modalidades_permitidas`
+      + `premios` del motor (estructura `{base, modalidades, comodines}` desde `config.premios`)
+    - 404 si el juego no tiene plugin registrado
+
 settings:
   encodeUrl: true
   timeout: 0

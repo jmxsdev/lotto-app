@@ -1,3 +1,5 @@
+# NOTA: plantilla — NO rellenes credenciales reales aquí.
+# Usa un archivo personal gitignored (Produccion.local.yml — ver collections/.gitignore).
 name: Produccion
 variables:
   - name: baseUrl

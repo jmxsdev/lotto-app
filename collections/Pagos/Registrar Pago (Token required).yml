@@ -16,10 +16,7 @@ http:
     data: |-
       {
         "apuesta_id": 1,
-        "amount_bs": 300,
-        "amount_usd": 300,
-        "moneda": "mixto",
-        "metodo_pago": "punto_venta",
+        "moneda": "bs",
         "tipo": "egreso",
         "concepto": "Premio Animalitos"
       }
@@ -27,11 +24,17 @@ http:
 
 docs:
   - |
-    # Respuesta esperada: 201 Created
-    `metodo_pago` es opcional (`efectivo|transferencia|pago_movil|punto_venta`, default `efectivo`).
-    Nota: si `moneda` es `usd` o `amount_usd > 0` (como en este ejemplo mixto), el método
-    se fuerza a `efectivo` en el backend, sin importar el valor enviado.
-    Valor fuera del enum ⇒ 422 `{"errors": {"metodo_pago": [...]}}`.
+    # Registrar pago de premio (egreso autoritativo)
+    - Roles: SM | M | B | G | T (403 si rol taquilla paga una apuesta ajena)
+    - Autenticación: Sanctum + verify.mac — auth: inherit
+    - Estados pagables: `pendiente` | `ganadora` (422 cualquier otro estado)
+    - Egreso SIN montos: el backend aplica el premio calculado por el MOTOR
+      (`config.premios`) — la taquilla no calcula ni confirma montos. Con montos
+      se valida ±0.01 contra el premio calculado (compatibilidad, 422 si difiere)
+    - `tipo` ∈ ingreso|egreso|devolucion; `moneda` ∈ bs|usd|mixto;
+      `metodo_pago` ∈ efectivo|transferencia|pago_movil|punto_venta (default efectivo)
+    - 422 si el egreso no tiene resultado asignado o la apuesta no resultó ganadora
+    - Respuesta: 201 con el pago creado
 
 settings:
   encodeUrl: true

@@ -1,0 +1,48 @@
+info:
+  name: Crear Apuesta (Animalitos - Tripleta)
+  type: http
+  seq: 9
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/v1/apuestas"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "juego_id": 1,
+        "combinacion": {
+          "modalidad": "tripleta",
+          "selecciones": [
+            { "animal": "perro" },
+            { "animal": "gallina" },
+            { "animal": "lobo" }
+          ]
+        },
+        "amount_bs": 3600,
+        "amount_usd": 0,
+        "sorteo_hora": "2026-07-30 14:00:00"
+      }
+  auth: inherit
+
+docs:
+  - |
+    # Tripleta same-draw (multi-selección Animalitos)
+    - Roles: SM | M | B | G | T | A (todos los que crean apuestas)
+    - Autenticación: Sanctum + verify.mac — auth: inherit
+    - `combinacion.selecciones[]`: EXACTAMENTE 3 animales del MISMO sorteo (422 si ≠ 3);
+      con selecciones no viaja `combinacion.animal` raíz (S6)
+    - `modalidad` es derivada por el backend (`tripleta` si 3 selecciones); `sorteo_hora`
+      opcional (Y-m-d H:i:s, `after_or_equal:now`); al menos un monto > 0 (BS o USD)
+    - Respuesta: 201 con la apuesta creada (estado `pendiente`)
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -20,6 +20,13 @@ runtime:
             expect(res.getBody()).to.have.property('message');
         });
 
+docs:
+  - |
+    # Cerrar sesión (revoca el token Sanctum)
+    - Roles: todos los autenticados · Autenticación: Sanctum (Bearer) — auth: inherit
+    - Fuera de verify.mac (no exige headers de dispositivo)
+    - Respuesta: 200 con `{ "message": ... }`; el token deja de ser válido
+
 settings:
   encodeUrl: true
   timeout: 0

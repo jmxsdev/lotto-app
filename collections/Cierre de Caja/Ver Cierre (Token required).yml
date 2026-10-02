@@ -11,6 +11,14 @@ http:
       value: Bearer {{token}}
   auth: inherit
 
+docs:
+  - |
+    # Ver detalle de un cierre
+    - Roles: SM | M | B | G | T | A (403 si el cierre está fuera del alcance jerárquico)
+    - Autenticación: Sanctum + verify.mac — auth: inherit
+    - Respuesta: detalle del cierre con totales, desglose por método y `reclosed`
+      (re-cierre: `fecha_fin` extendida, `reclosed_by`/`reclosed_at`)
+
 settings:
   encodeUrl: true
   timeout: 0

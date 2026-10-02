@@ -1,3 +1,5 @@
+# NOTA: plantilla — NO rellenes credenciales reales aquí.
+# Usa un archivo personal gitignored (Local.local.yml — ver collections/.gitignore).
 name: Local
 variables:
   - name: baseUrl

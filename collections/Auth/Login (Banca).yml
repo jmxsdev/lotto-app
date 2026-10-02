@@ -30,6 +30,13 @@ runtime:
             console.log('Token guardado en el entorno activo');
         }
 
+docs:
+  - |
+    # Login de panel (Banca)
+    - Roles: B (banca) · Autenticación: `auth: none` + X-Panel: "true" (panel)
+    - Guarda `token` en el entorno activo con `bru.setEnvVar` (Bearer en el root)
+    - Sin credenciales rellenas → 401 (vacío falla ruidoso, no autentica otro rol)
+
 settings:
   encodeUrl: true
   timeout: 0
