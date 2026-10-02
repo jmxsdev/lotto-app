@@ -90,10 +90,14 @@ jobs:
 
       - name: Instalar dependencias taquilla
         working-directory: taquilla
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
         run: pnpm install --frozen-lockfile
 
       - name: Instalar dependencias panel
         working-directory: panel
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
         run: pnpm install --frozen-lockfile
 
       - name: Checks de iconografía (pure + icons)
