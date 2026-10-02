@@ -501,14 +501,16 @@ import Icon from '../components/ui/Icon.astro';
       font-style: italic;
     }
 
+    /* fix/taquilla-fixes: grilla de 2 columnas — las modalidades se reparten
+       en filas parejas (sin scroll horizontal) y ↑/↓ navega ±2. */
     .modalidad-grid {
-      display: flex;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 6px;
       margin-bottom: 10px;
     }
 
     .modalidad-btn {
-      flex: 1;
       padding: 8px 4px;
       border: 2px solid #ddd;
       border-radius: 6px;
@@ -1527,7 +1529,7 @@ import Icon from '../components/ui/Icon.astro';
         const nombre = `<span class="juego-name"${archivo ? ' hidden' : ''}>${j.nombre}</span>`;
         // El emoji decorativo acompaña SOLO al fallback sin logo: junto al logo
         // era ruido visual (pedido del usuario).
-        const icono = archivo ? '' : `<span class="juego-icon" aria-hidden="true">${icon}</span>`;
+        const iconoDecorativo = archivo ? '' : `<span class="juego-icon" aria-hidden="true">${icon}</span>`;
         // Caption del roving focus: con logos, el nombre solo se ve al enfocar
         // la tarjeta con ↑/↓ o al pasar el mouse (overlay, ver .juego-caption).
         // `alt`/`title` del <img> se mantienen como refuerzo accesible.
@@ -1540,7 +1542,7 @@ import Icon from '../components/ui/Icon.astro';
         // tabindex="-1" (FIX-1, KB-01): las tarjetas son ítems del roving
         // focus (↑/↓ + Enter); sin esto moverFila().focus() era un no-op.
         return `<div class="juego-card${selected}" data-id="${j.id}" tabindex="-1">
-          ${icono}
+          ${iconoDecorativo}
           ${contenido}
         </div>`;
       }).join('');
@@ -2808,18 +2810,30 @@ import Icon from '../components/ui/Icon.astro';
       };
       const el = objetivoZona(zona);
       if (!el) return [];
-      return Array.from(el.querySelectorAll(selectores[zona] || ''));
+      const items = Array.from(el.querySelectorAll(selectores[zona] || ''));
+      // S3 taquilla-operativa (spec taquilla-navegacion §1): en tripletas
+      // zodiacales la zona `seleccion` está INERTE (sin .animal-check ni
+      // .opcion-item) y el selector de modalidad vive DENTRO de ella
+      // (#modalidad-grid). Fallback: ↑/↓ navegan sus .modalidad-btn para que
+      // el foco no se atasque en una zona sin ítems (Triple A/B/C alcanzable).
+      if (zona === 'seleccion' && items.length === 0) {
+        const modalidadGrid = el.querySelector('#modalidad-grid');
+        if (modalidadGrid) return Array.from(modalidadGrid.querySelectorAll('.modalidad-btn'));
+      }
+      return items;
     }
 
     // ↑/↓ contextuales (KB-03): recorren la lista activa de la zona enfocada
-    // en orden DOM; sin wrap (el wrap es de zonas con Tab). En la zona Juegos
-    // la lista es un grid de 2 columnas (feat/taquilla-logos-juegos): el salto
-    // es de una fila (±2) y conserva la columna; el resto de zonas sigue ±1.
+    // en orden DOM; sin wrap (el wrap es de zonas con Tab). En las grillas de
+    // 2 columnas (Juegos y modalidades, incl. el fallback de `seleccion`) el
+    // salto es de una fila (±2) y conserva la columna; el resto de zonas ±1.
     // El cálculo de índice vive en el módulo puro utils/gridNav.ts.
     function moverFila(delta) {
       const items = itemsDeZona(zonaActual);
       if (items.length === 0) return;
-      const paso = zonaActual === 'juegos' ? 2 : 1;
+      const primero = items[0];
+      const esGrilla = primero.classList?.contains('juego-card') || primero.classList?.contains('modalidad-btn');
+      const paso = esGrilla ? 2 : 1;
       const idx = items.indexOf(document.activeElement);
       const destino = indiceDestinoFila(idx, items.length, delta, paso);
       if (destino === null) return;
@@ -2828,13 +2842,17 @@ import Icon from '../components/ui/Icon.astro';
       objetivo.scrollIntoView({ block: 'nearest' });
     }
 
-    // ←/→ en el grid de Juegos (feat/taquilla-logos-juegos): primero la celda
-    // adyacente de la MISMA fila (columna ±1, sin wrap) — permitido aunque haya
-    // selección en curso; en el borde (null) el glue cae al cambio de pestaña
-    // con su guard (FIX-3c). Devuelve true si movió el foco.
+    // ←/→ en las grillas de 2 columnas (Juegos y modalidades): primero la
+    // celda adyacente de la MISMA fila (columna ±1, sin wrap) — permitido
+    // aunque haya selección en curso; en el borde (null) el glue cae al
+    // cambio de pestaña (Juegos) o de zona (modalidad/seleccion). Devuelve
+    // true si movió el foco.
     function moverColumna(delta) {
-      const items = itemsDeZona('juegos');
+      const items = itemsDeZona(zonaActual);
       if (items.length === 0) return false;
+      const primero = items[0];
+      const esGrilla = primero.classList?.contains('juego-card') || primero.classList?.contains('modalidad-btn');
+      if (!esGrilla) return false;
       const idx = items.indexOf(document.activeElement);
       const destino = indiceDestinoColumna(idx, items.length, delta);
       if (destino === null) return false;
@@ -2951,6 +2969,11 @@ import Icon from '../components/ui/Icon.astro';
         ? modalidadNueva.digitos
         : (juego.familia === 'zodiacal' ? 3 : 2);
       input.value = (input.value + digito).slice(0, maxDigitos);
+      // S4 taquilla-operativa (spec taquilla-navegacion §2): foco DIRECTO al
+      // input Número, espejo síncrono de F2 — sin re-render en el mismo tick
+      // que invalide el foco. zonaActual + focus() explícito + enfocarZona.
+      zonaActual = 'numero';
+      input.focus({ preventScroll: true });
       enfocarZona('numero');
     }
 
@@ -3245,8 +3268,11 @@ import Icon from '../components/ui/Icon.astro';
             if (moverColumna(1)) break;
             if (!decision.ejecutable) { mostrarAvisoTab('Finalice la selección actual antes de cambiar de pestaña (F11 Limpiar todo)'); break; }
             activarTab(tabSiguiente()); break;
-          case 'zona-izquierda': moverHorizontal('izquierda'); break; // FIX-3a
-          case 'zona-derecha': moverHorizontal('derecha'); break; // FIX-3a
+          // fix/taquilla-fixes: en modalidad (y el fallback de seleccion) ←/→
+          // mueven primero la celda de la grilla 2 columnas; en el borde caen
+          // al cambio de zona (FIX-3a).
+          case 'zona-izquierda': if (!moverColumna(-1)) moverHorizontal('izquierda'); break;
+          case 'zona-derecha': if (!moverColumna(1)) moverHorizontal('derecha'); break;
           case 'fila-anterior': moverFila(-1); break;
           case 'fila-siguiente': moverFila(1); break;
           case 'marcar-todos': marcarTodosHorarios(); break;

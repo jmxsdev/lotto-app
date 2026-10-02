@@ -9,11 +9,14 @@ use App\Models\ExchangeRate;
 use App\Models\Pago;
 use App\Models\Taquilla;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class CierreService
 {
+    public function __construct(private ComisionService $comisionService) {}
+
     /**
      * Ejecutar el cierre de caja de una taquilla (máquina).
      *
@@ -103,6 +106,7 @@ class CierreService
             'total_egresos_usd' => $totales['total_egresos_usd'],
             'total_efectivo_bs' => $totales['total_efectivo_bs'],
             'total_efectivo_usd' => $totales['total_efectivo_usd'],
+            'comision_bs_equivalent' => $totales['comision_bs_equivalent'],
             'arqueo_efectivo_bs' => $arqueoBs,
             'arqueo_efectivo_usd' => $arqueoUsd,
             'faltante_sobrante_bs' => $arqueoBs !== null
@@ -266,6 +270,17 @@ class CierreService
 
         $desglose = $this->armarDesglose($ventasDesglose, $egresosDesglose);
 
+        // Comisión del período (D10 + enmienda 2026-10-01): total de la
+        // cadena que cobra sobre las ventas de la taquilla — banca + grupo +
+        // taquilla — cada nivel a su tasa liquidable (D11). El rango se
+        // normaliza a días (startOfDay/endOfDay en comisionesReporte); los
+        // totales previos no cambian.
+        $comision = $this->comisionCadena(
+            $taquillaId,
+            Carbon::parse($fechaInicio),
+            Carbon::parse($fechaFin)
+        );
+
         return [
             'total_ventas_bs' => round($totalVentasBs, 2),
             'total_ventas_usd' => round($totalVentasUsd, 2),
@@ -275,7 +290,30 @@ class CierreService
             'total_efectivo_bs' => round($totalVentasBs - $totalEgresosBs, 2),
             'total_efectivo_usd' => round($totalVentasUsd - $totalEgresosUsd, 2),
             'desglose_metodos' => $desglose,
+            'comision_bs_equivalent' => round($comision, 2),
         ];
+    }
+
+    /**
+     * Total de comisión de la cadena que cobra sobre las ventas de una
+     * taquilla: banca + grupo + taquilla, cada nivel a su tasa liquidable
+     * (D11). Sin grupo/banca asociados solo computa la taquilla.
+     */
+    private function comisionCadena(int $taquillaId, Carbon $desde, Carbon $hasta): float
+    {
+        $taquilla = Taquilla::with('grupo')->find($taquillaId);
+
+        $total = $this->comisionService->comisionEntidad('taquilla', $taquillaId, $desde, $hasta);
+
+        if ($taquilla?->grupo_id) {
+            $total += $this->comisionService->comisionEntidad('grupo', $taquilla->grupo_id, $desde, $hasta);
+        }
+
+        if ($taquilla?->grupo?->banca_id) {
+            $total += $this->comisionService->comisionEntidad('banca', $taquilla->grupo->banca_id, $desde, $hasta);
+        }
+
+        return round($total, 2);
     }
 
     /**
@@ -364,6 +402,7 @@ class CierreService
             'total_egresos_usd' => 0.0,
             'total_efectivo_bs' => 0.0,
             'total_efectivo_usd' => 0.0,
+            'comision_bs_equivalent' => 0.0,
             'arqueo_efectivo_bs' => null,
             'arqueo_efectivo_usd' => null,
             'faltante_sobrante_bs' => null,
@@ -381,6 +420,7 @@ class CierreService
             $totales['total_egresos_usd'] += (float) $cierre->total_egresos_usd;
             $totales['total_efectivo_bs'] += (float) $cierre->total_efectivo_bs;
             $totales['total_efectivo_usd'] += (float) $cierre->total_efectivo_usd;
+            $totales['comision_bs_equivalent'] += (float) ($cierre->comision_bs_equivalent ?? 0);
 
             foreach (['arqueo_efectivo_bs', 'arqueo_efectivo_usd', 'faltante_sobrante_bs', 'faltante_sobrante_usd'] as $campo) {
                 if ($cierre->{$campo} !== null) {
@@ -411,6 +451,7 @@ class CierreService
             'total_egresos_usd' => round($totales['total_egresos_usd'], 2),
             'total_efectivo_bs' => round($totales['total_efectivo_bs'], 2),
             'total_efectivo_usd' => round($totales['total_efectivo_usd'], 2),
+            'comision_bs_equivalent' => round($totales['comision_bs_equivalent'], 2),
             'arqueo_efectivo_bs' => $totales['arqueo_efectivo_bs'] !== null ? round($totales['arqueo_efectivo_bs'], 2) : null,
             'arqueo_efectivo_usd' => $totales['arqueo_efectivo_usd'] !== null ? round($totales['arqueo_efectivo_usd'], 2) : null,
             'faltante_sobrante_bs' => $totales['faltante_sobrante_bs'] !== null ? round($totales['faltante_sobrante_bs'], 2) : null,
@@ -428,6 +469,7 @@ class CierreService
                 'total_egresos_usd' => $cierre->total_egresos_usd,
                 'total_efectivo_bs' => $cierre->total_efectivo_bs,
                 'total_efectivo_usd' => $cierre->total_efectivo_usd,
+                'comision_bs_equivalent' => $cierre->comision_bs_equivalent,
                 'arqueo_efectivo_bs' => $cierre->arqueo_efectivo_bs,
                 'arqueo_efectivo_usd' => $cierre->arqueo_efectivo_usd,
                 'faltante_sobrante_bs' => $cierre->faltante_sobrante_bs,

@@ -28,7 +28,7 @@ class TripleTachiraSeeder extends Seeder
         // texto extraído con pdftotext el 12-sep-2026): A/B 500x, Terminal (cola,
         // 2 últimos dígitos) 50x, Triple+Signo Zodiacal 5.000x.
         // La página informativa (resultadosvenezuela.com) declara 600/60/6.000
-        // → desajuste H9 en docs/comparacion-juegos.md; aquí mandan los valores
+        // → desajuste H9 en docs/cliente/comparacion-juegos.md; aquí mandan los valores
         // oficiales del reglamento.
         $juego = Juego::firstOrCreate(
             ['slug' => 'triple-tachira'],
@@ -82,7 +82,7 @@ class TripleTachiraSeeder extends Seeder
 
         // Horarios oficiales: 1:15 / 4:45 / 10:10 PM → 13:15, 16:45, 22:10
         // (3 sorteos diarios; el 3er sorteo es 22:10, NO 19:20 como declara la
-        // informativa — desajuste H9 documentado en docs/comparacion-juegos.md).
+        // informativa — desajuste H9 documentado en docs/cliente/comparacion-juegos.md).
         foreach (['13:15', '16:45', '22:10'] as $hora) {
             JuegoHorario::firstOrCreate(
                 ['juego_id' => $juego->id, 'hora' => $hora],

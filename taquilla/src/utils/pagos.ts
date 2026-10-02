@@ -2,7 +2,7 @@
  * Pago de premios (módulo puro, sin DOM ni I/O; Lin-testable vía
  * scripts/check-pure.mjs con Node 24 type-stripping).
  *
- * Contrato backend (docs/integracion-front-motor-premios.md §1.3,
+ * Contrato backend (docs/dev/integracion-front-motor-premios.md §1.3,
  * PagoController): `POST /pagos {apuesta_id, tipo:'egreso', moneda}` —
  * los montos son OPCIONALES; el backend aplica el premio calculado por el
  * motor y responde `premio: {premio_bs, premio_usd}`. La taquilla no

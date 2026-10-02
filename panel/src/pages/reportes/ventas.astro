@@ -102,7 +102,7 @@ import Icon from '../../components/Icon.astro';
           return;
         }
 
-        let html = '<div class="table-wrap"><table><thead><tr><th>Entidad</th><th class="number">Venta</th><th class="number">Premio</th><th class="number">Porcentaje</th><th class="number">Utilidad</th><th class="number">Participación</th><th class="number">Total</th></tr></thead><tbody>';
+        let html = '<div class="table-wrap"><table><thead><tr><th>Entidad</th><th class="number">Venta</th><th class="number">Premio</th><th class="number">Porcentaje</th><th class="number">Utilidad</th><th class="number">Participación</th><th class="number">Total</th><th class="number">Comisión</th></tr></thead><tbody>';
         items.forEach(row => {
           html += `<tr>
             <td><strong>${row.Entidad || '-'}</strong></td>
@@ -112,6 +112,7 @@ import Icon from '../../components/Icon.astro';
             <td class="number">${row.Utilidad?.toLocaleString('es-VE', {minimumFractionDigits:2}) || '0.00'}</td>
             <td class="number">${row.Participación ?? row.Participacion ?? '0.00'}%</td>
             <td class="number">${row.Total ?? '-'}</td>
+            <td class="number">${row.Comision?.toLocaleString('es-VE', {minimumFractionDigits:2}) || '0.00'}</td>
           </tr>`;
         });
         html += '</tbody></table></div>';
