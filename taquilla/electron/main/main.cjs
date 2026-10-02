@@ -3,11 +3,19 @@ const path = require('path');
 const fs = require('fs');
 const { registerIpcHandlers } = require('./ipcHandlers.cjs');
 const { createUpstreamResolver } = require('./upstream.cjs');
+const { initUpdater } = require('./updater.cjs');
 
 let mainWindow;
 
 // Resolver de upstream: dev lee env con fallback prod; empaquetado siempre prod.
 const upstream = createUpstreamResolver({ isPackaged: app.isPackaged, env: process.env });
+
+// Updater OTA (TQ-10): solo activo empaquetado; el feed deriva del upstream.
+const updater = initUpdater({
+    upstream: upstream.get(),
+    getWindow: () => mainWindow,
+    isPackaged: app.isPackaged,
+});
 
 // Determinar la ruta de la carpeta dist (estáticos)
 function getDistPath() {
@@ -256,7 +264,8 @@ async function createWindow() {
 }
 
 app.whenReady().then(async () => {
-    registerIpcHandlers(upstream);
+    registerIpcHandlers(upstream, updater);
+    updater.start(); // chequeo al boot + cada 1 h (no-op en desarrollo)
     registerCustomProtocol();  // app://
     registerApiProtocol();     // api://
 
