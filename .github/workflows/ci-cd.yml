@@ -289,4 +289,20 @@ jobs:
             echo "healthcheck falló; rollback aplicado"
             exit 1
           fi
+
+          # REQ-6: el volumen del instalador debe montarse en la ruta real y ser consistente.
+          DEST=$(ssh $SSH_OPTS "$TARGET" "docker inspect lotto_api_prod --format '{{range .Mounts}}{{if eq .Destination \"/app/storage/app/releases\"}}{{.Destination}}{{end}}{{end}}'" || true)
+          if [ "$DEST" != "/app/storage/app/releases" ]; then
+            echo "FALLO: taquilla_releases no está montado en /app/storage/app/releases"
+            exit 1
+          fi
+          CODE=$(ssh $SSH_OPTS "$TARGET" "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:10000/api/v1/update-check" || true)
+          if [ "$CODE" = "200" ]; then
+            EXP=$(ssh $SSH_OPTS "$TARGET" "curl -s http://127.0.0.1:10000/api/v1/update-check" | sed -n 's/.*\"sha256\":\"\([a-f0-9]\{64\}\)\".*/\1/p')
+            ACT=$(ssh $SSH_OPTS "$TARGET" "docker exec lotto_api_prod sh -c 'sha256sum /app/storage/app/releases/*.exe 2>/dev/null'" | awk '{print $1}' | head -1 || true)
+            if [ -n "$EXP" ] && [ "$EXP" != "$ACT" ]; then
+              echo "FALLO: sha256 del instalador no coincide (update-check=$EXP, archivo=$ACT)"
+              exit 1
+            fi
+          fi
           echo "deploy OK"
