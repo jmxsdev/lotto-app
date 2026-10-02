@@ -1,0 +1,27 @@
+info:
+  name: Cuadre de Caja
+  type: http
+  seq: 5
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/v1/reportes/cuadre-caja?fecha_desde=2026-09-01&fecha_hasta=2026-09-30&nivel=banca&moneda=bs"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+  auth: inherit
+
+docs:
+  - |
+    # Cuadre de caja por nivel
+    - Roles: SM | M | B | G | T | A (todos los autenticados; alcance jerárquico)
+    - Autenticación: Sanctum + verify.mac — auth: inherit
+    - `nivel` opcional: banca (default) | grupo | agencia | taquilla; `moneda` opcional: bs | usd
+    - `tipo_juego` opcional; `fecha_desde`/`fecha_hasta` filtran apuestas
+    - Respuesta: `{ "data": [...], "totales": {...} }`
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

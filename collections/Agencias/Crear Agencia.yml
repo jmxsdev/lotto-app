@@ -1,0 +1,43 @@
+info:
+  name: Crear Agencia
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/v1/agencias"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Agencia Centro",
+        "code": "AGE-001",
+        "grupo_id": 1,
+        "active": true,
+        "rif": "J-12345678-9",
+        "email": "centro@lotto.com",
+        "telefono": "0414-5551234",
+        "direccion": "Av. Principal, Local 5",
+        "estado": "Miranda",
+        "municipio": "Chacao"
+      }
+  auth: inherit
+
+docs:
+  - |
+    # Crear agencia (local físico)
+    - Roles: SM | M | B | G (agencia → 403: solo lectura de su local)
+    - Autenticación: Sanctum + verify.mac — auth: inherit
+    - `name`, `code` (único) y `grupo_id` son required (422 si faltan)
+    - Respuesta: 201 con la agencia creada (relación `grupo.banca`)
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

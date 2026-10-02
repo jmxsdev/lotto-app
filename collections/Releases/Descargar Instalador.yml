@@ -1,0 +1,26 @@
+info:
+  name: Descargar Instalador
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/v1/releases/download"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+  auth: inherit
+
+docs:
+  - |
+    # Descargar instalador (URL firmada)
+    - Roles: SM | M | B | G | A (taquilla → 403; throttle `releases-download`)
+    - Autenticación: Sanctum + verify.mac — auth: inherit
+    - Respuesta: `{ "url", "expires_at" }` — URL firmada de expiración corta (5 min) para `serve`
+    - La taquilla NO usa este endpoint; su flujo es `update-check` (público)
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

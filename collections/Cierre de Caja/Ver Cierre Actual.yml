@@ -1,0 +1,31 @@
+info:
+  name: Ver Cierre Actual
+  type: http
+  seq: 6
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/v1/cierre/actual"
+  params:
+    - name: taquilla_id
+      value: "1"
+      type: query
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+  auth: inherit
+
+docs:
+  - |
+    # Previsualizar el cierre actual de una taquilla
+    - Roles: SM | M | B | G | T | A (admin: `taquilla_id` opcional dentro del alcance;
+      rol taquilla omite el param y usa su propia caja)
+    - Autenticación: Sanctum + verify.mac — auth: inherit
+    - Preview read-only: totales/desglose del período abierto sin persistir
+    - Errores 422 si no hay tasa de cambio activa o la taquilla está fuera de alcance
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

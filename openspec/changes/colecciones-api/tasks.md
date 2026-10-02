@@ -85,12 +85,12 @@ Totales: **27 faltantes = 2 (F1) + 25 (F2.2)**; F2.2 = 25 requests + 5 `folder.y
 
 ## Fase 3 — WU-F2.2a/2b (PR 3 → PR 2)
 
-- [ ] 3.1 Crear `collections/Agencias/` + `folder.yml` (seq 15) + 6 requests (Listar/Crear/Ver/Actualizar/Toggle/Eliminar).
-- [ ] 3.2 Crear `collections/Tickets/` (seq 16) + 5 requests (Listar/Crear/Ganadores/Ver/Anular); roles sin agencia.
-- [ ] 3.3 Crear `collections/Configuraciones/` (seq 17) + 2 requests (Ver/Actualizar Vencimiento).
-- [ ] 3.4 Crear `collections/Logs/` (seq 18) + 1 request (Listar Logs).
-- [ ] 3.5 Crear `collections/Releases/` (seq 19) + 4 requests (Última/Descargar/Servir/Update Check).
-- [ ] 3.6 Crear sueltos: Bancas Toggle, Grupos Toggle, Taquillas Toggle, Cierre Actual, Clave Cierre (GET), Apariciones, Cuadre de Caja.
+- [x] 3.1 Crear `collections/Agencias/` + `folder.yml` (seq 15) + 6 requests (Listar/Crear/Ver/Actualizar/Toggle/Eliminar).
+- [x] 3.2 Crear `collections/Tickets/` (seq 16) + 5 requests (Listar/Crear/Ganadores/Ver/Anular); roles sin agencia.
+- [x] 3.3 Crear `collections/Configuraciones/` (seq 17) + 2 requests (Ver/Actualizar Vencimiento).
+- [x] 3.4 Crear `collections/Logs/` (seq 18) + 1 request (Listar Logs).
+- [x] 3.5 Crear `collections/Releases/` (seq 19) + 4 requests (Última/Descargar/Servir/Update Check).
+- [x] 3.6 Crear sueltos: Bancas Toggle, Grupos Toggle, Taquillas Toggle, Cierre Actual, Clave Cierre (GET), Apariciones, Cuadre de Caja.
 
 ## Fase 4 — WU-F2.3 (PR 4 → PR 3)
 

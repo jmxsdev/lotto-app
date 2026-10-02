@@ -1,0 +1,26 @@
+info:
+  name: Toggle Grupo
+  type: http
+  seq: 5
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/v1/grupos/1/toggle"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+  auth: inherit
+
+docs:
+  - |
+    # Activar/desactivar grupo (toggle)
+    - Roles: SM | M | B (403 a otros roles; acceso jerárquico validado)
+    - Autenticación: Sanctum + verify.mac — auth: inherit
+    - Sin body; alterna `active` (true ↔ false)
+    - Respuesta: 200 con el grupo actualizado
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

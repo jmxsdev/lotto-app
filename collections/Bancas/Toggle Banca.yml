@@ -1,0 +1,26 @@
+info:
+  name: Toggle Banca
+  type: http
+  seq: 6
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/v1/bancas/1/toggle"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+  auth: inherit
+
+docs:
+  - |
+    # Activar/desactivar banca (toggle)
+    - Roles: SM | M (403 a otros roles)
+    - Autenticación: Sanctum + verify.mac — auth: inherit
+    - Sin body; alterna `active` (true ↔ false)
+    - Respuesta: 200 con la banca actualizada
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

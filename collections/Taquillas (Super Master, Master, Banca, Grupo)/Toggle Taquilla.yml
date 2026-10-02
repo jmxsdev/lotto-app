@@ -1,0 +1,26 @@
+info:
+  name: Toggle Taquilla
+  type: http
+  seq: 5
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/v1/taquillas/1/toggle"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+  auth: inherit
+
+docs:
+  - |
+    # Activar/desactivar taquilla (toggle)
+    - Roles: SM | M | B | G | A (403 a otros roles; acceso jerárquico validado)
+    - Autenticación: Sanctum + verify.mac — auth: inherit
+    - Sin body; alterna `active` (true ↔ false)
+    - Respuesta: 200 con la taquilla actualizada
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
