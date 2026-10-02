@@ -46,13 +46,13 @@ Documentos complementarios del repo: `docs/dev/deploy.md` (despliegue del VPS de
 | Servicio | Imagen | Puerto | Notas |
 |---|---|---|---|
 | `caddy` | `caddy:2.9-alpine` | 80/443 públicos | TLS automático; `lotto.gzuz.dev` → `reverse_proxy api:10000` con headers de seguridad (`Caddyfile:9-19`). |
-| `api` | `ghcr.io/jmxsdev/lotto-app-api:${IMAGE_TAG:-latest}` | `127.0.0.1:10000` | FrankenPHP (PHP 8.3). `env_file: .env.production`. Volumen `taquilla_releases:/var/www/html/storage/app/releases`. Healthcheck interno contra `/api/v1/juegos` esperando `200|401` (`docker-compose.prod.yml:52-57`). |
+| `api` | `ghcr.io/jmxsdev/lotto-app-api:${IMAGE_TAG:-latest}` | `127.0.0.1:10000` | FrankenPHP (PHP 8.3). `env_file: .env.production`. Volumen `taquilla_releases:/app/storage/app/releases` (ruta real, `WORKDIR=/app`; persiste entre deploys). Healthcheck interno contra `/api/v1/juegos` esperando `200|401` (`docker-compose.prod.yml:52-57`). |
 | `horizon` | Misma imagen que `api`, con `RUN_HORIZON=true` | interno | Worker de colas. **No ejecuta migraciones** (ver §3). Healthcheck: `php artisan horizon:status`. |
 | `scheduler` | Misma imagen que `api`, con `RUN_SCHEDULER=true` | interno | Agenda `php artisan schedule:work` (`docker-compose.prod.yml:70-86`, `entrypoint.sh:66-69`). **No ejecuta migraciones** (ver §3). Healthcheck: `php artisan schedule:list`. |
 | `mysql` | `mysql:8.0` | `127.0.0.1:3306` | Solo loopback (túneles SSH/GUI). Datos en volumen `mysql_prod_data`. |
 | `redis` | `redis:7.2-alpine` | interno | AOF `everysec`; datos en `redis_prod_data`. |
 
-Volúmenes declarados (`docker-compose.prod.yml:110-115`): `mysql_prod_data`, `redis_prod_data`, `caddy_data`, `caddy_config`, `taquilla_releases`.
+Volúmenes declarados (`docker-compose.prod.yml:138-143`): `mysql_prod_data`, `redis_prod_data`, `caddy_data`, `caddy_config`, `taquilla_releases`.
 
 ### 2.2 Pipeline CI/CD (.github/workflows/ci-cd.yml)
 
@@ -190,8 +190,9 @@ grep -r "api:" dist/               # 3. consistencia: bases de API idénticas en
   → php artisan releases:publish <ruta-del-.exe>     (ReleasePublishCommand)
   → el comando calcula SHA-256, mueve el archivo al disco "releases"
     y REEMPLAZA la fila única de releases (D3: sin historial)
-  → el disco "releases" (storage/app/releases) vive en el volumen
-    persistente taquilla_releases → sobrevive a redeploys
+  → el disco "releases" está montado desde el volumen persistente
+    taquilla_releases en /app/storage/app/releases (WORKDIR del
+    contenedor) → sobrevive a la recreación del contenedor en deploys
   → la app instalada consulta GET /api/v1/update-check (público, throttle 30/min)
   → el panel consulta GET /api/v1/releases/latest y pide
      GET /api/v1/releases/download → devuelve URL firmada (5 min)
@@ -351,7 +352,7 @@ Orden recomendado de alta: banca → grupo → agencia → taquilla → usuario 
 |---|---|
 | Pipeline (tests → GHCR → SSH deploy → rollback) | `.github/workflows/ci-cd.yml` |
 | Migraciones al arranque / Horizon y scheduler las omiten / CORS `*` por defecto / log `stderr` | `backend/entrypoint.sh` |
-| Servicios, volúmenes (incl. `taquilla_releases` y textfile `/var/lib/lotto-metrics`), healthchecks | `docker-compose.prod.yml` |
+| Servicios, volúmenes (incl. `taquilla_releases` montado en `/app/storage/app/releases` y textfile `/var/lib/lotto-metrics`), healthchecks | `docker-compose.prod.yml` |
 | Rutas públicas/autenticadas, throttles, releases | `backend/routes/api.php` |
 | Throttle `releases-download` (10/min) | `backend/app/Providers/AppServiceProvider.php:29-30` |
 | `releases:publish` (SHA-256, fila única D3) | `backend/app/Console/Commands/ReleasePublishCommand.php` |
