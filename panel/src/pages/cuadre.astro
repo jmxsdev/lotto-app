@@ -107,7 +107,7 @@ import Icon from '../components/Icon.astro';
           return;
         }
 
-        let html = '<div class="table-wrap"><table><thead><tr><th>Entidad</th><th class="number">Venta</th><th class="number">Pagados</th><th class="number">Devoluciones</th><th class="number">Vencidos</th><th class="number">Efectivo</th><th class="number">Peso Venta (%)</th><th class="number">Participación (%)</th></tr></thead><tbody>';
+        let html = '<div class="table-wrap"><table><thead><tr><th>Entidad</th><th class="number">Venta</th><th class="number">Pagados</th><th class="number">Devoluciones</th><th class="number">Vencidos</th><th class="number">Efectivo</th><th class="number">Comisión</th><th class="number">Peso Venta (%)</th><th class="number">Participación (%)</th></tr></thead><tbody>';
         items.forEach(row => {
           html += `<tr>
             <td><strong>${row.Entidad || '-'}</strong></td>
@@ -116,6 +116,7 @@ import Icon from '../components/Icon.astro';
             <td class="number">${fmt(row.Devoluciones)}</td>
             <td class="number">${fmt(row.Vencidos)}</td>
             <td class="number">${fmt(row.Efectivo)}</td>
+            <td class="number">${fmt(row.Comision)}</td>
             <td class="number">${fmtPct(row.PesoVenta)}</td>
             <td class="number">${fmtPct(row.Participacion)}</td>
           </tr>`;
@@ -126,6 +127,7 @@ import Icon from '../components/Icon.astro';
           `<td class="number">${fmt(totales.Devoluciones)}</td>` +
           `<td class="number">${fmt(totales.Vencidos)}</td>` +
           `<td class="number">${fmt(totales.Efectivo)}</td>` +
+          `<td class="number">${fmt(totales.Comision)}</td>` +
           `<td class="number">${fmtPct(totales.PesoVenta)}</td>` +
           `<td class="number">${fmtPct(totales.Participacion)}</td>` +
           '</tr></tfoot></table></div>';

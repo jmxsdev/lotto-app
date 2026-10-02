@@ -12,7 +12,7 @@ use Tests\TestCase;
 /**
  * Verificación integral (WU f22) — los 7 juegos originales contra sus fuentes
  * oficiales (lottoactivo.com / resultadostriplezulia.com). Cada aserción tiene
- * su evidencia documentada en docs/seguimiento-verificacion.md (feed oficial
+ * su evidencia documentada en docs/cliente/seguimiento-verificacion.md (feed oficial
  * muestreado 2026-09-10..14, reglamentos PDF del sitio oficial y FAQ oficial).
  */
 class VerificacionOriginalesTest extends TestCase

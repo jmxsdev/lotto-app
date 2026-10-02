@@ -11,7 +11,9 @@ use App\Models\JuegoLimite;
 use App\Models\Taquilla;
 use App\Services\JuegoLimiteService;
 use App\Services\JuegoPluginManager;
+use App\Services\PremiosConfigService;
 use App\Services\PremiosEngine;
+use App\Support\PremiosOficiales;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -49,12 +51,13 @@ class JuegoController extends Controller
             'updated_by' => $user->id,
         ]);
 
-        if ($juego->pluginJuego) {
-            $juego->pluginJuego->update([
-                'active' => $newActive,
-                'updated_by' => $user->id,
-            ]);
-        }
+        // Sincroniza el plugin en AMBOS sentidos: la relación `pluginJuego`
+        // filtra por active=true (devuelve null al reactivar), así que se
+        // actualiza por la relación sin filtro (pluginJuegos).
+        $juego->pluginJuegos()->update([
+            'active' => $newActive,
+            'updated_by' => $user->id,
+        ]);
 
         JuegoAuditoria::create([
             'juego_id' => $juego->id,
@@ -99,6 +102,62 @@ class JuegoController extends Controller
         ]);
 
         return response()->json($juego->load('pluginJuego'));
+    }
+
+    /**
+     * Edición atómica de premios (D1/D2/D3, spec configuracion-premios):
+     * PUT /api/v1/juegos/{juego}/premios.
+     *
+     * El body ES el objeto `premios` completo ({base, modalidades, comodines}).
+     * Validación estricta del esquema + claves de modalidad en plugin ∪
+     * catálogo oficial; el servicio hace el merge seguro, los espejos legacy
+     * y la auditoría `accion=premios`. Solo roles super_master|master (ruta).
+     */
+    public function updatePremios(Request $request, Juego $juego)
+    {
+        $user = $request->user();
+
+        // REQ7/D3: la-ricachona (y cualquier juego sin base oficial) no tiene
+        // premios configurables → 422 con mensaje claro.
+        $oficial = PremiosOficiales::para($juego->slug);
+        if ($oficial === null || ! isset($oficial['base'])) {
+            return response()->json(['message' => 'Este juego no tiene premios oficiales configurables.'], 422);
+        }
+
+        $request->validate([
+            'base' => 'required|integer|min:1',
+            'modalidades' => 'sometimes|array',
+            'modalidades.*' => 'integer|min:1',
+            'comodines' => 'sometimes|array',
+            'comodines.*.tipo' => 'required|in:flag,letra,numero,palabra',
+            'comodines.*.premio_multiplo' => 'required|integer|min:1',
+        ]);
+
+        // Reemplazo atómico: omitir modalidades/comodines los deja vacíos.
+        $premios = $request->only(['base', 'modalidades', 'comodines']);
+        $premios['modalidades'] ??= [];
+        $premios['comodines'] ??= [];
+
+        // D3: claves de modalidad válidas en plugin->obtenerModalidades() ∪
+        // catálogo oficial, sin bloquear claves canónicas que el plugin no liste.
+        $service = app(PremiosConfigService::class);
+        $clavesValidas = $service->clavesModalidadValidas($juego);
+        foreach (array_keys($premios['modalidades']) as $clave) {
+            if (! in_array($clave, $clavesValidas, true)) {
+                return response()->json(['message' => "La modalidad [{$clave}] no es válida para este juego."], 422);
+            }
+        }
+
+        // `acumulativo` solo es válido con tipo=palabra (spec).
+        foreach ($premios['comodines'] as $clave => $comodin) {
+            if (! empty($comodin['acumulativo']) && ($comodin['tipo'] ?? null) !== 'palabra') {
+                return response()->json(['message' => "El comodín [{$clave}] solo puede ser acumulativo con tipo 'palabra'."], 422);
+            }
+        }
+
+        $juego = $service->actualizar($juego, $premios, $user->id);
+
+        return response()->json($juego->load('pluginJuego', 'updatedByUser'));
     }
 
     public function opciones(Juego $juego)
@@ -367,12 +426,15 @@ class JuegoController extends Controller
     /**
      * Upsert de límites para un juego.
      * PUT /api/limites/{juego}
+     *
+     * super_master/master/banca escriben según su alcance; el rol grupo
+     * solo dentro de su subárbol (su grupo y sus taquillas).
      */
     public function updateLimites(Request $request, Juego $juego)
     {
         $user = $request->user();
 
-        if (! in_array($user->role, ['super_master', 'master', 'banca'])) {
+        if (! in_array($user->role, ['super_master', 'master', 'banca', 'grupo'])) {
             return response()->json(['message' => 'No tienes permiso para configurar límites.'], 403);
         }
 
@@ -400,8 +462,13 @@ class JuegoController extends Controller
             );
         }
 
-        // Verificar acceso a la banca
-        $this->authorizeBancaLimitAccess($user, $request->banca_id);
+        // Verificar alcance de escritura (grupo solo dentro de su subárbol)
+        $this->authorizeEscrituraLimite(
+            $user,
+            (int) $request->banca_id,
+            $request->grupo_id !== null ? (int) $request->grupo_id : null,
+            $request->taquilla_id !== null ? (int) $request->taquilla_id : null,
+        );
 
         $limite = JuegoLimite::updateOrCreate(
             [
@@ -429,7 +496,7 @@ class JuegoController extends Controller
     {
         $user = $request->user();
 
-        if (! in_array($user->role, ['super_master', 'master', 'banca'])) {
+        if (! in_array($user->role, ['super_master', 'master', 'banca', 'grupo'])) {
             return response()->json(['message' => 'No tienes permiso para configuración masiva de límites.'], 403);
         }
 
@@ -479,6 +546,12 @@ class JuegoController extends Controller
                     ], 422);
                 }
             }
+
+            // El rol grupo solo expande dentro de su subárbol (su grupo y
+            // sus taquillas); cualquier objetivo fuera ⇒ 403.
+            if ($user->role === 'grupo') {
+                $this->assertObjetivosDentroDelGrupo($user, $objetivos);
+            }
         }
 
         $resultados = [];
@@ -489,7 +562,12 @@ class JuegoController extends Controller
 
                 if ($objetivos === null) {
                     // Modo legacy: cada ítem con su banca_id (y opcional grupo/taquilla)
-                    $this->authorizeBancaLimitAccess($user, $item['banca_id']);
+                    $this->authorizeEscrituraLimite(
+                        $user,
+                        (int) $item['banca_id'],
+                        ! empty($item['grupo_id']) ? (int) $item['grupo_id'] : null,
+                        ! empty($item['taquilla_id']) ? (int) $item['taquilla_id'] : null,
+                    );
 
                     if (! empty($item['grupo_id']) || ! empty($item['taquilla_id'])) {
                         $this->limites->validarRestrictividadLimite(
@@ -673,14 +751,15 @@ class JuegoController extends Controller
      * Eliminar un límite configurado.
      * DELETE /api/limites/{limite}
      *
-     * super_master/master eliminan cualquier límite; banca solo los de su banca.
+     * super_master/master eliminan cualquier límite; banca solo los de su
+     * banca; grupo solo los de su grupo o sus taquillas.
      * El modelo se resuelve por binding implícito (404 si no existe).
      */
     public function destroyLimite(Request $request, JuegoLimite $limite)
     {
         $user = $request->user();
 
-        if (! in_array($user->role, ['super_master', 'master', 'banca'])) {
+        if (! in_array($user->role, ['super_master', 'master', 'banca', 'grupo'])) {
             return response()->json(['message' => 'No tienes permiso para eliminar límites.'], 403);
         }
 
@@ -690,6 +769,10 @@ class JuegoController extends Controller
 
         if ($user->role === 'banca' && (! $user->banca_id || $user->banca_id != $limite->banca_id)) {
             return response()->json(['message' => 'No tienes acceso a los límites de esta banca.'], 403);
+        }
+
+        if ($user->role === 'grupo' && ! $this->limiteDentroDelGrupo($user, $limite)) {
+            return response()->json(['message' => 'No tienes acceso a los límites de esta entidad.'], 403);
         }
 
         $limite->delete();
@@ -723,6 +806,113 @@ class JuegoController extends Controller
         }
 
         abort(403, 'No tienes acceso a esta banca.');
+    }
+
+    /**
+     * Verificar el alcance de ESCRITURA de un límite para el rol.
+     *
+     * - super_master: todo.
+     * - master: bancas que administra.
+     * - banca: su propia banca.
+     * - grupo: su propio grupo y sus taquillas (nunca nivel banca ni otro
+     *   grupo/taquilla).
+     */
+    private function authorizeEscrituraLimite($user, int $bancaId, ?int $grupoId, ?int $taquillaId): void
+    {
+        if ($user->role === 'super_master') {
+            return;
+        }
+
+        if ($user->role === 'master') {
+            $this->authorizeBancaLimitAccess($user, $bancaId);
+
+            return;
+        }
+
+        if ($user->role === 'banca') {
+            if ($user->banca_id == $bancaId) {
+                return;
+            }
+
+            abort(403, 'No tienes acceso a esta banca.');
+        }
+
+        if ($user->role === 'grupo') {
+            if ((int) $user->banca_id !== $bancaId || (int) $user->grupo_id !== $grupoId) {
+                abort(403, 'No tienes acceso a esta entidad.');
+            }
+
+            if ($taquillaId !== null) {
+                $enGrupo = Taquilla::whereKey($taquillaId)
+                    ->where('grupo_id', $user->grupo_id)
+                    ->exists();
+
+                if (! $enGrupo) {
+                    abort(403, 'No tienes acceso a esta taquilla.');
+                }
+            }
+
+            return;
+        }
+
+        abort(403, 'No tienes acceso a esta banca.');
+    }
+
+    /**
+     * ¿La fila de límite pertenece al subárbol del rol grupo (su grupo o
+     * una de sus taquillas)? El nivel banca queda fuera.
+     */
+    private function limiteDentroDelGrupo($user, JuegoLimite $limite): bool
+    {
+        if ($limite->grupo_id !== null) {
+            return (int) $limite->grupo_id === (int) $user->grupo_id;
+        }
+
+        if ($limite->taquilla_id !== null) {
+            return Taquilla::whereKey($limite->taquilla_id)
+                ->where('grupo_id', $user->grupo_id)
+                ->exists();
+        }
+
+        return false;
+    }
+
+    /**
+     * El rol grupo solo expande dentro de su subárbol: su propio grupo y
+     * sus taquillas. Cualquier objetivo a nivel banca u otra entidad ⇒ 403.
+     *
+     * @param  array<int, array{nivel: string, id: int}>  $objetivos
+     */
+    private function assertObjetivosDentroDelGrupo($user, array $objetivos): void
+    {
+        foreach ($objetivos as $objetivo) {
+            if ($objetivo['nivel'] === 'grupo' && (int) $objetivo['id'] === (int) $user->grupo_id) {
+                continue;
+            }
+
+            if ($objetivo['nivel'] === 'taquilla') {
+                continue; // se valida en bloque abajo
+            }
+
+            abort(403, 'No tienes acceso a la entidad raíz del alcance.');
+        }
+
+        $taquillaIds = collect($objetivos)
+            ->where('nivel', 'taquilla')
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id);
+
+        if ($taquillaIds->isEmpty()) {
+            return;
+        }
+
+        $propias = Taquilla::whereIn('id', $taquillaIds)
+            ->where('grupo_id', $user->grupo_id)
+            ->count();
+
+        if ($propias !== $taquillaIds->count()) {
+            abort(403, 'No tienes acceso a la entidad raíz del alcance.');
+        }
     }
 
     /**

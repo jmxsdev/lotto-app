@@ -37,7 +37,7 @@ use Symfony\Component\DomCrawler\Crawler;
  * - El comodín "MEGA" (premio 40x automático) NO aparece como marcador en las cards
  *   (~11 fechas escaneadas: 11..3-sep + 12-sep parcial + 13-sep): las ocurrencias de "MEGA"
  *   en el HTML son el nombre del juego y la ruta de las imágenes (`mega-animal-40/`).
- *   Hallazgo documentado en docs/plataformas-juegos.md; NO se implementa detección de comodín.
+ *   Hallazgo documentado en docs/cliente/plataformas-juegos.md; NO se implementa detección de comodín.
  * - Sin ID externo por sorteo → `sorteo_id_externo` null y dedupe por juego+fecha+hora
  *   en `saveResults` heredado.
  */

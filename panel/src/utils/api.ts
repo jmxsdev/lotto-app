@@ -20,9 +20,15 @@ export async function apiFetch(method, url, body) {
   }
   if (!res.ok) {
     const text = await res.text();
-    let msg = text;
-    try { msg = JSON.parse(text).message || msg; } catch (_) {}
-    const err = new Error(msg || res.statusText) as Error & { status?: number };
+    let parsed = null;
+    try { parsed = JSON.parse(text); } catch (_) {}
+    const err = new Error((parsed && parsed.message) || text || res.statusText) as Error & {
+      errors?: Record<string, string[]>;
+      status?: number;
+    };
+    if (parsed && typeof parsed === 'object') {
+      err.errors = parsed.errors;
+    }
     err.status = res.status;
     throw err;
   }
