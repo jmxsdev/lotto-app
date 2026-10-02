@@ -123,7 +123,10 @@ consumidores externos.
    El comando valida que el `latest.yml` declare `version:` y `sha512:` y que
    la versión coincida con la release (D6); rechaza con exit 1 si no.
 
-5. **Verificar el feed** (200, octet-stream, sin gzip/redirect y Range/206):
+5. **Verificar** — el `.exe` debe vivir en `/app/storage/app/releases`
+   dentro del contenedor (ruta real del volumen, `WORKDIR=/app`; persiste
+   entre deploys) y su `sha256` debe coincidir con el anunciado por
+   `update-check`; además el feed debe servir 200/206:
    ```bash
    curl -sI http://127.0.0.1:10000/api/v1/releases/feed/latest.yml
    # → HTTP/1.1 200, Content-Type: application/octet-stream, sin Location
@@ -133,7 +136,19 @@ consumidores externos.
    # → {"version":"<version>","sha256":"...","file_size":...}
    curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:10000/api/v1/releases/feed/Taquilla-Setup-0.0.1.exe
    # → 404 (whitelist: solo latest.yml + artefactos de la fila vigente)
+   docker exec lotto_api_prod sha256sum /app/storage/app/releases/Taquilla-Setup-<version>.exe
+   # el sha256 debe coincidir con el de update-check
    ```
+
+> **Migración tras el fix de persistencia** (volumen montado en
+> `/app/storage/app/releases`): ANTES del primer deploy con el fix, extraer
+> el `.exe` vigente del contenedor viejo:
+> `docker exec lotto_api_prod ls -la /app/storage/app/releases/` y
+> `docker cp lotto_api_prod:/app/storage/app/releases/Taquilla-Setup-<v>.exe /tmp/`.
+> Si ya no existe (un deploy previo lo perdió: vivía en la capa del
+> contenedor, no en el volumen), re-subirlo desde el build con el paso 2
+> (`scp` desde `taquilla/release/`) y, tras el deploy, re-publicarlo con el
+> paso 4 y verificar con el paso 5.
 
 6. **Primer salto manual (solo flota < 1.0.3)**: las taquillas con 1.0.0/1.0.2
    NO tienen updater. Para llevarlas a 1.0.3 hay que instalar
@@ -143,7 +158,10 @@ consumidores externos.
 
 7. **QA gate en Windows** (el operador, no automatizable desde Linux):
    - [ ] Instalar `Taquilla-Setup-1.0.3.exe` en una PC de taquilla (1.0.2 →
-     1.0.3 manual) → arrancar → splash→login→dashboard contra prod.
+     1.0.3 manual) → arrancar → splash→login→dashboard contra prod; sin
+     selector de entorno; login con dispositivo registrado (headers
+     `X-Device-MAC`/`X-Device-Fingerprint` reales); con la red desactivada no
+     se muestra ningún error.
    - [ ] Publicar una release de prueba `1.0.4` (o re-publicar 1.0.3 con
      otro `latest.yml`) → la taquilla detecta en el próximo chequeo (boot u
      hora), descarga en background (badge de progreso) y muestra el aviso

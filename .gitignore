@@ -44,3 +44,8 @@ SECURITY.md
 *.md
 # La documentación del proyecto sí se versiona (docs/ dev + cliente)
 !docs/**/*.md
+
+# Herramientas locales / índices generados (no versionar)
+.atl/
+.codegraph/
+.astro/
