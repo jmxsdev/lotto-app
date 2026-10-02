@@ -24,18 +24,16 @@ docker exec lotto_mysql mysql -uroot -p"$MYSQL_ROOT_PASSWORD" \
 DB_DATABASE=lotto_e2e php artisan migrate:fresh --seed --force
 ```
 
-Luego ajustar la taquilla demo a los valores E2E (hasta que `E2eSeeder`
-llegue en la fase 2):
+El fixture E2E (taquilla `E2E01`, usuario `e2e@lotto.com`, `clave_cierre`,
+resultado + ticket ganador) lo crea **`E2eSeeder`** (opt-in, idempotente):
 
-```sql
-UPDATE taquillas SET mac_address='02:E2:E0:00:00:01',
-       device_fingerprint='e2e-device-0001' WHERE code='DEMO01';
+```bash
+pnpm e2e:seed     # usa DB_DATABASE (default: lotto_e2e) — NUNCA apuntarlo a lotto_db
 ```
 
-> **Nota**: el design original proponía `02:E2E:00:00:00:01`, pero ese literal
-> es inválido para `VerifyMac` (`^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$`:
-> `E2E` son 3 hex seguidos → 403 "Formato de MAC inválido"). Se usa el MAC
-> válido `02:E2:E0:00:00:01`.
+> **Nota MAC**: el design original proponía `02:E2E:00:00:00:01`, inválido para
+> `VerifyMac` (`^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$`); se usa
+> `02:E2:E0:00:00:01` (default de `E2E_MAC`).
 
 ## Uso
 
@@ -45,9 +43,14 @@ API_UPSTREAM=http://localhost:8003 pnpm e2e                 # toda la suite
 API_UPSTREAM=http://localhost:8003 pnpm e2e e2e/tests/smoke.spec.mjs
 ```
 
+- `pnpm e2e` **siembra el fixture automáticamente** (`pnpm e2e:seed` encadenado)
+  contra `DB_DATABASE` (default `lotto_e2e`). Para correr sin sembrar (debug):
+  `pnpm exec playwright test -c e2e/playwright.config.mjs`.
 - Exit code 0 = verde; distinto de 0 = fallo (apto para CI).
 - Artefactos en `taquilla/e2e/artifacts/` (gitignored): capturas por paso,
   `session.json` y reporte HTML en `e2e/html-report/`.
+- Throttle `/login` (10/2 min): corridas consecutivas del suite deben
+  espaciarse ~2 minutos (el seed no lo evita; aplica al login).
 
 ## Variables y flags
 
