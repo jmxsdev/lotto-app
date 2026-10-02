@@ -48,7 +48,8 @@ services:
     restart: unless-stopped
     env_file: .env.production
     volumes:
-      - taquilla_releases:/var/www/html/storage/app/releases
+      # ruta atada a WORKDIR=/app (backend/Dockerfile:5)
+      - taquilla_releases:/app/storage/app/releases
       # Volumen textfile Prometheus: durante la transición/rollback el host cron
       # ejecuta schedule:run dentro de la API y necesita escribir las métricas.
       - /home/deploy/monitoring/textfile:/var/lib/lotto-metrics:rw

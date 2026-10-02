@@ -114,11 +114,26 @@ ignora `.env.development` y cualquier override persistido del selector dev.
    docker exec lotto_api_prod php artisan releases:publish /tmp/Taquilla-Setup-<version>.exe --release-version=<version>
    ```
 
-5. **Verificar**:
+5. **Verificar** — el `.exe` debe vivir en `/app/storage/app/releases`
+   dentro del contenedor (ruta real del volumen, `WORKDIR=/app`; persiste
+   entre deploys) y su `sha256` debe coincidir con el anunciado por
+   `update-check` (equivale a que `serve` devuelva 200):
    ```bash
    curl -s http://127.0.0.1:10000/api/v1/update-check
    # → {"version":"<version>","sha256":"...","file_size":...}
+   docker exec lotto_api_prod sha256sum /app/storage/app/releases/Taquilla-Setup-<version>.exe
+   # el sha256 debe coincidir con el de update-check
    ```
+
+> **Migración tras el fix de persistencia** (volumen montado en
+> `/app/storage/app/releases`): ANTES del primer deploy con el fix, extraer
+> el `.exe` vigente del contenedor viejo:
+> `docker exec lotto_api_prod ls -la /app/storage/app/releases/` y
+> `docker cp lotto_api_prod:/app/storage/app/releases/Taquilla-Setup-<v>.exe /tmp/`.
+> Si ya no existe (un deploy previo lo perdió: vivía en la capa del
+> contenedor, no en el volumen), re-subirlo desde el build con el paso 2
+> (`scp` desde `taquilla/release/`) y, tras el deploy, re-publicarlo con el
+> paso 4 y verificar con el paso 5.
 
 6. **Validación en Windows** (el operador, no automatizable desde Linux):
    instalar `Taquilla-Setup-<version>.exe` en una PC de taquilla → arrancar →
