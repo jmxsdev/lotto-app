@@ -45,3 +45,8 @@ desktop.ini
 # Electron (archivos temporales)
 electron-builder/
 out/
+
+# Artefactos E2E (Playwright): capturas, reportes y resultados
+e2e/artifacts/
+e2e/html-report/
+test-results/

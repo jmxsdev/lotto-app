@@ -90,10 +90,14 @@ jobs:
 
       - name: Instalar dependencias taquilla
         working-directory: taquilla
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
         run: pnpm install --frozen-lockfile
 
       - name: Instalar dependencias panel
         working-directory: panel
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
         run: pnpm install --frozen-lockfile
 
       - name: Checks de iconografía (pure + icons)
@@ -108,6 +112,112 @@ jobs:
       - name: Build panel
         working-directory: panel
         run: pnpm build
+
+  # E2E (v1): suite Playwright + Electron contra API local con MySQL y xvfb.
+  # Sin `needs`: corre en paralelo a build/deploy para no bloquear hotfixes POS
+  # (guarda (e) del design). Promoción: tras 10 corridas verdes consecutivas en
+  # main, cambiar `deploy` a `needs: [build, e2e]` para gatear el deploy.
+  e2e:
+    name: E2E (taquilla)
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_ROOT_HOST: "%"
+          MYSQL_DATABASE: lotto_e2e
+          MYSQL_USER: lotto_test
+          MYSQL_PASSWORD: test_secret
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      APP_ENV: testing
+      APP_KEY: base64:testkeyfortestingenvironment
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: lotto_e2e
+      DB_USERNAME: lotto_test
+      DB_PASSWORD: test_secret
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: pdo_mysql, bcmath, zip, redis, pcntl, posix
+          coverage: none
+
+      - name: Instalar dependencias
+        working-directory: backend
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Migrar y sembrar (canónico + E2E)
+        working-directory: backend
+        run: |
+          php artisan migrate:fresh --seed --force
+          php artisan db:seed --class=E2eSeeder --force
+
+      - name: Arrancar API (artisan serve) y healthcheck
+        working-directory: backend
+        run: |
+          php artisan serve --host=127.0.0.1 --port=8000 > /tmp/artisan-serve.log 2>&1 &
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -H 'Accept: application/json' http://127.0.0.1:8000/api/v1/juegos || true)
+            if [ "$code" = "200" ] || [ "$code" = "401" ]; then
+              echo "API lista (HTTP $code)"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "healthcheck falló (último código: $code)"
+          cat /tmp/artisan-serve.log
+          exit 1
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: taquilla/pnpm-lock.yaml
+
+      - name: Instalar dependencias taquilla
+        working-directory: taquilla
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+        run: pnpm install --frozen-lockfile
+
+      - name: Build taquilla
+        working-directory: taquilla
+        run: pnpm build
+
+      - name: Suite E2E (xvfb)
+        working-directory: taquilla
+        env:
+          API_UPSTREAM: http://localhost:8000
+          E2E_SKIP_BUILD: 1
+        run: xvfb-run -a pnpm e2e
+        timeout-minutes: 30
+
+      - name: Subir artefactos E2E
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-artifacts
+          path: |
+            taquilla/e2e/artifacts
+            taquilla/e2e/html-report
+          if-no-files-found: warn
+          retention-days: 7
 
   build:
     name: Build y push a GHCR
@@ -133,6 +243,8 @@ jobs:
 
   deploy:
     name: Deploy al VPS
+    # v1: e2e corre en paralelo (sin needs). Promover a `needs: [build, e2e]`
+    # tras 10 corridas verdes consecutivas del job e2e en main.
     needs: build
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'

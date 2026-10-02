@@ -12,16 +12,19 @@
     "electron:dev": "node scripts/electron-dev.mjs",
     "electron:build": "npm run clean:artifacts && npm run build && electron-builder",
     "electron:build:win": "npm run clean:artifacts && npm run build && electron-builder --win --publish never",
-    "vercel-build": "npm run build"
+    "vercel-build": "npm run build",
+    "e2e": "pnpm e2e:seed && playwright test -c e2e/playwright.config.mjs",
+    "e2e:seed": "cd ../backend && DB_DATABASE=${DB_DATABASE:-lotto_e2e} php artisan db:seed --class=E2eSeeder"
   },
   "dependencies": {
     "@fontsource/inter": "^5.3.0",
     "astro": "^6.0.5",
-    "electron-updater": "^6.3.9",
     "electron-pos-printer": "^1.4.0",
+    "electron-updater": "^6.3.9",
     "lucide-static": "^1.48.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
     "electron": "^41.7.1",
     "electron-builder": "^26.15.3",
     "vite": "^8.2.2"
