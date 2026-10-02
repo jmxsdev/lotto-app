@@ -28,5 +28,10 @@ class AppServiceProvider extends ServiceProvider
         // usuario autenticado, o por IP para el serve firmado (sin auth).
         RateLimiter::for('releases-download', fn ($request) => Limit::perMinute(10)
             ->by($request->user()?->id ?: $request->ip()));
+
+        // Feed público del auto-update (TQ-10, D1): 120/min por IP. Generoso:
+        // el updater de cada taquilla reanuda descargas parciales (Range).
+        RateLimiter::for('releases-feed', fn ($request) => Limit::perMinute(120)
+            ->by($request->ip()));
     }
 }

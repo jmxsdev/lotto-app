@@ -71,4 +71,64 @@ class ReleasePublishCommandTest extends TestCase
         $this->artisan('releases:publish', ['path' => sys_get_temp_dir().'/no-existe-xyz.exe'])
             ->assertExitCode(1);
     }
+
+    public function test_publish_con_latest_yml_lo_persiste_junto_al_instalador(): void
+    {
+        Storage::fake('releases');
+        $path = $this->escribirInstalador('Taquilla-Setup-1.0.3.exe', 'v3');
+        $ymlPath = $this->escribirInstalador('latest.yml', "version: 1.0.3\nsha512: abc123\n");
+
+        $this->artisan('releases:publish', ['path' => $path, '--release-version' => '1.0.3', '--latest-yml' => $ymlPath])
+            ->assertSuccessful();
+
+        $release = Release::query()->current()->first();
+        $this->assertSame('1.0.3', $release->version);
+        Storage::disk('releases')->assertExists('latest.yml');
+        Storage::disk('releases')->assertExists('Taquilla-Setup-1.0.3.exe');
+        $this->assertSame("version: 1.0.3\nsha512: abc123\n", Storage::disk('releases')->get('latest.yml'));
+    }
+
+    public function test_publish_con_latest_yml_reemplaza_el_anterior(): void
+    {
+        Storage::fake('releases');
+        $path1 = $this->escribirInstalador('Taquilla-Setup-1.0.2.exe', 'v2');
+        $path2 = $this->escribirInstalador('Taquilla-Setup-2.0.0.exe', 'v200');
+        $yml1 = $this->escribirInstalador('latest-v1.yml', "version: 1.0.2\nsha512: old\n");
+        $yml2 = $this->escribirInstalador('latest-v2.yml', "version: 2.0.0\nsha512: new\n");
+
+        $this->artisan('releases:publish', ['path' => $path1, '--latest-yml' => $yml1])->assertSuccessful();
+        $this->artisan('releases:publish', ['path' => $path2, '--latest-yml' => $yml2])->assertSuccessful();
+
+        $this->assertSame(1, Release::count());
+        Storage::disk('releases')->assertExists('latest.yml');
+        $this->assertSame("version: 2.0.0\nsha512: new\n", Storage::disk('releases')->get('latest.yml'));
+    }
+
+    public function test_publish_rechaza_latest_yml_con_version_incoherente(): void
+    {
+        Storage::fake('releases');
+        $path = $this->escribirInstalador('Taquilla-Setup-1.0.3.exe', 'v3');
+        $ymlPath = $this->escribirInstalador('latest.yml', "version: 1.0.2\nsha512: abc\n");
+
+        $this->artisan('releases:publish', ['path' => $path, '--release-version' => '1.0.3', '--latest-yml' => $ymlPath])
+            ->assertExitCode(1);
+
+        // Nada se persiste: ni fila ni artefactos en el disco de releases.
+        $this->assertSame(0, Release::count());
+        Storage::disk('releases')->assertMissing('latest.yml');
+        Storage::disk('releases')->assertMissing('Taquilla-Setup-1.0.3.exe');
+    }
+
+    public function test_publish_rechaza_latest_yml_sin_version_o_sin_sha512(): void
+    {
+        Storage::fake('releases');
+        $path = $this->escribirInstalador('Taquilla-Setup-1.0.3.exe', 'v3');
+        $sinVersion = $this->escribirInstalador('latest.yml', "sha512: abc\n");
+        $sinSha = $this->escribirInstalador('latest.yml', "version: 1.0.3\n");
+
+        $this->artisan('releases:publish', ['path' => $path, '--release-version' => '1.0.3', '--latest-yml' => $sinVersion])
+            ->assertExitCode(1);
+        $this->artisan('releases:publish', ['path' => $path, '--release-version' => '1.0.3', '--latest-yml' => $sinSha])
+            ->assertExitCode(1);
+    }
 }
