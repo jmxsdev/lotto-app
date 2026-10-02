@@ -1,0 +1,39 @@
+info:
+  name: Listar Limites (Matriz)
+  type: http
+  seq: 4
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/v1/limites?banca_id=1"
+  params:
+    - name: banca_id
+      value: "1"
+      type: query
+    - name: scope
+      value: bancas
+      type: query
+      disabled: true
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+  auth: inherit
+
+docs:
+  - |
+    # Matriz de límites de una entidad
+    - Roles: SM | M | B | G | A (403 a otros roles)
+    - Autenticación: Sanctum (Bearer) — auth: inherit
+    - Modo entidad: exactamente UNO de `banca_id`, `grupo_id` o `taquilla_id` (422 si ninguno o varios)
+    - Modo scope (param `scope` deshabilitado): `bancas|grupos|taquillas` — XOR con los filtros
+      de entidad; `bancas` no admite filtro de entidad raíz (422)
+    - Respuesta modo entidad: `{ "data": { "juegos", "limites", "origen" } }` (origen = herencia
+      del nivel superior para celdas sin fila propia)
+    - Respuesta modo scope: `{ "data": { "juegos", "limites", "entidades", "mixto" } }`
+      (indexado por entidad×juego×moneda, sin `origen`)
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

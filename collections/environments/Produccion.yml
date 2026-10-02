@@ -1,0 +1,72 @@
+name: Produccion
+variables:
+  - name: baseUrl
+    value: https://lotto.gzuz.dev
+    enabled: true
+    secret: false
+    description: API de producción (VPS, Caddy → FrankenPHP)
+  - name: token
+    value: ""
+    enabled: true
+    secret: true
+    description: Bearer token; se rellena al ejecutar Auth/Login (bru.setEnvVar)
+  - name: macAddress
+    value: ""
+    enabled: true
+    secret: false
+    description: MAC de la taquilla productiva (solo flujos de taquilla; nunca la MAC de desarrollo)
+  - name: deviceFingerprint
+    value: ""
+    enabled: true
+    secret: false
+    description: Huella del dispositivo productivo (solo flujos de taquilla)
+  - name: superEmail
+    value: ""
+    enabled: true
+    secret: true
+    description: Credencial de Auth/Login (rol super_master)
+  - name: superPassword
+    value: ""
+    enabled: true
+    secret: true
+    description: Password de Auth/Login (rol super_master)
+  - name: masterEmail
+    value: ""
+    enabled: true
+    secret: true
+    description: Credencial de Auth/Login (Master)
+  - name: masterPassword
+    value: ""
+    enabled: true
+    secret: true
+    description: Password de Auth/Login (Master)
+  - name: bancaEmail
+    value: ""
+    enabled: true
+    secret: true
+    description: Credencial de Auth/Login (Banca)
+  - name: bancaPassword
+    value: ""
+    enabled: true
+    secret: true
+    description: Password de Auth/Login (Banca)
+  - name: grupoEmail
+    value: ""
+    enabled: true
+    secret: true
+    description: Credencial de Auth/Login (Grupo)
+  - name: grupoPassword
+    value: ""
+    enabled: true
+    secret: true
+    description: Password de Auth/Login (Grupo)
+  - name: taquillaEmail
+    value: ""
+    enabled: true
+    secret: true
+    description: Credencial de Auth/Login (Taquilla)
+  - name: taquillaPassword
+    value: ""
+    enabled: true
+    secret: true
+    description: Password de Auth/Login (Taquilla)

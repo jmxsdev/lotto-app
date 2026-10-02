@@ -1,0 +1,72 @@
+name: Local
+variables:
+  - name: baseUrl
+    value: http://localhost:8000
+    enabled: true
+    secret: false
+    description: Backend Laravel local (php artisan serve)
+  - name: token
+    value: ""
+    enabled: true
+    secret: true
+    description: Bearer token; se rellena al ejecutar Auth/Login (bru.setEnvVar)
+  - name: macAddress
+    value: d8:f3:bc:65:d1:c5
+    enabled: true
+    secret: false
+    description: MAC de una taquilla activada en la BD local (debe coincidir con taquillas.mac_address; VerifyMac normaliza el header a MAYÚSCULAS y compara estricto)
+  - name: deviceFingerprint
+    value: ""
+    enabled: true
+    secret: false
+    description: Huella del dispositivo (X-Device-Fingerprint); obligatoria para login y uso de taquilla
+  - name: superEmail
+    value: ""
+    enabled: true
+    secret: true
+    description: Credencial de Auth/Login (rol super_master)
+  - name: superPassword
+    value: ""
+    enabled: true
+    secret: true
+    description: Password de Auth/Login (rol super_master)
+  - name: masterEmail
+    value: ""
+    enabled: true
+    secret: true
+    description: Credencial de Auth/Login (Master)
+  - name: masterPassword
+    value: ""
+    enabled: true
+    secret: true
+    description: Password de Auth/Login (Master)
+  - name: bancaEmail
+    value: ""
+    enabled: true
+    secret: true
+    description: Credencial de Auth/Login (Banca)
+  - name: bancaPassword
+    value: ""
+    enabled: true
+    secret: true
+    description: Password de Auth/Login (Banca)
+  - name: grupoEmail
+    value: ""
+    enabled: true
+    secret: true
+    description: Credencial de Auth/Login (Grupo)
+  - name: grupoPassword
+    value: ""
+    enabled: true
+    secret: true
+    description: Password de Auth/Login (Grupo)
+  - name: taquillaEmail
+    value: ""
+    enabled: true
+    secret: true
+    description: Credencial de Auth/Login (Taquilla)
+  - name: taquillaPassword
+    value: ""
+    enabled: true
+    secret: true
+    description: Password de Auth/Login (Taquilla)

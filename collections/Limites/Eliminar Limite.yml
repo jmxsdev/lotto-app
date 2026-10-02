@@ -1,0 +1,27 @@
+info:
+  name: Eliminar Limite
+  type: http
+  seq: 5
+
+http:
+  method: DELETE
+  url: "{{baseUrl}}/api/v1/limites/1"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+  auth: inherit
+
+docs:
+  - |
+    # Eliminar un límite (fila de JuegoLimite)
+    - Roles: SM | M | B (403 a otros roles)
+    - Autenticación: Sanctum (Bearer) — auth: inherit
+    - El `id` de la URL es el de la fila `JuegoLimite` (no el del juego)
+    - Jerarquía: master solo elimina límites de bancas que administra (403 si no); banca solo los suyos
+    - Respuesta: 200 con `{ "message": "Límite eliminado correctamente." }`
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

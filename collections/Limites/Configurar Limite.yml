@@ -5,7 +5,7 @@ info:
 
 http:
   method: PUT
-  url: "{{baseUrl}}/api/limites/1"
+  url: "{{baseUrl}}/api/v1/limites/1"
   headers:
     - name: Authorization
       value: Bearer {{token}}
@@ -20,11 +20,18 @@ http:
         "limite_minimo": 100,
         "limite_maximo": 5000,
         "porcentaje_pago": 80.00,
-        "participacion": 5.00,
-        "fraccion": false,
-        "limite_tiempo": 60
+        "participacion": 5.00
       }
   auth: inherit
+
+docs:
+  - |
+    # Configurar límite de un juego (upsert)
+    - Roles: SM | M | B (403 a otros roles)
+    - Autenticación: Sanctum (Bearer) — auth: inherit
+    - `banca_id` es required (422 si falta); `grupo_id`/`taquilla_id` opcionales
+    - Upsert por juego×banca×grupo×taquilla×moneda: 201 si crea, 200 si actualiza
+    - Campos retirados del contrato: `fraccion` y `limite_tiempo` (ya no existen)
 
 settings:
   encodeUrl: true
