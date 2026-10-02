@@ -5,7 +5,7 @@ info:
 
 http:
   method: POST
-  url: "{{baseUrl}}/api/resultados/scrape-all"
+  url: "{{baseUrl}}/api/v1/resultados/scrape-all"
   headers:
     - name: Content-Type
       value: application/json

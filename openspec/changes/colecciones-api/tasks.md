@@ -79,9 +79,9 @@ Totales: **27 faltantes = 2 (F1) + 25 (F2.2)**; F2.2 = 25 requests + 5 `folder.y
 
 ## Fase 2 — WU-F2.1 (PR 2 → PR 1)
 
-- [ ] 2.1 Script temporal `/v1` (rg `--pcre2` + `sed`, NO commitear) en los **67** archivos sin `/v1` (77 − 10 F1).
-- [ ] 2.2 Eliminar headers por-request `X-Device-MAC`/`X-Device-Fingerprint` (31 archivos) y bloques `runtime.variables` `macAddress` (20 archivos) vía python3 puntual; colapsa el bloque malformado de las 2 Apuestas.
-- [ ] 2.3 `git diff --stat` (revisión manual obligatoria, ~67 archivos, 1–4 líneas).
+- [x] 2.1 Script temporal `/v1` (rg `--pcre2` + `sed`, NO commitear) en los **67** archivos sin `/v1` (77 − 10 F1).
+- [x] 2.2 Eliminar headers por-request `X-Device-MAC`/`X-Device-Fingerprint` (31 archivos) y bloques `runtime.variables` `macAddress` (20 archivos) vía python3 puntual; colapsa el bloque malformado de las 2 Apuestas.
+- [x] 2.3 `git diff --stat` (revisión manual obligatoria, ~67 archivos, 1–4 líneas).
 
 ## Fase 3 — WU-F2.2a/2b (PR 3 → PR 2)
 

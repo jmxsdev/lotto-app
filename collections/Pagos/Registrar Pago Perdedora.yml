@@ -5,14 +5,12 @@ info:
 
 http:
   method: POST
-  url: "{{baseUrl}}/api/pagos"
+  url: "{{baseUrl}}/api/v1/pagos"
   headers:
     - name: Authorization
       value: Bearer {{token}}
     - name: Content-Type
       value: application/json
-    - name: X-Device-MAC
-      value: "{{macAddress}}"
   body:
     type: json
     data: |-
@@ -26,11 +24,6 @@ http:
         "concepto": "Premio Animalitos (perdedora)"
       }
   auth: inherit
-
-runtime:
-  variables:
-    - name: macAddress
-      value: 00:1A:2B:3C:4D:5E
 
 settings:
   encodeUrl: true

@@ -5,22 +5,15 @@ info:
 
 http:
   method: GET
-  url: "{{baseUrl}}/api/reportes/relacion-tickets?fecha=2026-08-11"
+  url: "{{baseUrl}}/api/v1/reportes/relacion-tickets?fecha=2026-08-11"
   headers:
     - name: Authorization
       value: Bearer {{token}}
-    - name: X-Device-MAC
-      value: "{{macAddress}}"
   params:
     - name: fecha
       value: "2026-08-11"
       type: query
   auth: inherit
-
-runtime:
-  variables:
-    - name: macAddress
-      value: d8:f3:bc:65:d1:c5
 
 settings:
   encodeUrl: true

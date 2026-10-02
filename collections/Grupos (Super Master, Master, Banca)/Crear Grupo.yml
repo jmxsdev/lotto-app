@@ -5,7 +5,7 @@ info:
 
 http:
   method: POST
-  url: "{{baseUrl}}/api/grupos"
+  url: "{{baseUrl}}/api/v1/grupos"
   headers:
     - name: Authorization
       value: Bearer {{token}}

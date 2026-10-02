@@ -5,14 +5,12 @@ info:
 
 http:
   method: POST
-  url: "{{baseUrl}}/api/apuestas"
+  url: "{{baseUrl}}/api/v1/apuestas"
   headers:
     - name: Authorization
       value: Bearer {{token}}
     - name: Content-Type
       value: application/json
-    - name: X-Device-MAC
-      value: "{{macAddress}}"
   body:
     type: json
     data: |-
@@ -35,11 +33,6 @@ docs:
     }
     ```
     La herencia de monedas funciona como intersección banca ∩ grupo.
-
-runtime:
-  variables:
-    - name: macAddress
-      value: 00:1A:2B:3C:4D:5E
 
 settings:
   encodeUrl: true
