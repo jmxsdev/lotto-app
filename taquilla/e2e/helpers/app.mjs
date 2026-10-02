@@ -3,7 +3,7 @@
 // Secuencia por spec (Data Flow del design):
 //   launch → firstWindow → clearStorageData → clock.install (06:00 Caracas)
 //   → IPC stubs (evaluate-only) → addInitScript(fp/token) → reload
-import { _electron } from '@playwright/test';
+import { _electron, expect } from '@playwright/test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -13,6 +13,9 @@ import { resolveUpstream } from './guard.mjs';
 import {
   E2E_MAC,
   E2E_FINGERPRINT,
+  E2E_EMAIL,
+  E2E_PASSWORD,
+  SELECTORS,
   STUB_CHANNELS,
   caracasSixAmToday,
 } from './fixtures.mjs';
@@ -147,6 +150,45 @@ export function printsHandle(app) {
  */
 export function advanceClock(page, ms) {
   return page.clock.fastForward(ms);
+}
+
+/**
+ * Flujo de login E2E hasta el dashboard (reutilizado por los specs 02–07):
+ * la API responde con token → localStorage.auth_token; el redirect a
+ * /dashboard es un setTimeout(1s) que exige advanceClock (reloj congelado).
+ */
+export async function loginToDashboard(page, { email = E2E_EMAIL, password = E2E_PASSWORD } = {}) {
+  await expect(page).toHaveURL(/\/login/, { timeout: 20_000 });
+  await page.fill(SELECTORS.login.email, email);
+  await page.fill(SELECTORS.login.password, password);
+  await page.click(SELECTORS.login.submit);
+  await page.waitForFunction(() => Boolean(localStorage.getItem('auth_token')), null, {
+    timeout: 15_000,
+  });
+  await advanceClock(page, 1_500);
+  await expect(page).toHaveURL(/\/dashboard/, { timeout: 20_000 });
+  // Dashboard INTERACTIVO: los listeners de teclado (MainLayout + routeKey del
+  // dashboard) se registran al final del script de la página, después de
+  // renderizar el catálogo. Esperar #qt-numero evita presionar F-keys antes
+  // de que la navegación global esté viva (race).
+  await expect(page.locator(SELECTORS.dashboard.numero)).toBeVisible({ timeout: 20_000 });
+}
+
+/**
+ * Una línea de venta en el dashboard (specs 02/03/05/07): selecciona el
+ * primer juego del tab activo (lotto-activo), el animal, un horario del
+ * catálogo y añade la línea con el monto. El reloj del harness está en
+ * mañana 06:00 → el horario (08:00) es futuro para el renderer Y para el
+ * backend (D3), a cualquier hora real.
+ */
+export async function sellTicketLine(page, { animal = 'Perro', monto = '5000', horario = '08:00' } = {}) {
+  await page.click('.juego-card[data-id]');
+  await page.click(`.animal-check[data-label="${animal}"]`);
+  await page.click(`.horario-item[data-hora="${horario}"]`);
+  await page.fill(SELECTORS.dashboard.monto, monto);
+  await page.click(SELECTORS.dashboard.add);
+  // addLine ok: la línea aparece en el resumen (fila agrupada por grupo).
+  await expect(page.locator('.resumen-table tbody tr')).not.toHaveCount(0, { timeout: 10_000 });
 }
 
 /** Cierra la app y limpia los --user-data-dir temporales registrados. */
