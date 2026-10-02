@@ -1281,6 +1281,7 @@ import Icon from '../components/ui/Icon.astro';
     import { calcularVuelto } from '../utils/vuelto';
     import { indiceDestinoFila, indiceDestinoColumna } from '../utils/gridNav';
     import { icono } from '../utils/iconos';
+    import { initAutoUpdate } from '../utils/autoUpdate';
     import juegosRaw from '../data/juegos.json';
     import logosRaw from '../data/logos.json';
 
@@ -1303,6 +1304,10 @@ import Icon from '../components/ui/Icon.astro';
 
     let selectedGames = [];
     let ticketLines = [];
+    // Venta en curso (TQ-10, U3): true mientras handlePrint() hace el POST y
+    // la impresión. Junto con ticketLines.length > 0 define el busy del
+    // guard de instalación (D4): nunca se fuerza el cierre durante una venta.
+    let saleInFlight = false;
     let animalesCache = [];
     let selectedAnimal = null;
     let selectedSigno = null;
@@ -2271,6 +2276,7 @@ import Icon from '../components/ui/Icon.astro';
 
     async function handlePrint() {
       if (ticketLines.length === 0) return;
+      saleInFlight = true;
       const printBtn = document.getElementById('qt-print');
       printBtn.disabled = true;
       try {
@@ -2340,8 +2346,10 @@ import Icon from '../components/ui/Icon.astro';
         loadTicket();
       } catch (e) {
         await window.showModal({ message: 'Error: ' + e.message, type: 'error' });
+      } finally {
+        printBtn.disabled = false;
+        saleInFlight = false;
       }
-      printBtn.disabled = false;
     }
 
     // ─── Modal de vuelto F12 (atajos-2026-09; A12, REQ-KB-07) ───────────────
@@ -3319,6 +3327,11 @@ import Icon from '../components/ui/Icon.astro';
         activarItemFocalizado();
         if (e.key === ' ') e.preventDefault(); // Space en ítem: sin scroll de página
       });
+
+      // Aviso obligatorio de actualización (TQ-10, U3): busy = hay líneas de
+      // ticket o una venta/impresión en curso (saleInFlight). Con busy solo
+      // se puede postergar (con confirmación); sin busy el aviso se mantiene.
+      initAutoUpdate({ isBusy: () => ticketLines.length > 0 || saleInFlight });
     });
   </script>
 </MainLayout>

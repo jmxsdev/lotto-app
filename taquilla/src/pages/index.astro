@@ -83,10 +83,6 @@ const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
       <div class="spinner"></div>
       <p id="splash-status">Iniciando taquilla...</p>
       <button id="splash-retry" type="button">Reintentar</button>
-      <div id="update-banner" style="display:none;margin-top:1rem;padding:0.6rem 1rem;background:rgba(255,255,255,0.15);border-radius:8px;font-size:0.9rem">
-        <span>Hay una nueva versión disponible.</span>
-        <button id="update-continue" type="button" style="margin-left:0.75rem;padding:0.3rem 0.9rem;border:none;border-radius:6px;background:white;color:#1a2a6c;cursor:pointer">Continuar</button>
-      </div>
       <div class="footer">
         <p>Versión: 0.1.0</p>
         <p id="mac-info">MAC: Cargando...</p>
@@ -105,6 +101,12 @@ const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
     <script>
       import { apiFetch } from '../utils/apiFetch';
       import { getFingerprint } from '../utils/device';
+      import { initAutoUpdate } from '../utils/autoUpdate';
+
+      // Aviso obligatorio de actualización (TQ-10, U3): el splash no tiene
+      // ventas en curso → busy siempre false. El aviso solo aparece cuando la
+      // descarga terminó y no es omitible de forma permanente.
+      initAutoUpdate({ isBusy: () => false });
 
       // Selector dev-only: solo existe en desarrollo (tree-shaken en prod).
       // Re-aplica el override persistido antes del verify y lo conmuta via IPC.
@@ -126,28 +128,9 @@ const appName = import.meta.env.PUBLIC_APP_NAME || 'Lotto Taquilla';
         }
       }
 
-      // Update-check notify-only al arranque: sin URL, sin auto-install.
-      // Silencio absoluto ante error/timeout/404 (sin UI de error).
-      (async () => {
-        if (!window.electron?.getVersion) return;
-        try {
-          const local = await window.electron.getVersion();
-          const remote = await apiFetch('/update-check', { timeout: 1500 });
-          if (!remote || !remote.version) return;
-          if (local !== remote.version) {
-            const banner = document.getElementById('update-banner');
-            const cont = document.getElementById('update-continue');
-            if (banner) banner.style.display = 'block';
-            if (cont) {
-              cont.addEventListener('click', () => {
-                if (banner) banner.style.display = 'none';
-              });
-            }
-          }
-        } catch (_) {
-          // Silencio: fallo de red/timeout/404 no muestran nada.
-        }
-      })();
+      // Update-check notify-only eliminado (TQ-10): el updater OTA del proceso
+      // main (electron-updater) reemplaza al banner; el aviso obligatorio lo
+      // gestiona autoUpdate.ts vía IPC.
 
       async function init() {
         const fp = getFingerprint();
