@@ -52,6 +52,28 @@ API_UPSTREAM=http://localhost:8003 pnpm e2e e2e/tests/smoke.spec.mjs
 - Throttle `/login` (10/2 min): corridas consecutivas del suite deben
   espaciarse ~2 minutos (el seed no lo evita; aplica al login).
 
+## CI (GitHub Actions)
+
+El job `e2e` de `.github/workflows/ci-cd.yml` replica el patrón de `tests`
+(MySQL service con base dedicada `lotto_e2e`) y corre la suite completa:
+
+1. `migrate:fresh --seed` + `db:seed --class=E2eSeeder` (el `pnpm e2e` vuelve a
+   sembrar vía `e2e:seed` — idempotente, sin daño).
+2. `php artisan serve :8000` en background + healthcheck `GET /api/v1/juegos`
+   (200/401).
+3. `pnpm install` con `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`, `pnpm build` y
+   `E2E_SKIP_BUILD=1 xvfb-run -a pnpm e2e`.
+4. Artefactos (`taquilla/e2e/artifacts/` + `taquilla/e2e/html-report/`) subidos
+   con `if: always()` (retención 7 días).
+
+- Dispara solo con push a `main` (o `workflow_dispatch`): la validación real
+  del job ocurre post-merge.
+- Corre **en paralelo a `deploy`** (sin `needs`) en v1: la flakiness de
+  Electron no debe bloquear hotfixes POS. Promoción: tras 10 corridas verdes
+  consecutivas, cambiar `deploy` a `needs: [build, e2e]`.
+- Throttle `/login` (10/2 min): una suite por job = 8 logins (7 specs + el
+  global-setup) → dentro del límite; `retries CI?2:0` cubren reintentos.
+
 ## Variables y flags
 
 | Variable | Efecto |
