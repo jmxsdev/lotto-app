@@ -11,7 +11,7 @@
     "clean:artifacts": "node scripts/clean-artifacts.mjs",
     "electron:dev": "node scripts/electron-dev.mjs",
     "electron:build": "npm run clean:artifacts && npm run build && electron-builder",
-    "electron:build:win": "npm run clean:artifacts && npm run build && electron-builder --win",
+    "electron:build:win": "npm run clean:artifacts && npm run build && electron-builder --win --publish never",
     "vercel-build": "npm run build"
   },
   "dependencies": {
@@ -30,6 +30,12 @@
     "appId": "com.lotto.taquilla",
     "productName": "Lotto Taquilla",
     "artifactName": "Taquilla-Setup-${version}.${ext}",
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://lotto.gzuz.dev/api/v1/releases/feed"
+      }
+    ],
     "directories": {
       "output": "release"
     },
