@@ -56,7 +56,7 @@ API_UPSTREAM=http://localhost:8003 pnpm e2e e2e/tests/smoke.spec.mjs
 | `API_UPSTREAM` | URL de la API local (`http://localhost:PUERTO` o `127.0.0.1`). **Cualquier otro valor aborta el run antes de lanzar Electron** (guard REQ-2). |
 | `E2E_MAC` | MAC que devuelve el stub `get-mac` (default `02:E2:E0:00:00:01`). Debe coincidir con `taquillas.mac_address` para pasar `VerifyMac`. |
 | `E2E_FINGERPRINT` | Fingerprint inyectado (default `e2e-device-0001`). Debe coincidir con `taquillas.device_fingerprint`. |
-| `E2E_EMAIL` / `E2E_PASSWORD` | Credenciales del usuario de rol `taquilla` (default `demo@lotto.com` / `password`). |
+| `E2E_EMAIL` / `E2E_PASSWORD` | Credenciales del usuario de rol `taquilla` (default `e2e@lotto.com` / `password`, creado por el `E2eSeeder` sobre la taquilla E2E01). |
 | `E2E_DEV_SERVER=1` | Modo dev: lanza contra `ELECTRON_DEV_URL` (default `http://localhost:3000`) en vez de `app://`. Requiere `astro dev` corriendo. |
 | `E2E_SKIP_BUILD=1` | Omite el build de `dist` en el global-setup (útil con `E2E_DEV_SERVER` o tras build manual). |
 | `E2E_TRACE=1` | Trace de Playwright siempre activo (default: `on-first-retry`). |
@@ -69,8 +69,10 @@ API_UPSTREAM=http://localhost:8003 pnpm e2e e2e/tests/smoke.spec.mjs
 1. **global-setup**: guard de API local → healthcheck (`GET /api/v1/juegos`
    <500) → build `dist` si falta → login API → `e2e/artifacts/session.json`.
 2. **Por spec** (`helpers/app.mjs`): lanza Electron con `--user-data-dir`
-   temporal, `clearStorageData()`, reloj congelado a hoy 06:00
-   America/Caracas (`page.clock.install`), stubs IPC vía `electronApp.evaluate`
+   temporal, `clearStorageData()`, reloj congelado a mañana 06:00
+   America/Caracas (`page.clock.install`; mañana, no hoy: el backend valida
+   `sorteo_hora` contra el reloj real — D3 — y "hoy 06:00" rompía las ventas
+   tras las 08:00 reales), stubs IPC vía `electronApp.evaluate`
    (captura en `globalThis.__e2e_prints`), fingerprint/token inyectados y
    navegación determinística a `app://index.html`.
 3. **Stubs IPC** (evaluate-only, sin cambios de runtime): `get-mac` devuelve el
