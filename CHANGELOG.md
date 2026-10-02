@@ -5,6 +5,24 @@ Todas las versiones notables de la Taquilla se documentan en este archivo.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/) y el
 versionado es [SemVer](https://semver.org/lang/es/).
 
+## [1.0.3] — 2026-10-02
+
+Primera versión con actualización automática (OTA). Las taquillas con una
+versión anterior a 1.0.3 (sin updater) requieren una instalación manual de
+esta versión; a partir de ella las siguientes se actualizan solas.
+
+### Agregado
+
+- **Auto-update OTA** (TQ-10): la taquilla empaquetada chequea el feed de
+  releases al iniciar y cada hora, descarga la nueva versión en background y
+  muestra un aviso obligatorio con "Reiniciar e instalar ahora".
+- **Feed público electron-updater**: `GET /api/v1/releases/feed/{file}` sirve
+  `latest.yml`, el instalador `.exe` y su `.blockmap` (descarga parcial
+  Range/206, sin autenticación, sin compresión).
+- **Guard de venta**: la instalación nunca se fuerza durante una venta o
+  ticket en curso; solo se puede postergar con confirmación explícita y el
+  aviso reaparece al terminar la condición (o al reiniciar).
+
 ## [1.0.2] — 2026-10-01
 
 Correcciones del historial, del copy de pago y de las modalidades.

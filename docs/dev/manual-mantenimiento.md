@@ -185,32 +185,63 @@ grep -r "api:" dist/               # 3. consistencia: bases de API idénticas en
 > Estado: verificado en el repo al 2026-09-07. Fuentes: `backend/app/Console/Commands/ReleasePublishCommand.php`, `backend/app/Http/Controllers/Api/ReleaseController.php`, `backend/routes/api.php:34-41,230-233`, `docker-compose.prod.yml:51`, `backend/config/filesystems.php:50-55`.
 
 ```
-.exe construido en tu PC
-  → se copia al VPS (p. ej. por scp)
-  → php artisan releases:publish <ruta-del-.exe>     (ReleasePublishCommand)
+.exe construido en tu PC (+ latest.yml desde 1.0.3)
+  → se copian al VPS (p. ej. por scp)
+  → php artisan releases:publish <ruta-del-.exe> --latest-yml=<ruta-del-yml>
+      (ReleasePublishCommand; valida version:/sha512: del yml contra la release)
   → el comando calcula SHA-256, mueve el archivo al disco "releases"
     y REEMPLAZA la fila única de releases (D3: sin historial)
   → el disco "releases" (storage/app/releases) vive en el volumen
     persistente taquilla_releases → sobrevive a redeploys
-  → la app instalada consulta GET /api/v1/update-check (público, throttle 30/min)
-  → el panel consulta GET /api/v1/releases/latest y pide
+  → desde 1.0.3 la taquilla empaquetada consulta el feed público
+     GET /api/v1/releases/feed/latest.yml (electron-updater generic; sin auth,
+     octet-stream, Range/206 para reanudar descargas) y se auto-actualiza
+  → GET /api/v1/update-check (público, throttle 30/min) sigue para consumidores
+     externos; el panel consulta GET /api/v1/releases/latest y pide
      GET /api/v1/releases/download → devuelve URL firmada (5 min)
   → GET /api/v1/releases/serve (URL firmada + throttle) sirve el .exe por streaming
 ```
 
 Detalles verificados:
 
-- **`releases:publish`** (sig: `releases:publish {path} {--release-version=}`): exige que el archivo exista; la versión se infiere del nombre `Taquilla-Setup-<version>.exe`, si no, usar `--release-version=`. Borra fila(s) y archivo(s) anteriores dentro de una transacción y crea la nueva (`ReleasePublishCommand.php:38-54`).
+- **`releases:publish`** (sig: `releases:publish {path} {--release-version=} {--latest-yml=}`): exige que el archivo exista; la versión se infiere del nombre `Taquilla-Setup-<version>.exe`, si no, usar `--release-version=`. Borra fila(s) y archivo(s) anteriores dentro de una transacción y crea la nueva (`ReleasePublishCommand.php`). Con `--latest-yml=` persiste/ reemplaza el `latest.yml` del feed en la misma transacción y valida por regex que declare `version:` y `sha512:` con la versión coherente (D6; rechaza con exit 1).
+- **Feed público** `releases-feed` (TQ-10): `GET /api/v1/releases/feed/{file}` con throttle 120/min por IP; whitelist estricta (`latest.yml`, `.exe` y `.blockmap` de la fila vigente); `application/octet-stream` para que Caddy nunca comprima y `BinaryFileResponse` con soporte nativo de Range/206 (`ReleaseController::feed`).
 - **Throttle** `releases-download`: 10/min por usuario autenticado (o por IP en el serve firmado), definido en `backend/app/Providers/AppServiceProvider.php:29-30`. La firma de la URL **es** la credencial del serve: no requiere auth (`routes/api.php:34-38`).
-- **`update-check` es notify-only** (REQ-B1): devuelve `version` + `sha256`; nunca auto-instala ni expone URL de descarga (`ReleaseController.php:86-98`).
-- Roles del panel con acceso a releases: `super_master|master|banca|grupo|agencia` (la taquilla recibe 403, `routes/api.php:230-233`).
+- **`update-check` es notify-only** (REQ-B1): devuelve `version` + `sha256`; nunca auto-instala ni expone URL de descarga (`ReleaseController.php`).
+- Roles del panel con acceso a releases: `super_master|master|banca|grupo|agencia` (la taquilla recibe 403, `routes/api.php`).
 
-### 4.5 Versionado
+### 4.5 Auto-update OTA (1.0.3+) y primer salto manual
 
-- La versión vive en `taquilla/package.json` → `"version"` (actual `0.1.0`).
+A partir de **1.0.3** la taquilla empaquetada se actualiza sola:
+
+- **Chequeo**: al iniciar y cada 1 hora mientras la app está abierta
+  (`taquilla/electron/main/updater.cjs`, solo `app.isPackaged`; en desarrollo
+  el updater está inactivo).
+- **Descarga**: automática en background con badge de progreso; se reanuda con
+  Range/206 si se interrumpe; `sha512` verificado desde el `latest.yml`.
+- **Aviso obligatorio**: al completarse la descarga el renderer muestra el
+  modal "Reiniciar e instalar ahora" (`taquilla/src/utils/autoUpdate.ts`, en
+  `index.astro` y `dashboard.astro`). NO tiene ocultado permanente; "Postergar"
+  solo existe con venta/ticket en curso (`ticketLines.length > 0` o
+  `saleInFlight` durante `handlePrint()`) y exige confirmación explícita. Al
+  cerrar la app con la actualización pendiente, `autoInstallOnAppQuit` la
+  instala (nunca durante una venta).
+- **Primer salto manual**: las taquillas con versión **< 1.0.3** (1.0.0/1.0.2)
+  NO tienen updater: requieren una instalación manual de `Taquilla-Setup-1.0.3.exe`
+  (desde el panel → URL firmada, o vía serve). A partir de 1.0.3 las siguientes
+  versiones llegan OTA sin intervención.
+- **QA gate del operador** (antes de publicar una flota): ver runbook §"Taquilla
+  Windows release" paso 7 — detectar → descargar → reanudar (Range) → instalar
+  al confirmar y al cerrar; busy guard bloquea durante ventas; `update:error`
+  no bloquea la operación.
+
+### 4.6 Versionado
+
+- La versión vive en `taquilla/package.json` → `"version"` (actual `1.0.3`).
 - `artifactName: "Taquilla-Setup-${version}.${ext}"` genera el nombre del instalador.
-- `releases:publish` parsea la versión de ese filename; si lo renombras, pásala con `--release-version=`. Esa versión es la que reporta `/update-check` y `/releases/latest`.
-- Bump de versión = editar `package.json` → rebuild → publish; la fila única de releases garantiza que solo existe "la última".
+- `releases:publish` parsea la versión de ese filename; si lo renombras, pásala con `--release-version=`. Esa versión es la que reporta `/update-check`, `/releases/latest` y el feed.
+- Bump de versión = editar `package.json` → rebuild → publish (con `--latest-yml=`); la fila única de releases garantiza que solo existe "la última".
+- El `latest.yml` que emite electron-builder ya trae la versión y el sha512 del `.exe`; `releases:publish` lo valida antes de persistirlo.
 
 ---
 
