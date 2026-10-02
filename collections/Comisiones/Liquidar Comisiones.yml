@@ -1,0 +1,39 @@
+info:
+  name: Liquidar Comisiones
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/v1/comisiones/liquidar"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "desde": "2026-09-01",
+        "hasta": "2026-09-30",
+        "banca_ids": [1, 2]
+      }
+  auth: inherit
+
+docs:
+  - |
+    # Liquidar comisiones de un rango
+    - Roles: SM | M + permiso `manage_comisiones`; master liquida SOLO sus bancas
+      (`banca_ids` fuera de su alcance → 403; sin `banca_ids` → sus `masterBancaIds`)
+    - Autenticación: Sanctum (Bearer) — auth: inherit
+    - `desde`/`hasta` required (date; `hasta` ≥ `desde`); `banca_ids` opcional (array de enteros)
+    - Rango solapado con liquidaciones existentes → **422** con `{ message, conflictos[] }`
+      (no se puede liquidar dos veces el mismo período)
+    - Respuesta: 201 con `{ "success": true, "message", "data": rows }`
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

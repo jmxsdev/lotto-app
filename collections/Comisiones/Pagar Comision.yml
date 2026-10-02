@@ -1,0 +1,28 @@
+info:
+  name: Pagar Comision
+  type: http
+  seq: 5
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/v1/comisiones/1/pagar"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+  auth: inherit
+
+docs:
+  - |
+    # Marcar una comisión como pagada
+    - Roles: SM | M + permiso `manage_comisiones`; master solo dentro de su alcance
+      (banca/grupo/taquilla de `masterBancaIds`, 403 si no)
+    - Autenticación: Sanctum (Bearer) — auth: inherit
+    - Transición `pendiente → pagado`; PATCH sobre una fila ya pagada = no-op idempotente
+    - Registra auditoría (`action=comision_pagar`)
+    - Respuesta: 200 con la comisión actualizada (estado `pagado`)
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

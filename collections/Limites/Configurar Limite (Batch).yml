@@ -41,7 +41,8 @@ http:
 docs:
   - |
     # Configuración masiva de límites (batch)
-    - Roles: SM | M | B (403 a otros roles)
+    - Roles (escritura): SM | M | B | G — el grupo escribe solo dentro de su subárbol
+      (validado en el controlador); lectura SM | M | B | G | A
     - Autenticación: Sanctum (Bearer) — auth: inherit
     - Modo legacy (body de ejemplo): cada ítem lleva su `banca_id` (y opcional `grupo_id`/`taquilla_id`)
     - Modo scope (opt-in, ejemplo): `"scope": {"tipo": "bancas"}` aplica a TODAS las entidades

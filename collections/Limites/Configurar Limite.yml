@@ -27,7 +27,8 @@ http:
 docs:
   - |
     # Configurar límite de un juego (upsert)
-    - Roles: SM | M | B (403 a otros roles)
+    - Roles (escritura): SM | M | B | G — el grupo escribe solo dentro de su subárbol
+      (su grupo y sus taquillas, validado en el controlador); lectura SM | M | B | G | A
     - Autenticación: Sanctum (Bearer) — auth: inherit
     - `banca_id` es required (422 si falta); `grupo_id`/`taquilla_id` opcionales
     - Upsert por juego×banca×grupo×taquilla×moneda: 201 si crea, 200 si actualiza

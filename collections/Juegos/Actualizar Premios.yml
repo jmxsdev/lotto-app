@@ -1,0 +1,47 @@
+info:
+  name: Actualizar Premios
+  type: http
+  seq: 12
+
+http:
+  method: PUT
+  url: "{{baseUrl}}/api/v1/juegos/1/premios"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "base": 50,
+        "modalidades": {},
+        "comodines": {
+          "patronus-75": { "tipo": "numero", "premio_multiplo": 120, "nombre": "Patronus" },
+          "patronus-palabra": { "tipo": "palabra", "premio_multiplo": 20, "acumulativo": true, "nombre": "PATRONUS" }
+        }
+      }
+  auth: inherit
+
+docs:
+  - |
+    # Edición atómica de premios (D1/D2/D3, editor de premios)
+    - Roles: SM | M (403 a otros roles)
+    - Autenticación: Sanctum (Bearer) — auth: inherit
+    - El body ES el objeto `premios` completo (`{base, modalidades, comodines}`); omitir
+      `modalidades`/`comodines` los deja vacíos (reemplazo atómico)
+    - `base` required (int ≥ 1); `modalidades.*` int ≥ 1 con claves válidas en plugin ∪
+      catálogo oficial (clave no válida → 422); `comodines.*` con `tipo` ∈
+      flag|letra|numero|palabra y `premio_multiplo` int ≥ 1; `acumulativo` solo con
+      tipo `palabra` (422 si no)
+    - 422 si el juego no tiene premios oficiales configurables (p. ej. la-ricachona)
+    - **NO retroactivo**: cada apuesta conserva el premio vigente al momento de su venta
+      (snapshot); lo ya vendido no cambia, las ventas nuevas usan los valores nuevos
+    - Sincroniza espejos legacy y registra auditoría (`accion=premios`, before/after)
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

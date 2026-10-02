@@ -14,7 +14,8 @@ http:
 docs:
   - |
     # Eliminar un límite (fila de JuegoLimite)
-    - Roles: SM | M | B (403 a otros roles)
+    - Roles (escritura): SM | M | B | G — el grupo elimina solo dentro de su subárbol
+      (validado en el controlador); lectura SM | M | B | G | A
     - Autenticación: Sanctum (Bearer) — auth: inherit
     - El `id` de la URL es el de la fila `JuegoLimite` (no el del juego)
     - Jerarquía: master solo elimina límites de bancas que administra (403 si no); banca solo los suyos
