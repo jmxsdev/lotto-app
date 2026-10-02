@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BancaController;
 use App\Http\Controllers\Api\CierreController;
 use App\Http\Controllers\Api\ClaveCierreController;
+use App\Http\Controllers\Api\ComisionController;
 use App\Http\Controllers\Api\ConfiguracionController;
 use App\Http\Controllers\Api\DispositivoController;
 use App\Http\Controllers\Api\EstadisticaController;
@@ -120,6 +121,7 @@ Route::prefix('v1')->group(function () {
         Route::middleware(['role:super_master|master'])->group(function () {
             Route::put('/juegos/{juego}', [JuegoController::class, 'update']);
             Route::patch('/juegos/{juego}/toggle', [JuegoController::class, 'toggle'])->name('juegos.toggle');
+            Route::put('/juegos/{juego}/premios', [JuegoController::class, 'updatePremios'])->name('juegos.premios');
         });
 
         Route::get('/juegos/{juego}/opciones', [JuegoController::class, 'opciones']);
@@ -202,16 +204,46 @@ Route::prefix('v1')->group(function () {
             Route::get('/limites/{juego}', [JuegoController::class, 'limites']);
         });
 
-        // PUT: super_master, master, banca (upsert individual)
-        // DELETE: super_master, master, banca (autorización jerárquica en el controlador)
-        Route::middleware(['role:super_master|master|banca'])->group(function () {
+        // PUT: super_master, master, banca, grupo (upsert individual; el
+        // grupo solo escribe dentro de su subárbol, validado en el controlador)
+        // DELETE: idem (autorización jerárquica en el controlador)
+        Route::middleware(['role:super_master|master|banca|grupo'])->group(function () {
             Route::put('/limites/{juego}', [JuegoController::class, 'updateLimites']);
             Route::delete('/limites/{limite}', [JuegoController::class, 'destroyLimite']);
         });
 
-        // POST batch: super_master, master, banca (el alcance se valida por jerarquía en el controlador)
-        Route::middleware(['role:super_master|master|banca'])->group(function () {
+        // POST batch: super_master, master, banca, grupo (el alcance se valida por jerarquía en el controlador)
+        Route::middleware(['role:super_master|master|banca|grupo'])->group(function () {
             Route::post('/limites/batch', [JuegoController::class, 'batchLimites']);
+        });
+
+        // ==================================================
+        // COMISIONES — default global (2 filas bs/usd, D1)
+        // GET: super_master; PUT: super_master + manage_comisiones.
+        // Ruta estática ANTES de cualquier {comision} futura.
+        // ==================================================
+        Route::middleware(['role:super_master'])->group(function () {
+            Route::get('/comisiones/defaults', [ComisionController::class, 'defaults']);
+        });
+
+        Route::middleware(['role:super_master', 'permission:manage_comisiones'])->group(function () {
+            Route::put('/comisiones/defaults', [ComisionController::class, 'updateDefaults']);
+        });
+
+        // ==================================================
+        // COMISIONES — ledger (S4, D7/D8)
+        // GET lista paginada: super_master|master (master scoped a
+        // masterBancaIds en el controlador). POST liquidar y PATCH pagar:
+        // + manage_comisiones. Rutas estáticas ANTES de {comision} para que
+        // el route-model binding no capture "liquidar".
+        // ==================================================
+        Route::middleware(['role:super_master|master'])->group(function () {
+            Route::get('/comisiones', [ComisionController::class, 'index']);
+        });
+
+        Route::middleware(['role:super_master|master', 'permission:manage_comisiones'])->group(function () {
+            Route::post('/comisiones/liquidar', [ComisionController::class, 'liquidar']);
+            Route::patch('/comisiones/{comision}/pagar', [ComisionController::class, 'pagar']);
         });
 
         // ==================================================

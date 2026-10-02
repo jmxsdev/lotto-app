@@ -228,7 +228,7 @@ class RoleAuthorizationTest extends TestCase
             ->assertStatus(403);
     }
 
-    public function test_grupo_no_configura_limites()
+    public function test_grupo_no_configura_limites_de_banca()
     {
         $grupo = User::where('email', 'grupo@lotto.com')->first();
         $grupo->assignRole('grupo');
@@ -236,6 +236,7 @@ class RoleAuthorizationTest extends TestCase
         $juego = Juego::first();
         $banca = Banca::where('code', 'BT001')->first();
 
+        // Nivel banca (sin grupo_id) queda fuera del subárbol del grupo
         $this->actingAs($grupo, 'sanctum')
             ->putJson('/api/v1/limites/'.$juego->id, [
                 'banca_id' => $banca->id,
@@ -243,5 +244,35 @@ class RoleAuthorizationTest extends TestCase
                 'limite_maximo' => 100,
             ])
             ->assertStatus(403);
+    }
+
+    public function test_grupo_configura_limites_de_sus_taquillas()
+    {
+        $grupoUser = User::where('email', 'grupo@lotto.com')->first();
+        $grupoUser->assignRole('grupo');
+
+        $juego = Juego::first();
+        $banca = Banca::where('code', 'BT001')->first();
+        $grupo = Grupo::where('code', 'GT001')->first();
+        $taquilla = Taquilla::where('grupo_id', $grupo->id)->first();
+
+        $this->actingAs($grupoUser, 'sanctum')
+            ->putJson('/api/v1/limites/'.$juego->id, [
+                'banca_id' => $banca->id,
+                'grupo_id' => $grupo->id,
+                'taquilla_id' => $taquilla->id,
+                'moneda' => 'bs',
+                'porcentaje_pago' => 10,
+            ])
+            ->assertSuccessful();
+
+        $this->assertDatabaseHas('juego_limites', [
+            'juego_id' => $juego->id,
+            'banca_id' => $banca->id,
+            'grupo_id' => $grupo->id,
+            'taquilla_id' => $taquilla->id,
+            'moneda' => 'bs',
+            'porcentaje_pago' => 10,
+        ]);
     }
 }

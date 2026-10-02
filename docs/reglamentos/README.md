@@ -1,8 +1,8 @@
 # docs/reglamentos — Artefactos oficiales descargados (WU f26 — Cacería de reglamentos)
 
 Todos los reglamentos y afiches oficiales encontrados y descargados el 2026-09-14 (WU f26).
-Origen y evidencia por juego en `docs/seguimiento-verificacion.md` (sección H) y
-`docs/fuentes-oficiales.md`. Los PDF escaneados (sin capa de texto) quedan para que el
+Origen y evidencia por juego en `docs/cliente/seguimiento-verificacion.md` (sección H) y
+`docs/cliente/fuentes-oficiales.md`. Los PDF escaneados (sin capa de texto) quedan para que el
 cliente/operador extraiga los textos (el agente no hace OCR).
 
 ## PDFs de reglamento

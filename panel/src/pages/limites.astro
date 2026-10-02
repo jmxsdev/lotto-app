@@ -31,6 +31,27 @@ import Icon from '../components/Icon.astro';
       <button class="btn btn-primary" id="btn-guardar"><Icon name="save" size={14} /> Guardar cambios</button>
       <span id="estado-guardado" class="estado"></span>
     </div>
+
+    <div id="comision-global" class="comision-global">
+      <div class="comision-global-header">
+        <h3 class="comision-global-title">Comisión global por moneda</h3>
+        <p class="comision-global-hint">Se aplica a todos los juegos cuando ningún nivel define porcentaje de pago.</p>
+      </div>
+      <div class="comision-global-filas">
+        <div class="field">
+          <label>BS (%)</label>
+          <input type="number" id="comision-bs" min="0" max="100" step="0.01" placeholder="0.00" />
+        </div>
+        <div class="field">
+          <label>USD (%)</label>
+          <input type="number" id="comision-usd" min="0" max="100" step="0.01" placeholder="0.00" />
+        </div>
+      </div>
+      <div class="acciones">
+        <button class="btn btn-primary" id="btn-guardar-comision"><Icon name="save" size={14} /> Guardar comisión global</button>
+        <span id="estado-comision" class="estado"></span>
+      </div>
+    </div>
   </div>
 
   <style is:global>
@@ -48,6 +69,11 @@ import Icon from '../components/Icon.astro';
     .btn-primary { background: #3b82f6; color: #fff; } .btn-primary:hover { background: #2563eb; }
     .btn:disabled { opacity: 0.5; cursor: default; }
     .estado { font-size: 13px; color: #16a34a; }
+    .comision-global { margin-top: 24px; padding: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; }
+    .comision-global-header { margin-bottom: 12px; }
+    .comision-global-title { font-size: 15px; font-weight: 700; color: #1e293b; margin: 0 0 4px; }
+    .comision-global-hint { font-size: 12px; color: #64748b; margin: 0; }
+    .comision-global-filas { display: flex; gap: 16px; flex-wrap: wrap; }
     .loading { text-align: center; padding: 40px; color: #666; }
     .table-wrap { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
     table { width: 100%; border-collapse: collapse; }
@@ -91,10 +117,11 @@ import Icon from '../components/Icon.astro';
       alcanceActual = 'taquillas';
     }
 
-    // WU4: grupo/agencia auditan en solo lectura; solo sm/master/banca configuran.
+    // Enmienda 2026-10-01: grupo escribe la matriz de SUS taquillas
+    // (comisión + mín/máx); agencia audita en solo lectura.
     // Taquilla (GET 403 en la API) y otros roles: sin acceso.
     const puedeVer = ['super_master', 'master', 'banca', 'grupo', 'agencia'].includes(rol);
-    const puedeConfigurar = ['super_master', 'master', 'banca'].includes(rol);
+    const puedeConfigurar = ['super_master', 'master', 'banca', 'grupo'].includes(rol);
 
     if (!puedeVer) {
       contenedor.innerHTML = '<div class="loading">Sin acceso a la configuración de límites.</div>';
@@ -120,6 +147,51 @@ import Icon from '../components/Icon.astro';
       }
       montarTabla();
     }
+
+    // Bloque aditivo de comisión global (solo super_master). No toca la matriz.
+    const comisionGlobal = document.getElementById('comision-global');
+    const inputBs = document.getElementById('comision-bs');
+    const inputUsd = document.getElementById('comision-usd');
+    const btnGuardarComision = document.getElementById('btn-guardar-comision');
+    const estadoComision = document.getElementById('estado-comision');
+
+    if (rol !== 'super_master') {
+      comisionGlobal.remove();
+    } else {
+      cargarComisionGlobal();
+    }
+
+    async function cargarComisionGlobal() {
+      try {
+        const data = await apiFetch('GET', '/comisiones/defaults');
+        const filas = Array.isArray(data) ? data : [];
+        const bs = filas.find(f => f.moneda === 'bs');
+        const usd = filas.find(f => f.moneda === 'usd');
+        inputBs.value = bs?.porcentaje_pago ?? '';
+        inputUsd.value = usd?.porcentaje_pago ?? '';
+      } catch (e) {
+        estadoComision.textContent = 'No se pudo cargar la comisión global: ' + e.message;
+      }
+    }
+
+    btnGuardarComision.addEventListener('click', async () => {
+      btnGuardarComision.disabled = true;
+      estadoComision.textContent = 'Guardando...';
+      try {
+        await apiFetch('PUT', '/comisiones/defaults', {
+          defaults: [
+            { moneda: 'bs', porcentaje_pago: inputBs.value === '' ? null : Number(inputBs.value) },
+            { moneda: 'usd', porcentaje_pago: inputUsd.value === '' ? null : Number(inputUsd.value) },
+          ],
+        });
+        estadoComision.innerHTML = '<span aria-hidden="true">' + icono('circle-check') + '</span> Comisión global guardada.';
+      } catch (e) {
+        estadoComision.textContent = '';
+        alert('Error: ' + e.message);
+      } finally {
+        btnGuardarComision.disabled = false;
+      }
+    });
 
     function montarTabla() {
       contenedor.innerHTML = '<div class="loading">Cargando límites...</div>';

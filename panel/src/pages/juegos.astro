@@ -7,29 +7,331 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     <div class="page-header"><h2 class="page-title">Juegos</h2></div>
     <div id="content"><div class="loading">Cargando...</div></div>
   </div>
+
+  <!-- Editor de premios (S4/P2): clic en una fila abre el modal -->
+  <div class="modal-overlay" id="editor-modal" style="display:none">
+    <div class="modal-card editor-card">
+      <div class="editor-header">
+        <div>
+          <h3 id="editor-title">Juego</h3>
+          <div class="editor-meta" id="editor-meta"></div>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" id="editor-close">✗ Cerrar</button>
+      </div>
+
+      <form id="premios-form" novalidate>
+        <div class="field">
+          <label for="premios-base">Base (multiplicador × apuesta)</label>
+          <input id="premios-base" name="base" type="number" min="1" step="1" placeholder="p. ej. 60" />
+          <div class="field-error" data-for="base"></div>
+        </div>
+
+        <div class="field-section">
+          <h4>Modalidades</h4>
+          <p class="section-hint">Clave canónica = multiplicador propio (si se omite, usa la base). Claves sugeridas del plugin.</p>
+          <div id="modalidades-list"></div>
+          <datalist id="modalidad-sugerencias"></datalist>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-add-modalidad">＋ Añadir modalidad</button>
+        </div>
+
+        <div class="field-section">
+          <h4>Comodines</h4>
+          <p class="section-hint">flag / letra / numero reemplazan el multiplicador vigente; palabra con "acumulativo" suma sobre él.</p>
+          <div id="comodines-list"></div>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-add-comodin">＋ Añadir comodín</button>
+        </div>
+
+        <div class="field checkbox-line">
+          <label>Vendible: <strong id="vendible-value">—</strong></label>
+          <span class="section-hint">(espejo de solo lectura de <code>active</code>)</span>
+        </div>
+
+        <div class="error-box" id="form-error" style="display:none"></div>
+
+        <div class="panel-actions">
+          <button type="submit" class="btn btn-primary" id="btn-save">Guardar premios</button>
+          <span class="estado" id="save-estado"></span>
+        </div>
+      </form>
+
+      <div class="field-section">
+        <h4>Auditoría del juego</h4>
+        <div id="auditoria-content"><div class="loading">Cargando...</div></div>
+      </div>
+    </div>
+  </div>
+
   <style is:global>
     .page { max-width: 1000px; } .page-header { margin-bottom: 20px; } .page-title { font-size: 24px; font-weight: 700; color: #1e293b; }
-    .btn { padding: 6px 14px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; } .btn-primary { background: #3b82f6; color: #fff; } .btn-primary:hover { background: #2563eb; } .btn-sm { padding: 3px 10px; font-size: 12px; }
+    .btn { padding: 6px 14px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; } .btn-primary { background: #3b82f6; color: #fff; } .btn-primary:hover { background: #2563eb; } .btn-secondary { background: #e9ecef; color: #333; } .btn-secondary:hover { background: #dde2e8; } .btn-danger { background: #fef2f2; color: #dc2626; } .btn-danger:hover { background: #fee2e2; } .btn-sm { padding: 3px 10px; font-size: 12px; }
     .loading { text-align: center; padding: 40px; color: #666; } .table-wrap { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); } table { width: 100%; border-collapse: collapse; } th { background: #f1f5f9; padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600; color: #666; } td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+    tbody tr.game-row { cursor: pointer; } tbody tr.game-row:hover { background: #f8fafc; }
     .badge { display: inline-block; padding: 4px 12px; border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer; } .badge-active { background: #dcfce7; color: #166534; } .badge-inactive { background: #fef2f2; color: #991b1b; }
     .type-badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; background: #e0e7ff; color: #3730a3; }
+    .th-hint { display: inline-flex; vertical-align: middle; margin-left: 4px; color: #94a3b8; cursor: help; } .th-hint svg { width: 13px; height: 13px; }
+    .table-hint { font-size: 12px; color: #64748b; margin-top: 10px; }
+
+    /* Editor de premios */
+    .modal-card { background: #fff; border-radius: 12px; padding: 28px; box-shadow: 0 8px 30px rgba(0,0,0,0.2); }
+    .modal-card.editor-card { width: 660px; max-width: 96%; max-height: 92vh; overflow-y: auto; }
+    .editor-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+    .editor-header h3 { font-size: 18px; color: #1e293b; }
+    .editor-meta { font-size: 13px; color: #64748b; margin-top: 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .field { margin-bottom: 14px; } .field label { display: block; font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px; }
+    .field input, .field select { width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px; } .field input:focus, .field select:focus { border-color: #3b82f6; outline: none; }
+    .field-section { border-top: 1px solid #e2e8f0; margin-top: 16px; padding-top: 12px; } .field-section h4 { font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 6px; }
+    .section-hint { font-size: 12px; color: #64748b; margin-bottom: 10px; }
+    .kv-row { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 8px; flex-wrap: wrap; }
+    .kv-row input[type="text"], .kv-row input[type="number"], .kv-row select { padding: 8px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 13px; }
+    .kv-row .kv-clave { width: 170px; } .kv-row .kv-valor { width: 110px; }
+    .kv-acum { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #334155; padding-top: 8px; }
+    .field-error { font-size: 12px; color: #dc2626; margin-top: 3px; width: 100%; }
+    .error-box { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; border-radius: 8px; padding: 12px 14px; font-size: 13px; margin-top: 14px; line-height: 1.5; }
+    .panel-actions { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
+    .estado { font-size: 13px; color: #166534; font-weight: 600; }
+    .checkbox-line { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #334155; flex-wrap: wrap; }
+    .auditoria-list { display: flex; flex-direction: column; gap: 10px; }
+    .auditoria-item { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; background: #f8fafc; }
+    .auditoria-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; }
+    .auditoria-head .badge, .auditoria-head .type-badge { cursor: default; }
+    .auditoria-user { font-weight: 600; color: #1e293b; } .auditoria-fecha { color: #94a3b8; font-size: 12px; margin-left: auto; }
+    .auditoria-diff { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+    .auditoria-diff pre { background: #0f172a; color: #e2e8f0; border-radius: 6px; padding: 8px 10px; font-size: 11px; overflow-x: auto; max-height: 180px; margin: 0; }
+    @media (max-width: 640px) { .auditoria-diff { grid-template-columns: 1fr; } }
   </style>
   <script>
-    import { apiFetch } from '../utils/api.ts'; import { icono } from '../utils/iconos.ts'; import { showModal } from '../utils/modal.ts';
+    import { apiFetch } from '../utils/api.ts'; import { icono } from '../utils/iconos.ts';
+
+    const TIPOS_COMODIN = ['flag', 'letra', 'numero', 'palabra'];
     let games = [];
+    let editorJuego = null;
+
+    function esc(s) {
+      return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
     async function load() {
       try { games = await apiFetch('GET','/juegos'); render(); } catch(e) { document.getElementById('content').innerHTML = '<div class="loading">Error: '+e.message+'</div>'; }
     }
+
     function render() {
-      let html = '<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Slug</th><th>Tipo</th><th>Multiplicador</th><th>Scraper</th><th>Estado</th></tr></thead><tbody>';
-      games.forEach(j => { html += `<tr><td><strong>${j.name}</strong></td><td>${j.slug}</td><td><span class="type-badge">${j.type}</span></td><td>${j.config?.premio_multiplo||'-'}x</td><td>${j.requires_scraper ? '<span role="img" aria-label="Sí">' + icono('circle-check') + '</span>' : '<span role="img" aria-label="No">' + icono('circle-x') + '</span>'}</td><td><span class="badge ${j.active?'badge-active':'badge-inactive'}" data-id="${j.id}" data-active="${j.active}">${j.active?'Activo':'Inactivo'}</span></td></tr>`; });
-      html += '</tbody></table></div>'; document.getElementById('content').innerHTML = html;
+      let html = '<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Slug</th><th>Tipo</th><th>Multiplicador</th><th>Scraper</th><th>Estado <span class="th-hint" title="«Vendible» es un espejo de solo lectura de «Activo».">' + icono('info') + '</span></th></tr></thead><tbody>';
+      games.forEach(j => { html += `<tr class="game-row" data-id="${j.id}"><td><strong>${esc(j.name)}</strong></td><td>${esc(j.slug)}</td><td><span class="type-badge">${esc(j.type)}</span></td><td>${j.config?.premio_multiplo||'-'}x</td><td>${j.requires_scraper ? '<span role="img" aria-label="Sí">' + icono('circle-check') + '</span>' : '<span role="img" aria-label="No">' + icono('circle-x') + '</span>'}</td><td><span class="badge ${j.active?'badge-active':'badge-inactive'}" data-id="${j.id}" data-active="${j.active}">${j.active?'Activo':'Inactivo'}</span></td></tr>`; });
+      html += '</tbody></table></div><p class="table-hint">«Vendible» es un espejo de solo lectura de «Activo»: el editor lo muestra junto al estado del juego y no se configura por separado.</p>'; document.getElementById('content').innerHTML = html;
     }
+
+    // ---------- Editor de premios (S4/P2) ----------
+
+    function modalidadRow(clave, valor) {
+      const div = document.createElement('div');
+      div.className = 'kv-row';
+      div.innerHTML = `
+        <input type="text" class="kv-clave" list="modalidad-sugerencias" placeholder="clave (p. ej. numero)" value="${esc(clave)}" />
+        <input type="number" class="kv-valor" min="1" step="1" placeholder="multiplicador" value="${valor ?? ''}" />
+        <button type="button" class="btn btn-danger btn-sm kv-remove" title="Quitar">✕</button>
+        <div class="field-error"></div>`;
+      div.querySelector('.kv-remove').addEventListener('click', () => div.remove());
+      return div;
+    }
+
+    function comodinRow(c) {
+      c = c || {};
+      const tipo = TIPOS_COMODIN.includes(c.tipo) ? c.tipo : 'flag';
+      const div = document.createElement('div');
+      div.className = 'kv-row comodin-row';
+      div.innerHTML = `
+        <input type="text" class="kv-clave" placeholder="clave (p. ej. patronus)" value="${esc(c.clave || '')}" />
+        <select class="kv-tipo">${TIPOS_COMODIN.map(t => `<option value="${t}" ${t===tipo?'selected':''}>${t}</option>`).join('')}</select>
+        <input type="number" class="kv-valor" min="1" step="1" placeholder="premio_multiplo" value="${c.premio_multiplo ?? ''}" />
+        <label class="kv-acum" style="display:${tipo==='palabra'?'inline-flex':'none'}"><input type="checkbox" class="kv-acumulativo" ${c.acumulativo?'checked':''} /> acumulativo</label>
+        <button type="button" class="btn btn-danger btn-sm kv-remove" title="Quitar">✕</button>
+        <div class="field-error"></div>`;
+      const select = div.querySelector('.kv-tipo');
+      const acum = div.querySelector('.kv-acum');
+      select.addEventListener('change', () => { acum.style.display = select.value === 'palabra' ? 'inline-flex' : 'none'; });
+      div.querySelector('.kv-remove').addEventListener('click', () => div.remove());
+      return div;
+    }
+
+    function fillForm(premios) {
+      premios = premios || {};
+      document.getElementById('premios-base').value = premios.base ?? '';
+      const mList = document.getElementById('modalidades-list');
+      const cList = document.getElementById('comodines-list');
+      mList.innerHTML = ''; cList.innerHTML = '';
+      const mods = premios.modalidades || {};
+      const keys = Object.keys(mods);
+      keys.forEach(k => mList.appendChild(modalidadRow(k, mods[k])));
+      if (!keys.length) mList.appendChild(modalidadRow('', ''));
+      const coms = premios.comodines || {};
+      const ckeys = Object.keys(coms);
+      ckeys.forEach(k => cList.appendChild(comodinRow(Object.assign({ clave: k }, coms[k] || {}))));
+      if (!ckeys.length) cList.appendChild(comodinRow());
+    }
+
+    function buildSuggestions(reglas) {
+      const seen = new Set();
+      let html = '';
+      (reglas?.modalidades || []).forEach(m => {
+        const code = m?.code;
+        if (code && !seen.has(code)) { seen.add(code); html += `<option value="${esc(code)}">${esc(m.label || code)}</option>`; }
+      });
+      // Claves canónicas ya configuradas aunque el plugin no las liste (D3).
+      document.querySelectorAll('#modalidades-list .kv-clave').forEach(i => {
+        const v = i.value.trim();
+        if (v && !seen.has(v)) { seen.add(v); html += `<option value="${esc(v)}"></option>`; }
+      });
+      document.getElementById('modalidad-sugerencias').innerHTML = html;
+    }
+
+    function clearErrors() {
+      document.querySelectorAll('.field-error').forEach(el => el.textContent = '');
+      const box = document.getElementById('form-error');
+      box.style.display = 'none'; box.innerHTML = '';
+    }
+
+    function showErrors(message, errors) {
+      const box = document.getElementById('form-error');
+      const lines = [];
+      if (message) lines.push(esc(message));
+      if (errors && typeof errors === 'object') {
+        Object.keys(errors).forEach(field => {
+          const msgs = errors[field];
+          const text = Array.isArray(msgs) ? msgs.join(' ') : String(msgs ?? '');
+          if (field === 'base') {
+            const el = document.querySelector('.field-error[data-for="base"]');
+            if (el) { el.textContent = text; return; }
+          }
+          // modalidades.<clave> o comodines.<clave>.<campo> → error junto a la fila
+          const m = field.match(/^(modalidades|comodines)\.([^.]+)(?:\.(.+))?$/);
+          if (m) {
+            const listId = m[1] === 'modalidades' ? 'modalidades-list' : 'comodines-list';
+            const row = Array.from(document.querySelectorAll('#' + listId + ' .kv-row'))
+              .find(r => r.querySelector('.kv-clave').value.trim() === m[2]);
+            if (row) { row.querySelector('.field-error').textContent = text; return; }
+          }
+          lines.push(`<strong>${esc(field)}</strong>: ${esc(text)}`);
+        });
+      }
+      if (lines.length) { box.innerHTML = lines.join('<br/>'); box.style.display = 'block'; }
+    }
+
+    function renderAuditoria(entries) {
+      const wrap = document.getElementById('auditoria-content');
+      if (!entries || !entries.length) { wrap.innerHTML = '<p class="section-hint">Sin registros de auditoría.</p>'; return; }
+      let html = '<div class="auditoria-list">';
+      entries.slice().reverse().forEach(a => {
+        const user = a.user ? (a.user.name || a.user.email || '#' + a.user_id) : ('#' + (a.user_id ?? '?'));
+        const fecha = a.created_at ? new Date(a.created_at).toLocaleString('es-VE') : '';
+        const esPremios = a.accion === 'premios';
+        html += `<div class="auditoria-item"><div class="auditoria-head">
+          <span class="badge ${esPremios ? 'badge-active' : 'type-badge'}">${esc(a.accion)}</span>
+          <span class="auditoria-user">${esc(user)}</span>
+          <span class="auditoria-fecha">${esc(fecha)}</span></div>`;
+        if (esPremios && a.cambios) {
+          html += `<div class="auditoria-diff">
+            <div><strong>before</strong><pre>${esc(JSON.stringify(a.cambios.before ?? {}, null, 2))}</pre></div>
+            <div><strong>after</strong><pre>${esc(JSON.stringify(a.cambios.after ?? {}, null, 2))}</pre></div>
+          </div>`;
+        }
+        html += '</div>';
+      });
+      html += '</div>';
+      wrap.innerHTML = html;
+    }
+
+    async function refreshEditor() {
+      const j = editorJuego;
+      document.getElementById('auditoria-content').innerHTML = '<div class="loading">Cargando...</div>';
+      const [detalle, reglas] = await Promise.all([
+        apiFetch('GET', '/juegos/' + j.id),
+        apiFetch('GET', '/juegos/' + j.id + '/reglas').catch(() => null),
+      ]);
+      const premios = detalle?.config?.premios || {};
+      fillForm(premios);
+      buildSuggestions(reglas);
+      renderAuditoria(detalle?.auditoria || []);
+      document.getElementById('vendible-value').textContent = detalle?.active ? 'Sí (activo)' : 'No (inactivo)';
+      document.getElementById('editor-meta').innerHTML =
+        `slug: <code>${esc(detalle?.slug || '')}</code> · tipo: ${esc(detalle?.type || '')} · ` +
+        (detalle?.active ? '<span class="badge badge-active">Activo</span>' : '<span class="badge badge-inactive">Inactivo</span>');
+    }
+
+    async function openEditor(j) {
+      editorJuego = j;
+      clearErrors();
+      document.getElementById('editor-title').textContent = j.name;
+      document.getElementById('editor-meta').innerHTML =
+        `slug: <code>${esc(j.slug)}</code> · tipo: ${esc(j.type)} · ` +
+        (j.active ? '<span class="badge badge-active">Activo</span>' : '<span class="badge badge-inactive">Inactivo</span>');
+      document.getElementById('vendible-value').textContent = j.active ? 'Sí (activo)' : 'No (inactivo)';
+      document.getElementById('premios-form').reset();
+      document.getElementById('save-estado').textContent = '';
+      document.getElementById('editor-modal').style.display = 'flex';
+      await refreshEditor();
+    }
+
+    function closeEditor() {
+      document.getElementById('editor-modal').style.display = 'none';
+      editorJuego = null;
+    }
+
+    async function savePremios(e) {
+      e.preventDefault();
+      if (!editorJuego) return;
+      clearErrors();
+      const base = parseInt(document.getElementById('premios-base').value, 10) || null;
+      const premios = { base, modalidades: {}, comodines: {} };
+      document.querySelectorAll('#modalidades-list .kv-row').forEach(r => {
+        const clave = r.querySelector('.kv-clave').value.trim();
+        if (!clave) return;
+        premios.modalidades[clave] = parseInt(r.querySelector('.kv-valor').value, 10) || null;
+      });
+      document.querySelectorAll('#comodines-list .kv-row').forEach(r => {
+        const clave = r.querySelector('.kv-clave').value.trim();
+        if (!clave) return;
+        const tipo = r.querySelector('.kv-tipo').value;
+        const comodin = { tipo, premio_multiplo: parseInt(r.querySelector('.kv-valor').value, 10) || null };
+        if (tipo === 'palabra' && r.querySelector('.kv-acumulativo').checked) comodin.acumulativo = true;
+        premios.comodines[clave] = comodin;
+      });
+      const estado = document.getElementById('save-estado');
+      estado.textContent = 'Guardando...';
+      try {
+        await apiFetch('PUT', '/juegos/' + editorJuego.id + '/premios', premios);
+        estado.textContent = 'Premios guardados.';
+        load(); // refresca la tabla (premio_multiplo)
+        await refreshEditor(); // auditoría nueva + form con lo persistido
+      } catch (err) {
+        estado.textContent = '';
+        showErrors(err.message, err.errors);
+      }
+    }
+
+    // ---------- Eventos ----------
+
     document.getElementById('content').addEventListener('click', async (e) => {
-      const badge = e.target.closest('.badge'); if (!badge) return;
-      const id = parseInt(badge.dataset.id); const active = badge.dataset.active === 'true';
-      try { await apiFetch('PATCH','/juegos/'+id+'/toggle',{active:!active}); load(); } catch (err) { await showModal({ message: err.message, type: 'error' }); }
+      const badge = e.target.closest('.badge');
+      if (badge) {
+        const id = parseInt(badge.dataset.id); const active = badge.dataset.active === 'true';
+        try { await apiFetch('PATCH','/juegos/'+id+'/toggle', {active: !active}); load(); } catch(err) { alert('Error: '+err.message); }
+        return;
+      }
+      const row = e.target.closest('.game-row');
+      if (row) {
+        const id = parseInt(row.dataset.id);
+        const juego = games.find(g => g.id === id);
+        if (juego) openEditor(juego).catch(err => alert('Error: '+err.message));
+      }
     });
+
+    document.getElementById('editor-close').addEventListener('click', closeEditor);
+    document.getElementById('editor-modal').addEventListener('click', (e) => { if (e.target === document.getElementById('editor-modal')) closeEditor(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeEditor(); });
+    document.getElementById('btn-add-modalidad').addEventListener('click', () => document.getElementById('modalidades-list').appendChild(modalidadRow('', '')));
+    document.getElementById('btn-add-comodin').addEventListener('click', () => document.getElementById('comodines-list').appendChild(comodinRow()));
+    document.getElementById('premios-form').addEventListener('submit', savePremios);
+
     load();
   </script>
 </AdminLayout>

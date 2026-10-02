@@ -334,9 +334,6 @@ class PremiosOficiales
         $config = [];
 
         if (isset($catalogo['base'])) {
-            // Espejo legacy: el export y los tests leen `premio_multiplo`.
-            $config['premio_multiplo'] = $catalogo['base'];
-
             // Fuente del motor (D1/C, §3): vocabulario canónico.
             $config['premios'] = [
                 'base' => $catalogo['base'],
@@ -345,17 +342,45 @@ class PremiosOficiales
             ];
         }
 
+        // Espejos legacy (D2): claves históricas con valores canónicos (§3.1).
+        return array_merge($config, self::espejosLegacy($slug, $catalogo));
+    }
+
+    /**
+     * Espejo legacy de `config` a partir de un objeto `premios` (D2): la
+     * fuente única de `premio_multiplo` (=base), `modalidades` (mapa
+     * `ESPEJO_MODALIDADES` + `ESPEJO_EXTRA` con valor derivado de base) y
+     * `comodines` (mismo shape canónico). `configPara()` delega aquí, y el
+     * servicio de edición (`PremiosConfigService::actualizar`) la reutiliza
+     * para sincronizar los espejos tras editar premios.
+     *
+     * @param  array<string, mixed>  $premios  {base?: int, modalidades, comodines}
+     * @return array<string, mixed>
+     */
+    public static function espejosLegacy(string $slug, array $premios): array
+    {
+        $base = $premios['base'] ?? null;
+        $espejo = [];
+
+        if ($base !== null) {
+            // Espejo legacy: el export y los tests leen `premio_multiplo`.
+            $espejo['premio_multiplo'] = $base;
+        }
+
         // Espejos legacy: claves históricas con valores canónicos (§3.1).
-        $config['modalidades'] = self::espejoLegacyModalidades($slug, $catalogo['modalidades']);
+        $modalidades = self::espejoLegacyModalidades($slug, $premios['modalidades'] ?? []);
 
         // Claves legacy sin contraparte canónica: valor derivado de base.
         foreach (self::ESPEJO_EXTRA[$slug] ?? [] as $clave) {
-            $config['modalidades'][$clave] = $catalogo['base'];
+            if ($base !== null) {
+                $modalidades[$clave] = $base;
+            }
         }
 
-        $config['comodines'] = $catalogo['comodines'];
+        $espejo['modalidades'] = $modalidades;
+        $espejo['comodines'] = $premios['comodines'] ?? [];
 
-        return $config;
+        return $espejo;
     }
 
     /**

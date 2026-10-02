@@ -55,7 +55,7 @@ class PagoController extends Controller
         $apuestaId = $request->input('apuesta_id');
 
         // Buscar apuesta
-        $apuesta = Apuesta::with(['juego', 'resultado'])->find($apuestaId);
+        $apuesta = Apuesta::with(['juego', 'resultado', 'detalles'])->find($apuestaId);
 
         if (! $apuesta) {
             return response()->json([
@@ -228,6 +228,8 @@ class PagoController extends Controller
      * Calcular premio con el MOTOR corregido (REQ10/N11): config-driven,
      * acentos, terminales y comodines. El manager delega en PremiosEngine;
      * nunca se usa el plugin directo (que no normaliza ni lee config).
+     * S2/D4: con snapshot persistido al vender, se valida contra él
+     * (override); null → config.premios actual (fallback legacy).
      */
     private function calcularPremio(Apuesta $apuesta, ?Resultado $resultado): array
     {
@@ -237,6 +239,14 @@ class PagoController extends Controller
 
         $resultados = $resultado ? $resultado->toArray() : [];
 
+        // Guard null-safe (verify SUGGESTION#1): la invariante vigente es UN
+        // detalle por apuesta (createApuesta). Sin detalle — o con el detalle
+        // sin snapshot — la resolucion cae al config.premios actual (fallback
+        // legacy) y el flujo de pago sigue. Multi-detalle futuro: se usa el
+        // primero, documentado aqui para cuando exista multi-seleccion.
+        $detalle = $apuesta->detalles->first();
+        $premiosSnapshot = $detalle?->premios_snapshot;
+
         return app(JuegoPluginManager::class)->calcularPremio(
             $apuesta->juego,
             [
@@ -244,7 +254,8 @@ class PagoController extends Controller
                 'amount_bs' => (float) $apuesta->amount_bs,
                 'amount_usd' => (float) $apuesta->amount_usd,
             ],
-            $resultados
+            $resultados,
+            $premiosSnapshot
         );
     }
 }

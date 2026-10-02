@@ -24,7 +24,7 @@ class MegaAnimal40Seeder extends Seeder
         //
         // Premios OFICIALES de la web (texto "Como jugar"): base 30× por animal
         // y 40× cuando SALE el comodín MEGA (respaldo del reglamento N°
-        // DIF-RGTO-033-00, solo referenciado — ver docs/inconsistencias.md).
+        // DIF-RGTO-033-00, solo referenciado — ver docs/cliente/inconsistencias.md).
         // El comodín se CAPTURA en `numeros_ganadores.comodin` (mega:"2"); la
         // liquidación 40× pertenece al ciclo futuro del motor de premios.
         //
