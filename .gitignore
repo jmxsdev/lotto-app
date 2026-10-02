@@ -42,3 +42,5 @@ SECURITY.md
 *.seed
 *.pid.lock
 *.md
+# La documentación del proyecto sí se versiona (docs/ dev + cliente)
+!docs/**/*.md

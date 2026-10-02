@@ -28,7 +28,15 @@ class TicketController extends Controller
     {
         $user = $request->user();
 
-        $query = Ticket::with(['apuestas.juego', 'apuestas.detalles', 'taquilla'])
+        $query = Ticket::withTrashed()
+            ->where(function ($q) {
+                // fix/taquilla-fixes: los anulados se soft-deletean con
+                // estado='anulada' y deben seguir VISIBLES en el historial
+                // (badge ANULADA, filtro ?estado=anulada); cualquier otro
+                // soft-delete del ticket permanece oculto.
+                $q->whereNull('deleted_at')->orWhere('estado', 'anulada');
+            })
+            ->with(['apuestas.juego', 'apuestas.detalles', 'taquilla'])
             ->withCount(['apuestas as ganadoras_count' => function ($q) {
                 $q->whereHas('detalles', function ($q2) {
                     $q2->whereNotNull('premio_ganado')
@@ -66,6 +74,10 @@ class TicketController extends Controller
 
         $tickets->getCollection()->transform(function ($ticket) {
             $ticket->tiene_ganadores = $ticket->ganadoras_count > 0;
+            // S2 taquilla-operativa: ventana de anulación EFECTIVA (cascada
+            // taquilla → grupo → banca → 5); el front la usa tal cual, sin
+            // hardcodear 5.
+            $ticket->tiempo_eliminacion_efectivo = $this->apuestaService->getEffectiveTiempoEliminacion($ticket->taquilla_id);
 
             return $ticket;
         });
@@ -94,6 +106,8 @@ class TicketController extends Controller
             });
         }]);
         $ticket->tiene_ganadores = $ticket->ganadoras_count > 0;
+        // S2 taquilla-operativa: ventana de anulación efectiva en show también.
+        $ticket->tiempo_eliminacion_efectivo = $this->apuestaService->getEffectiveTiempoEliminacion($ticket->taquilla_id);
 
         return response()->json(['data' => $ticket]);
     }

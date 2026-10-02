@@ -99,6 +99,7 @@ import MainLayout from '../layouts/MainLayout.astro';
         import { formatearJugada, nombresJuegos, labelModalidad } from '../utils/ticket';
         import { cargarCatalogo, labelDeSigno } from '../utils/catalogo';
         import { payloadPago, esPagableApuesta, esPagableTicket, acumularPremio } from '../utils/pagos';
+        import { buildReciboLines } from '../utils/recibos';
         import { estadoTicket } from '../utils/estados';
         import juegosRaw from '../data/juegos.json';
 
@@ -126,12 +127,31 @@ import MainLayout from '../layouts/MainLayout.astro';
             return estado === 'resuelto-sin-ganadores' ? 'RESUELTO SIN GANADORES' : estado.toUpperCase();
         }
 
+        // Copy de pago: el monto a confirmar es el PREMIO liquidado del ticket
+        // (`premio_total_bs`/`premio_total_usd`, persistidos al resolver los
+        // resultados), nunca `total_bs` — que es lo apostado e incluye las
+        // jugadas perdedoras. Mismo criterio que ganadores.astro.
+        function premioTotalTexto(ticket) {
+            const bs = Number(ticket.premio_total_bs || 0);
+            const usd = Number(ticket.premio_total_usd || 0);
+            const partes = [];
+            if (bs > 0) partes.push('Bs. ' + bs.toLocaleString('es-VE', { minimumFractionDigits: 2 }));
+            if (usd > 0) partes.push('$' + usd.toLocaleString('en-US', { minimumFractionDigits: 2 }));
+            return partes.join(' / ') || 'Bs. 0,00';
+        }
+
         function canDeleteTicket(ticket) {
             if (ticket.estado !== 'pendiente') return false;
+            const ventana = ticket.tiempo_eliminacion_efectivo;
+            // S2 taquilla-operativa: la ventana viene del backend (cascada
+            // taquilla → grupo → banca → 5). Si el backend NO la expone, NO
+            // se pre-bloquea: se intenta el DELETE y el mensaje real del
+            // backend (422) se muestra verbatim. Nunca se asume 5.
+            if (typeof ventana !== 'number') return true;
             const ahora = new Date();
             const created = new Date(ticket.created_at);
             const diffMinutes = (ahora - created) / (1000 * 60);
-            if (diffMinutes >= 5) return false;
+            if (diffMinutes >= ventana) return false;
             const sorteoVencido = (ticket.apuestas || []).some(a => {
                 if (!a.sorteo_hora) return false;
                 return new Date(a.sorteo_hora) < ahora;
@@ -156,6 +176,10 @@ import MainLayout from '../layouts/MainLayout.astro';
                 const totalUsd = Number(t.total_usd || 0);
                 const jugadasCount = t.apuestas?.length || 0;
                 const chipEstado = estadoTicket(t);
+                // Los anulados quedan VISIBLES con badge ANULADA y sin acciones
+                // (ni Pagar, ni Anular, ni Imprimir: el impreso sería un
+                // comprobante de pago de un ticket sin premios).
+                const esAnulada = t.estado === 'anulada';
                 const fechaHora = new Date(t.created_at);
                 const fechaStr = fechaHora.toLocaleDateString('es-VE', {day:'2-digit',month:'2-digit',year:'numeric'});
                 const horaStr = fechaHora.toLocaleTimeString('es-VE', {hour:'2-digit',minute:'2-digit'});
@@ -170,13 +194,15 @@ import MainLayout from '../layouts/MainLayout.astro';
                         <span class="ticket-total">Bs. ${totalBs.toLocaleString('es-VE', {minimumFractionDigits:2})} ${totalUsd > 0 ? '/ $'+totalUsd.toFixed(2) : ''}</span>
                         <span class="badge ${getStatusClass(chipEstado)}">${chipLabel(chipEstado)}</span>
                         <div class="ticket-actions">
-                            ${esPagableTicket(t) ? `
+                            ${!esAnulada && esPagableTicket(t) ? `
                                 <button class="btn-action btn-pay" data-action="pay" data-id="${t.id}">${icono('banknote')} Pagar</button>
                             ` : ''}
-                            ${t.estado === 'pendiente' && canDeleteTicket(t) ? `
+                            ${!esAnulada && t.estado === 'pendiente' && canDeleteTicket(t) ? `
                                 <button class="btn-action btn-delete" data-action="delete" data-id="${t.id}">${icono('circle-x')} Anular</button>
                             ` : ''}
-                            <button class="btn-action btn-print" data-action="print" data-id="${t.id}">${icono('printer')} Imprimir</button>
+                            ${!esAnulada ? `
+                                <button class="btn-action btn-print" data-action="print" data-id="${t.id}">${icono('printer')} Imprimir</button>
+                            ` : ''}
                         </div>
                     </div>
                     <div class="jugadas-container" data-jugadas="${t.id}">
@@ -237,13 +263,15 @@ import MainLayout from '../layouts/MainLayout.astro';
                 await window.showModal({ message: 'Ticket anulado', type: 'success' });
             } catch (e) {
                 restoreActions(ticket.id);
-                await window.showModal({ message: 'Error al anular: ' + e.message, type: 'error' });
+                // S2: el mensaje REAL del backend (422) verbatim, sin prefijos
+                // locales que lo adulteren.
+                await window.showModal({ message: e.message, type: 'error' });
             }
         }
 
         async function pagarTicket(ticket) {
             const ok = await window.showModal({
-                message: 'Registrar pago completo del ticket ' + ticket.ticket_code + ' por Bs. ' + Number(ticket.total_bs||0).toFixed(2) + '?',
+                message: 'Registrar pago completo del ticket ' + ticket.ticket_code + ' por ' + premioTotalTexto(ticket) + '?',
                 type: 'confirm'
             });
             if (!ok) return;
@@ -269,42 +297,95 @@ import MainLayout from '../layouts/MainLayout.astro';
                 if (premio.premio_bs > 0) partes.push('Bs. ' + premio.premio_bs.toLocaleString('es-VE', { minimumFractionDigits: 2 }));
                 if (premio.premio_usd > 0) partes.push('$' + premio.premio_usd.toLocaleString('en-US', { minimumFractionDigits: 2 }));
                 await window.showModal({ message: 'Premio pagado: ' + partes.join(' / '), type: 'success' });
+                // S1: comprobante impreso automáticamente tras el pago. El
+                // builder usa SOLO las respuestas de POST /pagos (nunca detalles).
+                const respuestasPorId = new Map(respuestas.map(r => [r.data?.apuesta_id, r]));
+                const pagosPorApuesta = (ticket.apuestas || []).map(a => respuestasPorId.get(a.id) ?? null);
+                const recibo = buildReciboLines(ticket, pagosPorApuesta);
+                if (window.electron?.printTicket) {
+                    await window.electron.printTicket({
+                        ticketData: {
+                            kind: 'recibo',
+                            ticketCode: ticket.ticket_code,
+                            date: new Date(ticket.created_at).toLocaleDateString('es-VE'),
+                            time: new Date(ticket.created_at).toLocaleTimeString('es-VE'),
+                            lines: recibo.lines,
+                            premioTotalBs: recibo.premioTotalBs,
+                            premioTotalUsd: recibo.premioTotalUsd,
+                        },
+                    });
+                }
             }
             loadTickets();
         }
 
         async function printTicket(ticket) {
-            // Ticket impreso (2026-09): texto de jugada por familia (animal,
-            // solo número en terminal, modalidad + número + signo en tripletas)
-            // y encabezado con TODOS los juegos del ticket.
-            const lines = (ticket.apuestas || []).map(a => {
-                const c = typeof a.combinacion === 'string' ? JSON.parse(a.combinacion) : (a.combinacion || {});
-                const esTripleta = !!c.tipo;
-                const tipo = esTripleta ? 'tripletas' : (c.animal ? 'animalitos' : 'terminales');
-                const juego = catalogoTicket.porId.get(a.juego_id ?? a.juego?.id);
-                return {
-                    game: a.juego?.name || '',
-                    jugada: formatearJugada({
-                        tipo,
-                        animal: c.animal || null,
-                        numero: c.numero ?? null,
-                        modalidad: esTripleta ? labelModalidad(c.tipo) : null,
-                        signo: esTripleta && c.signo
-                            ? (juego ? (labelDeSigno(juego, c.signo) ?? c.signo) : c.signo)
-                            : null,
-                    }),
-                    sorteo: a.sorteo_hora ? new Date(a.sorteo_hora).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }) : '',
-                    amountBs: Number(a.amount_bs || 0),
-                    amountUsd: Number(a.amount_usd || 0),
+            // S1: ticket pagado/resuelto (no pendiente) → comprobante de pago
+            // (spec taquilla-comprobante-pago §3); pendiente → ticket de venta.
+            let ticketData;
+            if (ticket.estado !== 'pendiente') {
+                // S5: la reimpresión NO tiene las respuestas de POST /pagos
+                // (solo el auto-print tras pagar). Se consultan los pagos
+                // REGISTRADOS por apuesta (GET /pagos/{apuesta}) para que cada
+                // jugada ganadora muestre el monto REAL pagado y los totales
+                // salgan bien. Si la consulta falla, se imprime con los datos
+                // disponibles (estados reales, totales sin montos): nunca
+                // bloquea la impresión.
+                const pagosPorApuesta = {};
+                for (const apuesta of (ticket.apuestas || [])) {
+                    if (!apuesta?.id) continue;
+                    try {
+                        const res = await apiFetch('/pagos/' + apuesta.id);
+                        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+                            pagosPorApuesta[apuesta.id] = res.data;
+                        }
+                    } catch {
+                        // Fallback: estado real de la apuesta, premio 0.
+                    }
+                }
+                const recibo = buildReciboLines(ticket, [], pagosPorApuesta);
+                ticketData = {
+                    kind: 'recibo',
+                    ticketCode: ticket.ticket_code,
+                    date: new Date(ticket.created_at).toLocaleDateString('es-VE'),
+                    time: new Date(ticket.created_at).toLocaleTimeString('es-VE'),
+                    lines: recibo.lines,
+                    premioTotalBs: recibo.premioTotalBs,
+                    premioTotalUsd: recibo.premioTotalUsd,
                 };
-            });
-            const ticketData = {
-                ticketCode: ticket.ticket_code,
-                date: new Date(ticket.created_at).toLocaleDateString('es-VE'),
-                time: new Date(ticket.created_at).toLocaleTimeString('es-VE'),
-                game: nombresJuegos(lines).join(', '),
-                lines: lines,
-            };
+            } else {
+                // Ticket impreso (2026-09): texto de jugada por familia (animal,
+                // solo número en terminal, modalidad + número + signo en tripletas)
+                // y encabezado con TODOS los juegos del ticket.
+                const lines = (ticket.apuestas || []).map(a => {
+                    const c = typeof a.combinacion === 'string' ? JSON.parse(a.combinacion) : (a.combinacion || {});
+                    const esTripleta = !!c.tipo;
+                    const tipo = esTripleta ? 'tripletas' : (c.animal ? 'animalitos' : 'terminales');
+                    const juego = catalogoTicket.porId.get(a.juego_id ?? a.juego?.id);
+                    return {
+                        game: a.juego?.name || '',
+                        jugada: formatearJugada({
+                            tipo,
+                            animal: c.animal || null,
+                            numero: c.numero ?? null,
+                            modalidad: esTripleta ? labelModalidad(c.tipo) : null,
+                            signo: esTripleta && c.signo
+                                ? (juego ? (labelDeSigno(juego, c.signo) ?? c.signo) : c.signo)
+                                : null,
+                        }),
+                        sorteo: a.sorteo_hora ? new Date(a.sorteo_hora).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }) : '',
+                        amountBs: Number(a.amount_bs || 0),
+                        amountUsd: Number(a.amount_usd || 0),
+                    };
+                });
+                ticketData = {
+                    ticketCode: ticket.ticket_code,
+                    date: new Date(ticket.created_at).toLocaleDateString('es-VE'),
+                    time: new Date(ticket.created_at).toLocaleTimeString('es-VE'),
+                    game: nombresJuegos(lines).join(', '),
+                    lines: lines,
+                };
+            }
             try {
                 if (window.electron?.printTicket) {
                     await window.electron.printTicket({ ticketData });

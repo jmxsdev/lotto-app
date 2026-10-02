@@ -96,7 +96,7 @@ class JuegoAnimalitosSeeder extends Seeder
         );
 
         // Migración de datos: el feed oficial y el reglamento declaran
-        // "Cebra = 23" (antes teníamos "Cobra" — ver docs/seguimiento-verificacion.md).
+        // "Cebra = 23" (antes teníamos "Cobra" — ver docs/cliente/seguimiento-verificacion.md).
         // Renombra la fila existente ANTES del loop para no duplicar opciones.
         JuegoOpcion::where('juego_id', $juego->id)
             ->where('value', 'cobra')

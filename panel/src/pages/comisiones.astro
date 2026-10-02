@@ -1,0 +1,371 @@
+---
+import AdminLayout from '../layouts/AdminLayout.astro';
+import Icon from '../components/Icon.astro';
+---
+
+<AdminLayout>
+  <div class="page">
+    <div class="page-header"><h2 class="page-title">Comisiones</h2></div>
+
+    <div class="liquidar-card">
+      <div class="liquidar-header">
+        <h3 class="liquidar-title">Liquidar período</h3>
+        <p class="liquidar-hint">Genera filas de comisión para Bancas, Grupos y Taquillas con ventas en el rango. Un rango ya liquidado se rechaza.</p>
+      </div>
+      <div class="liquidar-filas">
+        <div class="field">
+          <label>Desde</label>
+          <input type="date" id="liq-desde" />
+        </div>
+        <div class="field">
+          <label>Hasta</label>
+          <input type="date" id="liq-hasta" />
+        </div>
+        <div class="field" style="align-self:flex-end">
+          <button class="btn btn-primary" id="btn-liquidar"><Icon name="banknote" size={14} /> Liquidar</button>
+        </div>
+        <span id="liq-estado" class="estado" role="status"></span>
+      </div>
+      <div id="conflictos" class="conflictos" hidden></div>
+    </div>
+
+    <div class="filters">
+      <div class="field">
+        <label>Estado</label>
+        <select id="filter-estado">
+          <option value="">Todos</option>
+          <option value="pendiente">Pendiente</option>
+          <option value="pagado">Pagado</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Desde</label>
+        <input type="date" id="filter-desde" />
+      </div>
+      <div class="field">
+        <label>Hasta</label>
+        <input type="date" id="filter-hasta" />
+      </div>
+      <div class="field">
+        <label>Nivel</label>
+        <select id="filter-nivel">
+          <option value="">Todos</option>
+          <option value="banca">Banca</option>
+          <option value="grupo">Grupo</option>
+          <option value="taquilla">Taquilla</option>
+        </select>
+      </div>
+      <div class="field search">
+        <label>Entidad</label>
+        <input type="text" id="filter-entity" placeholder="Nombre o código..." />
+      </div>
+      <div class="field" style="align-self:flex-end">
+        <button class="btn btn-primary" id="btn-buscar"><Icon name="search" size={14} /> Buscar</button>
+      </div>
+    </div>
+
+    <div id="content"><div class="loading">Cargando...</div></div>
+  </div>
+
+  <style is:global>
+    .page { max-width: 1200px; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .page-title { font-size: 24px; font-weight: 700; color: #1e293b; }
+    .btn { padding: 8px 16px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .15s; }
+    .btn-primary { background: #3b82f6; color: #fff; } .btn-primary:hover { background: #2563eb; }
+    .btn:disabled { opacity: 0.5; cursor: default; }
+    .btn-sm { padding: 5px 12px; font-size: 12px; border-radius: 6px; }
+    .btn-success { background: #16a34a; color: #fff; } .btn-success:hover { background: #15803d; }
+    .loading { text-align: center; padding: 40px; color: #666; }
+    .filters { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 16px; align-items: flex-end; }
+    .field { margin-bottom: 14px; } .field label { display: block; font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px; }
+    .field input, .field select { width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px; min-width: 140px; } .field input:focus, .field select:focus { border-color: #3b82f6; outline: none; }
+    .field.search input { min-width: 220px; }
+    .table-wrap { background: #fff; border-radius: 10px; overflow: auto; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    table { width: 100%; border-collapse: collapse; } th { background: #f1f5f9; padding: 10px 12px; text-align: left; font-size: 12px; font-weight: 600; color: #666; text-transform: uppercase; white-space: nowrap; } td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; white-space: nowrap; } tr:hover td { background: #f8fafc; }
+    .number { text-align: right; font-variant-numeric: tabular-nums; }
+    .error { color: #ef4444; text-align: center; padding: 20px; }
+    .empty { text-align: center; padding: 40px; color: #999; }
+    .estado { font-size: 13px; color: #16a34a; }
+    .estado.error { color: #dc2626; }
+    .liquidar-card { margin-bottom: 20px; padding: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; }
+    .liquidar-header { margin-bottom: 12px; }
+    .liquidar-title { font-size: 15px; font-weight: 700; color: #1e293b; margin: 0 0 4px; }
+    .liquidar-hint { font-size: 12px; color: #64748b; margin: 0; }
+    .liquidar-filas { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; }
+    .conflictos { margin-top: 12px; padding: 12px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; font-size: 13px; color: #991b1b; }
+    .conflictos-title { font-weight: 700; margin-bottom: 6px; }
+    .conflictos ul { margin: 0; padding-left: 20px; }
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+    .badge-pendiente { background: #fef3c7; color: #92400e; }
+    .badge-pagado { background: #dcfce7; color: #166534; }
+    .nivel-banca { background: #ccfbf1; color: #115e59; }
+    .nivel-grupo { background: #dbeafe; color: #1e40af; }
+    .nivel-taquilla { background: #ede9fe; color: #5b21b6; }
+    .pag-wrap { display: flex; gap: 6px; align-items: center; justify-content: center; padding: 10px 0; flex-wrap: wrap; }
+    .pag-btn { padding: 5px 10px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; font-size: 13px; cursor: pointer; }
+    .pag-btn:hover:not(:disabled) { background: #f1f5f9; }
+    .pag-btn:disabled { opacity: 0.4; cursor: default; }
+    .pag-activa { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+  </style>
+
+  <script>
+    import { apiFetch, getStoredUser } from '../utils/api.ts';
+    import { icono } from '../utils/iconos.ts';
+
+    const user = getStoredUser();
+    const rol = user?.role || '';
+
+    // El backend exige super_master|master para GET /comisiones (D8).
+    const ACCESO = ['super_master', 'master'].includes(rol);
+
+    let ledger = []; // todas las filas (todas las páginas de la API)
+    let pagina = 1;
+    const POR_PAGINA = 15;
+    const MAX_PAGINAS_API = 50; // salvaguarda: 50 páginas × 100 filas
+    const fmt = (v) => Number(v || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const content = document.getElementById('content');
+
+    if (!ACCESO) {
+      content.innerHTML = '<div class="error">Sin acceso a esta sección.</div>';
+    } else {
+      const hoy = new Date();
+      const hace30 = new Date(hoy.getTime() - 30 * 86400000);
+      document.getElementById('filter-hasta').value = hoy.toISOString().split('T')[0];
+      document.getElementById('filter-desde').value = hace30.toISOString().split('T')[0];
+      document.getElementById('liq-hasta').value = hoy.toISOString().split('T')[0];
+      document.getElementById('liq-desde').value = hace30.toISOString().split('T')[0];
+
+      document.getElementById('btn-buscar').addEventListener('click', () => { pagina = 1; render(); });
+      document.getElementById('btn-liquidar').addEventListener('click', liquidar);
+      cargar();
+    }
+
+    // Fetch con acceso al body completo (apiFetch solo expone message).
+    // Necesario para leer `conflictos` en el 422 de liquidar.
+    async function fetchBody(method, url, body) {
+      const token = localStorage.getItem('panel_token');
+      const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Panel': 'true' };
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+      const res = await fetch((import.meta.env.PUBLIC_API_URL || 'http://localhost:8000') + '/api/v1' + url, {
+        method, headers, body: body ? JSON.stringify(body) : undefined,
+      });
+      let data = null;
+      try { data = await res.json(); } catch (_) {}
+      if (!res.ok) {
+        const err = new Error(data?.message || res.statusText);
+        err.status = res.status;
+        err.body = data;
+        throw err;
+      }
+      return data;
+    }
+
+    async function cargar() {
+      content.innerHTML = '<div class="loading">Cargando...</div>';
+      try {
+        // Recolecta todas las páginas del ledger para filtrar/paginar en cliente
+        // (patrón del panel: filtros y paginación client-side, ej. logs.astro).
+        const filas = [];
+        let page = 1;
+        let last = 1;
+        do {
+          const res = await apiFetch('GET', `/comisiones?per_page=100&page=${page}`);
+          filas.push(...(res?.data || []));
+          last = res?.last_page || 1;
+          page += 1;
+        } while (page <= last && page <= MAX_PAGINAS_API);
+        ledger = filas;
+        render();
+      } catch (e) {
+        content.innerHTML = '<div class="error">Error: ' + (e.message || 'No se pudo cargar el ledger.') + '</div>';
+      }
+    }
+
+    function filtros() {
+      return {
+        estado: document.getElementById('filter-estado').value,
+        desde: document.getElementById('filter-desde').value,
+        hasta: document.getElementById('filter-hasta').value,
+        nivel: document.getElementById('filter-nivel').value,
+        q: document.getElementById('filter-entity').value.trim().toLowerCase(),
+      };
+    }
+
+    function aplicarFiltros(f) {
+      return ledger.filter(r => {
+        if (f.estado && r.estado !== f.estado) return false;
+        // Rango de fechas: solapamiento con [desde, hasta] (misma semántica que D4)
+        if (f.desde && r.fecha_fin && r.fecha_fin < f.desde) return false;
+        if (f.hasta && r.fecha_inicio && r.fecha_inicio > f.hasta) return false;
+        if (f.nivel === 'banca' && !r.banca_id) return false;
+        if (f.nivel === 'grupo' && !r.grupo_id) return false;
+        if (f.nivel === 'taquilla' && !r.taquilla_id) return false;
+        if (f.q) {
+          const nombre = (r.banca?.name || r.grupo?.name || r.taquilla?.name || '').toLowerCase();
+          const code = (r.banca?.code || r.grupo?.code || r.taquilla?.code || '').toLowerCase();
+          if (!nombre.includes(f.q) && !code.includes(f.q)) return false;
+        }
+        return true;
+      });
+    }
+
+    function render() {
+      const f = filtros();
+      const filas = aplicarFiltros(f);
+      const totalPaginas = Math.max(1, Math.ceil(filas.length / POR_PAGINA));
+      if (pagina > totalPaginas) pagina = totalPaginas;
+      const inicio = (pagina - 1) * POR_PAGINA;
+      const visibles = filas.slice(inicio, inicio + POR_PAGINA);
+
+      if (filas.length === 0) {
+        content.innerHTML = '<div class="empty">No hay comisiones para los filtros seleccionados.</div>';
+        return;
+      }
+
+      let html = '<div class="table-wrap"><table><thead><tr>' +
+        '<th>Nivel</th><th>Entidad</th><th>Período</th><th class="number">Monto (Bs.)</th>' +
+        '<th>Estado</th><th>Liquidada</th><th>Acción</th></tr></thead><tbody>';
+
+      visibles.forEach(r => {
+        const esBanca = r.banca_id !== null && r.banca_id !== undefined;
+        const esGrupo = !esBanca && r.grupo_id !== null && r.grupo_id !== undefined;
+        const nivel = esBanca ? 'Banca' : esGrupo ? 'Grupo' : 'Taquilla';
+        const claseNivel = esBanca ? 'nivel-banca' : esGrupo ? 'nivel-grupo' : 'nivel-taquilla';
+        const nombre = r.banca?.name || r.grupo?.name || r.taquilla?.name || '-';
+        const code = r.banca?.code || r.grupo?.code || r.taquilla?.code || '';
+        const periodo = r.fecha_inicio && r.fecha_fin ? `${r.fecha_inicio} a ${r.fecha_fin}` : (r.periodo || '-');
+        const pagado = r.estado === 'pagado';
+        html += `<tr>
+          <td><span class="badge ${claseNivel}">${nivel}</span></td>
+          <td><strong>${nombre}</strong>${code ? ` <span style="color:#94a3b8">(${code})</span>` : ''}</td>
+          <td>${periodo}</td>
+          <td class="number">${fmt(r.monto_comision)}</td>
+          <td><span class="badge ${pagado ? 'badge-pagado' : 'badge-pendiente'}">${pagado ? 'Pagado' : 'Pendiente'}</span></td>
+          <td>${r.created_at ? new Date(r.created_at).toLocaleDateString('es-VE') : '-'}</td>
+          <td>${pagado
+            ? '<span style="color:#94a3b8;font-size:12px">—</span>'
+            : `<button class="btn btn-sm btn-success pagar-btn" data-id="${r.id}"><span aria-hidden="true">${icono('check')}</span> Pagar</button>`}</td>
+        </tr>`;
+      });
+
+      html += '</tbody></table></div>';
+
+      if (totalPaginas > 1) {
+        html += '<div class="pag-wrap">';
+        html += `<button class="pag-btn" data-page="${pagina - 1}" ${pagina === 1 ? 'disabled' : ''}>‹ Anterior</button>`;
+        for (let p = 1; p <= totalPaginas; p++) {
+          if (totalPaginas > 10 && p !== 1 && p !== totalPaginas && Math.abs(p - pagina) > 2) {
+            if (p === 2 || p === totalPaginas - 1) html += '<span style="color:#94a3b8">…</span>';
+            continue;
+          }
+          html += `<button class="pag-btn ${p === pagina ? 'pag-activa' : ''}" data-page="${p}">${p}</button>`;
+        }
+        html += `<button class="pag-btn" data-page="${pagina + 1}" ${pagina === totalPaginas ? 'disabled' : ''}>Siguiente ›</button>`;
+        html += '</div>';
+      }
+
+      content.innerHTML = html;
+      content.querySelectorAll('.pag-btn[data-page]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const p = Number(btn.dataset.page);
+          if (p >= 1 && p <= totalPaginas) { pagina = p; render(); }
+        });
+      });
+      content.querySelectorAll('.pagar-btn').forEach(btn => {
+        btn.addEventListener('click', () => pagar(Number(btn.dataset.id), btn));
+      });
+    }
+
+    async function pagar(id, btn) {
+      btn.disabled = true;
+      try {
+        const fila = await apiFetch('PATCH', `/comisiones/${id}/pagar`);
+        const r = ledger.find(x => x.id === id);
+        if (r) r.estado = fila?.estado || 'pagado';
+        render();
+      } catch (e) {
+        btn.disabled = false;
+        alert('Error al marcar como pagada: ' + (e.message || 'No se pudo completar la acción.'));
+      }
+    }
+
+    async function liquidar() {
+      const desde = document.getElementById('liq-desde').value;
+      const hasta = document.getElementById('liq-hasta').value;
+      const estado = document.getElementById('liq-estado');
+      const conflictos = document.getElementById('conflictos');
+      conflictos.hidden = true;
+      conflictos.innerHTML = '';
+
+      if (!desde || !hasta) {
+        estado.textContent = 'Selecciona un rango de fechas.';
+        estado.className = 'estado error';
+        return;
+      }
+      if (hasta < desde) {
+        estado.textContent = 'La fecha "hasta" debe ser posterior o igual a "desde".';
+        estado.className = 'estado error';
+        return;
+      }
+
+      const btn = document.getElementById('btn-liquidar');
+      btn.disabled = true;
+      estado.textContent = 'Liquidando...';
+      estado.className = 'estado';
+
+      try {
+        const data = await fetchBody('POST', '/comisiones/liquidar', { desde, hasta });
+        estado.textContent = data?.message || 'Comisiones liquidadas correctamente.';
+        estado.className = 'estado';
+        await cargar(); // refresca el ledger con las filas nuevas
+      } catch (e) {
+        if (e.status === 422) {
+          estado.textContent = 'No se pudo liquidar el rango.';
+          estado.className = 'estado error';
+          renderConflictos(e.body?.conflictos || [], e.body?.message);
+        } else {
+          estado.textContent = 'Error: ' + (e.message || 'No se pudo liquidar.');
+          estado.className = 'estado error';
+        }
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // Resuelve los ids de `conflictos` ({nivel, entidad_id}) a nombres
+    // consultando los catálogos de bancas/grupos/taquillas (best-effort).
+    async function renderConflictos(conflictos, message) {
+      const box = document.getElementById('conflictos');
+      if (!conflictos || conflictos.length === 0) {
+        box.hidden = true;
+        return;
+      }
+      let bancas = [];
+      let grupos = [];
+      let taquillas = [];
+      try {
+        const [b, g, t] = await Promise.all([
+          apiFetch('GET', '/bancas?per_page=100').then(r => (Array.isArray(r) ? r : r?.data || [])).catch(() => []),
+          apiFetch('GET', '/grupos?per_page=100').then(r => (Array.isArray(r) ? r : r?.data || [])).catch(() => []),
+          apiFetch('GET', '/taquillas?per_page=100').then(r => (Array.isArray(r) ? r : r?.data || [])).catch(() => []),
+        ]);
+        bancas = b; grupos = g; taquillas = t;
+      } catch (_) {}
+
+      const nombre = (nivel, id) => {
+        const lista = nivel === 'banca' ? bancas : nivel === 'grupo' ? grupos : taquillas;
+        const ent = lista.find(x => x.id === id);
+        return ent ? `${ent.name} (${ent.code || id})` : `#${id}`;
+      };
+
+      const items = conflictos.map(c => {
+        const etiqueta = c.nivel === 'banca' ? 'Banca' : c.nivel === 'grupo' ? 'Grupo' : 'Taquilla';
+        return `<li>${etiqueta} ${nombre(c.nivel, c.entidad_id)}</li>`;
+      }).join('');
+
+      box.innerHTML = `<div class="conflictos-title">${message || 'Rango solapado con liquidaciones existentes:'}</div><ul>${items}</ul>`;
+      box.hidden = false;
+    }
+  </script>
+</AdminLayout>

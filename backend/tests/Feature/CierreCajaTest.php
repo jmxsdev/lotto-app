@@ -1086,11 +1086,13 @@ class CierreCajaTest extends TestCase
         $this->assertCount(2, $cierres);
 
         // Shape exacto por cierre (AD-12): desglose, arqueo, faltante, tasa
+        // (+ comision_bs_equivalent, D10: desglose de comisión aditivo)
         $this->assertEquals([
             'id', 'taquilla_id', 'fecha_inicio', 'fecha_fin',
             'total_ventas_bs', 'total_ventas_usd', 'total_ventas_bs_equivalent',
             'total_egresos_bs', 'total_egresos_usd',
             'total_efectivo_bs', 'total_efectivo_usd',
+            'comision_bs_equivalent',
             'arqueo_efectivo_bs', 'arqueo_efectivo_usd',
             'faltante_sobrante_bs', 'faltante_sobrante_usd',
             'desglose_metodos', 'exchange_rate_cierre',
@@ -1124,6 +1126,11 @@ class CierreCajaTest extends TestCase
         $this->assertNull($segundo['arqueo_efectivo_usd']);
         $this->assertNull($segundo['faltante_sobrante_bs']);
         $this->assertNull($segundo['faltante_sobrante_usd']);
+
+        // D10: diarios legacy sin comisión → null en el diario y 0.0 en el agregado
+        $this->assertNull($primero['comision_bs_equivalent']);
+        $this->assertNull($segundo['comision_bs_equivalent']);
+        $this->assertEquals(0.0, (float) $response->json('comision_bs_equivalent'));
 
         // Regresión: totales agregados y ventana_cubierta sin cambios
         $this->assertEquals(2000.0, (float) $response->json('total_ventas_bs'));

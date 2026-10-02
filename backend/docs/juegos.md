@@ -138,7 +138,7 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 > día, patrón loteriadehoy/lagranjita). Sin signo en los resultados. El portal
 > también renderiza la sección `animalsResultArticle` (La Ricachona animalitos,
 > cada hora `:10`) — FUERA DE ALCANCE, documentada como candidato en
-> `docs/plataformas-juegos.md`; el selector del scraper filtra SOLO
+> `docs/cliente/plataformas-juegos.md`; el selector del scraper filtra SOLO
 > `tripleResultArticle`. Sin ID externo por sorteo → `sorteo_id_externo` null
 > y dedupe por juego+fecha+hora en `saveResults` heredado.
 
@@ -162,7 +162,7 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 > parciales del día); respuesta vacía/inválida/sin entradas → RuntimeException.
 > La plataforma lotterly.co es multi-producto por `product_slug` (otros slugs
 > devuelven 400 "product_slug does not exist") — solo se integra
-> `loto-chaima`; documentada como Plataforma 3 en `docs/plataformas-juegos.md`.
+> `loto-chaima`; documentada como Plataforma 3 en `docs/cliente/plataformas-juegos.md`.
 
 > `MegaAnimal40OficialScraper` consume el SITIO OFICIAL megaanimal40.com (CONALOT +
 > Big Data Tecnology + Lotería de Cojedes; WU f27, resuelve H1/H20): `POST
@@ -206,7 +206,7 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 > comodines**: Comodín A "Leoncito" (160×) y Comodín B "Selva Plus" (200×),
 > registrados en `config.comodines` del juego (valor REAL para el JSON del
 > front y futuro motor; el motor actual NO usa `premio_multiplo` al liquidar —
-> gap conocido, ver `docs/estrategia-scrapers-premios.md`). El juego lanzó el
+> gap conocido, ver `docs/dev/estrategia-scrapers-premios.md`). El juego lanzó el
 > **2026-09-07**: fechas anteriores devuelven `[]` (estado válido del
 > proveedor). La representación de los comodines en `result` NO se ha observado
 > aún (65 sorteos del 07-11 sep, todos numéricos) → parser DEFENSIVO: si
@@ -231,7 +231,7 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 > reglamento G-20004065-3 (Lotería del Táchira, PDF parseable)**: A/B **500×**,
 > Terminal/Cola **50×**, Triple+Zodiacal **5.000×** — la informativa
 > (resultadosvenezuela.com) declara 600/60/6.000 y un 3er sorteo 19:20:
-> desajuste H9 documentado en `docs/comparacion-juegos.md` (el seeder registra
+> desajuste H9 documentado en `docs/cliente/comparacion-juegos.md` (el seeder registra
 > los valores OFICIALES del reglamento). Sin ID externo → `sorteo_id_externo`
 > null y dedupe por juego+fecha+hora en `saveResults` heredado. Comportamiento
 > dominical NO uniforme en la muestra (06-sep solo 22:10; 13-sep ninguno) —

@@ -113,6 +113,8 @@ class ReporteController extends Controller
             'tipo_juego' => $request->input('tipo_juego'),
             'moneda' => $request->input('moneda'),
             'nivel' => $request->input('nivel', 'banca'), // banca, grupo, taquilla, agencia
+            'fecha_desde' => $request->input('fecha_desde'),
+            'fecha_hasta' => $request->input('fecha_hasta'),
         ];
 
         $data = $this->apuestaService->ventasTotales($query, $filters);

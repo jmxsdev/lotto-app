@@ -5,6 +5,36 @@ Todas las versiones notables de la Taquilla se documentan en este archivo.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/) y el
 versionado es [SemVer](https://semver.org/lang/es/).
 
+## [1.0.2] — 2026-10-01
+
+Correcciones del historial, del copy de pago y de las modalidades.
+
+### Corregido
+
+- **Anulación**: los tickets anulados quedan visibles en el historial con badge
+  `ANULADA` y sin acciones (antes desaparecían por el scope de soft-delete).
+- **Confirmación de pago**: muestra el premio pagado (Bs y/o $) en vez del
+  total apostado del ticket.
+
+### Cambiado
+
+- **Modalidades de tripletas**: selector en grilla de dos columnas, con
+  navegación por fila (↑/↓) y por columna (←/→).
+
+## [1.0.1] — 2026-10-01
+
+Hotfix de la Taquilla.
+
+### Corregido
+
+- **Dashboard**: el icono referenciado antes de su inicialización (TDZ) rompía
+  el renderizado del panel.
+- **Comprobante de pago**: se imprime al registrar el pago y admite
+  reimpresión; los totales se derivan de los pagos registrados.
+- **Tiempo de anulación**: configurable por el panel (1..8760 horas).
+- **Navegación de tripletas**: se recorre con las flechas del teclado.
+- **Foco directo a Número**: el cursor entra directo al input de Número.
+
 ## [1.0.0] — 2026-09-28
 
 Primera versión estable. Ciclo completo del producto: la taquilla vende con

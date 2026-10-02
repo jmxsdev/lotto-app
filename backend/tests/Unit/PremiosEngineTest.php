@@ -383,4 +383,75 @@ class PremiosEngineTest extends TestCase
 
         $this->assertSame([], $engine->reglas($juego));
     }
+
+    // ---------------- S2: override de premios (snapshot por apuesta, D4) ----------------
+
+    public function test_calcular_con_override_de_premios_usa_el_snapshot_no_el_config()
+    {
+        // Snapshot al vender: base 50×. Config actual (editado después): base 60×.
+        $juego = $this->juego('monje-millonario', ['base' => 60, 'modalidades' => [], 'comodines' => []]);
+        $engine = $this->motorCon($this->pluginConAcierto(['coincide' => true, 'clave' => 'base', 'meta' => []]));
+
+        $premio = $engine->calcular(
+            $juego,
+            ['amount_bs' => 10, 'amount_usd' => 0],
+            [],
+            ['base' => 50, 'modalidades' => [], 'comodines' => []]
+        );
+
+        $this->assertEquals(['premio_bs' => 500.0, 'premio_usd' => 0.0], $premio, '10 Bs × 50× (snapshot), no 60×.');
+    }
+
+    public function test_calcular_sin_override_sigue_usando_el_config_actual()
+    {
+        // Default (null) = comportamiento actual: config.premios del juego.
+        $juego = $this->juego('monje-millonario', ['base' => 60, 'modalidades' => [], 'comodines' => []]);
+        $engine = $this->motorCon($this->pluginConAcierto(['coincide' => true, 'clave' => 'base', 'meta' => []]));
+
+        $premio = $engine->calcular($juego, ['amount_bs' => 10, 'amount_usd' => 0], []);
+
+        $this->assertEquals(['premio_bs' => 600.0, 'premio_usd' => 0.0], $premio);
+    }
+
+    public function test_override_de_premios_incluye_la_resolucion_de_comodines()
+    {
+        // Snapshot con comodín MEGA (40×). Config actual: sin comodines, base 60×.
+        $juego = $this->juego('mega-animal-40', ['base' => 60, 'modalidades' => [], 'comodines' => []]);
+        $engine = $this->motorCon($this->pluginConAcierto([
+            'coincide' => true,
+            'clave' => 'base',
+            'meta' => ['comodines' => ['mega']],
+        ]));
+
+        $premio = $engine->calcular(
+            $juego,
+            ['amount_bs' => 10, 'amount_usd' => 0],
+            [],
+            ['base' => 30, 'modalidades' => [], 'comodines' => ['mega' => ['tipo' => 'flag', 'premio_multiplo' => 40]]]
+        );
+
+        $this->assertEquals(['premio_bs' => 400.0, 'premio_usd' => 0.0], $premio, 'El comodín se resuelve del snapshot, no del config.');
+    }
+
+    public function test_override_afecta_premio_posible_y_multiplicador_para()
+    {
+        $juego = $this->juego('cazaloton', ['base' => 30, 'modalidades' => ['tripleta' => 200], 'comodines' => []]);
+        $engine = $this->motorCon($this->pluginConAcierto(['coincide' => true, 'clave' => 'base', 'meta' => []]));
+
+        // premioPosible con override: tripleta 300× del snapshot, no 200× del config.
+        $premio = $engine->premioPosible(
+            $juego,
+            ['modalidad' => 'tripleta'],
+            10.0,
+            0.0,
+            ['base' => 30, 'modalidades' => ['tripleta' => 300], 'comodines' => []]
+        );
+        $this->assertEquals(['premio_bs' => 3000.0, 'premio_usd' => 0.0], $premio);
+
+        // multiplicadorPara con override.
+        $this->assertSame(
+            300.0,
+            $engine->multiplicadorPara($juego, 'tripleta', ['base' => 30, 'modalidades' => ['tripleta' => 300], 'comodines' => []])
+        );
+    }
 }

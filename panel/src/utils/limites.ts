@@ -29,8 +29,8 @@ export interface OpcionesTablaLimites {
   alcance?: { tipo: 'banca' | 'grupo' | 'taquilla'; id: number } | null;
   mostrarOrigen?: boolean;
   filasPorPagina?: number;
-  puedeEditar?: boolean;                    // default true; false ⇒ inputs disabled y sin columna Acciones
-  eliminar?: (id: number) => Promise<any>;  // ausente ⇒ sin botón Limpiar (create mode y modo scope)
+  puedeEditar?: boolean;                    // default true; false => inputs disabled y sin columna Acciones
+  eliminar?: (id: number) => Promise<any>;  // ausente => sin botón Limpiar (create mode y modo scope)
   cargarDatos: () => Promise<DatosTablaLimites>;
   guardar: (payload: {
     scope?: { tipo: string; id: number } | null;
