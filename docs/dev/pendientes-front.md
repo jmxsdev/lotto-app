@@ -2,7 +2,7 @@
 
 > **Fuente de verdad única** de los ajustes pendientes en `panel/` (admin web) y `taquilla/` (POS Astro+Electron).
 > Consolida lo disperso en los demás `.md` de `docs/` (incluye el ex `docs/dev/pendientes-front.md`, fusionado aquí en §7), la memoria Engram del proyecto y el estado real de ramas/worktrees/openspec.
-> Última actualización: 2026-10-01. Al cerrar un ítem: marcarlo aquí y no re-abrirlo en otros docs.
+> Última actualización: 2026-10-02. Al cerrar un ítem: marcarlo aquí y no re-abrirlo en otros docs.
 
 ## Leyenda
 
@@ -16,6 +16,8 @@
 
 ## 0. En vuelo ahora
 
+> **2026-10-02**: VL-01 (iconos-consistentes, PR #23) y VL-02 (configuracion-juegos, PR #49) **ya están mergeados**; §0 queda como histórico.
+
 | ID | Front | Qué | Estado / qué falta | Evidencia |
 |---|---|---|---|---|
 | VL-01 | ambos | **iconos-consistentes**: migración total a Lucide (chrome UI), subset local de Noto Emoji + Inter local, sin CDN, en taquilla y panel | `en vuelo` — rama `feat/iconos-consistentes` **21 commits adelante de `main`, sin mergear**. Falta: (a) verificación física en Windows 10/11 (`/auditoria-iconos`, sin tofu, fuente local); (b) merge a `main` (decisión: rama única + merge final); (c) `sdd-verify` + archive + sync de specs | worktree `iconos-consistentes` · `tasks.md` 4.9 · `check-icons.mjs` · obs #391/#381 |
@@ -24,6 +26,8 @@
 ---
 
 ## 1. Taquilla
+
+> **Cierre 2026-10-02**: TQ-01..06 resueltos en front 1.0.0 (PR #33); TQ-08/09 resueltos en el hotfix (PR #51); TQ-10 auto-update OTA resuelto (PR #56/#57, **1.0.3 publicado** + gate Windows aprobado); comprobante de pago implementado. Las filas se conservan por trazabilidad — ver §5/§6.
 
 | ID | Prioridad | Qué falta | Detalle / contrato | Evidencia |
 |---|---|---|---|---|
@@ -34,16 +38,16 @@
 | TQ-05 | P1 | Modalidades nuevas y multi-selección | No existe armado por modalidad para: `cruzado`, `triple_a_b` (Par A+B), `tripleta`, `arrimao`, `pegadito`, `punta`, `una`, `aproximacion`, `signo_terminal`, `signo_solo`, ni `selecciones[]` (single-draw). Opciones de modalidad deben salir del catálogo (`/reglas` expone `premios`) | `dashboard.astro` (0 claves nuevas) · contrato §2, §3.2-T2 |
 | TQ-06 | P1 | **Catálogo bundled desactualizado** | `taquilla/src/data/juegos.json` tiene los 21 juegos pero **sin `premios` (0 vs 21), sin `icono` y sin `active`/`vendible`**. Falta: copiar el contrato actual (`docs/juegos.json`), filtrar vendibles (`la-ricachona` hoy visible) y reempaquetar NSIS. La rama `iconos-consistentes` añade el consumo de `icono` | `taquilla/src/data/juegos.json` · `docs/dev/runbook-ops.md` pipeline catálogo · contrato §3.2-T1, §1.4 |
 | TQ-07 | — | ~~Ticket impreso: premio posible / estado / glosa~~ **DESCARTADO (2026-09-30)** | Decisión del cliente: el ticket impreso **NO** debe reflejar el premio posible. No se implementa. | — |
-| TQ-08 | P2 | Anulación sin asumir 5 min | `canDeleteTicket` hardcodea 5 min; el backend decide con `tiempo_eliminacion` efectivo (taquilla→grupo→banca). Manejar el rechazo del `DELETE` y mostrar el mensaje del backend | `historial.astro:109-120` · contrato §3.2-T7 |
-| TQ-09 | P2 | Teclado/accesibilidad (ABIERTOS) | (a) navegación de tripletas con flechas sigue rota (`buildZoneGraph`/`enfocarZona`, familia zodiacal); (b) foco del input Número: causa raíz abierta (workaround F2); (c) verificar en Windows el remap F1–F12/Alt+H (PR #19 mergeado); (d) deferrals: confirm-and-discard F5/F6/F8, premios punta/terminal de trío-activo, fingerprint localStorage por origen, keymap configurable | `docs/dev/pendientes-taquilla.md` · obs #313/#375 |
-| TQ-10 | P3 | OTA `electron-updater` | No implementado; hoy solo aviso de `update-check` (nunca auto-instala). Requiere decisión de producto | `docs/dev/planificacion.md` 14.4 · `docs/dev/runbook-ops.md` |
+| TQ-08 | — | ~~Anulación sin asumir 5 min~~ **RESUELTA (2026-10-02)** | `tiempo_eliminacion_efectivo` expuesto por la API (TDD) y usado por `canDeleteTicket`; sin hardcode; mensaje real del backend. PR #51 (`9dfc334`, `6316def`). | verify PASS · archivado |
+| TQ-09 | — | ~~Teclado/accesibilidad~~ **RESUELTA (2026-10-02)** | (a) navegación de tripletas con flechas corregida (`f325bb1`); (b) foco del input Número corregido (`6f23eda`); (c) remap F1–F12/Alt+H verificado en Windows (gate aprobado 2026-10-02); (d) deferrals menores siguen como mejoras (confirm-and-discard F5/F6/F8, keymap configurable). PR #51. | verify PASS · archivado |
+| TQ-10 | — | ~~OTA `electron-updater`~~ **RESUELTA (2026-10-02)** | Auto-update OTA implementado: feed público `latest.yml` + Range/206, chequeo al abrir + cada 1 h, aviso **obligatorio** con busy-gate. **1.0.3 publicado** y gate Windows aprobado. PR #56/#57 · obs #549/#550. | archivado 2026-10-02 |
 | TQ-11 | — | Multientorno: fix C browser mode **DIFERIDO hasta nuevo aviso (2026-09-30)** | Solo afecta la taquilla en NAVEGADOR (`pnpm run dev`, uso de desarrollo); la taquilla empaquetada siempre usa producción. La verificación Windows del empaquetado es parte del gate del release (1.0.0 ya publicado). | obs #221/#210 |
 
 > **Decisiones del cliente — 2026-09-30 (taquilla):**
 > - **Venta offline**: NO se soportará (pedido del cliente). El banner de desconexión se mantiene solo como aviso; no habrá cola de ventas offline.
 > - **TQ-07**: descartado — el ticket impreso no debe mostrar el premio posible.
 > - **TQ-11**: diferido hasta nuevo aviso — solo aplica al modo navegador (dev), no a la taquilla empaquetada.
-> - **Comprobante impreso de pago de premio**: hoy NO existe (tras pagar solo hay modal en pantalla + registro digital); **por definir** si el cliente lo requiere.
+> - **Comprobante impreso de pago de premio**: ✅ **RESUELTO (2026-10-02)** — se imprime tras el pago (todas las jugadas con estado ganada/perdida/pendiente y montos reales) y la reimpresión de un ticket pagado sale con los montos registrados. PR #51 (`1866351`, `a50d061`) · gate aprobado.
 
 ---
 
@@ -103,7 +107,7 @@
 ## 6. Notas de proceso
 
 - **Worktrees leftover** (contenido ya en `main`, se pueden limpiar cuando convenga): `taquilla-venta-agil`, `investigacion-produccion`, `resultados-parciales-produccion`, `cierre-caja-taquilla`, `resultados-loterias-panel`, `distribucion-taquilla`, `taquilla-multientorno`, `explorar-activacion-taquilla`. Solo `iconos-consistentes` (VL-01) y `configuracion-juegos` (VL-02) tienen trabajo vivo.
-- **Pendiente real post-1.0.0 (actualizado 2026-09-30)**: TQ-09a/b (teclado: navegación de tripletas y foco de Número) + TQ-08 (anulación sin 5 min hardcodeado) + decisión del comprobante de pago + gate Windows del instalador 1.0.0. TQ-07 descartado; TQ-11 diferido; offline descartado por el cliente.
+- **Cierre 2026-10-02**: pendientes de taquilla **CERRADOS** — TQ-01..06 (front 1.0.0, PR #33), TQ-08/09 (PR #51), TQ-10 auto-update OTA (PR #56/#57, **1.0.3 publicado**, gate Windows aprobado), comprobante de pago implementado. Historial: TQ-07 descartado, TQ-11 diferido, offline descartado por el cliente.
 - **Fuentes minadas**: `docs/*.md` (PENDIENTE, pendientes-taquilla, integracion-front-motor-premios, inconsistencias, motor-premios, multiplicadores-juegos, planificacion, runbook-ops, plataformas-juegos, comparacion-juegos, premiacion-juegos, manual-mantenimiento, entre otros) · memoria Engram obs #376/#366/#365/#391/#381/#378/#377/#375/#331/#330/#313/#221/#217/#12/#57 · worktrees/ramas y `openspec/changes/`.
 
 ## 7. Pendientes backend / negocio (consolidado del ex `docs/dev/pendientes-front.md`)
