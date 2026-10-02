@@ -43,6 +43,13 @@ Route::prefix('v1')->group(function () {
     // Update-check (REQ-B1): notificación de versión para la taquilla instalada.
     Route::get('/update-check', [ReleaseController::class, 'updateCheck'])->middleware('throttle:30,1');
 
+    // Feed público electron-updater (TQ-10, D1): latest.yml + .exe + .blockmap
+    // de la release vigente. Sin auth ni redirects; octet-stream para que
+    // Caddy (encode zstd gzip) nunca comprima. `[^/]+` corta el traversal.
+    Route::get('/releases/feed/{file}', [ReleaseController::class, 'feed'])
+        ->middleware('throttle:releases-feed')
+        ->where('file', '[^/]+');
+
     // Rutas protegidas solo con Sanctum (sin verificación MAC)
     Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/user', [AuthController::class, 'user']);

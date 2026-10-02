@@ -460,7 +460,7 @@ async function printHtml(win, html, noun = 'Documento') {
     }
 }
 
-function registerIpcHandlers(upstream) {
+function registerIpcHandlers(upstream, updater) {
     ipcMain.handle('get-mac', () => {
         return getMacAddress();
     });
@@ -507,6 +507,17 @@ function registerIpcHandlers(upstream) {
     ipcMain.handle('get-version', () => {
         return app.getVersion();
     });
+
+    // ─── Auto-update OTA (TQ-10, U2): contracto IPC del design §Interfaces ───
+    // renderer → main. install() aplica el guard de venta (query-busy 500 ms
+    // = busy + cache reportBusy); get-state rehidrata tras recargar el
+    // renderer; report-busy/respond-busy alimentan el cache de busy.
+    if (updater) {
+        ipcMain.handle('update:install', () => updater.install());
+        ipcMain.handle('update:get-state', () => updater.getState());
+        ipcMain.on('update:report-busy', (event, busy) => updater.reportBusy(busy));
+        ipcMain.on('update:respond-busy', (event, { requestId, busy }) => updater.respondBusy(requestId, busy));
+    }
 }
 
 module.exports = {

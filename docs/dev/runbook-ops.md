@@ -82,45 +82,60 @@ seguro re-ejecutar sin duplicados.
 ## Taquilla Windows release (build + re-publicación)
 
 La taquilla es una app Electron (Astro) en `taquilla/`. Las releases se publican
-como instalador NSIS `Taquilla-Setup-<version>.exe` y la API las sirve vía
-`GET /api/v1/update-check` (aviso notify-only en el splash; la taquilla NUNCA
-auto-instala). El build empaquetado SIEMPRE apunta a prod (`lotto.gzuz.dev`),
-ignora `.env.development` y cualquier override persistido del selector dev.
+como instalador NSIS `Taquilla-Setup-<version>.exe` y la API las sirve vía el
+feed público `GET /api/v1/releases/feed/{file}` (electron-updater, desde 1.0.3:
+chequeo al boot + cada hora, descarga automática en background y aviso
+obligatorio en el renderer). El build empaquetado SIEMPRE apunta a prod
+(`lotto.gzuz.dev`), ignora `.env.development` y cualquier override persistido
+del selector dev. `GET /api/v1/update-check` (notify-only) sigue vigente para
+consumidores externos.
 
 1. **Build local (Linux/WSL o CI)** — en `taquilla/`:
    ```bash
    pnpm electron:build:win
    ```
    Genera `taquilla/release/Taquilla-Setup-<version>.exe` (versión de
-   `package.json`). Verificar que el bundle no contenga literales demo ni el
-   selector de entorno:
+   `package.json`) y, desde 1.0.3, también el `latest.yml` del feed
+   (electron-builder lo emite junto al instalador). Verificar que el bundle no
+   contenga literales demo ni el selector de entorno:
    ```bash
    grep -rE "demo-device-001|00:1A:2B:3C:4D:5E|env-selector" dist/ || echo "limpio"
    ```
 
-2. **Subir el instalador al VPS** (como `deploy`):
+2. **Subir instalador y latest.yml al VPS** (como `deploy`):
    ```bash
    scp -i ~/.ssh/lotto-vps-deploy taquilla/release/Taquilla-Setup-<version>.exe deploy@166.1.88.100:/tmp/
+   scp -i ~/.ssh/lotto-vps-deploy taquilla/release/latest.yml deploy@166.1.88.100:/tmp/
    ```
 
 3. **Copiar al contenedor de la API** (en el VPS, `cd /home/deploy/lotto-app`):
    ```bash
    docker cp /tmp/Taquilla-Setup-<version>.exe lotto_api_prod:/tmp/
+   docker cp /tmp/latest.yml lotto_api_prod:/tmp/
    ```
 
 4. **Publicar la release** (mueve el .exe a `storage/app/releases`, calcula
-   SHA-256 y reemplaza la fila única — sin historial):
+   SHA-256, persiste el `latest.yml` en la misma transacción y reemplaza la
+   fila única — sin historial):
    ```bash
-   docker exec lotto_api_prod php artisan releases:publish /tmp/Taquilla-Setup-<version>.exe --release-version=<version>
+   docker exec lotto_api_prod php artisan releases:publish /tmp/Taquilla-Setup-<version>.exe --release-version=<version> --latest-yml=/tmp/latest.yml
    ```
+   El comando valida que el `latest.yml` declare `version:` y `sha512:` y que
+   la versión coincida con la release (D6); rechaza con exit 1 si no.
 
 5. **Verificar** — el `.exe` debe vivir en `/app/storage/app/releases`
    dentro del contenedor (ruta real del volumen, `WORKDIR=/app`; persiste
    entre deploys) y su `sha256` debe coincidir con el anunciado por
-   `update-check` (equivale a que `serve` devuelva 200):
+   `update-check`; además el feed debe servir 200/206:
    ```bash
+   curl -sI http://127.0.0.1:10000/api/v1/releases/feed/latest.yml
+   # → HTTP/1.1 200, Content-Type: application/octet-stream, sin Location
+   curl -sI -H "Range: bytes=0-99" http://127.0.0.1:10000/api/v1/releases/feed/Taquilla-Setup-<version>.exe
+   # → HTTP/1.1 206 Partial Content, Content-Range: bytes 0-99/<size>
    curl -s http://127.0.0.1:10000/api/v1/update-check
    # → {"version":"<version>","sha256":"...","file_size":...}
+   curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:10000/api/v1/releases/feed/Taquilla-Setup-0.0.1.exe
+   # → 404 (whitelist: solo latest.yml + artefactos de la fila vigente)
    docker exec lotto_api_prod sha256sum /app/storage/app/releases/Taquilla-Setup-<version>.exe
    # el sha256 debe coincidir con el de update-check
    ```
@@ -135,12 +150,33 @@ ignora `.env.development` y cualquier override persistido del selector dev.
 > (`scp` desde `taquilla/release/`) y, tras el deploy, re-publicarlo con el
 > paso 4 y verificar con el paso 5.
 
-6. **Validación en Windows** (el operador, no automatizable desde Linux):
-   instalar `Taquilla-Setup-<version>.exe` en una PC de taquilla → arrancar →
-   sin selector de entorno → splash→login→dashboard contra prod; login con
-   dispositivo registrado (headers `X-Device-MAC`/`X-Device-Fingerprint`
-   reales); con versión remota > local aparece el aviso "nueva versión" con
-   Continuar, y con la red desactivada no se muestra ningún error.
+6. **Primer salto manual (solo flota < 1.0.3)**: las taquillas con 1.0.0/1.0.2
+   NO tienen updater. Para llevarlas a 1.0.3 hay que instalar
+   `Taquilla-Setup-1.0.3.exe` manualmente (mismo proceso de siempre:
+   descargar del panel → ejecutar el instalador NSIS → aceptar el UAC).
+   A partir de 1.0.3 las actualizaciones son OTA automáticas.
+
+7. **QA gate en Windows** (el operador, no automatizable desde Linux):
+   - [ ] Instalar `Taquilla-Setup-1.0.3.exe` en una PC de taquilla (1.0.2 →
+     1.0.3 manual) → arrancar → splash→login→dashboard contra prod; sin
+     selector de entorno; login con dispositivo registrado (headers
+     `X-Device-MAC`/`X-Device-Fingerprint` reales); con la red desactivada no
+     se muestra ningún error.
+   - [ ] Publicar una release de prueba `1.0.4` (o re-publicar 1.0.3 con
+     otro `latest.yml`) → la taquilla detecta en el próximo chequeo (boot u
+     hora), descarga en background (badge de progreso) y muestra el aviso
+     obligatorio con "Reiniciar e instalar ahora".
+   - [ ] Interrumpir la descarga y reabrir la app → se reanuda (Range/206).
+   - [ ] Con líneas de ticket o venta en curso: el botón "Postergar" es el
+     único camino y exige confirmación; sin venta en curso NO se puede
+     postergar (el aviso se mantiene).
+   - [ ] Instalar al confirmar (quitAndInstall) y al cerrar sin confirmar
+     (autoInstallOnAppQuit); nunca fuerza el cierre durante una venta.
+   - [ ] Corromper `latest.yml` en el disco del VPS → `update:error` y la app
+     sigue operando (las ventas no se afectan).
+   - [ ] El instalador NO está firmado (SmartScreen avisa "Windows protegió su
+     PC"): documentado, se acepta con "Más información → Ejecutar de todas
+     formas".
 
 ### Catálogo bundled (taquilla/src/data/juegos.json)
 

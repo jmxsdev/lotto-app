@@ -61,6 +61,7 @@ import {
 import { estadoTicket } from '../src/utils/estados.ts';
 import { buildReciboLines, estadoRecibo } from '../src/utils/recibos.ts';
 import { badgesResultado } from '../src/utils/resultados.ts';
+import { vistaUpdate } from '../src/utils/autoUpdate.ts';
 import {
   modalidadesDisponibles,
   validarDigitos,
@@ -1452,6 +1453,22 @@ const reprintVacio = buildReciboLines(
 ok(reprintVacio.lines[0].estado === 'GANADA' && reprintVacio.premioTotalBs === 0, 'data: [] → no es pago registrado (estado real, totales 0)');
 // Sin map (tercer arg omitido) → mismo comportamiento que antes (retrocompat).
 ok(buildReciboLines(ticketRecibo, [null, null, null]).premioTotalBs === 0, 'tercer arg omitido → comportamiento previo intacto');
+
+console.log('\n== TQ-10 U3: vistaUpdate (aviso obligatorio de instalación) ==');
+// Puro: el aviso es visible SOLO con la actualización descargada; postergable
+// SOLO con venta/ticket en curso (spec instalacion: sin venta no se posterga).
+ok(
+  vistaUpdate('downloaded', true).visible === true && vistaUpdate('downloaded', true).puedePostergar === true,
+  'descargado + venta en curso → visible y postergable',
+);
+ok(
+  vistaUpdate('downloaded', false).visible === true && vistaUpdate('downloaded', false).puedePostergar === false,
+  'descargado sin venta → visible pero NO postergable (spec)',
+);
+ok(vistaUpdate('downloading', true).visible === false, 'descargando → sin aviso de instalación (badge de progreso)');
+ok(vistaUpdate('checking', false).visible === false, 'chequeando → sin aviso');
+ok(vistaUpdate('error', true).visible === false, 'error → sin aviso bloqueante (spec: la app sigue operando)');
+ok(vistaUpdate('idle', false).visible === false, 'idle → sin aviso');
 
 console.log(`\n${checks} checks, ${fallos} fallos`);
 process.exit(fallos === 0 ? 0 : 1);
