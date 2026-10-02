@@ -4,7 +4,7 @@
 // SIEMPRE re-cierre con clave_cierre (E2E_CIERRE_CLAVE, E2eSeeder) → badge
 // CONCILIADO en el resultado.
 import { test, expect } from '@playwright/test';
-import { launchApp, closeApp, loginToDashboard } from '../helpers/app.mjs';
+import { launchApp, closeApp, loginToDashboard, navigateGlobalKey } from '../helpers/app.mjs';
 import { E2E_CIERRE_CLAVE } from '../helpers/fixtures.mjs';
 import { stepShot } from '../helpers/artifacts.mjs';
 
@@ -49,9 +49,10 @@ test.describe('cierre de caja', () => {
     const { app, page } = await launchApp();
     await loginToDashboard(page);
 
-    // Navegación global: F8 → /cierre.
-    await page.keyboard.press('F8');
-    await expect(page).toHaveURL(/\/cierre/, { timeout: 15_000 });
+    // Navegación global: F8 → /cierre. El listener GLOBAL de MainLayout puede
+    // registrarse después del dashboard (#qt-numero no lo garantiza); el
+    // helper reintenta hasta que la URL matchea (F8 es idempotente).
+    await navigateGlobalKey(page, 'F8', /\/cierre/);
 
     // Efectivo esperado BS desde el preview (período real del backend:
     // fixture + ventas/egresos de la corrida; leerlo es determinista).

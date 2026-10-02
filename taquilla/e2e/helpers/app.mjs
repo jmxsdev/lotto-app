@@ -175,6 +175,37 @@ export async function loginToDashboard(page, { email = E2E_EMAIL, password = E2E
 }
 
 /**
+ * Navegación global robusta (F5–F8, NAV_GLOBAL de MainLayout): esas teclas
+ * viven en el listener GLOBAL del layout, que puede registrarse DESPUÉS del
+ * script del dashboard — el `#qt-numero` visible (loginToDashboard) no lo
+ * garantiza, y un press temprano se pierde (race de carga, no bug de la app).
+ * Reintenta presionando la tecla hasta que la URL matchea; re-navegar es
+ * idempotente (GET de una ruta, sin efectos laterales). Al agotar los
+ * intentos lanza con la última URL para diagnosticar el estado real.
+ */
+export async function navigateGlobalKey(page, key, urlPattern, { attempts = 5, perTry = 2500 } = {}) {
+  for (let i = 0; i < attempts; i += 1) {
+    if (urlMatches(page.url(), urlPattern)) return;
+    await page.keyboard.press(key);
+    const ok = await page
+      .waitForURL(urlPattern, { timeout: perTry })
+      .then(() => true)
+      .catch(() => false);
+    if (ok) return;
+    // El listener global aún no estaba vivo: ventana para que se registre.
+    await page.waitForTimeout(300);
+  }
+  throw new Error(
+    `navigateGlobalKey(${key}): no se navegó a ${urlPattern} tras ${attempts} intentos; última URL: ${page.url()}`
+  );
+}
+
+/** ¿La URL actual matchea el patrón (RegExp, o substring si es string)? */
+function urlMatches(url, pattern) {
+  return typeof pattern === 'string' ? url.includes(pattern) : url.match(pattern) !== null;
+}
+
+/**
  * Una línea de venta en el dashboard (specs 02/03/05/07): selecciona el
  * primer juego del tab activo (lotto-activo), el animal, un horario del
  * catálogo y añade la línea con el monto. El reloj del harness está en

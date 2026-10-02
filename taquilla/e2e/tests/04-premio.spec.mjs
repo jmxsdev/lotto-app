@@ -7,7 +7,7 @@
 // El seeder resetea el fixture (borra pagos, restaura pendiente) entre
 // corridas: re-seed antes de re-ejecutar el suite (runbook).
 import { test, expect } from '@playwright/test';
-import { launchApp, closeApp, loginToDashboard, printsHandle } from '../helpers/app.mjs';
+import { launchApp, closeApp, loginToDashboard, printsHandle, navigateGlobalKey } from '../helpers/app.mjs';
 import { caracasDateOffset } from '../helpers/fixtures.mjs';
 import { stepShot } from '../helpers/artifacts.mjs';
 
@@ -16,9 +16,9 @@ test.describe('premio', () => {
     const { app, page } = await launchApp();
     await loginToDashboard(page);
 
-    // Navegación global: F7 → /ganadores.
-    await page.keyboard.press('F7');
-    await expect(page).toHaveURL(/\/ganadores/, { timeout: 15_000 });
+    // Navegación global: F7 → /ganadores (helper con reintentos: el listener
+    // GLOBAL de MainLayout puede registrarse tras el dashboard; idempotente).
+    await navigateGlobalKey(page, 'F7', /\/ganadores/);
 
     // Fecha del fixture = ayer en America/Caracas (reloj real, no mockeado).
     const fecha = caracasDateOffset(-1);

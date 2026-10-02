@@ -5,7 +5,7 @@
 // La ventana de eliminación efectiva de E2E01 es 1440 min (E2eSeeder) y el
 // sorteo del ticket es mañana (reloj del harness) → el backend autoriza.
 import { test, expect } from '@playwright/test';
-import { launchApp, closeApp, loginToDashboard, sellTicketLine } from '../helpers/app.mjs';
+import { launchApp, closeApp, loginToDashboard, sellTicketLine, navigateGlobalKey } from '../helpers/app.mjs';
 import { SELECTORS } from '../helpers/fixtures.mjs';
 import { stepShot } from '../helpers/artifacts.mjs';
 
@@ -42,8 +42,8 @@ test.describe('anulación', () => {
     await stepShot(page, '05-anulacion-02-anulado');
 
     // Historial (F5): el ticket anulado queda visible con badge ANULADA.
-    await page.keyboard.press('F5');
-    await expect(page).toHaveURL(/\/historial/, { timeout: 15_000 });
+    // F5 es tecla GLOBAL (MainLayout): helper con reintentos (idempotente).
+    await navigateGlobalKey(page, 'F5', /\/historial/);
     const card = page.locator('.ticket-card', { hasText: ticketCode });
     await expect(card.locator('.badge-anulada')).toBeVisible({ timeout: 15_000 });
     await stepShot(page, '05-anulacion-03-historial');
