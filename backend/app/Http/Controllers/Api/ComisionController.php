@@ -43,7 +43,9 @@ class ComisionController extends Controller
         $validator = Validator::make($request->all(), [
             'defaults' => ['required', 'array', 'min:1', 'max:2'],
             'defaults.*.moneda' => ['required', 'distinct', Rule::in(['bs', 'usd'])],
-            'defaults.*.porcentaje_pago' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'defaults.*.porcentaje_pago' => ['nullable', 'numeric', 'min:0', 'max:16'],
+        ], [
+            'defaults.*.porcentaje_pago.max' => 'El % de pago global no puede superar 16%.',
         ]);
 
         if ($validator->fails()) {
