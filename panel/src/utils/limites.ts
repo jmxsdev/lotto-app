@@ -15,7 +15,7 @@ import { icono } from './iconos.ts';
 import { showModal } from './modal.ts';
 
 export interface DatosTablaLimites {
-  juegos: { id: number; name: string; slug: string }[];
+  juegos: { id: number; name: string; slug: string; type: string }[];
   limites: Record<string, any | null>; // "juego:moneda" (entidad) | "entidad:juego:moneda" (scope)
   origen?: Record<string, any | null> | null; // solo modo entidad
   entidades?: { id: number; name: string; tipo: string }[]; // solo modo scope
@@ -38,9 +38,21 @@ export interface OpcionesTablaLimites {
   }) => Promise<any>;
 }
 
+/** Tope de porcentaje de pago por tipo de juego (el servidor es la fuente de verdad). */
+export const TOPES: Record<string, number> = {
+  animalitos: 16,
+  tripletas: 25,
+};
+
+/** Tope aplicable a un tipo; cualquier otro/desconocido = 100. */
+export function topeDe(type: string): number {
+  return TOPES[type] ?? 100;
+}
+
 interface Linea {
   juegoId: number;
   juegoName: string;
+  juegoType: string;
   moneda: 'bs' | 'usd';
   clave: string; // clave del mapa de límites
   valor: any | null;
@@ -76,6 +88,7 @@ export function crearTablaLimites(opts: OpcionesTablaLimites) {
         lineasTmp.push({
           juegoId: juego.id,
           juegoName: juego.name,
+          juegoType: juego.type ?? '',
           moneda,
           clave,
           valor: datos.limites[clave] ?? null,
@@ -149,7 +162,9 @@ export function crearTablaLimites(opts: OpcionesTablaLimites) {
         const mixto = linea.mixto && !(linea.clave in tocadas);
         const ph = mixto ? 'placeholder="mixto"' : '';
         const disabled = !puedeEditar ? 'disabled' : '';
-        html += `<td><input type="number" step="0.01" min="0" data-clave="${linea.clave}" data-campo="${c.campo}" value="${inicial}" ${ph} ${disabled}></td>`;
+        // Tope dinámico por tipo: solo aplica a porcentaje_pago.
+        const maxTope = c.campo === 'porcentaje_pago' ? `max="${topeDe(linea.juegoType)}"` : '';
+        html += `<td><input type="number" step="0.01" min="0" ${maxTope} data-clave="${linea.clave}" data-campo="${c.campo}" value="${inicial}" ${ph} ${disabled}></td>`;
       }
 
       if (opts.mostrarOrigen) {
@@ -269,11 +284,30 @@ export function crearTablaLimites(opts: OpcionesTablaLimites) {
     return construirItems();
   }
 
+  /** Bloqueo cliente: ningún porcentaje_pago tocado puede superar el tope de su tipo. */
+  function validarTopes(limites: Record<string, any>[]): void {
+    const tipos = new Map<number, string>(datos.juegos.map((j) => [j.id, j.type ?? '']));
+
+    for (const item of limites) {
+      const valor = item.porcentaje_pago;
+      if (valor === undefined || valor === null) continue;
+
+      const type = tipos.get(item.juego_id) ?? '';
+      const tope = topeDe(type);
+
+      if (Number(valor) > tope) {
+        const nombre = datos.juegos.find((j) => j.id === item.juego_id)?.name ?? `#${item.juego_id}`;
+        throw new Error(`El % de pago para ${nombre} (${type || 'desconocido'}) no puede superar ${tope}%.`);
+      }
+    }
+  }
+
   async function guardar(): Promise<any> {
     const limites = construirItems();
     if (limites.length === 0) {
       throw new Error('No hay cambios para guardar.');
     }
+    validarTopes(limites);
     const payload: any = { limites };
     if (opts.modo === 'scope' && opts.alcance) {
       payload.scope = opts.alcance;

@@ -355,7 +355,7 @@ class JuegoController extends Controller
         $tipo = str_replace('_id', '', (string) array_key_first($entidad));
         $entidadId = (int) $entidad[array_key_first($entidad)];
 
-        $juegos = Juego::where('active', true)->orderBy('id')->get(['id', 'name', 'slug']);
+        $juegos = Juego::where('active', true)->orderBy('id')->get(['id', 'name', 'slug', 'type']);
         $claves = collect($juegos)
             ->flatMap(fn ($juego) => [$juego->id.':bs', $juego->id.':usd'])
             ->all();
@@ -1065,7 +1065,7 @@ class JuegoController extends Controller
         $entidades = $this->entidadesVisiblesPorTipo($user, $tipo, $raiz);
         $ids = $entidades->pluck('id');
 
-        $juegos = Juego::where('active', true)->orderBy('id')->get(['id', 'name', 'slug']);
+        $juegos = Juego::where('active', true)->orderBy('id')->get(['id', 'name', 'slug', 'type']);
         $clavesJuego = collect($juegos)
             ->flatMap(fn ($juego) => [$juego->id.':bs', $juego->id.':usd'])
             ->all();
