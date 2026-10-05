@@ -381,6 +381,37 @@ import Icon from '../components/ui/Icon.astro';
       border-right: none;
     }
 
+    /* Venta en dólares (UI): el resumen y el fondo de juegos/modalidades se
+       tiñen de verde para que la moneda activa se note de un vistazo. Verde
+       claro, de bajo contraste, con transición suave (no es brusco). */
+    .quick-ticket .juegos-col,
+    .quick-ticket .animales-col,
+    .quick-ticket .resumen-col {
+      transition: background-color 0.25s ease;
+    }
+
+    .quick-ticket.venta-usd .juegos-col,
+    .quick-ticket.venta-usd .animales-col {
+      background: #dcf2e5;
+    }
+
+    .quick-ticket.venta-usd .resumen-col {
+      background: #cfeadd;
+    }
+
+    .quick-ticket.venta-usd .qt-select {
+      border-color: #7ec99b;
+      background: #f4fbf6;
+    }
+
+    .quick-ticket.venta-usd .qt-total {
+      border-top-color: #b3ddc4;
+    }
+
+    .quick-ticket.venta-usd .total-amount {
+      color: #2f9e57;
+    }
+
     .qt-col-title {
       font-size: 12px;
       font-weight: 600;
@@ -3162,6 +3193,16 @@ import Icon from '../components/ui/Icon.astro';
       }
 
       document.getElementById('qt-add').addEventListener('click', addLine);
+
+      // Venta en dólares (UI): resumen + fondo de juegos/modalidades en verde
+      // para que la moneda activa se note de un vistazo; se aplica también al
+      // cargar por si la moneda ya viniera en USD.
+      const qtMoneda = document.getElementById('qt-moneda');
+      const aplicarModoMoneda = () => {
+        qtMoneda.closest('.quick-ticket')?.classList.toggle('venta-usd', qtMoneda.value === 'usd');
+      };
+      qtMoneda.addEventListener('change', aplicarModoMoneda);
+      aplicarModoMoneda();
 
       document.getElementById('resumen-content').addEventListener('click', (e) => {
         const btn = e.target.closest('.btn-rm');
