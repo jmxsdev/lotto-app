@@ -89,7 +89,7 @@ class ComisionReporteTest extends TestCase
         $juego = Juego::create([
             'name' => "Juego {$sufijo}",
             'slug' => 'juego-'.strtolower($sufijo).'-'.uniqid(),
-            'type' => 'animalitos',
+            'type' => 'terminales',
             'active' => true,
         ]);
 
@@ -153,6 +153,32 @@ class ComisionReporteTest extends TestCase
         $this->assertEquals(1, $fila['Total'], 'Total intacto');
         $this->assertArrayHasKey('Comision', $fila, 'Cada fila debe exponer la columna Comision');
         $this->assertEquals(90.0, $fila['Comision'], 'Comisión = 100 × tasa liquidable 90%');
+    }
+
+    /**
+     * Tope por tipo — un `animalitos` con config legacy 40% liquida al 16%
+     * en el reporte (clamp en lectura, la fila no se migra).
+     */
+    public function test_ventas_totales_animalitos_legacy_liquida_al_tope_16()
+    {
+        $super = $this->superUser();
+        [, $banca, $grupo, $taquilla] = $this->jerarquia('Tope');
+
+        $juegoAnimalitos = Juego::create([
+            'name' => 'Juego Animalitos Tope',
+            'slug' => 'juego-animalitos-tope-'.uniqid(),
+            'type' => 'animalitos',
+            'active' => true,
+        ]);
+
+        $this->limite($juegoAnimalitos->id, $banca->id, $grupo->id, $taquilla->id, 'bs', 40);
+        $this->apuesta($juegoAnimalitos->id, $taquilla->id, 100.0);
+
+        $response = $this->actingAs($super, 'sanctum')
+            ->getJson('/api/v1/reportes/ventas-totales?nivel=taquilla&fecha_desde=2026-09-01&fecha_hasta=2026-09-30');
+
+        $response->assertStatus(200);
+        $this->assertEquals(16.0, $response->json('data.0.Comision'), 'Animalitos legacy 40% liquida 16%');
     }
 
     /**
@@ -270,7 +296,7 @@ class ComisionReporteTest extends TestCase
         $juegoB = Juego::create([
             'name' => 'Juego Filtro B',
             'slug' => 'juego-filtro-b-'.uniqid(),
-            'type' => 'animalitos',
+            'type' => 'terminales',
             'active' => true,
         ]);
 

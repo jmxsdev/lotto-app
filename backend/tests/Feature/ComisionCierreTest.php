@@ -94,7 +94,7 @@ class ComisionCierreTest extends TestCase
         $juego = Juego::create([
             'name' => "Juego Cierre {$sufijo}",
             'slug' => 'juego-cierre-'.strtolower($sufijo).'-'.uniqid(),
-            'type' => 'animalitos',
+            'type' => 'terminales',
             'active' => true,
         ]);
 

@@ -31,7 +31,7 @@ class ComisionServiceTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function crearCadena(): array
+    private function crearCadena(string $type = 'terminales'): array
     {
         $banca = Banca::create([
             'name' => 'Banca Comisiones',
@@ -56,7 +56,7 @@ class ComisionServiceTest extends TestCase
         $juego = Juego::create([
             'name' => 'Juego Comisiones',
             'slug' => 'juego-comisiones-'.uniqid(),
-            'type' => 'animalitos',
+            'type' => $type,
             'active' => true,
         ]);
 
@@ -477,7 +477,7 @@ class ComisionServiceTest extends TestCase
         $juego2 = Juego::create([
             'name' => 'Juego Comisiones 2',
             'slug' => 'juego-comisiones-2-'.uniqid(),
-            'type' => 'animalitos',
+            'type' => 'terminales',
             'active' => true,
         ]);
 
@@ -737,5 +737,93 @@ class ComisionServiceTest extends TestCase
         $this->assertNull(collect($rows)->firstWhere(
             fn ($fila) => $fila['nivel'] === 'taquilla' && $fila['entidad_id'] === $taquilla2->id
         ));
+    }
+
+    // ==================================================
+    // Tope por tipo de juego (animalitos 16, tripletas 25)
+    // ==================================================
+
+    public function test_tope_por_tipo_mapa()
+    {
+        $this->assertSame(16, ComisionService::topePorTipo('animalitos'));
+        $this->assertSame(25, ComisionService::topePorTipo('tripletas'));
+        $this->assertSame(100, ComisionService::topePorTipo('terminales'));
+        $this->assertSame(100, ComisionService::topePorTipo('tipo-desconocido'));
+    }
+
+    public function test_animalitos_legacy_se_clampa_a_16_y_efectiva_intacta()
+    {
+        [$juego, $banca] = $this->crearCadena('animalitos');
+        $this->limite($juego->id, $banca->id, null, null, 'bs', 40);
+
+        $service = new ComisionService;
+
+        $this->assertSame(40.0, $service->tasaEfectiva('banca', $banca->id, $juego->id, 'bs'));
+        $this->assertSame(16.0, $service->tasaLiquidable('banca', $banca->id, $juego->id, 'bs'));
+
+        // La fila legacy queda intacta (clamp en lectura, sin migración)
+        $this->assertSame(40.0, (float) JuegoLimite::where('juego_id', $juego->id)
+            ->where('banca_id', $banca->id)->whereNull('grupo_id')->whereNull('taquilla_id')
+            ->value('porcentaje_pago'));
+    }
+
+    public function test_tripletas_se_clampa_a_25()
+    {
+        [$juego, $banca] = $this->crearCadena('tripletas');
+        $this->limite($juego->id, $banca->id, null, null, 'bs', 30);
+
+        $service = new ComisionService;
+
+        $this->assertSame(30.0, $service->tasaEfectiva('banca', $banca->id, $juego->id, 'bs'));
+        $this->assertSame(25.0, $service->tasaLiquidable('banca', $banca->id, $juego->id, 'bs'));
+    }
+
+    public function test_terminales_sin_tope()
+    {
+        [$juego, $banca] = $this->crearCadena();
+        $this->limite($juego->id, $banca->id, null, null, 'bs', 100);
+
+        $service = new ComisionService;
+
+        $this->assertSame(100.0, $service->tasaLiquidable('banca', $banca->id, $juego->id, 'bs'));
+    }
+
+    public function test_tipo_desconocido_sin_tope()
+    {
+        [$juego, $banca] = $this->crearCadena('otro-juego');
+        $this->limite($juego->id, $banca->id, null, null, 'bs', 40);
+
+        $service = new ComisionService;
+
+        $this->assertSame(40.0, $service->tasaLiquidable('banca', $banca->id, $juego->id, 'bs'));
+    }
+
+    public function test_cadena_animalitos_tres_niveles_cada_uno_al_tope_16()
+    {
+        [$juego, $banca, $grupo, $taquilla] = $this->crearCadena('animalitos');
+        $this->limite($juego->id, $banca->id, null, null, 'bs', 16);
+        $this->limite($juego->id, $banca->id, $grupo->id, null, 'bs', 16);
+        $this->limite($juego->id, $banca->id, $grupo->id, $taquilla->id, 'bs', 16);
+
+        $service = new ComisionService;
+
+        $this->assertSame(16.0, $service->tasaLiquidable('banca', $banca->id, $juego->id, 'bs'));
+        $this->assertSame(16.0, $service->tasaLiquidable('grupo', $grupo->id, $juego->id, 'bs'));
+        $this->assertSame(16.0, $service->tasaLiquidable('taquilla', $taquilla->id, $juego->id, 'bs'));
+    }
+
+    public function test_single_y_bulk_aplican_el_mismo_tope()
+    {
+        [$juego, $banca, $grupo, $taquilla] = $this->crearCadena('animalitos');
+        $this->limite($juego->id, $banca->id, null, null, 'bs', 40);
+        $this->apuesta($juego->id, $taquilla->id, 100.0, 0.0, 36.5, 'pendiente', '2026-09-15 10:00:00');
+
+        $service = new ComisionService;
+        $desde = Carbon::parse('2026-09-01');
+        $hasta = Carbon::parse('2026-09-30');
+
+        // single (tasaLiquidable) = 16; bulk (comisionEntidad) = 100 × 16% = 16.00
+        $this->assertSame(16.0, $service->tasaLiquidable('banca', $banca->id, $juego->id, 'bs'));
+        $this->assertSame(16.0, $service->comisionEntidad('banca', $banca->id, $desde, $hasta));
     }
 }
