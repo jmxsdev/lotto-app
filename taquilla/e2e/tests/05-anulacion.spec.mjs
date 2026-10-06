@@ -5,7 +5,7 @@
 // La ventana de eliminación efectiva de E2E01 es 1440 min (E2eSeeder) y el
 // sorteo del ticket es mañana (reloj del harness) → el backend autoriza.
 import { test, expect } from '@playwright/test';
-import { launchApp, closeApp, loginToDashboard, sellTicketLine, navigateGlobalKey } from '../helpers/app.mjs';
+import { launchApp, closeApp, loginToDashboard, sellTicketLine, navigateGlobalKey, seleccionarTipoPago } from '../helpers/app.mjs';
 import { SELECTORS } from '../helpers/fixtures.mjs';
 import { stepShot } from '../helpers/artifacts.mjs';
 
@@ -16,6 +16,8 @@ test.describe('anulación', () => {
 
     // Vender un ticket propio (el último pendiente que F10 va a apuntar).
     await sellTicketLine(page, { animal: 'Caballo', monto: '5000' });
+    // tipo-pago-taquilla (R6): el tipo de pago es obligatorio antes de imprimir.
+    await seleccionarTipoPago(page);
     await page.click(SELECTORS.dashboard.print);
     await page.waitForFunction(() => Boolean(localStorage.getItem('ultimoTicket')), null, {
       timeout: 15_000,

@@ -222,6 +222,17 @@ export async function sellTicketLine(page, { animal = 'Perro', monto = '5000', h
   await expect(page.locator('.resumen-table tbody tr')).not.toHaveCount(0, { timeout: 10_000 });
 }
 
+/**
+ * Elige el tipo de pago en la zona `pago` (change tipo-pago-taquilla).
+ * OBLIGATORIO antes de imprimir: sin método, handlePrint bloquea con aviso (R6).
+ * Los tickets de los specs 02/03/05 son en Bs → `efectivo` es válido.
+ */
+export async function seleccionarTipoPago(page, metodo = 'efectivo') {
+  const item = page.locator(`#pago-list .pago-item[data-metodo="${metodo}"]`);
+  await item.click();
+  await expect(item).toHaveClass(/activo/);
+}
+
 /** Cierra la app y limpia los --user-data-dir temporales registrados. */
 export async function closeApp(app) {
   try {

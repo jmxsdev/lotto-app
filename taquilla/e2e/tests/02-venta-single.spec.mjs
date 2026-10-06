@@ -9,7 +9,7 @@
 // design (§Contracts) manda: assert sobre `__e2e_prints[]` y
 // `localStorage.ultimoTicket` — el ticket_code se verifica ahí.
 import { test, expect } from '@playwright/test';
-import { launchApp, closeApp, loginToDashboard, sellTicketLine, printsHandle } from '../helpers/app.mjs';
+import { launchApp, closeApp, loginToDashboard, sellTicketLine, printsHandle, seleccionarTipoPago } from '../helpers/app.mjs';
 import { SELECTORS } from '../helpers/fixtures.mjs';
 import { stepShot } from '../helpers/artifacts.mjs';
 
@@ -23,6 +23,9 @@ test.describe('venta single', () => {
     // monto 5000 Bs (por encima del límite mínimo 3600 del catálogo).
     await sellTicketLine(page, { animal: 'Perro', monto: '5000' });
     await stepShot(page, '02-venta-single-02-linea');
+
+    // tipo-pago-taquilla (R6): el tipo de pago es obligatorio antes de imprimir.
+    await seleccionarTipoPago(page);
 
     await page.click(SELECTORS.dashboard.print);
     // POST /tickets ok → snapshot en localStorage (sin modal: stub print).

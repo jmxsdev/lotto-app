@@ -2,7 +2,7 @@
 // en el MISMO ticket → POST /tickets con 2 líneas → el payload del stub y el
 // snapshot ultimoTicket llevan ambas selecciones.
 import { test, expect } from '@playwright/test';
-import { launchApp, closeApp, loginToDashboard, sellTicketLine, printsHandle } from '../helpers/app.mjs';
+import { launchApp, closeApp, loginToDashboard, sellTicketLine, printsHandle, seleccionarTipoPago } from '../helpers/app.mjs';
 import { SELECTORS } from '../helpers/fixtures.mjs';
 import { stepShot } from '../helpers/artifacts.mjs';
 
@@ -16,6 +16,9 @@ test.describe('venta multi-selección', () => {
     await sellTicketLine(page, { animal: 'Perro', monto: '5000' });
     await sellTicketLine(page, { animal: 'Gato', monto: '5000' });
     await stepShot(page, '03-venta-multi-01-lineas');
+
+    // tipo-pago-taquilla (R6): el tipo de pago es obligatorio antes de imprimir.
+    await seleccionarTipoPago(page);
 
     await page.click(SELECTORS.dashboard.print);
     await page.waitForFunction(() => Boolean(localStorage.getItem('ultimoTicket')), null, {
