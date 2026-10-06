@@ -135,6 +135,7 @@ Reglas confirmadas (2026-09-30; banca beneficiaria 2026-10-01):
 1. El tope aplica **por moneda**: cada cadena de moneda se topa de forma independiente.
 2. La banca cobra su propia comisión: sin ancestros con tasa, su liquidable = su tasa propia (validada ≤ 100) y recibe fila en el ledger. La suma de las tasas liquidables de la cadena no supera 100% (suma cero).
 3. Σ ancestros = suma de las tasas **propias** configuradas de los ancestros (NULL/ausente = 0), con piso en 0; tasa liquidable del hijo = `min(tasa resuelta del hijo, max(0, 100 − Σ tasas propias de ancestros))`.
+4. Cada nivel MUST aplicar además el tope por tipo de juego: `topePorTipo(type)` = animalitos 16, tripletas 25, otro/desconocido 100. La tasa liquidable SHALL ser `min(tasaEfectiva, max(0, 100 − Σ ancestros), topePorTipo(type))`; `tasaEfectiva` MUST NOT clamp. Las filas legacy se clampa en lectura, sin migración.
 
 #### Scenario: Hijo excede al padre con tope
 
@@ -171,6 +172,79 @@ Reglas confirmadas (2026-09-30; banca beneficiaria 2026-10-01):
 - GIVEN banca propia 60%, grupo NULL y taquilla NULL (misma moneda)
 - WHEN se resuelve la tasa de la taquilla
 - THEN la taquilla resuelve 60% (cascada) y liquida 40%
+
+#### Scenario: animalitos legacy se clampa
+
+- GIVEN un `animalitos` con config legacy 40%
+- WHEN se resuelve la liquidable
+- THEN liquida 16% (tope por tipo) y la fila queda intacta
+
+#### Scenario: tripletas al tope
+
+- GIVEN un `tripletas` con config 25%
+- WHEN se resuelve la liquidable
+- THEN liquida 25%
+- AND con config 30% liquida 25% (clamp)
+
+#### Scenario: otros tipos sin tope
+
+- GIVEN un `terminales` con config hasta 100%
+- WHEN se resuelve la liquidable
+- THEN liquida su tasa efectiva (sin tope por tipo)
+
+#### Scenario: tope por tipo a nivel independiente
+
+- GIVEN un `animalitos` con banca 16%, grupo 16% y taquilla 16%
+- WHEN se resuelven las liquidables
+- THEN cada nivel liquida 16% (cadena 48%)
+
+### Requirement: Validación de tope por tipo en configuración
+
+El default global MUST ser ≤ 16. `juego_limites.porcentaje_pago` por juego MUST ser ≤ `topePorTipo(juego.type)`. Escribir por encima SHALL responder 422 en las cuatro superficies: límites por juego, batch/scoped, stores de entidad y default global.
+
+#### Scenario: default > 16
+
+- GIVEN un default global de 17
+- WHEN se guarda
+- THEN responde 422
+
+#### Scenario: límite > tope
+
+- GIVEN un `animalitos` con 17 (o `tripletas` con 26)
+- WHEN se guarda el límite
+- THEN responde 422
+
+#### Scenario: límite ≤ tope
+
+- GIVEN un `animalitos` con 16 (o `tripletas` con 25)
+- WHEN se guarda el límite
+- THEN responde 200/201
+
+### Requirement: Sincronía single/bulk de liquidación
+
+La tasa liquidable MUST ser idéntica en el path single (`tasaLiquidable`) y bulk (`tasasLiquidablesBulk`); ambos SHALL aplicar `topePorTipo`. Reportes, preview y liquidación MUST tomar el monto liquidado (post-tope).
+
+#### Scenario: single y bulk coinciden
+
+- GIVEN la misma (entidad, juego, moneda) con tope por tipo
+- WHEN se calcula single y bulk
+- THEN ambas producen la misma liquidable
+
+#### Scenario: reportes usan liquidado
+
+- GIVEN una fila `animalitos` clampada a 16% (config 40%)
+- WHEN se genera reporte o cierre
+- THEN el monto usa la tasa liquidada (16%), no la config
+
+### Requirement: Exposición de type en payloads de juegos
+
+Los payloads de juegos que consume el panel MUST exponer `juego.type`.
+
+#### Scenario: payload incluye type
+
+- GIVEN un listado o consulta de juegos
+- WHEN el panel pide los juegos
+- THEN cada juego incluye su `type`
 
 ### Requirement: Seguridad de regresión
 

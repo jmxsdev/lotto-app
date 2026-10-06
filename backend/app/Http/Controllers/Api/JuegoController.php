@@ -9,6 +9,7 @@ use App\Models\Juego;
 use App\Models\JuegoAuditoria;
 use App\Models\JuegoLimite;
 use App\Models\Taquilla;
+use App\Services\ComisionService;
 use App\Services\JuegoLimiteService;
 use App\Services\JuegoPluginManager;
 use App\Services\PremiosConfigService;
@@ -354,7 +355,7 @@ class JuegoController extends Controller
         $tipo = str_replace('_id', '', (string) array_key_first($entidad));
         $entidadId = (int) $entidad[array_key_first($entidad)];
 
-        $juegos = Juego::where('active', true)->orderBy('id')->get(['id', 'name', 'slug']);
+        $juegos = Juego::where('active', true)->orderBy('id')->get(['id', 'name', 'slug', 'type']);
         $claves = collect($juegos)
             ->flatMap(fn ($juego) => [$juego->id.':bs', $juego->id.':usd'])
             ->all();
@@ -445,7 +446,13 @@ class JuegoController extends Controller
             'moneda' => ['required', Rule::in(['bs', 'usd'])],
             'limite_minimo' => 'nullable|numeric|min:0',
             'limite_maximo' => 'nullable|numeric|min:0',
-            'porcentaje_pago' => 'nullable|numeric|min:0|max:100',
+            'porcentaje_pago' => ['nullable', 'numeric', 'min:0', function ($attribute, $value, $fail) use ($juego) {
+                $tope = ComisionService::topePorTipo((string) $juego->type);
+
+                if ($value !== null && (float) $value > $tope) {
+                    $fail("El % de pago para {$juego->type} no puede superar {$tope}%.");
+                }
+            }],
             'participacion' => 'nullable|numeric|min:0|max:100',
         ]);
 
@@ -515,6 +522,10 @@ class JuegoController extends Controller
             'limites.*.porcentaje_pago' => 'nullable|numeric|min:0|max:100',
             'limites.*.participacion' => 'nullable|numeric|min:0|max:100',
         ]);
+
+        // Tope por tipo de juego (animalitos 16, tripletas 25): valida cada
+        // ítem antes de expandir el alcance y persistir.
+        $this->limites->validarItems($request->limites);
 
         $scope = $request->scope;
         $objetivos = null;
@@ -1054,7 +1065,7 @@ class JuegoController extends Controller
         $entidades = $this->entidadesVisiblesPorTipo($user, $tipo, $raiz);
         $ids = $entidades->pluck('id');
 
-        $juegos = Juego::where('active', true)->orderBy('id')->get(['id', 'name', 'slug']);
+        $juegos = Juego::where('active', true)->orderBy('id')->get(['id', 'name', 'slug', 'type']);
         $clavesJuego = collect($juegos)
             ->flatMap(fn ($juego) => [$juego->id.':bs', $juego->id.':usd'])
             ->all();

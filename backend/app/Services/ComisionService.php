@@ -7,6 +7,7 @@ use App\Models\Banca;
 use App\Models\Comision;
 use App\Models\ComisionDefault;
 use App\Models\Grupo;
+use App\Models\Juego;
 use App\Models\JuegoLimite;
 use App\Models\Log;
 use App\Models\Taquilla;
@@ -34,6 +35,19 @@ use Illuminate\Support\Facades\DB;
  */
 class ComisionService
 {
+    /**
+     * Tope de porcentaje de pago por tipo de juego.
+     * animalitos 16, tripletas 25, cualquier otro/desconocido 100.
+     */
+    public static function topePorTipo(string $type): int
+    {
+        return match ($type) {
+            'animalitos' => 16,
+            'tripletas' => 25,
+            default => 100,
+        };
+    }
+
     /**
      * Tasa propia de un nivel: su fila configurada directamente.
      * NULL o ausente ⇒ 0.0.
@@ -108,8 +122,9 @@ class ComisionService
     {
         $efectiva = $this->tasaEfectiva($nivel, $entidadId, $juegoId, $moneda);
         $sumaAncestros = $this->sumaTasasPropiasAncestros($nivel, $entidadId, $juegoId, $moneda);
+        $tope = (float) self::topePorTipo(Juego::find($juegoId)?->type ?? '');
 
-        return min($efectiva, max(0.0, 100.0 - $sumaAncestros));
+        return min($efectiva, max(0.0, 100.0 - $sumaAncestros), $tope);
     }
 
     /**
@@ -340,6 +355,9 @@ class ComisionService
             return [];
         }
 
+        // Tope por tipo: UNA carga por llamada, reutilizada en todos los buckets.
+        $topes = Juego::whereIn('id', $juegoIds)->pluck('type', 'id');
+
         $ctx = [
             'defaults' => ComisionDefault::whereIn('moneda', ['bs', 'usd'])
                 ->pluck('porcentaje_pago', 'moneda')
@@ -371,8 +389,9 @@ class ComisionService
                 foreach (['bs', 'usd'] as $moneda) {
                     $efectiva = $this->efectivaEnMemoria($ctx, (int) $juegoId, $moneda, $cadena);
                     $sumaAncestros = $this->sumaAncestrosEnMemoria($ctx, $nivel, (int) $juegoId, $moneda, $cadena);
+                    $tope = (float) self::topePorTipo((string) ($topes[(int) $juegoId] ?? ''));
 
-                    $tasas[$entidadId][(int) $juegoId][$moneda] = min($efectiva, max(0.0, 100.0 - $sumaAncestros));
+                    $tasas[$entidadId][(int) $juegoId][$moneda] = min($efectiva, max(0.0, 100.0 - $sumaAncestros), $tope);
                 }
             }
         }
