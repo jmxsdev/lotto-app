@@ -31,7 +31,7 @@
  *
  *   - buildZoneGraph(familia, ctx): ciclo de zonas por familia de opciones
  *     (REQ-KB-01, REQ-KB-02, A2). Base: juegos→seleccion→horarios→numero→
- *     monto→añadir→resumen. Zodiacal inserta modalidad tras juegos y signo
+ *     monto→añadir→resumen→pago. Zodiacal inserta modalidad tras juegos y signo
  *     SOLO si ctx.triple_c (D1); animalitos omite numero; numérica/terminal
  *     usan la base. S5 (D3): ctx opt-in `{modalidad, signo, numero,
  *     segundaSeleccion}` con `triple_c` como alias legacy de `signo` — sin
@@ -74,7 +74,8 @@ export type NombreZona =
   | 'numero_b'
   | 'monto'
   | 'anadir'
-  | 'resumen';
+  | 'resumen'
+  | 'pago';
 
 /**
  * Contexto de construcción del grafo (A2, D3). Sin contexto los grafos
@@ -164,6 +165,7 @@ const ZONAS_BASE: readonly NombreZona[] = [
   'monto',
   'anadir',
   'resumen',
+  'pago',
 ];
 
 /** Destino de la navegación global (FIX-6): F-keys y Alt+D desde MainLayout. */
@@ -377,7 +379,7 @@ function crearGrafo(familia: FamiliaOpciones, zonas: readonly NombreZona[]): Gra
  *   - animalitos: base SIN numero (los dígitos buscan en seleccion).
  *   - zodiacal: juegos → modalidad → seleccion → [signo si ctx.signo o
  *     ctx.triple_c] → horarios → [numero salvo ctx.numero=false] →
- *     [numero_b si ctx.segundaSeleccion] → monto → añadir → resumen.
+ *     [numero_b si ctx.segundaSeleccion] → monto → añadir → resumen → pago.
  *   - numerica (100 opciones 00-99) y terminal (2 cifras): base, con
  *     `modalidad` tras juegos y `numero_b` si el ctx lo pide.
  *
@@ -394,7 +396,7 @@ export function buildZoneGraph(familia: FamiliaOpciones, ctx: CtxZonas = {}): Gr
     zonas.push('horarios');
     if (ctx.numero !== false) zonas.push('numero');
     if (ctx.segundaSeleccion === true) zonas.push('numero_b');
-    zonas.push('monto', 'anadir', 'resumen');
+    zonas.push('monto', 'anadir', 'resumen', 'pago');
     return crearGrafo('zodiacal', zonas);
   }
   const zonas: NombreZona[] = [...ZONAS_BASE];

@@ -257,7 +257,7 @@ buscador.teclear('x');
 ok(buscador.buffer() === '05', 'teclear no numérico se ignora');
 
 console.log('\n== A2: grafo de zonas por familia ==');
-const baseEsperada = ['juegos', 'seleccion', 'horarios', 'numero', 'monto', 'anadir', 'resumen'];
+const baseEsperada = ['juegos', 'seleccion', 'horarios', 'numero', 'monto', 'anadir', 'resumen', 'pago'];
 const gNumerica = buildZoneGraph('numerica', {});
 ok(
   JSON.stringify(gNumerica.zonas) === JSON.stringify(baseEsperada),
@@ -272,22 +272,24 @@ const gAnimal = buildZoneGraph('animalitos', {});
 ok(!gAnimal.incluye('numero'), 'animalitos omite la zona numero (dígitos en seleccion)');
 ok(!gAnimal.incluye('signo'), 'animalitos sin zona signo');
 ok(
-  JSON.stringify(gAnimal.zonas) === JSON.stringify(['juegos', 'seleccion', 'horarios', 'monto', 'anadir', 'resumen']),
+  JSON.stringify(gAnimal.zonas) === JSON.stringify(['juegos', 'seleccion', 'horarios', 'monto', 'anadir', 'resumen', 'pago']),
   `animalitos: ${gAnimal.zonas.join('→')}`,
 );
 const gZodSin = buildZoneGraph('zodiacal', {});
 ok(
-  JSON.stringify(gZodSin.zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'horarios', 'numero', 'monto', 'anadir', 'resumen']),
+  JSON.stringify(gZodSin.zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'horarios', 'numero', 'monto', 'anadir', 'resumen', 'pago']),
   `zodiacal sin triple_c: modalidad tras juegos, sin signo (${gZodSin.zonas.join('→')})`,
 );
 const gZodCon = buildZoneGraph('zodiacal', { triple_c: true });
 ok(
-  JSON.stringify(gZodCon.zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'signo', 'horarios', 'numero', 'monto', 'anadir', 'resumen']),
+  JSON.stringify(gZodCon.zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'signo', 'horarios', 'numero', 'monto', 'anadir', 'resumen', 'pago']),
   `zodiacal con triple_c: zona signo antes de horarios (${gZodCon.zonas.join('→')})`,
 );
 ok(gZodCon.incluye('signo') && !gZodSin.incluye('signo'), 'signo solo si ctx.triple_c (D1)');
-ok(gNumerica.siguiente('resumen') === 'juegos', 'wrap Tab: resumen → juegos');
-ok(gNumerica.anterior('juegos') === 'resumen', 'wrap Shift+Tab: juegos → resumen');
+ok(gNumerica.siguiente('resumen') === 'pago', 'wrap Tab: resumen → pago');
+ok(gNumerica.siguiente('pago') === 'juegos', 'wrap Tab: pago → juegos (última zona cierra el ciclo)');
+ok(gNumerica.anterior('juegos') === 'pago', 'wrap Shift+Tab: juegos → pago');
+ok(gNumerica.anterior('pago') === 'resumen', 'wrap Shift+Tab: pago → resumen');
 ok(gNumerica.siguiente(null) === 'juegos', 'foco inicial: siguiente(null) → juegos');
 ok(gAnimal.siguiente('horarios') === 'monto', 'animalitos: horarios → monto (sin numero)');
 ok(gZodCon.siguiente('seleccion') === 'signo', 'zodiacal triple_c: seleccion → signo');
@@ -1265,22 +1267,22 @@ ok(
   'numérica sin ctx: base idéntica a hoy (A2)',
 );
 ok(
-  JSON.stringify(buildZoneGraph('zodiacal', {}).zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'horarios', 'numero', 'monto', 'anadir', 'resumen']),
+  JSON.stringify(buildZoneGraph('zodiacal', {}).zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'horarios', 'numero', 'monto', 'anadir', 'resumen', 'pago']),
   'zodiacal sin ctx: idéntico a hoy (A2)',
 );
 ok(
-  JSON.stringify(buildZoneGraph('zodiacal', { triple_c: true }).zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'signo', 'horarios', 'numero', 'monto', 'anadir', 'resumen']),
+  JSON.stringify(buildZoneGraph('zodiacal', { triple_c: true }).zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'signo', 'horarios', 'numero', 'monto', 'anadir', 'resumen', 'pago']),
   'zodiacal triple_c: idéntico a hoy (A2)',
 );
 const gPunta = buildZoneGraph('numerica', { modalidad: true });
 ok(
-  JSON.stringify(gPunta.zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'horarios', 'numero', 'monto', 'anadir', 'resumen']),
+  JSON.stringify(gPunta.zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'horarios', 'numero', 'monto', 'anadir', 'resumen', 'pago']),
   `numérica con modalidad: juegos → modalidad → seleccion (${gPunta.zonas.join('→')})`,
 );
 const gSignoSolo = buildZoneGraph('zodiacal', { modalidad: true, signo: true, numero: false });
 ok(!gSignoSolo.incluye('numero') && gSignoSolo.incluye('signo') && gSignoSolo.incluye('modalidad'), 'signo_solo: sin numero, con signo y modalidad');
 ok(
-  JSON.stringify(gSignoSolo.zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'signo', 'horarios', 'monto', 'anadir', 'resumen']),
+  JSON.stringify(gSignoSolo.zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'signo', 'horarios', 'monto', 'anadir', 'resumen', 'pago']),
   `signo_solo: ${gSignoSolo.zonas.join('→')}`,
 );
 ok(
@@ -1289,7 +1291,7 @@ ok(
 );
 const gSeg = buildZoneGraph('numerica', { segundaSeleccion: true });
 ok(
-  JSON.stringify(gSeg.zonas) === JSON.stringify(['juegos', 'seleccion', 'horarios', 'numero', 'numero_b', 'monto', 'anadir', 'resumen']),
+  JSON.stringify(gSeg.zonas) === JSON.stringify(['juegos', 'seleccion', 'horarios', 'numero', 'numero_b', 'monto', 'anadir', 'resumen', 'pago']),
   `segundaSeleccion: numero_b entre numero y monto (${gSeg.zonas.join('→')})`,
 );
 ok(gSeg.incluye('numero_b'), 'numero_b incluida con ctx.segundaSeleccion (S6-ready)');
@@ -1362,7 +1364,7 @@ ok(
 // Grafos multi-selección (design §5)
 const gMulti = buildZoneGraph('zodiacal', { modalidad: true, segundaSeleccion: true });
 ok(
-  JSON.stringify(gMulti.zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'horarios', 'numero', 'numero_b', 'monto', 'anadir', 'resumen']),
+  JSON.stringify(gMulti.zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'horarios', 'numero', 'numero_b', 'monto', 'anadir', 'resumen', 'pago']),
   `multi (cruzado/par): numero_b entre numero y monto (${gMulti.zonas.join('→')})`,
 );
 const gTripleta = buildZoneGraph('animalitos', {});
