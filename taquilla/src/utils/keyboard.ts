@@ -20,10 +20,11 @@
  *       F6  resultados «Resultados»            (era F10; nav /resultados)
  *       F7  ganadores «Ganadores»              (NUEVO; nav /ganadores)
  *       F8  cuadre «Cuadre»                    (igual; nav /cierre)
- *       F9  reimprimir «Reimprimir»            (era F12)
+ *       F9  —                                  (Libre; reimprimir pasó a «+»)
  *       F10 anular-ticket «Anular ticket»      (NUEVO; DELETE /tickets/{id} con serial)
  *       F11 limpiar «Limpiar todo»             (era F2)
  *       F12 vuelto «Vuelto»                    (era F9)
+ *       +   reimprimir «Reimprimir»            (NUEVO combo; NumpadAdd incluido)
  *       Alt+H ayuda «Ayuda»                    (era F1; NUEVO combo, toggle del modal)
  *       Backspace eliminar-item «Eliminar ítem» (era F6; fila del Resumen, solo fuera de inputs)
  *     `ir-numero` (viejo F11 «Números») vuelve al mapa en F2.
@@ -38,13 +39,14 @@
  *   - routeKey(state): decisión pura consumir/pasar (A1): Alt+H (toggle del
  *     modal de ayuda; consume SIEMPRE para preservar la guarda A12), modal
  *     abierto → solo su toggle propio (F12↔vuelto) y Esc,
- *     F-keys con guardas de estado (F1/F3 sin historial, F4 sin líneas),
- *     e.repeat ignorado en F-keys, foco en INPUT/SELECT → no intercepta salvo
- *     F-keys/Escape, Backspace elimina el ítem seleccionado del Resumen (era
- *     F6) solo fuera de inputs, ←/→ en zona Juegos (grid: columna adyacente o
- *     pestaña en el borde, resuelto por el glue), ↑/↓ contextuales,
- *     Tab/Shift+Tab ciclan zonas, Ctrl+A/`*` marcan todos los horarios
- *     visibles (KB-05).
+ *     F-keys con guardas de estado (F1/F3 sin historial, F4 sin líneas) y `+`
+ *     (reimprimir, era F9) que consume como una F-key,
+ *     e.repeat ignorado en F-keys y en `+`, foco en INPUT/SELECT → no
+ *     intercepta salvo F-keys/Escape, Backspace elimina el ítem seleccionado
+ *     del Resumen (era F6) solo fuera de inputs, ←/→ en zona Juegos (grid:
+ *     columna adyacente o pestaña en el borde, resuelto por el glue), ↑/↓
+ *     contextuales, Tab/Shift+Tab ciclan zonas, Ctrl+A/`*` marcan todos los
+ *     horarios visibles (KB-05).
  *   - anulación F10 (atajos-2026-09): helpers PUROS del flujo de anulación de
  *     ticket — normalizarSerial, serialCoincide (anti-tecleo) y
  *     ultimoTicketPendiente (más reciente de GET /tickets; desempate por id).
@@ -143,7 +145,10 @@ export const KEYMAP: readonly TeclaMapa[] = [
   // F7 «Ganadores» (atajos-2026-09): destino nuevo → /ganadores (NAV_GLOBAL).
   { tecla: 'F7', accion: 'ganadores', nombre: 'Ganadores', guarda: 'ninguno', implementadaEn: 'atajos-2026-09' },
   { tecla: 'F8', accion: 'cuadre', nombre: 'Cuadre', guarda: 'ninguno', implementadaEn: 'atajos-2026-09' },
-  { tecla: 'F9', accion: 'reimprimir', nombre: 'Reimprimir', guarda: 'ninguno', implementadaEn: 'atajos-2026-09' },
+  // F9 «Libre» (atajos-2026-09 rev. 2): reimprimir se movió al combo `+`
+  // (ATAJOS_EXTRA) para dejar F9 sin acción. La entrada se conserva (KEYMAP
+  // sigue teniendo 12 teclas) con accion null → la leyenda la muestra «Libre».
+  { tecla: 'F9', accion: null, nombre: 'Libre', guarda: 'ninguno', implementadaEn: 'atajos-2026-09' },
   // F10 «Anular ticket» (atajos-2026-09): modal de serial + DELETE
   // /tickets/{id} (backend existente; ventana por taquilla en el servidor).
   { tecla: 'F10', accion: 'anular-ticket', nombre: 'Anular ticket', guarda: 'ninguno', implementadaEn: 'atajos-2026-09' },
@@ -201,18 +206,20 @@ export interface TeclaLegend {
 
 /**
  * Atajos extra que NO son F-keys ni navegación y viven en el glue del
- * dashboard (atajos-2026-09): Alt+H = toggle del modal de ayuda (era F1).
- * Se listan en la leyenda/ayuda junto al KEYMAP y a los destinos de NAV_GLOBAL.
+ * dashboard (atajos-2026-09): Alt+H = toggle del modal de ayuda (era F1) y
+ * `+` = reimprimir el último ticket (era F9; NumpadAdd emite '+'). Se listan
+ * en la leyenda/ayuda junto al KEYMAP y a los destinos de NAV_GLOBAL.
  */
 export const ATAJOS_EXTRA: readonly TeclaLegend[] = [
   { tecla: 'Alt+H', nombre: 'Ayuda' },
+  { tecla: '+', nombre: 'Reimprimir' },
 ];
 
 /**
  * Teclas mostradas en la leyenda/ayuda (REQ-KB-09, FIX-6; atajos-2026-09):
  * F1–F12 (KEYMAP) más los destinos globales no-F (Alt+D) del NAV_GLOBAL y los
- * combos extra del glue (Alt+H). Todo derivado de los mapas: la leyenda y el
- * modal de ayuda reflejan el mapa real sin texto hardcodeado.
+ * combos extra del glue (Alt+H, +). Todo derivado de los mapas: la leyenda y
+ * el modal de ayuda reflejan el mapa real sin texto hardcodeado.
  */
 export function teclasLegend(): readonly TeclaLegend[] {
   const extras = NAV_GLOBAL
@@ -517,6 +524,15 @@ export function routeKey(state: EstadoRuteo): RutaDecision {
   // 2. F-keys en auto-repetición: se ignoran (A1).
   if (state.repeat && fkey) {
     return { consume: false, tipo: 'pasar' };
+  }
+
+  // 2b. `+` (atajos-2026-09 rev. 2): reimprimir el último ticket (era F9).
+  //     Consume SIEMPRE, igual que una F-key, incluso con foco en input (los
+  //     inputs de la taquilla son numéricos); NumpadAdd también emite '+'.
+  //     En auto-repetición se ignora (misma guarda que las F-keys).
+  if (state.tecla === '+') {
+    if (state.repeat) return { consume: false, tipo: 'pasar' };
+    return { consume: true, tipo: 'f-key', fkey: '+', accion: 'reimprimir', ejecutable: true };
   }
 
   // 3. F-keys mapeadas: consumen siempre; ejecutables según guarda de estado.

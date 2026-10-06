@@ -334,6 +334,19 @@ ok(!r.consume, 'F4 con e.repeat → se ignora (A1)');
 r = routeKey(est({ tecla: 'F4', focoEditable: true, tieneLineas: true }));
 ok(r.consume && r.tipo === 'f-key' && r.ejecutable, 'F4 en INPUT → sí se intercepta (única excepción F-key)');
 
+console.log('\n== atajos-2026-09 rev.2: «+» = reimprimir (era F9) ==');
+r = routeKey(est({ tecla: '+' }));
+ok(
+  r.consume && r.tipo === 'f-key' && r.fkey === '+' && r.accion === 'reimprimir' && r.ejecutable === true,
+  '`+` → f-key «reimprimir» ejecutable',
+);
+r = routeKey(est({ tecla: '+', repeat: true }));
+ok(!r.consume && r.tipo === 'pasar', '`+` con e.repeat → se ignora (A1)');
+r = routeKey(est({ tecla: '+', focoEditable: true }));
+ok(r.consume && r.tipo === 'f-key' && r.accion === 'reimprimir', '`+` en INPUT → se intercepta (inputs numéricos)');
+r = routeKey(est({ tecla: '+', modalAbierto: true }));
+ok(!r.consume && r.tipo === 'pasar', '`+` con modal abierto → pasa (guarda KB-08)');
+
 console.log('\n== A1: routeKey — guarda de modal (REQ-KB-08) ==');
 r = routeKey(est({ modalAbierto: true, tecla: 'F2', tieneLineas: true }));
 ok(!r.consume, 'modal abierto + F2 → pasa (no ejecuta, KB-08)');
@@ -517,12 +530,12 @@ ok(
   'F5–F8: navegación global (ventas/resultados/ganadores/cuadre)',
 );
 ok(
-  accionDe('F9') === 'reimprimir' && accionDe('F10') === 'anular-ticket' &&
+  accionDe('F9') === null && accionDe('F10') === 'anular-ticket' &&
     accionDe('F11') === 'limpiar' && accionDe('F12') === 'vuelto',
-  'F9–F12: locales del dashboard (reimprimir/anular-ticket/limpiar/vuelto)',
+  'F9 libre (reimprimir pasó a «+»); F10–F12: locales del dashboard',
 );
 const acciones = KEYMAP.map((k) => k.accion).filter(Boolean);
-ok(acciones.length === 12, `12 acciones mapeadas (F1–F12 completos, ${acciones.length})`);
+ok(acciones.length === 11, `11 acciones mapeadas (F9 sin acción; resto de F1–F12, ${acciones.length})`);
 ok(KEYMAP.every((k) => k.implementadaEn === 'atajos-2026-09'), 'todo el KEYMAP marcado como batch «atajos-2026-09»');
 ok(KEYMAP.find((k) => k.tecla === 'F2')?.nombre === 'Números', 'F2 → «Números» en el KEYMAP');
 ok(!KEYMAP.some((k) => k.accion === 'ayuda'), '«ayuda» ya no es F-key: pasa al combo Alt+H');
@@ -812,20 +825,27 @@ ok(destinoNav('D', { altKey: true, ctrlKey: false })?.ruta === '/dashboard', 'de
 ok(destinoNav('d', { altKey: false, ctrlKey: false }) === null, 'd sin Alt → sin destino');
 ok(destinoNav('d', { altKey: true, ctrlKey: true }) === null, 'Ctrl+Alt+d (AltGr) → sin destino');
 ok(destinoNav('F10', { altKey: false, ctrlKey: false }) === null, 'F10 → sin destino (local: anular ticket)');
-ok(destinoNav('F9', { altKey: false, ctrlKey: false }) === null, 'F9 → sin destino (local: reimprimir)');
+ok(destinoNav('F9', { altKey: false, ctrlKey: false }) === null, 'F9 → sin destino (F9 libre)');
 ok(destinoNav('F12', { altKey: false, ctrlKey: false }) === null, 'F12 → sin destino (local: vuelto)');
 ok(destinoNav('x', { altKey: false, ctrlKey: false }) === null, 'tecla no navegable → null');
 const legend = teclasLegend();
-ok(legend.length === 14, `teclasLegend: 14 teclas (F1–F12 + Alt+D + Alt+H) (${legend.length})`);
+ok(legend.length === 15, `teclasLegend: 15 teclas (F1–F12 + Alt+D + Alt+H + «+») (${legend.length})`);
 ok(legend.some((t) => t.tecla === 'Alt+D' && t.nombre === 'Dashboard'), 'teclasLegend incluye Alt+D → Dashboard');
 ok(legend.some((t) => t.tecla === 'Alt+H' && t.nombre === 'Ayuda'), 'teclasLegend incluye Alt+H → Ayuda (era F1)');
+ok(legend.some((t) => t.tecla === '+' && t.nombre === 'Reimprimir'), 'teclasLegend incluye «+» → Reimprimir (era F9)');
+ok(legend.find((t) => t.tecla === 'F9')?.nombre === 'Libre', 'teclasLegend muestra F9 como «Libre»');
 ok(legend.find((t) => t.tecla === 'F1')?.nombre === 'Repetir última', 'F1 → Repetir última en la leyenda');
 ok(legend.find((t) => t.tecla === 'F2')?.nombre === 'Números', 'F2 → Números en la leyenda');
 ok(legend.find((t) => t.tecla === 'F4')?.nombre === 'Pagar / Generar', 'F4 → Pagar / Generar en la leyenda');
 ok(legend.find((t) => t.tecla === 'F10')?.nombre === 'Anular ticket', 'F10 → Anular ticket en la leyenda');
 ok(legend.find((t) => t.tecla === 'F11')?.nombre === 'Limpiar todo', 'F11 → Limpiar todo en la leyenda');
 ok(legend.some((t) => t.nombre === 'Números'), 'la leyenda lista «Números» (F2 recupera ir-numero)');
-ok(ATAJOS_EXTRA.length === 1 && ATAJOS_EXTRA[0].tecla === 'Alt+H' && ATAJOS_EXTRA[0].nombre === 'Ayuda', 'ATAJOS_EXTRA: solo Alt+H → Ayuda');
+ok(
+  ATAJOS_EXTRA.length === 2 &&
+    ATAJOS_EXTRA[0].tecla === 'Alt+H' && ATAJOS_EXTRA[0].nombre === 'Ayuda' &&
+    ATAJOS_EXTRA[1].tecla === '+' && ATAJOS_EXTRA[1].nombre === 'Reimprimir',
+  'ATAJOS_EXTRA: Alt+H → Ayuda y «+» → Reimprimir',
+);
 
 console.log('\n== Logos de juegos (feat/taquilla-logos-juegos) ==');
 // Artefacto estático del dashboard: mapa slug → archivo generado desde

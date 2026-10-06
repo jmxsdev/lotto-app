@@ -2361,9 +2361,9 @@ import Icon from '../components/ui/Icon.astro';
           game: nombresJuegos(ticketLinesData).join(', '),
           lines: ticketLinesData,
         };
-        // Snapshot para F9 reimprimir (atajos-2026-09; era F12. A6,
+        // Snapshot para reimprimir con «+» (atajos-2026-09; era F9. A6,
         // REQ-TF-03): tras POST ok se guarda el último ticket impreso; si la
-        // impresora falla, F9 reimprime sin depender de red (rechazado
+        // impresora falla, «+» reimprime sin depender de red (rechazado
         // GET /tickets/{id}).
         localStorage.setItem('ultimoTicket', JSON.stringify(ticketData));
         if (window.electron?.printTicket) {
@@ -2592,10 +2592,10 @@ import Icon from '../components/ui/Icon.astro';
       }
     }
 
-    // ─── Acciones F1/F3/F4/F9/F12 (atajos-2026-09; A11, REQ-KB-07) ──────────
+    // ─── Acciones F1/F3/F4/+ /F12 (atajos-2026-09; A11, REQ-KB-07) ─────────
     // F3 anula la jugada (grupo) del último groupId añadido; F1 la duplica
     // con groupId nuevo (atómico: si algún horario expiró, avisa y no copia);
-    // F9 reimprime el snapshot; F12 abre el modal de vuelto.
+    // «+» reimprime el snapshot (era F9); F12 abre el modal de vuelto.
 
     function anularUltimaJugada() {
       const ultima = ticketLines[ticketLines.length - 1];
@@ -2627,8 +2627,8 @@ import Icon from '../components/ui/Icon.astro';
       renderResumen();
     }
 
-    // F9 reimprime el último ticket desde el snapshot localStorage.ultimoTicket
-    // (atajos-2026-09; era F12. A6, REQ-TF-03): se guarda tras un POST ok en
+    // «+» reimprime el último ticket desde el snapshot localStorage.ultimoTicket
+    // (atajos-2026-09; era F9. A6, REQ-TF-03): se guarda tras un POST ok en
     // handlePrint; si falta o no es válido, aviso claro (nunca depende de red
     // justo cuando falla la impresora; rechazado GET /tickets/{id}).
     function reimprimirUltimo() {
@@ -2692,9 +2692,9 @@ import Icon from '../components/ui/Icon.astro';
     // ─── Navegación por teclado (KB-01..04, KB-08, KB-09; A1) ──────────────
     // ACCIONES reales del KEYMAP atajos-2026-09 (REQ-KB-07, A11, A12): F1
     // repetir última (atómico), F3 anular último grupo, F4 pagar/generar
-    // (= handlePrint), F9 reimprimir snapshot, F10 anular ticket (modal de
-    // serial + DELETE), F11 limpiar todo (= clearTicket, reset TOTAL) y F12
-    // vuelto. F2 (Números) y la ayuda (Alt+H) se rutean como decisiones puras
+    // (= handlePrint), «+» reimprimir snapshot (era F9), F10 anular ticket
+    // (modal de serial + DELETE), F11 limpiar todo (= clearTicket, reset TOTAL)
+    // y F12 vuelto. F2 (Números) y la ayuda (Alt+H) se rutean como decisiones puras
     // (`f-key`/`toggle-modal`) desde routeKey; el handler de F2 vive en este
     // mapa. F5/F6/F7/F8
     // (ventas/resultados/ganadores/cuadre) NO viven aquí: la navegación es
@@ -3071,7 +3071,7 @@ import Icon from '../components/ui/Icon.astro';
         .map(z => '<span class="kbd">' + (NOMBRE_ZONA[z] ?? z) + '</span>')
         .join('<span class="leg-arrow"> &rarr; </span>');
       // FIX-6 (REQ-KB-09; atajos-2026-09): KEYMAP (F1–F12) + destinos globales
-      // no-F (Alt+D) + combos extra (Alt+H) vía teclasLegend — leyenda y
+      // no-F (Alt+D) + combos extra (Alt+H, +) vía teclasLegend — leyenda y
       // ayuda derivan del mapa real, sin texto hardcodeado.
       const fkeysHtml = teclasLegend()
         .map(t => '<span><span class="kbd">' + t.tecla + '</span> ' + t.nombre + '</span>')
