@@ -109,6 +109,16 @@
 
 - **Worktrees leftover** (contenido ya en `main`, se pueden limpiar cuando convenga): `taquilla-venta-agil`, `investigacion-produccion`, `resultados-parciales-produccion`, `cierre-caja-taquilla`, `resultados-loterias-panel`, `distribucion-taquilla`, `taquilla-multientorno`, `explorar-activacion-taquilla`. Solo `iconos-consistentes` (VL-01) y `configuracion-juegos` (VL-02) tienen trabajo vivo.
 - **Cierre 2026-10-02**: pendientes de taquilla **CERRADOS** — TQ-01..06 (front 1.0.0, PR #33), TQ-08/09 (PR #51), TQ-10 auto-update OTA (PR #56/#57, **1.0.3 publicado**, gate Windows aprobado), comprobante de pago implementado. Historial: TQ-07 descartado, TQ-11 diferido, offline descartado por el cliente.
+- **Suite E2E de la taquilla (Playwright + Electron)**: vive en `taquilla/e2e/`
+  (runbook canónico: [`taquilla-e2e.md`](taquilla-e2e.md)). Corre contra API
+  local + base dedicada `lotto_e2e`; comando (desde `taquilla/`):
+  `API_UPSTREAM=http://127.0.0.1:8013 pnpm exec playwright test -c e2e/playwright.config.mjs`.
+  Incluye `08-tipo-pago.spec.mjs` (tipo de pago en la venta). **IMPORTANTE**: la
+  API **limita los intentos de `/login` (10/2 min) por seguridad** y el harness
+  hace 1 login por spec; si la suite crece, hay que **matar el proceso de la API
+  local (padre `artisan serve` + hijo `php -S`) y relanzarlo** para refrescar el
+  límite — cerrar la ventana/terminal NO lo refresca. Detalle y snippet en el
+  runbook.
 - **Fuentes minadas**: `docs/*.md` (PENDIENTE, pendientes-taquilla, integracion-front-motor-premios, inconsistencias, motor-premios, multiplicadores-juegos, planificacion, runbook-ops, plataformas-juegos, comparacion-juegos, premiacion-juegos, manual-mantenimiento, entre otros) · memoria Engram obs #376/#366/#365/#391/#381/#378/#377/#375/#331/#330/#313/#221/#217/#12/#57 · worktrees/ramas y `openspec/changes/`.
 
 ## 7. Pendientes backend / negocio (consolidado del ex `docs/dev/pendientes-front.md`)

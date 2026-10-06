@@ -28,6 +28,7 @@
 | [`integracion-front-motor-premios.md`](integracion-front-motor-premios.md) | Canónico · contrato | Contrato backend↔fronts (payloads, estados, monedas, catálogo) + plan de implementación | ✅ Al cambiar el contrato |
 | [`manual-mantenimiento.md`](manual-mantenimiento.md) | Canónico · operativo | Mantenimiento: migraciones en prod, release de Taquilla, activación de dispositivos, CORS, secrets | ✅ Al cambiar el proceso |
 | [`runbook-ops.md`](runbook-ops.md) | Canónico · operativo | Runbook de VPS: deploy, rollback, scheduler, suite en paralelo, checklist PC nueva | ✅ Al cambiar la operación |
+| [`taquilla-e2e.md`](taquilla-e2e.md) | Canónico · how-to | Suite E2E de la taquilla (Playwright + Electron): requisitos, cómo correr, **límite de login (10/2 min) y cómo refrescarlo**, CI | ✅ Al cambiar el harness |
 | [`deploy.md`](deploy.md) | Canónico · guía | Despliegue completo en VPS desde cero (paso a paso) | ✅ Al cambiar el setup |
 | [`estructura.md`](estructura.md) | Canónico · referencia | Mapa del monorepo y propósito de cada carpeta | ✅ Al cambiar la estructura |
 | [`plugins.md`](plugins.md) | Canónico · how-to | Cómo crear plugins de juego y scrapers (§4 Triple Zulia: ya resuelto) | ✅ Al agregar un juego/scraper |

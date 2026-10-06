@@ -49,8 +49,36 @@ API_UPSTREAM=http://localhost:8003 pnpm e2e e2e/tests/smoke.spec.mjs
 - Exit code 0 = verde; distinto de 0 = fallo (apto para CI).
 - Artefactos en `taquilla/e2e/artifacts/` (gitignored): capturas por paso,
   `session.json` y reporte HTML en `e2e/html-report/`.
-- Throttle `/login` (10/2 min): corridas consecutivas del suite deben
-  espaciarse ~2 minutos (el seed no lo evita; aplica al login).
+- **Límite de intentos de `/login`**: la API lo limita por seguridad; ver
+  **§ Límite de intentos de `/login`** abajo (cómo refrescarlo).
+
+### Límite de intentos de `/login` (por seguridad) — cómo manejarlo
+
+La API **limita los intentos de inicio de sesión** (10 por 2 minutos, por
+seguridad / anti-fuerza-bruta). El harness abre una app nueva y **hace 1 login
+por spec**, así que cada corrida consume 1 intento por spec + 1 del
+`global-setup` (hoy ≈9). Cuando la suite **crezca** (más specs o más de un login
+por spec), los tests finales fallarán con
+`Demasiados intentos. Espere un momento e intente nuevamente.` — es el límite de
+seguridad, no un bug de la app.
+
+Para refrescar el límite **no alcanza con cerrar la ventana/terminal**: hay que
+**matar el proceso de la API local y volver a levantarlo**. `php artisan serve`
+lanza un proceso hijo `php -S` que **sobrevive** a un `pkill` del padre, así que
+hay que matar a los dos:
+
+```bash
+# desde backend/ — mata el listener (:8013) y el padre de artisan, y relanza
+LPID=$(ss -ltnp 2>/dev/null | grep ':8013' | grep -oP 'pid=\K[0-9]+' | head -1)
+PP=$(pgrep -f 'artisan serve --host=127.0.0.1 --port=8013' | head -1)
+[ -n "$LPID" ] && kill "$LPID"; [ -n "$PP" ] && kill "$PP"; sleep 3
+nohup php artisan serve --host=127.0.0.1 --port=8013 > /tmp/lotto-e2e-api.log 2>&1 &
+```
+
+Regla práctica para quien agregue specs: **mantener 1 login por spec** y, si la
+suite supera el presupuesto (≈10 logins/2 min), **matar y relanzar la API local
+antes de cada corrida**. En CI cada job corre una sola suite, así que el límite
+se refresca solo entre jobs.
 
 ## CI (GitHub Actions)
 
@@ -71,8 +99,10 @@ El job `e2e` de `.github/workflows/ci-cd.yml` replica el patrón de `tests`
 - Corre **en paralelo a `deploy`** (sin `needs`) en v1: la flakiness de
   Electron no debe bloquear hotfixes POS. Promoción: tras 10 corridas verdes
   consecutivas, cambiar `deploy` a `needs: [build, e2e]`.
-- Throttle `/login` (10/2 min): una suite por job = 8 logins (7 specs + el
-  global-setup) → dentro del límite; `retries CI?2:0` cubren reintentos.
+- Throttle `/login` (10/2 min): una suite por job = 9 logins (8 specs + el
+  global-setup) → dentro del límite; `retries CI?2:0` cubren reintentos. Si la
+  suite crece, el límite se refresca reiniciando la API (ver § Límite de
+  intentos de `/login`).
 
 ## Variables y flags
 
