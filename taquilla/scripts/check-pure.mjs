@@ -63,6 +63,14 @@ import { buildReciboLines, estadoRecibo } from '../src/utils/recibos.ts';
 import { badgesResultado } from '../src/utils/resultados.ts';
 import { vistaUpdate } from '../src/utils/autoUpdate.ts';
 import {
+  TIPOS_PAGO,
+  monedaDelTicket,
+  opcionesPago,
+  metodoValido,
+  labelTipoPago,
+  hayMezclaDeMonedas,
+} from '../src/utils/tipoPagoVenta.ts';
+import {
   modalidadesDisponibles,
   validarDigitos,
   construirCombinacion,
@@ -249,7 +257,7 @@ buscador.teclear('x');
 ok(buscador.buffer() === '05', 'teclear no numérico se ignora');
 
 console.log('\n== A2: grafo de zonas por familia ==');
-const baseEsperada = ['juegos', 'seleccion', 'horarios', 'numero', 'monto', 'anadir', 'resumen'];
+const baseEsperada = ['juegos', 'seleccion', 'horarios', 'numero', 'monto', 'anadir', 'resumen', 'pago'];
 const gNumerica = buildZoneGraph('numerica', {});
 ok(
   JSON.stringify(gNumerica.zonas) === JSON.stringify(baseEsperada),
@@ -264,22 +272,24 @@ const gAnimal = buildZoneGraph('animalitos', {});
 ok(!gAnimal.incluye('numero'), 'animalitos omite la zona numero (dígitos en seleccion)');
 ok(!gAnimal.incluye('signo'), 'animalitos sin zona signo');
 ok(
-  JSON.stringify(gAnimal.zonas) === JSON.stringify(['juegos', 'seleccion', 'horarios', 'monto', 'anadir', 'resumen']),
+  JSON.stringify(gAnimal.zonas) === JSON.stringify(['juegos', 'seleccion', 'horarios', 'monto', 'anadir', 'resumen', 'pago']),
   `animalitos: ${gAnimal.zonas.join('→')}`,
 );
 const gZodSin = buildZoneGraph('zodiacal', {});
 ok(
-  JSON.stringify(gZodSin.zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'horarios', 'numero', 'monto', 'anadir', 'resumen']),
+  JSON.stringify(gZodSin.zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'horarios', 'numero', 'monto', 'anadir', 'resumen', 'pago']),
   `zodiacal sin triple_c: modalidad tras juegos, sin signo (${gZodSin.zonas.join('→')})`,
 );
 const gZodCon = buildZoneGraph('zodiacal', { triple_c: true });
 ok(
-  JSON.stringify(gZodCon.zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'signo', 'horarios', 'numero', 'monto', 'anadir', 'resumen']),
+  JSON.stringify(gZodCon.zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'signo', 'horarios', 'numero', 'monto', 'anadir', 'resumen', 'pago']),
   `zodiacal con triple_c: zona signo antes de horarios (${gZodCon.zonas.join('→')})`,
 );
 ok(gZodCon.incluye('signo') && !gZodSin.incluye('signo'), 'signo solo si ctx.triple_c (D1)');
-ok(gNumerica.siguiente('resumen') === 'juegos', 'wrap Tab: resumen → juegos');
-ok(gNumerica.anterior('juegos') === 'resumen', 'wrap Shift+Tab: juegos → resumen');
+ok(gNumerica.siguiente('resumen') === 'pago', 'wrap Tab: resumen → pago');
+ok(gNumerica.siguiente('pago') === 'juegos', 'wrap Tab: pago → juegos (última zona cierra el ciclo)');
+ok(gNumerica.anterior('juegos') === 'pago', 'wrap Shift+Tab: juegos → pago');
+ok(gNumerica.anterior('pago') === 'resumen', 'wrap Shift+Tab: pago → resumen');
 ok(gNumerica.siguiente(null) === 'juegos', 'foco inicial: siguiente(null) → juegos');
 ok(gAnimal.siguiente('horarios') === 'monto', 'animalitos: horarios → monto (sin numero)');
 ok(gZodCon.siguiente('seleccion') === 'signo', 'zodiacal triple_c: seleccion → signo');
@@ -1257,22 +1267,22 @@ ok(
   'numérica sin ctx: base idéntica a hoy (A2)',
 );
 ok(
-  JSON.stringify(buildZoneGraph('zodiacal', {}).zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'horarios', 'numero', 'monto', 'anadir', 'resumen']),
+  JSON.stringify(buildZoneGraph('zodiacal', {}).zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'horarios', 'numero', 'monto', 'anadir', 'resumen', 'pago']),
   'zodiacal sin ctx: idéntico a hoy (A2)',
 );
 ok(
-  JSON.stringify(buildZoneGraph('zodiacal', { triple_c: true }).zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'signo', 'horarios', 'numero', 'monto', 'anadir', 'resumen']),
+  JSON.stringify(buildZoneGraph('zodiacal', { triple_c: true }).zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'signo', 'horarios', 'numero', 'monto', 'anadir', 'resumen', 'pago']),
   'zodiacal triple_c: idéntico a hoy (A2)',
 );
 const gPunta = buildZoneGraph('numerica', { modalidad: true });
 ok(
-  JSON.stringify(gPunta.zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'horarios', 'numero', 'monto', 'anadir', 'resumen']),
+  JSON.stringify(gPunta.zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'horarios', 'numero', 'monto', 'anadir', 'resumen', 'pago']),
   `numérica con modalidad: juegos → modalidad → seleccion (${gPunta.zonas.join('→')})`,
 );
 const gSignoSolo = buildZoneGraph('zodiacal', { modalidad: true, signo: true, numero: false });
 ok(!gSignoSolo.incluye('numero') && gSignoSolo.incluye('signo') && gSignoSolo.incluye('modalidad'), 'signo_solo: sin numero, con signo y modalidad');
 ok(
-  JSON.stringify(gSignoSolo.zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'signo', 'horarios', 'monto', 'anadir', 'resumen']),
+  JSON.stringify(gSignoSolo.zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'signo', 'horarios', 'monto', 'anadir', 'resumen', 'pago']),
   `signo_solo: ${gSignoSolo.zonas.join('→')}`,
 );
 ok(
@@ -1281,7 +1291,7 @@ ok(
 );
 const gSeg = buildZoneGraph('numerica', { segundaSeleccion: true });
 ok(
-  JSON.stringify(gSeg.zonas) === JSON.stringify(['juegos', 'seleccion', 'horarios', 'numero', 'numero_b', 'monto', 'anadir', 'resumen']),
+  JSON.stringify(gSeg.zonas) === JSON.stringify(['juegos', 'seleccion', 'horarios', 'numero', 'numero_b', 'monto', 'anadir', 'resumen', 'pago']),
   `segundaSeleccion: numero_b entre numero y monto (${gSeg.zonas.join('→')})`,
 );
 ok(gSeg.incluye('numero_b'), 'numero_b incluida con ctx.segundaSeleccion (S6-ready)');
@@ -1354,7 +1364,7 @@ ok(
 // Grafos multi-selección (design §5)
 const gMulti = buildZoneGraph('zodiacal', { modalidad: true, segundaSeleccion: true });
 ok(
-  JSON.stringify(gMulti.zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'horarios', 'numero', 'numero_b', 'monto', 'anadir', 'resumen']),
+  JSON.stringify(gMulti.zonas) === JSON.stringify(['juegos', 'modalidad', 'seleccion', 'horarios', 'numero', 'numero_b', 'monto', 'anadir', 'resumen', 'pago']),
   `multi (cruzado/par): numero_b entre numero y monto (${gMulti.zonas.join('→')})`,
 );
 const gTripleta = buildZoneGraph('animalitos', {});
@@ -1489,6 +1499,62 @@ ok(vistaUpdate('downloading', true).visible === false, 'descargando → sin avis
 ok(vistaUpdate('checking', false).visible === false, 'chequeando → sin aviso');
 ok(vistaUpdate('error', true).visible === false, 'error → sin aviso bloqueante (spec: la app sigue operando)');
 ok(vistaUpdate('idle', false).visible === false, 'idle → sin aviso');
+
+console.log('\n== tipo-pago-venta: catálogo y derivación de opciones por moneda (R2) ==');
+// Catálogo TIPOS_PAGO: 4 opciones Bs + «USD efectivo» (design §Interfaces).
+ok(TIPOS_PAGO.length === 5, `TIPOS_PAGO: 5 entradas (4 Bs + «USD efectivo») (${TIPOS_PAGO.length})`);
+ok(TIPOS_PAGO.filter((o) => o.moneda === 'usd').length === 1, 'TIPOS_PAGO: una sola entrada de moneda usd');
+const opcBs = opcionesPago('bs');
+ok(opcBs.length === 4, `Bs → 4 opciones (${opcBs.length})`);
+ok(
+  JSON.stringify(opcBs.map((o) => o.codigo)) === JSON.stringify(['transferencia', 'efectivo', 'punto_venta', 'pago_movil']),
+  `Bs: los 4 códigos del enum backend (${opcBs.map((o) => o.codigo).join(',')})`,
+);
+ok(opcBs.every((o) => o.moneda === 'bs'), 'Bs: todas las opciones con moneda bs');
+ok(opcBs.every((o) => typeof o.label === 'string' && o.label.length > 0), 'Bs: toda opción con label no vacío');
+const opcUsd = opcionesPago('usd');
+ok(opcUsd.length === 1, `USD → 1 opción (${opcUsd.length})`);
+ok(
+  opcUsd[0].codigo === 'efectivo' && opcUsd[0].label === 'USD efectivo' && opcUsd[0].moneda === 'usd',
+  `USD: único «USD efectivo» con código efectivo (${opcUsd[0].label})`,
+);
+ok(opcionesPago('mixto').length === 0, 'mixto → sin opciones (no hay combinación mixta)');
+ok(opcionesPago(null).length === 0, 'null → sin opciones');
+
+console.log('\n== tipo-pago-venta: monedaDelTicket (R3, moneda única) ==');
+ok(monedaDelTicket([]) === null, 'sin líneas → null');
+ok(monedaDelTicket(null) === null, 'líneas null → null (defensivo)');
+ok(monedaDelTicket([{ moneda: 'bs' }]) === 'bs', 'solo Bs → bs');
+ok(monedaDelTicket([{ moneda: 'usd' }]) === 'usd', 'solo $ → usd');
+ok(monedaDelTicket([{ moneda: 'bs' }, { moneda: 'usd' }]) === 'mixto', 'Bs + $ → mixto');
+// Borde (design §Interfaces): moneda ausente/desconocida cuenta como bs.
+ok(monedaDelTicket([{ moneda: null }]) === 'bs', 'moneda null → bs (moneda base)');
+ok(monedaDelTicket([{}]) === 'bs', 'línea sin moneda → bs');
+ok(monedaDelTicket([{ moneda: 'eur' }]) === 'bs', 'moneda desconocida → bs');
+ok(monedaDelTicket([{ moneda: 'bs' }, { moneda: undefined }]) === 'bs', 'Bs + ausente → bs (no mixto)');
+
+console.log('\n== tipo-pago-venta: hayMezclaDeMonedas (R3, guarda defensiva) ==');
+ok(hayMezclaDeMonedas([{ moneda: 'bs' }, { moneda: 'usd' }]) === true, 'Bs + $ → hay mezcla');
+ok(hayMezclaDeMonedas([{ moneda: 'bs' }, { moneda: 'bs' }]) === false, 'solo Bs → sin mezcla');
+ok(hayMezclaDeMonedas([{ moneda: 'usd' }]) === false, 'solo $ → sin mezcla');
+ok(hayMezclaDeMonedas([]) === false, 'sin líneas → sin mezcla');
+ok(hayMezclaDeMonedas(null) === false, 'null → sin mezcla (defensivo)');
+
+console.log('\n== tipo-pago-venta: metodoValido (R6, obligatoriedad) ==');
+ok(metodoValido('bs', 'transferencia') === true, 'Bs + transferencia → válido');
+ok(metodoValido('bs', 'efectivo') === true, 'Bs + efectivo → válido');
+ok(metodoValido('usd', 'efectivo') === true, 'USD + efectivo → válido');
+ok(metodoValido('usd', 'transferencia') === false, 'USD + transferencia → inválido (no es opción USD)');
+ok(metodoValido('bs', 'otro') === false, 'código fuera del enum → inválido');
+ok(metodoValido('mixto', 'efectivo') === false, 'mixto → ningún método válido');
+ok(metodoValido('bs', null) === false && metodoValido('bs', '') === false, 'sin método → inválido');
+
+console.log('\n== tipo-pago-venta: labelTipoPago (D5: efectivo cambia por moneda) ==');
+ok(labelTipoPago('efectivo', 'bs') === 'Efectivo', `efectivo en Bs → «Efectivo» (${labelTipoPago('efectivo', 'bs')})`);
+ok(labelTipoPago('efectivo', 'usd') === 'USD efectivo', `efectivo en USD → «USD efectivo» (${labelTipoPago('efectivo', 'usd')})`);
+ok(labelTipoPago('pago_movil', 'bs') === 'Pago móvil', 'pago_movil en Bs → «Pago móvil»');
+ok(labelTipoPago('transferencia', 'usd') === null, 'transferencia en USD → null (no es opción)');
+ok(labelTipoPago(null, 'bs') === null, 'sin método → null');
 
 console.log(`\n${checks} checks, ${fallos} fallos`);
 process.exit(fallos === 0 ? 0 : 1);

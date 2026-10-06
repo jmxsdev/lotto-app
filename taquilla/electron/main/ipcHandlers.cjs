@@ -80,6 +80,7 @@ function generateTicketHtml(ticketData) {
             <hr>
             <p>Ticket: ${escapeHtml(ticketCode)}</p>
             <p>Fecha: ${escapeHtml(date)} - ${escapeHtml(time)}</p>
+            ${ticketData.tipoPago ? '<p>Tipo de pago: ' + escapeHtml(ticketData.tipoPago) + '</p>' : ''}
             <hr>
             <table>
                 <thead><tr><th>#</th><th>Jugada</th>${hasSorteo ? '<th>Hora</th>' : ''}<th>BS</th><th>USD</th></tr></thead>
