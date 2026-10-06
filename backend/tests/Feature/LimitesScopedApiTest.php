@@ -132,6 +132,13 @@ class LimitesScopedApiTest extends TestCase
         foreach ($data['origen'] as $origen) {
             $this->assertNull($origen);
         }
+
+        // El payload expone `type` por juego (lo requieren los topes por tipo)
+        foreach ($data['juegos'] as $juego) {
+            $this->assertNotEmpty($juego['type'] ?? null, 'juego sin type en payload de límites');
+        }
+        $this->assertSame('animalitos', collect($data['juegos'])->firstWhere('slug', 'lotto-activo')['type']);
+        $this->assertSame('tripletas', collect($data['juegos'])->firstWhere('slug', 'triple-zulia')['type']);
     }
 
     public function test_limites_entidad_grupo_muestra_origen_heredado()
@@ -328,6 +335,11 @@ class LimitesScopedApiTest extends TestCase
         $this->assertCount(20, $data['juegos']);
         $this->assertCount(40, $data['limites']);
         $this->assertCount(40, $data['origen']);
+
+        // El payload scoped también expone `type` por juego
+        foreach ($data['juegos'] as $juego) {
+            $this->assertNotEmpty($juego['type'] ?? null, 'juego sin type en payload scoped de límites');
+        }
     }
 
     public function test_limites_agencia_taquilla_ajena_matriz_vacia()
