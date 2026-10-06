@@ -86,6 +86,10 @@ import Icon from '../components/ui/Icon.astro';
             <span class="total-label">Total:</span>
             <span class="total-amount" id="qt-total-amount">Bs. 0,00</span>
           </div>
+          <div class="qt-pago">
+            <h4 class="qt-col-title">Tipo de pago</h4>
+            <div id="pago-list" class="pago-list" data-zona="pago" role="listbox" aria-label="Tipo de pago"></div>
+          </div>
           <div class="qt-actions">
             <button id="qt-clear" class="btn btn-clear" disabled tabindex="-1"><Icon name="trash-2" size={16} /> Limpiar</button>
             <button id="qt-print" class="btn btn-primary" disabled tabindex="-1"><Icon name="printer" size={16} /> Imprimir</button>
@@ -1028,6 +1032,44 @@ import Icon from '../components/ui/Icon.astro';
       padding: 8px;
     }
 
+    .pago-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 8px;
+    }
+
+    .pago-item {
+      flex: 1 1 45%;
+      padding: 8px 10px;
+      border: 1px solid #d7dce5;
+      border-radius: 8px;
+      font-size: 13px;
+      text-align: center;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s ease;
+    }
+
+    .pago-item:hover {
+      border-color: #667eea;
+    }
+
+    .pago-item.activo {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-color: #667eea;
+      color: white;
+      font-weight: 600;
+    }
+
+    .pago-placeholder {
+      width: 100%;
+      padding: 8px;
+      font-size: 12px;
+      color: #6c757d;
+      text-align: center;
+    }
+
     .btn {
       flex: 1;
       padding: 8px 16px;
@@ -1313,6 +1355,7 @@ import Icon from '../components/ui/Icon.astro';
     import { indiceDestinoFila, indiceDestinoColumna } from '../utils/gridNav';
     import { icono } from '../utils/iconos';
     import { initAutoUpdate } from '../utils/autoUpdate';
+    import { monedaDelTicket, opcionesPago, metodoValido, labelTipoPago, hayMezclaDeMonedas } from '../utils/tipoPagoVenta';
     import juegosRaw from '../data/juegos.json';
     import logosRaw from '../data/logos.json';
 
@@ -1345,6 +1388,10 @@ import Icon from '../components/ui/Icon.astro';
     let selectedOpcion = null; // numérica/terminal: opción resaltada en la lista
     let columnMode = 'juegos';
     let zonaActual = 'juegos';
+    // Tipo de pago elegido (código backend del enum `metodo-pago`); null = sin
+    // elegir → bloquea Imprimir/crear (obligatoriedad, R6). Se resetea al
+    // limpiar (F11), tras una impresión correcta y al cambiar #qt-moneda.
+    let metodoPago = null;
 
     // Apostado types de tripletas (A2): el JSON bundled NO trae apostado types
     // (sus "modalidades" son premios informativos: cola, zodiacal, punta…).
@@ -1359,6 +1406,7 @@ import Icon from '../components/ui/Icon.astro';
     const NOMBRE_ZONA = {
       juegos: 'Juegos', modalidad: 'Modalidad', seleccion: 'Selección', signo: 'Signo',
       horarios: 'Horario', numero: 'Número', numero_b: 'Segunda selección', monto: 'Monto', anadir: 'Añadir', resumen: 'Resumen',
+      pago: 'Tipo de pago',
     };
 
     // Objetivo de foco de cada zona (roving focus / tabindex explícito, KB-01).
@@ -1375,6 +1423,7 @@ import Icon from '../components/ui/Icon.astro';
       monto: '#qt-monto',
       anadir: '#qt-add',
       resumen: '#resumen-content',
+      pago: '#pago-list',
     };
 
     function getGameById(id) {
@@ -2073,7 +2122,36 @@ import Icon from '../components/ui/Icon.astro';
       loadTicket();
     }
 
+    // Zona Tipo de pago (R2/R4): pinta las opciones derivadas de la moneda del
+    // ticket. Se llama SIEMPRE desde renderResumen (también sin líneas, design
+    // D6) para que el ciclo de zonas sea estable; sin líneas muestra placeholder.
+    function renderPago() {
+      const container = document.getElementById('pago-list');
+      if (!container) return;
+      const moneda = monedaDelTicket(ticketLines);
+      const opciones = opcionesPago(moneda);
+      // Un método elegido que deja de aplicar al cambiar la moneda se descarta.
+      if (metodoPago && !metodoValido(moneda, metodoPago)) {
+        metodoPago = null;
+      }
+      if (opciones.length === 0) {
+        container.innerHTML = '<div class="pago-placeholder">Agregue una jugada para elegir el tipo de pago</div>';
+        return;
+      }
+      container.innerHTML = opciones
+        .map((o) => {
+          const activo = metodoPago === o.codigo;
+          return '<div class="pago-item' + (activo ? ' activo' : '') + '" role="option" tabindex="-1"'
+            + ' aria-selected="' + (activo ? 'true' : 'false') + '"'
+            + ' data-metodo="' + o.codigo + '">' + o.label + '</div>';
+        })
+        .join('');
+    }
+
     function renderResumen() {
+      // La zona Tipo de pago se re-renderiza SIEMPRE (dentro y fuera del
+      // early-return de 0 líneas) para mantener el ciclo de zonas estable (D6).
+      renderPago();
       const container = document.getElementById('resumen-content');
       const totalEl = document.getElementById('qt-total-amount');
       const printBtn = document.getElementById('qt-print');
@@ -2129,10 +2207,29 @@ import Icon from '../components/ui/Icon.astro';
       saveToLocalStorage();
     }
 
+    // Moneda única por ticket (R3): con líneas, el selector #qt-moneda queda
+    // congelado (evita preparar una línea de otra moneda); al vaciar el ticket
+    // se rehabilita. La guarda de addLine falla además en origen.
+    function sincronizarMonedaTicket() {
+      const sel = document.getElementById('qt-moneda');
+      if (sel) sel.disabled = ticketLines.length > 0;
+    }
+
     function addLine() {
       let numero = document.getElementById('qt-numero').value.trim();
       const monto = document.getElementById('qt-monto').value.trim();
       const moneda = document.getElementById('qt-moneda').value;
+
+      // Moneda única por ticket (R3): rechaza una línea de moneda distinta a la
+      // ya presente, con aviso y sin push (el ticket permanece en su moneda).
+      const monedaTicket = monedaDelTicket(ticketLines);
+      if (ticketLines.length > 0 && moneda !== monedaTicket) {
+        window.showModal({
+          message: 'El ticket ya tiene jugadas en ' + (monedaTicket === 'usd' ? '$' : 'Bs') + '. No se puede mezclar monedas.',
+          type: 'error',
+        });
+        return;
+      }
 
       const juego = juegoActivo();
       if (!juego) { window.showModal({ message: 'Seleccione al menos un juego', type: 'error' }); return; }
@@ -2237,6 +2334,7 @@ import Icon from '../components/ui/Icon.astro';
         ticketLines.push(...expandirLineas(baseLinea, [...selectedHorarios], groupId));
       });
 
+      sincronizarMonedaTicket();
       document.getElementById('qt-numero').value = '';
       document.getElementById('qt-monto').value = '';
       // Pedido del usuario 2026-09-22: un add exitoso resetea Juegos + Selección
@@ -2254,6 +2352,8 @@ import Icon from '../components/ui/Icon.astro';
       // reset total deja el guard de pestañas (seleccionEnCurso) satisfecho de
       // forma natural al limpiar. Sin líneas también limpia la selección.
       ticketLines = [];
+      metodoPago = null;
+      sincronizarMonedaTicket();
       selectedGames = [];
       selectedAnimal = null;
       selectedSigno = null;
@@ -2302,11 +2402,25 @@ import Icon from '../components/ui/Icon.astro';
         }
         switchToJuegos();
       }
+      sincronizarMonedaTicket();
       renderResumen();
     }
 
     async function handlePrint() {
       if (ticketLines.length === 0) return;
+      // Moneda única (R3): red defensiva — un ticket con Bs y $ no se crea.
+      if (hayMezclaDeMonedas(ticketLines)) {
+        window.showModal({ message: 'El ticket mezcla monedas (Bs y $). Corrija las jugadas antes de imprimir.', type: 'error' });
+        return;
+      }
+      // Obligatoriedad (R6): sin tipo de pago válido no se crea/imprime; se
+      // avisa y se enfoca la zona Tipo de pago para elegir.
+      const monedaTicket = monedaDelTicket(ticketLines);
+      if (!metodoValido(monedaTicket, metodoPago)) {
+        window.showModal({ message: 'Elija el tipo de pago antes de imprimir.', type: 'error' });
+        document.getElementById('pago-list')?.focus();
+        return;
+      }
       saleInFlight = true;
       const printBtn = document.getElementById('qt-print');
       printBtn.disabled = true;
@@ -2330,7 +2444,7 @@ import Icon from '../components/ui/Icon.astro';
           sorteo_hora: line.horario ? formatDateWithHorario(line.horario) : new Date().toISOString(),
         }));
 
-        const result = await apiFetch('/tickets', { method: 'POST', body: { lines } });
+        const result = await apiFetch('/tickets', { method: 'POST', body: { lines, metodo_pago: metodoPago } });
 
         // Ticket impreso (2026-09): cada línea lleva su juego y el texto de la
         // jugada ya compuesto (modalidad en tripletas, solo número en
@@ -2360,6 +2474,9 @@ import Icon from '../components/ui/Icon.astro';
           time: new Date().toLocaleTimeString('es-VE'),
           game: nombresJuegos(ticketLinesData).join(', '),
           lines: ticketLinesData,
+          // Snapshot de reimpresión (R5): el tipo impreso viaja en ticketData y
+          // «+» lo reimprime tal cual (ipcHandlers lo pinta si está presente).
+          tipoPago: labelTipoPago(metodoPago, monedaTicket),
         };
         // Snapshot para reimprimir con «+» (atajos-2026-09; era F9. A6,
         // REQ-TF-03): tras POST ok se guarda el último ticket impreso; si la
@@ -2372,6 +2489,8 @@ import Icon from '../components/ui/Icon.astro';
           await window.showModal({ message: 'Ticket ' + result.data.ticket_code + ' creado exitosamente. Impresión no disponible.', type: 'success' });
         }
         ticketLines = [];
+        metodoPago = null;
+        sincronizarMonedaTicket();
         renderResumen();
         localStorage.removeItem('currentTicket');
         loadTicket();
@@ -2846,6 +2965,7 @@ import Icon from '../components/ui/Icon.astro';
         signo: '.signo-btn',
         horarios: '.horario-item',
         resumen: '.resumen-table tbody tr',
+        pago: '.pago-item',
       };
       const el = objetivoZona(zona);
       if (!el) return [];
@@ -3201,12 +3321,27 @@ import Icon from '../components/ui/Icon.astro';
       const aplicarModoMoneda = () => {
         qtMoneda.closest('.quick-ticket')?.classList.toggle('venta-usd', qtMoneda.value === 'usd');
       };
-      qtMoneda.addEventListener('change', aplicarModoMoneda);
+      qtMoneda.addEventListener('change', () => {
+        // Cambiar la moneda descarta el tipo de pago elegido (R6) y re-deriva
+        // las opciones aplicables a la nueva moneda.
+        metodoPago = null;
+        aplicarModoMoneda();
+        renderPago();
+      });
       aplicarModoMoneda();
 
       document.getElementById('resumen-content').addEventListener('click', (e) => {
         const btn = e.target.closest('.btn-rm');
         if (btn) removeGroup(btn.dataset.grupo);
+      });
+
+      // Zona Tipo de pago (R4): click en una opción la elige (el Enter/Space del
+      // roving focus dispara el mismo .click() vía activarItemFocalizado).
+      document.getElementById('pago-list').addEventListener('click', (e) => {
+        const item = e.target.closest('.pago-item');
+        if (!item) return;
+        metodoPago = item.dataset.metodo;
+        renderPago();
       });
 
       document.getElementById('qt-clear').addEventListener('click', clearTicket);
@@ -3269,6 +3404,7 @@ import Icon from '../components/ui/Icon.astro';
 
       // ─── Router de teclado (A1): una sola escucha en document ────────────
       renderLegend();
+      renderPago(); // D6: la zona Tipo de pago muestra su placeholder sin líneas
       enfocarZona('juegos'); // KB-01: foco inicial en la zona Juegos
 
       // focusin sincroniza la zona actual con el elemento enfocado.
