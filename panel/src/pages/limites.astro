@@ -35,16 +35,16 @@ import Icon from '../components/Icon.astro';
     <div id="comision-global" class="comision-global">
       <div class="comision-global-header">
         <h3 class="comision-global-title">Comisión global por moneda</h3>
-        <p class="comision-global-hint">Se aplica a todos los juegos cuando ningún nivel define porcentaje de pago.</p>
+        <p class="comision-global-hint">Se aplica a todos los juegos cuando ningún nivel define porcentaje de pago. Máx. 16% global; animalitos 16%, tripletas 25%.</p>
       </div>
       <div class="comision-global-filas">
         <div class="field">
           <label>BS (%)</label>
-          <input type="number" id="comision-bs" min="0" max="100" step="0.01" placeholder="0.00" />
+          <input type="number" id="comision-bs" min="0" max="16" step="0.01" placeholder="0.00" />
         </div>
         <div class="field">
           <label>USD (%)</label>
-          <input type="number" id="comision-usd" min="0" max="100" step="0.01" placeholder="0.00" />
+          <input type="number" id="comision-usd" min="0" max="16" step="0.01" placeholder="0.00" />
         </div>
       </div>
       <div class="acciones">

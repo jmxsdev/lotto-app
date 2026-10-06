@@ -3,10 +3,12 @@
 namespace App\Services;
 
 use App\Models\Grupo;
+use App\Models\Juego;
 use App\Models\JuegoLimite;
 use App\Models\Taquilla;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Lógica compartida de persistencia de límites (juego × moneda) para la
@@ -44,6 +46,27 @@ class JuegoLimiteService
                 'limites.*.participacion' => ['nullable', 'numeric', 'min:0', 'max:100'],
             ]
         )->validate();
+
+        // Tope por tipo de juego: animalitos 16, tripletas 25, otro 100.
+        $juegoIds = collect($items)->pluck('juego_id')->filter()->unique()->values()->all();
+        $tipos = Juego::whereIn('id', $juegoIds)->pluck('type', 'id');
+
+        foreach ($items as $i => $item) {
+            $valor = $item['porcentaje_pago'] ?? null;
+
+            if ($valor === null) {
+                continue;
+            }
+
+            $tipo = (string) ($tipos[(int) ($item['juego_id'] ?? 0)] ?? '');
+            $tope = ComisionService::topePorTipo($tipo);
+
+            if ((float) $valor > $tope) {
+                throw ValidationException::withMessages([
+                    "limites.$i.porcentaje_pago" => "El % de pago para {$tipo} no puede superar {$tope}%.",
+                ]);
+            }
+        }
     }
 
     /**

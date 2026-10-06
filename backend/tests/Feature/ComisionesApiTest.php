@@ -106,7 +106,7 @@ class ComisionesApiTest extends TestCase
         $juego = Juego::create([
             'name' => 'Juego Comisiones API',
             'slug' => 'juego-comisiones-api-'.uniqid(),
-            'type' => 'animalitos',
+            'type' => 'terminales',
             'active' => true,
         ]);
 
@@ -500,7 +500,7 @@ class ComisionesApiTest extends TestCase
         $juego = Juego::create([
             'name' => 'Juego Master Scope',
             'slug' => 'juego-master-scope-'.uniqid(),
-            'type' => 'animalitos',
+            'type' => 'terminales',
             'active' => true,
         ]);
         $this->limite($juego->id, $bancaMia->id, $grupoMio->id, $taquillaMia->id, 'bs', 50);
@@ -606,7 +606,7 @@ class ComisionesApiTest extends TestCase
         $juego = Juego::create([
             'name' => 'Juego Pagar Scope',
             'slug' => 'juego-pagar-scope-'.uniqid(),
-            'type' => 'animalitos',
+            'type' => 'terminales',
             'active' => true,
         ]);
         $this->limite($juego->id, $bancaMia->id, $grupoMio->id, $taquillaMia->id, 'bs', 50);
@@ -655,7 +655,7 @@ class ComisionesApiTest extends TestCase
         $juego = Juego::create([
             'name' => 'Juego Pagar Banca',
             'slug' => 'juego-pagar-banca-'.uniqid(),
-            'type' => 'animalitos',
+            'type' => 'terminales',
             'active' => true,
         ]);
         $this->limite($juego->id, $bancaMia->id, $grupoMio->id, $taquillaMia->id, 'bs', 50);
@@ -717,7 +717,7 @@ class ComisionesApiTest extends TestCase
         $juego = Juego::create([
             'name' => 'Juego Matriz Grupo',
             'slug' => 'juego-matriz-grupo-'.uniqid(),
-            'type' => 'animalitos',
+            'type' => 'terminales',
             'active' => true,
         ]);
 
@@ -768,7 +768,7 @@ class ComisionesApiTest extends TestCase
         $juego = Juego::create([
             'name' => 'Juego Matriz Ajena',
             'slug' => 'juego-matriz-ajena-'.uniqid(),
-            'type' => 'animalitos',
+            'type' => 'terminales',
             'active' => true,
         ]);
 
@@ -786,5 +786,179 @@ class ComisionesApiTest extends TestCase
             'juego_id' => $juego->id,
             'taquilla_id' => $taquillaAjena->id,
         ]);
+    }
+
+    // ==================================================
+    // Tope por tipo en configuración (animalitos 16, tripletas 25)
+    // ==================================================
+
+    private function juegoPorTipo(string $type): Juego
+    {
+        return Juego::create([
+            'name' => 'Juego '.$type.' '.uniqid(),
+            'slug' => 'juego-'.$type.'-'.uniqid(),
+            'type' => $type,
+            'active' => true,
+        ]);
+    }
+
+    private function putLimite(User $user, Juego $juego, array $payload): TestResponse
+    {
+        return $this->actingAs($user, 'sanctum')
+            ->putJson('/api/v1/limites/'.$juego->id, $payload);
+    }
+
+    public function test_put_limite_animalitos_sobre_tope_422()
+    {
+        [, $banca, $grupo, $taquilla] = $this->crearJerarquia();
+        $juego = $this->juegoPorTipo('animalitos');
+
+        $this->putLimite($this->superUser(), $juego, [
+            'banca_id' => $banca->id,
+            'grupo_id' => $grupo->id,
+            'taquilla_id' => $taquilla->id,
+            'moneda' => 'bs',
+            'porcentaje_pago' => 17,
+        ])->assertStatus(422);
+
+        $this->assertDatabaseMissing('juego_limites', [
+            'juego_id' => $juego->id,
+            'taquilla_id' => $taquilla->id,
+        ]);
+    }
+
+    public function test_put_limite_tripletas_sobre_tope_422()
+    {
+        [, $banca, $grupo, $taquilla] = $this->crearJerarquia();
+        $juego = $this->juegoPorTipo('tripletas');
+
+        $this->putLimite($this->superUser(), $juego, [
+            'banca_id' => $banca->id,
+            'grupo_id' => $grupo->id,
+            'taquilla_id' => $taquilla->id,
+            'moneda' => 'bs',
+            'porcentaje_pago' => 26,
+        ])->assertStatus(422);
+    }
+
+    public function test_put_limite_dentro_del_tope_201()
+    {
+        [, $banca, $grupo, $taquilla] = $this->crearJerarquia();
+        $juego = $this->juegoPorTipo('animalitos');
+
+        $this->putLimite($this->superUser(), $juego, [
+            'banca_id' => $banca->id,
+            'grupo_id' => $grupo->id,
+            'taquilla_id' => $taquilla->id,
+            'moneda' => 'bs',
+            'porcentaje_pago' => 16,
+        ])->assertStatus(201);
+
+        $this->assertDatabaseHas('juego_limites', [
+            'juego_id' => $juego->id,
+            'taquilla_id' => $taquilla->id,
+            'porcentaje_pago' => 16,
+        ]);
+    }
+
+    public function test_put_limite_tripletas_en_tope_201()
+    {
+        [, $banca, $grupo, $taquilla] = $this->crearJerarquia();
+        $juego = $this->juegoPorTipo('tripletas');
+
+        $this->putLimite($this->superUser(), $juego, [
+            'banca_id' => $banca->id,
+            'grupo_id' => $grupo->id,
+            'taquilla_id' => $taquilla->id,
+            'moneda' => 'bs',
+            'porcentaje_pago' => 25,
+        ])->assertStatus(201);
+    }
+
+    public function test_put_limite_terminales_hasta_100_201()
+    {
+        [, $banca, $grupo, $taquilla] = $this->crearJerarquia();
+        $juego = $this->juegoPorTipo('terminales');
+
+        $this->putLimite($this->superUser(), $juego, [
+            'banca_id' => $banca->id,
+            'grupo_id' => $grupo->id,
+            'taquilla_id' => $taquilla->id,
+            'moneda' => 'bs',
+            'porcentaje_pago' => 100,
+        ])->assertStatus(201);
+    }
+
+    public function test_batch_scope_banca_animalitos_sobre_tope_422()
+    {
+        $this->crearJerarquia();
+        $juego = $this->juegoPorTipo('animalitos');
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/limites/batch', [
+                'scope' => ['tipo' => 'bancas'],
+                'limites' => [
+                    ['juego_id' => $juego->id, 'moneda' => 'bs', 'porcentaje_pago' => 17],
+                ],
+            ]);
+
+        $response->assertStatus(422);
+    }
+
+    public function test_batch_scope_grupo_tripletas_sobre_tope_422()
+    {
+        $this->crearJerarquia();
+        $juego = $this->juegoPorTipo('tripletas');
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/limites/batch', [
+                'scope' => ['tipo' => 'grupos'],
+                'limites' => [
+                    ['juego_id' => $juego->id, 'moneda' => 'bs', 'porcentaje_pago' => 26],
+                ],
+            ]);
+
+        $response->assertStatus(422);
+    }
+
+    public function test_store_banca_con_limite_animalitos_sobre_tope_422()
+    {
+        $juego = $this->juegoPorTipo('animalitos');
+        $code = 'BTOPE'.uniqid();
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/bancas', [
+                'name' => 'Banca Tope',
+                'code' => $code,
+                'user_name' => 'Banca Tope',
+                'user_email' => 'banca-tope-'.uniqid().'@lotto.com',
+                'user_password' => 'password123',
+                'limites' => [
+                    ['juego_id' => $juego->id, 'moneda' => 'bs', 'porcentaje_pago' => 17],
+                ],
+            ]);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseMissing('bancas', ['code' => $code]);
+    }
+
+    public function test_put_defaults_17_422()
+    {
+        $this->actingAs($this->superUser(), 'sanctum')
+            ->putJson('/api/v1/comisiones/defaults', [
+                'defaults' => [['moneda' => 'bs', 'porcentaje_pago' => 17]],
+            ])
+            ->assertStatus(422);
+    }
+
+    public function test_put_defaults_16_200()
+    {
+        $this->actingAs($this->superUser(), 'sanctum')
+            ->putJson('/api/v1/comisiones/defaults', [
+                'defaults' => [['moneda' => 'bs', 'porcentaje_pago' => 16]],
+            ])
+            ->assertStatus(200);
+
+        $this->assertDatabaseHas('comision_defaults', ['moneda' => 'bs', 'porcentaje_pago' => 16]);
     }
 }
