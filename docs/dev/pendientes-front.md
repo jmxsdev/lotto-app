@@ -2,7 +2,7 @@
 
 > **Fuente de verdad única** de los ajustes pendientes en `panel/` (admin web) y `taquilla/` (POS Astro+Electron).
 > Consolida lo disperso en los demás `.md` de `docs/` (incluye el ex `docs/dev/pendientes-front.md`, fusionado aquí en §7), la memoria Engram del proyecto y el estado real de ramas/worktrees/openspec.
-> Última actualización: 2026-10-02. Al cerrar un ítem: marcarlo aquí y no re-abrirlo en otros docs.
+> Última actualización: 2026-10-06. Al cerrar un ítem: marcarlo aquí y no re-abrirlo en otros docs.
 
 ## Leyenda
 
@@ -101,7 +101,7 @@
 - `docs/dev/planificacion.md` sprints 9–12 y `docs/dev/plugins.md` "Scraper Triple Zulia": **stale**, no perseguir.
 - `docs/cliente/multiplicadores-juegos.md` "por aplicar" (Monje 50×, Arrejuntado 40×, Chaima 40×): ya aplicado por el motor.
 - **Comisiones** (PN-08/BE-06, PR #50, mergeado 2026-10-01): banca, grupo y taquilla cobran su % con **suma cero** (tope acumulado por moneda: `min(tasaEfectiva, max(0, 100 − Σ tasas propias de ancestros))`); configuración en la matriz de límites (master→bancas, banca→grupos, grupos→sus taquillas; rol `grupo` habilitado con scope); página `/comisiones`, columnas en reportes/cuadre y `comision_bs_equivalent` en cierre; default global 2 filas bs/usd (`super_master`).
-- **Topes de comisión por tipo** (mergeado 2026-10-05): `topePorTipo` = animalitos 16%, tripletas 25%, otro 100%; tercer término del clamp en `tasaLiquidable`/`tasasLiquidablesBulk` (single==bulk, `tasaEfectiva` sin tocar), validación 422 al configurar por encima del tope (límites por juego/batch, stores de entidad y default global ≤16) y `type` expuesto en los payloads de juegos que consume el panel.
+- **Topes de comisión por tipo** (PRs #61/#62, mergeados 2026-10-06): `topePorTipo` = **animalitos 16%, tripletas 25%, otro 100%** (tope por nivel; máx. cadena 48%/75%, nunca excede lo generado); tercer término del clamp en `tasaLiquidable`/`tasasLiquidablesBulk` (single==bulk, `tasaEfectiva` sin tocar, config legacy se clampa al liquidar); validación 422 al configurar por encima del tope (límites por juego/batch, stores de entidad y default global ≤16); `type` expuesto en los payloads de juegos que consume el panel. Spec canónico: `openspec/specs/comisiones/spec.md`. Verify PASS (4/4 req, 16/16 esc) + CI success (run 37468740909).
 
 ---
 

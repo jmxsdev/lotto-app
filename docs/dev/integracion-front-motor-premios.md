@@ -3,9 +3,9 @@
 > **Índice consolidado de pendientes de ambos fronts**: `docs/dev/pendientes-front.md` (fuente única). Este documento conserva el contrato detallado por front.
 
 > **Para**: agentes/devs de `taquilla/` y `panel/`.
-> **Backend**: rama `feat/motor-premios-f3-estados` (42 commits sobre `main`; **al momento de este documento NO está mergeada ni desplegada** — coordinar merge/deploy antes de probar contra producción).
+> **Backend**: `main` — el motor de premios, los fronts (1.0.0 → 1.0.3) y el sistema de comisiones YA están mergeados y desplegados.
 > **Referencias**: `docs/dev/motor-premios.md` (como funciona el motor por dentro) · `docs/juegos.json` (catalogo exportado; version 1) · `openspec/changes/archive/2026-09-26-motor-premios/` (spec verificada) · `docs/cliente/multiplicadores-juegos.md` (valores oficiales).
-> **Fecha**: 2026-09-26.
+> **Fecha**: 2026-09-26 · **Actualizado**: 2026-10-06.
 
 ---
 
@@ -201,7 +201,7 @@ NO hardcodear multiplicadores en el front: leer `premios` de `GET /juegos/{id}/r
 - Dejar de asumir 5 min (`historial.astro:102-113`): el backend decide con `getEffectiveTiempoEliminacion` (taquilla -> grupo -> banca). Mientras no exista endpoint que exponga el valor, manejar el rechazo del `DELETE` y mostrar el mensaje del backend.
 
 **T8. NO hacer**.
-- No implementar Dupleta. No llamar `/limites` (los limites se aplican server-side). No gestionar comisiones (no existen aun).
+- No implementar Dupleta. No llamar `/limites` (los limites se aplican server-side). No gestionar comisiones en la taquilla: se configuran en panel > Limites y se liquidan/pagan en `/comisiones`.
 
 ### 3.3 Checklist de aceptacion (taquilla)
 
@@ -227,7 +227,7 @@ NO hardcodear multiplicadores en el front: leer `premios` de `GET /juegos/{id}/r
 | Premios por juego | Sin UI (ni `premios`, ni `vendible`) | — |
 | Configuraciones | No existe pagina; no consume `/configuraciones/apuestas-vencimiento` (backend implementado) | grep 0 |
 | Limites | UI completa en `/limites` y tabs de banca/grupo/taquilla (campos `limite_minimo/maximo`, `porcentaje_pago`, `participacion`, `fraccion`, `limite_tiempo`) | `utils/limites.ts:46-53` |
-| Comisiones | No existe nada | grep 0 |
+| Comisiones | Implementado: página `/comisiones` (liquidar/pagar), config en Limites, **topes por tipo** (animalitos 16% / tripletas 25%), default global ≤16% | PR #50 · PRs #61/#62 · `openspec/specs/comisiones/spec.md` |
 | Estados de apuesta | Sin vista (dashboard rotula "Ganadores Hoy" = `pagada_count`) | `dashboard.astro:52-53` |
 
 ### 4.2 Cambios requeridos
@@ -258,24 +258,20 @@ NO hardcodear multiplicadores en el front: leer `premios` de `GET /juegos/{id}/r
 
 ---
 
-## 5. Comisiones — estado hoy y encuadre para el proximo ciclo
+## 5. Comisiones — estado actual (actualizado 2026-10-06)
 
-**Hoy no existe ningun sistema de comisiones operativo** (verificado en backend y panel):
+El sistema de comisiones **está implementado y operativo** (PR #50) con **tope por tipo de juego** (PRs #61/#62). Spec canónico: `openspec/specs/comisiones/spec.md`.
 
-| Pieza | Donde vive | Estado |
-|---|---|---|
-| `porcentaje_pago`, `participacion` | `juego_limites` (juego x entidad x moneda; editable por `super_master|master|banca`; heredado) | Se persiste/valida/muestra en la matriz de limites; **cero lectores de negocio** |
-| Tabla `comisiones` (banca/grupo/taquilla, `periodo`, `monto_comision`, `estado`) | Modelo + relaciones | Ledger **muerto**: sin controlador, ruta, servicio ni UI |
-| `bancas.config` ("Comisiones por defecto") | JSON de banca | Se escribe, **nunca se lee** |
-| Permiso `manage_comisiones` | Spatie | Asignado a super_master/master; **nadie lo verifica** |
-| Cierre de caja | `CierreService` | Ventas - egresos; sin comisiones |
-| Reportes | `ApuestaService` | `Utilidad = venta - premio` (margen implicito, no distribuido) |
+| Pieza | Estado |
+|---|---|
+| Liquidación | `ComisionService::liquidar` — manual vía `POST /comisiones/liquidar {desde, hasta, banca_ids?}`; una fila por (nivel, entidad, rango) en estado `pendiente`; solape de período → 422 |
+| Tasas | Cascada `taquilla → grupo → banca → default global` sobre `juego_limites.porcentaje_pago`; **topes por tipo**: animalitos **16%**, tripletas **25%**, resto 100% (por nivel); guard suma cero ≤100% como red de seguridad; config legacy se clampa al liquidar |
+| Config | Matriz de límites (SM/M/banca/grupo según scope) + default global por moneda (`GET/PUT /comisiones/defaults`, ≤16%) |
+| Pago | Página `/comisiones` (SM/M): liquidar, filtrar, `PATCH /comisiones/{id}/pagar` (idempotente, auditado) |
+| Integración | Cierre de caja (`comision_bs_equivalent`, diario/semanal) y reportes de ventas/cuadre |
+| Permiso | `manage_comisiones` (super_master/master) |
 
-**Encuadre**: si el proximo ciclo ("configuracion de juegos") incluye comisiones, hay dos decisiones de producto abiertas:
-1. **Que significa la comision**: % de pago al jugador (H1), % de reparto del nivel sobre la venta (H2), o liquidacion periodica por entidad (H3, tabla `comisiones`).
-2. **Donde se edita**: defaults por juego (catalogo) + override por entidad en la matriz de limites, o por entidad/nivel unicamente.
-
-Nota: nada de esto esta implementado, asi que no hay comportamiento previo que preservar; el slot por juego x entidad (`juego_limites.porcentaje_pago`) ya existe y el panel ya lo edita.
+**Fuera del modelo actual** (hilos abiertos, no bloquean): previsualización antes de liquidar, reverso/corrección/pago parcial, filtros server-side del ledger, visibilidad del ledger para banca/grupo, liquidación automática por período, semántica de `participacion` (sigue sin lectores de negocio).
 
 ---
 
