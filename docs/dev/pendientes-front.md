@@ -16,12 +16,12 @@
 
 ## 0. En vuelo ahora
 
-> **2026-10-02**: VL-01 (iconos-consistentes, PR #23) y VL-02 (configuracion-juegos, PR #49) **ya están mergeados**; §0 queda como histórico.
+> **2026-10-06**: VL-01 (iconos-consistentes) y VL-02 (configuracion-juegos) **RESUELTOS** (mergeados/archivados); sus ramas y worktrees quedaron **redundantes y fueron purgados** el 2026-10-06. §0 queda como histórico.
 
 | ID | Front | Qué | Estado / qué falta | Evidencia |
 |---|---|---|---|---|
-| VL-01 | ambos | **iconos-consistentes**: migración total a Lucide (chrome UI), subset local de Noto Emoji + Inter local, sin CDN, en taquilla y panel | `en vuelo` — rama `feat/iconos-consistentes` **21 commits adelante de `main`, sin mergear**. Falta: (a) verificación física en Windows 10/11 (`/auditoria-iconos`, sin tofu, fuente local); (b) merge a `main` (decisión: rama única + merge final); (c) `sdd-verify` + archive + sync de specs | worktree `iconos-consistentes` · `tasks.md` 4.9 · `check-icons.mjs` · obs #391/#381 |
-| VL-02 | panel | **ciclo `configuracion-juegos`** (exploración hecha): endpoint `PUT /juegos/{juego}/premios` + fix toggle + UI editor de premios | `en vuelo` — solo `explore.md` (commit `ff25794`, worktree `configuracion-juegos`). **5 decisiones de negocio pendientes** (§7 del explore): semántica del body, retroactividad del pago, `vendible`, claves de modalidad válidas, permisos | `openspec/changes/configuracion-juegos/explore.md` · ver PN-01/PN-03 |
+| VL-01 | ambos | **iconos-consistentes**: migración total a Lucide (chrome UI), subset local de Noto Emoji + Inter local, sin CDN, en taquilla y panel | `RESUELTO` — mergeado a `main`; rama/worktree purgados 2026-10-06 (redundantes). Verificación física en Windows cubierta por el gate del release 1.0.x | `check-icons.mjs` (24/0) · obs #391/#381 |
+| VL-02 | panel | **ciclo `configuracion-juegos`**: endpoint `PUT /juegos/{juego}/premios` + UI editor de premios | `RESUELTO/archivado` — `openspec/changes/archive/2026-09-28-configuracion-juegos/` (22/22, verify PASS WITH WARNINGS). Endpoint en `backend/routes/api.php:131`; UI en `panel/src/pages/juegos.astro`. Slices s1a–s3 purgados 2026-10-06 (redundantes). No conflictúa con los topes por tipo (dominios separados: premios vs `ComisionService::topePorTipo`) | `archive/2026-09-28-configuracion-juegos/` · ver PN-01/PN-03 |
 
 ---
 
