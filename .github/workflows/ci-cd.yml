@@ -237,7 +237,7 @@ jobs:
         run: |
           IMAGE=ghcr.io/jmxsdev/lotto-app-api
           SHA=${GITHUB_SHA:0:7}
-          docker build -t "$IMAGE:$SHA" -t "$IMAGE:latest" .
+          docker build --pull -t "$IMAGE:$SHA" -t "$IMAGE:latest" .
           docker push "$IMAGE:$SHA"
           docker push "$IMAGE:latest"
 
