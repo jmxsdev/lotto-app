@@ -57,8 +57,7 @@ Ticket: `premio_total_bs/usd` se **acumula** (increment) entre sorteos; estado d
 | `backend/app/Support/PremiosOficiales.php` | Catalogo unico en codigo (21 juegos): `todos()`, `para(slug)`, `slugs()`, `activo(slug)`, `configPara(slug)`; espejos legacy |
 | `backend/app/Support/Texto.php` | `normalizar()`: sin acentos + minusculas (H13) |
 | `backend/app/Plugins/Contracts/JuegoInterface.php` | Contrato: `evaluarAcierto()`; `JuegoMultiSorteoInterface` es la capacidad opcional de tripleta; `calcularPremio()` y `obtenerMultiplicador()` quedan `@deprecated` (legacy pre-motor) |
-| `backend/app/Plugins/Juegos/Animalitos.php` | Forma animalitos: acentos y `comodinesDelResultado()`; la tripleta multi-sorteo vive en `evaluarMultiSorteo()` |
-| `backend/app/Plugins/Juegos/Animalitos/SelvaPlus.php` | Plugin por juego de Selva Plus: comodin A/B como figura apostable; animal pierde en sorteo con comodin; sin tripleta |
+| `backend/app/Plugins/Juegos/Animalitos.php` | Forma animalitos: acentos, comodines (MEGA/Selva A-B/figura/palabra) y tripleta multi-sorteo. Todas las loterías de animalitos comparten este plugin; la carpeta por juego queda como refactor futuro. |
 | `backend/app/Plugins/Juegos/Tripletas.php` | Forma tripletas: tipo apostado (REQ5), signos label/sigla, posiciones (punta/terminal/una), aproximacion, arrimao/pegadito, `selecciones[]` (Cruzado / Par A+B) |
 | `backend/app/Plugins/Juegos/Terminales.php` | Forma terminales: clave `numero` del resultado con padding a 2 cifras (N1/N9) |
 | `backend/app/Services/JuegoPluginManager.php` | Fachada: `getPlugin`, `getPluginByJuegoId`, `validarApuesta` (con opciones del zoo), `calcularPremio`, `getOpciones`, `getValidationRules/Messages`, `getMultiplicador` |

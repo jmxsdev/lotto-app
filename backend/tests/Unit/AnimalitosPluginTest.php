@@ -6,6 +6,7 @@ use App\Models\Juego;
 use App\Models\PluginJuego;
 use App\Plugins\Juegos\Animalitos;
 use App\Services\JuegoPluginManager;
+use App\Support\PremiosOficiales;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -87,22 +88,6 @@ class AnimalitosPluginTest extends TestCase
 
         $this->assertTrue($acierto['coincide']);
         $this->assertContains('mega', $acierto['meta']['comodines']);
-    }
-
-    public function test_evaluar_acierto_no_infiere_ganador_de_un_comodin_sin_nombre_animal()
-    {
-        // Forma real de Selva Plus: el sorteo con comodín NO trae
-        // `nombre_animal`. El plugin base no debe inventarlo; la liquidación
-        // real de Selva vive en `SelvaPlusPluginTest` (plugin por juego).
-        $apuesta = ['combinacion' => ['animal' => 'comodin-a'], 'amount_bs' => 10, 'amount_usd' => 0];
-
-        $acierto = $this->plugin->evaluarAcierto(
-            $apuesta,
-            $this->resultado(['comodin' => 'A', 'comodin_nombre' => 'Leoncito'])
-        );
-
-        $this->assertFalse($acierto['coincide']);
-        $this->assertSame([], $acierto['meta']);
     }
 
     public function test_evaluar_acierto_emite_comodines_de_figura_75_y_99()
@@ -250,5 +235,115 @@ class AnimalitosPluginTest extends TestCase
         );
 
         $this->assertEquals(['premio_bs' => 400.0, 'premio_usd' => 0.0], $premio);
+    }
+
+    // ---------------- Selva Plus: comodín A/B con la forma real del scraper ----------------
+
+    private function juegoSelva(): Juego
+    {
+        $juego = Juego::create([
+            'name' => 'Selva Plus',
+            'slug' => 'selva-plus',
+            'type' => 'animalitos',
+            'config' => PremiosOficiales::configPara('selva-plus'),
+            'requires_scraper' => true,
+            'active' => true,
+        ]);
+
+        PluginJuego::create([
+            'juego_id' => $juego->id,
+            'class_namespace' => Animalitos::class,
+            'version' => '1.0.0',
+            'active' => true,
+        ]);
+
+        return $juego;
+    }
+
+    public function test_evaluar_acierto_comodin_a_con_forma_real_del_scraper()
+    {
+        $acierto = $this->plugin->evaluarAcierto(
+            ['combinacion' => ['animal' => 'comodin-a']],
+            $this->resultado(['pais' => 'VE', 'comodin' => 'A', 'comodin_nombre' => 'Leoncito'])
+        );
+
+        $this->assertTrue($acierto['coincide']);
+        $this->assertSame('base', $acierto['clave']);
+        $this->assertContains('comodin-a', $acierto['meta']['comodines']);
+    }
+
+    public function test_evaluar_acierto_comodin_b_con_forma_real_del_scraper()
+    {
+        $acierto = $this->plugin->evaluarAcierto(
+            ['combinacion' => ['animal' => 'comodin-b']],
+            $this->resultado(['pais' => 'VE', 'comodin' => 'B', 'comodin_nombre' => 'Selva Plus'])
+        );
+
+        $this->assertTrue($acierto['coincide']);
+        $this->assertContains('comodin-b', $acierto['meta']['comodines']);
+    }
+
+    public function test_evaluar_acierto_label_oficial_del_comodin()
+    {
+        $acierto = $this->plugin->evaluarAcierto(
+            ['combinacion' => ['animal' => 'Leoncito (comodín A)']],
+            $this->resultado(['pais' => 'VE', 'comodin' => 'A', 'comodin_nombre' => 'Leoncito'])
+        );
+
+        $this->assertTrue($acierto['coincide']);
+        $this->assertContains('comodin-a', $acierto['meta']['comodines']);
+    }
+
+    public function test_evaluar_acierto_animal_pierde_en_sorteo_con_comodin()
+    {
+        $acierto = $this->plugin->evaluarAcierto(
+            ['combinacion' => ['animal' => 'Perro']],
+            $this->resultado(['pais' => 'VE', 'comodin' => 'A', 'comodin_nombre' => 'Leoncito'])
+        );
+
+        $this->assertFalse($acierto['coincide']);
+    }
+
+    public function test_evaluar_acierto_comodin_pierde_contra_resultado_numerico()
+    {
+        $acierto = $this->plugin->evaluarAcierto(
+            ['combinacion' => ['animal' => 'comodin-a']],
+            $this->resultado(['pais' => 'VE', 'numero' => 5, 'nombre_animal' => 'León'])
+        );
+
+        $this->assertFalse($acierto['coincide']);
+    }
+
+    public function test_calcular_premio_via_manager_engine_paga_comodin_a_160x()
+    {
+        $premio = app(JuegoPluginManager::class)->calcularPremio(
+            $this->juegoSelva(),
+            ['combinacion' => ['animal' => 'comodin-a'], 'amount_bs' => 10, 'amount_usd' => 0],
+            $this->resultado(['pais' => 'VE', 'comodin' => 'A', 'comodin_nombre' => 'Leoncito'])
+        );
+
+        $this->assertEquals(['premio_bs' => 1600.0, 'premio_usd' => 0.0], $premio);
+    }
+
+    public function test_calcular_premio_via_manager_engine_paga_comodin_b_200x()
+    {
+        $premio = app(JuegoPluginManager::class)->calcularPremio(
+            $this->juegoSelva(),
+            ['combinacion' => ['animal' => 'comodin-b'], 'amount_bs' => 10, 'amount_usd' => 0],
+            $this->resultado(['pais' => 'VE', 'comodin' => 'B', 'comodin_nombre' => 'Selva Plus'])
+        );
+
+        $this->assertEquals(['premio_bs' => 2000.0, 'premio_usd' => 0.0], $premio);
+    }
+
+    public function test_calcular_premio_via_manager_engine_no_paga_animal_en_comodin()
+    {
+        $premio = app(JuegoPluginManager::class)->calcularPremio(
+            $this->juegoSelva(),
+            ['combinacion' => ['animal' => 'Perro'], 'amount_bs' => 10, 'amount_usd' => 0],
+            $this->resultado(['pais' => 'VE', 'comodin' => 'A', 'comodin_nombre' => 'Leoncito'])
+        );
+
+        $this->assertEquals(['premio_bs' => 0.0, 'premio_usd' => 0.0], $premio);
     }
 }

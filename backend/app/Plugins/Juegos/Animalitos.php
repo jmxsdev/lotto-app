@@ -281,6 +281,14 @@ class Animalitos implements JuegoInterface, JuegoMultiSorteoInterface
             return ['coincide' => false, 'clave' => 'tripleta', 'meta' => []];
         }
 
+        // Selva Plus: el sorteo con comodín A/B no trae `nombre_animal`; la
+        // letra identifica la figura apostable. Solo gana la apuesta al
+        // comodín; una apuesta a un animal pierde.
+        $letra = strtoupper(trim((string) ($numerosGanadores['comodin'] ?? '')));
+        if (in_array($letra, ['A', 'B'], true)) {
+            return $this->evaluarComodinLetra($combinacion, $numerosGanadores, $letra);
+        }
+
         $animalGanador = $numerosGanadores['nombre_animal'] ?? null;
         $animalApostado = $combinacion['animal'] ?? null;
 
@@ -297,6 +305,52 @@ class Animalitos implements JuegoInterface, JuegoMultiSorteoInterface
             'clave' => 'base',
             'meta' => ['comodines' => $this->comodinesDelResultado($numerosGanadores)],
         ];
+    }
+
+    /**
+     * Comodín de letra (Selva Plus A/B): compara la apuesta contra la clave
+     * canónica (`comodin-a`/`comodin-b`), la letra, el nombre oficial y el
+     * label de la UI (`Leoncito (comodín A)`).
+     *
+     * @param  array<string, mixed>  $combinacion
+     * @param  array<string, mixed>  $numeros
+     * @return array{coincide: bool, clave: string, meta: array<string, mixed>}
+     */
+    private function evaluarComodinLetra(array $combinacion, array $numeros, string $letra): array
+    {
+        $letraLower = strtolower($letra);
+        $clave = 'comodin-'.$letraLower;
+        $nombre = $this->claveComodinNormalizada($numeros['comodin_nombre'] ?? null);
+        $apostado = $this->claveComodinNormalizada($combinacion['animal'] ?? null);
+
+        $esperados = array_values(array_unique(array_filter([
+            $this->claveComodinNormalizada($clave),              // comodin a
+            $this->claveComodinNormalizada($letra),              // a
+            $nombre,                                              // leoncito
+            trim($nombre.' comodin '.$letraLower),                // leoncito comodin a
+            trim('comodin '.$letraLower.' '.$nombre),             // comodin a leoncito
+        ])));
+
+        if ($apostado !== '' && in_array($apostado, $esperados, true)) {
+            return [
+                'coincide' => true,
+                'clave' => 'base',
+                'meta' => ['comodines' => [$clave]],
+            ];
+        }
+
+        return ['coincide' => false, 'clave' => 'base', 'meta' => []];
+    }
+
+    /**
+     * Normaliza una clave de comodín sin acentos, mayúsculas ni signos.
+     */
+    private function claveComodinNormalizada(mixed $valor): string
+    {
+        $normalizado = Texto::normalizar(is_scalar($valor) ? (string) $valor : '');
+        $compacto = preg_replace('/[^a-z0-9]+/', ' ', $normalizado) ?? '';
+
+        return trim($compacto);
     }
 
     protected function numerosGanadores(array $resultados): array

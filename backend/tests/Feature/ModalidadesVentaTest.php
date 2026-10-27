@@ -269,6 +269,21 @@ class ModalidadesVentaTest extends TestCase
         ], 50);
     }
 
+    public function test_tripleta_en_selva_se_rechaza_por_modalidad_no_soportada(): void
+    {
+        $response = $this->postLinea('selva-plus', [
+            'modalidad' => 'tripleta',
+            'selecciones' => [
+                ['animal' => 'Perro'],
+                ['animal' => 'Gato'],
+                ['animal' => 'León'],
+            ],
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseCount('tickets', 0);
+    }
+
     public function test_cruzado_con_punta_de_tres_cifras_se_rechaza(): void
     {
         $response = $this->postLinea('triple-chance', [
