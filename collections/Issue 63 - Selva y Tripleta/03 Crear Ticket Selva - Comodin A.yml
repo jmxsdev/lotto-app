@@ -1,0 +1,93 @@
+info:
+  name: 03 Crear Ticket Selva - Comodin A
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/v1/tickets"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "lines": [
+          {
+            "juego_id": {{juegoIdSelva}},
+            "amount_bs": 3600,
+            "amount_usd": 0,
+            "combinacion": { "animal": "comodin-a" }
+          }
+        ],
+        "metodo_pago": "efectivo"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        const body = res.getBody();
+        if (res.getStatus() === 201 && body?.data) {
+          bru.setEnvVar('ticketId', String(body.data.id));
+          const apuesta = body.data.apuestas?.[0];
+          if (apuesta?.id) bru.setEnvVar('apuestaId', String(apuesta.id));
+          console.log('ticket', body.data.id, 'apuesta', apuesta?.id, 'sorteo', apuesta?.sorteo_hora);
+        }
+
+docs:
+  - |
+    # Ticket Selva Plus al comodín A
+    - Ejecuta antes `Auth/Login (Taquilla)` y `01 Listar Juegos`.
+    - `combinacion.animal` usa el `value` canónico `comodin-a`; el backend también acepta
+      `Leoncito` o `Leoncito (comodín A)`.
+    - No se envía `sorteo_hora`: el backend toma el próximo sorteo de Selva.
+    - 201 esperado; el script guarda `ticketId` y `apuestaId`.
+    - El ticket debe quedar `pendiente` hasta que exista un resultado con comodín A.
+    - Para cambiar al comodín B usa `comodin-b` en este request y `comodin: "B"` /
+      `comodin_nombre: "Selva Plus"` en el tinker.
+
+    ## Liquidación determinista local
+
+    ```bash
+    cd backend
+    php artisan tinker
+    ```
+
+    ```php
+    $juego = App\Models\Juego::where('slug', 'selva-plus')->firstOrFail();
+    $apuesta = App\Models\Apuesta::where('juego_id', $juego->id)
+        ->where('estado', 'pendiente')
+        ->latest('id')
+        ->firstOrFail();
+
+    $resultado = App\Models\Resultado::updateOrCreate(
+        [
+            'juego_id' => $juego->id,
+            'fecha_sorteo' => $apuesta->sorteo_hora->toDateString(),
+            'hora_sorteo' => $apuesta->sorteo_hora->format('H:i'),
+        ],
+        [
+            'numeros_ganadores' => [
+                'pais' => 'VE',
+                'comodin' => 'A',
+                'comodin_nombre' => 'Leoncito',
+            ],
+        ]
+    );
+
+    echo app(App\Services\ApuestaService::class)->verificarGanadores($resultado) . PHP_EOL;
+    ```
+
+    Luego ejecuta `06 Ver Ticket` o `07 Ver Apuesta`: debe estar `ganadora` y
+    `detalle.premio_ganado = 160 × 3600 = 576.000,00` Bs.
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

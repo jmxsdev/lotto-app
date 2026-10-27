@@ -72,3 +72,33 @@ variables:
     enabled: true
     secret: true
     description: Password de Auth/Login (Taquilla)
+  - name: fecha
+    value: ""
+    enabled: true
+    secret: false
+    description: Fecha Y-m-d del test; la setea 01 Listar Juegos (America/Caracas)
+  - name: juegoIdSelva
+    value: ""
+    enabled: true
+    secret: false
+    description: ID de selva-plus; lo setea 01 Listar Juegos
+  - name: juegoIdCazaloton
+    value: ""
+    enabled: true
+    secret: false
+    description: ID de cazaloton; lo setea 01 Listar Juegos
+  - name: juegoIdChaima
+    value: ""
+    enabled: true
+    secret: false
+    description: ID de loto-chaima; lo setea 01 Listar Juegos
+  - name: ticketId
+    value: ""
+    enabled: true
+    secret: false
+    description: Ultimo ticket creado; lo setea 03/04/05
+  - name: apuestaId
+    value: ""
+    enabled: true
+    secret: false
+    description: Ultima apuesta creada; la setea 03/04/05

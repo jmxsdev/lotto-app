@@ -1,0 +1,7 @@
+info:
+  name: Issue 63 - Selva y Tripleta
+  type: folder
+  seq: 30
+
+request:
+  auth: inherit

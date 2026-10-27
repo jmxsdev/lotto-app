@@ -1,0 +1,52 @@
+info:
+  name: 01 Listar Juegos (set IDs y fecha)
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/v1/juegos"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        const body = res.getBody();
+        const juegos = Array.isArray(body) ? body : (body.data || []);
+        const bySlug = (slug) => juegos.find((j) => j.slug === slug)?.id;
+
+        for (const [slug, variable] of [
+          ['selva-plus', 'juegoIdSelva'],
+          ['cazaloton', 'juegoIdCazaloton'],
+          ['loto-chaima', 'juegoIdChaima'],
+        ]) {
+          const id = bySlug(slug);
+          if (id) bru.setEnvVar(variable, String(id));
+        }
+
+        const fecha = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Caracas' }).format(new Date());
+        bru.setEnvVar('fecha', fecha);
+
+        console.log({
+          fecha,
+          selva: bySlug('selva-plus'),
+          cazaloton: bySlug('cazaloton'),
+          chaima: bySlug('loto-chaima'),
+        });
+
+docs:
+  - |
+    # Listar juegos y preparar el entorno
+    - Ejecuta primero `Auth/Login (Taquilla)` para tener `token`.
+    - Este request setea `juegoIdSelva`, `juegoIdCazaloton`, `juegoIdChaima` y `fecha` (hoy en America/Caracas).
+    - Si `juegoId*` queda vacío, revisa que los seeders de juegos se hayan corrido.
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

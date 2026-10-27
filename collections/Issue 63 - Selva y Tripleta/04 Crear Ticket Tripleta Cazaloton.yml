@@ -1,0 +1,113 @@
+info:
+  name: 04 Crear Ticket Tripleta Cazaloton
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/v1/tickets"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "lines": [
+          {
+            "juego_id": {{juegoIdCazaloton}},
+            "amount_bs": 3600,
+            "amount_usd": 0,
+            "combinacion": {
+              "modalidad": "tripleta",
+              "selecciones": [
+                { "animal": "Perro" },
+                { "animal": "Gato" },
+                { "animal": "León" }
+              ]
+            }
+          }
+        ],
+        "metodo_pago": "efectivo"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        const body = res.getBody();
+        if (res.getStatus() === 201 && body?.data) {
+          bru.setEnvVar('ticketId', String(body.data.id));
+          const apuesta = body.data.apuestas?.[0];
+          if (apuesta?.id) bru.setEnvVar('apuestaId', String(apuesta.id));
+          console.log('ticket', body.data.id, 'apuesta', apuesta?.id, 'sorteo', apuesta?.sorteo_hora);
+        }
+
+docs:
+  - |
+    # Ticket Tripleta Cazalotón
+    - Ejecuta antes `Auth/Login (Taquilla)` y `01 Listar Juegos`.
+    - `modalidad: "tripleta"` + 3 figuras distintas. El backend exige al menos 3 sorteos futuros.
+    - No se envía `sorteo_hora`: es una jugada de día; el backend usa la hora de venta.
+    - 201 esperado; el script guarda `ticketId` y `apuestaId`.
+    - Si responde 422 con “al menos 3 sorteos futuros”, prueba más temprano en el día
+      (Cazalotón cierra a las 19:00).
+
+    ## Liquidación determinista local
+
+    ```bash
+    cd backend
+    php artisan tinker
+    ```
+
+    ```php
+    $juego = App\Models\Juego::where('slug', 'cazaloton')->firstOrFail();
+    $apuesta = App\Models\Apuesta::where('juego_id', $juego->id)
+        ->where('estado', 'pendiente')
+        ->latest('id')
+        ->firstOrFail();
+
+    $combinacion = is_string($apuesta->combinacion)
+        ? json_decode($apuesta->combinacion, true)
+        : $apuesta->combinacion;
+
+    $horas = App\Models\JuegoHorario::where('juego_id', $juego->id)
+        ->where('active', true)
+        ->where('hora', '>', $apuesta->sorteo_hora->format('H:i'))
+        ->orderBy('hora')
+        ->limit(3)
+        ->pluck('hora');
+
+    $ids = [];
+    foreach ($horas as $i => $hora) {
+        $resultado = App\Models\Resultado::updateOrCreate(
+            [
+                'juego_id' => $juego->id,
+                'fecha_sorteo' => $apuesta->sorteo_hora->toDateString(),
+                'hora_sorteo' => $hora,
+            ],
+            [
+                'numeros_ganadores' => [
+                    'numero' => 0,
+                    'nombre_animal' => $combinacion['selecciones'][$i]['animal'],
+                ],
+            ]
+        );
+        $ids[] = $resultado->id;
+    }
+
+    $ultimo = App\Models\Resultado::whereIn('id', $ids)->orderByDesc('hora_sorteo')->first();
+    echo app(App\Services\ApuestaService::class)->verificarGanadores($ultimo) . PHP_EOL;
+    ```
+
+    Luego `06 Ver Ticket` / `07 Ver Apuesta`: estado `ganadora`,
+    `resultado_ids` con 3 IDs y premio `3600 × 200 = 720.000,00` Bs.
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

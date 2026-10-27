@@ -1,0 +1,34 @@
+info:
+  name: 02 Opciones Selva (comodin-a / comodin-b)
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/v1/juegos/{{juegoIdSelva}}/opciones"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        const body = res.getBody();
+        const opciones = Array.isArray(body) ? body : (body.data || []);
+        const valores = opciones.map((o) => o.value);
+        console.log('opciones', opciones.length, 'comodin-a', valores.includes('comodin-a'), 'comodin-b', valores.includes('comodin-b'));
+
+docs:
+  - |
+    # Opciones de Selva Plus
+    - Debe devolver las 101 figuras + `comodin-a` + `comodin-b` = 103 opciones.
+    - Los comodines tienen `numero: null`.
+    - Si faltan, corre `php artisan db:seed --class=SelvaPlusSeeder`.
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

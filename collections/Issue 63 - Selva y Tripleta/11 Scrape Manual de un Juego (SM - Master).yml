@@ -1,0 +1,38 @@
+info:
+  name: 11 Scrape Manual de un Juego (SM/Master)
+  type: http
+  seq: 11
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/v1/resultados/scrape"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "juego_id": {{juegoIdSelva}},
+        "fecha": "{{fecha}}"
+      }
+  auth: inherit
+
+docs:
+  - |
+    # Scrape manual de un juego
+    - Requiere token de `super_master` o `master` (si usas el de taquilla, 403).
+    - Con `juego_id` el backend ejecuta el scraper **sincrónicamente** y luego
+      `verificarGanadores` para todos los resultados del día de ese juego.
+    - Usa esto para probar el feed real. Para Selva/comodín o tripleta determinista,
+      usa los tinker de `03`, `04` o `05`.
+    - Sin `juego_id`, el endpoint despacha `ScrapeSourceJob` por fuente (requiere worker
+      si `QUEUE_CONNECTION=database`).
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,38 @@
+info:
+  name: 09 Pagar Apuesta Ganadora (sin montos)
+  type: http
+  seq: 9
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/v1/pagos"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "apuesta_id": "{{apuestaId}}",
+        "tipo": "egreso",
+        "moneda": "bs",
+        "concepto": "Premio issue 63"
+      }
+  auth: inherit
+
+docs:
+  - |
+    # Pagar una apuesta ganadora
+    - Ejecuta solo después de que `06`/`07` muestren `estado = ganadora`.
+    - Sin `amount_bs`/`amount_usd`: el backend aplica el premio calculado por el motor
+      (Selva 160×/200×; tripleta 200×/50×).
+    - 201 si el monto coincide con el motor; 422 si la apuesta no es ganadora o ya fue pagada.
+    - Si el token es de taquilla, solo puede pagar apuestas de su propia taquilla.
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,26 @@
+info:
+  name: 10 Ganadores del Dia
+  type: http
+  seq: 10
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/v1/tickets/ganadores?fecha={{fecha}}"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+  auth: inherit
+
+docs:
+  - |
+    # Ganadores del día
+    - Después del settlement, debe aparecer el ticket con la jugada y el premio.
+    - Para tripleta, la jugada se agrega con `premio_ganado` (evidencia multi-sorteo),
+      no con el cálculo single-result.
+    - Si no aparece, revisa `06`/`07` y que el resultado tenga la fecha correcta.
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

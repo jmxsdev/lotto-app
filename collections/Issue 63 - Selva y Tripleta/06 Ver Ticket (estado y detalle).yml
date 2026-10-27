@@ -1,0 +1,26 @@
+info:
+  name: 06 Ver Ticket (estado y detalle)
+  type: http
+  seq: 6
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/v1/tickets/{{ticketId}}"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+  auth: inherit
+
+docs:
+  - |
+    # Ver ticket y sus apuestas
+    - Usa el `ticketId` que guardó `03`, `04` o `05`.
+    - Revisa `data.apuestas[].estado`, `resultado_id`, `resultado_ids` (tripleta) y
+      `data.apuestas[].detalles[].premio_ganado`.
+    - `tiene_ganadores` debe pasar a `true` después del settlement.
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

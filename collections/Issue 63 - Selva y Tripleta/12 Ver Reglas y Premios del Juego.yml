@@ -1,0 +1,26 @@
+info:
+  name: 12 Ver Reglas y Premios del Juego
+  type: http
+  seq: 12
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/v1/juegos/{{juegoIdCazaloton}}/reglas"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+  auth: inherit
+
+docs:
+  - |
+    # Reglas y premios
+    - Por defecto Cazalotón. Cambia el id a `{{juegoIdSelva}}` para ver los comodines A/B
+      o a `{{juegoIdChaima}}` para su tripleta.
+    - Debe incluir `premios.modalidades.tripleta` (200 en Cazalotón, 50 en Chaima) o
+      `premios.comodines.comodin-a/comodin-b` (160/200 en Selva).
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

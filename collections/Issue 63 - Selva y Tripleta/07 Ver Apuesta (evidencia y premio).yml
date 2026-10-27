@@ -1,0 +1,26 @@
+info:
+  name: 07 Ver Apuesta (evidencia y premio)
+  type: http
+  seq: 7
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/v1/apuestas/{{apuestaId}}"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+  auth: inherit
+
+docs:
+  - |
+    # Ver apuesta liquidada
+    - Usa el `apuestaId` que guardó el último create (`03`, `04` o `05`).
+    - Para Selva: estado `ganadora`, premio 160×/200×.
+    - Para tripleta: estado `ganadora`, `resultado_ids` con 3 IDs y premio 200×/50×.
+    - Si sigue `pendiente`, falta ejecutar el tinker de liquidación del request de creación.
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
