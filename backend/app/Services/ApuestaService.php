@@ -385,6 +385,10 @@ class ApuestaService
         }
 
         $combinacion = $data['combinacion'] ?? [];
+        if (is_string($combinacion)) {
+            $combinacion = json_decode($combinacion, true) ?? [];
+        }
+        $combinacion = is_array($combinacion) ? $combinacion : [];
 
         $juego = Juego::find($data['juego_id']);
 
@@ -452,7 +456,7 @@ class ApuestaService
         $apuestaData = [
             'taquilla_id' => $taquillaId,
             'juego_id' => $data['juego_id'],
-            'combinacion' => json_encode($combinacion),
+            'combinacion' => $combinacion,
             'amount_bs' => $amountBs,
             'amount_usd' => $amountUsd,
             'exchange_rate_applied' => $tasaActiva->rate,
@@ -473,7 +477,7 @@ class ApuestaService
         // no altera esta apuesta. null = legacy → fallback config actual.
         DetalleApuesta::create([
             'apuesta_id' => $apuesta->id,
-            'combinacion' => json_encode($combinacion),
+            'combinacion' => $combinacion,
             'monto' => $totalBsEquivalent,
             'premio_ganado' => null,
             'premio_ganado_usd' => null,
