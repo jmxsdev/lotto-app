@@ -395,3 +395,62 @@ ejemplo `faltantes > sorteosRestantes` del día.
 | Manual API | `app/Http/Controllers/Api/ResultadoController.php` | Por fuente o por juego |
 | Catch-up de vencimiento | `app/Jobs/MarcarApuestasVencidasJob.php` | Relanza `ScrapeResultsJob` antes de vencer |
 | Pago/consulta | `PagoController`, `TicketController::ganadores` | No hacen settlement; leen o recalculan con evidencia |
+
+### 8.6 Terminología: “llega un scraper” vs “llega un resultado”
+
+No son lo mismo, aunque coloquialmente se usen como sinónimos:
+
+| Expresión | Significado preciso |
+|---|---|
+| “Llega un scraper” | El **job** del scraper corrió (`ScrapeSourceJob`, `ScrapeResultsJob` o `FetchResultsJob`) y ejecutó `Scraper::execute()` + `saveResults()`. |
+| “Llega un resultado” | Ya existe una fila `resultados` persistida para un `juego_id`, `fecha_sorteo` y `hora_sorteo`; ese es el disparador real de `verificarGanadores()`. |
+
+Secuencia real:
+
+```text
+Job del scraper
+  → Scraper::execute(fecha)        (fetch + parse)
+  → Scraper::saveResults()         (upsert de N filas en resultados)
+  → por cada Resultado del día
+      → ApuestaService::verificarGanadores(resultado)
+          → evalúa apuestas de ESE juego_id + fecha
+              → single-result: mismo sorteo_hora
+              → tripleta: todos los resultados del juego/día
+          → actualiza Apuesta/DetalleApuesta/Ticket
+```
+
+Consecuencias:
+
+- Un solo scraper puede persistir **muchos resultados** (varias horas y varios juegos de la misma fuente).
+  Cada resultado se evalúa por separado.
+- Un ticket **no se evalúa completo**: se evalúan sus apuestas del juego/fecha que corresponde al
+  resultado. Las apuestas de otros juegos del mismo ticket siguen pendientes.
+- Los jobs de scraping vuelven a recorrer **todos los resultados del día** después de un fetch exitoso,
+  no solo los nuevos. Eso permite que una tripleta pendiente se complete con un resultado posterior.
+  Las apuestas single-result ya liquidadas se saltan por `whereNull('resultado_id')`.
+- Si el scraper no devuelve resultados, el job retorna antes de evaluar (`empty($resultados)`), así que
+  “correr el scraper” sin datos no dispara evaluación.
+
+### 8.7 ¿Se puede prescindir de `FetchResultsJob`?
+
+**Sí, pero no en este cambio.** `FetchResultsJob` es el job legacy que usa `AnimalitosScraper` sobre el
+feed completo de lottoactivo.com y evalúa todos los resultados de la fecha.
+
+Uso actual verificado:
+
+| Uso | Archivo | ¿Producción? |
+|---|---|---|
+| Ruta web legacy `POST /admin/resultados/scrape` | `app/Http/Controllers/Admin/ResultadoController.php:40` | Solo panel admin legacy |
+| Test | `tests/Feature/FetchResultsJobTest.php` | Test |
+| Scheduler | — | **No**; el scheduler usa `ScrapeSourceJob` por fuente/hora |
+| API manual | `ResultadoController` API | **No**; usa `ScrapeSourceJob` / `ScrapeResultsJob` |
+
+Conclusión:
+
+- El camino nuevo (`ScrapeSourceJob` + `ScrapeResultsJob`) cubre el mismo feed y además otros juegos.
+- `FetchResultsJob` solo se usa desde el panel admin web legacy, que es el alcance del issue #81
+  (“eliminar el panel web legacy”).
+- Por eso conviene eliminarlo **junto con #81**: quitar la ruta `resultados.scrape`, el método
+  `Admin\ResultadoController::scrape`, el job y su test. Hacerlo en #63 mezclaría un cambio de dominio de
+  premios con la retirada del panel legacy.
+- Si el panel legacy se queda, `FetchResultsJob` debe quedarse; si se retira, el job queda huérfano.
