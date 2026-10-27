@@ -21,7 +21,7 @@ class ApuestaStoreRequest extends FormRequest
             'juego_id' => 'required|exists:juegos,id',
             'amount_bs' => 'required|numeric|min:0',
             'amount_usd' => 'required|numeric|min:0',
-            'sorteo_hora' => 'sometimes|date_format:Y-m-d H:i:s|after_or_equal:now',
+            'sorteo_hora' => 'sometimes|date|after_or_equal:now',
             'metodo_pago' => ['nullable', Rule::in(Pago::METODOS_PAGO)],
         ];
 
@@ -41,7 +41,7 @@ class ApuestaStoreRequest extends FormRequest
         $messages = [
             'amount_bs.min' => 'El monto en bolívares debe ser mayor o igual a 0.',
             'amount_usd.min' => 'El monto en dólares debe ser mayor o igual a 0.',
-            'sorteo_hora.date_format' => 'La hora del sorteo debe tener el formato YYYY-MM-DD HH:MM:SS.',
+            'sorteo_hora.date' => 'La hora del sorteo debe ser una fecha válida.',
         ];
 
         $juego = Juego::find($this->juego_id);

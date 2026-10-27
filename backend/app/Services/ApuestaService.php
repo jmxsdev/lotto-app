@@ -396,6 +396,18 @@ class ApuestaService
             throw new \RuntimeException('Este juego no está disponible para la venta.');
         }
 
+        // REQ4: una modalidad DECLARADA debe existir en config.premios. Este
+        // guard reemplaza el que vivía en PremiosEngine::premioPosible (ya
+        // eliminado). La Dupleta y cualquier modalidad no configurada se
+        // rechazan en la venta.
+        $modalidadDeclarada = $combinacion['modalidad'] ?? null;
+        if ($modalidadDeclarada !== null && $modalidadDeclarada !== '' && $modalidadDeclarada !== 'base') {
+            $modalidades = $juego->config['premios']['modalidades'] ?? [];
+            if (! array_key_exists((string) $modalidadDeclarada, $modalidades)) {
+                throw new \RuntimeException('La modalidad seleccionada no está soportada por este juego.');
+            }
+        }
+
         // Validar la combinación contra las opciones específicas del juego
         $opciones = JuegoOpcion::where('juego_id', $juego->id)
             ->orderBy('numero')
@@ -413,8 +425,19 @@ class ApuestaService
             );
         }
 
+        $esMultiSorteo = $this->esMultiSorteo($combinacion);
         $sorteoHora = $data['sorteo_hora'] ?? null;
-        if ($sorteoHora) {
+
+        if ($esMultiSorteo) {
+            // La tripleta es una jugada de día: no se ata a un sorteo
+            // específico. Se exige que queden al menos 3 sorteos futuros para
+            // que la combinación sea posible.
+            if ($this->sorteosFuturos($juego, now()) < 3) {
+                throw new \RuntimeException('La tripleta requiere al menos 3 sorteos futuros del día.');
+            }
+
+            $sorteoHora = now();
+        } elseif ($sorteoHora) {
             $sorteoHora = Carbon::parse($sorteoHora);
             if ($sorteoHora->isPast()) {
                 // D3 (REQ-BK-01): un sorteo ya pasado se RECHAZA; nunca se
@@ -445,16 +468,6 @@ class ApuestaService
 
         $apuesta = Apuesta::create($apuestaData);
 
-        // Generar detalles: premio_posible con el motor (REQ12/D9) — monto ×
-        // multiplicador de la modalidad desde config.premios. Nunca 0 por
-        // resultados vacíos (el guard de arriba garantiza juego activo + plugin).
-        $premioPosible = app(PremiosEngine::class)->premioPosible(
-            $juego,
-            $combinacion,
-            $amountBs,
-            $amountUsd
-        );
-
         // S2/D4: snapshot de premios por apuesta (sin retroactividad). Se
         // persiste `config.premios` VIGENTE al vender; una edición posterior
         // no altera esta apuesta. null = legacy → fallback config actual.
@@ -462,8 +475,6 @@ class ApuestaService
             'apuesta_id' => $apuesta->id,
             'combinacion' => json_encode($combinacion),
             'monto' => $totalBsEquivalent,
-            'premio_posible' => $premioPosible['premio_bs'],
-            'premio_posible_usd' => $premioPosible['premio_usd'],
             'premio_ganado' => null,
             'premio_ganado_usd' => null,
             'premios_snapshot' => $juego->config['premios'] ?? null,
@@ -486,6 +497,81 @@ class ApuestaService
         ]);
 
         return $apuesta;
+    }
+
+    /**
+     * ¿La combinación es una jugada multi-sorteo (tripleta)?
+     */
+    private function esMultiSorteo(array $combinacion): bool
+    {
+        $selecciones = $combinacion['selecciones'] ?? [];
+
+        return count($selecciones) >= 3
+            && (($combinacion['modalidad'] ?? 'tripleta') === 'tripleta');
+    }
+
+    /**
+     * Sorteos futuros del juego a partir de una hora (para validar que una
+     * tripleta tenga al menos 3 extracciones posibles en el día).
+     */
+    private function sorteosFuturos(Juego $juego, Carbon $desde): int
+    {
+        return $juego->horarios()
+            ->where('hora', '>', $desde->format('H:i'))
+            ->count();
+    }
+
+    /**
+     * Normaliza una hora de resultado/venta a `H:i:s`. Los feeds usan tanto
+     * "HH:MM" como "hh:mm AM/PM"; Carbon/DateTime también se aceptan.
+     */
+    private function horaNormalizada(mixed $hora): ?string
+    {
+        if ($hora instanceof \DateTimeInterface) {
+            return $hora->format('H:i:s');
+        }
+
+        $hora = trim((string) $hora);
+
+        if ($hora === '') {
+            return null;
+        }
+
+        try {
+            if (preg_match('/AM|PM/i', $hora)) {
+                return Carbon::createFromFormat('h:i A', $hora)->format('H:i:s');
+            }
+
+            return Carbon::parse($hora)->format('H:i:s');
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Última extracción del día para un juego/fecha. Prefiere `juego_horarios`
+     * (fuente de la ventana) y cae al máximo resultado si no hay horarios.
+     */
+    private function ultimaHoraDelDia(Juego $juego, string $fecha): ?string
+    {
+        $hora = $juego->horarios()->where('active', true)->max('hora');
+
+        if ($hora) {
+            return $this->horaNormalizada($hora);
+        }
+
+        $max = Resultado::where('juego_id', $juego->id)
+            ->whereDate('fecha_sorteo', $fecha)
+            ->max('hora_sorteo');
+
+        return $max ? $this->horaNormalizada($max) : null;
+    }
+
+    private function mismaHora(mixed $a, ?string $b): bool
+    {
+        $a = $this->horaNormalizada($a);
+
+        return $a !== null && $b !== null && $a === $b;
     }
 
     // ============================================
@@ -1137,6 +1223,139 @@ class ApuestaService
     }
 
     /**
+     * Settlement de jugadas multi-sorteo (tripleta). Se evalúa contra todos
+     * los resultados elegibles del juego/día; gana solo con las 3 figuras en
+     * sorteos distintos. La última extracción del día marca las pendientes
+     * como perdidas. Idempotente por `resultado_id` (la query solo toma
+     * pendientes sin resultado).
+     */
+    private function verificarMultiSorteo(Resultado $resultado): int
+    {
+        $juego = $resultado->juego;
+        $manager = app(JuegoPluginManager::class);
+
+        if (! $juego || ! $manager->soportaMultiSorteo($juego)) {
+            return 0;
+        }
+
+        $fecha = $resultado->fecha_sorteo->toDateString();
+        $ultimaHora = $this->ultimaHoraDelDia($juego, $fecha);
+        $esUltima = $this->mismaHora($resultado->hora_sorteo, $ultimaHora);
+
+        $apuestas = Apuesta::with(['ticket', 'detalles'])
+            ->where('juego_id', $juego->id)
+            ->where('estado', 'pendiente')
+            ->whereNull('resultado_id')
+            ->whereDate('sorteo_hora', $fecha)
+            ->get()
+            ->filter(fn (Apuesta $a) => $this->esMultiSorteo($a->combinacion ?? []));
+
+        if ($apuestas->isEmpty()) {
+            return 0;
+        }
+
+        $resultadosDelDia = Resultado::where('juego_id', $juego->id)
+            ->whereDate('fecha_sorteo', $fecha)
+            ->orderBy('hora_sorteo')
+            ->get()
+            ->map(fn (Resultado $r) => [
+                'id' => $r->id,
+                'hora_sorteo' => $r->hora_sorteo,
+                'numeros_ganadores' => $r->numeros_ganadores,
+            ])
+            ->values()
+            ->all();
+
+        $ganadoras = 0;
+        $ticketPremios = [];
+        $ticketsGanadores = [];
+
+        foreach ($apuestas as $apuesta) {
+            $combinacion = $apuesta->combinacion;
+            $horaVenta = $this->horaNormalizada($apuesta->sorteo_hora);
+
+            $elegibles = array_values(array_filter(
+                $resultadosDelDia,
+                fn (array $r) => $horaVenta !== null
+                    && $this->horaNormalizada($r['hora_sorteo']) >= $horaVenta
+            ));
+
+            $acierto = $manager->evaluarMultiSorteo(
+                $juego,
+                ['combinacion' => $combinacion],
+                $elegibles
+            );
+
+            if ($acierto['coincide'] ?? false) {
+                $premiosSnapshot = $apuesta->detalles->first()?->premios_snapshot;
+                $premio = $manager->calcularPremioMultiSorteo(
+                    $juego,
+                    [
+                        'amount_bs' => (float) $apuesta->amount_bs,
+                        'amount_usd' => (float) $apuesta->amount_usd,
+                    ],
+                    $acierto,
+                    $premiosSnapshot
+                );
+
+                $premioBs = (float) ($premio['premio_bs'] ?? 0);
+                $premioUsd = (float) ($premio['premio_usd'] ?? 0);
+
+                $apuesta->estado = 'ganadora';
+                $apuesta->resultado_id = $resultado->id;
+                $apuesta->resultado_ids = $acierto['meta']['resultado_ids'] ?? [];
+                $apuesta->save();
+
+                DetalleApuesta::where('apuesta_id', $apuesta->id)->update([
+                    'premio_ganado' => $premioBs > 0 ? $premioBs : null,
+                    'premio_ganado_usd' => $premioUsd > 0 ? $premioUsd : null,
+                ]);
+
+                $ganadoras++;
+                $ticketId = $apuesta->ticket_id;
+
+                if ($ticketId) {
+                    $ticketPremios[$ticketId] ??= ['bs' => 0, 'usd' => 0];
+                    $ticketPremios[$ticketId]['bs'] += $premioBs;
+                    $ticketPremios[$ticketId]['usd'] += $premioUsd;
+                    $ticketsGanadores[$ticketId] = true;
+                }
+
+                continue;
+            }
+
+            if ($esUltima) {
+                $apuesta->estado = 'perdida';
+                $apuesta->resultado_id = $resultado->id;
+                $apuesta->resultado_ids = null;
+                $apuesta->save();
+
+                DetalleApuesta::where('apuesta_id', $apuesta->id)->update([
+                    'premio_ganado' => null,
+                    'premio_ganado_usd' => null,
+                ]);
+            }
+        }
+
+        foreach ($ticketPremios as $ticketId => $premios) {
+            Ticket::where('id', $ticketId)
+                ->whereNull('premio_total_bs')
+                ->update(['premio_total_bs' => 0, 'premio_total_usd' => 0]);
+
+            Ticket::where('id', $ticketId)->increment('premio_total_bs', $premios['bs']);
+            Ticket::where('id', $ticketId)->increment('premio_total_usd', $premios['usd']);
+        }
+
+        if (! empty($ticketsGanadores)) {
+            Ticket::whereIn('id', array_keys($ticketsGanadores))
+                ->where('estado', 'pendiente')
+                ->update(['estado' => 'ganador']);
+        }
+
+        return $ganadoras;
+    }
+
+    /**
      * Verificar apuestas pendientes contra un resultado recién guardado
      */
     public function verificarGanadores(Resultado $resultado): int
@@ -1159,7 +1378,10 @@ class ApuestaService
             ->whereNull('resultado_id') // N5: no reprocesar lo ya liquidado
             ->whereDate('sorteo_hora', $resultado->fecha_sorteo->toDateString())
             ->whereTime('sorteo_hora', $horaSorteo)
-            ->get();
+            ->get()
+            // La tripleta se liquida por día; no debe caer en el camino de un
+            // solo resultado (se marcaría perdida en el primer sorteo).
+            ->reject(fn (Apuesta $a) => $this->esMultiSorteo($a->combinacion ?? []));
 
         $ganadoras = 0;
         $ticketPremios = [];
@@ -1240,6 +1462,6 @@ class ApuestaService
                 ->update(['estado' => 'ganador']);
         }
 
-        return $ganadoras;
+        return $ganadoras + $this->verificarMultiSorteo($resultado);
     }
 }

@@ -190,12 +190,13 @@ class Tripletas implements JuegoInterface
     }
 
     /**
-     * Modalidad canónica para `premio_posible` (D9/§3.1, F2): deriva la clave
-     * del vocabulario §3.1 desde el shape de `combinacion` — tipo apostado,
-     * posición del triple o `selecciones[]` same-draw. La Dupleta nunca se
-     * emite (D8: fuera de alcance).
+     * Vocabulario interno de validación (D9/§3.1, F2): deriva la clave del
+     * shape de `combinacion` — tipo apostado, posición del triple o
+     * `selecciones[]` same-draw. Ya no se usa para `premio_posible`; solo para
+     * decidir la forma válida en `validarApuesta`. La Dupleta nunca se emite
+     * (D8: fuera de alcance).
      */
-    public function modalidadDe(array $combinacion): string
+    private function modalidadDe(array $combinacion): string
     {
         if (! empty($combinacion['selecciones'])) {
             return $this->modalidadDeSelecciones($combinacion['selecciones']);

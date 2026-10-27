@@ -10,7 +10,7 @@ use App\Models\JuegoLimite;
 use App\Models\JuegoOpcion;
 use App\Models\PluginJuego;
 use App\Models\Resultado;
-use App\Plugins\Juegos\Animalitos;
+use App\Plugins\Juegos\Animalitos\SelvaPlus;
 use App\Plugins\Scrapers\SelvaPlusScraper;
 use Database\Seeders\SelvaPlusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -62,7 +62,7 @@ class SelvaPlusResultsTest extends TestCase
 
         $plugin = PluginJuego::where('juego_id', $juego->id)->where('active', true)->first();
         $this->assertNotNull($plugin);
-        $this->assertEquals(Animalitos::class, $plugin->class_namespace);
+        $this->assertEquals(SelvaPlus::class, $plugin->class_namespace);
     }
 
     public function test_seeder_registra_los_trece_horarios_de_sorteo(): void

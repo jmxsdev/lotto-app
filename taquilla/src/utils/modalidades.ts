@@ -269,6 +269,8 @@ function normalizarNumeroSlot(valor: string, slot: SlotSeleccion): string | null
 export function construirTripleta(animales: readonly string[]): Record<string, unknown> | null {
   const unicos = animales.map((a) => String(a ?? '').trim()).filter(Boolean);
   if (unicos.length !== 3) return null;
+  // Reglamento: tres figuras DISTINTAS. El backend también lo valida.
+  if (new Set(unicos.map((a) => a.toLowerCase())).size !== 3) return null;
 
   return { modalidad: 'tripleta', selecciones: unicos.map((animal) => ({ animal })) };
 }

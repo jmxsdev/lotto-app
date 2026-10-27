@@ -6,9 +6,8 @@ namespace App\Plugins\Contracts;
  * Contrato de plugin de juego (D1/C, design §3.3).
  *
  * El plugin es un adaptador de FORMA: expone la clave canónica del acierto
- * (`evaluarAcierto`) y la modalidad para `premio_posible` (`modalidadDe`);
- * NUNCA decide dinero — el multiplicador lo resuelve PremiosEngine desde
- * `config.premios` (REQ1).
+ * (`evaluarAcierto`); NUNCA decide dinero — el multiplicador lo resuelve
+ * PremiosEngine desde `config.premios` (REQ1).
  */
 interface JuegoInterface
 {
@@ -20,11 +19,6 @@ interface JuegoInterface
      * @return array{coincide: bool, clave: string, meta: array<string, mixed>}
      */
     public function evaluarAcierto(array $apuesta, array $resultados): array;
-
-    /**
-     * Clave canónica de la modalidad apostada (premio_posible, D9/§3.1).
-     */
-    public function modalidadDe(array $combinacion): string;
 
     /**
      * @deprecated Legacy pre-motor (F1a): el dinero ahora lo decide

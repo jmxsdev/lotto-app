@@ -8,7 +8,7 @@ use App\Models\JuegoHorario;
 use App\Models\JuegoLimite;
 use App\Models\JuegoOpcion;
 use App\Models\PluginJuego;
-use App\Plugins\Juegos\Animalitos;
+use App\Plugins\Juegos\Animalitos\SelvaPlus;
 use App\Plugins\Scrapers\SelvaPlusScraper;
 use App\Support\PremiosOficiales;
 use Illuminate\Database\Seeder;
@@ -45,11 +45,11 @@ class SelvaPlusSeeder extends Seeder
             );
         }
 
-        PluginJuego::firstOrCreate(
+        PluginJuego::updateOrCreate(
             ['juego_id' => $juego->id],
             [
-                'class_namespace' => Animalitos::class,
-                'version' => '1.0.0',
+                'class_namespace' => SelvaPlus::class,
+                'version' => '1.1.0',
                 'active' => true,
             ]
         );

@@ -12,7 +12,7 @@ class Apuesta extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'taquilla_id', 'juego_id', 'resultado_id', 'combinacion', 'ticket_code',
+        'taquilla_id', 'juego_id', 'resultado_id', 'resultado_ids', 'combinacion', 'ticket_code',
         'amount_bs', 'amount_usd', 'exchange_rate_applied', 'total_bs_equivalent',
         'estado', 'fecha_hora', 'sorteo_hora', 'ticket_id',
     ];
@@ -25,6 +25,7 @@ class Apuesta extends Model
         'fecha_hora' => 'datetime',
         'sorteo_hora' => 'datetime',
         'combinacion' => 'array',
+        'resultado_ids' => 'array',
     ];
 
     protected static function boot()

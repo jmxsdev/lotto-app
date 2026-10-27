@@ -19,7 +19,7 @@ use App\Plugins\Contracts\JuegoInterface;
  *   - palabra (acumulativa): SUMA +premio_multiplo sobre el multiplicador vigente
  *     (figura normal 50+20=70×; Patronus 75 120+20=140× → 10 × 140 = Bs. 1.400)
  *
- * Activado en F1b: los plugins implementan `evaluarAcierto`/`modalidadDe`
+ * Activado en F1b: los plugins implementan `evaluarAcierto`
  * (JuegoInterface, design §3.3); el motor usa el adaptador directamente.
  */
 class PremiosEngine
@@ -67,38 +67,26 @@ class PremiosEngine
     }
 
     /**
-     * Premio posible al crear la apuesta (REQ12/D9): monto × multiplicador de
-     * la modalidad derivada de `combinacion` (clave `modalidad` si existe, si
-     * no la deriva el plugin con `modalidadDe()`).
+     * Liquida una jugada multi-sorteo (tripleta) cuando el plugin ya confirmó
+     * la combinación. El multiplicador sale de `config.premios` por la clave
+     * canónica (`tripleta`); no se aplican comodines.
      *
-     * @param  array<string, mixed>  $combinacion
+     * @param  array<string, mixed>  $apuesta
+     * @param  array{coincide: bool, clave: string, meta: array<string, mixed>}  $acierto
      * @param  array<string, mixed>|null  $premios  Snapshot de `config.premios`
-     *                                              (S2/D4); null = config actual
      * @return array{premio_bs: float, premio_usd: float}
      */
-    public function premioPosible(Juego $juego, array $combinacion, float $montoBs, float $montoUsd, ?array $premios = null): array
+    public function calcularMultiSorteo(Juego $juego, array $apuesta, array $acierto, ?array $premios = null): array
     {
-        if (! $juego->active) {
+        if (! $juego->active || ! ($acierto['coincide'] ?? false)) {
             return ['premio_bs' => 0.0, 'premio_usd' => 0.0];
         }
 
-        // F2/D8 (REQ11): una modalidad DECLARADA no soportada por el juego se
-        // rechaza (la Dupleta no se implementa; el front la modela como
-        // apuestas independientes). Las claves DERIVADAS por el plugin caen al
-        // base por fallback (`multiplicadorPara`), como en F1d.
-        if (isset($combinacion['modalidad'])) {
-            $clave = (string) $combinacion['modalidad'];
-            $premios ??= $juego->config['premios'] ?? [];
-            $modalidades = $premios['modalidades'] ?? [];
+        $clave = (string) ($acierto['clave'] ?? 'base');
+        $multiplicador = $this->multiplicadorPara($juego, $clave, $premios);
 
-            if ($clave !== 'base' && ! array_key_exists($clave, $modalidades)) {
-                return ['premio_bs' => 0.0, 'premio_usd' => 0.0];
-            }
-        } else {
-            $clave = $this->modalidadDe($juego, $combinacion);
-        }
-
-        $multiplicador = $this->multiplicadorPara($juego, (string) $clave, $premios);
+        $montoBs = (float) ($apuesta['amount_bs'] ?? 0);
+        $montoUsd = (float) ($apuesta['amount_usd'] ?? 0);
 
         return [
             'premio_bs' => round($montoBs * $multiplicador, 2, PHP_ROUND_HALF_UP),
@@ -180,19 +168,5 @@ class PremiosEngine
             'clave' => (string) ($acierto['clave'] ?? 'base'),
             'meta' => $acierto['meta'] ?? [],
         ];
-    }
-
-    /**
-     * Clave canónica de la modalidad apostada: la deriva el plugin con
-     * `modalidadDe()` (D9/§3.4); default 'base' sin adaptador.
-     */
-    private function modalidadDe(Juego $juego, array $combinacion): string
-    {
-        $plugin = $this->manager->getPlugin($juego);
-        if ($plugin) {
-            return (string) $plugin->modalidadDe($combinacion);
-        }
-
-        return 'base';
     }
 }

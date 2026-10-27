@@ -86,14 +86,6 @@ class TerminalesPluginTest extends TestCase
         $this->assertFalse($sinResultado['coincide']);
     }
 
-    // ---------------- modalidadDe() ----------------
-
-    public function test_modalidad_de_es_terminal()
-    {
-        $this->assertSame('terminal', $this->plugin->modalidadDe(['numero' => '37']));
-        $this->assertSame('terminal', $this->plugin->modalidadDe(['numero' => 7]));
-    }
-
     // ---------------- validarApuesta(): rango 00-99 ----------------
 
     public function test_validar_apuesta_acepta_numeros_de_00_a_99()

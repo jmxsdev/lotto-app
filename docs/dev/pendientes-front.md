@@ -132,6 +132,7 @@
 | BE-03 | Scrapers | **Scraper por juego** para los `requires_scraper = true`: generalizar el patrón de `ScrapeExchangeRateJob` | `abierto` |
 | BE-04 | Permisos | **Permisos finos (Spatie)**: reemplazar middleware `role:` por `permission:` (`view_juegos`, `manage_juegos`, `view_apuestas`, `manage_apuestas`) | `abierto` |
 | BE-05 | Tooling | **Bruno collection**: request para `PUT /api/v1/juegos/{juego}/premios` **ya existe** (`collections/Juegos/Actualizar Premios.yml`, ciclo `colecciones-api` / PRs #45–48); falta `GET /auditoria` cuando exista | `abierto` (parcial) |
+| BE-07 | Scrapers | **Formato plano sin `nombre_animal`** (issue #63, Hallazgo E): `AnimalitosScraper::mapFlatResult` guarda solo `numero` para juegos no-tripletas. Hoy solo lo usan Trío/Terminal; por decisión del 2026-10-26 **no se agrega guarda defensiva**. Si un animalito migra a ese feed, aplicarlo en su momento | `documentado` |
 
 **Ya resuelto (no re-implementar)**: plugin `TripleZulia` (`TripleZuliaSeeder` registrado en `DatabaseSeeder`); cierre de caja (`/api/v1/cierre*`); tests de `JuegoController::update()`/`toggle()` (`JuegoUpdateTest`, `JuegoToggleTest`).
 

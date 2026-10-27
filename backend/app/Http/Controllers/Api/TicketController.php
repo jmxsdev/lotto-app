@@ -9,6 +9,7 @@ use App\Models\Resultado;
 use App\Models\Ticket;
 use App\Services\ApuestaService;
 use App\Services\JuegoPluginManager;
+use App\Services\PremiosEngine;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -349,6 +350,84 @@ class TicketController extends Controller
             }
         }
 
+        // Tripleta multi-sorteo: no pertenece a un único `sorteo_hora`. Se
+        // agrega con el premio ya persistido al liquidar (evita recalcular y
+        // duplicar). La evidencia vive en `resultado_ids`.
+        $multiQuery = Apuesta::with(['ticket', 'juego', 'detalles'])
+            ->where('estado', 'ganadora')
+            ->whereDate('sorteo_hora', $fecha)
+            ->whereNotNull('resultado_ids');
+
+        if ($user->role === 'taquilla') {
+            $multiQuery->where('taquilla_id', $user->taquilla_id);
+        } elseif ($user->role === 'grupo') {
+            $multiQuery->whereHas('taquilla.grupo', fn ($q) => $q->where('grupo_id', $user->grupo_id));
+        } elseif ($user->role === 'banca') {
+            $multiQuery->whereHas('taquilla.grupo.banca', fn ($q) => $q->where('banca_id', $user->banca_id));
+        }
+
+        foreach ($multiQuery->get() as $apuesta) {
+            $combinacion = $apuesta->combinacion;
+            if (is_string($combinacion)) {
+                $combinacion = json_decode($combinacion, true);
+            }
+
+            if (! $this->esMultiSorteo($combinacion ?? [])) {
+                continue;
+            }
+
+            $detalle = $apuesta->detalles->first();
+            $premioBs = (float) ($detalle?->premio_ganado ?? 0);
+            $premioUsd = (float) ($detalle?->premio_ganado_usd ?? 0);
+
+            if ($premioBs <= 0 && $premioUsd <= 0) {
+                continue;
+            }
+
+            $ticketCode = $apuesta->ticket?->ticket_code ?? $apuesta->ticket_code;
+            $ticketId = $apuesta->ticket_id;
+
+            if (! isset($ganadores[$ticketCode])) {
+                $ganadores[$ticketCode] = [
+                    'ticket_code' => $ticketCode,
+                    'ticket_id' => $ticketId,
+                    'juego' => $apuesta->juego?->name,
+                    'fecha_sorteo' => $fecha,
+                    'jugadas_ganadoras' => 0,
+                    'premio_total_bs' => 0,
+                    'premio_total_usd' => 0,
+                    'jugadas' => [],
+                ];
+            }
+
+            $ganadores[$ticketCode]['jugadas_ganadoras']++;
+            $ganadores[$ticketCode]['premio_total_bs'] += $premioBs;
+            $ganadores[$ticketCode]['premio_total_usd'] += $premioUsd;
+            $ganadores[$ticketCode]['jugadas'][] = [
+                'apuesta_id' => $apuesta->id,
+                'combinacion' => $combinacion,
+                'amount_bs' => (float) $apuesta->amount_bs,
+                'amount_usd' => (float) $apuesta->amount_usd,
+                'total_bs_equivalent' => (float) $apuesta->total_bs_equivalent,
+                'sorteo_hora' => $apuesta->sorteo_hora?->format('Y-m-d H:i:s'),
+                'premio_bs' => $premioBs,
+                'premio_usd' => $premioUsd,
+                'multiplicador' => (new PremiosEngine)->multiplicadorPara($apuesta->juego, 'tripleta'),
+                'estado' => $apuesta->estado,
+            ];
+        }
+
         return response()->json(['data' => array_values($ganadores)]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $combinacion
+     */
+    private function esMultiSorteo(array $combinacion): bool
+    {
+        $selecciones = $combinacion['selecciones'] ?? [];
+
+        return count($selecciones) >= 3
+            && (($combinacion['modalidad'] ?? 'tripleta') === 'tripleta');
     }
 }

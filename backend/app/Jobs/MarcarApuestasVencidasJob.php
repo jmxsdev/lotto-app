@@ -25,6 +25,11 @@ use Illuminate\Support\Facades\Log;
  * (`verificarGanadores` → ganadora/perdida). Solo las apuestas que siguen
  * `pendiente` sin `resultado_id` tras la ventana y el reintento pasan a
  * `vencido`. Idempotente: la consulta candidata filtra estado + resultado_id.
+ *
+ * Tripleta multi-sorteo: el settlement de la última extracción del día la
+ * marca `perdida` (ya fue evaluada). Este job solo la verá si el último
+ * resultado nunca llegó; en ese caso `vencido` es el estado correcto porque
+ * no hay evidencia para liquidar.
  */
 class MarcarApuestasVencidasJob implements ShouldQueue
 {

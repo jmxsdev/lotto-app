@@ -34,16 +34,15 @@ class PremiosEngineTest extends TestCase
     }
 
     /**
-     * Plugin stub con `evaluarAcierto` (y `modalidadDe`), como los
-     * adaptadores que implementan los plugins desde F1b (design §3.3).
+     * Plugin stub con `evaluarAcierto`, como los adaptadores que implementan
+     * los plugins desde F1b (design §3.3).
      */
-    private function pluginConAcierto(array $acierto, string $modalidadDe = 'base'): JuegoInterface
+    private function pluginConAcierto(array $acierto): JuegoInterface
     {
-        return new class($acierto, $modalidadDe) implements JuegoInterface
+        return new class($acierto) implements JuegoInterface
         {
             public function __construct(
-                private array $acierto,
-                private string $modalidadDe
+                private array $acierto
             ) {}
 
             public function validarApuesta(array $data, ?array $opciones = null): bool
@@ -94,11 +93,6 @@ class PremiosEngineTest extends TestCase
             public function evaluarAcierto(array $apuesta, array $resultados): array
             {
                 return $this->acierto;
-            }
-
-            public function modalidadDe(array $combinacion): string
-            {
-                return $this->modalidadDe;
             }
         };
     }
@@ -320,51 +314,6 @@ class PremiosEngineTest extends TestCase
         $this->assertEquals(['premio_bs' => 1400.0, 'premio_usd' => 0.0], $premio);
     }
 
-    // ---------------- premioPosible() ----------------
-
-    public function test_premio_posible_usa_base_desde_config()
-    {
-        // REQ12: monje 10 Bs × 50 = 500 Bs al crear la apuesta.
-        $juego = $this->juego('monje-millonario', ['base' => 50, 'modalidades' => [], 'comodines' => []]);
-        $engine = $this->motorCon($this->pluginConAcierto(['coincide' => true, 'clave' => 'base', 'meta' => []]));
-
-        $premio = $engine->premioPosible($juego, ['animal' => 'perro'], 10.0, 0.0);
-
-        $this->assertEquals(['premio_bs' => 500.0, 'premio_usd' => 0.0], $premio);
-    }
-
-    public function test_premio_posible_usa_modalidad_de_combinacion()
-    {
-        // Cazalotón: base 30×, tripleta 200× → la modalidad declarada gana.
-        $juego = $this->juego('cazaloton', ['base' => 30, 'modalidades' => ['tripleta' => 200], 'comodines' => []]);
-        $engine = $this->motorCon($this->pluginConAcierto(['coincide' => true, 'clave' => 'base', 'meta' => []]));
-
-        $premio = $engine->premioPosible($juego, ['modalidad' => 'tripleta'], 10.0, 0.0);
-
-        $this->assertEquals(['premio_bs' => 2000.0, 'premio_usd' => 0.0], $premio);
-    }
-
-    public function test_premio_posible_deriva_modalidad_del_plugin()
-    {
-        // D9: sin clave modalidad en combinacion, el plugin la deriva.
-        $juego = $this->juego('cazaloton', ['base' => 30, 'modalidades' => ['tripleta' => 200], 'comodines' => []]);
-        $engine = $this->motorCon($this->pluginConAcierto(['coincide' => true, 'clave' => 'base', 'meta' => []], 'tripleta'));
-
-        $premio = $engine->premioPosible($juego, ['animal' => 'perro'], 10.0, 0.0);
-
-        $this->assertEquals(['premio_bs' => 2000.0, 'premio_usd' => 0.0], $premio);
-    }
-
-    public function test_premio_posible_juego_inactivo_devuelve_cero()
-    {
-        $juego = $this->juego('la-ricachona', [], false);
-        $engine = $this->motorCon($this->pluginConAcierto(['coincide' => true, 'clave' => 'base', 'meta' => []]));
-
-        $premio = $engine->premioPosible($juego, ['animal' => 'perro'], 10.0, 0.0);
-
-        $this->assertEquals(['premio_bs' => 0.0, 'premio_usd' => 0.0], $premio);
-    }
-
     // ---------------- reglas() ----------------
 
     public function test_reglas_devuelve_estructura_premios_del_juego()
@@ -433,22 +382,12 @@ class PremiosEngineTest extends TestCase
         $this->assertEquals(['premio_bs' => 400.0, 'premio_usd' => 0.0], $premio, 'El comodín se resuelve del snapshot, no del config.');
     }
 
-    public function test_override_afecta_premio_posible_y_multiplicador_para()
+    public function test_override_afecta_multiplicador_para()
     {
         $juego = $this->juego('cazaloton', ['base' => 30, 'modalidades' => ['tripleta' => 200], 'comodines' => []]);
         $engine = $this->motorCon($this->pluginConAcierto(['coincide' => true, 'clave' => 'base', 'meta' => []]));
 
-        // premioPosible con override: tripleta 300× del snapshot, no 200× del config.
-        $premio = $engine->premioPosible(
-            $juego,
-            ['modalidad' => 'tripleta'],
-            10.0,
-            0.0,
-            ['base' => 30, 'modalidades' => ['tripleta' => 300], 'comodines' => []]
-        );
-        $this->assertEquals(['premio_bs' => 3000.0, 'premio_usd' => 0.0], $premio);
-
-        // multiplicadorPara con override.
+        // multiplicadorPara con override: tripleta 300× del snapshot, no 200× del config.
         $this->assertSame(
             300.0,
             $engine->multiplicadorPara($juego, 'tripleta', ['base' => 30, 'modalidades' => ['tripleta' => 300], 'comodines' => []])

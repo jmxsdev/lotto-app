@@ -7,17 +7,19 @@ use App\Models\PluginJuego;
 use App\Plugins\Juegos\Animalitos;
 use App\Plugins\Juegos\Tripletas;
 use App\Services\JuegoPluginManager;
-use App\Services\PremiosEngine;
 use App\Support\PremiosOficiales;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
  * F2 2.2 — Modalidades de UN solo sorteo (REQ11, D8, §3.2/§3.4): el motor
- * liquida Cruzado, Par Millonario A+B, Tripleta, Arrimao, Pegadito,
+ * liquida Cruzado, Par Millonario A+B, Arrimao, Pegadito,
  * Punta/Terminal/Uña/Aproximación y Terminal+Zodiacal como apuestas
  * individuales contra el resultado del único `sorteo_hora`. La multi-selección
  * del MISMO sorteo viaja en `combinacion.selecciones[]` (sin tablas nuevas).
+ *
+ * La Tripleta de animalitos es MULTI-SORTEO y se cubre en
+ * `TripletaMultiSorteoTest`; aquí no se modela como same-draw.
  * La Dupleta queda FUERA de alcance: un test la fija como rechazada.
  *
  * Los juegos se crean desde el catálogo único (PremiosOficiales::configPara)
@@ -166,74 +168,6 @@ class ModalidadesSingleDrawTest extends TestCase
         );
     }
 
-    // ---------------- Tripleta (Cazalotón 200× / Loto Chaima 50×) ----------------
-
-    public function test_tripleta_cazaloton_paga_200x_con_tres_figuras_del_mismo_sorteo(): void
-    {
-        // §3.2: cazaloton tripleta 200×; 3 selecciones de animal contra las
-        // figuras del sorteo (acentos normalizados, REQ2).
-        $this->assertPremio(
-            'cazaloton',
-            [
-                'modalidad' => 'tripleta',
-                'selecciones' => [
-                    ['animal' => 'perro'],
-                    ['animal' => 'gato'],
-                    ['animal' => 'león'],
-                ],
-            ],
-            [
-                'figuras' => [
-                    ['animal' => 'Perro', 'numero' => 27],
-                    ['animal' => 'Gato', 'numero' => 11],
-                    ['animal' => 'Leon', 'numero' => 5],
-                ],
-            ],
-            200
-        );
-    }
-
-    public function test_tripleta_loto_chaima_paga_50x(): void
-    {
-        $this->assertPremio(
-            'loto-chaima',
-            [
-                'modalidad' => 'tripleta',
-                'selecciones' => [
-                    ['animal' => 'Delfín'],
-                    ['animal' => 'Caimán'],
-                    ['animal' => 'Tucán'],
-                ],
-            ],
-            [
-                'figuras' => [
-                    ['animal' => 'Delfin', 'numero' => 0],
-                    ['animal' => 'Caiman', 'numero' => 30],
-                    ['animal' => 'Tucan', 'numero' => 42],
-                ],
-            ],
-            50
-        );
-    }
-
-    public function test_tripleta_no_paga_si_falta_una_figura_del_resultado(): void
-    {
-        $premio = $this->liquidar(
-            'cazaloton',
-            [
-                'modalidad' => 'tripleta',
-                'selecciones' => [
-                    ['animal' => 'perro'],
-                    ['animal' => 'gato'],
-                    ['animal' => 'leon'],
-                ],
-            ],
-            ['figuras' => [['animal' => 'Perro'], ['animal' => 'Gato']]]
-        );
-
-        $this->assertSame(0.0, $premio['premio_bs']);
-    }
-
     // ---------------- El Arrimao (4 cifras, 6.000×) / El Pegadito (5 cifras, 60.000×) ----------------
 
     public function test_arrimao_arrejuntado_paga_6000x_con_las_4_cifras(): void
@@ -380,30 +314,6 @@ class ModalidadesSingleDrawTest extends TestCase
 
     // ---------------- Dupleta FUERA de alcance (D8/REQ11) ----------------
 
-    public function test_dupleta_rechazada_en_premio_posible(): void
-    {
-        // REQ11 escenario: modelar una Dupleta (2 animalitos, 2 sorteos) con un
-        // solo monto es rechazado: la modalidad no existe en el catálogo y el
-        // motor devuelve 0 (el front la modela como apuestas independientes).
-        $juego = $this->juegoCon('cazaloton');
-
-        $premio = (new PremiosEngine)->premioPosible(
-            $juego,
-            [
-                'modalidad' => 'dupleta',
-                'selecciones' => [
-                    ['animal' => 'perro', 'sorteo_hora' => '10:00'],
-                    ['animal' => 'gato', 'sorteo_hora' => '11:00'],
-                ],
-            ],
-            10.0,
-            0.0
-        );
-
-        $this->assertSame(0.0, $premio['premio_bs']);
-        $this->assertSame(0.0, $premio['premio_usd']);
-    }
-
     public function test_dupleta_rechazada_en_liquidacion(): void
     {
         // La Dupleta tampoco se liquida: 2 selecciones no es tripleta (3) y el
@@ -417,7 +327,7 @@ class ModalidadesSingleDrawTest extends TestCase
                     ['animal' => 'gato', 'sorteo_hora' => '11:00'],
                 ],
             ],
-            ['figuras' => [['animal' => 'Perro'], ['animal' => 'Gato']]]
+            ['numero' => 5, 'nombre_animal' => 'León']
         );
 
         $this->assertSame(0.0, $premio['premio_bs']);

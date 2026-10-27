@@ -63,15 +63,6 @@ class Terminales implements JuegoInterface
         return ['coincide' => true, 'clave' => 'terminal', 'meta' => []];
     }
 
-    /**
-     * Modalidad canónica para `premio_posible`: el acierto de 2 cifras es la
-     * modalidad `terminal` (D9/§3.1); cae al base del juego en el engine.
-     */
-    public function modalidadDe(array $combinacion): string
-    {
-        return 'terminal';
-    }
-
     private function numerosGanadores(array $resultados): array
     {
         $numeros = $resultados['numeros_ganadores'] ?? [];

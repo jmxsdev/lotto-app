@@ -10,6 +10,7 @@ use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\JuegoAnimalitosSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
@@ -17,7 +18,7 @@ use Tests\TestCase;
  * TQ-05a (S5) — Venta de modalidades single-draw (contrato §2.1,
  * spec "Modalidades single-draw"): `POST /api/v1/tickets` acepta `punta`,
  * `terminal`, `uña`, `aproximacion`, `signo_terminal`, `signo_solo`,
- * `arrimao` y `pegadito` → 201 con `premio_posible > 0` persistido en
+ * `arrimao` y `pegadito` → 201 y persiste la combinación en
  * `detalle_apuestas`; dígitos inválidos → 422.
  *
  * Gate OQ1 (design §9): `Tripletas::validarApuesta` solo aceptaba
@@ -38,8 +39,17 @@ class ModalidadesVentaTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // Fecha fija para que la tripleta (jugada de día) siempre tenga 3+
+        // sorteos futuros y el test no dependa de la hora real de ejecución.
+        Carbon::setTestNow('2026-09-21 08:00:00');
         $this->seed(DatabaseSeeder::class);
         $this->seed(JuegoAnimalitosSeeder::class);
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        parent::tearDown();
     }
 
     private function crearTaquillaConUsuario(): array
@@ -96,13 +106,12 @@ class ModalidadesVentaTest extends TestCase
     }
 
     /**
-     * La modalidad single-draw crea el ticket (201) y persiste un
-     * `premio_posible` = monto × multiplicador (contrato §2.1: el front NO
-     * hardcodea; el motor decide desde `config.premios`).
+     * La modalidad crea el ticket (201) y persiste la combinación. El monto
+     * posible ya no se calcula: el contrato de venta no expone premio posible.
      *
      * @param  array<string, mixed>  $combinacion
      */
-    private function assertPremioPosible(string $slug, array $combinacion, float $multiplicador): void
+    private function assertVentaModalidad(string $slug, array $combinacion, float $multiplicadorLegacy = 0): void
     {
         $response = $this->postLinea($slug, $combinacion);
 
@@ -118,59 +127,49 @@ class ModalidadesVentaTest extends TestCase
 
         $detalle = $apuesta->detalles()->first();
         $this->assertNotNull($detalle);
-        $this->assertGreaterThan(
-            0,
-            $detalle->premio_posible,
-            "[{$slug}] premio_posible debe ser > 0 para la modalidad single-draw."
-        );
-        $this->assertEqualsWithDelta(
-            self::MONTO_MINIMO_BS * $multiplicador,
-            (float) $detalle->premio_posible,
-            0.01,
-            "[{$slug}] premio_posible = monto × {$multiplicador}× (motor, no front)."
-        );
+        $this->assertEquals($combinacion, $detalle->combinacion, "[{$slug}] la combinación se persiste tal cual.");
     }
 
     // ---------------- 201 por modalidad single-draw (contrato §2.1) ----------------
 
-    public function test_punta_trio_activo_crea_ticket_con_premio_posible(): void
+    public function test_punta_trio_activo_crea_ticket(): void
     {
-        $this->assertPremioPosible('trio-activo', ['tipo' => 'punta', 'numero' => '45'], 60);
+        $this->assertVentaModalidad('trio-activo', ['tipo' => 'punta', 'numero' => '45'], 60);
     }
 
-    public function test_terminal_trio_activo_crea_ticket_con_premio_posible(): void
+    public function test_terminal_trio_activo_crea_ticket(): void
     {
-        $this->assertPremioPosible('trio-activo', ['tipo' => 'terminal', 'numero' => '52'], 60);
+        $this->assertVentaModalidad('trio-activo', ['tipo' => 'terminal', 'numero' => '52'], 60);
     }
 
-    public function test_una_zamorano_crea_ticket_con_premio_posible(): void
+    public function test_una_zamorano_crea_ticket(): void
     {
-        $this->assertPremioPosible('triple-zamorano', ['tipo' => 'uña', 'numero' => '2'], 5);
+        $this->assertVentaModalidad('triple-zamorano', ['tipo' => 'uña', 'numero' => '2'], 5);
     }
 
-    public function test_aproximacion_triple_facil_crea_ticket_con_premio_posible(): void
+    public function test_aproximacion_triple_facil_crea_ticket(): void
     {
-        $this->assertPremioPosible('triple-facil', ['tipo' => 'aproximacion', 'numero' => '51'], 10);
+        $this->assertVentaModalidad('triple-facil', ['tipo' => 'aproximacion', 'numero' => '51'], 10);
     }
 
-    public function test_signo_terminal_zulia_crea_ticket_con_premio_posible(): void
+    public function test_signo_terminal_zulia_crea_ticket(): void
     {
-        $this->assertPremioPosible('triple-zulia', ['tipo' => 'signo_terminal', 'numero' => '59', 'signo' => 'LEO'], 600);
+        $this->assertVentaModalidad('triple-zulia', ['tipo' => 'signo_terminal', 'numero' => '59', 'signo' => 'LEO'], 600);
     }
 
-    public function test_signo_solo_chance_crea_ticket_con_premio_posible(): void
+    public function test_signo_solo_chance_crea_ticket(): void
     {
-        $this->assertPremioPosible('triple-chance', ['tipo' => 'signo_solo', 'signo' => 'LEO'], 6);
+        $this->assertVentaModalidad('triple-chance', ['tipo' => 'signo_solo', 'signo' => 'LEO'], 6);
     }
 
-    public function test_arrimao_arrejuntado_crea_ticket_con_premio_posible(): void
+    public function test_arrimao_arrejuntado_crea_ticket(): void
     {
-        $this->assertPremioPosible('el-arrejuntado', ['tipo' => 'arrimao', 'numero' => '1825'], 6000);
+        $this->assertVentaModalidad('el-arrejuntado', ['tipo' => 'arrimao', 'numero' => '1825'], 6000);
     }
 
-    public function test_pegadito_arrejuntado_crea_ticket_con_premio_posible(): void
+    public function test_pegadito_arrejuntado_crea_ticket(): void
     {
-        $this->assertPremioPosible('el-arrejuntado', ['tipo' => 'pegadito', 'numero' => '10503'], 60000);
+        $this->assertVentaModalidad('el-arrejuntado', ['tipo' => 'pegadito', 'numero' => '10503'], 60000);
     }
 
     // ---------------- Triangulación: dígitos sin padding (contrato §2.1 nota) ----------------
@@ -179,7 +178,7 @@ class ModalidadesVentaTest extends TestCase
     {
         // "5" → el motor normaliza a "05" (2 cifras para punta); el premio
         // posible no depende del padding (mismo multiplicador).
-        $this->assertPremioPosible('trio-activo', ['tipo' => 'punta', 'numero' => '5'], 60);
+        $this->assertVentaModalidad('trio-activo', ['tipo' => 'punta', 'numero' => '5'], 60);
     }
 
     // ---------------- 422 por dígitos inválidos (spec: "Dígitos inválidos rechazados") ----------------
@@ -224,9 +223,9 @@ class ModalidadesVentaTest extends TestCase
 
     // ---------------- S6: multi-selección same-draw (contrato §2.2, design §4) ----------------
 
-    public function test_cruzado_chance_crea_ticket_con_premio_posible(): void
+    public function test_cruzado_chance_crea_ticket(): void
     {
-        $this->assertPremioPosible('triple-chance', [
+        $this->assertVentaModalidad('triple-chance', [
             'modalidad' => 'cruzado',
             'selecciones' => [
                 ['tipo' => 'punta', 'numero' => '75'],
@@ -235,9 +234,9 @@ class ModalidadesVentaTest extends TestCase
         ], 3000);
     }
 
-    public function test_triple_a_b_chance_crea_ticket_con_premio_posible(): void
+    public function test_triple_a_b_chance_crea_ticket(): void
     {
-        $this->assertPremioPosible('triple-chance', [
+        $this->assertVentaModalidad('triple-chance', [
             'modalidad' => 'triple_a_b',
             'selecciones' => [
                 ['tipo' => 'triple_a', 'numero' => '756'],
@@ -246,9 +245,9 @@ class ModalidadesVentaTest extends TestCase
         ], 200000);
     }
 
-    public function test_tripleta_cazaloton_crea_ticket_con_premio_posible(): void
+    public function test_tripleta_cazaloton_crea_ticket(): void
     {
-        $this->assertPremioPosible('cazaloton', [
+        $this->assertVentaModalidad('cazaloton', [
             'modalidad' => 'tripleta',
             'selecciones' => [
                 ['animal' => 'Perro'],
@@ -258,9 +257,9 @@ class ModalidadesVentaTest extends TestCase
         ], 200);
     }
 
-    public function test_tripleta_loto_chaima_crea_ticket_con_premio_posible(): void
+    public function test_tripleta_loto_chaima_crea_ticket(): void
     {
-        $this->assertPremioPosible('loto-chaima', [
+        $this->assertVentaModalidad('loto-chaima', [
             'modalidad' => 'tripleta',
             'selecciones' => [
                 ['animal' => 'Perro'],

@@ -92,12 +92,14 @@ Regla: **juego con `active=false`/`vendible=false` no se ofrece ni permite vende
 | `signo` | string | sigla (`ESC`) o label; el front puede mostrar label |
 | `arrimao` | string 4 cifras | El Arrejuntado |
 | `pegadito` | string 5 cifras | El Arrejuntado |
-| `figuras[]` | array | Tripleta: `[{animal|nombre_animal, numero}]` |
 | `comodin` | `true` / `"A"` / `"B"` | MEGA (`true` -> 40x) / Selva (`A`=160x, `B`=200x) |
 | `comodin_nombre` | string | (si el scraper lo trae) nombre/glosa del comodin |
 | `patronus` | string/truthy | palabra PATRONUS presente (+20x acumulativo) |
 
-> **Gap de front**: `taquilla/src/pages/resultados.astro:142-148,178-188` solo interpreta `triple_a|triple_b|triple_c|signo|numero|nombre_animal|color_animal`. Debe agregar `figuras[]`, `comodin`/`comodin_nombre`, `patronus`, `arrimao`, `pegadito`.
+> **Tripleta multi-sorteo**: no existe `figuras[]`. Cada sorteo publica un `nombre_animal`; la
+> tripleta se liquida contra 3 sorteos distintos del día. Ver `liquidacion-multisorteo`.
+
+> **Gap de front**: `taquilla/src/pages/resultados.astro:142-148,178-188` solo interpreta `triple_a|triple_b|triple_c|signo|numero|nombre_animal|color_animal`. Debe agregar `comodin`/`comodin_nombre`, `patronus`, `arrimao`, `pegadito` (la tripleta no usa `figuras[]`).
 
 ---
 
@@ -133,11 +135,11 @@ Notas:
 |---|---|---|---|
 | **Cruzado** | Chance | `{ "modalidad": "cruzado", "selecciones": [ {"tipo":"punta","numero":"75"}, {"tipo":"punta","numero":"14"} ] }` | ambas puntas -> `cruzado` 3.000x; una -> `cruzado_10` 10x |
 | **Par Millonario A+B** | Chance | `{ "modalidad": "triple_a_b", "selecciones": [ {"tipo":"triple_a","numero":"756"}, {"tipo":"triple_b","numero":"146"} ] }` | ambos -> `triple_a_b` 200.000x; uno -> `solo_a_b` 150x |
-| **Tripleta** | Cazaloton, Loto Chaima | `{ "modalidad": "tripleta", "selecciones": [ {"animal":"perro"}, {"animal":"gato"}, {"animal":"león"} ] }` | Cazaloton `tripleta` 200x; Chaima `tripleta` 50x |
-| ~~Dupleta~~ | — | **RECHAZADA** (no existe en el catalogo; `premioPosible`/liquidacion devuelven 0) | — |
+| **Tripleta** | Cazaloton, Loto Chaima | `{ "modalidad": "tripleta", "selecciones": [ {"animal":"perro"}, {"animal":"gato"}, {"animal":"león"} ] }` | Cazaloton `tripleta` 200x; Chaima `tripleta` 50x. **Multi-sorteo todo o nada**: 3 figuras distintas en 3 sorteos distintos del día |
+| ~~Dupleta~~ | — | **RECHAZADA** (no existe en el catalogo; `createApuesta` la rechaza con 422) | — |
 
-- La clave `modalidad` es **recomendada** en los shapes con `selecciones` (el motor la usa para `premio_posible`; una modalidad declarada que no exista en el catalogo del juego se rechaza con 0). Sin `modalidad`, el motor la deriva de los `tipo` de las selecciones.
-- Todas las selecciones comparten el `sorteo_hora` de la linea.
+- La clave `modalidad` es **obligatoria** en los shapes con `selecciones`; una modalidad declarada que no exista en el catalogo del juego se rechaza con 422 en la venta.
+- Las modalidades single-draw (Cruzado, Par A+B) comparten el `sorteo_hora` de la linea. La **tripleta** es una jugada de día: no se expande por horario y el backend la liquida contra los sorteos posteriores.
 
 ### 2.3 Valores por juego (para mostrar en UI)
 
@@ -194,8 +196,8 @@ NO hardcodear multiplicadores en el front: leer `premios` de `GET /juegos/{id}/r
 **T5. Resultados** — renderizar claves nuevas (seccion 1.5), con badge de comodin (`comodin`/`comodin_nombre`) y `patronus`.
 
 **T6. Ticket impreso (mejora)**.
-- `POST /tickets` HOY responde `data` con `apuestas.juego` (`TicketController.php:187-190`), **sin** el detalle: `premio_posible` se persiste (`detalle_apuestas.premio_posible(_usd)`) pero no viaja en esa respuesta. Opciones: (a) calcular el premio posible en el front desde el catalogo; (b) pedir un mini-WU backend que cargue `apuestas.detalle` en la respuesta. Idem para `premio_total_bs/usd` (si viaja en el ticket).
-- Render sugerido: glosa de modalidad, `sorteo_hora` por linea y premio posible.
+- `POST /tickets` HOY responde `data` con `apuestas.juego` (`TicketController.php:187-190`), **sin** el detalle. No existe `premio_posible`: el contrato de venta no calcula ni persiste un premio potencial. Si se necesita `premio_total_bs/usd`, pedir un mini-WU backend que cargue el detalle.
+- Render sugerido: glosa de modalidad y, para single-draw, `sorteo_hora` por linea. La tripleta se imprime como jugada de día (sin hora).
 
 **T7. Anulacion**.
 - Dejar de asumir 5 min (`historial.astro:102-113`): el backend decide con `getEffectiveTiempoEliminacion` (taquilla -> grupo -> banca). Mientras no exista endpoint que exponga el valor, manejar el rechazo del `DELETE` y mostrar el mensaje del backend.
@@ -207,12 +209,12 @@ NO hardcodear multiplicadores en el front: leer `premios` de `GET /juegos/{id}/r
 
 - [ ] Los 21 juegos activos listados desde el catalogo; `la-ricachona` no aparece (o aparece deshabilitada).
 - [ ] Monje ofrece figuras 0-75 (incluida Patronus 75); zoos sin labels erroneos.
-- [ ] Cada modalidad de la seccion 2 se puede crear y el backend la acepta (201) con `premio_posible > 0`.
+- [ ] Cada modalidad de la seccion 2 se puede crear y el backend la acepta (201) y persiste `combinacion`.
 - [ ] Cruzado / Par A+B / Tripleta viajan con `selecciones[]` + `modalidad`.
 - [ ] Pago de una apuesta `ganadora` funciona end-to-end (`POST /pagos` con `tipo:'egreso'`, `moneda`, monto = premio).
 - [ ] Historial muestra `ganadora` y `vencido` con badge y filtro.
-- [ ] Resultados renderizan `figuras[]`, `comodin`, `patronus`, `arrimao`, `pegadito`.
-- [ ] Ticket impreso incluye (si se implementa T6) premio posible/estado/glosa.
+- [ ] Resultados renderizan `comodin`, `comodin_nombre`, `patronus`, `arrimao`, `pegadito`.
+- [ ] Ticket impreso incluye (si se implementa T6) estado/glosa y la tripleta como jugada de dia.
 
 ---
 

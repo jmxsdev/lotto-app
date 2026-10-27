@@ -89,15 +89,20 @@ class AnimalitosPluginTest extends TestCase
         $this->assertContains('mega', $acierto['meta']['comodines']);
     }
 
-    public function test_evaluar_acierto_emite_comodin_de_letra_selva()
+    public function test_evaluar_acierto_no_infiere_ganador_de_un_comodin_sin_nombre_animal()
     {
-        $apuesta = ['combinacion' => ['animal' => 'perro'], 'amount_bs' => 10, 'amount_usd' => 0];
+        // Forma real de Selva Plus: el sorteo con comodín NO trae
+        // `nombre_animal`. El plugin base no debe inventarlo; la liquidación
+        // real de Selva vive en `SelvaPlusPluginTest` (plugin por juego).
+        $apuesta = ['combinacion' => ['animal' => 'comodin-a'], 'amount_bs' => 10, 'amount_usd' => 0];
 
-        $aciertoB = $this->plugin->evaluarAcierto($apuesta, $this->resultado(['nombre_animal' => 'Perro', 'comodin' => 'B']));
-        $aciertoA = $this->plugin->evaluarAcierto($apuesta, $this->resultado(['nombre_animal' => 'Perro', 'comodin' => 'A']));
+        $acierto = $this->plugin->evaluarAcierto(
+            $apuesta,
+            $this->resultado(['comodin' => 'A', 'comodin_nombre' => 'Leoncito'])
+        );
 
-        $this->assertContains('comodin-b', $aciertoB['meta']['comodines']);
-        $this->assertContains('comodin-a', $aciertoA['meta']['comodines']);
+        $this->assertFalse($acierto['coincide']);
+        $this->assertSame([], $acierto['meta']);
     }
 
     public function test_evaluar_acierto_emite_comodines_de_figura_75_y_99()
@@ -134,36 +139,6 @@ class AnimalitosPluginTest extends TestCase
         $this->assertSame([], $acierto['meta']['comodines']);
     }
 
-    // ---------------- modalidadDe() ----------------
-
-    public function test_modalidad_de_siempre_base_para_animalitos()
-    {
-        $this->assertSame('base', $this->plugin->modalidadDe(['animal' => 'perro']));
-        $this->assertSame('base', $this->plugin->modalidadDe(['animal' => 'gato', 'numero' => 11]));
-    }
-
-    public function test_modalidad_de_tripleta_con_tres_selecciones_del_mismo_sorteo()
-    {
-        // F2/D8 §3.4: 3 animales del mismo sorteo → tripleta (Cazalotón 200×,
-        // Loto Chaima 50×). La Dupleta (2 animales, 2 sorteos) queda fuera.
-        $this->assertSame('tripleta', $this->plugin->modalidadDe([
-            'selecciones' => [
-                ['animal' => 'perro'],
-                ['animal' => 'gato'],
-                ['animal' => 'leon'],
-            ],
-        ]));
-    }
-
-    public function test_modalidad_de_base_con_menos_de_tres_selecciones()
-    {
-        // 2 selecciones no es tripleta ni dupleta soportada: cae a base como
-        // shape no reconocido (D8: la dupleta no se modela).
-        $this->assertSame('base', $this->plugin->modalidadDe([
-            'selecciones' => [['animal' => 'perro'], ['animal' => 'gato']],
-        ]));
-    }
-
     // ---------------- validarApuesta(): acentos en opciones (N2) ----------------
 
     public function test_validar_apuesta_acepta_label_acentuado_de_las_opciones()
@@ -181,6 +156,39 @@ class AnimalitosPluginTest extends TestCase
     {
         $this->assertTrue($this->plugin->validarApuesta(['combinacion' => ['animal' => 'Delfín']]));
         $this->assertFalse($this->plugin->validarApuesta(['combinacion' => ['animal' => 'dragon']]));
+    }
+
+    public function test_validar_apuesta_tripleta_exige_tres_figuras_distintas()
+    {
+        $opciones = [
+            ['label' => 'Perro', 'value' => 'perro'],
+            ['label' => 'Gato', 'value' => 'gato'],
+            ['label' => 'León', 'value' => 'leon'],
+        ];
+
+        $valida = [
+            'combinacion' => [
+                'modalidad' => 'tripleta',
+                'selecciones' => [
+                    ['animal' => 'Perro'],
+                    ['animal' => 'Gato'],
+                    ['animal' => 'León'],
+                ],
+            ],
+        ];
+        $repetida = [
+            'combinacion' => [
+                'modalidad' => 'tripleta',
+                'selecciones' => [
+                    ['animal' => 'Perro'],
+                    ['animal' => 'Perro'],
+                    ['animal' => 'Gato'],
+                ],
+            ],
+        ];
+
+        $this->assertTrue($this->plugin->validarApuesta($valida, $opciones));
+        $this->assertFalse($this->plugin->validarApuesta($repetida, $opciones));
     }
 
     // ---------------- Dinero: el multiplicador lo decide el engine (REQ1) ----------------

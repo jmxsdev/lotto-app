@@ -30,7 +30,7 @@ Services: ApuestaService (venta/liquidacion) . JuegoPluginManager (fachada) . Co
    |    Juego.config['premios']  .... valores oficiales (BD)
    |
    +--> Plugins (Animalitos / Tripletas / Terminales) .... FORMA del acierto
-            evaluarAcierto() / modalidadDe()   (JuegoInterface)
+            evaluarAcierto()   (JuegoInterface)
 
 Catalogo de valores en codigo: App\Support\PremiosOficiales (fuente de seeders y migracion)
 ```
@@ -39,11 +39,11 @@ Catalogo de valores en codigo: App\Support\PremiosOficiales (fuente de seeders y
 
 | # | Cuando | Quien | Que pasa |
 |---|---|---|---|
-| 1 | Venta | `POST /api/v1/tickets` -> `TicketController::store` -> `ApuestaService::createApuesta` | guards (juego `active`, opciones del zoo, monedas, costo minimo, limites, sorteo no vencido) y **`PremiosEngine::premioPosible`** -> `detalle_apuestas.premio_posible(_usd)` |
+| 1 | Venta | `POST /api/v1/tickets` -> `TicketController::store` -> `ApuestaService::createApuesta` | guards (juego `active`, opciones del zoo, monedas, costo minimo, limites, sorteo no vencido, modalidad declarada) y snapshot de premios en `detalle_apuestas` |
 | 2 | Llega el resultado | `ScrapeResultsJob` -> `ApuestaService::verificarGanadores` | por apuesta: **`PremiosEngine::calcular`**; gana -> `estado=ganadora` + `resultado_id` + `premio_ganado`; pierde -> `perdida`. Filtro `whereNull('resultado_id')` = nunca reprocesa |
 | 3 | Pago | `POST /api/v1/pagos` -> `PagoController` | valida el monto contra el motor (+-0.01), exige `resultado_id`, `estado in {pendiente, ganadora}` y `moneda`; apuesta -> `pagada`; cascada del ticket |
 | 4 | Nunca llega el resultado | `MarcarApuestasVencidasJob` (diario 02:00) | agrupa pendientes sin resultado por (juego, fecha) -> **catch-up** `ScrapeResultsJob::dispatchSync` -> lo que sigue sin resultado tras la ventana (24h default, configurable super_master/master) -> `vencido` |
-| 5 | Consulta | `GET /tickets/ganadores` | filtra por `juego / fecha / sorteo_hora / estado`; no declara ganador de un sorteo distinto al apostado |
+| 5 | Consulta | `GET /tickets/ganadores` | filtra por `juego / fecha / sorteo_hora / estado` para single-result; la tripleta multi-sorteo se agrega con su evidencia (`resultado_ids`) |
 
 Ticket: `premio_total_bs/usd` se **acumula** (increment) entre sorteos; estado del ticket se cierra cuando todas sus apuestas estan resueltas (`vencido` cuenta como resuelta, `ganadora` no).
 
@@ -53,11 +53,12 @@ Ticket: `premio_total_bs/usd` se **acumula** (increment) entre sorteos; estado d
 
 | Archivo | Que hace |
 |---|---|
-| `backend/app/Services/PremiosEngine.php` | El dinero. `calcular()` (liquida), `premioPosible()` (venta), `reglas()` (contrato para /reglas), `multiplicadorPara()`, `multiplicadorConComodines()` (privado), `evaluarAcierto()` / `modalidadDe()` (privados, via manager) |
+| `backend/app/Services/PremiosEngine.php` | El dinero. `calcular()` (liquida), `calcularMultiSorteo()` (tripleta), `reglas()` (contrato para /reglas), `multiplicadorPara()`, `multiplicadorConComodines()` (privado), `evaluarAcierto()` (privado, via manager) |
 | `backend/app/Support/PremiosOficiales.php` | Catalogo unico en codigo (21 juegos): `todos()`, `para(slug)`, `slugs()`, `activo(slug)`, `configPara(slug)`; espejos legacy |
 | `backend/app/Support/Texto.php` | `normalizar()`: sin acentos + minusculas (H13) |
-| `backend/app/Plugins/Contracts/JuegoInterface.php` | Contrato: `evaluarAcierto()`, `modalidadDe()` (nuevos); `calcularPremio()` y `obtenerMultiplicador()` quedan `@deprecated` (legacy pre-motor) |
-| `backend/app/Plugins/Juegos/Animalitos.php` | Forma animalitos: acentos, `figuras[]` (Tripleta), `comodinesDelResultado()` (superset de senales) |
+| `backend/app/Plugins/Contracts/JuegoInterface.php` | Contrato: `evaluarAcierto()`; `JuegoMultiSorteoInterface` es la capacidad opcional de tripleta; `calcularPremio()` y `obtenerMultiplicador()` quedan `@deprecated` (legacy pre-motor) |
+| `backend/app/Plugins/Juegos/Animalitos.php` | Forma animalitos: acentos y `comodinesDelResultado()`; la tripleta multi-sorteo vive en `evaluarMultiSorteo()` |
+| `backend/app/Plugins/Juegos/Animalitos/SelvaPlus.php` | Plugin por juego de Selva Plus: comodin A/B como figura apostable; animal pierde en sorteo con comodin; sin tripleta |
 | `backend/app/Plugins/Juegos/Tripletas.php` | Forma tripletas: tipo apostado (REQ5), signos label/sigla, posiciones (punta/terminal/una), aproximacion, arrimao/pegadito, `selecciones[]` (Cruzado / Par A+B) |
 | `backend/app/Plugins/Juegos/Terminales.php` | Forma terminales: clave `numero` del resultado con padding a 2 cifras (N1/N9) |
 | `backend/app/Services/JuegoPluginManager.php` | Fachada: `getPlugin`, `getPluginByJuegoId`, `validarApuesta` (con opciones del zoo), `calcularPremio`, `getOpciones`, `getValidationRules/Messages`, `getMultiplicador` |
@@ -69,7 +70,7 @@ Ticket: `premio_total_bs/usd` se **acumula** (increment) entre sorteos; estado d
 | `backend/app/Models/Juego.php` | `config` (JSON; contiene `premios`), `active`, relacion `pluginJuego` |
 | `backend/app/Models/JuegoLimite.php` | Limites por juego x entidad x moneda. Scope **`deJuegosActivos()`**: los limites de juegos inactivos no se exponen en la matriz |
 | `backend/app/Models/Apuesta.php` | `estado` ENUM(`pendiente`,`pagada`,`anulada`,`perdida`,`vencido`,`ganadora`), `resultado_id` |
-| `backend/app/Models/DetalleApuesta.php` | `premio_posible(_usd)` (venta) y `premio_ganado` (liquidacion) |
+| `backend/app/Models/DetalleApuesta.php` | `premio_ganado` (liquidacion) y `premios_snapshot` |
 | `backend/app/Models/Ticket.php` | `premio_total_bs/usd` acumulado; estados (`pendiente`,`pagada`,`anulada`,`ganador`,`vencido`) |
 | `backend/app/Models/Resultado.php` | `numeros_ganadores` (JSON) |
 | `backend/app/Models/Configuracion.php` | Clave/valor de settings (`apuestas.vencimiento_sin_resultado`); `$table='configuraciones'` (fix latente) |
@@ -78,8 +79,8 @@ Ticket: `premio_total_bs/usd` se **acumula** (increment) entre sorteos; estado d
 
 | Archivo | Rol |
 |---|---|
-| `backend/app/Services/ApuestaService.php` | `createApuesta` (guards + `premio_posible`), `verificarGanadores` (motor + estados), limites/monedas/vigencias heredadas, reportes |
-| `backend/app/Http/Controllers/Api/TicketController.php` | `store`, `index`, `show`, `destroy` (usa `getEffectiveTiempoEliminacion` real), `ganadores` (filtro por `sorteo_hora`) |
+| `backend/app/Services/ApuestaService.php` | `createApuesta` (guards + modalidad declarada), `verificarGanadores` (motor + estados + `verificarMultiSorteo`), limites/monedas/vigencias heredadas, reportes |
+| `backend/app/Http/Controllers/Api/TicketController.php` | `store`, `index`, `show`, `destroy` (usa `getEffectiveTiempoEliminacion` real), `ganadores` (single-result por `sorteo_hora` + pasada multi-sorteo con evidencia) |
 | `backend/app/Http/Controllers/Api/PagoController.php` | Pago validado contra el motor (nunca contra un plugin roto) |
 | `backend/app/Http/Controllers/Api/JuegoController.php` | `reglas` (+`premios` aditivo), `update` (config), `toggle`, `updateLimites` / matriz (con `deJuegosActivos()`) |
 | `backend/app/Http/Controllers/Api/ConfiguracionController.php` | `GET/PUT /api/v1/configuraciones/apuestas-vencimiento` (role `super_master|master`) |
@@ -135,8 +136,8 @@ Ticket: `premio_total_bs/usd` se **acumula** (increment) entre sorteos; estado d
 | Signos | Acepta LABEL ("Escorpio") o SIGLA ("ESC"); compara normalizado contra el resultado |
 | Terminal Activo | Liquida contra la clave `numero` del resultado (el bug historico leia `terminal` y nunca pagaba) |
 | Redondeo | `round(valor, 2, PHP_ROUND_HALF_UP)` por moneda apostada |
-| Juego inactivo | `calcular()`/`premioPosible()` -> 0; `createApuesta` rechaza la venta |
-| Modalidad declarada desconocida | `premioPosible` -> 0 (p. ej. `dupleta`; fuera de alcance) |
+| Juego inactivo | `calcular()` -> 0; `createApuesta` rechaza la venta |
+| Modalidad declarada desconocida | `createApuesta` rechaza con 422 (p. ej. `dupleta`; fuera de alcance) |
 | Tripletas | Paga solo por el tipo apostado (`triple_a` contra `a`, nunca contra `b`) |
 | Dedupe | Los resultados duplicados pre-H22 se deduplican antes de liquidar (migracion `...000003`) |
 
@@ -171,8 +172,8 @@ Resumen de claves canonicas por juego (valores en `config.premios.modalidades`):
 
 | Metodo | Ruta | Rol | Notas |
 |---|---|---|---|
-| POST | `/api/v1/tickets` | taquilla | Venta; `premio_posible` se persiste por detalle |
-| GET | `/api/v1/tickets/ganadores` | auth | Ganadores filtrados por sorteo (`fecha` opcional) |
+| POST | `/api/v1/tickets` | taquilla | Venta; persiste combinacion y snapshot de premios |
+| GET | `/api/v1/tickets/ganadores` | auth | Ganadores por sorteo + tripleta multi-sorteo (evidencia) |
 | GET | `/api/v1/tickets` / `/{id}` | auth | Consulta de tickets/apuestas |
 | DELETE | `/api/v1/tickets/{id}` | auth | Anulacion; backend usa `tiempo_eliminacion` real |
 | POST | `/api/v1/pagos` | auth | Pago contra motor: `tipo=egreso`, `moneda`, monto = premio |

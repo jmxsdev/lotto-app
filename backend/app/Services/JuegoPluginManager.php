@@ -6,6 +6,7 @@ use App\Models\Juego;
 use App\Models\JuegoOpcion;
 use App\Models\PluginJuego;
 use App\Plugins\Contracts\JuegoInterface;
+use App\Plugins\Contracts\JuegoMultiSorteoInterface;
 use Illuminate\Support\Facades\Log;
 
 class JuegoPluginManager
@@ -128,5 +129,48 @@ class JuegoPluginManager
         // (clave base), nunca de una constante del plugin. Sin circularidad:
         // el engine solo llama getPlugin().
         return (new PremiosEngine($this))->multiplicadorPara($juego, 'base');
+    }
+
+    /**
+     * ¿El plugin del juego soporta jugadas multi-sorteo (tripleta)?
+     */
+    public function soportaMultiSorteo(Juego $juego): bool
+    {
+        $plugin = $this->getPlugin($juego);
+
+        return $plugin instanceof JuegoMultiSorteoInterface;
+    }
+
+    /**
+     * Forma del acierto multi-sorteo. Devuelve `coincide=false` si el plugin
+     * no implementa la capacidad o si la combinación no se completa.
+     *
+     * @param  array<string, mixed>  $apuesta
+     * @param  array<int, array<string, mixed>>  $resultados
+     * @return array{coincide: bool, clave: string, meta: array<string, mixed>}
+     */
+    public function evaluarMultiSorteo(Juego $juego, array $apuesta, array $resultados): array
+    {
+        $plugin = $this->getPlugin($juego);
+
+        if (! $plugin instanceof JuegoMultiSorteoInterface) {
+            return ['coincide' => false, 'clave' => 'base', 'meta' => []];
+        }
+
+        return $plugin->evaluarMultiSorteo($apuesta, $resultados);
+    }
+
+    /**
+     * Dinero de una jugada multi-sorteo: el engine aplica el multiplicador de
+     * la clave devuelta por el plugin (sin comodines).
+     *
+     * @param  array<string, mixed>  $apuesta
+     * @param  array{coincide: bool, clave: string, meta: array<string, mixed>}  $acierto
+     * @param  array<string, mixed>|null  $premios
+     * @return array{premio_bs: float, premio_usd: float}
+     */
+    public function calcularPremioMultiSorteo(Juego $juego, array $apuesta, array $acierto, ?array $premios = null): array
+    {
+        return (new PremiosEngine($this))->calcularMultiSorteo($juego, $apuesta, $acierto, $premios);
     }
 }

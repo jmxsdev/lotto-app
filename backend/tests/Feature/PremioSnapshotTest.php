@@ -251,8 +251,6 @@ class PremioSnapshotTest extends TestCase
             'apuesta_id' => $apuesta->id,
             'combinacion' => json_encode(['animal' => 'Tucán', 'numero' => 42]),
             'monto' => 10,
-            'premio_posible' => 500,
-            'premio_posible_usd' => 0,
         ]);
         $this->assertNull($apuesta->detalles()->first()->premios_snapshot, 'Legacy: sin snapshot.');
 

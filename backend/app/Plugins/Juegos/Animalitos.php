@@ -3,6 +3,7 @@
 namespace App\Plugins\Juegos;
 
 use App\Plugins\Contracts\JuegoInterface;
+use App\Plugins\Contracts\JuegoMultiSorteoInterface;
 use App\Support\Texto;
 use Illuminate\Validation\Rule;
 
@@ -10,8 +11,8 @@ use Illuminate\Validation\Rule;
  * Adaptador de FORMA del juego de animalitos (D1/C, design §3.3).
  *
  * El plugin NO decide dinero: expone la clave canónica del acierto
- * (`evaluarAcierto`) y la modalidad para `premio_posible` (`modalidadDe`);
- * el multiplicador lo resuelve PremiosEngine desde `config.premios` (REQ1).
+ * (`evaluarAcierto`); el multiplicador lo resuelve PremiosEngine desde
+ * `config.premios` (REQ1).
  *
  * Comodines (REQ6): el plugin emite en `meta.comodines` las señales que trae
  * el resultado (flag MEGA, letra Selva A/B, figura 75/99, palabra PATRONUS).
@@ -19,7 +20,7 @@ use Illuminate\Validation\Rule;
  * (p. ej. figura 75 → 'patronus-75' y 'guacharo-75'); el engine filtra por
  * las comodines configuradas de ese juego (design §3.3 paso 4).
  */
-class Animalitos implements JuegoInterface
+class Animalitos implements JuegoInterface, JuegoMultiSorteoInterface
 {
     protected array $map = [
         'ballena' => 0,
@@ -75,8 +76,9 @@ class Animalitos implements JuegoInterface
     {
         $combinacion = $data['combinacion'] ?? [];
 
-        // F2 (D8/§3.4, contrato §2.2): Tripleta same-draw —
-        // `{modalidad:'tripleta', selecciones:[{animal}×3]}`.
+        // Tripleta multi-sorteo (Cazalotón / Loto Chaima):
+        // `{modalidad:'tripleta', selecciones:[{animal}×3]}`. Las 3 figuras
+        // deben ser distintas y se liquidan contra sorteos distintos del día.
         $selecciones = $combinacion['selecciones'] ?? [];
         if (! empty($selecciones)) {
             return $this->seleccionesTripletaValidas($selecciones, $opciones);
@@ -99,9 +101,10 @@ class Animalitos implements JuegoInterface
     }
 
     /**
-     * Tripleta same-draw (F2/§3.4, contrato §2.2): EXACTAMENTE 3 selecciones
-     * de animal del MISMO sorteo. Cada animal se valida igual que el simple
-     * (label o valor, acentos normalizados — REQ2/H13).
+     * Tripleta multi-sorteo: EXACTAMENTE 3 selecciones de animal DISTINTAS.
+     * Cada animal se valida igual que el simple (label o valor, acentos
+     * normalizados — REQ2/H13). El settlement exige que las 3 aparezcan en
+     * sorteos distintos del mismo juego/día.
      *
      * @param  array<int, array<string, mixed>>  $selecciones
      */
@@ -110,6 +113,8 @@ class Animalitos implements JuegoInterface
         if (count($selecciones) !== 3) {
             return false;
         }
+
+        $normalizados = [];
 
         foreach ($selecciones as $seleccion) {
             $animal = Texto::normalizar((string) ($seleccion['animal'] ?? ''));
@@ -128,19 +133,139 @@ class Animalitos implements JuegoInterface
             } elseif (! in_array($animal, $this->animales, true)) {
                 return false;
             }
+
+            $normalizados[] = $animal;
         }
 
-        return true;
+        return count(array_unique($normalizados)) === 3;
+    }
+
+    /**
+     * Evalúa la tripleta contra los resultados elegibles del juego/día.
+     *
+     * Matching 1:1: cada selección se asigna a un resultado distinto; un mismo
+     * sorteo no puede satisfacer dos figuras. Todo o nada: solo devuelve
+     * `coincide=true` cuando las 3 quedan asignadas.
+     *
+     * @param  array<string, mixed>  $apuesta
+     * @param  array<int, array{id: int, hora_sorteo: string|null, numeros_ganadores: array<string, mixed>|string|null}>  $resultados
+     * @return array{coincide: bool, clave: string, meta: array<string, mixed>}
+     */
+    public function evaluarMultiSorteo(array $apuesta, array $resultados): array
+    {
+        $selecciones = $apuesta['combinacion']['selecciones'] ?? [];
+
+        if (count($selecciones) !== 3) {
+            return ['coincide' => false, 'clave' => 'tripleta', 'meta' => []];
+        }
+
+        $buscados = [];
+
+        foreach ($selecciones as $seleccion) {
+            $animal = Texto::normalizar((string) ($seleccion['animal'] ?? ''));
+
+            if ($animal === '') {
+                return ['coincide' => false, 'clave' => 'tripleta', 'meta' => []];
+            }
+
+            $buscados[] = $animal;
+        }
+
+        if (count(array_unique($buscados)) !== 3) {
+            return ['coincide' => false, 'clave' => 'tripleta', 'meta' => []];
+        }
+
+        // Resultados elegibles: [{id, nombre_animal}] normalizados.
+        $candidatos = [];
+
+        foreach ($resultados as $resultado) {
+            $numeros = $resultado['numeros_ganadores'] ?? [];
+
+            if (is_string($numeros)) {
+                $numeros = json_decode($numeros, true) ?? [];
+            }
+
+            if (! is_array($numeros)) {
+                continue;
+            }
+
+            $nombre = Texto::normalizar($numeros['nombre_animal'] ?? null);
+
+            if ($nombre === '') {
+                continue;
+            }
+
+            $candidatos[] = [
+                'id' => (int) ($resultado['id'] ?? 0),
+                'nombre' => $nombre,
+                // Un mismo sorteo (misma hora) no puede satisfacer dos
+                // selecciones. Si no hay hora, el ID es la identidad.
+                'clave' => (string) ($resultado['hora_sorteo'] ?? '') !== ''
+                    ? (string) $resultado['hora_sorteo']
+                    : 'id:'.(int) ($resultado['id'] ?? 0),
+            ];
+        }
+
+        $asignados = $this->asignarTripleta($buscados, $candidatos, 0, []);
+
+        if ($asignados === null) {
+            return ['coincide' => false, 'clave' => 'tripleta', 'meta' => []];
+        }
+
+        return [
+            'coincide' => true,
+            'clave' => 'tripleta',
+            'meta' => ['resultado_ids' => $asignados],
+        ];
+    }
+
+    /**
+     * Backtracking simple para 3 selecciones: asigna cada una a un sorteo
+     * distinto no usado. `$usados` guarda la clave del sorteo (hora o ID), no
+     * la posición, para que dos figuras no se satisfagan con el mismo sorteo.
+     *
+     * @param  array<int, string>  $buscados
+     * @param  array<int, array{id: int, nombre: string, clave: string}>  $candidatos
+     * @param  array<int, string>  $usados
+     * @return array<int, int>|null
+     */
+    private function asignarTripleta(array $buscados, array $candidatos, int $indice, array $usados): ?array
+    {
+        if ($indice >= count($buscados)) {
+            return [];
+        }
+
+        foreach ($candidatos as $candidato) {
+            if (in_array($candidato['clave'], $usados, true)) {
+                continue;
+            }
+
+            if ($candidato['nombre'] !== $buscados[$indice]) {
+                continue;
+            }
+
+            $resto = $this->asignarTripleta(
+                $buscados,
+                $candidatos,
+                $indice + 1,
+                [...$usados, $candidato['clave']]
+            );
+
+            if ($resto !== null) {
+                return [$candidato['id'], ...$resto];
+            }
+        }
+
+        return null;
     }
 
     /**
      * Forma del acierto (design §3.3): compara el animal apostado contra el
      * del resultado normalizando acentos en ambos lados (H13/N10, REQ2).
      *
-     * F2 (D8/§3.4): con 3 `selecciones[]` de animal del MISMO sorteo evalúa la
-     * Tripleta (Cazalotón 200× / Loto Chaima 50×) contra las figuras del
-     * resultado (`numeros_ganadores.figuras[]`); la Dupleta (2 animales, 2
-     * sorteos) nunca se emite ni se liquida.
+     * Con 3 `selecciones[]` de animal NO se liquida aquí: la tripleta es
+     * multi-sorteo y se evalúa en `evaluarMultiSorteo()` contra los resultados
+     * del día. La Dupleta (2 animales) nunca se emite ni se liquida.
      *
      * @return array{coincide: bool, clave: string, meta: array<string, mixed>}
      */
@@ -151,7 +276,9 @@ class Animalitos implements JuegoInterface
 
         $selecciones = $combinacion['selecciones'] ?? [];
         if (count($selecciones) >= 3) {
-            return $this->evaluarTripleta($selecciones, $numerosGanadores);
+            // La tripleta es multi-sorteo: se evalúa en `evaluarMultiSorteo`
+            // contra los resultados del día, nunca contra un solo resultado.
+            return ['coincide' => false, 'clave' => 'tripleta', 'meta' => []];
         }
 
         $animalGanador = $numerosGanadores['nombre_animal'] ?? null;
@@ -172,52 +299,7 @@ class Animalitos implements JuegoInterface
         ];
     }
 
-    /**
-     * Modalidad canónica para `premio_posible` (D9/§3.1): el acierto simple de
-     * animalitos es siempre la base; con 3 selecciones del mismo sorteo deriva
-     * `tripleta` (F2/D8 §3.4).
-     */
-    public function modalidadDe(array $combinacion): string
-    {
-        $selecciones = $combinacion['selecciones'] ?? [];
-
-        return count($selecciones) >= 3 ? 'tripleta' : 'base';
-    }
-
-    /**
-     * Tripleta same-draw (F2/§3.2, §3.4): las 3 figuras apostadas deben estar
-     * entre las figuras del sorteo (`numeros_ganadores.figuras[]`), con acentos
-     * normalizados (REQ2). Clave canónica `tripleta`.
-     *
-     * @param  array<int, array<string, mixed>>  $selecciones
-     * @param  array<string, mixed>  $numeros
-     * @return array{coincide: bool, clave: string, meta: array<string, mixed>}
-     */
-    private function evaluarTripleta(array $selecciones, array $numeros): array
-    {
-        $figuras = $numeros['figuras'] ?? [];
-
-        if (! is_array($figuras) || count($figuras) < 3) {
-            return ['coincide' => false, 'clave' => 'tripleta', 'meta' => []];
-        }
-
-        $nombresResultado = array_map(
-            fn ($figura) => Texto::normalizar((string) ($figura['animal'] ?? $figura['nombre_animal'] ?? '')),
-            $figuras
-        );
-
-        foreach ($selecciones as $seleccion) {
-            $animal = Texto::normalizar((string) ($seleccion['animal'] ?? ''));
-
-            if ($animal === '' || ! in_array($animal, $nombresResultado, true)) {
-                return ['coincide' => false, 'clave' => 'tripleta', 'meta' => []];
-            }
-        }
-
-        return ['coincide' => true, 'clave' => 'tripleta', 'meta' => []];
-    }
-
-    private function numerosGanadores(array $resultados): array
+    protected function numerosGanadores(array $resultados): array
     {
         $numeros = $resultados['numeros_ganadores'] ?? [];
 
@@ -234,7 +316,7 @@ class Animalitos implements JuegoInterface
      *
      * @return array<int, string>
      */
-    private function comodinesDelResultado(array $numeros): array
+    protected function comodinesDelResultado(array $numeros): array
     {
         $comodines = [];
 

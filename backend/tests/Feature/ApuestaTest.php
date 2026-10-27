@@ -841,8 +841,6 @@ class ApuestaTest extends TestCase
             'apuesta_id' => $apuesta->id,
             'combinacion' => json_encode(['animal' => 'Delfín', 'numero' => 0]),
             'monto' => 10,
-            'premio_posible' => 300,
-            'premio_posible_usd' => 0,
             'premio_ganado' => null,
             'premio_ganado_usd' => null,
         ]);
