@@ -501,9 +501,20 @@ class ApuestaService
 
     /**
      * ¿La combinación es una jugada multi-sorteo (tripleta)?
+     *
+     * Acepta array o el JSON crudo de filas legacy: el cast del modelo no
+     * siempre está aplicado cuando la apuesta viene de un query parcial.
      */
-    private function esMultiSorteo(array $combinacion): bool
+    private function esMultiSorteo(array|string|null $combinacion): bool
     {
+        if (is_string($combinacion)) {
+            $combinacion = json_decode($combinacion, true) ?? [];
+        }
+
+        if (! is_array($combinacion)) {
+            return false;
+        }
+
         $selecciones = $combinacion['selecciones'] ?? [];
 
         return count($selecciones) >= 3
@@ -1272,6 +1283,11 @@ class ApuestaService
 
         foreach ($apuestas as $apuesta) {
             $combinacion = $apuesta->combinacion;
+            if (is_string($combinacion)) {
+                $combinacion = json_decode($combinacion, true) ?? [];
+            }
+            $combinacion = is_array($combinacion) ? $combinacion : [];
+
             $horaVenta = $this->horaNormalizada($apuesta->sorteo_hora);
 
             $elegibles = array_values(array_filter(
