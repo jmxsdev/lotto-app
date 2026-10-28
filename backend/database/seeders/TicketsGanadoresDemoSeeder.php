@@ -91,7 +91,7 @@ class TicketsGanadoresDemoSeeder extends Seeder
                 'ticket_id' => $ticket->id,
                 'juego_id' => $resultado->juego_id,
                 'resultado_id' => $resultado->id,
-                'combinacion' => json_encode($combinacionGanadora),
+                'combinacion' => $combinacionGanadora,
                 'amount_bs' => $amountBs,
                 'amount_usd' => 0,
                 'exchange_rate_applied' => $tasaActiva->rate,
@@ -103,10 +103,8 @@ class TicketsGanadoresDemoSeeder extends Seeder
 
             DetalleApuesta::create([
                 'apuesta_id' => $apuestaGanadora->id,
-                'combinacion' => json_encode($combinacionGanadora),
+                'combinacion' => $combinacionGanadora,
                 'monto' => $totalBsEquivalent,
-                'premio_posible' => $premioBs,
-                'premio_posible_usd' => 0,
                 'premio_ganado' => $premioBs,
                 'premio_ganado_usd' => null,
             ]);
@@ -143,7 +141,7 @@ class TicketsGanadoresDemoSeeder extends Seeder
                     'ticket_id' => $ticket->id,
                     'juego_id' => $resultado->juego_id,
                     'resultado_id' => $resultado->id,
-                    'combinacion' => json_encode($comboPerdedora),
+                    'combinacion' => $comboPerdedora,
                     'amount_bs' => $amount,
                     'amount_usd' => 0,
                     'exchange_rate_applied' => $tasaActiva->rate,
@@ -155,10 +153,8 @@ class TicketsGanadoresDemoSeeder extends Seeder
 
                 DetalleApuesta::create([
                     'apuesta_id' => $apuestaPerdida->id,
-                    'combinacion' => json_encode($comboPerdedora),
+                    'combinacion' => $comboPerdedora,
                     'monto' => $totalEq,
-                    'premio_posible' => $totalEq * (float) $plugin->obtenerMultiplicador(),
-                    'premio_posible_usd' => 0,
                     'premio_ganado' => null,
                     'premio_ganado_usd' => null,
                 ]);

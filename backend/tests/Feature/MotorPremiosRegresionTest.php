@@ -351,8 +351,8 @@ class MotorPremiosRegresionTest extends TestCase
     {
         $this->assertPremio(
             'selva-plus',
-            ['animal' => 'Cabra', 'numero' => 87],
-            ['numero' => 87, 'nombre_animal' => 'Cabra', 'comodin' => 'A'],
+            ['animal' => 'comodin-a'],
+            ['pais' => 'VE', 'comodin' => 'A', 'comodin_nombre' => 'Leoncito'],
             160
         );
     }
@@ -361,8 +361,8 @@ class MotorPremiosRegresionTest extends TestCase
     {
         $this->assertPremio(
             'selva-plus',
-            ['animal' => 'Cabra', 'numero' => 87],
-            ['numero' => 87, 'nombre_animal' => 'Cabra', 'comodin' => 'B'],
+            ['animal' => 'comodin-b'],
+            ['pais' => 'VE', 'comodin' => 'B', 'comodin_nombre' => 'Selva Plus'],
             200
         );
     }

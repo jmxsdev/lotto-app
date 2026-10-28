@@ -82,7 +82,7 @@ class ApuestaGanadoraSeeder extends Seeder
                 'taquilla_id' => $taquilla->id,
                 'juego_id' => $juego->id,
                 'resultado_id' => null,
-                'combinacion' => json_encode($data['combinacion']),
+                'combinacion' => $data['combinacion'],
                 'amount_bs' => $amountBs,
                 'amount_usd' => $amountUsd,
                 'exchange_rate_applied' => $tasa->rate,
@@ -108,10 +108,8 @@ class ApuestaGanadoraSeeder extends Seeder
 
             DetalleApuesta::create([
                 'apuesta_id' => $apuesta->id,
-                'combinacion' => json_encode($data['combinacion']),
+                'combinacion' => $data['combinacion'],
                 'monto' => $totalBsEquivalent,
-                'premio_posible' => $premio['premio_bs'],
-                'premio_posible_usd' => $premio['premio_usd'],
                 'premio_ganado' => null,
                 'premio_ganado_usd' => null,
             ]);

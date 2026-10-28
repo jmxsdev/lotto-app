@@ -40,7 +40,7 @@ use Illuminate\Support\Facades\Hash;
  *  - Resultado de animalitos (juego lotto-activo) de ayer 19:00 America/Caracas
  *    con ganador perro #27.
  *  - Ticket ganador E2E-WIN-0001 (apuesta perro 27, monto 100 Bs, sorteo de
- *    ayer 19:00) + detalle con premio_posible del motor + pago ingreso.
+ *    ayer 19:00) + detalle con snapshot de premios + pago ingreso.
  *    MONTO DELIBERADAMENTE BAJO (100 Bs → premio 3.000 Bs): el spec 07-cierre
  *    necesita efectivo esperado >= 0 para el badge CONCILIADO (arqueo tiene
  *    `min:0`); el egreso del premio (spec 04) = monto × 30 debe quedar por
@@ -178,7 +178,7 @@ class E2eSeeder extends Seeder
         $apuesta->fill([
             'taquilla_id' => $taquilla->id,
             'resultado_id' => $resultado->id,
-            'combinacion' => json_encode(['animal' => 'perro', 'numero' => 27]),
+            'combinacion' => ['animal' => 'perro', 'numero' => 27],
             'ticket_code' => 'E2E-WIN-0001',
             'amount_bs' => 100,
             'amount_usd' => 0,
@@ -204,10 +204,8 @@ class E2eSeeder extends Seeder
 
         $detalle = DetalleApuesta::firstOrNew(['apuesta_id' => $apuesta->id]);
         $detalle->fill([
-            'combinacion' => json_encode(['animal' => 'perro', 'numero' => 27]),
+            'combinacion' => ['animal' => 'perro', 'numero' => 27],
             'monto' => 100,
-            'premio_posible' => $premio['premio_bs'] ?? 0,
-            'premio_posible_usd' => $premio['premio_usd'] ?? 0,
             'premio_ganado' => null,
             'premio_ganado_usd' => null,
             'premios_snapshot' => $juego->config['premios'] ?? null,
