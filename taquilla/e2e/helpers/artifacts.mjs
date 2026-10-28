@@ -19,10 +19,17 @@ export function ensureArtifactsDir() {
 }
 
 /** Captura paso a paso: e2e/artifacts/<name>.png */
-export function stepShot(page, name, { fullPage = false } = {}) {
+export async function stepShot(page, name, { fullPage = false } = {}) {
   ensureArtifactsDir();
   const file = path.join(ARTIFACTS_DIR, `${name}.png`);
-  return page.screenshot({ path: file, fullPage });
+  try {
+    return await page.screenshot({ path: file, fullPage });
+  } catch (error) {
+    // xvfb/Electron puede reportar una ventana de 0 px en los primeros frames.
+    // La captura es diagnóstica, no una aserción: no debe tumbar el test.
+    console.warn(`[e2e] screenshot "${name}" omitido: ${error.message}`);
+    return null;
+  }
 }
 
 export function writeJson(fileName, data) {
