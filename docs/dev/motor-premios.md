@@ -127,7 +127,7 @@ Ticket: `premio_total_bs/usd` se **acumula** (increment) entre sorteos; estado d
 
 | Regla | Detalle |
 |---|---|
-| Base | `multiplicadorPara(clave)` = `modalidades[clave] ?? base`; fallback transicional: si falta `premios.base`, se usa `premio_multiplo` legacy |
+| Base | `multiplicadorPara(clave)`: (1) `modalidades[clave]` si existe (incluye 0 explícito); (2) tier derivado ausente (`solo_a_b`, `cruzado_10`) = **0**; (3) cualquier otra clave = `base`. Fallback transicional: si falta `premios.base`, se usa `premio_multiplo` legacy |
 | Comodin flag/letra/numero | **Reemplaza** el multiplicador vigente: gana el mayor (`max`) |
 | Comodin palabra | **Suma** (+20) si `acumulativo`: figura normal 50+20=70x; Patronus 75 + palabra = 120+20=**140x** |
 | Acentos | `Texto::normalizar` en ambos lados ("Delfin" = "Delfin" con acento) |
@@ -137,7 +137,7 @@ Ticket: `premio_total_bs/usd` se **acumula** (increment) entre sorteos; estado d
 | Redondeo | `round(valor, 2, PHP_ROUND_HALF_UP)` por moneda apostada |
 | Juego inactivo | `calcular()` -> 0; `createApuesta` rechaza la venta |
 | Modalidad declarada desconocida | `createApuesta` rechaza con 422 (p. ej. `dupleta`; fuera de alcance) |
-| Tripletas | Paga solo por el tipo apostado (`triple_a` contra `a`, nunca contra `b`) |
+| Tripletas | Paga solo por el tipo apostado (`triple_a` contra `a`, nunca contra `b`). `terminal`/`punta`/`uña` liquidan **solo contra el triple vendido** (`combinacion.triple`); `signo_terminal`/`signo_uña` contra `triple_c` |
 | Dedupe | Los resultados duplicados pre-H22 se deduplican antes de liquidar (migracion `...000003`) |
 
 ## 7. Modalidades soportadas (vista backend)
@@ -153,7 +153,7 @@ Resumen de claves canonicas por juego (valores en `config.premios.modalidades`):
 | Triple Zulia | 600 | `terminal` 60, `signo_triple` 6000, `signo_terminal` 600 | - |
 | Triple Caliente | 600 | `terminal` 60, `signo_triple` 6000, `signo_terminal` 600 | - |
 | Triple Zamorano | 600 | `terminal` 60, `una` 5, `signo_triple` 6000, `signo_terminal` 600, `signo_una` 60 | - |
-| Triple Tachira | 500 | `terminal` 50, `signo_triple` 5000 | - |
+| Triple Tachira | 500 | `signo_triple` 5000, `signo_terminal` 500, `aproximacion` 10, `triple_a_b` 200000, `solo_a_b` 0 (sin posicional) | - |
 | Triple Chance | 600 | `triple_a_b` 200000, `solo_a_b` 150, `punta` 60, `terminal` 60, `cruzado` 3000, `cruzado_10` 10, `signo_triple` 6000, `signo_terminal` 600, `signo_solo` 6 | - |
 | Triple Facil | 700 | `terminal` 60, `aproximacion` 10 | - |
 | Cazaloton | 30 | `tripleta` 200 | - |
@@ -166,6 +166,10 @@ Resumen de claves canonicas por juego (valores en `config.premios.modalidades`):
 | Mega Animal 40 | 30 | - | `mega` 40 |
 | Selva Plus | 80 | - | `comodin-a` 160, `comodin-b` 200 |
 | La Ricachona | - | - | `active=false` (sin fuente; no se vende ni liquida) |
+
+> **Slots posicionales (`premios.posicion_triples`)**: declaran qué triples acepta cada juego para
+> `terminal`/`punta`/`uña` — Zulia y Caliente `a,b,c`; Zamorano `a,c`; Chance `a,b`; Fácil y Trío `a`;
+> Táchira ninguno. Sin `triple` o con un slot no habilitado, la venta se rechaza con 422.
 
 ## 8. Endpoints del motor
 

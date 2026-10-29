@@ -30,7 +30,7 @@ resto**. El cliente apuesta esa modalidad de forma explícita.
 | Triple Zulia | `terminal` 60 · `signo_triple` (triple C exacto + signo) 6000 · `signo_terminal` 600 |
 | Triple Caliente | `terminal` 60 · `signo_triple` 6000 · `signo_terminal` 600 |
 | Triple Zamorano | `terminal` 60 · `una` (última cifra) 5 · `signo_triple` 6000 · `signo_terminal` 600 · `signo_una` 60 |
-| Triple Táchira | `terminal` 50 · `signo_triple` 5000 |
+| Triple Táchira | `signo_triple` 5000 · `signo_terminal` 500 · `aproximacion` 10 · `triple_a_b` 200000 · `solo_a_b` 0 · **sin terminal/cola** |
 | Triple Chance | `cruzado` (2 puntas, ambas) 3000 · `cruzado_10` (una punta) 10 · `triple_a_b` (Par A+B exactos) 200000 · `solo_a_b` (uno de los dos) 150 · `punta`/`terminal` 60 · `signo_triple` 6000 · `signo_terminal` 600 · `signo_solo` 6 |
 | Triple Fácil | `terminal` 60 · `aproximacion` (terminal ±1) 10 |
 | El Arrejuntado | `triple_a`/`triple_b` 600 · `signo_triple` 6000 · `arrimao` (4 cifras) 6000 · `pegadito` (5 cifras) 60000 |
