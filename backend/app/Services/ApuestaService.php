@@ -390,6 +390,15 @@ class ApuestaService
         }
         $combinacion = is_array($combinacion) ? $combinacion : [];
 
+        // La clave `una` se normaliza a `uña` en la entrada: la taquilla puede
+        // enviar cualquiera de las dos grafías y la combinación se persiste en
+        // el vocabulario canónico.
+        if (($combinacion['tipo'] ?? null) === 'una') {
+            $combinacion['tipo'] = 'uña';
+        }
+
+        $data['combinacion'] = $combinacion;
+
         $juego = Juego::find($data['juego_id']);
 
         // REQ7: no se vende un juego inactivo ni sin plugin activo (sin
@@ -398,18 +407,6 @@ class ApuestaService
         $plugin = $juego ? app(JuegoPluginManager::class)->getPlugin($juego) : null;
         if (! $juego || ! $juego->active || ! $plugin) {
             throw new \RuntimeException('Este juego no está disponible para la venta.');
-        }
-
-        // REQ4: una modalidad DECLARADA debe existir en config.premios. Este
-        // guard reemplaza el que vivía en PremiosEngine::premioPosible (ya
-        // eliminado). La Dupleta y cualquier modalidad no configurada se
-        // rechazan en la venta.
-        $modalidadDeclarada = $combinacion['modalidad'] ?? null;
-        if ($modalidadDeclarada !== null && $modalidadDeclarada !== '' && $modalidadDeclarada !== 'base') {
-            $modalidades = $juego->config['premios']['modalidades'] ?? [];
-            if (! array_key_exists((string) $modalidadDeclarada, $modalidades)) {
-                throw new \RuntimeException('La modalidad seleccionada no está soportada por este juego.');
-            }
         }
 
         // Validar la combinación contra las opciones específicas del juego
@@ -422,10 +419,15 @@ class ApuestaService
             $opciones = $plugin->obtenerOpciones();
         }
 
-        if (! $plugin->validarApuesta($data, $opciones)) {
+        // D1: el plugin es dueño del vocabulario vendible y aplica el
+        // whitelist con el catálogo vigente de premios (modalidades + producto
+        // base). Ya no hay guard de `modalidadDeclarada` aquí.
+        if (! $plugin->validarApuesta($data, $opciones, $juego->config['premios'] ?? null)) {
             $labels = array_column($opciones, 'label');
             throw new \RuntimeException(
-                'Animal no válido para este juego. Animales permitidos: '.implode(', ', $labels)
+                $labels === []
+                    ? 'La combinación seleccionada no es válida para este juego.'
+                    : 'Animal no válido para este juego. Animales permitidos: '.implode(', ', $labels)
             );
         }
 

@@ -45,7 +45,7 @@ class PremiosEngineTest extends TestCase
                 private array $acierto
             ) {}
 
-            public function validarApuesta(array $data, ?array $opciones = null): bool
+            public function validarApuesta(array $data, ?array $opciones = null, ?array $premios = null): bool
             {
                 return true;
             }

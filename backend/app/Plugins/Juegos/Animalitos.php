@@ -72,9 +72,18 @@ class Animalitos implements JuegoInterface, JuegoMultiSorteoInterface
         $this->animales = array_keys($this->map);
     }
 
-    public function validarApuesta(array $data, ?array $opciones = null): bool
+    public function validarApuesta(array $data, ?array $opciones = null, ?array $premios = null): bool
     {
         $combinacion = $data['combinacion'] ?? [];
+
+        // La clave canónica de este juego es `base` (animal simple): NO se
+        // aplica el whitelist de claves. Sí se conserva la regla de venta de
+        // que una `modalidad` DECLARADA (p. ej. tripleta) exista en
+        // `config.premios.modalidades`; sin ella, la forma sola bastaría para
+        // vender una tripleta en un juego que no la ofrece.
+        if (! $this->modalidadDeclaradaSoportada($combinacion, $premios)) {
+            return false;
+        }
 
         // Tripleta multi-sorteo (Cazalotón / Loto Chaima):
         // `{modalidad:'tripleta', selecciones:[{animal}×3]}`. Las 3 figuras
@@ -98,6 +107,26 @@ class Animalitos implements JuegoInterface, JuegoMultiSorteoInterface
         }
 
         return in_array($animal, $this->animales, true);
+    }
+
+    /**
+     * Una modalidad DECLARADA debe existir en el catálogo del juego. Sin
+     * `$premios` (validación de forma pura) no hay catálogo que aplicar.
+     *
+     * @param  array<string, mixed>  $combinacion
+     * @param  array<string, mixed>|null  $premios
+     */
+    private function modalidadDeclaradaSoportada(array $combinacion, ?array $premios): bool
+    {
+        $modalidad = (string) ($combinacion['modalidad'] ?? '');
+
+        if ($premios === null || $modalidad === '' || $modalidad === 'base') {
+            return true;
+        }
+
+        $modalidades = $premios['modalidades'] ?? [];
+
+        return is_array($modalidades) && array_key_exists($modalidad, $modalidades);
     }
 
     /**

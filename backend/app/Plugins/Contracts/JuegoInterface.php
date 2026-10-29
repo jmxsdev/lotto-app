@@ -11,7 +11,19 @@ namespace App\Plugins\Contracts;
  */
 interface JuegoInterface
 {
-    public function validarApuesta(array $data, ?array $opciones = null): bool;
+    /**
+     * Valida la FORMA vendible de la jugada.
+     *
+     * `$premios` es el snapshot/config de `config.premios` del juego. Cuando
+     * viaja, el plugin aplica el whitelist total de claves canónicas
+     * (`modalidades` + producto base) y el catálogo de slots posicionales.
+     * null = validación de forma pura (compatibilidad con call sites legacy).
+     *
+     * @param  array<string, mixed>  $data
+     * @param  array<int, array<string, mixed>>|null  $opciones
+     * @param  array<string, mixed>|null  $premios
+     */
+    public function validarApuesta(array $data, ?array $opciones = null, ?array $premios = null): bool;
 
     /**
      * Forma del acierto: qué apostó vs qué salió, en claves canónicas.

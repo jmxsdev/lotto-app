@@ -39,11 +39,25 @@ class Tripletas implements JuegoInterface
 
     protected string $multiplicador = '30';
 
-    public function validarApuesta(array $data, ?array $opciones = null): bool
+    public function validarApuesta(array $data, ?array $opciones = null, ?array $premios = null): bool
     {
         $combinacion = $data['combinacion'] ?? [];
         $numero = $combinacion['numero'] ?? null;
         $signo = $combinacion['signo'] ?? null;
+        $clave = $this->modalidadDe($combinacion);
+
+        // D1/REQ "Whitelist total de modalidades": la clave canónica debe
+        // pertenecer a `premios.modalidades ∪ {triple_a, triple_b}`. El
+        // producto base no está configurado en casi ningún juego y se acepta
+        // siempre; `base` (shape desconocido) nunca es legítimo. Sin
+        // `$premios` (llamadas de forma puras) no hay catálogo que aplicar.
+        if ($premios !== null && ! $this->claveVendible($clave, $combinacion, $premios)) {
+            return false;
+        }
+
+        if ($clave === 'base') {
+            return false;
+        }
 
         // D2 (design §4/§3.1): el vocabulario canónico de `modalidadDe` decide
         // la FORMA a validar — triples, posiciones del triple (punta/terminal/
@@ -51,7 +65,7 @@ class Tripletas implements JuegoInterface
         // signo_solo), números exactos del Arrejuntado (arrimao 4 cifras,
         // pegadito 5) y la multi-selección same-draw (cruzado, Par A+B, S6)
         // vía `selecciones[]`. 'base' (shape desconocido) → false.
-        return match ($this->modalidadDe($combinacion)) {
+        return match ($clave) {
             'triple_a', 'triple_b' => $this->digitosExactos($numero, 3),
             'signo_triple' => $this->digitosExactos($numero, 3) && $this->signoValido($signo),
             'punta', 'terminal', 'aproximacion' => $this->digitosHasta($numero, 2),
@@ -65,6 +79,40 @@ class Tripletas implements JuegoInterface
             'triple_a_b' => $this->seleccionesParValidas($combinacion['selecciones'] ?? []),
             default => false,
         };
+    }
+
+    /**
+     * ¿La clave canónica (y la modalidad DECLARADA, si viaja) pertenecen al
+     * vocabulario vendible del juego? El producto base `triple_a`/`triple_b`
+     * se acepta siempre; cualquier otra clave debe estar en
+     * `premios.modalidades`. `base` es el fallback de shape desconocido y
+     * nunca se vende.
+     *
+     * @param  array<string, mixed>  $combinacion
+     * @param  array<string, mixed>  $premios
+     */
+    private function claveVendible(string $clave, array $combinacion, array $premios): bool
+    {
+        if ($clave === 'base') {
+            return false;
+        }
+
+        $vendibles = array_keys(is_array($premios['modalidades'] ?? null) ? $premios['modalidades'] : []);
+        $vendibles = [...$vendibles, 'triple_a', 'triple_b'];
+
+        if (! in_array($clave, $vendibles, true)) {
+            return false;
+        }
+
+        // La multi-selección declara `modalidad`: también debe estar
+        // configurada (p. ej. `dupleta` sin selecciones válidas no se cuela
+        // como `cruzado`).
+        $declarada = (string) ($combinacion['modalidad'] ?? '');
+        if ($declarada !== '' && $declarada !== 'base' && ! in_array($declarada, $vendibles, true)) {
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -208,7 +256,7 @@ class Tripletas implements JuegoInterface
             'triple_c' => 'signo_triple',
             'terminal' => 'terminal',
             'punta' => 'punta',
-            'uña' => 'uña',
+            'uña', 'una' => 'uña',
             'aproximacion' => 'aproximacion',
             'signo_terminal' => 'signo_terminal',
             'signo_uña' => 'signo_uña',
@@ -695,7 +743,7 @@ class Tripletas implements JuegoInterface
                 Rule::requiredIf(fn () => empty(request('combinacion.selecciones'))),
                 Rule::in([
                     'triple_a', 'triple_b', 'triple_c',
-                    'punta', 'terminal', 'uña', 'aproximacion',
+                    'punta', 'terminal', 'uña', 'una', 'aproximacion',
                     'signo_terminal', 'signo_uña', 'signo_solo',
                     'arrimao', 'pegadito',
                 ]),
@@ -761,7 +809,7 @@ class Tripletas implements JuegoInterface
     public function getValidationMessages(): array
     {
         return [
-            'combinacion.tipo.in' => 'La modalidad debe ser triple_a, triple_b, triple_c o una modalidad simple (punta, terminal, uña, aproximacion, signo_terminal, signo_uña, signo_solo, arrimao, pegadito).',
+            'combinacion.tipo.in' => 'La modalidad debe ser triple_a, triple_b, triple_c o una modalidad simple (punta, terminal, uña (una), aproximacion, signo_terminal, signo_uña, signo_solo, arrimao, pegadito).',
             'combinacion.signo.required_if' => 'El signo zodiacal es obligatorio para esta modalidad.',
             'combinacion.selecciones.size' => 'La multi-selección debe llevar exactamente 2 selecciones.',
             'combinacion.selecciones.*.tipo.in' => 'Cada selección debe ser de tipo punta, triple_a o triple_b.',
@@ -777,7 +825,7 @@ class Tripletas implements JuegoInterface
         return match ($tipo) {
             'triple_a', 'triple_b', 'triple_c', 'signo_triple' => 3,
             'punta', 'terminal', 'aproximacion', 'signo_terminal' => 2,
-            'uña', 'signo_uña' => 1,
+            'uña', 'una', 'signo_uña' => 1,
             'arrimao' => 4,
             'pegadito' => 5,
             default => null,

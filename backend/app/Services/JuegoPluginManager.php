@@ -77,7 +77,9 @@ class JuegoPluginManager
             $opciones = $plugin->obtenerOpciones();
         }
 
-        return $plugin->validarApuesta($data, $opciones);
+        // D1: el catálogo vigente viaja al plugin para que aplique el
+        // whitelist de claves vendibles (modalidades + producto base).
+        return $plugin->validarApuesta($data, $opciones, $juego->config['premios'] ?? null);
     }
 
     /**

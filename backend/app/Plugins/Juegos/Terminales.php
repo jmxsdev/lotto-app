@@ -24,7 +24,7 @@ class Terminales implements JuegoInterface
         $this->numerosValidos = range(0, 99);
     }
 
-    public function validarApuesta(array $data, ?array $opciones = null): bool
+    public function validarApuesta(array $data, ?array $opciones = null, ?array $premios = null): bool
     {
         $numero = $data['combinacion']['numero'] ?? null;
         if ($numero === null) {

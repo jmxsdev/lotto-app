@@ -7,6 +7,7 @@ use App\Models\PluginJuego;
 use App\Plugins\Juegos\Tripletas;
 use App\Services\JuegoPluginManager;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Validator;
 use Tests\TestCase;
 
 /**
@@ -33,6 +34,17 @@ class TripletasPluginTest extends TestCase
     private function resultado(array $numeros): array
     {
         return ['numeros_ganadores' => $numeros];
+    }
+
+    /**
+     * Catálogo mínimo de premios por juego (forma de `config.premios`).
+     *
+     * @param  array<string, mixed>  $modalidades
+     * @return array<string, mixed>
+     */
+    private function premios(array $modalidades): array
+    {
+        return ['base' => 600, 'modalidades' => $modalidades, 'comodines' => []];
     }
 
     // ---------------- evaluarAcierto(): tipo estricto (REQ5/N3) ----------------
@@ -143,6 +155,100 @@ class TripletasPluginTest extends TestCase
         $this->assertFalse($this->plugin->validarApuesta([
             'combinacion' => ['tipo' => 'triple_c', 'numero' => '45', 'signo' => 'ESC'],
         ]));
+    }
+
+    // ---------------- validarApuesta(): whitelist total (spec motor-premios, WU-1) ----------------
+
+    public function test_validar_apuesta_acepta_triple_a_y_triple_b_ausentes_de_modalidades()
+    {
+        // El producto base (triple_a/triple_b) no vive en `premios.modalidades`
+        // de casi ningún juego: el whitelist debe aceptarlo siempre.
+        $premios = $this->premios(['terminal' => 60, 'signo_triple' => 6000, 'signo_terminal' => 600]);
+
+        $this->assertTrue($this->plugin->validarApuesta([
+            'combinacion' => ['tipo' => 'triple_a', 'numero' => '452'],
+        ], null, $premios));
+
+        $this->assertTrue($this->plugin->validarApuesta([
+            'combinacion' => ['tipo' => 'triple_b', 'numero' => '731'],
+        ], null, $premios));
+    }
+
+    public function test_validar_apuesta_rechaza_la_clave_base_y_los_tipos_desconocidos()
+    {
+        $premios = $this->premios(['terminal' => 60]);
+
+        $this->assertFalse($this->plugin->validarApuesta([
+            'combinacion' => ['tipo' => 'base', 'numero' => '452'],
+        ], null, $premios));
+
+        $this->assertFalse($this->plugin->validarApuesta([
+            'combinacion' => ['tipo' => 'dupleta', 'numero' => '452'],
+        ], null, $premios));
+
+        // Triangulación: un tipo REAL pero ausente del catálogo del juego
+        // tampoco se vende (uña no está configurada en este juego).
+        $this->assertFalse($this->plugin->validarApuesta([
+            'combinacion' => ['tipo' => 'uña', 'numero' => '2'],
+        ], null, $premios));
+    }
+
+    public function test_validar_apuesta_rechaza_modalidad_declarada_ausente_del_catalogo()
+    {
+        $premios = $this->premios(['cruzado' => 3000, 'cruzado_10' => 10]);
+        $selecciones = [
+            ['tipo' => 'punta', 'numero' => '75'],
+            ['tipo' => 'punta', 'numero' => '14'],
+        ];
+
+        $this->assertTrue($this->plugin->validarApuesta([
+            'combinacion' => ['modalidad' => 'cruzado', 'selecciones' => $selecciones],
+        ], null, $premios));
+
+        $this->assertFalse($this->plugin->validarApuesta([
+            'combinacion' => ['modalidad' => 'dupleta', 'selecciones' => $selecciones],
+        ], null, $premios));
+    }
+
+    public function test_validar_apuesta_normaliza_una_a_una_contra_el_catalogo()
+    {
+        $zamorano = $this->premios(['terminal' => 60, 'uña' => 5]);
+
+        $this->assertTrue($this->plugin->validarApuesta([
+            'combinacion' => ['tipo' => 'una', 'numero' => '2'],
+        ], null, $zamorano));
+
+        // Triangulación: `una` se normaliza a `uña`, que este juego no vende.
+        $zulia = $this->premios(['terminal' => 60, 'signo_triple' => 6000]);
+
+        $this->assertFalse($this->plugin->validarApuesta([
+            'combinacion' => ['tipo' => 'una', 'numero' => '2'],
+        ], null, $zulia));
+    }
+
+    public function test_validar_apuesta_acepta_signo_terminal_y_signo_una_sin_triple()
+    {
+        $premios = $this->premios(['signo_terminal' => 600, 'signo_uña' => 60]);
+
+        $this->assertTrue($this->plugin->validarApuesta([
+            'combinacion' => ['tipo' => 'signo_terminal', 'numero' => '59', 'signo' => 'LEO'],
+        ], null, $premios));
+
+        $this->assertTrue($this->plugin->validarApuesta([
+            'combinacion' => ['tipo' => 'signo_uña', 'numero' => '9', 'signo' => 'LEO'],
+        ], null, $premios));
+    }
+
+    public function test_las_reglas_del_request_admiten_el_tipo_una()
+    {
+        // Si `una` no está en Rule::in, el request rechaza antes de llegar al
+        // plugin y la normalización a `uña` nunca corre.
+        $validator = Validator::make(
+            ['combinacion' => ['tipo' => 'una', 'numero' => '2']],
+            $this->plugin->getValidationRules()
+        );
+
+        $this->assertTrue($validator->passes(), (string) $validator->errors()->first('combinacion.tipo'));
     }
 
     // ---------------- Dinero: signo_triple 6000× desde config (REQ4) ----------------

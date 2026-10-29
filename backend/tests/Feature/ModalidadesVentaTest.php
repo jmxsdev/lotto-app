@@ -130,6 +130,59 @@ class ModalidadesVentaTest extends TestCase
         $this->assertEquals($combinacion, $detalle->combinacion, "[{$slug}] la combinación se persiste tal cual.");
     }
 
+    // ---------------- WU-1: whitelist total en la venta ----------------
+
+    public function test_triple_a_zulia_crea_ticket(): void
+    {
+        // `triple_a` NO vive en premios.modalidades de Zulia: es el producto
+        // base y debe venderse igual.
+        $this->assertVentaModalidad('triple-zulia', ['tipo' => 'triple_a', 'numero' => '452']);
+    }
+
+    public function test_triple_b_trio_activo_crea_ticket(): void
+    {
+        // Triangulación: otro juego cuyo catálogo tampoco declara triple_b.
+        $this->assertVentaModalidad('trio-activo', ['tipo' => 'triple_b', 'numero' => '731']);
+    }
+
+    public function test_tipo_base_se_rechaza(): void
+    {
+        $response = $this->postLinea('triple-zulia', ['tipo' => 'base', 'numero' => '452']);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseCount('tickets', 0);
+        $this->assertDatabaseCount('apuestas', 0);
+    }
+
+    public function test_modalidad_dupleta_se_rechaza(): void
+    {
+        // La modalidad declarada también pasa por el whitelist: `dupleta` no
+        // está configurada, aunque la forma de las selecciones sea vendible.
+        $response = $this->postLinea('triple-chance', [
+            'modalidad' => 'dupleta',
+            'selecciones' => [
+                ['tipo' => 'punta', 'numero' => '75'],
+                ['tipo' => 'punta', 'numero' => '14'],
+            ],
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseCount('tickets', 0);
+        $this->assertDatabaseCount('apuestas', 0);
+    }
+
+    public function test_una_se_normaliza_a_una_con_tilde_al_persistir(): void
+    {
+        $response = $this->postLinea('triple-zamorano', ['tipo' => 'una', 'numero' => '2']);
+
+        $response->assertStatus(201);
+
+        $detalle = Apuesta::first()?->detalles()->first();
+        $this->assertNotNull($detalle);
+        $this->assertSame('uña', $detalle->combinacion['tipo']);
+        $this->assertSame('2', $detalle->combinacion['numero']);
+    }
+
     // ---------------- 201 por modalidad single-draw (contrato §2.1) ----------------
 
     public function test_punta_trio_activo_crea_ticket(): void
