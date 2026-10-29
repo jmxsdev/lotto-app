@@ -168,6 +168,42 @@ class ModalidadesSingleDrawTest extends TestCase
         );
     }
 
+    // ---------------- Tiers multi-selección: caso "ninguno" (H2) ----------------
+
+    public function test_cruzado_chance_no_paga_si_no_acierta_ninguna_punta(): void
+    {
+        $premio = $this->liquidar(
+            'triple-chance',
+            [
+                'modalidad' => 'cruzado',
+                'selecciones' => [
+                    ['tipo' => 'punta', 'numero' => '99'],
+                    ['tipo' => 'punta', 'numero' => '98'],
+                ],
+            ],
+            ['triple_a' => '756', 'triple_b' => '146', 'triple_c' => '682', 'signo' => 'SAG']
+        );
+
+        $this->assertSame(0.0, $premio['premio_bs']);
+    }
+
+    public function test_par_millonario_chance_no_paga_si_no_acierta_ningun_triple(): void
+    {
+        $premio = $this->liquidar(
+            'triple-chance',
+            [
+                'modalidad' => 'triple_a_b',
+                'selecciones' => [
+                    ['tipo' => 'triple_a', 'numero' => '999'],
+                    ['tipo' => 'triple_b', 'numero' => '998'],
+                ],
+            ],
+            ['triple_a' => '756', 'triple_b' => '146', 'triple_c' => '682', 'signo' => 'SAG']
+        );
+
+        $this->assertSame(0.0, $premio['premio_bs']);
+    }
+
     // ---------------- El Arrimao (4 cifras, 6.000×) / El Pegadito (5 cifras, 60.000×) ----------------
 
     public function test_arrimao_arrejuntado_paga_6000x_con_las_4_cifras(): void
