@@ -24,6 +24,15 @@ use App\Plugins\Contracts\JuegoInterface;
  */
 class PremiosEngine
 {
+    /**
+     * Tiers derivados de una modalidad multi-selección: no se venden y solo
+     * aparecen al liquidar cuando el acierto fue parcial. Si el juego no los
+     * configura, NO pagan el `base` (sería un sobrepago): pagan 0.
+     *
+     * @var array<int, string>
+     */
+    private const TIERS_DERIVADOS = ['solo_a_b', 'cruzado_10'];
+
     public function __construct(private ?JuegoPluginManager $manager = null)
     {
         $this->manager ??= app(JuegoPluginManager::class);
@@ -105,8 +114,18 @@ class PremiosEngine
     }
 
     /**
-     * Multiplicador de una clave canónica: `modalidades[clave] ?? base`, con
-     * fallback transicional a `premio_multiplo` legacy SOLO para la base (D2).
+     * Multiplicador de una clave canónica.
+     *
+     * Orden de resolución:
+     *   1. clave configurada en `premios.modalidades` → su valor (incluye 0);
+     *   2. tier derivado ausente (`solo_a_b`, `cruzado_10`) → 0;
+     *   3. cualquier otra clave → `base` (con fallback legacy a
+     *      `premio_multiplo`).
+     *
+     * El paso 2 es la diferencia con `modalidades[clave] ?? base`: un tier
+     * derivado no configurado nunca debe pagar el base. No se puede aplicar
+     * `array_key_exists` a secas porque `tripleta` (multi-sorteo) tampoco está
+     * en los snapshots legacy y sí debe caer al base.
      *
      * @param  array<string, mixed>|null  $premios  Snapshot de `config.premios`
      *                                              (S2/D4); null = config actual
@@ -115,9 +134,17 @@ class PremiosEngine
     {
         $premios ??= $juego->config['premios'] ?? [];
         $base = $premios['base'] ?? ($juego->config['premio_multiplo'] ?? 0);
-        $modalidades = $premios['modalidades'] ?? [];
+        $modalidades = is_array($premios['modalidades'] ?? null) ? $premios['modalidades'] : [];
 
-        return (float) ($modalidades[$clave] ?? $base);
+        if (array_key_exists($clave, $modalidades)) {
+            return (float) $modalidades[$clave];
+        }
+
+        if (in_array($clave, self::TIERS_DERIVADOS, true)) {
+            return 0.0;
+        }
+
+        return (float) $base;
     }
 
     /**

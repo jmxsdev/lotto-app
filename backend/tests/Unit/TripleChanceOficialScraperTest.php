@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\Models\Juego;
 use App\Plugins\Scrapers\TripleChanceOficialScraper;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 /**
@@ -237,9 +238,13 @@ class TripleChanceOficialScraperTest extends TestCase
         $this->assertEquals('SIGNO-X', $resultados[0]['numeros_ganadores']['signo']);
     }
 
-    public function test_horario_sin_ayb_no_genera_resultado(): void
+    public function test_horario_sin_ayb_no_genera_resultado_y_emite_alerta(): void
     {
+        Log::spy();
+
         // Horario con solo ASTRAL (defensivo: faltaría el triple A/B) → se omite
+        // y se deja rastro para operaciones (la apuesta de signo_solo de ese
+        // horario no podrá liquidarse).
         $json = '{"datos":[{"codProducto":"CHANCE","desSorteo":"CHANCE ASTRAL 11:00 AM",'
             .'"horSorteo":"11:00 AM","numA":"'.base64_encode('123   ').'","numB":"",'
             .'"simA":"'.base64_encode('VIRGO').'","simB":"","simC":""}],'
@@ -248,5 +253,14 @@ class TripleChanceOficialScraperTest extends TestCase
         $resultados = $this->invocar('parse', $json);
 
         $this->assertCount(0, $resultados);
+
+        Log::shouldHaveReceived('warning')->once()->withArgs(
+            function (string $mensaje, array $contexto): bool {
+                return str_contains($mensaje, 'solo ASTRAL')
+                    && ($contexto['juego'] ?? null) === 'triple-chance'
+                    && ($contexto['hora_sorteo'] ?? null) === '11:00'
+                    && ($contexto['tiene_astral'] ?? null) === true;
+            }
+        );
     }
 }

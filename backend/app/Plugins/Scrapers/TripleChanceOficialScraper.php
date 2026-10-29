@@ -144,8 +144,16 @@ class TripleChanceOficialScraper extends BaseScraper
 
         foreach ($porHorario as $hora => $datos) {
             // Un sorteo completo requiere al menos el AYB (el par A/B); sin él
-            // el horario no está completo y se omite.
+            // el horario no está completo y se omite. Si además trae ASTRAL,
+            // se deja rastro: la apuesta de signo_solo de ese horario no podrá
+            // liquidarse y operaciones debe enterarse.
             if (empty($datos['triple_a']) && empty($datos['triple_b'])) {
+                $this->logWarning('Horario descartado: solo ASTRAL (sin AYB)', [
+                    'juego' => $this->juego?->slug,
+                    'hora_sorteo' => $hora,
+                    'tiene_astral' => ! empty($datos['triple_c']) || ! empty($datos['signo']),
+                ]);
+
                 continue;
             }
 

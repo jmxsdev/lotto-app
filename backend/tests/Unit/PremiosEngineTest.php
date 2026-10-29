@@ -153,6 +153,76 @@ class PremiosEngineTest extends TestCase
         $this->assertEquals(['premio_bs' => 300.0, 'premio_usd' => 0.0], $premio);
     }
 
+    // ---------------- multiplicadorPara(): tiers derivados (D-05) ----------------
+
+    public function test_tier_derivado_ausente_paga_cero_y_no_el_base()
+    {
+        // Táchira configura el Par (200.000×) pero no el tier "solo uno":
+        // acertar uno no debe caer al base 500×.
+        $juego = $this->juego('triple-tachira', [
+            'base' => 500,
+            'modalidades' => ['triple_a_b' => 200000],
+            'comodines' => [],
+        ]);
+
+        $this->assertSame(0.0, $this->motorCon(null)->multiplicadorPara($juego, 'solo_a_b'));
+    }
+
+    public function test_tier_derivado_configurado_en_cero_paga_cero()
+    {
+        // Un 0 explícito se respeta (D-06).
+        $juego = $this->juego('triple-tachira', [
+            'base' => 500,
+            'modalidades' => ['triple_a_b' => 200000, 'solo_a_b' => 0],
+            'comodines' => [],
+        ]);
+
+        $this->assertSame(0.0, $this->motorCon(null)->multiplicadorPara($juego, 'solo_a_b'));
+    }
+
+    public function test_tier_derivado_configurado_paga_su_multiplicador()
+    {
+        // Chance: el tier derivado SÍ está configurado (cruzado_10 = 10×).
+        $juego = $this->juego('triple-chance', [
+            'base' => 600,
+            'modalidades' => ['cruzado' => 3000, 'cruzado_10' => 10],
+            'comodines' => [],
+        ]);
+
+        $this->assertSame(10.0, $this->motorCon(null)->multiplicadorPara($juego, 'cruzado_10'));
+    }
+
+    public function test_cruzado_10_ausente_tambien_paga_cero()
+    {
+        $juego = $this->juego('triple-chance', [
+            'base' => 600,
+            'modalidades' => ['cruzado' => 3000],
+            'comodines' => [],
+        ]);
+
+        $this->assertSame(0.0, $this->motorCon(null)->multiplicadorPara($juego, 'cruzado_10'));
+    }
+
+    public function test_clave_no_derivada_ausente_cae_al_base()
+    {
+        $juego = $this->juego('triple-zulia', [
+            'base' => 600,
+            'modalidades' => [],
+            'comodines' => [],
+        ]);
+
+        $this->assertSame(600.0, $this->motorCon(null)->multiplicadorPara($juego, 'terminal'));
+    }
+
+    public function test_tripleta_ausente_en_snapshot_legacy_cae_al_base()
+    {
+        // `tripleta` NO es derivada: un snapshot legacy sin la clave debe
+        // seguir pagando el base (regresión del multi-sorteo).
+        $juego = $this->juego('cazaloton', ['base' => 30, 'modalidades' => [], 'comodines' => []]);
+
+        $this->assertSame(30.0, $this->motorCon(null)->multiplicadorPara($juego, 'tripleta'));
+    }
+
     public function test_calcular_no_coincide_devuelve_cero()
     {
         $juego = $this->juego('monje-millonario', ['base' => 50, 'modalidades' => [], 'comodines' => []]);
