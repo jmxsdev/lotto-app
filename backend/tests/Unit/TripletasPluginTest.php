@@ -345,7 +345,7 @@ class TripletasPluginTest extends TestCase
         ], null, $trioActivo));
 
         // Juego sin posicional (Táchira): los slots vacíos rechazan la venta.
-        $tachira = $this->premios(['terminal' => 50, 'signo_triple' => 5000, 'signo_terminal' => 500]);
+        $tachira = $this->premios(['signo_triple' => 5000, 'signo_terminal' => 500]);
         $this->assertFalse($this->plugin->validarApuesta([
             'combinacion' => ['tipo' => 'terminal', 'numero' => '62', 'triple' => 'a'],
         ], null, $tachira));
