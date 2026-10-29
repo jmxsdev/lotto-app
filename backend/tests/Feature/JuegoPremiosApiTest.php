@@ -295,7 +295,11 @@ class JuegoPremiosApiTest extends TestCase
 
         $this->assertSame($user->id, $auditoria->user_id);
         $this->assertEqualsCanonicalizing($premiosAntes, $auditoria->cambios['before']);
-        $this->assertEqualsCanonicalizing($payload, $auditoria->cambios['after']);
+        $this->assertEqualsCanonicalizing(
+            $payload + ['posicion_triples' => ['a', 'b', 'c']],
+            $auditoria->cambios['after'],
+            'El after refleja el estado resultante, con los slots conservados.'
+        );
 
         $this->assertSame($user->id, $juego->fresh()->updated_by, 'updated_by se registra en el juego.');
     }
@@ -358,7 +362,10 @@ class JuegoPremiosApiTest extends TestCase
 
         $response->assertStatus(200);
         $this->assertArrayHasKey('premios', $response->json(), 'reglas debe exponer premios del motor.');
-        $this->assertEqualsCanonicalizing($payload, $response->json('premios'));
+        $this->assertEqualsCanonicalizing(
+            $payload + ['posicion_triples' => ['a', 'b', 'c']],
+            $response->json('premios')
+        );
         $this->assertSame(700, $response->json('premios.base'));
     }
 
@@ -387,7 +394,10 @@ class JuegoPremiosApiTest extends TestCase
         $entrada = $entradas->first();
         $this->assertSame($user->id, $entrada['user_id']);
         $this->assertEqualsCanonicalizing($premiosAntes, $entrada['cambios']['before']);
-        $this->assertEqualsCanonicalizing($payload, $entrada['cambios']['after']);
+        $this->assertEqualsCanonicalizing(
+            $payload + ['posicion_triples' => ['a', 'b', 'c']],
+            $entrada['cambios']['after']
+        );
         $this->assertSame($user->email, $entrada['user']['email'] ?? null, 'El usuario editor viaja en la relación user.');
     }
 }

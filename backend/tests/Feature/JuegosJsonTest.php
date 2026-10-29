@@ -625,7 +625,10 @@ class JuegosJsonTest extends TestCase
             $this->assertArrayHasKey('triple-zulia', $porSlug, 'El juego editado debe estar en el catálogo exportado.');
 
             $exportado = $porSlug['triple-zulia'];
-            $this->assertEqualsCanonicalizing($payload, $exportado['premios']);
+            $this->assertEqualsCanonicalizing(
+                $payload + ['posicion_triples' => ['a', 'b', 'c']],
+                $exportado['premios']
+            );
             $this->assertSame(700, $exportado['premio_multiplo'], 'premio_multiplo = base editada.');
             $this->assertEqualsCanonicalizing(['cola' => 70], $exportado['modalidades'], 'Espejo legacy de modalidades en el export.');
             $this->assertEqualsCanonicalizing($payload['comodines'], $exportado['comodines']);
