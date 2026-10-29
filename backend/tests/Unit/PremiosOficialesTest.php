@@ -117,11 +117,22 @@ class PremiosOficialesTest extends TestCase
         ], $juego['modalidades']);
     }
 
-    public function test_triple_tachira_500_con_terminal_y_zodiacal()
+    public function test_triple_tachira_500_sin_terminal_con_signo_aproximacion_y_par()
     {
         $juego = PremiosOficiales::para('triple-tachira');
         $this->assertSame(500, $juego['base']);
-        $this->assertSame(['terminal' => 50, 'signo_triple' => 5000], $juego['modalidades']);
+        $this->assertSame([], $juego['posicion_triples'], 'D-02: Táchira no vende posicional.');
+        $this->assertSame(
+            [
+                'signo_triple' => 5000,
+                'signo_terminal' => 500,
+                'aproximacion' => 10,
+                'triple_a_b' => 200000,
+                'solo_a_b' => 0,
+            ],
+            $juego['modalidades']
+        );
+        $this->assertArrayNotHasKey('terminal', $juego['modalidades'], 'D-02: sin terminal/cola.');
     }
 
     public function test_triple_facil_700_con_terminal_y_aproximacion()

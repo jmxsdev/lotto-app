@@ -110,8 +110,18 @@ class PremiosOficiales
         ],
         'triple-tachira' => [
             'base' => 500,
-            'modalidades' => ['terminal' => 50, 'signo_triple' => 5000],
-            // Sin posicional: la oferta y los slots se completan en WU-4.
+            // Reglamento G-20004065-3. Decisión D-02: Táchira NO vende
+            // posicional (sin terminal/cola ni slots). D-08: Terminal+Zodiacal
+            // 500× y aproximación 10× explícitos. D-06: Par Millonario
+            // 200.000× con el tier "solo uno" en 0 hasta que aparezca el texto
+            // del reglamento.
+            'modalidades' => [
+                'signo_triple' => 5000,
+                'signo_terminal' => 500,
+                'aproximacion' => 10,
+                'triple_a_b' => 200000,
+                'solo_a_b' => 0,
+            ],
             'posicion_triples' => [],
             'comodines' => [],
             'active' => true,
@@ -252,8 +262,10 @@ class PremiosOficiales
             'signo_terminal' => 'terminal_zodiacal',
         ],
         'triple-tachira' => [
-            'terminal' => 'cola',
             'signo_triple' => 'zodiacal',
+            'signo_terminal' => 'terminal_zodiacal',
+            'triple_a_b' => 'triple_a_b',
+            'solo_a_b' => 'triple_a_o_b',
         ],
         'triple-zamorano' => [
             'terminal' => 'cola',

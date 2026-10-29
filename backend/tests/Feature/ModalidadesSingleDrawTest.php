@@ -287,12 +287,10 @@ class ModalidadesSingleDrawTest extends TestCase
         );
     }
 
-    public function test_terminal_zodiacal_tachira_paga_500x_por_fallback_a_base(): void
+    public function test_terminal_zodiacal_tachira_paga_500x_por_config_explicita(): void
     {
-        // §3.2 triple-tachira NO configura `signo_terminal` (solo terminal 50×
-        // y signo_triple 5.000×): el motor cae al base 500× del reglamento
-        // (REQ11 menciona Terminal+Zodiacal Táchira; sin valor propio en el
-        // catálogo, el fallback `?? base` del engine resuelve 500×).
+        // Triple Táchira configura `signo_terminal` 500× de forma explícita
+        // (reglamento G-20004065-3, D-08). Ya no depende del fallback al base.
         $this->assertPremio(
             'triple-tachira',
             ['tipo' => 'signo_terminal', 'numero' => '59', 'signo' => 'LEO'],

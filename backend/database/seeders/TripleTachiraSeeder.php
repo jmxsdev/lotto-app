@@ -25,8 +25,10 @@ class TripleTachiraSeeder extends Seeder
     {
         // Premios OFICIALES verificados contra el reglamento G-20004065-3 de la
         // Lotería del Táchira (descargado de https://tripletachira.com/docs/reglamento.pdf,
-        // texto extraído con pdftotext el 12-sep-2026): A/B 500x, Terminal (cola,
-        // 2 últimos dígitos) 50x, Triple+Signo Zodiacal 5.000x.
+        // texto extraído con pdftotext el 12-sep-2026): A/B 500x, Triple+Signo
+        // Zodiacal 5.000x. Decisión D-02 (#64): Táchira NO vende posicional, así
+        // que no hay terminal/cola. D-08: Terminal+Zodiacal 500x y aproximación
+        // 10x explícitos. D-06: Par Millonario 200.000x con `solo_a_b` en 0.
         // La página informativa (resultadosvenezuela.com) declara 600/60/6.000
         // → desajuste H9 en docs/cliente/comparacion-juegos.md; aquí mandan los valores
         // oficiales del reglamento.

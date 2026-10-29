@@ -218,7 +218,13 @@ class JuegosJsonTest extends TestCase
             'triple-caliente modalidades'
         );
         $this->assertEqualsCanonicalizing(
-            ['cola' => 50, 'zodiacal' => 5000],
+            [
+                'zodiacal' => 5000,
+                'terminal_zodiacal' => 500,
+                'aproximacion' => 10,
+                'triple_a_b' => 200000,
+                'triple_a_o_b' => 0,
+            ],
             $porSlug['triple-tachira']['modalidades'],
             'triple-tachira modalidades'
         );

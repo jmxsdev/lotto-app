@@ -45,11 +45,17 @@ class TripleTachiraResultsTest extends TestCase
         $this->assertEquals(TripleTachiraScraper::class, $juego->scraper_class);
 
         // Premios OFICIALES del reglamento (G-20004065-3, Lotería del Táchira):
-        // A/B 500x, Terminal (cola) 50x, Triple+Zodiacal 5.000x. La informativa
-        // (resultadosvenezuela.com) declara 600/60/6.000 — desajuste H9 documentado.
+        // A/B 500x. D-02: sin terminal/cola. D-08: Terminal+Zodiacal 500x y
+        // aproximación 10x explícitos. D-06: Par Millonario 200.000x con
+        // `solo_a_b` en 0. La informativa (resultadosvenezuela.com) declara
+        // 600/60/6.000 — desajuste H9 documentado.
         $this->assertEquals(500, $juego->config['premio_multiplo']);
-        $this->assertEquals(50, $juego->config['modalidades']['cola']);
+        $this->assertArrayNotHasKey('cola', $juego->config['modalidades']);
+        $this->assertEquals(500, $juego->config['modalidades']['terminal_zodiacal']);
         $this->assertEquals(5000, $juego->config['modalidades']['zodiacal']);
+        $this->assertEquals(10, $juego->config['modalidades']['aproximacion']);
+        $this->assertEquals(200000, $juego->config['modalidades']['triple_a_b']);
+        $this->assertEquals(0, $juego->config['modalidades']['triple_a_o_b']);
     }
 
     public function test_seeder_registra_limite_default_y_plugin(): void

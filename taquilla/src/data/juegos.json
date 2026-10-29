@@ -6090,8 +6090,11 @@
                 "base": 500,
                 "comodines": [],
                 "modalidades": {
-                    "terminal": 50,
-                    "signo_triple": 5000
+                    "solo_a_b": 0,
+                    "triple_a_b": 200000,
+                    "aproximacion": 10,
+                    "signo_triple": 5000,
+                    "signo_terminal": 500
                 },
                 "posicion_triples": []
             },
@@ -6099,8 +6102,11 @@
             "vendible": true,
             "comodines": null,
             "modalidades": {
-                "cola": 50,
-                "zodiacal": 5000
+                "zodiacal": 5000,
+                "triple_a_b": 200000,
+                "aproximacion": 10,
+                "triple_a_o_b": 0,
+                "terminal_zodiacal": 500
             },
             "horarios": [
                 "13:15",
