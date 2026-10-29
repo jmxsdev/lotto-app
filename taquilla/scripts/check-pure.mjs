@@ -775,14 +775,14 @@ console.log('\n== S2 TQ-06: premios normalizados del catálogo (D1) ==');
 // D1: `catalogo.ts` expone `premios {base, modalidades, comodines}` normalizado
 // ([]/null → vacío). Los espejos legacy top-level (`cola`, `zodiacal`, `signo`,
 // `triple_a_o_b`…) NO son la fuente canónica de modalidades (design §3.1).
-const VACIO = { base: null, modalidades: {}, comodines: [] };
+const VACIO = { base: null, modalidades: {}, posicionTriples: [], comodines: [] };
 ok(JSON.stringify(normalizarPremios(null)) === JSON.stringify(VACIO), 'normalizarPremios(null) → vacío');
 ok(JSON.stringify(normalizarPremios([])) === JSON.stringify(VACIO), 'normalizarPremios([]) → vacío');
 ok(JSON.stringify(normalizarPremios(undefined)) === JSON.stringify(VACIO), 'normalizarPremios(undefined) → vacío (legado sin premios)');
 ok(
   JSON.stringify(normalizarPremios({ base: 30, modalidades: { punta: 60 }, comodines: [] })) ===
-    JSON.stringify({ base: 30, modalidades: { punta: 60 }, comodines: [] }),
-  'normalizarPremios: objeto canónico pasa intacto',
+    JSON.stringify({ base: 30, modalidades: { punta: 60 }, posicionTriples: [], comodines: [] }),
+  'normalizarPremios: objeto canónico pasa intacto (slots ausentes → [])',
 );
 ok(
   JSON.stringify(normalizarPremios({ base: 30, modalidades: [], comodines: [] }).modalidades) === '{}',
@@ -916,6 +916,8 @@ ok(formatearJugada({ tipo: 'animalitos', animal: 'Perro', numero: '14' }) === 'P
 ok(formatearJugada({ tipo: 'terminales', numero: '05' }) === '#05', 'terminal: solo el número (sin duplicar)');
 ok(formatearJugada({ tipo: 'tripletas', numero: '157', modalidad: 'Triple C', signo: 'Sagitario' }) === 'Triple C #157 Sagitario', 'tripleta zodiacal: modalidad + número + signo');
 ok(formatearJugada({ tipo: 'tripletas', numero: '005', modalidad: 'Triple A' }) === 'Triple A #005', 'tripleta numérica: modalidad + número');
+ok(formatearJugada({ tipo: 'tripletas', numero: '62', modalidad: 'Terminal', triple: 'a' }) === 'Terminal #62 Triple A', 'posicional: añade «Triple A» al ticket');
+ok(formatearJugada({ tipo: 'tripletas', numero: '2', modalidad: 'Una', triple: 'c' }) === 'Una #2 Triple C', 'posicional: añade «Triple C» al ticket');
 ok(formatearJugada({ tipo: 'animalitos', animal: null, numero: null }) === '-', 'sin datos → «-»');
 ok(labelModalidad('triple_b') === 'Triple B' && labelModalidad('triple_c') === 'Triple C', 'labelModalidad: códigos conocidos');
 ok(labelModalidad(null) === null && labelModalidad('otro') === null, 'labelModalidad: desconocidos → null');
@@ -1211,16 +1213,18 @@ ok(validarDigitos(' 05 ', 2) === '05', 'con espacios alrededor se recorta');
 console.log('\n== S5: construirCombinacion single-draw (payload exacto contrato §2.1) ==');
 const comboDe = (slug, clave, entrada) =>
   construirCombinacion(modalidadesDisponibles(catalogo.porSlug.get(slug)).find((m) => m.clave === clave), entrada);
-ok(JSON.stringify(comboDe('trio-activo', 'punta', { numero: '5' })) === JSON.stringify({ tipo: 'punta', numero: '05' }), 'punta "5" → {tipo:punta, numero:05}');
-ok(JSON.stringify(comboDe('trio-activo', 'terminal', { numero: '52' })) === JSON.stringify({ tipo: 'terminal', numero: '52' }), 'terminal "52" → payload exacto');
-ok(JSON.stringify(comboDe('triple-zamorano', 'uña', { numero: '2' })) === JSON.stringify({ tipo: 'uña', numero: '2' }), 'uña "2" → payload exacto');
-ok(JSON.stringify(comboDe('triple-facil', 'aproximacion', { numero: '51' })) === JSON.stringify({ tipo: 'aproximacion', numero: '51' }), 'aproximacion "51" → payload exacto');
-ok(JSON.stringify(comboDe('triple-zulia', 'signo_terminal', { numero: '59', signo: 'LEO' })) === JSON.stringify({ tipo: 'signo_terminal', numero: '59', signo: 'LEO' }), 'signo_terminal → {tipo, numero, signo}');
+ok(JSON.stringify(comboDe('trio-activo', 'punta', { numero: '5', triple: 'a' })) === JSON.stringify({ tipo: 'punta', numero: '05', triple: 'a' }), 'punta "5" → {tipo:punta, numero:05, triple:a}');
+ok(JSON.stringify(comboDe('trio-activo', 'terminal', { numero: '52', triple: 'a' })) === JSON.stringify({ tipo: 'terminal', numero: '52', triple: 'a' }), 'terminal "52" → payload con triple');
+ok(JSON.stringify(comboDe('triple-zamorano', 'uña', { numero: '2', triple: 'a' })) === JSON.stringify({ tipo: 'uña', numero: '2', triple: 'a' }), 'uña "2" → payload con triple');
+ok(JSON.stringify(comboDe('triple-facil', 'aproximacion', { numero: '51' })) === JSON.stringify({ tipo: 'aproximacion', numero: '51' }), 'aproximacion "51" → payload exacto (sin triple)');
+ok(JSON.stringify(comboDe('triple-zulia', 'signo_terminal', { numero: '59', signo: 'LEO' })) === JSON.stringify({ tipo: 'signo_terminal', numero: '59', signo: 'LEO' }), 'signo_terminal → {tipo, numero, signo} (sin triple)');
 ok(JSON.stringify(comboDe('triple-chance', 'signo_solo', { signo: 'LEO' })) === JSON.stringify({ tipo: 'signo_solo', signo: 'LEO' }), 'signo_solo → solo signo (sin numero)');
 ok(JSON.stringify(comboDe('el-arrejuntado', 'arrimao', { numero: '1825' })) === JSON.stringify({ tipo: 'arrimao', numero: '1825' }), 'arrimao 4 cifras → payload exacto');
 ok(JSON.stringify(comboDe('el-arrejuntado', 'pegadito', { numero: '10503' })) === JSON.stringify({ tipo: 'pegadito', numero: '10503' }), 'pegadito 5 cifras → payload exacto');
 ok(JSON.stringify(comboDe('triple-zulia', 'signo_triple', { numero: '259', signo: 'LEO' })) === JSON.stringify({ tipo: 'triple_c', numero: '259', signo: 'LEO' }), 'signo_triple → tipo triple_c (Triple C)');
-ok(comboDe('trio-activo', 'punta', { numero: '453' }) === null, 'dígitos inválidos → null (no se POSTea)');
+ok(comboDe('trio-activo', 'punta', { numero: '453', triple: 'a' }) === null, 'dígitos inválidos → null (no se POSTea)');
+ok(comboDe('trio-activo', 'terminal', { numero: '52' }) === null, 'posicional sin triple → null (no se POSTea)');
+ok(comboDe('trio-activo', 'terminal', { numero: '52', triple: 'z' }) === null, 'posicional con triple inválido → null');
 ok(comboDe('triple-zulia', 'signo_terminal', { numero: '59' }) === null, 'signo faltante → null');
 ok(comboDe('triple-chance', 'signo_solo', {}) === null, 'signo_solo sin signo → null');
 
@@ -1259,6 +1263,37 @@ ok(
 ok(
   JSON.stringify(comboDe('triple-facil', 'triple_a', { numero: '07' })) === JSON.stringify({ tipo: 'triple_a', numero: '007' }),
   'triple-facil base triple_a "07" → "007" (numérica, legacy)',
+);
+
+console.log('\n== WU-2: slots posicionales por juego (premios.posicion_triples) ==');
+// El export del catálogo (WU-4) escribe `premios.posicion_triples`; aquí se
+// valida la normalización con el contrato de slots de cada juego sin acoplar
+// el harness al JSON bundled (que aún no lo trae en WU-2).
+const conSlots = (slug, slots) => {
+  const juego = catalogo.porSlug.get(slug);
+  const p = premios(juego);
+  return { ...juego, premios: { base: p.base, modalidades: p.modalidades, posicion_triples: slots, comodines: p.comodines } };
+};
+const slotsEsperados = {
+  'triple-zulia': ['a', 'b', 'c'],
+  'triple-caliente': ['a', 'b', 'c'],
+  'triple-zamorano': ['a', 'c'],
+  'triple-chance': ['a', 'b'],
+  'triple-facil': ['a'],
+  'trio-activo': ['a'],
+  'triple-tachira': [],
+};
+for (const [slug, slots] of Object.entries(slotsEsperados)) {
+  ok(
+    JSON.stringify(premios(conSlots(slug, slots)).posicionTriples) === JSON.stringify(slots),
+    `slots ${slug}: [${slots.join(',')}]`,
+  );
+}
+ok(JSON.stringify(premios(catalogo.porSlug.get('lotto-activo')).posicionTriples) === '[]', 'sin posicion_triples → [] (default)');
+ok(
+  JSON.stringify(normalizarPremios({ base: 600, modalidades: {}, posicion_triples: ['a', 'x', 'c'], comodines: [] }).posicionTriples) ===
+    JSON.stringify(['a', 'c']),
+  'posicion_triples: descarta slots fuera de a/b/c',
 );
 
 console.log('\n== S5: grafo de zonas con ctx single-draw (D3 — A2 intactos sin ctx) ==');

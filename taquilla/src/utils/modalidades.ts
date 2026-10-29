@@ -26,6 +26,12 @@ export interface DefModalidad {
   /** La modalidad exige signo zodiacal (sigla en el payload). */
   requiereSigno: boolean;
   /**
+   * WU-2/D3: la modalidad es posicional (`terminal`/`punta`/`uña`) y exige
+   * el triple vendido (`combinacion.triple` = a/b/c). `signo_terminal` y
+   * `signo_uña` NO lo exigen (liquidan contra `triple_c`).
+   */
+  requiereTriple: boolean;
+  /**
    * S6: multi-selección same-draw (design §4) — presente ⇒ el payload es
    * `{modalidad, selecciones[]}` (contrato §2.2) y describe los slots en
    * orden. `selecciones[i].tipo` es el `tipo` de cada selección y `digitos`
@@ -62,37 +68,37 @@ export interface ModalidadDisponible extends DefModalidad {
  * emite al liquidar cuando solo acierta una selección).
  */
 export const DEFS: Record<string, DefModalidad> = {
-  triple_a: { clave: 'triple_a', label: 'Triple A', tipo: 'triple_a', digitos: 3, requiereSigno: false },
-  triple_b: { clave: 'triple_b', label: 'Triple B', tipo: 'triple_b', digitos: 3, requiereSigno: false },
-  signo_triple: { clave: 'signo_triple', label: 'Triple C', tipo: 'triple_c', digitos: 3, requiereSigno: true },
-  punta: { clave: 'punta', label: 'Punta', tipo: 'punta', digitos: 2, requiereSigno: false },
-  terminal: { clave: 'terminal', label: 'Terminal', tipo: 'terminal', digitos: 2, requiereSigno: false },
-  uña: { clave: 'uña', label: 'Una', tipo: 'uña', digitos: 1, requiereSigno: false },
-  aproximacion: { clave: 'aproximacion', label: 'Aproximación', tipo: 'aproximacion', digitos: 2, requiereSigno: false },
-  signo_terminal: { clave: 'signo_terminal', label: 'Signo + terminal', tipo: 'signo_terminal', digitos: 2, requiereSigno: true },
-  signo_uña: { clave: 'signo_uña', label: 'Signo + una', tipo: 'signo_uña', digitos: 1, requiereSigno: true },
-  signo_solo: { clave: 'signo_solo', label: 'Signo solo', tipo: 'signo_solo', digitos: 0, requiereSigno: true },
-  arrimao: { clave: 'arrimao', label: 'Arrimao', tipo: 'arrimao', digitos: 4, requiereSigno: false },
-  pegadito: { clave: 'pegadito', label: 'Pegadito', tipo: 'pegadito', digitos: 5, requiereSigno: false },
+  triple_a: { clave: 'triple_a', label: 'Triple A', tipo: 'triple_a', digitos: 3, requiereSigno: false, requiereTriple: false },
+  triple_b: { clave: 'triple_b', label: 'Triple B', tipo: 'triple_b', digitos: 3, requiereSigno: false, requiereTriple: false },
+  signo_triple: { clave: 'signo_triple', label: 'Triple C', tipo: 'triple_c', digitos: 3, requiereSigno: true, requiereTriple: false },
+  punta: { clave: 'punta', label: 'Punta', tipo: 'punta', digitos: 2, requiereSigno: false, requiereTriple: true },
+  terminal: { clave: 'terminal', label: 'Terminal', tipo: 'terminal', digitos: 2, requiereSigno: false, requiereTriple: true },
+  uña: { clave: 'uña', label: 'Una', tipo: 'uña', digitos: 1, requiereSigno: false, requiereTriple: true },
+  aproximacion: { clave: 'aproximacion', label: 'Aproximación', tipo: 'aproximacion', digitos: 2, requiereSigno: false, requiereTriple: false },
+  signo_terminal: { clave: 'signo_terminal', label: 'Signo + terminal', tipo: 'signo_terminal', digitos: 2, requiereSigno: true, requiereTriple: false },
+  signo_uña: { clave: 'signo_uña', label: 'Signo + una', tipo: 'signo_uña', digitos: 1, requiereSigno: true, requiereTriple: false },
+  signo_solo: { clave: 'signo_solo', label: 'Signo solo', tipo: 'signo_solo', digitos: 0, requiereSigno: true, requiereTriple: false },
+  arrimao: { clave: 'arrimao', label: 'Arrimao', tipo: 'arrimao', digitos: 4, requiereSigno: false, requiereTriple: false },
+  pegadito: { clave: 'pegadito', label: 'Pegadito', tipo: 'pegadito', digitos: 5, requiereSigno: false, requiereTriple: false },
   // S6: multi-selección same-draw (contrato §2.2) — el payload lleva
   // `{modalidad, selecciones[]}`; `digitos` describe la PRIMERA selección
   // (para el preload de dígitos y la barra superior).
   cruzado: {
-    clave: 'cruzado', label: 'Cruzado', tipo: 'punta', digitos: 2, requiereSigno: false,
+    clave: 'cruzado', label: 'Cruzado', tipo: 'punta', digitos: 2, requiereSigno: false, requiereTriple: false,
     selecciones: [
       { tipo: 'punta', digitos: 2 },
       { tipo: 'punta', digitos: 2 },
     ],
   },
   triple_a_b: {
-    clave: 'triple_a_b', label: 'Par A+B', tipo: 'triple_a', digitos: 3, requiereSigno: false,
+    clave: 'triple_a_b', label: 'Par A+B', tipo: 'triple_a', digitos: 3, requiereSigno: false, requiereTriple: false,
     selecciones: [
       { tipo: 'triple_a', digitos: 3, exacto: true },
       { tipo: 'triple_b', digitos: 3, exacto: true },
     ],
   },
   tripleta: {
-    clave: 'tripleta', label: 'Tripleta', tipo: '', digitos: 0, requiereSigno: false,
+    clave: 'tripleta', label: 'Tripleta', tipo: '', digitos: 0, requiereSigno: false, requiereTriple: false,
     selecciones: [
       { tipo: 'animal', digitos: 0 },
       { tipo: 'animal', digitos: 0 },
@@ -185,13 +191,14 @@ export function validarDigitos(digitos: string, maxDigitos: number): string | nu
 
 /**
  * Arma el payload `combinacion` single-draw (contrato §2.1, design §4):
- * `{tipo, numero?, signo?}` con el número normalizado (padStart) y el signo
- * cuando la modalidad lo exige. null si la entrada no es válida (dígitos
- * fuera de rango o signo faltante) — en ese caso NO se arma la línea.
+ * `{tipo, numero?, signo?, triple?}` con el número normalizado (padStart), el
+ * signo cuando la modalidad lo exige y el `triple` (a/b/c) en las posicionales
+ * (WU-2/D3). null si la entrada no es válida (dígitos fuera de rango, signo
+ * faltante o `triple` ausente/inválido) — en ese caso NO se arma la línea.
  */
 export function construirCombinacion(
   modalidad: DefModalidad | undefined | null,
-  entrada: { numero?: string; signo?: string },
+  entrada: { numero?: string; signo?: string; triple?: string | null },
 ): Record<string, string> | null {
   if (!modalidad) return null;
 
@@ -207,6 +214,12 @@ export function construirCombinacion(
     const signo = String(entrada.signo ?? '').trim();
     if (!signo) return null;
     combinacion.signo = signo;
+  }
+
+  if (modalidad.requiereTriple) {
+    const triple = String(entrada.triple ?? '').trim().toLowerCase();
+    if (triple !== 'a' && triple !== 'b' && triple !== 'c') return null;
+    combinacion.triple = triple;
   }
 
   return combinacion;

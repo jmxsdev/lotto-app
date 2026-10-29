@@ -1344,7 +1344,7 @@ import Icon from '../components/ui/Icon.astro';
   <script>
     import { apiFetch } from '../utils/apiFetch';
     import { getFingerprint } from '../utils/device';
-    import { cargarCatalogo, buscarPorDigito, crearBuscadorDigitos, signoPorPosicion, normalizarNumeroTriple } from '../utils/catalogo';
+    import { cargarCatalogo, buscarPorDigito, crearBuscadorDigitos, signoPorPosicion, normalizarNumeroTriple, premios } from '../utils/catalogo';
     import { buildZoneGraph, routeKey, zonaHorizontal, zonaPendienteSeleccion } from '../utils/keyboard';
     import { teclasLegend } from '../utils/keyboard';
     import { serialCoincide, ultimoTicketPendiente } from '../utils/keyboard';
@@ -1445,6 +1445,9 @@ import Icon from '../components/ui/Icon.astro';
     // signo_*/arrimao/pegadito). Alternativa a la legacy tripleModalidad
     // (Triple A/B/C): se usa cuando el juego expone modalidades en el catálogo.
     let modalidadNueva = null;
+    // WU-2/D3: slot posicional vendido (`a`/`b`/`c`) para terminal/punta/uña.
+    // Sin default: el cajero lo elige entre los slots habilitados del juego.
+    let tripleSlot = null;
     // S6 (D3/§5): multi-selección same-draw — modo animalitos con tripleta
     // (base | tripleta) y los animales elegidos (tope 3, contador "n/3").
     let modalidadAnimalitos = null;
@@ -1503,7 +1506,7 @@ import Icon from '../components/ui/Icon.astro';
     function seleccionEnCurso() {
       return Boolean(
         selectedAnimal || selectedSigno || selectedOpcion ||
-        modalidadNueva || tripleModalidad || tripleModalidadLabel ||
+        modalidadNueva || tripleModalidad || tripleModalidadLabel || tripleSlot ||
         // S6: la tripleta en curso (modo + animales elegidos) también bloquea
         // el cambio de pestaña (design §5: seleccionesAnimales en el guard).
         modalidadAnimalitos === 'tripleta' || seleccionesAnimales.length > 0 ||
@@ -1536,6 +1539,7 @@ import Icon from '../components/ui/Icon.astro';
       tripleModalidad = null;
       tripleModalidadLabel = null;
       modalidadNueva = null;
+      tripleSlot = null;
       modalidadAnimalitos = null;
       seleccionesAnimales = [];
       selectedHorarios = [];
@@ -1798,6 +1802,7 @@ import Icon from '../components/ui/Icon.astro';
         html += '<button class="modalidad-btn' + sel + '" data-modalidad="' + m.clave + '" tabindex="-1">' + m.label + mult + '</button>';
       });
       html += '</div>';
+      html += '<div id="triple-slot-container" style="display:none" data-zona="seleccion"></div>';
       html += '<div id="signos-triple-container" style="display:none" data-zona="signo"></div>';
       container.innerHTML = html;
       container.querySelectorAll('.modalidad-btn').forEach(btn => {
@@ -1808,6 +1813,7 @@ import Icon from '../components/ui/Icon.astro';
           modalidadNueva = m || null;
           tripleModalidad = null;
           tripleModalidadLabel = null;
+          tripleSlot = null;
           selectedSigno = null;
           document.getElementById('qt-numero').value = '';
           // S6: la multi-selección (cruzado/Par A+B) muestra el input numero_b
@@ -1816,6 +1822,47 @@ import Icon from '../components/ui/Icon.astro';
           if (nb) nb.value = '';
           sincronizarNumeroB();
           renderSignosForModalidad();
+          renderTripleSlots();
+          renderLegend();
+          updateColumnMode();
+        });
+      });
+      // Re-render defensivo: si la modalidad activa exige triple, el selector
+      // de slot vuelve a mostrarse con su estado actual.
+      renderTripleSlots();
+    }
+
+    // WU-2/D3: selector del triple vendido (A/B/C) para las posicionales.
+    // Solo se muestran los slots habilitados del juego
+    // (`premios.posicion_triples`); sin slots no se vende la posicional.
+    function renderTripleSlots() {
+      const juego = juegoActivo();
+      const container = document.getElementById('triple-slot-container');
+      if (!container) return;
+
+      const slots = juego ? premios(juego).posicionTriples : [];
+      if (!modalidadNueva || !modalidadNueva.requiereTriple || slots.length === 0) {
+        container.style.display = 'none';
+        container.innerHTML = '';
+        tripleSlot = null;
+        return;
+      }
+
+      if (tripleSlot !== null && !slots.includes(tripleSlot)) tripleSlot = null;
+
+      container.style.display = 'block';
+      let html = '<div class="modalidad-label">Seleccione el triple:</div><div class="modalidad-grid">';
+      slots.forEach(s => {
+        const sel = tripleSlot === s ? ' selected' : '';
+        html += '<button class="modalidad-btn slot-btn' + sel + '" data-slot="' + s + '" tabindex="-1">Triple ' + s.toUpperCase() + '</button>';
+      });
+      html += '</div>';
+      container.innerHTML = html;
+      container.querySelectorAll('.slot-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          container.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          tripleSlot = btn.dataset.slot;
           renderLegend();
           updateColumnMode();
         });
@@ -1941,8 +1988,10 @@ import Icon from '../components/ui/Icon.astro';
           listo = document.getElementById('qt-numero').value.trim() !== '' &&
             nb !== null && nb.value.trim() !== '';
         } else {
-          // S5: single-draw lista cuando no exige signo o el signo ya se eligió.
-          listo = !modalidadNueva.requiereSigno || selectedSigno !== null;
+          // S5/WU-2: single-draw lista cuando no exige signo (o ya se eligió)
+          // y, si es posicional, el cajero eligió el triple vendido.
+          const tripleListo = !modalidadNueva.requiereTriple || tripleSlot !== null;
+          listo = tripleListo && (!modalidadNueva.requiereSigno || selectedSigno !== null);
         }
       } else if (juego.familia === 'animalitos') {
         // S6: en modo tripleta la selección está completa con 3/3 animales.
@@ -2274,12 +2323,15 @@ import Icon from '../components/ui/Icon.astro';
         combinacionPayload = construirCombinacion(modalidadNueva, {
           numero,
           signo: modalidadNueva.requiereSigno ? (selectedSigno ? selectedSigno.value : null) : undefined,
+          triple: modalidadNueva.requiereTriple ? tripleSlot : undefined,
         });
         if (!combinacionPayload) {
-          const msg = modalidadNueva.digitos === 0
-            ? 'Seleccione un signo (obligatorio para esta modalidad)'
-            : 'Ingrese un número de 1 a ' + modalidadNueva.digitos + ' cifras' +
-              (modalidadNueva.requiereSigno ? ' y seleccione el signo' : '');
+          const msg = modalidadNueva.requiereTriple && tripleSlot === null
+            ? 'Seleccione el triple (A/B/C) que está vendiendo'
+            : modalidadNueva.digitos === 0
+              ? 'Seleccione un signo (obligatorio para esta modalidad)'
+              : 'Ingrese un número de 1 a ' + modalidadNueva.digitos + ' cifras' +
+                (modalidadNueva.requiereSigno ? ' y seleccione el signo' : '');
           window.showModal({ message: msg, type: 'error' });
           return;
         }
@@ -2382,6 +2434,7 @@ import Icon from '../components/ui/Icon.astro';
       tripleModalidad = null;
       tripleModalidadLabel = null;
       modalidadNueva = null;
+      tripleSlot = null;
       modalidadAnimalitos = null;
       seleccionesAnimales = [];
       selectedHorarios = [];
@@ -2411,6 +2464,7 @@ import Icon from '../components/ui/Icon.astro';
         tripleModalidad = null;
         tripleModalidadLabel = null;
         modalidadNueva = null;
+        tripleSlot = null;
         modalidadAnimalitos = null;
         seleccionesAnimales = [];
         selectedHorarios = [];
@@ -2489,6 +2543,8 @@ import Icon from '../components/ui/Icon.astro';
                 ? (l.tripleModalidadLabel || l.modalidadLabel)
                 : (esTripletaAnimalitos ? ('Tripleta' + (seleccionesTripleta ? ' (' + seleccionesTripleta + ')' : '')) : null),
               signo: esTripleta ? (l.animal || l.signoSigla) : null,
+              // WU-2/D3: el ticket muestra "Triple A/B/C" en las posicionales.
+              triple: esTripleta ? (l.combinacion?.triple ?? null) : null,
             }),
             sorteo: l.horario,
             amountBs: l.moneda === 'bs' ? l.monto : 0,
@@ -3000,11 +3056,12 @@ import Icon from '../components/ui/Icon.astro';
       // S3 taquilla-operativa (spec taquilla-navegacion §1): en tripletas
       // zodiacales la zona `seleccion` está INERTE (sin .animal-check ni
       // .opcion-item) y el selector de modalidad vive DENTRO de ella
-      // (#modalidad-grid). Fallback: ↑/↓ navegan sus .modalidad-btn para que
-      // el foco no se atasque en una zona sin ítems (Triple A/B/C alcanzable).
+      // (#modalidad-grid). WU-2: el selector de slot posicional
+      // (#triple-slot-container) comparte la zona. Fallback: ↑/↓ navegan esos
+      // botones para que el foco no se atasque en una zona sin ítems.
       if (zona === 'seleccion' && items.length === 0) {
-        const modalidadGrid = el.querySelector('#modalidad-grid');
-        if (modalidadGrid) return Array.from(modalidadGrid.querySelectorAll('.modalidad-btn'));
+        const controles = el.querySelectorAll('#modalidad-grid .modalidad-btn, #triple-slot-container .slot-btn');
+        if (controles.length > 0) return Array.from(controles);
       }
       return items;
     }
@@ -3302,6 +3359,7 @@ import Icon from '../components/ui/Icon.astro';
         tripleModalidad = null;
         tripleModalidadLabel = null;
         modalidadNueva = null;
+        tripleSlot = null;
         modalidadAnimalitos = null;
         seleccionesAnimales = [];
         sincronizarNumeroB();

@@ -33,6 +33,11 @@ export interface LineaJugada {
   numero?: string | number | null;
   modalidad?: string | null;
   signo?: string | null;
+  /**
+   * WU-2/D3: slot posicional vendido (`a`/`b`/`c`) en `terminal`/`punta`/
+   * `uña`. Se imprime como "Triple A/B/C" para que el ticket sea auditable.
+   */
+  triple?: string | null;
 }
 
 /** Texto de la jugada tal como se imprime en el ticket. */
@@ -48,8 +53,10 @@ export function formatearJugada(linea: LineaJugada): string {
     return numero || '-';
   }
   // Tripletas (zodiacal y numérica): la modalidad es obligatoria para
-  // interpretar el resultado; el signo solo existe en las zodiacales.
-  return [linea.modalidad, numero, linea.signo].filter(Boolean).join(' ') || '-';
+  // interpretar el resultado; el signo solo existe en las zodiacales y el
+  // triple (A/B/C) solo en las posicionales.
+  const triple = linea.triple ? 'Triple ' + String(linea.triple).toUpperCase() : '';
+  return [linea.modalidad, numero, linea.signo, triple].filter(Boolean).join(' ') || '-';
 }
 
 /** Nombres de juego únicos de un ticket, en orden de primera aparición. */

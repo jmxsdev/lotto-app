@@ -82,6 +82,12 @@ export interface Catalogo {
 export interface PremiosCatalogo {
   base: number | null;
   modalidades: Record<string, unknown>;
+  /**
+   * Slots posicionales habilitados (`a`/`b`/`c`) según
+   * `premios.posicion_triples` del catálogo (WU-2/D2). `[]` cuando el juego
+   * no declara posicional o el export aún no lo trae (legacy).
+   */
+  posicionTriples: string[];
   comodines: unknown[] | Record<string, unknown>;
 }
 
@@ -230,7 +236,7 @@ export function cargarCatalogo(raw: unknown): Catalogo {
  */
 export function normalizarPremios(raw: unknown): PremiosCatalogo {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
-    return { base: null, modalidades: {}, comodines: [] };
+    return { base: null, modalidades: {}, posicionTriples: [], comodines: [] };
   }
   const fuente = raw as Record<string, unknown>;
   const base = esNumero(fuente.base) ? (fuente.base as number) : null;
@@ -238,11 +244,15 @@ export function normalizarPremios(raw: unknown): PremiosCatalogo {
     typeof fuente.modalidades === 'object' && fuente.modalidades !== null && !Array.isArray(fuente.modalidades)
       ? (fuente.modalidades as Record<string, unknown>)
       : {};
+  // Slots posicionales (WU-2/D2): solo `a`/`b`/`c`; ausente/otro → [].
+  const posicionTriples = Array.isArray(fuente.posicion_triples)
+    ? fuente.posicion_triples.filter((slot) => slot === 'a' || slot === 'b' || slot === 'c')
+    : [];
   const comodines =
     typeof fuente.comodines === 'object' && fuente.comodines !== null
       ? (fuente.comodines as unknown[] | Record<string, unknown>)
       : [];
-  return { base, modalidades, comodines };
+  return { base, modalidades, posicionTriples, comodines };
 }
 
 /**
