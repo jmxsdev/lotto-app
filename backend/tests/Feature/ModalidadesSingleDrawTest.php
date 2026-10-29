@@ -210,7 +210,7 @@ class ModalidadesSingleDrawTest extends TestCase
         // §3.2 trio-activo: terminal 60× (2 últimas cifras del triple).
         $this->assertPremio(
             'trio-activo',
-            ['tipo' => 'terminal', 'numero' => '52'],
+            ['tipo' => 'terminal', 'numero' => '52', 'triple' => 'a'],
             ['triple_a' => '452'],
             60
         );
@@ -221,7 +221,7 @@ class ModalidadesSingleDrawTest extends TestCase
         // §3.2 trio-activo: punta 60× (2 primeras cifras del triple).
         $this->assertPremio(
             'trio-activo',
-            ['tipo' => 'punta', 'numero' => '45'],
+            ['tipo' => 'punta', 'numero' => '45', 'triple' => 'a'],
             ['triple_a' => '452'],
             60
         );
@@ -232,7 +232,7 @@ class ModalidadesSingleDrawTest extends TestCase
         // §3.2 triple-zamorano: uña 5× (última cifra del triple).
         $this->assertPremio(
             'triple-zamorano',
-            ['tipo' => 'uña', 'numero' => '2'],
+            ['tipo' => 'uña', 'numero' => '2', 'triple' => 'a'],
             ['triple_a' => '452'],
             5
         );
@@ -242,7 +242,7 @@ class ModalidadesSingleDrawTest extends TestCase
     {
         $premio = $this->liquidar(
             'trio-activo',
-            ['tipo' => 'terminal', 'numero' => '53'],
+            ['tipo' => 'terminal', 'numero' => '53', 'triple' => 'a'],
             ['triple_a' => '452']
         );
 

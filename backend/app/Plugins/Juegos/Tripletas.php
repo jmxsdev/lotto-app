@@ -59,6 +59,14 @@ class Tripletas implements JuegoInterface
             return false;
         }
 
+        // D2/D3: las posicionales (`terminal`, `punta`, `uña`) se atan al
+        // triple vendido. Sin `triple` o con un slot que el juego no habilita
+        // la venta se rechaza — nunca hay default (un default restauraría el
+        // pago contra cualquiera de A/B/C).
+        if (in_array($clave, ['terminal', 'punta', 'uña'], true) && ! $this->slotPosicionalValido($combinacion, $premios)) {
+            return false;
+        }
+
         // D2 (design §4/§3.1): el vocabulario canónico de `modalidadDe` decide
         // la FORMA a validar — triples, posiciones del triple (punta/terminal/
         // uña/aproximacion), claves con signo (signo_terminal/signo_uña/
@@ -113,6 +121,41 @@ class Tripletas implements JuegoInterface
         }
 
         return true;
+    }
+
+    /**
+     * ¿La combinación posicional trae un `triple` válido (`a`/`b`/`c`) Y
+     * habilitado por el juego? Los slots salen de
+     * `premios.posicion_triples` (D2); ausente → sin posicional.
+     *
+     * @param  array<string, mixed>  $combinacion
+     * @param  array<string, mixed>|null  $premios
+     */
+    private function slotPosicionalValido(array $combinacion, ?array $premios): bool
+    {
+        $triple = $combinacion['triple'] ?? null;
+
+        if (! is_string($triple) || ! in_array($triple, ['a', 'b', 'c'], true)) {
+            return false;
+        }
+
+        $slots = is_array($premios['posicion_triples'] ?? null) ? $premios['posicion_triples'] : [];
+
+        return in_array($triple, $slots, true);
+    }
+
+    /**
+     * Clave numérica del triple asociado a cada slot posicional (D3): sin
+     * default — `null` cuando la apuesta no trae `triple` o trae otro valor.
+     */
+    private function tipoTripleDe(mixed $triple): ?string
+    {
+        return match ($triple) {
+            'a' => 'triple_a',
+            'b' => 'triple_b',
+            'c' => 'triple_c',
+            default => null,
+        };
     }
 
     /**
@@ -348,9 +391,10 @@ class Tripletas implements JuegoInterface
     }
 
     /**
-     * Posición del triple (F2/§3.1): terminal (2 últimas), punta (2 primeras)
-     * o uña (última). El número apostado se compara contra la posición de
-     * CUALQUIER triple del sorteo (A, B o C) con padding.
+     * Posición del triple (F2/§3.1, D3): terminal (2 últimas), punta (2
+     * primeras) o uña (última). El número apostado se compara SOLO contra el
+     * triple vendido (`combinacion.triple` → A/B/C); ausente o inválido ⇒ no
+     * paga (sin default).
      *
      * @param  array<string, mixed>  $combinacion
      * @param  array<string, mixed>  $numeros
@@ -359,23 +403,21 @@ class Tripletas implements JuegoInterface
     private function aciertoPosicion(array $combinacion, array $numeros, int $offset, int $len, string $clave): array
     {
         $numeroApostado = $combinacion['numero'] ?? null;
+        $tipoTriple = $this->tipoTripleDe($combinacion['triple'] ?? null);
 
-        if ($numeroApostado === null) {
+        if ($numeroApostado === null || $tipoTriple === null) {
             return ['coincide' => false, 'clave' => $clave, 'meta' => []];
         }
 
-        foreach (['triple_a', 'triple_b', 'triple_c'] as $tipo) {
-            $triple = $numeros[$tipo] ?? null;
-            if ($triple === null) {
-                continue;
-            }
+        $triple = $numeros[$tipoTriple] ?? null;
 
-            if ($this->coincidePosicion((string) $numeroApostado, (string) $triple, $offset, $len)) {
-                return ['coincide' => true, 'clave' => $clave, 'meta' => []];
-            }
+        if ($triple === null) {
+            return ['coincide' => false, 'clave' => $clave, 'meta' => []];
         }
 
-        return ['coincide' => false, 'clave' => $clave, 'meta' => []];
+        return $this->coincidePosicion((string) $numeroApostado, (string) $triple, $offset, $len)
+            ? ['coincide' => true, 'clave' => $clave, 'meta' => []]
+            : ['coincide' => false, 'clave' => $clave, 'meta' => []];
     }
 
     /**
@@ -781,6 +823,19 @@ class Tripletas implements JuegoInterface
                     true
                 )),
             ],
+            // D3: las posicionales se atan al triple vendido. `signo_terminal`
+            // y `signo_uña` NO lo exigen (van contra `triple_c`). El slot
+            // habilitado por juego lo valida el plugin con `posicion_triples`.
+            'combinacion.triple' => [
+                'nullable',
+                'string',
+                Rule::requiredIf(fn () => in_array(
+                    (string) request('combinacion.tipo'),
+                    ['terminal', 'punta', 'uña', 'una'],
+                    true
+                )),
+                Rule::in(['a', 'b', 'c']),
+            ],
             // S6: multi-selección same-draw (contrato §2.2) — cruzado y Par
             // A+B llevan exactamente 2 selecciones con su propio tipo y número.
             'combinacion.selecciones' => ['nullable', 'array', 'size:2'],
@@ -811,6 +866,8 @@ class Tripletas implements JuegoInterface
         return [
             'combinacion.tipo.in' => 'La modalidad debe ser triple_a, triple_b, triple_c o una modalidad simple (punta, terminal, uña (una), aproximacion, signo_terminal, signo_uña, signo_solo, arrimao, pegadito).',
             'combinacion.signo.required_if' => 'El signo zodiacal es obligatorio para esta modalidad.',
+            'combinacion.triple.required_if' => 'La modalidad posicional exige indicar el triple (a, b o c).',
+            'combinacion.triple.in' => 'El triple debe ser a, b o c.',
             'combinacion.selecciones.size' => 'La multi-selección debe llevar exactamente 2 selecciones.',
             'combinacion.selecciones.*.tipo.in' => 'Cada selección debe ser de tipo punta, triple_a o triple_b.',
         ];

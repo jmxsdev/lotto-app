@@ -56,6 +56,7 @@ class TripletaMultiSorteoTest extends TestCase
 
     /**
      * @param  array<int, string>  $animales
+     * @param  array<string, mixed>|null  $premiosSnapshot
      */
     private function tripletaPara(
         Juego $juego,
@@ -63,7 +64,8 @@ class TripletaMultiSorteoTest extends TestCase
         Ticket $ticket,
         string $fecha,
         string $horaVenta,
-        array $animales
+        array $animales,
+        ?array $premiosSnapshot = null
     ): Apuesta {
         $combinacion = [
             'modalidad' => 'tripleta',
@@ -90,7 +92,7 @@ class TripletaMultiSorteoTest extends TestCase
             'monto' => 10,
             'premio_ganado' => null,
             'premio_ganado_usd' => null,
-            'premios_snapshot' => $juego->config['premios'] ?? null,
+            'premios_snapshot' => $premiosSnapshot ?? ($juego->config['premios'] ?? null),
         ]);
 
         return $apuesta;
@@ -144,6 +146,38 @@ class TripletaMultiSorteoTest extends TestCase
         // Idempotencia: reprocesar el mismo resultado no duplica.
         $this->assertSame(0, $service->verificarGanadores($r3));
         $this->assertSame('2000.00', $ticket->refresh()->premio_total_bs);
+    }
+
+    public function test_tripleta_300_del_snapshot_se_conserva_intacta(): void
+    {
+        // D4: el snapshot manda al liquidar. Un snapshot con `tripleta: 300`
+        // (aunque la config vigente diga 200) debe seguir pagando 300× y el
+        // valor persistido no puede alterarse.
+        $juego = $this->juego();
+        $taquilla = $this->taquilla();
+        $ticket = $this->ticket($taquilla);
+        $fecha = '2026-09-21';
+
+        $snapshot = [
+            'base' => 30,
+            'modalidades' => ['tripleta' => 300],
+            'posicion_triples' => [],
+            'comodines' => [],
+        ];
+
+        $apuesta = $this->tripletaPara($juego, $taquilla, $ticket, $fecha, '08:00', ['Perro', 'Gato', 'León'], $snapshot);
+
+        $detalle = DetalleApuesta::where('apuesta_id', $apuesta->id)->first();
+        $this->assertSame(300, $detalle->premios_snapshot['modalidades']['tripleta'], 'El snapshot conserva tripleta 300.');
+
+        $service = new ApuestaService;
+        $service->verificarGanadores($this->resultado($juego, $fecha, '09:00', 'Perro', 27));
+        $service->verificarGanadores($this->resultado($juego, $fecha, '10:00', 'Gato', 11));
+        $service->verificarGanadores($this->resultado($juego, $fecha, '11:00', 'León', 5));
+
+        $detalle->refresh();
+        $this->assertSame('3000.00', $detalle->premio_ganado, '10 Bs × 300× del snapshot.');
+        $this->assertSame($snapshot, $detalle->premios_snapshot, 'El snapshot no cambia al liquidar.');
     }
 
     public function test_una_o_dos_figuras_no_pagan_y_la_ultima_extraccion_marca_perdida(): void

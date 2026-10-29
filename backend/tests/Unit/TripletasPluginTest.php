@@ -39,12 +39,18 @@ class TripletasPluginTest extends TestCase
     /**
      * Catálogo mínimo de premios por juego (forma de `config.premios`).
      *
-     * @param  array<string, mixed>  $modalidades
+     * @param  array<string, int>  $modalidades
+     * @param  array<int, string>  $posicionTriples
      * @return array<string, mixed>
      */
-    private function premios(array $modalidades): array
+    private function premios(array $modalidades, array $posicionTriples = []): array
     {
-        return ['base' => 600, 'modalidades' => $modalidades, 'comodines' => []];
+        return [
+            'base' => 600,
+            'modalidades' => $modalidades,
+            'posicion_triples' => $posicionTriples,
+            'comodines' => [],
+        ];
     }
 
     // ---------------- evaluarAcierto(): tipo estricto (REQ5/N3) ----------------
@@ -83,6 +89,95 @@ class TripletasPluginTest extends TestCase
         ]));
 
         $this->assertTrue($acierto['coincide']);
+    }
+
+    // ---------------- evaluarAcierto(): posicional atada al triple vendido (WU-2) ----------------
+
+    public function test_evaluar_acierto_terminal_paga_solo_en_el_triple_vendido()
+    {
+        $resultado = $this->resultado([
+            'triple_a' => '962', 'triple_b' => '123', 'triple_c' => '408', 'signo' => 'ARI',
+        ]);
+
+        // 62 es la terminal del triple A (962): paga.
+        $acierto = $this->plugin->evaluarAcierto(
+            ['combinacion' => ['tipo' => 'terminal', 'numero' => '62', 'triple' => 'a']],
+            $resultado
+        );
+        $this->assertTrue($acierto['coincide']);
+        $this->assertSame('terminal', $acierto['clave']);
+
+        // 23 es la terminal del triple B (123): no paga en el slot A.
+        $acierto = $this->plugin->evaluarAcierto(
+            ['combinacion' => ['tipo' => 'terminal', 'numero' => '23', 'triple' => 'a']],
+            $resultado
+        );
+        $this->assertFalse($acierto['coincide']);
+    }
+
+    public function test_evaluar_acierto_posicional_sin_triple_no_paga()
+    {
+        $acierto = $this->plugin->evaluarAcierto(
+            ['combinacion' => ['tipo' => 'terminal', 'numero' => '62']],
+            $this->resultado(['triple_a' => '962', 'triple_b' => '123', 'triple_c' => '408'])
+        );
+
+        $this->assertFalse($acierto['coincide'], 'Sin `triple` no hay default: no paga.');
+        $this->assertSame('terminal', $acierto['clave']);
+    }
+
+    public function test_evaluar_acierto_una_paga_solo_en_el_triple_vendido()
+    {
+        // Zamorano (uña: última cifra de A o C). A=962 → uña 2; C=538 → uña 8.
+        $resultado = $this->resultado(['triple_a' => '962', 'triple_c' => '538', 'signo' => 'ARI']);
+
+        $acierto = $this->plugin->evaluarAcierto(
+            ['combinacion' => ['tipo' => 'uña', 'numero' => '2', 'triple' => 'a']],
+            $resultado
+        );
+        $this->assertTrue($acierto['coincide']);
+
+        $acierto = $this->plugin->evaluarAcierto(
+            ['combinacion' => ['tipo' => 'uña', 'numero' => '2', 'triple' => 'c']],
+            $resultado
+        );
+        $this->assertFalse($acierto['coincide'], '2 es la uña del triple A, no del C.');
+    }
+
+    public function test_evaluar_acierto_punta_paga_solo_en_el_triple_vendido()
+    {
+        // Chance (punta: 2 primeras de A o B). A=962 → 96; B=123 → 12.
+        $resultado = $this->resultado(['triple_a' => '962', 'triple_b' => '123', 'triple_c' => '408']);
+
+        $acierto = $this->plugin->evaluarAcierto(
+            ['combinacion' => ['tipo' => 'punta', 'numero' => '12', 'triple' => 'b']],
+            $resultado
+        );
+        $this->assertTrue($acierto['coincide']);
+
+        $acierto = $this->plugin->evaluarAcierto(
+            ['combinacion' => ['tipo' => 'punta', 'numero' => '12', 'triple' => 'a']],
+            $resultado
+        );
+        $this->assertFalse($acierto['coincide'], '12 es la punta del triple B, no la del A.');
+    }
+
+    public function test_evaluar_acierto_signo_terminal_sigue_liquidando_contra_triple_c()
+    {
+        // El 59 es la terminal del triple A Y del C en el primer resultado:
+        // paga. En el segundo solo existe en A (C=408 → terminal 08): no paga,
+        // prueba de que la referencia es `triple_c` y no cualquiera de A/B/C.
+        $acierto = $this->plugin->evaluarAcierto(
+            ['combinacion' => ['tipo' => 'signo_terminal', 'numero' => '59', 'signo' => 'LEO']],
+            $this->resultado(['triple_a' => '159', 'triple_b' => '222', 'triple_c' => '259', 'signo' => 'LEO'])
+        );
+        $this->assertTrue($acierto['coincide']);
+
+        $acierto = $this->plugin->evaluarAcierto(
+            ['combinacion' => ['tipo' => 'signo_terminal', 'numero' => '59', 'signo' => 'LEO']],
+            $this->resultado(['triple_a' => '159', 'triple_b' => '222', 'triple_c' => '408', 'signo' => 'LEO'])
+        );
+        $this->assertFalse($acierto['coincide'], 'signo_terminal compara contra triple_c, no contra triple_a.');
     }
 
     // ---------------- evaluarAcierto(): signo label/sigla (REQ4/N2) ----------------
@@ -212,18 +307,53 @@ class TripletasPluginTest extends TestCase
 
     public function test_validar_apuesta_normaliza_una_a_una_contra_el_catalogo()
     {
-        $zamorano = $this->premios(['terminal' => 60, 'uña' => 5]);
+        $zamorano = $this->premios(['terminal' => 60, 'uña' => 5], ['a', 'c']);
 
         $this->assertTrue($this->plugin->validarApuesta([
-            'combinacion' => ['tipo' => 'una', 'numero' => '2'],
+            'combinacion' => ['tipo' => 'una', 'numero' => '2', 'triple' => 'a'],
         ], null, $zamorano));
 
         // Triangulación: `una` se normaliza a `uña`, que este juego no vende.
-        $zulia = $this->premios(['terminal' => 60, 'signo_triple' => 6000]);
+        $zulia = $this->premios(['terminal' => 60, 'signo_triple' => 6000], ['a', 'b', 'c']);
 
         $this->assertFalse($this->plugin->validarApuesta([
-            'combinacion' => ['tipo' => 'una', 'numero' => '2'],
+            'combinacion' => ['tipo' => 'una', 'numero' => '2', 'triple' => 'a'],
         ], null, $zulia));
+    }
+
+    public function test_validar_apuesta_posicional_exige_triple_y_slot_habilitado()
+    {
+        $trioActivo = $this->premios(['terminal' => 60, 'punta' => 60], ['a']);
+
+        $this->assertTrue($this->plugin->validarApuesta([
+            'combinacion' => ['tipo' => 'terminal', 'numero' => '52', 'triple' => 'a'],
+        ], null, $trioActivo));
+
+        // Sin `triple` no hay default: la venta se rechaza.
+        $this->assertFalse($this->plugin->validarApuesta([
+            'combinacion' => ['tipo' => 'terminal', 'numero' => '52'],
+        ], null, $trioActivo));
+
+        // Slot no habilitado (trio-activo solo vende el A).
+        $this->assertFalse($this->plugin->validarApuesta([
+            'combinacion' => ['tipo' => 'terminal', 'numero' => '52', 'triple' => 'b'],
+        ], null, $trioActivo));
+
+        // Valor fuera del vocabulario a/b/c.
+        $this->assertFalse($this->plugin->validarApuesta([
+            'combinacion' => ['tipo' => 'terminal', 'numero' => '52', 'triple' => 'z'],
+        ], null, $trioActivo));
+
+        // Juego sin posicional (Táchira): los slots vacíos rechazan la venta.
+        $tachira = $this->premios(['terminal' => 50, 'signo_triple' => 5000, 'signo_terminal' => 500]);
+        $this->assertFalse($this->plugin->validarApuesta([
+            'combinacion' => ['tipo' => 'terminal', 'numero' => '62', 'triple' => 'a'],
+        ], null, $tachira));
+
+        // signo_terminal NO exige `triple` (va contra triple_c).
+        $this->assertTrue($this->plugin->validarApuesta([
+            'combinacion' => ['tipo' => 'signo_terminal', 'numero' => '59', 'signo' => 'LEO'],
+        ], null, $tachira));
     }
 
     public function test_validar_apuesta_acepta_signo_terminal_y_signo_una_sin_triple()
@@ -242,9 +372,10 @@ class TripletasPluginTest extends TestCase
     public function test_las_reglas_del_request_admiten_el_tipo_una()
     {
         // Si `una` no está en Rule::in, el request rechaza antes de llegar al
-        // plugin y la normalización a `uña` nunca corre.
+        // plugin y la normalización a `uña` nunca corre. La posicional exige
+        // `triple` (D3), así que el payload lo incluye.
         $validator = Validator::make(
-            ['combinacion' => ['tipo' => 'una', 'numero' => '2']],
+            ['combinacion' => ['tipo' => 'una', 'numero' => '2', 'triple' => 'a']],
             $this->plugin->getValidationRules()
         );
 

@@ -7,6 +7,7 @@ use App\Models\ExchangeRate;
 use App\Models\Juego;
 use App\Models\Taquilla;
 use App\Models\User;
+use App\Services\JuegoPluginManager;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\JuegoAnimalitosSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -173,7 +174,7 @@ class ModalidadesVentaTest extends TestCase
 
     public function test_una_se_normaliza_a_una_con_tilde_al_persistir(): void
     {
-        $response = $this->postLinea('triple-zamorano', ['tipo' => 'una', 'numero' => '2']);
+        $response = $this->postLinea('triple-zamorano', ['tipo' => 'una', 'numero' => '2', 'triple' => 'a']);
 
         $response->assertStatus(201);
 
@@ -181,23 +182,86 @@ class ModalidadesVentaTest extends TestCase
         $this->assertNotNull($detalle);
         $this->assertSame('uña', $detalle->combinacion['tipo']);
         $this->assertSame('2', $detalle->combinacion['numero']);
+        $this->assertSame('a', $detalle->combinacion['triple']);
     }
 
     // ---------------- 201 por modalidad single-draw (contrato §2.1) ----------------
 
     public function test_punta_trio_activo_crea_ticket(): void
     {
-        $this->assertVentaModalidad('trio-activo', ['tipo' => 'punta', 'numero' => '45'], 60);
+        $this->assertVentaModalidad('trio-activo', ['tipo' => 'punta', 'numero' => '45', 'triple' => 'a'], 60);
     }
 
     public function test_terminal_trio_activo_crea_ticket(): void
     {
-        $this->assertVentaModalidad('trio-activo', ['tipo' => 'terminal', 'numero' => '52'], 60);
+        $this->assertVentaModalidad('trio-activo', ['tipo' => 'terminal', 'numero' => '52', 'triple' => 'a'], 60);
     }
 
     public function test_una_zamorano_crea_ticket(): void
     {
-        $this->assertVentaModalidad('triple-zamorano', ['tipo' => 'uña', 'numero' => '2'], 5);
+        $this->assertVentaModalidad('triple-zamorano', ['tipo' => 'uña', 'numero' => '2', 'triple' => 'a'], 5);
+    }
+
+    // ---------------- WU-2: posicional atada al triple vendido ----------------
+
+    public function test_posicional_sin_triple_se_rechaza(): void
+    {
+        // D3: sin `triple` no hay default; el plugin rechaza la venta.
+        $response = $this->postLinea('triple-zulia', ['tipo' => 'terminal', 'numero' => '62']);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseCount('tickets', 0);
+        $this->assertDatabaseCount('apuestas', 0);
+    }
+
+    public function test_posicional_con_slot_no_habilitado_se_rechaza(): void
+    {
+        // Zamorano habilita uña en A y C: el slot B no existe para el juego.
+        $response = $this->postLinea('triple-zamorano', ['tipo' => 'uña', 'numero' => '2', 'triple' => 'b']);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseCount('tickets', 0);
+        $this->assertDatabaseCount('apuestas', 0);
+    }
+
+    public function test_posicional_en_tachira_se_rechaza(): void
+    {
+        // Táchira no tiene posicional (`posicion_triples: []`).
+        $response = $this->postLinea('triple-tachira', ['tipo' => 'terminal', 'numero' => '62', 'triple' => 'a']);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseCount('tickets', 0);
+        $this->assertDatabaseCount('apuestas', 0);
+    }
+
+    public function test_posicional_con_triple_habilitado_crea_ticket(): void
+    {
+        $this->assertVentaModalidad('triple-zulia', ['tipo' => 'terminal', 'numero' => '62', 'triple' => 'a']);
+    }
+
+    public function test_signo_terminal_sin_triple_crea_ticket_y_liquida_contra_triple_c(): void
+    {
+        // signo_terminal NO exige `triple`: su referencia es `triple_c`.
+        $this->assertVentaModalidad('triple-zulia', ['tipo' => 'signo_terminal', 'numero' => '59', 'signo' => 'LEO'], 600);
+
+        $apuesta = Apuesta::first();
+        $juego = Juego::where('slug', 'triple-zulia')->firstOrFail();
+        $manager = app(JuegoPluginManager::class);
+
+        // 59 es la terminal de triple_a (159) pero no la de triple_c (408).
+        $perdida = $manager->calcularPremio(
+            $juego,
+            ['combinacion' => $apuesta->combinacion, 'amount_bs' => 10, 'amount_usd' => 0],
+            ['numeros_ganadores' => ['triple_a' => '159', 'triple_b' => '222', 'triple_c' => '408', 'signo' => 'LEO']]
+        );
+        $this->assertSame(0.0, $perdida['premio_bs'], 'No liquida contra triple_a.');
+
+        $ganada = $manager->calcularPremio(
+            $juego,
+            ['combinacion' => $apuesta->combinacion, 'amount_bs' => 10, 'amount_usd' => 0],
+            ['numeros_ganadores' => ['triple_a' => '111', 'triple_b' => '222', 'triple_c' => '259', 'signo' => 'LEO']]
+        );
+        $this->assertSame(6000.0, $ganada['premio_bs'], '10 Bs × 600× contra triple_c.');
     }
 
     public function test_aproximacion_triple_facil_crea_ticket(): void
@@ -231,14 +295,14 @@ class ModalidadesVentaTest extends TestCase
     {
         // "5" → el motor normaliza a "05" (2 cifras para punta); el premio
         // posible no depende del padding (mismo multiplicador).
-        $this->assertVentaModalidad('trio-activo', ['tipo' => 'punta', 'numero' => '5'], 60);
+        $this->assertVentaModalidad('trio-activo', ['tipo' => 'punta', 'numero' => '5', 'triple' => 'a'], 60);
     }
 
     // ---------------- 422 por dígitos inválidos (spec: "Dígitos inválidos rechazados") ----------------
 
     public function test_punta_con_tres_cifras_se_rechaza(): void
     {
-        $response = $this->postLinea('trio-activo', ['tipo' => 'punta', 'numero' => '453']);
+        $response = $this->postLinea('trio-activo', ['tipo' => 'punta', 'numero' => '453', 'triple' => 'a']);
 
         $response->assertStatus(422);
         $this->assertDatabaseCount('tickets', 0);
