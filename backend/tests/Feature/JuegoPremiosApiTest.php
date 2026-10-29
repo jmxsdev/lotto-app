@@ -85,7 +85,7 @@ class JuegoPremiosApiTest extends TestCase
         $response->assertStatus(422);
 
         $this->assertEqualsCanonicalizing(
-            ['base' => 600, 'modalidades' => ['terminal' => 60, 'signo_triple' => 6000, 'signo_terminal' => 600], 'comodines' => []],
+            ['base' => 600, 'modalidades' => ['terminal' => 60, 'signo_triple' => 6000, 'signo_terminal' => 600], 'posicion_triples' => ['a', 'b', 'c'], 'comodines' => []],
             $juego->fresh()->config['premios'],
             'El 422 no debe tocar los premios vigentes.'
         );
@@ -124,9 +124,13 @@ class JuegoPremiosApiTest extends TestCase
 
         $response->assertStatus(200);
 
-        // Reemplazo atómico: el body ES el objeto `premios` completo
+        // Reemplazo atómico: el body ES el objeto `premios` completo; los slots
+        // posicionales no viajan en el body y se conservan del estado previo
         // (comparación canónica: el orden de claves JSON no es contrato).
-        $this->assertEqualsCanonicalizing($payload, $response->json('config.premios'));
+        $this->assertEqualsCanonicalizing(
+            $payload + ['posicion_triples' => ['a', 'b', 'c']],
+            $response->json('config.premios')
+        );
 
         // Espejos legacy sincronizados (D2): premio_multiplo = base,
         // modalidades con claves históricas y comodines en espejo.
@@ -135,7 +139,28 @@ class JuegoPremiosApiTest extends TestCase
         $this->assertEqualsCanonicalizing($payload['comodines'], $response->json('config.comodines'));
 
         // Persistido en BD (config cast array).
-        $this->assertEqualsCanonicalizing($payload, $juego->fresh()->config['premios']);
+        $this->assertEqualsCanonicalizing(
+            $payload + ['posicion_triples' => ['a', 'b', 'c']],
+            $juego->fresh()->config['premios']
+        );
+    }
+
+    public function test_put_premios_conserva_los_slots_posicionales(): void
+    {
+        // Regresión: el panel envía solo {base, modalidades, comodines}. Los
+        // slots son catálogo y no deben desaparecer en la edición.
+        $juego = $this->juego('triple-zulia');
+        $this->assertSame(['a', 'b', 'c'], $juego->config['premios']['posicion_triples']);
+
+        $this->actingAs($this->superUser(), 'sanctum')
+            ->putJson("/api/v1/juegos/{$juego->id}/premios", $this->payload([
+                'modalidades' => ['terminal' => 70],
+            ]))
+            ->assertStatus(200);
+
+        $juego->refresh();
+        $this->assertSame(['a', 'b', 'c'], $juego->config['premios']['posicion_triples']);
+        $this->assertSame(70, $juego->config['premios']['modalidades']['terminal']);
     }
 
     public function test_put_premios_403_para_rol_banca(): void
@@ -303,7 +328,10 @@ class JuegoPremiosApiTest extends TestCase
             ->getJson("/api/v1/juegos/{$juego->id}");
 
         $response->assertStatus(200);
-        $this->assertEqualsCanonicalizing($payload, $response->json('config.premios'));
+        $this->assertEqualsCanonicalizing(
+            $payload + ['posicion_triples' => ['a', 'b', 'c']],
+            $response->json('config.premios')
+        );
         $this->assertSame(700, $response->json('config.premio_multiplo'));
         $this->assertEqualsCanonicalizing(
             ['cola' => 70, 'zodiacal' => 7000],

@@ -275,6 +275,7 @@ class PremiosOficialesTest extends TestCase
         $this->assertSame([
             'base' => 30,
             'modalidades' => [],
+            'posicion_triples' => [],
             'comodines' => [],
         ], $config['premios']);
         $this->assertSame([], $config['modalidades']);
@@ -289,6 +290,7 @@ class PremiosOficialesTest extends TestCase
         $this->assertSame([
             'base' => 600,
             'modalidades' => ['terminal' => 60, 'punta' => 60],
+            'posicion_triples' => ['a'],
             'comodines' => [],
         ], $config['premios']);
         // Espejo legacy: claves históricas, mismos valores (§3.1).
@@ -304,8 +306,33 @@ class PremiosOficialesTest extends TestCase
         $this->assertSame([
             'base' => 600,
             'modalidades' => ['terminal' => 60, 'signo_triple' => 6000, 'signo_terminal' => 600],
+            'posicion_triples' => ['a', 'b', 'c'],
             'comodines' => [],
         ], $config['premios']);
+    }
+
+    public function test_config_para_expone_los_slots_posicionales_por_juego()
+    {
+        $esperados = [
+            'triple-zulia' => ['a', 'b', 'c'],
+            'triple-caliente' => ['a', 'b', 'c'],
+            'triple-zamorano' => ['a', 'c'],
+            'triple-chance' => ['a', 'b'],
+            'triple-facil' => ['a'],
+            'trio-activo' => ['a'],
+            'triple-tachira' => [],
+        ];
+
+        foreach ($esperados as $slug => $slots) {
+            $this->assertSame(
+                $slots,
+                PremiosOficiales::configPara($slug)['premios']['posicion_triples'],
+                "Slots posicionales de {$slug}"
+            );
+        }
+
+        // Sin posicional declarado: default [] (p. ej. animalitos).
+        $this->assertSame([], PremiosOficiales::configPara('lotto-activo')['premios']['posicion_triples']);
     }
 
     public function test_config_para_triple_zamorano_mapea_todas_las_claves_de_signo()

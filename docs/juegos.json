@@ -10,7 +10,8 @@
             "premios": {
                 "base": 30,
                 "comodines": [],
-                "modalidades": []
+                "modalidades": [],
+                "posicion_triples": []
             },
             "active": true,
             "vendible": true,
@@ -274,7 +275,12 @@
                     "terminal": 60,
                     "signo_triple": 6000,
                     "signo_terminal": 600
-                }
+                },
+                "posicion_triples": [
+                    "a",
+                    "b",
+                    "c"
+                ]
             },
             "active": true,
             "vendible": true,
@@ -373,7 +379,8 @@
             "premios": {
                 "base": 60,
                 "comodines": [],
-                "modalidades": []
+                "modalidades": [],
+                "posicion_triples": []
             },
             "active": true,
             "vendible": true,
@@ -1007,7 +1014,8 @@
             "premios": {
                 "base": 30,
                 "comodines": [],
-                "modalidades": []
+                "modalidades": [],
+                "posicion_triples": []
             },
             "active": true,
             "vendible": true,
@@ -1267,7 +1275,8 @@
             "premios": {
                 "base": 30,
                 "comodines": [],
-                "modalidades": []
+                "modalidades": [],
+                "posicion_triples": []
             },
             "active": true,
             "vendible": true,
@@ -1542,7 +1551,8 @@
                         "premio_multiplo": 20
                     }
                 },
-                "modalidades": []
+                "modalidades": [],
+                "posicion_triples": []
             },
             "active": true,
             "vendible": true,
@@ -2052,7 +2062,10 @@
                 "modalidades": {
                     "punta": 60,
                     "terminal": 60
-                }
+                },
+                "posicion_triples": [
+                    "a"
+                ]
             },
             "active": true,
             "vendible": true,
@@ -2691,7 +2704,12 @@
                     "terminal": 60,
                     "signo_triple": 6000,
                     "signo_terminal": 600
-                }
+                },
+                "posicion_triples": [
+                    "a",
+                    "b",
+                    "c"
+                ]
             },
             "active": true,
             "vendible": true,
@@ -2792,7 +2810,8 @@
                 "comodines": [],
                 "modalidades": {
                     "tripleta": 200
-                }
+                },
+                "posicion_triples": []
             },
             "active": true,
             "vendible": true,
@@ -3063,7 +3082,11 @@
                     "triple_a_b": 200000,
                     "signo_triple": 6000,
                     "signo_terminal": 600
-                }
+                },
+                "posicion_triples": [
+                    "a",
+                    "b"
+                ]
             },
             "active": true,
             "vendible": true,
@@ -3182,7 +3205,8 @@
                     "triple_a": 600,
                     "triple_b": 600,
                     "signo_triple": 6000
-                }
+                },
+                "posicion_triples": []
             },
             "active": true,
             "vendible": true,
@@ -3292,7 +3316,8 @@
                         "premio_multiplo": 150
                     }
                 },
-                "modalidades": []
+                "modalidades": [],
+                "posicion_triples": []
             },
             "active": true,
             "vendible": true,
@@ -3944,7 +3969,8 @@
                         "premio_multiplo": 120
                     }
                 },
-                "modalidades": []
+                "modalidades": [],
+                "posicion_triples": []
             },
             "active": true,
             "vendible": true,
@@ -4445,7 +4471,8 @@
             "premios": {
                 "base": 30,
                 "comodines": [],
-                "modalidades": []
+                "modalidades": [],
+                "posicion_triples": []
             },
             "active": true,
             "vendible": true,
@@ -4734,7 +4761,8 @@
                 "comodines": [],
                 "modalidades": {
                     "tripleta": 50
-                }
+                },
+                "posicion_triples": []
             },
             "active": true,
             "vendible": true,
@@ -5116,7 +5144,8 @@
                         "premio_multiplo": 40
                     }
                 },
-                "modalidades": []
+                "modalidades": [],
+                "posicion_triples": []
             },
             "active": true,
             "vendible": true,
@@ -5395,7 +5424,8 @@
                         "premio_multiplo": 200
                     }
                 },
-                "modalidades": []
+                "modalidades": [],
+                "posicion_triples": []
             },
             "active": true,
             "vendible": true,
@@ -6062,7 +6092,8 @@
                 "modalidades": {
                     "terminal": 50,
                     "signo_triple": 5000
-                }
+                },
+                "posicion_triples": []
             },
             "active": true,
             "vendible": true,
@@ -6163,7 +6194,10 @@
                 "modalidades": {
                     "terminal": 60,
                     "aproximacion": 10
-                }
+                },
+                "posicion_triples": [
+                    "a"
+                ]
             },
             "active": true,
             "vendible": true,
@@ -6804,7 +6838,11 @@
                     "signo_uña": 60,
                     "signo_triple": 6000,
                     "signo_terminal": 600
-                }
+                },
+                "posicion_triples": [
+                    "a",
+                    "c"
+                ]
             },
             "active": true,
             "vendible": true,

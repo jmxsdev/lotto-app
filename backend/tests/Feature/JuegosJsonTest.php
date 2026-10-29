@@ -150,7 +150,7 @@ class JuegosJsonTest extends TestCase
 
         // Contrato del motor (D10): `premios` canónico exportado aditivamente.
         $this->assertEqualsCanonicalizing(
-            ['base' => 30, 'modalidades' => [], 'comodines' => []],
+            ['base' => 30, 'modalidades' => [], 'posicion_triples' => [], 'comodines' => []],
             $porSlug['lotto-activo']['premios'],
             'lotto-activo premios'
         );

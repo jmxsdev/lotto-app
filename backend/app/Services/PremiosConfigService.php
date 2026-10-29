@@ -61,6 +61,13 @@ class PremiosConfigService
         $config = $juego->config ?? [];
         $before = $config['premios'] ?? [];
 
+        // Los slots posicionales son catálogo, no configuración editable desde
+        // el panel: el controller filtra el payload a base/modalidades/comodines,
+        // así que si el body no los trae se conservan los vigentes. Sin esto,
+        // editar un premio borraba `posicion_triples` y apagaba la venta
+        // posicional del juego.
+        $premios['posicion_triples'] ??= $before['posicion_triples'] ?? [];
+
         // Merge de alto nivel: se preservan scraper/modalidades_permitidas/etc.
         $nuevaConfig = array_merge($config, ['premios' => $premios]);
 

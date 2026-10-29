@@ -12,17 +12,19 @@ namespace App\Support;
  * (D2/D4), de modo que motor, BD y tests comparten una sola verdad.
  *
  * Estructura por juego:
- *   'base'        => int, multiplicador del acierto simple
- *   'modalidades' => array<string, int>, clave canónica → multiplicador
- *   'comodines'   => array<string, array>, clave → {tipo, premio_multiplo, ...}
- *   'active'      => bool, false solo para juegos sin fuente oficial (la-ricachona)
+ *   'base'             => int, multiplicador del acierto simple
+ *   'modalidades'      => array<string, int>, clave canónica → multiplicador
+ *   'posicion_triples' => array<int, string>, slots posicionales habilitados
+ *                         (`a`/`b`/`c`); ausente = sin posicional
+ *   'comodines'        => array<string, array>, clave → {tipo, premio_multiplo, ...}
+ *   'active'           => bool, false solo para juegos sin fuente oficial (la-ricachona)
  *
  * La Dupleta queda FUERA de alcance (decisión del cliente): no se configura.
  */
 class PremiosOficiales
 {
     /**
-     * @var array<string, array{base?: int, modalidades: array<string, int>, comodines: array<string, array<string, mixed>>, active: bool}>
+     * @var array<string, array{base?: int, modalidades: array<string, int>, posicion_triples?: array<int, string>, comodines: array<string, array<string, mixed>>, active: bool}>
      */
     private const CATALOGO = [
         'lotto-activo' => [
@@ -71,18 +73,21 @@ class PremiosOficiales
         'trio-activo' => [
             'base' => 600,
             'modalidades' => ['terminal' => 60, 'punta' => 60],
+            'posicion_triples' => ['a'],
             'comodines' => [],
             'active' => true,
         ],
         'triple-zulia' => [
             'base' => 600,
             'modalidades' => ['terminal' => 60, 'signo_triple' => 6000, 'signo_terminal' => 600],
+            'posicion_triples' => ['a', 'b', 'c'],
             'comodines' => [],
             'active' => true,
         ],
         'triple-caliente' => [
             'base' => 600,
             'modalidades' => ['terminal' => 60, 'signo_triple' => 6000, 'signo_terminal' => 600],
+            'posicion_triples' => ['a', 'b', 'c'],
             'comodines' => [],
             'active' => true,
         ],
@@ -99,18 +104,22 @@ class PremiosOficiales
                 'signo_terminal' => 600,
                 'signo_solo' => 6,
             ],
+            'posicion_triples' => ['a', 'b'],
             'comodines' => [],
             'active' => true,
         ],
         'triple-tachira' => [
             'base' => 500,
             'modalidades' => ['terminal' => 50, 'signo_triple' => 5000],
+            // Sin posicional: la oferta y los slots se completan en WU-4.
+            'posicion_triples' => [],
             'comodines' => [],
             'active' => true,
         ],
         'triple-facil' => [
             'base' => 700,
             'modalidades' => ['terminal' => 60, 'aproximacion' => 10],
+            'posicion_triples' => ['a'],
             'comodines' => [],
             'active' => true,
         ],
@@ -123,6 +132,7 @@ class PremiosOficiales
                 'signo_terminal' => 600,
                 'signo_uña' => 60,
             ],
+            'posicion_triples' => ['a', 'c'],
             'comodines' => [],
             'active' => true,
         ],
@@ -283,7 +293,7 @@ class PremiosOficiales
     /**
      * Catálogo completo: slug → configuración de premios.
      *
-     * @return array<string, array{base?: int, modalidades: array<string, int>, comodines: array<string, array<string, mixed>>, active: bool}>
+     * @return array<string, array{base?: int, modalidades: array<string, int>, posicion_triples?: array<int, string>, comodines: array<string, array<string, mixed>>, active: bool}>
      */
     public static function todos(): array
     {
@@ -291,7 +301,7 @@ class PremiosOficiales
     }
 
     /**
-     * @return array{base?: int, modalidades: array<string, int>, comodines: array<string, array<string, mixed>>, active: bool}|null
+     * @return array{base?: int, modalidades: array<string, int>, posicion_triples?: array<int, string>, comodines: array<string, array<string, mixed>>, active: bool}|null
      */
     public static function para(string $slug): ?array
     {
@@ -334,10 +344,13 @@ class PremiosOficiales
         $config = [];
 
         if (isset($catalogo['base'])) {
-            // Fuente del motor (D1/C, §3): vocabulario canónico.
+            // Fuente del motor (D1/C, §3): vocabulario canónico. Los slots
+            // posicionales viajan dentro de `premios` (D2) para que motor,
+            // snapshot y export los compartan sin código extra.
             $config['premios'] = [
                 'base' => $catalogo['base'],
                 'modalidades' => $catalogo['modalidades'],
+                'posicion_triples' => $catalogo['posicion_triples'] ?? [],
                 'comodines' => $catalogo['comodines'],
             ];
         }
