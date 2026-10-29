@@ -177,7 +177,9 @@ class TripletaMultiSorteoTest extends TestCase
 
         $detalle->refresh();
         $this->assertSame('3000.00', $detalle->premio_ganado, '10 Bs × 300× del snapshot.');
-        $this->assertSame($snapshot, $detalle->premios_snapshot, 'El snapshot no cambia al liquidar.');
+        // Comparación por valor: MySQL reordena las claves de los objetos JSON,
+        // así que el orden de `premios_snapshot` no es contrato.
+        $this->assertEquals($snapshot, $detalle->premios_snapshot, 'El snapshot no cambia al liquidar.');
     }
 
     public function test_una_o_dos_figuras_no_pagan_y_la_ultima_extraccion_marca_perdida(): void
