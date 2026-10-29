@@ -1191,8 +1191,8 @@ ok(
   'triple-facil (numérica): base triple_a + terminal + aproximacion',
 );
 ok(
-  JSON.stringify(modalidadesDisponibles(catalogo.porSlug.get('triple-tachira')).map((m) => m.clave)) === JSON.stringify(['triple_a', 'triple_b', 'terminal', 'signo_triple']),
-  'tachira (zodiacal): base triple_a/triple_b + terminal + signo_triple',
+  JSON.stringify(modalidadesDisponibles(catalogo.porSlug.get('triple-tachira')).map((m) => m.clave)) === JSON.stringify(['triple_a', 'triple_b', 'triple_a_b', 'aproximacion', 'signo_triple', 'signo_terminal']),
+  `tachira (zodiacal): base triple_a/triple_b + catálogo (${modalidadesDisponibles(catalogo.porSlug.get('triple-tachira')).map((m) => m.clave).join(',')})`,
 );
 ok(
   JSON.stringify(modalidadesDisponibles(catalogo.porSlug.get('triple-zamorano')).map((m) => m.clave)) ===
