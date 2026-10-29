@@ -37,7 +37,7 @@
 | Ref | Tema | Decisión pendiente |
 |---|---|---|
 | H12 / DEC-01 | Terminal Trío | Reglamento **60×** vs FAQ oficial **70×** (+5× aproximación) |
-| H23 / DEC-02 | Triple Chance | Reglamento **150× / 6.000×** vs afiche **100× / 5.000×** |
+| H23 / DEC-02 | Triple Chance | ✅ **Cerrada (#64, D-09)**: manda el reglamento **150× / 6.000×** |
 | DEC-03 | Dupleta 1.000×, Par Millonario 200.000×, El Patronus | ¿Se soportan como modalidades nuevas? |
 | DEC-04 | La Ricachona | Deshabilitada (sin fuente con valores); los fronts deben ocultarla |
 | DEC-05 / H15·H18·H19 | Horarios operativos | Domingos de Táchira/Zamorano; Trío Activo 3 vs 12 sorteos; Caliente 5 vs 3 |

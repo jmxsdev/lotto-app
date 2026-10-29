@@ -115,11 +115,11 @@ Cada linea del ticket es **un sorteo unico** (`sorteo_hora`) y **un monto propio
 | Triple seco | Zulia, Caliente, Zamorano, Tachira, Facil, Arrejuntado | `{ "tipo": "triple_a", "numero": "452" }` (idem `triple_b`) | `triple_a`/`triple_b` |
 | Triple + signo | idem | `{ "tipo": "triple_c", "numero": "259", "signo": "Escorpio" }` (label o sigla `ESC`, ambas validas) | `signo_triple` |
 | Terminal Activo | `terminal-activo` (plugin Terminales) | `{ "numero": "37" }` | `terminal` |
-| Punta | Trio Activo, Chance | `{ "tipo": "punta", "numero": "45" }` (2 primeras del triple) | `punta` |
-| Terminal | Trio Activo, Zulia, Caliente, Zamorano, Tachira, Chance, Facil | `{ "tipo": "terminal", "numero": "52" }` (2 ultimas) | `terminal` |
-| Una | Zamorano | `{ "tipo": "uña", "numero": "2" }` (ultima cifra) | `una` |
-| Aproximacion | Facil | `{ "tipo": "aproximacion", "numero": "51" }` (terminal +-1, sin wrap) | `aproximacion` |
-| Signo + terminal | Zulia, Caliente, Chance, Zamorano (`signo_terminal`/`signo_una`) | `{ "tipo": "signo_terminal", "numero": "59", "signo": "LEO" }` | `signo_terminal` |
+| Punta | Trio Activo, Chance | `{ "tipo": "punta", "numero": "45", "triple": "a" }` (2 primeras del **triple vendido**) | `punta` |
+| Terminal | Trio Activo, Zulia, Caliente, Zamorano, Chance, Facil | `{ "tipo": "terminal", "numero": "52", "triple": "a" }` (2 ultimas del **triple vendido**) | `terminal` |
+| Una | Zamorano | `{ "tipo": "uña", "numero": "2", "triple": "a" }` (ultima cifra del **triple vendido**) | `uña` |
+| Aproximacion | Facil, Tachira | `{ "tipo": "aproximacion", "numero": "51" }` (terminal +-1, sin wrap) | `aproximacion` |
+| Signo + terminal | Zulia, Caliente, Chance, Zamorano, Tachira (`signo_terminal`/`signo_una`) | `{ "tipo": "signo_terminal", "numero": "59", "signo": "LEO" }` | `signo_terminal` |
 | Signo solo | Chance | `{ "tipo": "signo_solo", "signo": "LEO" }` | `signo_solo` |
 | Arrimao | Arrejuntado | `{ "tipo": "arrimao", "numero": "1825" }` (4 cifras) | `arrimao` |
 | Pegadito | Arrejuntado | `{ "tipo": "pegadito", "numero": "10503" }` (5 cifras) | `pegadito` |
@@ -127,18 +127,22 @@ Cada linea del ticket es **un sorteo unico** (`sorteo_hora`) y **un monto propio
 Notas:
 - Los numeros se pueden mandar sin padding ("7"); el motor normaliza (2/3/4/5 cifras segun modalidad).
 - El signo se acepta como label ("Escorpio") o sigla ("ESC") — **hoy la taquilla ya manda label**: correcto.
-- La `punta`/`terminal`/`una` busca la posicion en CUALQUIERA de los triples A/B/C del sorteo (con padding).
+- La `punta`/`terminal`/`uña` **exigen `triple`** (`a`|`b`|`c`) y se liquidan **solo contra ese triple** (D-01/D-04 del issue #64). Sin `triple` la venta se rechaza con 422; no hay default.
+- Slots habilitados por juego (`premios.posicion_triples`): Zulia `a,b,c` · Caliente `a,b,c` · Zamorano `a,c` · Chance `a,b` · Fácil `a` · Trío Activo `a` · Táchira ninguno.
+- `signo_terminal`/`signo_uña` **no** llevan `triple`: su referencia es `triple_c` por reglamento.
+- **Whitelist total (D-11)**: la clave canónica debe estar en `premios.modalidades` o ser `triple_a`/`triple_b`; `base` (tipo desconocido) se rechaza con 422, tanto en shapes simples como en multi-selección.
 
 ### 2.2 Multi-seleccion del mismo sorteo (`selecciones[]`)
 
 | Modalidad | Juegos | `combinacion` (JSON literal) | Multiplicadores |
 |---|---|---|---|
 | **Cruzado** | Chance | `{ "modalidad": "cruzado", "selecciones": [ {"tipo":"punta","numero":"75"}, {"tipo":"punta","numero":"14"} ] }` | ambas puntas -> `cruzado` 3.000x; una -> `cruzado_10` 10x |
-| **Par Millonario A+B** | Chance | `{ "modalidad": "triple_a_b", "selecciones": [ {"tipo":"triple_a","numero":"756"}, {"tipo":"triple_b","numero":"146"} ] }` | ambos -> `triple_a_b` 200.000x; uno -> `solo_a_b` 150x |
+| **Par Millonario A+B** | Chance, Táchira | `{ "modalidad": "triple_a_b", "selecciones": [ {"tipo":"triple_a","numero":"756"}, {"tipo":"triple_b","numero":"146"} ] }` | ambos -> `triple_a_b` 200.000x; uno -> Chance `solo_a_b` 150x, Táchira **0** (D-06) |
 | **Tripleta** | Cazaloton, Loto Chaima | `{ "modalidad": "tripleta", "selecciones": [ {"animal":"perro"}, {"animal":"gato"}, {"animal":"león"} ] }` | Cazaloton `tripleta` 200x; Chaima `tripleta` 50x. **Multi-sorteo todo o nada**: 3 figuras distintas en 3 sorteos distintos del día |
 | ~~Dupleta~~ | — | **RECHAZADA** (no existe en el catalogo; `createApuesta` la rechaza con 422) | — |
 
 - La clave `modalidad` es **obligatoria** en los shapes con `selecciones`; una modalidad declarada que no exista en el catalogo del juego se rechaza con 422 en la venta.
+- Un **tier derivado** (`solo_a_b`, `cruzado_10`) que el juego no configure paga **0**, nunca el `base` (D-05). Un `0` explícito también paga 0.
 - Las modalidades single-draw (Cruzado, Par A+B) comparten el `sorteo_hora` de la linea. La **tripleta** es una jugada de día: no se expande por horario y el backend la liquida contra los sorteos posteriores.
 
 ### 2.3 Valores por juego (para mostrar en UI)

@@ -71,7 +71,7 @@
 | ID | Tema | Decisión pendiente | Evidencia |
 |---|---|---|---|
 | DEC-01 | Terminal Trío | Reglamento 60× vs FAQ 70× (+5× aproximación). Hoy se muestra 60× | `docs/cliente/inconsistencias.md` H12 · `docs/cliente/multiplicadores-juegos.md:15` |
-| DEC-02 | Triple Chance | Reglamento 150×/6.000× vs afiche 100×/5.000× (C+Signo). Hoy se muestra el reglamento | `docs/cliente/inconsistencias.md` H23 · `docs/cliente/multiplicadores-juegos.md:22,40` |
+| DEC-02 | Triple Chance | ✅ **CERRADA (#64, D-09)**: manda el reglamento — 150× y 6.000× | `docs/cliente/inconsistencias.md` H23 · `docs/cliente/multiplicadores-juegos.md:22,40` |
 | DEC-03 | Dupleta 1.000× y El Patronus | Modalidades fuera del modelo (Dupleta no existe y es rechazada; Patronus sin premio oficial confirmado). Si se soportan: UI de apuesta nueva + motor | `docs/cliente/comparacion-juegos.md:188-189,207` · `docs/cliente/premiacion-juegos.md:63-64` |
 | DEC-04 | La Ricachona | `vendible=false`, sin fuente oficial de premios. Los fronts deben ocultarla/deshabilitarla (hoy la taquilla la lista: TQ-06) | `docs/juegos.json` (la-ricachona `active:false`, `vendible:false`) · `docs/cliente/premiacion-juegos.md` |
 | DEC-05 | Horarios operativos | Confirmar con el operador: domingos de Táchira/Zamorano, Trío Activo 3 vs 12 sorteos, Caliente 5 vs 3. Se muestran los valores de operación real | `docs/cliente/inconsistencias.md` H9/H15/H18/H19 |
