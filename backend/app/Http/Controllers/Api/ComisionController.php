@@ -63,6 +63,83 @@ class ComisionController extends Controller
     }
 
     /**
+     * Consulta read-only de comisiones por rango (Modelo A).
+     *
+     * GET /api/v1/comisiones/consulta — super_master|master (sin
+     * manage_comisiones). Valida desde/hasta (date, hasta >= desde) → 422;
+     * el super_master consulta global o filtra por `banca_ids`; el master
+     * solo sus bancas (masterBancaIds), y `banca_ids` fuera de alcance ⇒
+     * 403. No persiste nada ni expone estado/conflictos del ledger.
+     */
+    public function consulta(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'desde' => ['required', 'date'],
+            'hasta' => ['required', 'date', 'after_or_equal:desde'],
+            'banca_ids' => ['nullable', 'array'],
+            'banca_ids.*' => ['integer'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $user = $request->user();
+        $bancaIds = $request->input('banca_ids');
+        $permitidas = $this->bancasEnAlcance($user);
+
+        if ($permitidas !== null) {
+            if ($bancaIds !== null) {
+                $foraneas = array_diff($bancaIds, $permitidas);
+
+                if ($foraneas !== []) {
+                    return response()->json(['message' => 'No autorizado: banca_ids fuera de su alcance.'], 403);
+                }
+            } else {
+                $bancaIds = $permitidas;
+            }
+        }
+
+        $desde = Carbon::parse($request->input('desde'));
+        $hasta = Carbon::parse($request->input('hasta'));
+
+        $rows = $this->comisiones->filasPorRango($desde, $hasta, $bancaIds);
+
+        $data = array_map(fn (array $fila) => [
+            'nivel' => $fila['nivel'],
+            'entidad_id' => $fila['entidad_id'],
+            'entidad' => $fila['entidad'],
+            'monto_comision' => number_format((float) $fila['monto_comision'], 2, '.', ''),
+        ], $rows);
+
+        return response()->json([
+            'data' => $data,
+            'meta' => [
+                'desde' => $desde->toDateString(),
+                'hasta' => $hasta->toDateString(),
+                'total' => count($data),
+            ],
+        ]);
+    }
+
+    /**
+     * Bancas visibles para el usuario en la consulta.
+     *
+     * super_master ⇒ null (sin restricción, alcance global); master ⇒ ids
+     * de las bancas que administra (posiblemente vacío, nunca global).
+     *
+     * @return array<int, int>|null
+     */
+    private function bancasEnAlcance(User $user): ?array
+    {
+        if ($user->role === 'master') {
+            return $user->masterBancaIds()->all();
+        }
+
+        return null;
+    }
+
+    /**
      * Listar comisiones del ledger, paginadas (D8).
      *
      * GET /api/v1/comisiones — super_master|master. El super_master ve
