@@ -256,7 +256,7 @@ const name = user?.name || '';
 
     if (['super_master', 'master', 'banca', 'grupo'].includes(role)) sidebarNav.appendChild(addLink('Límites', '/limites', 'target'));
 
-    // Comisiones — ledger de comisiones (liquidar y pagar), super_master|master
+    // Comisiones — consulta read-only de comisiones, super_master|master
     if (['super_master','master'].includes(role)) sidebarNav.appendChild(addLink('Comisiones', '/comisiones', 'banknote'));
 
     // Reportes dropdown — todos los roles
