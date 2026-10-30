@@ -64,9 +64,9 @@ Orden impuesto por el diseño: endpoint + panel primero (el panel nunca llama a 
 
 ## Fase 3: Docs + changelog
 
-- [ ] 3.1 Copiar `docs/dev/motor-cierres-comisiones.md` desde el worktree principal (untracked) y actualizar: §1 (un subsistema + archivo), §2 (service/controlador), §5.4/§5.5 → consulta, §6 `comisiones_archivo_2026`, §8 tabla de tests, §9 hallazgos 3 y 5. Commit: `docs(dev): actualiza motor-cierres-comisiones a modelo consultivo`. Verify: `git diff --stat`.
-- [ ] 3.2 Quitar referencias al ledger/pago y documentar el paso de dump en `docs/dev/integracion-front-motor-premios.md`, `estructura.md`, `arquitectura-backend.md`, `runbook-ops.md`. Commit: `docs(dev): elimina referencias al ledger`. Verify: `grep -ri "liquidar\|/comisiones/pagar" docs/dev/`.
-- [ ] 3.3 Entrada en `CHANGELOG.md` (retiro del ledger, archivo `comisiones_archivo_2026`, endpoint `consulta`). Commit: `docs: registra retiro del ledger de comisiones`. Verify: `git diff --stat CHANGELOG.md`.
+- [x] 3.1 Copiar `docs/dev/motor-cierres-comisiones.md` desde el worktree principal (untracked) y actualizar: §1 (un subsistema + archivo), §2 (service/controlador), §5.4/§5.5 → consulta, §6 `comisiones_archivo_2026`, §8 tabla de tests, §9 hallazgos 3 y 5. Commit: `docs(dev): actualiza motor-cierres-comisiones a modelo consultivo`. Verify: `git diff --stat`.
+- [x] 3.2 Quitar referencias al ledger/pago y documentar el paso de dump en `docs/dev/integracion-front-motor-premios.md`, `estructura.md`, `arquitectura-backend.md`, `runbook-ops.md`. Commit: `docs(dev): elimina referencias al ledger`. Verify: `grep -ri "liquidar\|/comisiones/pagar" docs/dev/`.
+- [x] 3.3 Entrada en `CHANGELOG.md` (retiro del ledger, archivo `comisiones_archivo_2026`, endpoint `consulta`). Commit: `docs: registra retiro del ledger de comisiones`. Verify: `git diff --stat CHANGELOG.md`.
 
 ## Plan de tests
 
