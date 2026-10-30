@@ -207,7 +207,7 @@ NO hardcodear multiplicadores en el front: leer `premios` de `GET /juegos/{id}/r
 - Dejar de asumir 5 min (`historial.astro:102-113`): el backend decide con `getEffectiveTiempoEliminacion` (taquilla -> grupo -> banca). Mientras no exista endpoint que exponga el valor, manejar el rechazo del `DELETE` y mostrar el mensaje del backend.
 
 **T8. NO hacer**.
-- No implementar Dupleta. No llamar `/limites` (los limites se aplican server-side). No gestionar comisiones en la taquilla: se configuran en panel > Limites y se liquidan/pagan en `/comisiones`.
+- No implementar Dupleta. No llamar `/limites` (los limites se aplican server-side). No gestionar comisiones en la taquilla: se configuran en panel > Limites y se consultan (solo lectura) en `/comisiones`.
 
 ### 3.3 Checklist de aceptacion (taquilla)
 
@@ -233,7 +233,7 @@ NO hardcodear multiplicadores en el front: leer `premios` de `GET /juegos/{id}/r
 | Premios por juego | Sin UI (ni `premios`, ni `vendible`) | — |
 | Configuraciones | No existe pagina; no consume `/configuraciones/apuestas-vencimiento` (backend implementado) | grep 0 |
 | Limites | UI completa en `/limites` y tabs de banca/grupo/taquilla (campos `limite_minimo/maximo`, `porcentaje_pago`, `participacion`, `fraccion`, `limite_tiempo`) | `utils/limites.ts:46-53` |
-| Comisiones | Implementado: página `/comisiones` (liquidar/pagar), config en Limites, **topes por tipo** (animalitos 16% / tripletas 25%), default global ≤16% | PR #50 · PRs #61/#62 · `openspec/specs/comisiones/spec.md` |
+| Comisiones | Implementado: página `/comisiones` (consulta read-only por rango), config en Limites, **topes por tipo** (animalitos 16% / tripletas 25%), default global ≤16% | PR #50 · PRs #61/#62 · `openspec/specs/comisiones/spec.md` |
 | Estados de apuesta | Sin vista (dashboard rotula "Ganadores Hoy" = `pagada_count`) | `dashboard.astro:52-53` |
 
 ### 4.2 Cambios requeridos
@@ -264,20 +264,21 @@ NO hardcodear multiplicadores en el front: leer `premios` de `GET /juegos/{id}/r
 
 ---
 
-## 5. Comisiones — estado actual (actualizado 2026-10-06)
+## 5. Comisiones — estado actual (actualizado 2026-10-30)
 
-El sistema de comisiones **está implementado y operativo** (PR #50) con **tope por tipo de juego** (PRs #61/#62). Spec canónico: `openspec/specs/comisiones/spec.md`.
+El sistema de comisiones **está implementado y operativo como consulta** (PR #50) con **tope por tipo de juego** (PRs #61/#62). Spec canónico: `openspec/specs/comisiones/spec.md`.
 
 | Pieza | Estado |
 |---|---|
-| Liquidación | `ComisionService::liquidar` — manual vía `POST /comisiones/liquidar {desde, hasta, banca_ids?}`; una fila por (nivel, entidad, rango) en estado `pendiente`; solape de período → 422 |
-| Tasas | Cascada `taquilla → grupo → banca → default global` sobre `juego_limites.porcentaje_pago`; **topes por tipo**: animalitos **16%**, tripletas **25%**, resto 100% (por nivel); guard suma cero ≤100% como red de seguridad; config legacy se clampa al liquidar |
+| Consulta | `GET /comisiones/consulta {desde, hasta, banca_ids?}` — read-only: una fila por (nivel, entidad) con `monto_comision` en bs-equivalente (2 decimales); no persiste ni expone `estado`; rango inclusivo |
+| Tasas | Cascada `taquilla → grupo → banca → default global` sobre `juego_limites.porcentaje_pago`; **topes por tipo**: animalitos **16%**, tripletas **25%**, resto 100% (por nivel); guard suma cero ≤100% como red de seguridad; config legacy se clampa al calcular |
 | Config | Matriz de límites (SM/M/banca/grupo según scope) + default global por moneda (`GET/PUT /comisiones/defaults`, ≤16%) |
-| Pago | Página `/comisiones` (SM/M): liquidar, filtrar, `PATCH /comisiones/{id}/pagar` (idempotente, auditado) |
+| Página | `/comisiones` (SM/M): consulta por rango con filtros y paginación client-side; sin acciones de pago |
 | Integración | Cierre de caja (`comision_bs_equivalent`, diario/semanal) y reportes de ventas/cuadre |
-| Permiso | `manage_comisiones` (super_master/master) |
+| Permiso | Consulta: rol `super_master|master`; `manage_comisiones` queda solo para `PUT /comisiones/defaults` (`super_master`) |
+| Archivo | `comisiones_archivo_2026` conserva las filas históricas del ledger retirado (auditoría, sin FKs) |
 
-**Fuera del modelo actual** (hilos abiertos, no bloquean): previsualización antes de liquidar, reverso/corrección/pago parcial, filtros server-side del ledger, visibilidad del ledger para banca/grupo, liquidación automática por período, semántica de `participacion` (sigue sin lectores de negocio).
+**Fuera del modelo actual** (hilos abiertos, no bloquean): liquidación y pago de comisiones (retirados con el ledger), filtros server-side de la consulta, visibilidad de la consulta para banca/grupo, semántica de `participacion` (sigue sin lectores de negocio).
 
 ---
 
