@@ -5,6 +5,36 @@ Todas las versiones notables de la Taquilla se documentan en este archivo.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/) y el
 versionado es [SemVer](https://semver.org/lang/es/).
 
+## [Unreleased]
+
+Comisiones pasan a **modelo consultivo** (Modelo A): se calculan y se consultan,
+sin ledger de liquidación. La venta y el pago de premios de la taquilla no
+cambian.
+
+### Agregado
+
+- **Consulta de comisiones por rango**: `GET /api/v1/comisiones/consulta`
+  (`desde`, `hasta`, `banca_ids[]`) devuelve una fila por entidad con
+  `monto_comision` en bs-equivalente (2 decimales). Solo lectura: no persiste ni
+  expone estado.
+
+### Cambiado
+
+- **Comisiones consultivas**: la página `/comisiones` del panel pasa a consulta
+  read-only por rango; se eliminan las acciones de liquidar y pagar. El snapshot
+  de cierre (`comision_bs_equivalent`), los reportes y los defaults globales se
+  mantienen.
+- **Retiro del ledger `comisiones`**: se eliminan el modelo, las relaciones, las
+  rutas y los tests de liquidación/pago. Las filas históricas se archivan en
+  `comisiones_archivo_2026` (sin FKs) antes de eliminar la tabla.
+
+### Técnico
+
+- Migración `2026_10_30_000001_archive_and_drop_comisiones_table`: copia →
+  verifica conteo → drop; `down()` recrea `comisiones` vacía y no restaura filas.
+- Runbook: dump de `comisiones` y gate de conteo antes de `migrate --force`;
+  verificación post-migración del archivo y de la ausencia de la tabla.
+
 ## [1.0.3] — 2026-10-02
 
 Primera versión con actualización automática (OTA). Las taquillas con una

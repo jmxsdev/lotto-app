@@ -4,7 +4,6 @@ namespace Tests\Unit;
 
 use App\Models\Apuesta;
 use App\Models\Banca;
-use App\Models\Comision;
 use App\Models\ComisionDefault;
 use App\Models\Grupo;
 use App\Models\Juego;
@@ -527,7 +526,7 @@ class ComisionServiceTest extends TestCase
     }
 
     // ==================================================
-    // 3.3 Reporte bulk y previsualización (S3, D7)
+    // 3.3 Reporte bulk y consulta por rango (S3, D7)
     // ==================================================
 
     public function test_comisiones_reporte_devuelve_montos_por_entidad()
@@ -568,7 +567,7 @@ class ComisionServiceTest extends TestCase
         ], $montos);
     }
 
-    public function test_previsualizar_devuelve_rows_de_banca_grupo_y_taquilla()
+    public function test_filas_por_rango_devuelve_rows_de_banca_grupo_y_taquilla()
     {
         [$juego, $banca, $grupo, $taquilla] = $this->crearCadena();
 
@@ -594,13 +593,7 @@ class ComisionServiceTest extends TestCase
         $this->apuesta($juego->id, $taquilla->id, 100.0, 0.0, 36.5, 'pendiente', '2026-09-15 10:00:00');
 
         $service = new ComisionService;
-        $resultado = $service->previsualizar(Carbon::parse('2026-09-01'), Carbon::parse('2026-09-30'));
-
-        $rows = $resultado['rows'];
-        $conflictos = $resultado['conflictos'];
-
-        // Sin filas de comisiones previas ⇒ sin conflictos
-        $this->assertSame([], $conflictos);
+        $rows = $service->filasPorRango(Carbon::parse('2026-09-01'), Carbon::parse('2026-09-30'));
 
         // Banca, grupo y taquilla con ventas (sin entidades con base 0)
         $this->assertCount(3, $rows);
@@ -633,51 +626,7 @@ class ComisionServiceTest extends TestCase
         ));
     }
 
-    public function test_previsualizar_detecta_conflictos_por_rango_solapado()
-    {
-        [$juego, $banca, $grupo, $taquilla] = $this->crearCadena();
-
-        // Fila existente de la BANCA que se solapa con [2026-09-10, 2026-09-20]
-        Comision::create([
-            'banca_id' => $banca->id,
-            'periodo' => '2026-09-05..2026-09-10',
-            'monto_comision' => 30.00,
-            'estado' => 'pendiente',
-            'fecha_inicio' => '2026-09-05',
-            'fecha_fin' => '2026-09-10',
-        ]);
-
-        // Fila existente del grupo que se solapa con [2026-09-10, 2026-09-20]
-        Comision::create([
-            'grupo_id' => $grupo->id,
-            'periodo' => '2026-09-01..2026-09-15',
-            'monto_comision' => 50.00,
-            'estado' => 'pendiente',
-            'fecha_inicio' => '2026-09-01',
-            'fecha_fin' => '2026-09-15',
-        ]);
-
-        // Fila fuera del rango (después) — no debe conflictuar
-        Comision::create([
-            'taquilla_id' => $taquilla->id,
-            'periodo' => '2026-10-01..2026-10-15',
-            'monto_comision' => 20.00,
-            'estado' => 'pendiente',
-            'fecha_inicio' => '2026-10-01',
-            'fecha_fin' => '2026-10-15',
-        ]);
-
-        $service = new ComisionService;
-        $resultado = $service->previsualizar(Carbon::parse('2026-09-10'), Carbon::parse('2026-09-20'));
-
-        $conflictos = $resultado['conflictos'];
-
-        $this->assertCount(2, $conflictos);
-        $this->assertContains(['nivel' => 'banca', 'entidad_id' => $banca->id], $conflictos);
-        $this->assertContains(['nivel' => 'grupo', 'entidad_id' => $grupo->id], $conflictos);
-    }
-
-    public function test_previsualizar_filtra_por_banca_ids()
+    public function test_filas_por_rango_filtra_por_banca_ids()
     {
         [$juego, $banca, $grupo, $taquilla] = $this->crearCadena();
 
@@ -708,13 +657,11 @@ class ComisionServiceTest extends TestCase
         $this->apuesta($juego->id, $taquilla2->id, 100.0, 0.0, 36.5, 'pendiente', '2026-09-15 11:00:00');
 
         $service = new ComisionService;
-        $resultado = $service->previsualizar(
+        $rows = $service->filasPorRango(
             Carbon::parse('2026-09-01'),
             Carbon::parse('2026-09-30'),
             [$banca->id]
         );
-
-        $rows = $resultado['rows'];
 
         // Solo la jerarquía de la banca 1 (ids por tabla pueden colisionar;
         // se busca por nivel + entidad_id): banca + grupo + taquilla

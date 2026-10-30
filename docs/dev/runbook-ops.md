@@ -79,6 +79,41 @@ La transición es segura: el mutex Redis (`withoutOverlapping`) evitó el doble
 dispatch durante el solapamiento, y el upsert idempotente (`saveResults`) hace
 seguro re-ejecutar sin duplicados.
 
+## Archive+drop de `comisiones` (Modelo A)
+
+La migración `2026_10_30_000001_archive_and_drop_comisiones_table` copia las
+filas a `comisiones_archivo_2026` y elimina la tabla `comisiones` (el ledger de
+comisiones ya no existe; la consulta es read-only). El DDL de MySQL no es
+transaccional: la migración copia, verifica el conteo y solo entonces dropea; si
+la copia queda corta lanza antes del `drop` y deja la tabla intacta. Aun así, el
+dump es obligatorio.
+
+**Pre-deploy (en el VPS, antes de migrar)**
+
+```bash
+docker exec lotto_mysql_prod sh -lc 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" lotto_db comisiones' > comisiones_$(date +%F).sql
+docker exec lotto_mysql_prod mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -N -e 'SELECT COUNT(*) FROM lotto_db.comisiones'   # anotar: pre
+```
+
+**Migrar**
+
+```bash
+docker exec lotto_api_prod php artisan migrate --force
+```
+
+**Post-migrate (verificación)**
+
+```bash
+# el conteo del archivo debe ser igual al pre
+docker exec lotto_mysql_prod mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -N -e 'SELECT COUNT(*) FROM lotto_db.comisiones_archivo_2026'
+# no debe devolver filas
+docker exec lotto_mysql_prod mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "SHOW TABLES FROM lotto_db LIKE 'comisiones'"
+```
+
+Si el archivo no cuadra o `comisiones` sigue existiendo, no continuar: restaurar
+desde el dump (`mysql lotto_db < comisiones_<fecha>.sql`). El `down()` de la
+migración recrea `comisiones` **vacía**; las filas solo vuelven del dump.
+
 ## Taquilla Windows release (build + re-publicación)
 
 La taquilla es una app Electron (Astro) en `taquilla/`. Las releases se publican
