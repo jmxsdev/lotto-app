@@ -74,6 +74,14 @@ class ComisionesApiTest extends TestCase
         return $user;
     }
 
+    private function taquillaUser(): User
+    {
+        $user = User::where('email', 'taquilla@lotto.com')->first();
+        $user->assignRole('taquilla');
+
+        return $user;
+    }
+
     // ==================================================
     // Helpers del ledger
     // ==================================================
@@ -143,6 +151,12 @@ class ComisionesApiTest extends TestCase
     {
         return $this->actingAs($user, 'sanctum')
             ->postJson('/api/v1/comisiones/liquidar', $payload);
+    }
+
+    private function consulta(User $user, array $query = []): TestResponse
+    {
+        return $this->actingAs($user, 'sanctum')
+            ->getJson('/api/v1/comisiones/consulta?'.http_build_query($query));
     }
 
     // ==================================================
@@ -701,6 +715,226 @@ class ComisionesApiTest extends TestCase
 
         $response->assertStatus(403);
         $this->assertSame(0, Comision::count());
+    }
+
+    // ==================================================
+    // Consulta read-only por rango (Modelo A)
+    // ==================================================
+
+    public function test_consulta_devuelve_tres_niveles_con_monto_string()
+    {
+        [$juego, $banca, $grupo, $taquilla] = $this->crearJerarquia();
+
+        // Suma cero 3 niveles: banca 10 + grupo 20 + taquilla 100 ⇒ 10 / 20 / 70
+        $this->limite($juego->id, $banca->id, null, null, 'bs', 10);
+        $this->limite($juego->id, $banca->id, $grupo->id, null, 'bs', 20);
+        $this->limite($juego->id, $banca->id, $grupo->id, $taquilla->id, 'bs', 100);
+        $this->apuesta($juego->id, $taquilla->id, 100.0, 0.0, 36.5, '2026-09-15 10:00:00');
+
+        $response = $this->consulta($this->superUser(), [
+            'desde' => '2026-09-01',
+            'hasta' => '2026-09-30',
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(3, 'data');
+        $response->assertJsonPath('meta.desde', '2026-09-01');
+        $response->assertJsonPath('meta.hasta', '2026-09-30');
+        $response->assertJsonPath('meta.total', 3);
+
+        $filas = collect($response->json('data'));
+
+        $filaBanca = $filas->firstWhere('nivel', 'banca');
+        $this->assertNotNull($filaBanca);
+        $this->assertSame($banca->id, $filaBanca['entidad_id']);
+        $this->assertSame('Banca Comisiones API', $filaBanca['entidad']);
+        $this->assertSame('10.00', $filaBanca['monto_comision']);
+
+        $filaGrupo = $filas->firstWhere('nivel', 'grupo');
+        $this->assertNotNull($filaGrupo);
+        $this->assertSame($grupo->id, $filaGrupo['entidad_id']);
+        $this->assertSame('20.00', $filaGrupo['monto_comision']);
+
+        $filaTaquilla = $filas->firstWhere('nivel', 'taquilla');
+        $this->assertNotNull($filaTaquilla);
+        $this->assertSame($taquilla->id, $filaTaquilla['entidad_id']);
+        $this->assertSame('70.00', $filaTaquilla['monto_comision']);
+
+        // Solo lectura: sin estado del ledger ni listas de conflictos
+        $this->assertArrayNotHasKey('estado', $filaBanca);
+        $this->assertArrayNotHasKey('conflictos', $response->json());
+    }
+
+    public function test_consulta_rango_sin_ventas_devuelve_data_vacia()
+    {
+        [$juego, $banca, $grupo, $taquilla] = $this->crearJerarquia();
+        $this->limite($juego->id, $banca->id, $grupo->id, $taquilla->id, 'bs', 50);
+
+        $response = $this->consulta($this->superUser(), [
+            'desde' => '2026-01-01',
+            'hasta' => '2026-01-31',
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(0, 'data');
+        $response->assertJsonPath('meta.total', 0);
+    }
+
+    public function test_consulta_master_solo_ve_sus_bancas()
+    {
+        $master = $this->masterUser();
+
+        $bancaMia = Banca::create([
+            'name' => 'Banca del Master',
+            'code' => 'BM'.uniqid(),
+            'master_id' => $master->id,
+            'active' => true,
+        ]);
+        $grupoMio = Grupo::create([
+            'name' => 'Grupo del Master',
+            'code' => 'GM'.uniqid(),
+            'banca_id' => $bancaMia->id,
+            'active' => true,
+        ]);
+        $taquillaMia = Taquilla::create([
+            'name' => 'Taquilla del Master',
+            'code' => 'TM'.uniqid(),
+            'grupo_id' => $grupoMio->id,
+            'active' => true,
+        ]);
+
+        $bancaAjena = Banca::create([
+            'name' => 'Banca Ajena',
+            'code' => 'BA'.uniqid(),
+            'active' => true,
+        ]);
+        $grupoAjeno = Grupo::create([
+            'name' => 'Grupo Ajeno',
+            'code' => 'GA'.uniqid(),
+            'banca_id' => $bancaAjena->id,
+            'active' => true,
+        ]);
+        $taquillaAjena = Taquilla::create([
+            'name' => 'Taquilla Ajena',
+            'code' => 'TA'.uniqid(),
+            'grupo_id' => $grupoAjeno->id,
+            'active' => true,
+        ]);
+
+        $juego = Juego::create([
+            'name' => 'Juego Consulta Scope',
+            'slug' => 'juego-consulta-scope-'.uniqid(),
+            'type' => 'terminales',
+            'active' => true,
+        ]);
+        $this->limite($juego->id, $bancaMia->id, $grupoMio->id, $taquillaMia->id, 'bs', 50);
+        $this->limite($juego->id, $bancaAjena->id, $grupoAjeno->id, $taquillaAjena->id, 'bs', 30);
+
+        $this->apuesta($juego->id, $taquillaMia->id, 100.0, 0.0, 36.5, '2026-09-15 10:00:00');
+        $this->apuesta($juego->id, $taquillaAjena->id, 100.0, 0.0, 36.5, '2026-09-15 11:00:00');
+
+        // Sin banca_ids ⇒ masterBancaIds(): solo la cadena de su banca
+        $response = $this->consulta($master, [
+            'desde' => '2026-09-01',
+            'hasta' => '2026-09-30',
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(3, 'data');
+
+        $filas = collect($response->json('data'));
+
+        $this->assertNotNull($filas->first(fn ($f) => $f['nivel'] === 'banca' && $f['entidad_id'] === $bancaMia->id));
+        $this->assertNotNull($filas->first(fn ($f) => $f['nivel'] === 'grupo' && $f['entidad_id'] === $grupoMio->id));
+        $this->assertNotNull($filas->first(fn ($f) => $f['nivel'] === 'taquilla' && $f['entidad_id'] === $taquillaMia->id));
+
+        $this->assertNull($filas->first(fn ($f) => $f['nivel'] === 'banca' && $f['entidad_id'] === $bancaAjena->id));
+        $this->assertNull($filas->first(fn ($f) => $f['nivel'] === 'grupo' && $f['entidad_id'] === $grupoAjeno->id));
+        $this->assertNull($filas->first(fn ($f) => $f['nivel'] === 'taquilla' && $f['entidad_id'] === $taquillaAjena->id));
+    }
+
+    public function test_consulta_master_sin_bancas_devuelve_lista_vacia()
+    {
+        [$juego, $banca, $grupo, $taquilla] = $this->crearJerarquia();
+        $this->limite($juego->id, $banca->id, $grupo->id, $taquilla->id, 'bs', 50);
+        $this->apuesta($juego->id, $taquilla->id, 100.0, 0.0, 36.5, '2026-09-15 10:00:00');
+
+        // El master no administra ninguna banca: ve vacío, nunca global
+        $response = $this->consulta($this->masterUser(), [
+            'desde' => '2026-09-01',
+            'hasta' => '2026-09-30',
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(0, 'data');
+    }
+
+    public function test_consulta_master_con_banca_ids_fuera_de_alcance_403()
+    {
+        $master = $this->masterUser();
+
+        Banca::create([
+            'name' => 'Banca del Master',
+            'code' => 'BM'.uniqid(),
+            'master_id' => $master->id,
+            'active' => true,
+        ]);
+        $bancaAjena = Banca::create([
+            'name' => 'Banca Ajena',
+            'code' => 'BA'.uniqid(),
+            'active' => true,
+        ]);
+
+        $response = $this->consulta($master, [
+            'desde' => '2026-09-01',
+            'hasta' => '2026-09-30',
+            'banca_ids' => [$bancaAjena->id],
+        ]);
+
+        $response->assertStatus(403);
+    }
+
+    public function test_consulta_403_para_roles_no_autorizados()
+    {
+        $usuarios = [
+            'banca' => $this->bancaUser(),
+            'grupo' => $this->grupoUser(),
+            'taquilla' => $this->taquillaUser(),
+        ];
+
+        foreach ($usuarios as $rol => $user) {
+            $response = $this->consulta($user, [
+                'desde' => '2026-09-01',
+                'hasta' => '2026-09-30',
+            ]);
+
+            $this->assertSame(403, $response->status(), "El rol {$rol} debe recibir 403.");
+        }
+    }
+
+    public function test_consulta_no_persiste_en_el_ledger_ni_registra_liquidacion()
+    {
+        [$juego, $banca, $grupo, $taquilla] = $this->crearJerarquia();
+        $this->limite($juego->id, $banca->id, $grupo->id, $taquilla->id, 'bs', 50);
+        $this->apuesta($juego->id, $taquilla->id, 100.0, 0.0, 36.5, '2026-09-15 10:00:00');
+
+        $this->consulta($this->superUser(), [
+            'desde' => '2026-09-01',
+            'hasta' => '2026-09-30',
+        ])->assertStatus(200);
+
+        $this->assertSame(0, Comision::count());
+        $this->assertDatabaseMissing('logs', ['action' => 'comision_liquidar']);
+    }
+
+    public function test_consulta_422_si_faltan_fechas_o_rango_invertido()
+    {
+        $this->consulta($this->superUser(), [])->assertStatus(422);
+
+        $this->consulta($this->superUser(), [
+            'desde' => '2026-09-30',
+            'hasta' => '2026-09-01',
+        ])->assertStatus(422)->assertJsonStructure(['errors' => ['hasta']]);
     }
 
     // ==================================================
