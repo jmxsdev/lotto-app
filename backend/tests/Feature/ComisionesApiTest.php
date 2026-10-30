@@ -436,6 +436,15 @@ class ComisionesApiTest extends TestCase
         ])->assertStatus(422)->assertJsonStructure(['errors' => ['hasta']]);
     }
 
+    public function test_archivo_reemplaza_la_tabla_comisiones()
+    {
+        // End-state de la migración archive+drop sobre una DB de test fresca:
+        // el ledger activo desaparece y el archivo queda listo (vacío).
+        $this->assertFalse(Schema::hasTable('comisiones'));
+        $this->assertTrue(Schema::hasTable('comisiones_archivo_2026'));
+        $this->assertDatabaseCount('comisiones_archivo_2026', 0);
+    }
+
     // ==================================================
     // Enmienda (2026-10-01) — el rol grupo escribe SU matriz
     // ==================================================
