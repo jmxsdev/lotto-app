@@ -226,4 +226,73 @@ class EliminacionApuestasTest extends TestCase
         $response->assertStatus(422);
         $this->assertStringContainsString('10 minutos', $response->json('message'));
     }
+
+    /**
+     * WU1: el motivo `sorteo_ocurrido` se mapea a un único mensaje, byte a byte.
+     */
+    public function test_sorteo_ocurrido_devuelve_el_mensaje_byte_identico()
+    {
+        $ticket = $this->crearTicketConApuesta(null, 3);
+        $ticket->apuestas()->first()->update(['sorteo_hora' => now()->subMinute()]);
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->deleteJson('/api/v1/tickets/'.$ticket->id);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'El sorteo de una o mas jugadas ya ocurrio, no se puede anular.');
+
+        $this->assertNotSoftDeleted('apuestas', ['ticket_id' => $ticket->id]);
+    }
+
+    /**
+     * WU1: una línea no `pendiente` (código `estado`) usa el mensaje genérico.
+     */
+    public function test_linea_no_pendiente_devuelve_el_mensaje_generico()
+    {
+        $ticket = $this->crearTicketConApuesta(null, 3);
+        $ticket->apuestas()->first()->update(['estado' => 'ganadora']);
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->deleteJson('/api/v1/tickets/'.$ticket->id);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'No se puede anular el ticket.');
+
+        $this->assertNotSoftDeleted('apuestas', ['ticket_id' => $ticket->id]);
+    }
+
+    /**
+     * WU1: el código `sin_ownership` se mapea a `No autorizado.`. En este
+     * slice el status sigue siendo 422; WU3-A lo mueve a 403.
+     *
+     * Se usa un usuario `grupo` ajeno (rol permitido por la ruta y sin
+     * verificación MAC) para ejercitar la ownership de la policy; un rol
+     * `agencia` es bloqueado antes por el middleware de la ruta con 403.
+     */
+    public function test_ticket_de_otro_grupo_devuelve_no_autorizado()
+    {
+        $ticket = $this->crearTicketConApuesta(null, 3);
+
+        $otraBanca = Banca::create(['name' => 'Banca Ajena', 'code' => 'BAJENA', 'active' => true]);
+        $otroGrupo = Grupo::create([
+            'name' => 'Grupo Ajeno',
+            'code' => 'GAJENO',
+            'banca_id' => $otraBanca->id,
+            'active' => true,
+        ]);
+        $user = User::factory()->create([
+            'role' => 'grupo',
+            'grupo_id' => $otroGrupo->id,
+            'banca_id' => $otraBanca->id,
+        ]);
+        $user->assignRole('grupo');
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->deleteJson('/api/v1/tickets/'.$ticket->id);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'No autorizado.');
+
+        $this->assertNotSoftDeleted('apuestas', ['ticket_id' => $ticket->id]);
+    }
 }

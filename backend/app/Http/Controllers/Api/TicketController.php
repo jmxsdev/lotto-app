@@ -7,22 +7,25 @@ use App\Models\Apuesta;
 use App\Models\Pago;
 use App\Models\Resultado;
 use App\Models\Ticket;
+use App\Policies\ApuestaPolicy;
 use App\Services\ApuestaService;
 use App\Services\JuegoPluginManager;
 use App\Services\PremiosEngine;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
 class TicketController extends Controller
 {
     protected ApuestaService $apuestaService;
 
-    public function __construct(ApuestaService $apuestaService)
+    protected ApuestaPolicy $apuestaPolicy;
+
+    public function __construct(ApuestaService $apuestaService, ApuestaPolicy $apuestaPolicy)
     {
         $this->apuestaService = $apuestaService;
+        $this->apuestaPolicy = $apuestaPolicy;
     }
 
     public function index(Request $request)
@@ -231,16 +234,15 @@ class TicketController extends Controller
         $tiempoEliminacion = $this->apuestaService
             ->getEffectiveTiempoEliminacion($ticket->taquilla_id);
 
+        // WU1: la policy devuelve un código de motivo; el mapeo a mensaje vive
+        // solo aquí (antes se re-derivaba el motivo por cada línea).
         $rechazada = null;
         foreach ($ticket->apuestas as $apuesta) {
-            if (Gate::denies('delete', $apuesta)) {
-                if ($apuesta->created_at->diffInMinutes(now()) >= $tiempoEliminacion) {
-                    $rechazada = "El ticket excedió los {$tiempoEliminacion} minutos para ser anulado.";
-                } elseif ($apuesta->sorteo_hora && $apuesta->sorteo_hora->isPast()) {
-                    $rechazada = 'El sorteo de una o mas jugadas ya ocurrio, no se puede anular.';
-                } else {
-                    $rechazada = 'No se puede anular el ticket.';
-                }
+            $motivo = $this->apuestaPolicy
+                ->motivoNoAnulable($user, $apuesta, $tiempoEliminacion);
+
+            if ($motivo !== null) {
+                $rechazada = $this->mensajeRechazo($motivo, $tiempoEliminacion);
                 break;
             }
         }
@@ -429,5 +431,19 @@ class TicketController extends Controller
 
         return count($selecciones) >= 3
             && (($combinacion['modalidad'] ?? 'tripleta') === 'tripleta');
+    }
+
+    /**
+     * Único mapeo código de motivo → mensaje de anulación (WU1). Los textos
+     * son byte a byte los históricos: no agregar acentos ni cambiarlos.
+     */
+    private function mensajeRechazo(string $motivo, int $minutos): string
+    {
+        return match ($motivo) {
+            ApuestaPolicy::MOTIVO_FUERA_DE_VENTANA => "El ticket excedió los {$minutos} minutos para ser anulado.",
+            ApuestaPolicy::MOTIVO_SORTEO_OCURRIDO => 'El sorteo de una o mas jugadas ya ocurrio, no se puede anular.',
+            ApuestaPolicy::MOTIVO_SIN_OWNERSHIP => 'No autorizado.',
+            default => 'No se puede anular el ticket.',
+        };
     }
 }
