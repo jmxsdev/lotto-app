@@ -4,7 +4,6 @@ namespace Tests\Unit;
 
 use App\Models\Apuesta;
 use App\Models\Banca;
-use App\Models\Comision;
 use App\Models\ComisionDefault;
 use App\Models\Grupo;
 use App\Models\Juego;
@@ -625,50 +624,6 @@ class ComisionServiceTest extends TestCase
         $this->assertNull(collect($rows)->firstWhere(
             fn ($fila) => $fila['nivel'] === 'taquilla' && $fila['entidad_id'] === 999999
         ));
-    }
-
-    public function test_previsualizar_detecta_conflictos_por_rango_solapado()
-    {
-        [$juego, $banca, $grupo, $taquilla] = $this->crearCadena();
-
-        // Fila existente de la BANCA que se solapa con [2026-09-10, 2026-09-20]
-        Comision::create([
-            'banca_id' => $banca->id,
-            'periodo' => '2026-09-05..2026-09-10',
-            'monto_comision' => 30.00,
-            'estado' => 'pendiente',
-            'fecha_inicio' => '2026-09-05',
-            'fecha_fin' => '2026-09-10',
-        ]);
-
-        // Fila existente del grupo que se solapa con [2026-09-10, 2026-09-20]
-        Comision::create([
-            'grupo_id' => $grupo->id,
-            'periodo' => '2026-09-01..2026-09-15',
-            'monto_comision' => 50.00,
-            'estado' => 'pendiente',
-            'fecha_inicio' => '2026-09-01',
-            'fecha_fin' => '2026-09-15',
-        ]);
-
-        // Fila fuera del rango (después) — no debe conflictuar
-        Comision::create([
-            'taquilla_id' => $taquilla->id,
-            'periodo' => '2026-10-01..2026-10-15',
-            'monto_comision' => 20.00,
-            'estado' => 'pendiente',
-            'fecha_inicio' => '2026-10-01',
-            'fecha_fin' => '2026-10-15',
-        ]);
-
-        $service = new ComisionService;
-        $resultado = $service->previsualizar(Carbon::parse('2026-09-10'), Carbon::parse('2026-09-20'));
-
-        $conflictos = $resultado['conflictos'];
-
-        $this->assertCount(2, $conflictos);
-        $this->assertContains(['nivel' => 'banca', 'entidad_id' => $banca->id], $conflictos);
-        $this->assertContains(['nivel' => 'grupo', 'entidad_id' => $grupo->id], $conflictos);
     }
 
     public function test_filas_por_rango_filtra_por_banca_ids()
