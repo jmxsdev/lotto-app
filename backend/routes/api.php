@@ -238,6 +238,16 @@ Route::prefix('v1')->group(function () {
         });
 
         // ==================================================
+        // COMISIONES — consulta read-only por rango (Modelo A)
+        // GET: super_master|master, SIN manage_comisiones (es lectura); el
+        // master se limita a masterBancaIds en el controlador. Ruta
+        // estática, declarada antes del bloque del ledger.
+        // ==================================================
+        Route::middleware(['role:super_master|master'])->group(function () {
+            Route::get('/comisiones/consulta', [ComisionController::class, 'consulta']);
+        });
+
+        // ==================================================
         // COMISIONES — ledger (S4, D7/D8)
         // GET lista paginada: super_master|master (master scoped a
         // masterBancaIds en el controlador). POST liquidar y PATCH pagar:
