@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Comisión = participación (%) de un nivel (banca/grupo/taquilla) sobre sus ventas, liquidada como filas del ledger `comisiones` (estado `pendiente`→`pagado`). Banca, Grupo y Taquilla cobran su propia comisión; la suma de las tasas liquidables de la cadena MUST ser ≤ 100% de las ventas (suma cero). La tasa es `juego_limites.porcentaje_pago`; el monto es bs-equivalente desde `apuestas.total_bs_equivalent`.
+Comisión = participación (%) de un nivel (banca/grupo/taquilla) sobre sus ventas, calculada de forma **consultiva**: el sistema MUST computar y mostrar cuánto recibiría cada entidad (banca/grupo/taquilla) en un rango de fechas, sin persistir un ledger de liquidación, sin transicionar a `pagado` y sin ejecutar un flujo de pago. Banca, Grupo y Taquilla cobran su propia comisión; la suma de las tasas liquidables de la cadena MUST ser ≤ 100% de las ventas (suma cero). La tasa es `juego_limites.porcentaje_pago`; el monto es bs-equivalente desde `apuestas.total_bs_equivalent`. El snapshot de cierre `cierres_caja.comision_bs_equivalent` y `comision_defaults` permanecen.
 
 ## Requirements
 
@@ -96,34 +96,6 @@ La comisión MUST ser `SUM(apuestas.total_bs_equivalent)` de las ventas NO anula
 - WHEN se calcula la comisión
 - THEN el resultado es 0.00
 
-### Requirement: Liquidación en el ledger
-
-La liquidación MUST escribir filas en `comisiones` para `Banca`, `Grupo` y `Taquilla` (todos los niveles cobran su propia comisión), con `monto_comision decimal(12,2)` en bs-equivalente y `estado` `pendiente`→`pagado`. La fila de cada nivel MUST quedar identificada por su columna de entidad (`banca_id`, `grupo_id` o `taquilla_id`) con las demás en NULL. Al liquidar, el monto MUST quedar congelado (no retroactivo): ediciones posteriores de `porcentaje_pago` MUST NOT alterar filas ya liquidadas. Rangos que se solapan MUST NOT contar la misma venta dos veces (el solapamiento se evalúa sobre los tres niveles).
-
-#### Scenario: Filas para Banca, Grupo y Taquilla
-
-- GIVEN una liquidación sobre un rango
-- WHEN se ejecuta
-- THEN crea filas `comisiones` para Banca, Grupo y Taquilla (una por entidad con ventas)
-
-#### Scenario: Transición pendiente→pagado
-
-- GIVEN una fila de comisión `pendiente`
-- WHEN se marca como pagada
-- THEN `estado` pasa a `pagado`
-
-#### Scenario: Congelado al liquidar
-
-- GIVEN una fila ya liquidada
-- WHEN se edita `porcentaje_pago` después
-- THEN el `monto_comision` de la fila no cambia
-
-#### Scenario: Sin doble conteo
-
-- GIVEN dos liquidaciones con rangos solapados
-- WHEN se calculan
-- THEN una venta no se cuenta dos veces
-
 ### Requirement: Independencia entre niveles y tope acumulado
 
 `porcentaje_pago` SHALL ser independiente por nivel (un hijo MAY exceder el valor del padre; sin guarda hijo≤padre). Cuando la suma acumulada de porcentajes a lo largo de la cadena NO supera 100%, cada nivel SHALL conservar su propia tasa sin cambios. Cuando la suma acumulada SÍ supera 100%, MUST aplicar el tope acumulado: **siempre se respeta el porcentaje del mayor** — el porcentaje del padre tiene prioridad y la tasa liquidable del hijo se topa al remanente. La suma de las tasas liquidables de la cadena (banca + grupo + taquilla) MUST ser ≤ 100% de las ventas (suma cero). La banca no tiene ancestros con tasa: su liquidable SHALL ser su propia tasa (validada ≤ 100).
@@ -133,7 +105,7 @@ La liquidación MUST escribir filas en `comisiones` para `Banca`, `Grupo` y `Taq
 Reglas confirmadas (2026-09-30; banca beneficiaria 2026-10-01):
 
 1. El tope aplica **por moneda**: cada cadena de moneda se topa de forma independiente.
-2. La banca cobra su propia comisión: sin ancestros con tasa, su liquidable = su tasa propia (validada ≤ 100) y recibe fila en el ledger. La suma de las tasas liquidables de la cadena no supera 100% (suma cero).
+2. La banca cobra su propia comisión: sin ancestros con tasa, su liquidable = su tasa propia (validada ≤ 100) y recibe su monto liquidable en el cálculo y los reportes (sin persistencia). La suma de las tasas liquidables de la cadena no supera 100% (suma cero).
 3. Σ ancestros = suma de las tasas **propias** configuradas de los ancestros (NULL/ausente = 0), con piso en 0; tasa liquidable del hijo = `min(tasa resuelta del hijo, max(0, 100 − Σ tasas propias de ancestros))`.
 4. Cada nivel MUST aplicar además el tope por tipo de juego: `topePorTipo(type)` = animalitos 16, tripletas 25, otro/desconocido 100. La tasa liquidable SHALL ser `min(tasaEfectiva, max(0, 100 − Σ ancestros), topePorTipo(type))`; `tasaEfectiva` MUST NOT clamp. Las filas legacy se clampa en lectura, sin migración.
 
@@ -220,9 +192,9 @@ El default global MUST ser ≤ 16. `juego_limites.porcentaje_pago` por juego MUS
 - WHEN se guarda el límite
 - THEN responde 200/201
 
-### Requirement: Sincronía single/bulk de liquidación
+### Requirement: Sincronía single/bulk de cálculo
 
-La tasa liquidable MUST ser idéntica en el path single (`tasaLiquidable`) y bulk (`tasasLiquidablesBulk`); ambos SHALL aplicar `topePorTipo`. Reportes, preview y liquidación MUST tomar el monto liquidado (post-tope).
+La tasa liquidable MUST ser idéntica en el path single (`tasaLiquidable`) y bulk (`tasasLiquidablesBulk`); ambos SHALL aplicar `topePorTipo`. Reportes y consulta MUST tomar el monto liquidado (post-tope).
 
 #### Scenario: single y bulk coinciden
 
@@ -230,10 +202,10 @@ La tasa liquidable MUST ser idéntica en el path single (`tasaLiquidable`) y bul
 - WHEN se calcula single y bulk
 - THEN ambas producen la misma liquidable
 
-#### Scenario: reportes usan liquidado
+#### Scenario: reportes y consulta usan liquidado
 
 - GIVEN una fila `animalitos` clampada a 16% (config 40%)
-- WHEN se genera reporte o cierre
+- WHEN se genera reporte, consulta o cierre
 - THEN el monto usa la tasa liquidada (16%), no la config
 
 ### Requirement: Exposición de type en payloads de juegos
@@ -261,3 +233,37 @@ Los payloads de juegos que consume el panel MUST exponer `juego.type`.
 - GIVEN el cálculo de premios existente
 - WHEN se añade comisión
 - THEN el premio calculado no cambia
+
+### Requirement: Consulta de comisión por rango
+
+`GET /api/v1/comisiones/consulta?desde=YYYY-MM-DD&hasta=YYYY-MM-DD[&banca_ids[]=...]` MUST devolver, por entidad con ventas, una fila con `nivel` (banca/grupo/taquilla), `entidad_id`, `entidad` y `monto_comision` (bs-equivalente, 2 decimales). El endpoint MUST ser de solo lectura: MUST NOT persistir nada, MUST NOT exponer `estado`/`pendiente`/`pagado`, MUST NOT aceptar acciones de pago y MUST NOT devolver listas de conflictos del ledger. El rango de fechas MUST ser inclusivo y usar el mismo motor de cálculo y topes que los reportes; las entidades con base 0 (sin ventas) SHALL omitirse. Autorización: `super_master` global; `master` limitado a `masterBancaIds()`; `banca`/`grupo`/`taquilla`/`agencia` MUST NOT acceder (403).
+
+#### Scenario: Tres niveles en una consulta
+
+- GIVEN ventas en un rango para una cadena banca→grupo→taquilla
+- WHEN un `super_master` consulta `GET /api/v1/comisiones/consulta?desde=...&hasta=...`
+- THEN devuelve una fila por nivel (banca, grupo, taquilla) con `nivel`, `entidad_id`, `entidad` y `monto_comision` (2 decimales)
+
+#### Scenario: Sin ventas en el rango
+
+- GIVEN un rango sin ventas
+- WHEN se consulta el endpoint
+- THEN devuelve una lista vacía (las entidades con base 0 se omiten)
+
+#### Scenario: Alcance del master
+
+- GIVEN un usuario `master`
+- WHEN consulta el endpoint
+- THEN solo recibe filas de entidades bajo sus bancas (`masterBancaIds()`); entidades fuera de alcance no aparecen
+
+#### Scenario: Rol no autorizado
+
+- GIVEN un usuario `banca`/`grupo`/`taquilla`/`agencia`
+- WHEN consulta `GET /api/v1/comisiones/consulta`
+- THEN responde 403
+
+#### Scenario: Sin persistencia (ledger eliminado)
+
+- GIVEN la tabla `comisiones` archivada/eliminada (ya no es store activo)
+- WHEN se consulta el endpoint
+- THEN no se escribe ninguna fila en `comisiones` ni se registra acción de liquidación/pago
