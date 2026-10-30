@@ -538,6 +538,25 @@ class ComisionService
     }
 
     /**
+     * Consulta read-only de comisiones por rango (Modelo A).
+     *
+     * Devuelve una fila por entidad (banca, grupo y taquilla) con ventas
+     * en [desde, hasta], reusando el mismo motor de cálculo y topes que
+     * los reportes. Normaliza el rango a startOfDay/endOfDay; las
+     * entidades con base 0 se omiten. No persiste nada ni expone
+     * conflictos del ledger: solo las filas.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function filasPorRango(Carbon $desde, Carbon $hasta, ?array $bancaIds = null): array
+    {
+        $desde = $desde->copy()->startOfDay();
+        $hasta = $hasta->copy()->endOfDay();
+
+        return $this->filasLiquidables($desde, $hasta, $bancaIds)['rows'];
+    }
+
+    /**
      * Liquidar comisiones del rango en el ledger (D4/D7).
      *
      * Escribe UNA fila por (nivel, entidad, rango) para Banca, Grupo y
