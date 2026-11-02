@@ -160,7 +160,69 @@ Deviations / notes:
 - No migrations, routes, model changes, `ApuestaController`, reports, or WU3-B/WU4
   files were touched.
 
+## WU3-B — endpoint restriction / rejection matrix
+
+Status: **complete / GREEN (user-reported)**. The agent never executes tests. **size:exception approved by owner** for the ~977-line slice.
+
+Files:
+- `backend/app/Http/Controllers/Api/ApuestaController.php` (modified)
+- `backend/tests/Feature/PagoDevolucionRechazosTest.php` (new)
+- `backend/tests/Feature/MetodoPagoTest.php` (modified)
+- `backend/tests/Feature/TicketAnuladosVisiblesTest.php` (modified)
+- `collections/Tickets/Anular Ticket.yml` (modified)
+- `collections/Apuestas/Eliminar Apuesta (Token required - 5 min rule).yml` (modified)
+
+Behavior:
+- `DELETE /api/v1/apuestas/{id}` now starts with `authorize('view', $apuesta)` (tree
+  ownership; cross-tenant -> 403 `No autorizado.`) **before** any ticket-level
+  redirect, so a foreign caller cannot probe whether the line belongs to a ticket.
+- Optional body validation: `metodo_pago` (`Rule::in(Pago::METODOS_PAGO)`),
+  `referencia`/`motivo` (string ≤255). Invalid values -> 422 with no writes.
+- `ticket_id !== null` -> delegated service rejects with 422
+  `La anulación se realiza a nivel de ticket: use DELETE /api/v1/tickets/{ticket_id}.`
+  and no writes. Ticketless -> `TicketAnulacionService::anularApuestaSuelta`
+  (devolución + `anulada` + soft delete + `apuesta.anulada` log, one transaction).
+- Response 200 `{success, message, data:{devolucion:{pago_id, apuesta_id,
+  amount_bs, amount_usd, exchange_rate_applied, metodo_pago, moneda}}}`;
+  `TicketAnulacionException` maps to `{success:false, message}` + its status.
+- The old `authorize('delete')` + direct soft-delete + `apuesta.deleted` log path
+  was removed; the service owns audit semantics.
+- Refund method (already in the WU3-A service, now pinned by tests): override ->
+  sale `ingreso.metodo_pago` -> `efectivo`, then `Pago::resolverMetodoPago`
+  forces `efectivo` for USD. Invalid override -> 422 before any write.
+- Collections document the annulment + refund contract (200 shape, 403/404/422)
+  and the ticketless-only `DELETE /apuestas` behavior.
+
+TDD evidence (Strict TDD active; the agent never runs tests):
+
+| Task | RED (test written first) | GREEN (user-run) | REFACTOR |
+|---|---|---|---|
+| 4.1 | `PagoDevolucionRechazosTest` (ticketless 200, ticket-line 422 redirect, cross-tenant 403 before redirect, out-of-window 422, no partial writes) | pending | n/a |
+| 4.2 | `PagoDevolucionRechazosTest` (states `ganadora`/`pagada`/`perdida`/`vencido`/`anulada`, `resultado_id`, sorteo ocurrido, window boundary 5/10/15 with `Carbon::setTestNow`, unknown ticket 404, zero live lines 422, cross-tenant 403, all-or-nothing), `MetodoPagoTest` (mirror/override/USD/invalid override) | pending | n/a |
+| 4.3 | n/a (documentation; verified against controller/tests) | pending | n/a |
+| visible | `TicketAnuladosVisiblesTest` (multi-line annulment stays visible, zero live lines, one refund per line) | pending | n/a |
+
+Work Unit Evidence (WU3-B):
+
+| Evidence | Value |
+|---|---|
+| Focused test command | `cd backend && php artisan test --filter='PagoDevolucionRechazos\|MetodoPago\|TicketAnuladosVisibles'` -> **user-run pending** |
+| Runtime harness | HTTP feature tests through `DELETE /api/v1/apuestas/{id}` and `DELETE /api/v1/tickets/{id}` (Sanctum + role/MAC middleware, MySQL `lotto_test`), real policy, real service transaction/lock |
+| Rollback boundary | `ApuestaController::destroy` + the two collections + WU3-B tests; ticket refunds from WU3-A stay working |
+
+Deviations / notes:
+- The controller builds the single-refund response shape from the returned
+  `Pago` (the service keeps its private audit-detail mapper untouched, as WU3-A
+  behavior must remain intact).
+- `Carbon::setTestNow()` is used for the window boundary tests; `ApuestaPolicy`
+  uses `diffInMinutes` with the project's Carbon 3 float semantics, and the
+  test pins the exact `>=` edge.
+- `AgenciaScopeTest`'s ticketless delete expectation stays valid: its fixture
+  lines have no ticket, no `resultado_id`, a fresh `created_at` and a null
+  `sorteo_hora`, so the service annuls + refunds them.
+- No migrations, routes, model changes, `PagoController`, reports, or WU4 files
+  were touched. Changes are intentionally left uncommitted.
+
 ## Next
 
-WU3-B — `ApuestaController::destroy` restriction + rejection/collection surface.
-Not started (out of this batch's scope).
+WU4 — report reversal-pair exclusion. Not started (out of this batch's scope).

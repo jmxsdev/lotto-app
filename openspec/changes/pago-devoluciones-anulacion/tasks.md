@@ -140,12 +140,14 @@ RED — write first:
 - Command: `cd backend && php artisan test --filter='PagoDevolucionRechazos|MetodoPago|TicketAnuladosVisibles'` → expect RED.
 
 Implementation tasks:
-- [ ] 4.1 `ApuestaController::destroy`: `authorize('view', $apuesta)` first (tree ownership → 403 cross-tenant); validate optional `metodo_pago`/`referencia`/`motivo`; `ticket_id !== null` → 422 `La anulación se realiza a nivel de ticket: use DELETE /api/v1/tickets/{ticket_id}.` (no writes); else delegate to `TicketAnulacionService::anularApuestaSuelta`; drop `authorize('delete')`.
-- [ ] 4.2 Complete rejection matrix per design §7.4 (error statuses/messages), mirroring sale `metodo_pago` with override, USD forced `efectivo` via `Pago::resolverMetodoPago`.
-- [ ] 4.3 Update both collections (annulment + refund semantics, 422/403/404 codes, ticketless-only redirect).
+- [x] 4.1 `ApuestaController::destroy`: `authorize('view', $apuesta)` first (tree ownership → 403 cross-tenant); validate optional `metodo_pago`/`referencia`/`motivo`; `ticket_id !== null` → 422 `La anulación se realiza a nivel de ticket: use DELETE /api/v1/tickets/{ticket_id}.` (no writes); else delegate to `TicketAnulacionService::anularApuestaSuelta`; drop `authorize('delete')`.
+- [x] 4.2 Complete rejection matrix per design §7.4 (error statuses/messages), mirroring sale `metodo_pago` with override, USD forced `efectivo` via `Pago::resolverMetodoPago`.
+- [x] 4.3 Update both collections (annulment + refund semantics, 422/403/404 codes, ticketless-only redirect).
 
 GREEN — `cd backend && php artisan test --filter='PagoDevolucionRechazos|MetodoPago|TicketAnuladosVisibles'` → GREEN.
 Rollback: revert `ApuestaController` + collections; leaves ticket refunds working but restores line-level soft delete (undesirable).
+
+Status (apply batch WU3-B): **GREEN (user-reported)** on the focused command above. The agent never executes tests. **size:exception approved by owner** for the ~977-line slice.
 
 ---
 
