@@ -98,7 +98,69 @@ Deviations / notes:
 - `PagoPremioSinMontosTest` and `MetodoPagoTest` were not modified and their expectations hold
   (engine amounts are the same values those tests already asserted).
 
+## WU3-A — `TicketAnulacionService` (annulment + refund)
+
+Status: **complete / GREEN (user-reported)**. **size:exception approved by owner** for ~1.1k changed lines (forecast 600–660).
+
+Files:
+- `backend/app/Exceptions/TicketAnulacionException.php` (new)
+- `backend/app/Services/TicketAnulacionService.php` (new)
+- `backend/app/Http/Controllers/Api/TicketController.php` (modified)
+- `backend/tests/Feature/PagoDevolucionAnulacionTest.php` (new)
+- `backend/tests/Feature/EliminacionApuestasTest.php` (modified)
+
+Behavior:
+- `DELETE /api/v1/tickets/{id}` delegates to `TicketAnulacionService::anularTicket`.
+  The service owns the transaction and locks: ticket re-fetched with
+  `Ticket::whereKey(...)->lockForUpdate()->first()` (SoftDeletes scope, no
+  `withTrashed`), live lines with `orderBy('id')->lockForUpdate()`. Null -> 404,
+  non-`pendiente` -> 422, zero live lines -> 422.
+- Every live line is validated with `ApuestaPolicy::motivoNoAnulable` before any
+  write (all-or-nothing): `sin_ownership` -> 403 `No autorizado.`; the other
+  codes -> 422 with the historical byte-identical messages.
+- One `pagos.tipo=devolucion` row per live line mirrors the sale: `amount_bs`,
+  `amount_usd`, `exchange_rate_applied`; `moneda` derived (`mixto`/`usd`/`bs`);
+  `metodo_pago` = override -> sale `ingreso` (lowest `pagos.id`) -> `efectivo`,
+  then `Pago::resolverMetodoPago` forces `efectivo` for USD. `concepto` defaults
+  to `Devolución de ticket`.
+- Apuestas and ticket are set to `estado='anulada'` and soft-deleted.
+  `detalle_apuestas.premio_ganado(_usd)` is never touched.
+- One `logs` row `ticket_anulado` with structured `details` (ticket, apuesta ids,
+  per-refund detail, totals). `anularApuestaSuelta` writes `apuesta.anulada`.
+- Controller returns 200 `{success, message, data:{ticket_id, apuestas, devoluciones, total_bs, total_usd}}`;
+  `TicketAnulacionException` maps to `{success:false, message}` with its status.
+  The WU1 message strings are unchanged; only `sin_ownership` moves from 422 to 403.
+
+TDD evidence (Strict TDD active; the agent never runs tests):
+
+| Task | RED (test written first) | GREEN (user-run) | REFACTOR |
+|---|---|---|---|
+| 3.1 | `PagoDevolucionAnulacionTest` (403/404/422 paths through the controller) | pending | n/a |
+| 3.2 | `test_anulacion_registra_devolucion_espejo_de_la_venta`, `test_anulacion_multilinea_registra_una_devolucion_por_linea` | pending | n/a |
+| 3.3 | `test_apuestas_y_ticket_quedan_anulados_y_soft_deleted`, `test_la_devolucion_no_toca_el_premio_ganado`, `test_anulacion_registra_el_log_ticket_anulado`, `test_reintento_tras_la_anulacion_devuelve_404`, `test_ticket_de_otro_grupo_devuelve_403`, `test_ticket_sin_jugadas_vivas_devuelve_422`, `test_all_or_nothing_una_linea_mala_no_escribe_nada`, `test_ticket_no_pendiente_devuelve_422_sin_escrituras` | pending | n/a |
+| 3.4 | `EliminacionApuestasTest` updated (refund row after `DELETE /tickets`, 403 ownership) | pending | n/a |
+| 3.5 | `test_anular_apuesta_suelta_registra_devolucion_y_la_anula` | pending | n/a |
+
+Work Unit Evidence (WU3-A):
+
+| Evidence | Value |
+|---|---|
+| Focused test command | `cd backend && php artisan test --filter='PagoDevolucionAnulacion\|EliminacionApuestas'` -> **user-run pending** |
+| Runtime harness | HTTP feature tests through `DELETE /api/v1/tickets/{id}` (Sanctum + role middleware + MySQL `lotto_test`), real policy, real transaction/lock, plus a direct service call for the ticketless path |
+| Rollback boundary | `TicketAnulacionService`, `TicketAnulacionException`, `TicketController::destroy`, `PagoDevolucionAnulacionTest`, `EliminacionApuestasTest`; safe only if no production refunds were recorded |
+
+Deviations / notes:
+- The optional `metodo_pago` override is accepted and passed through
+  `Pago::resolverMetodoPago`; the WU3-B validation surface (invalid override 422,
+  USD method rules) is deliberately not built here.
+- A stale ticket model cannot re-run the transition: the in-lock re-fetch returns
+  `null` (soft-deleted) -> 404, matching the route-binding 404 on retry.
+- `EliminacionApuestasTest` ownership expectation moved from 422 to 403 as design
+  §7.4 requires; all other WU1 strings remain byte-identical.
+- No migrations, routes, model changes, `ApuestaController`, reports, or WU3-B/WU4
+  files were touched.
+
 ## Next
 
-WU3-A — `TicketAnulacionService` + `TicketAnulacionException` + `TicketController::destroy` delegation.
+WU3-B — `ApuestaController::destroy` restriction + rejection/collection surface.
 Not started (out of this batch's scope).

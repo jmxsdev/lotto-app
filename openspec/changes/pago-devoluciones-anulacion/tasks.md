@@ -107,17 +107,19 @@ Files:
 RED — write first:
 - `PagoDevolucionAnulacionTest.php` (refund mirrors sale amounts/rate/method; apuestas+ticket `anulada` + soft-deleted; `premio_ganado` untouched; `ticket_anulado` log; retry 404; ownership 403; empty ticket 422; all-or-nothing; ticketless refund)
 - Update `EliminacionApuestasTest.php` (a `devolucion` row now exists after `DELETE /tickets`).
-- Command: `cd backend && php artisan test --filter=PagoDevolucionAnulacion` → expect RED.
+- Command: `cd backend && php artisan test --filter='PagoDevolucionAnulacion|EliminacionApuestas'` → expect RED.
 
 Implementation tasks:
-- [ ] 3.1 Create `TicketAnulacionException` (extends `RuntimeException`) with `public readonly int $status` (403/404/422) and `?string $motivo`; named constructors.
-- [ ] 3.2 Create `TicketAnulacionService` (ctor `ApuestaService`, `ApuestaPolicy`): `anularTicket(Ticket, User, array $opciones): array`; `anularApuestaSuelta(Apuesta, User, array $opciones): Pago`; private `assertAnulable`, `metodosVenta`, `registrarDevolucion`, `marcarAnulada`, `mensajeRechazo`, `registrarLog`.
-- [ ] 3.3 `anularTicket`: lock ticket re-fetched without soft-delete scope (`Ticket::whereKey($id)->lockForUpdate()->first()`), lock live apuestas `orderBy('id')`; null → 404; `estado !== 'pendiente'` → 422; empty live lines → 422; `minutosEfectivos` + `motivoNoAnulable` per line; one `devolucion` `Pago` per line mirroring sale (`amount_bs/usd`, `exchange_rate_applied`, `metodo_pago` mirror sale `ingreso` else `efectivo`, `moneda` derived); set line + ticket `anulada` + soft delete; write `ticket_anulado` log; all inside one `DB::transaction`.
-- [ ] 3.4 `TicketController::destroy`: replace whole body with `TicketAnulacionService::anularTicket` + exception mapping; return 200 shape `{message, data:{ticket_id, apuestas, devoluciones, total_bs, total_usd}}`.
-- [ ] 3.5 `anularApuestaSuelta` for ticketless lines (used by WU3-B): policy + `ticket_id === null` + `devolucion` + `anulada` + soft delete + `apuesta.anulada` log.
+- [x] 3.1 Create `TicketAnulacionException` (extends `RuntimeException`) with `public readonly int $status` (403/404/422) and `?string $motivo`; named constructors.
+- [x] 3.2 Create `TicketAnulacionService` (ctor `ApuestaService`, `ApuestaPolicy`): `anularTicket(Ticket, User, array $opciones): array`; `anularApuestaSuelta(Apuesta, User, array $opciones): Pago`; private `assertAnulable`, `metodosVenta`, `registrarDevolucion`, `marcarAnulada`, `mensajeRechazo`, `registrarLog`.
+- [x] 3.3 `anularTicket`: lock ticket re-fetched without soft-delete scope (`Ticket::whereKey($id)->lockForUpdate()->first()`), lock live apuestas `orderBy('id')`; null → 404; `estado !== 'pendiente'` → 422; empty live lines → 422; `minutosEfectivos` + `motivoNoAnulable` per line; one `devolucion` `Pago` per line mirroring sale (`amount_bs/usd`, `exchange_rate_applied`, `metodo_pago` mirror sale `ingreso` else `efectivo`, `moneda` derived); set line + ticket `anulada` + soft delete; write `ticket_anulado` log; all inside one `DB::transaction`.
+- [x] 3.4 `TicketController::destroy`: replace whole body with `TicketAnulacionService::anularTicket` + exception mapping; return 200 shape `{message, data:{ticket_id, apuestas, devoluciones, total_bs, total_usd}}`.
+- [x] 3.5 `anularApuestaSuelta` for ticketless lines (used by WU3-B): policy + `ticket_id === null` + `devolucion` + `anulada` + soft delete + `apuesta.anulada` log.
 
-GREEN — `cd backend && php artisan test --filter=PagoDevolucionAnulacion` → GREEN.
+GREEN — `cd backend && php artisan test --filter='PagoDevolucionAnulacion|EliminacionApuestas'` → GREEN.
 Rollback: revert service + controller; safe only if no production refunds recorded.
+
+Status (apply batch WU3-A): **GREEN (user-reported)** on the focused command above. The agent never executes tests. **size:exception approved by owner**: actual slice ~1.1k changed lines (forecast 600–660).
 
 ---
 
@@ -219,7 +221,7 @@ Rollback: command off by default; no runtime effect; `--revert` from `logs`.
 Focused (inner loop):
 - WU1: `cd backend && php artisan test --filter='ApuestaPolicyAnulacion|EliminacionApuestas|TicketEliminacion'`
 - WU2: `cd backend && php artisan test --filter='PagoIngresoRechazado|PagoEgresoUnicoMutante|PagoTipo|ApuestaTest'`
-- WU3-A: `cd backend && php artisan test --filter=PagoDevolucionAnulacion`
+- WU3-A: `cd backend && php artisan test --filter='PagoDevolucionAnulacion|EliminacionApuestas'`
 - WU3-B: `cd backend && php artisan test --filter='PagoDevolucionRechazos|MetodoPago|TicketAnuladosVisibles'`
 - WU4: `cd backend && php artisan test --filter='CuadreCaja|CierreCaja|Estadistica'`
 - WU5: `cd backend && php artisan test --filter=AuditarPagosLegacy`
