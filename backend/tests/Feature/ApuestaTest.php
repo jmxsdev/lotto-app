@@ -943,4 +943,39 @@ class ApuestaTest extends TestCase
         $response->assertStatus(422)
             ->assertJsonPath('premio_esperado_bs', 300);
     }
+
+    public function test_pago_ingreso_rechazado_en_ganadora_preserva_premio()
+    {
+        // WU2/D8: `POST /pagos` es egreso-only. Un `ingreso` sobre una apuesta
+        // ya liquidada NO debe sobrescribir la evidencia del premio ni pagarla.
+        $user = User::where('email', 'super@lotto.com')->first();
+        $apuesta = $this->crearApuestaGanadoraParaPago('ganadora');
+
+        DetalleApuesta::where('apuesta_id', $apuesta->id)->update([
+            'premio_ganado' => 300.00,
+            'premio_ganado_usd' => 0.00,
+        ]);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/v1/pagos', [
+                'apuesta_id' => $apuesta->id,
+                'tipo' => 'ingreso',
+                'moneda' => 'bs',
+                'amount_bs' => 10,
+                'amount_usd' => 0,
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'El ingreso se registra automáticamente al vender; no se admite por este endpoint.');
+
+        $this->assertDatabaseHas('apuestas', [
+            'id' => $apuesta->id,
+            'estado' => 'ganadora',
+        ]);
+        $this->assertDatabaseHas('detalle_apuestas', [
+            'apuesta_id' => $apuesta->id,
+            'premio_ganado' => 300.00,
+        ]);
+        $this->assertDatabaseMissing('pagos', ['apuesta_id' => $apuesta->id]);
+    }
 }

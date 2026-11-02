@@ -24,17 +24,29 @@ http:
 
 docs:
   - |
-    # Registrar pago de premio (egreso autoritativo)
+    # Registrar pago de premio (egreso-only, backend autoritativo)
     - Roles: SM | M | B | G | T (403 si rol taquilla paga una apuesta ajena)
     - Autenticación: Sanctum + verify.mac — auth: inherit
-    - Estados pagables: `pendiente` | `ganadora` (422 cualquier otro estado)
+    - Este endpoint SOLO acepta `tipo=egreso`. `ingreso` y `devolucion` responden
+      422 con el flujo correcto:
+      - `ingreso` → `El ingreso se registra automáticamente al vender; no se admite por este endpoint.`
+        (la venta escribe su propio `Pago` en `POST /apuestas` / `POST /tickets`)
+      - `devolucion` → `Las devoluciones se registran anulando el ticket: use DELETE /api/v1/tickets/{id}.`
+      Ninguno de los dos crea `Pago` ni modifica estado, premio o ticket.
+    - Estados pagables: `ganadora`, o `pendiente` legacy con `resultado_id` ya
+      liquidada (422 cualquier otro estado). Sin resultado asignado → 422.
     - Egreso SIN montos: el backend aplica el premio calculado por el MOTOR
       (`config.premios`) — la taquilla no calcula ni confirma montos. Con montos
-      se valida ±0.01 contra el premio calculado (compatibilidad, 422 si difiere)
-    - `tipo` ∈ ingreso|egreso|devolucion; `moneda` ∈ bs|usd|mixto;
-      `metodo_pago` ∈ efectivo|transferencia|pago_movil|punto_venta (default efectivo)
-    - 422 si el egreso no tiene resultado asignado o la apuesta no resultó ganadora
-    - Respuesta: 201 con el pago creado
+      se valida ±0.01 contra el premio calculado (compatibilidad, 422 si difiere).
+      Los montos persistidos en `pagos` y en `detalle_apuestas.premio_ganado(_usd)`
+      son SIEMPRE los del motor; los del request son solo tolerancia.
+    - `moneda` ∈ bs|usd|mixto; `metodo_pago` ∈ efectivo|transferencia|pago_movil|punto_venta
+      (default efectivo; USD fuerza efectivo)
+    - 422 si el premio del motor es 0 (la apuesta no resultó ganadora).
+    - Ejecución atómica con lock de fila (`for update`): un segundo egreso de la
+      misma apuesta responde 422 y no duplica el `Pago`.
+    - Respuesta 201:
+      `{ success: true, message: "Pago registrado exitosamente.", data: {...Pago}, premio: { premio_bs, premio_usd } }`
 
 settings:
   encodeUrl: true

@@ -10,17 +10,24 @@ use App\Models\Resultado;
 use App\Models\Ticket;
 use App\Services\JuegoPluginManager;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
 class PagoController extends Controller
 {
     /**
-     * Registrar un pago de premio.
+     * Registrar el pago de un premio (egreso).
      *
-     * Backend AUTORITATIVO (WU pago-premio): en `egreso` los montos son
-     * OPCIONALES — sin montos se aplica el premio calculado por el motor
-     * (`config.premios`); con montos se mantiene la validacion +-0.01.
+     * `POST /api/v1/pagos` es EGRESO-ONLY (D8): `ingreso` se registra
+     * automaticamente al vender y `devolucion` se registra anulando el ticket,
+     * por lo que ambos se rechazan con 422 ANTES de cargar la apuesta.
+     *
+     * El egreso corre en UNA transaccion con lock de fila (`for update`):
+     * dentro del lock se re-verifican ownership, estado, resultado, premio del
+     * MOTOR y tolerancia ±0.01. El backend es AUTORITATIVO (AD-3): los montos
+     * persistidos en `pagos` y en `detalle_apuestas.premio_ganado(_usd)` son
+     * los del motor; los montos del request solo alimentan la tolerancia.
      */
     public function store(Request $request)
     {
@@ -51,66 +58,82 @@ class PagoController extends Controller
             ], 422);
         }
 
-        $user = $request->user();
-        $apuestaId = $request->input('apuesta_id');
+        // AD-2: rechazo de tipos no-egreso inmediatamente despues de validar
+        // el input. Deterministico: no depende del estado ni del ownership de
+        // la apuesta, y no hay load, transaccion ni escritura.
+        $tipo = (string) $request->input('tipo');
 
-        // Buscar apuesta
-        $apuesta = Apuesta::with(['juego', 'resultado', 'detalles'])->find($apuestaId);
+        if ($tipo !== 'egreso') {
+            $mensaje = $tipo === 'ingreso'
+                ? 'El ingreso se registra automáticamente al vender; no se admite por este endpoint.'
+                : 'Las devoluciones se registran anulando el ticket: use DELETE /api/v1/tickets/{id}.';
 
-        if (! $apuesta) {
             return response()->json([
                 'success' => false,
-                'message' => 'Apuesta no encontrada.',
-            ], 404);
-        }
-
-        // Verificar ownership
-        if ($user->role === 'taquilla' && $apuesta->taquilla_id !== $user->taquilla_id) {
-            return response()->json(['message' => 'No autorizado.'], 403);
-        }
-
-        // Verificar estado pagable (D5/N11): `ganadora` (nuevo estado) o
-        // `pendiente` legacy con resultado_id ya liquidada. El egreso sin
-        // resultado se rechaza más abajo; la devolución de una `pendiente`
-        // sin resultado sigue permitida.
-        if (! in_array($apuesta->estado, ['pendiente', 'ganadora'], true)) {
-            return response()->json([
-                'success' => false,
-                'message' => "No se puede pagar una apuesta {$apuesta->estado}.",
+                'message' => $mensaje,
             ], 422);
         }
 
-        // Si es egreso, validar que la apuesta tenga resultado
-        if ($request->tipo === 'egreso') {
+        $user = $request->user();
+        $apuestaId = $request->input('apuesta_id');
+
+        $resultado = DB::transaction(function () use ($request, $user, $apuestaId) {
+            // Lock ANTES de cualquier check dependiente del estado: no existe
+            // ventana read-then-write para un doble egreso concurrente.
+            $apuesta = Apuesta::with(['juego', 'resultado', 'detalles'])
+                ->lockForUpdate()
+                ->find($apuestaId);
+
+            if (! $apuesta) {
+                return $this->rechazo(404, [
+                    'success' => false,
+                    'message' => 'Apuesta no encontrada.',
+                ]);
+            }
+
+            // Verificar ownership (re-chequeado dentro del lock)
+            if ($user->role === 'taquilla' && $apuesta->taquilla_id !== $user->taquilla_id) {
+                return $this->rechazo(403, ['message' => 'No autorizado.']);
+            }
+
+            // Verificar estado pagable (D5/N11): `ganadora` (nuevo estado) o
+            // `pendiente` legacy con resultado_id ya liquidada.
+            if (! in_array($apuesta->estado, ['pendiente', 'ganadora'], true)) {
+                return $this->rechazo(422, [
+                    'success' => false,
+                    'message' => "No se puede pagar una apuesta {$apuesta->estado}.",
+                ]);
+            }
+
             if (! $apuesta->resultado_id) {
-                return response()->json([
+                return $this->rechazo(422, [
                     'success' => false,
                     'message' => 'No se puede pagar un premio sin un resultado asignado a la apuesta.',
-                ], 422);
+                ]);
             }
 
-            $resultado = Resultado::find($apuesta->resultado_id);
-            $premio = $this->calcularPremio($apuesta, $resultado);
+            $premio = $this->calcularPremio($apuesta, $apuesta->resultado);
 
             if ($premio['premio_bs'] == 0 && $premio['premio_usd'] == 0) {
-                return response()->json([
+                return $this->rechazo(422, [
                     'success' => false,
                     'message' => 'La apuesta no resultó ganadora. No puede pagarse un premio.',
-                ], 422);
+                ]);
             }
 
-            // Backend AUTORITATIVO (WU pago-premio): los montos son OPCIONALES.
-            // - Sin monto -> se aplica el premio calculado por el MOTOR (la
-            //   taquilla no calcula ni confirma nada).
-            // - Con monto -> se mantiene la validacion +-0.01 (compatibilidad).
+            // Backend AUTORITATIVO (AD-3): los montos del request son
+            // OPCIONALES y solo validan tolerancia ±0.01; lo que se persiste
+            // es siempre el premio del MOTOR.
             $amountBsRequest = $request->filled('amount_bs') ? (float) $request->amount_bs : null;
             $amountUsdRequest = $request->filled('amount_usd') ? (float) $request->amount_usd : null;
 
-            $diffBs = $amountBsRequest === null ? 0.0 : abs($amountBsRequest - $premio['premio_bs']);
-            $diffUsd = $amountUsdRequest === null ? 0.0 : abs($amountUsdRequest - $premio['premio_usd']);
+            // Se redondea el delta a centavos para que el borde exacto ±0.01
+            // no se rompa por representacion binaria (p.ej. 300.01 - 300.0).
+            $diffBs = $amountBsRequest === null ? 0.0 : round(abs($amountBsRequest - $premio['premio_bs']), 2);
+            $diffUsd = $amountUsdRequest === null ? 0.0 : round(abs($amountUsdRequest - $premio['premio_usd']), 2);
 
             if ($diffBs > 0.01 || $diffUsd > 0.01) {
-                return response()->json([
+                return $this->rechazo(422, [
                     'success' => false,
                     'message' => 'El monto del premio no coincide con lo calculado.',
                     'premio_esperado_bs' => $premio['premio_bs'],
@@ -118,95 +141,111 @@ class PagoController extends Controller
                     'monto_enviado_bs' => $amountBsRequest,
                     'monto_enviado_usd' => $amountUsdRequest,
                     'sugerencia' => 'Omite amount_bs/amount_usd: el backend aplica el premio calculado.',
-                ], 422);
+                ]);
             }
 
-            // Fija los montos aplicados (los del request o los del motor).
-            $request->merge([
-                'amount_bs' => $amountBsRequest ?? $premio['premio_bs'],
-                'amount_usd' => $amountUsdRequest ?? $premio['premio_usd'],
+            // Guardar pago con los montos del motor (nunca los del request).
+            $pago = Pago::create([
+                'taquilla_id' => $apuesta->taquilla_id,
+                'apuesta_id' => $apuesta->id,
+                'amount_bs' => $premio['premio_bs'],
+                'amount_usd' => $premio['premio_usd'],
+                'exchange_rate_applied' => $apuesta->exchange_rate_applied,
+                'tipo' => 'egreso',
+                'moneda' => $request->moneda,
+                'metodo_pago' => Pago::resolverMetodoPago(
+                    $request->input('metodo_pago'),
+                    $request->moneda,
+                    $premio['premio_usd']
+                ),
+                'concepto' => $request->concepto ?? 'Pago de premio',
+                'referencia' => $request->referencia,
+                'created_by' => $user->id,
             ]);
-        }
 
-        // Guardar pago
-        $pago = Pago::create([
-            'taquilla_id' => $apuesta->taquilla_id,
-            'apuesta_id' => $apuestaId,
-            'amount_bs' => $request->amount_bs ?? 0,
-            'amount_usd' => $request->amount_usd ?? 0,
-            'exchange_rate_applied' => $apuesta->exchange_rate_applied,
-            'tipo' => $request->tipo,
-            'moneda' => $request->moneda,
-            'metodo_pago' => Pago::resolverMetodoPago(
-                $request->input('metodo_pago'),
-                $request->moneda,
-                (float) ($request->amount_usd ?? 0)
-            ),
-            'concepto' => $request->concepto ?? 'Pago de premio',
-            'referencia' => $request->referencia,
-            'created_by' => $user->id,
-        ]);
+            // Actualizar estado de la apuesta
+            $apuesta->update(['estado' => 'pagada']);
 
-        // Actualizar estado de la apuesta
-        $apuesta->update(['estado' => 'pagada']);
+            // Re-afirmar la evidencia del premio con los valores del motor.
+            $detalle = $apuesta->detalles->first();
+            if ($detalle) {
+                $detalle->update([
+                    'premio_ganado' => $premio['premio_bs'],
+                    'premio_ganado_usd' => $premio['premio_usd'],
+                ]);
+            }
 
-        // Actualizar premio_ganado en detalle_apuestas
-        $detalle = $apuesta->detalles()->first();
-        if ($detalle) {
-            $detalle->update([
-                'premio_ganado' => $request->amount_bs ?? 0,
-                'premio_ganado_usd' => $request->amount_usd ?? 0,
-            ]);
-        }
+            // Cascada al ticket: si TODAS las lineas vivas estan resueltas,
+            // marcar pagada. Se ignoran tickets pagados/anulados y trashed, y
+            // una coleccion de lineas vivas vacia nunca cascadea (every() es
+            // true sobre vacio).
+            if ($apuesta->ticket_id) {
+                $ticket = Ticket::with('apuestas')->find($apuesta->ticket_id);
 
-        // Cascada al ticket: si todas las jugadas estan resueltas, marcar pagada
-        if ($apuesta->ticket_id) {
-            $ticket = Ticket::with('apuestas')->find($apuesta->ticket_id);
-            if ($ticket && $ticket->estado !== 'pagada') {
-                // D5: la cascada suma `vencido` a "resuelta"; `ganadora`
-                // (impaga) NO resuelve el ticket.
-                $todasResueltas = $ticket->apuestas->every(function ($a) {
-                    return $a->estado === 'pagada' || $a->estado === 'anulada'
-                        || $a->estado === 'perdida' || $a->estado === 'vencido'
-                        || $a->trashed();
-                });
-                if ($todasResueltas) {
-                    $ticket->update(['estado' => 'pagada']);
+                if ($ticket && ! in_array($ticket->estado, ['pagada', 'anulada'], true)) {
+                    // La relacion `apuestas` aplica el scope de SoftDeletes:
+                    // solo se evaluan lineas vivas.
+                    $lineasVivas = $ticket->apuestas;
+
+                    // D5: la cascada suma `vencido` a "resuelta"; `ganadora`
+                    // (impaga) NO resuelve el ticket.
+                    $todasResueltas = $lineasVivas->isNotEmpty()
+                        && $lineasVivas->every(function (Apuesta $linea) {
+                            return in_array($linea->estado, ['pagada', 'anulada', 'perdida', 'vencido'], true);
+                        });
+
+                    if ($todasResueltas) {
+                        $ticket->update(['estado' => 'pagada']);
+                    }
                 }
             }
+
+            // Registrar log de auditoría (solo egreso)
+            Log::create([
+                'user_id' => $user->id,
+                'action' => 'pago_premio',
+                'details' => [
+                    'apuesta_id' => $apuesta->id,
+                    'ticket_code' => $apuesta->ticket_code,
+                    'animal' => $apuesta->combinacion['animal'] ?? 'N/A',
+                    'premio_bs' => $premio['premio_bs'],
+                    'premio_usd' => $premio['premio_usd'],
+                    'tipo' => 'egreso',
+                    'pago_id' => $pago->id,
+                    'premio_fuente' => 'motor',
+                ],
+                'ip' => $request->ip(),
+                'user_agent' => $request->header('User-Agent'),
+            ]);
+
+            return ['pago' => $pago, 'premio' => $premio];
+        });
+
+        if (isset($resultado['error'])) {
+            return response()->json($resultado['error']['body'], $resultado['error']['status']);
         }
 
-        // Registrar log de auditoría
-        Log::create([
-            'user_id' => $user->id,
-            'action' => 'pago_premio',
-            'details' => json_encode([
-                'apuesta_id' => $apuestaId,
-                'ticket_code' => $apuesta->ticket_code,
-                'animal' => $apuesta->combinacion['animal'] ?? 'N/A',
-                'premio_bs' => $request->amount_bs ?? 0,
-                'premio_usd' => $request->amount_usd ?? 0,
-                'tipo' => $request->tipo,
-            ]),
-            'ip' => $request->ip(),
-            'user_agent' => $request->header('User-Agent'),
-        ]);
-
-        $response = [
+        return response()->json([
             'success' => true,
             'message' => 'Pago registrado exitosamente.',
-            'data' => $pago->load(['apuesta', 'creador']),
-        ];
+            'data' => $resultado['pago']->load(['apuesta', 'creador']),
+            // WU pago-premio: devuelve el premio aplicado (siempre el del motor).
+            'premio' => [
+                'premio_bs' => (float) $resultado['premio']['premio_bs'],
+                'premio_usd' => (float) $resultado['premio']['premio_usd'],
+            ],
+        ], 201);
+    }
 
-        // WU pago-premio: devuelve el premio aplicado (request o motor).
-        if ($request->tipo === 'egreso') {
-            $response['premio'] = [
-                'premio_bs' => (float) $request->amount_bs,
-                'premio_usd' => (float) $request->amount_usd,
-            ];
-        }
-
-        return response()->json($response, 201);
+    /**
+     * Envuelve una respuesta de error para abortar la transaccion sin escribir.
+     *
+     * @param  array<string, mixed>  $body
+     * @return array{error: array{status: int, body: array<string, mixed>}}
+     */
+    private function rechazo(int $status, array $body): array
+    {
+        return ['error' => ['status' => $status, 'body' => $body]];
     }
 
     /**
