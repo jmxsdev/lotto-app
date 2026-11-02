@@ -16,6 +16,7 @@ use App\Models\Resultado;
 use App\Models\Taquilla;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Support\ReversalPairQuery;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -958,6 +959,13 @@ class ApuestaService
             $query->whereDate('pagos.created_at', '<=', $hasta);
         }
 
+        // Exclusión de pares de reversión (D10): una devolución cuya venta
+        // está anulada/soft-deleted dentro de la misma ventana no se resta
+        // dos veces. `egreso` no se toca.
+        if ($tipo === 'devolucion') {
+            ReversalPairQuery::aplicar($query, $desde, $hasta);
+        }
+
         return $query
             ->groupBy(...$groupCols)
             ->selectRaw("{$labelCol} as Entidad, {$sumExpr} as Total")
@@ -1197,11 +1205,17 @@ class ApuestaService
             }
         }
 
-        // 5. Devolución: SUM de pagos tipo='devolucion' agrupados por DATE(created_at)
-        $devoluciones = Pago::whereIn('taquilla_id', $taquillaIds)
+        // 5. Devolución: SUM de pagos tipo='devolucion' agrupados por DATE(created_at).
+        // Se excluyen los pares de reversión (D10): devolución de una venta
+        // anulada/soft-deleted cuya fecha_hora cae dentro de la misma ventana.
+        $devolucionesQuery = Pago::whereIn('taquilla_id', $taquillaIds)
             ->where('tipo', 'devolucion')
             ->whereDate('created_at', '>=', $desde)
-            ->whereDate('created_at', '<=', $hasta)
+            ->whereDate('created_at', '<=', $hasta);
+
+        ReversalPairQuery::aplicar($devolucionesQuery, $desde, $hasta);
+
+        $devoluciones = $devolucionesQuery
             ->groupBy(\DB::raw('DATE(created_at)'))
             ->selectRaw('DATE(created_at) as fecha, SUM(amount_bs + (amount_usd * COALESCE(exchange_rate_applied, 0))) as total')
             ->pluck('total', 'fecha');

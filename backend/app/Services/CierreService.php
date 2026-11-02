@@ -9,6 +9,7 @@ use App\Models\ExchangeRate;
 use App\Models\Pago;
 use App\Models\Taquilla;
 use App\Models\User;
+use App\Support\ReversalPairQuery;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -220,8 +221,9 @@ class CierreService
      * - Ventas: apuestas no anuladas (sin soft-delete) por fecha_hora;
      *   el desglose de ventas sale de los `pagos` ingreso de esas apuestas
      *   (JOIN por apuesta_id) agrupado por metodo_pago (AD-4).
-     * - Egresos: pagos tipo egreso/devolucion por created_at, con desglose
-     *   directo por metodo_pago.
+     * - Egresos: pagos tipo egreso, y tipo devolucion cuando su venta NO es un
+     *   par de reversión dentro de `[fechaInicio, fechaFin)` (D10), por
+     *   created_at. El mismo query filtrado alimenta totales y desglose.
      * - El USD se contabiliza íntegro bajo `efectivo` en el desglose.
      * - Neto por moneda = ventas - egresos.
      *
@@ -250,9 +252,19 @@ class CierreService
             ->selectRaw('pagos.metodo_pago as metodo_pago, SUM(pagos.amount_bs) as bs, SUM(pagos.amount_usd) as usd')
             ->get();
 
-        // Los ingresos (cobro de apuestas) no forman parte de los egresos
+        // Los ingresos (cobro de apuestas) no forman parte de los egresos.
+        // D10: un egreso siempre cuenta; una devolución solo cuenta si su
+        // venta no es un par de reversión dentro de esta ventana (half-open
+        // [fechaInicio, fechaFin), igual que las ventas del cierre).
         $egresosQuery = Pago::where('taquilla_id', $taquillaId)
-            ->whereIn('tipo', ['egreso', 'devolucion'])
+            ->where(function ($q) use ($fechaInicio, $fechaFin) {
+                $q->where('pagos.tipo', 'egreso')
+                    ->orWhere(function ($devolucion) use ($fechaInicio, $fechaFin) {
+                        $devolucion->where('pagos.tipo', 'devolucion');
+
+                        ReversalPairQuery::aplicar($devolucion, $fechaInicio, $fechaFin, true);
+                    });
+            })
             ->where('created_at', '>=', $fechaInicio)
             ->where('created_at', '<', $fechaFin);
 

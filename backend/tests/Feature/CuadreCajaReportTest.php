@@ -60,7 +60,7 @@ class CuadreCajaReportTest extends TestCase
         return Taquilla::create(['name' => $taquilla, 'code' => strtoupper(substr($taquilla, 0, 6)), 'grupo_id' => $grupo->id, 'active' => true]);
     }
 
-    private function crearApuesta(Taquilla $taquilla, Juego $juego, float $monto, string $estado, float $amountUsd = 0): Apuesta
+    private function crearApuesta(Taquilla $taquilla, Juego $juego, float $monto, string $estado, float $amountUsd = 0, ?string $fechaHora = null): Apuesta
     {
         return Apuesta::create([
             'taquilla_id' => $taquilla->id,
@@ -70,14 +70,15 @@ class CuadreCajaReportTest extends TestCase
             'exchange_rate_applied' => 36.50,
             'total_bs_equivalent' => $monto + ($amountUsd * 36.50),
             'estado' => $estado,
-            'fecha_hora' => now()->subDays(1),
+            'fecha_hora' => $fechaHora ?? now()->subDays(1),
         ]);
     }
 
-    private function crearPago(Taquilla $taquilla, User $user, string $tipo, float $monto, float $amountUsd = 0, string $moneda = 'bs'): Pago
+    private function crearPago(Taquilla $taquilla, User $user, string $tipo, float $monto, float $amountUsd = 0, string $moneda = 'bs', ?int $apuestaId = null, ?string $createdAt = null): Pago
     {
-        return Pago::create([
+        $pago = new Pago([
             'taquilla_id' => $taquilla->id,
+            'apuesta_id' => $apuestaId,
             'amount_bs' => $monto,
             'amount_usd' => $amountUsd,
             'exchange_rate_applied' => 36.50,
@@ -86,6 +87,14 @@ class CuadreCajaReportTest extends TestCase
             'concepto' => $tipo === 'egreso' ? 'Pago de premio' : 'Devolución de dinero',
             'created_by' => $user->id,
         ]);
+
+        if ($createdAt !== null) {
+            $pago->forceFill(['created_at' => $createdAt]);
+        }
+
+        $pago->save();
+
+        return $pago;
     }
 
     /**
@@ -624,5 +633,146 @@ class CuadreCajaReportTest extends TestCase
         $this->assertEquals(1000, $data[0]['Venta']);
         $this->assertEquals(100, $data[0]['Pagados'], 'Pagos del local suman los de sus máquinas');
         $this->assertEquals(900, $data[0]['Efectivo']);
+    }
+
+    // ==================================================
+    // WU4 — exclusión de pares de reversión (D10)
+    // ==================================================
+
+    /**
+     * Un par venta anulada + devolución dentro de la MISMA ventana cierra en
+     * cero: la venta ya está excluida por estado y la devolución no se resta
+     * otra vez. La venta queda `anulada` sin soft delete para que el reporte
+     * siga viendo la taquilla y el predicado sea el que excluye la devolución.
+     */
+    public function test_cuadre_excluye_par_de_reversion_en_la_misma_ventana()
+    {
+        $super = $this->superUser();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
+
+        $taquilla = $this->crearJerarquia('Banca Reversion', 'Grupo Reversion', 'T-Reversion');
+
+        $venta = $this->crearApuesta($taquilla, $juego, 1000, 'anulada', 0, '2026-08-10 10:00:00');
+        $this->crearPago($taquilla, $super, 'devolucion', 1000, 0, 'bs', $venta->id, '2026-08-10 10:03:00');
+
+        $response = $this->actingAs($super, 'sanctum')
+            ->getJson('/api/v1/reportes/cuadre-caja?fecha_desde=2026-08-10&fecha_hasta=2026-08-10');
+
+        $response->assertStatus(200);
+
+        $totales = $response->json('totales');
+        $this->assertEquals(0, $totales['Venta'], 'La venta anulada no suma');
+        $this->assertEquals(0, $totales['Devoluciones'], 'La devolución del par no se resta dos veces');
+        $this->assertEquals(0, $totales['Efectivo'], 'El par de reversión cierra en cero');
+
+        $this->assertEmpty($response->json('data'), 'Sin ventas vivas ni devoluciones reales no hay filas');
+    }
+
+    /**
+     * La rama `deleted_at IS NOT NULL` del predicado también excluye el par:
+     * una venta anulada por soft delete y su devolución no restan dos veces.
+     */
+    public function test_cuadre_excluye_par_de_reversion_con_venta_soft_deleted()
+    {
+        $super = $this->superUser();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
+
+        $taquilla = $this->crearJerarquia('Banca Reversion SD', 'Grupo Reversion SD', 'T-Reversion-SD');
+
+        // Venta viva: mantiene la taquilla visible en el reporte.
+        $this->crearApuesta($taquilla, $juego, 500, 'pendiente', 0, '2026-08-10 09:00:00');
+
+        $venta = $this->crearApuesta($taquilla, $juego, 1000, 'anulada', 0, '2026-08-10 10:00:00');
+        $venta->delete();
+        $this->crearPago($taquilla, $super, 'devolucion', 1000, 0, 'bs', $venta->id, '2026-08-10 10:03:00');
+
+        $response = $this->actingAs($super, 'sanctum')
+            ->getJson('/api/v1/reportes/cuadre-caja?fecha_desde=2026-08-10&fecha_hasta=2026-08-10');
+
+        $response->assertStatus(200);
+
+        $fila = $response->json('data.0');
+        $this->assertEquals(500, $fila['Venta']);
+        $this->assertEquals(0, $fila['Devoluciones'], 'La devolución de una venta soft-deleted no cuenta');
+        $this->assertEquals(500, $fila['Efectivo']);
+    }
+
+    /**
+     * Una devolución cuya venta quedó fuera de la ventana del reporte sigue
+     * siendo una salida real de efectivo (no forma par dentro de la ventana).
+     */
+    public function test_cuadre_cuenta_devolucion_de_venta_fuera_de_la_ventana()
+    {
+        $super = $this->superUser();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
+
+        $taquilla = $this->crearJerarquia('Banca Cross Window', 'Grupo Cross Window', 'T-Cross');
+
+        // Venta viva dentro de la ventana: mantiene visible la taquilla.
+        $this->crearApuesta($taquilla, $juego, 500, 'pendiente', 0, '2026-08-10 09:00:00');
+
+        // Venta anulada FUERA de la ventana y su devolución DENTRO.
+        $venta = $this->crearApuesta($taquilla, $juego, 1000, 'anulada', 0, '2026-08-09 23:50:00');
+        $this->crearPago($taquilla, $super, 'devolucion', 1000, 0, 'bs', $venta->id, '2026-08-10 00:05:00');
+
+        $response = $this->actingAs($super, 'sanctum')
+            ->getJson('/api/v1/reportes/cuadre-caja?fecha_desde=2026-08-10&fecha_hasta=2026-08-10');
+
+        $response->assertStatus(200);
+
+        $fila = $response->json('data.0');
+        $this->assertEquals(500, $fila['Venta']);
+        $this->assertEquals(1000, $fila['Devoluciones'], 'La devolución cross-window es una salida real');
+        $this->assertEquals(-500, $fila['Efectivo']);
+    }
+
+    /**
+     * Una devolución sin `apuesta_id` no tiene venta que la revierta: cuenta
+     * como salida real (el `NOT EXISTS` no encuentra fila y se cumple).
+     */
+    public function test_cuadre_cuenta_devolucion_sin_apuesta_asociada()
+    {
+        $super = $this->superUser();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
+
+        $taquilla = $this->crearJerarquia('Banca Untied', 'Grupo Untied', 'T-Untied');
+
+        $this->crearApuesta($taquilla, $juego, 500, 'pendiente', 0, '2026-08-10 09:00:00');
+        $this->crearPago($taquilla, $super, 'devolucion', 500, 0, 'bs', null, '2026-08-10 10:00:00');
+
+        $response = $this->actingAs($super, 'sanctum')
+            ->getJson('/api/v1/reportes/cuadre-caja?fecha_desde=2026-08-10&fecha_hasta=2026-08-10');
+
+        $response->assertStatus(200);
+
+        $fila = $response->json('data.0');
+        $this->assertEquals(500, $fila['Venta']);
+        $this->assertEquals(500, $fila['Devoluciones'], 'La devolución sin apuesta sigue contando');
+        $this->assertEquals(0, $fila['Efectivo']);
+    }
+
+    /**
+     * Regresión: una venta anulada sin devolución no altera el cuadre (ya se
+     * excluía por estado antes de WU4).
+     */
+    public function test_cuadre_venta_anulada_sin_devolucion_no_regresiona()
+    {
+        $super = $this->superUser();
+        $juego = Juego::where('slug', 'lotto-activo')->first();
+
+        $taquilla = $this->crearJerarquia('Banca Anulada Sin Par', 'Grupo Anulada Sin Par', 'T-Anulada-Sin-Par');
+
+        $this->crearApuesta($taquilla, $juego, 500, 'pendiente', 0, '2026-08-10 09:00:00');
+        $this->crearApuesta($taquilla, $juego, 1000, 'anulada', 0, '2026-08-10 10:00:00');
+
+        $response = $this->actingAs($super, 'sanctum')
+            ->getJson('/api/v1/reportes/cuadre-caja?fecha_desde=2026-08-10&fecha_hasta=2026-08-10');
+
+        $response->assertStatus(200);
+
+        $fila = $response->json('data.0');
+        $this->assertEquals(500, $fila['Venta']);
+        $this->assertEquals(0, $fila['Devoluciones']);
+        $this->assertEquals(500, $fila['Efectivo']);
     }
 }

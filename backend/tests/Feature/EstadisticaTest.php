@@ -8,6 +8,7 @@ use App\Models\Banca;
 use App\Models\ExchangeRate;
 use App\Models\Grupo;
 use App\Models\Juego;
+use App\Models\Pago;
 use App\Models\Taquilla;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
@@ -231,5 +232,140 @@ class EstadisticaTest extends TestCase
 
         $this->assertEquals(1000, $ventas[2], 'Día 3 debe tener solo la apuesta de su local');
         $this->assertEquals(1000.0, collect($ventas)->sum(), 'La serie no debe incluir datos del local ajeno');
+    }
+
+    // ==================================================
+    // WU4 — pares de reversión en timeSeriesData (D10)
+    // ==================================================
+
+    /**
+     * Venta anulada + devolución en el mismo día: la venta ya no suma y la
+     * devolución no resta dos veces. Las seis claves de serie no cambian.
+     */
+    public function test_time_series_excluye_par_de_reversion_y_conserva_las_seis_series()
+    {
+        $super = User::where('email', 'super@lotto.com')->first();
+        $super->assignRole('super_master');
+
+        ExchangeRate::create([
+            'rate' => 36.50,
+            'base_currency' => 'USD',
+            'reference_date' => now(),
+            'set_by' => $super->id,
+            'is_active' => true,
+        ]);
+
+        $juego = Juego::where('slug', 'lotto-activo')->first();
+
+        $banca = Banca::create(['name' => 'Banca Reversion Series', 'code' => 'BREV01', 'active' => true]);
+        $grupo = Grupo::create(['name' => 'Grupo Reversion Series', 'code' => 'GREV01', 'banca_id' => $banca->id, 'active' => true]);
+        $taquilla = Taquilla::create(['name' => 'T-Reversion-Series', 'code' => 'TREV01', 'grupo_id' => $grupo->id, 'active' => true]);
+
+        $venta = Apuesta::create([
+            'taquilla_id' => $taquilla->id,
+            'juego_id' => $juego->id,
+            'amount_bs' => 1000,
+            'amount_usd' => 0,
+            'exchange_rate_applied' => 36.50,
+            'total_bs_equivalent' => 1000,
+            'estado' => 'anulada',
+            'fecha_hora' => '2026-08-03 10:00:00',
+        ]);
+
+        $pago = new Pago([
+            'taquilla_id' => $taquilla->id,
+            'apuesta_id' => $venta->id,
+            'amount_bs' => 1000,
+            'amount_usd' => 0,
+            'exchange_rate_applied' => 36.50,
+            'tipo' => 'devolucion',
+            'moneda' => 'bs',
+            'concepto' => 'Devolución de ticket',
+            'created_by' => $super->id,
+        ]);
+        $pago->forceFill(['created_at' => '2026-08-03 10:03:00']);
+        $pago->save();
+
+        $response = $this->actingAs($super, 'sanctum')
+            ->getJson('/api/v1/estadisticas/rendimiento?fecha_desde=2026-08-01&fecha_hasta=2026-08-05');
+
+        $response->assertStatus(200);
+
+        $series = $response->json('series');
+
+        $this->assertEquals(
+            ['ventas', 'premios', 'pagados', 'vencidos', 'devolucion', 'saldo'],
+            array_keys($series),
+            'Las seis claves de serie se conservan'
+        );
+
+        // 2026-08-03 es el índice 2 del rango 1..5.
+        $this->assertEquals(0, $series['ventas'][2], 'La venta anulada no suma');
+        $this->assertEquals(0, $series['devolucion'][2], 'La devolución del par no resta dos veces');
+        $this->assertEquals(0, $series['saldo'][2], 'El par cierra en cero en el saldo');
+    }
+
+    /**
+     * Residual documentado (design §9.7): un par venta 23:58 + devolución
+     * 00:02 dentro de la MISMA ventana multi-día cierra en cero. Si cada día se
+     * consulta por separado, el día 1 queda como ventana de la venta y el día 2
+     * (con la devolución) ya no ve la venta en su ventana: el par cierra en -R entre
+     * días. Requiere `anulada_at` + bucketing por reversión (cambio aparte).
+     */
+    public function test_time_series_par_cross_midnight_nets_cero_en_la_ventana()
+    {
+        $super = User::where('email', 'super@lotto.com')->first();
+        $super->assignRole('super_master');
+
+        ExchangeRate::create([
+            'rate' => 36.50,
+            'base_currency' => 'USD',
+            'reference_date' => now(),
+            'set_by' => $super->id,
+            'is_active' => true,
+        ]);
+
+        $juego = Juego::where('slug', 'lotto-activo')->first();
+
+        $banca = Banca::create(['name' => 'Banca Cross Mid', 'code' => 'BCMID1', 'active' => true]);
+        $grupo = Grupo::create(['name' => 'Grupo Cross Mid', 'code' => 'GCMID1', 'banca_id' => $banca->id, 'active' => true]);
+        $taquilla = Taquilla::create(['name' => 'T-Cross-Mid', 'code' => 'TCMID1', 'grupo_id' => $grupo->id, 'active' => true]);
+
+        $venta = Apuesta::create([
+            'taquilla_id' => $taquilla->id,
+            'juego_id' => $juego->id,
+            'amount_bs' => 1000,
+            'amount_usd' => 0,
+            'exchange_rate_applied' => 36.50,
+            'total_bs_equivalent' => 1000,
+            'estado' => 'anulada',
+            'fecha_hora' => '2026-08-03 23:58:00',
+        ]);
+
+        $pago = new Pago([
+            'taquilla_id' => $taquilla->id,
+            'apuesta_id' => $venta->id,
+            'amount_bs' => 1000,
+            'amount_usd' => 0,
+            'exchange_rate_applied' => 36.50,
+            'tipo' => 'devolucion',
+            'moneda' => 'bs',
+            'concepto' => 'Devolución de ticket',
+            'created_by' => $super->id,
+        ]);
+        $pago->forceFill(['created_at' => '2026-08-04 00:02:00']);
+        $pago->save();
+
+        $response = $this->actingAs($super, 'sanctum')
+            ->getJson('/api/v1/estadisticas/rendimiento?fecha_desde=2026-08-03&fecha_hasta=2026-08-04');
+
+        $response->assertStatus(200);
+
+        $series = $response->json('series');
+
+        // La ventana completa (3..4) contiene la venta y la devolución: total 0.
+        $this->assertEquals(0.0, (float) array_sum($series['ventas']));
+        $this->assertEquals(0.0, (float) array_sum($series['devolucion']));
+        $this->assertEquals(0.0, (float) array_sum($series['saldo']));
     }
 }

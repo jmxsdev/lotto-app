@@ -1665,4 +1665,214 @@ class CierreCajaTest extends TestCase
             $this->fechaJson($hoy['fecha_fin'])->format('Y-m-d H:i')
         );
     }
+
+    // ==================================================
+    // POST /api/v1/cierre — pares de reversión (WU4, D10)
+    // ==================================================
+
+    /**
+     * Un par venta anulada + devolución dentro del mismo período cierra en cero:
+     * la venta ya está excluida de `total_ventas_*` y la devolución no se
+     * suma a `total_egresos_*`. Un egreso real ajeno al par sigue restando.
+     */
+    public function test_cierre_excluye_par_de_reversion_y_conserva_el_efectivo()
+    {
+        $taquilla = $this->crearTaquilla('TTC50', $this->grupoSeeded()->id);
+
+        // Venta viva MÁS ANTIGUA del período: fija el inicio del cierre en
+        // 09:30 para que la venta anulada (10:00, soft-deleted como en WU3)
+        // siga dentro de la ventana.
+        $viva = $this->crearApuesta($taquilla, [
+            'amount_bs' => 1000,
+            'total_bs_equivalent' => 1000,
+            'fecha_hora' => Carbon::create(2026, 8, 12, 9, 30, 0),
+        ]);
+        $this->crearPago($taquilla, [
+            'tipo' => 'ingreso',
+            'apuesta_id' => $viva->id,
+            'amount_bs' => 1000,
+            'metodo_pago' => 'efectivo',
+            'created_at' => Carbon::create(2026, 8, 12, 9, 30, 0),
+        ]);
+
+        // Par de reversión: venta anulada + soft delete (como WU3) y su
+        // devolución espejo.
+        $anulada = $this->crearApuesta($taquilla, [
+            'amount_bs' => 1000,
+            'total_bs_equivalent' => 1000,
+            'estado' => 'anulada',
+            'fecha_hora' => Carbon::create(2026, 8, 12, 10, 0, 0),
+        ]);
+        $anulada->delete();
+        $this->crearPago($taquilla, [
+            'tipo' => 'ingreso',
+            'apuesta_id' => $anulada->id,
+            'amount_bs' => 1000,
+            'metodo_pago' => 'pago_movil',
+            'created_at' => Carbon::create(2026, 8, 12, 10, 0, 0),
+        ]);
+        $this->crearPago($taquilla, [
+            'tipo' => 'devolucion',
+            'apuesta_id' => $anulada->id,
+            'amount_bs' => 1000,
+            'metodo_pago' => 'pago_movil',
+            'created_at' => Carbon::create(2026, 8, 12, 10, 35, 0),
+        ]);
+
+        // Egreso real ajeno al par: debe seguir restando.
+        $this->crearPago($taquilla, [
+            'tipo' => 'egreso',
+            'amount_bs' => 200,
+            'metodo_pago' => 'efectivo',
+            'created_at' => Carbon::create(2026, 8, 12, 11, 0, 0),
+        ]);
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id]);
+
+        $response->assertStatus(201);
+
+        $cierre = $response->json();
+
+        $this->assertEquals(1000.0, (float) $cierre['total_ventas_bs']);
+        $this->assertEquals(200.0, (float) $cierre['total_egresos_bs'], 'La devolución del par no suma egresos');
+        $this->assertEquals(800.0, (float) $cierre['total_efectivo_bs'], 'Efectivo = ventas vivas - egreso real');
+
+        $this->assertEquals(1000.0, (float) $cierre['desglose_metodos']['bs']['efectivo']['ventas']);
+        $this->assertEquals(0.0, (float) $cierre['desglose_metodos']['bs']['pago_movil']['ventas'], 'La venta anulada no entra al desglose');
+        $this->assertEquals(0.0, (float) $cierre['desglose_metodos']['bs']['pago_movil']['egresos'], 'La devolución del par no entra al desglose');
+    }
+
+    /**
+     * `desglose_metodos` reconcilia con `total_ventas_*` (AD-7): la suma de
+     * métodos por moneda iguala el total y todo el USD cae en `efectivo`.
+     */
+    public function test_cierre_desglose_metodos_cuadra_con_ventas_incluyendo_usd()
+    {
+        $taquilla = $this->crearTaquilla('TTC51', $this->grupoSeeded()->id);
+
+        $bs = $this->crearApuesta($taquilla, [
+            'amount_bs' => 1000,
+            'total_bs_equivalent' => 1000,
+            'fecha_hora' => Carbon::create(2026, 8, 12, 10, 0, 0),
+        ]);
+        $this->crearPago($taquilla, [
+            'tipo' => 'ingreso',
+            'apuesta_id' => $bs->id,
+            'amount_bs' => 1000,
+            'metodo_pago' => 'efectivo',
+            'created_at' => Carbon::create(2026, 8, 12, 10, 0, 0),
+        ]);
+
+        $usd = $this->crearApuesta($taquilla, [
+            'amount_usd' => 30,
+            'total_bs_equivalent' => 1095,
+            'fecha_hora' => Carbon::create(2026, 8, 12, 10, 10, 0),
+        ]);
+        $this->crearPago($taquilla, [
+            'tipo' => 'ingreso',
+            'apuesta_id' => $usd->id,
+            'amount_usd' => 30,
+            'metodo_pago' => 'pago_movil',
+            'created_at' => Carbon::create(2026, 8, 12, 10, 10, 0),
+        ]);
+
+        // Par de reversión para confirmar que la reconciliación sigue cuadrando.
+        $anulada = $this->crearApuesta($taquilla, [
+            'amount_bs' => 700,
+            'total_bs_equivalent' => 700,
+            'estado' => 'anulada',
+            'fecha_hora' => Carbon::create(2026, 8, 12, 10, 20, 0),
+        ]);
+        $anulada->delete();
+        $this->crearPago($taquilla, [
+            'tipo' => 'ingreso',
+            'apuesta_id' => $anulada->id,
+            'amount_bs' => 700,
+            'metodo_pago' => 'pago_movil',
+            'created_at' => Carbon::create(2026, 8, 12, 10, 20, 0),
+        ]);
+        $this->crearPago($taquilla, [
+            'tipo' => 'devolucion',
+            'apuesta_id' => $anulada->id,
+            'amount_bs' => 700,
+            'metodo_pago' => 'pago_movil',
+            'created_at' => Carbon::create(2026, 8, 12, 10, 25, 0),
+        ]);
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id]);
+
+        $response->assertStatus(201);
+
+        $cierre = $response->json();
+        $desglose = $cierre['desglose_metodos'];
+
+        $sumaVentasBs = array_sum(array_map(fn ($metodo) => (float) $metodo['ventas'], $desglose['bs']));
+        $sumaVentasUsd = array_sum(array_map(fn ($metodo) => (float) $metodo['ventas'], $desglose['usd']));
+
+        $this->assertEquals((float) $cierre['total_ventas_bs'], $sumaVentasBs, 'La suma de ventas BS por método iguala el total');
+        $this->assertEquals((float) $cierre['total_ventas_usd'], $sumaVentasUsd, 'La suma de ventas USD por método iguala el total');
+        $this->assertEquals(1000.0, $sumaVentasBs);
+        $this->assertEquals(30.0, $sumaVentasUsd);
+        $this->assertEquals(30.0, (float) $desglose['usd']['efectivo']['ventas'], 'Todo el USD se normaliza a efectivo');
+        $this->assertEquals(0.0, (float) $desglose['bs']['pago_movil']['ventas'], 'El ingreso de la venta anulada no entra al desglose');
+        $this->assertEquals(0.0, (float) $cierre['total_egresos_bs'], 'El par no suma egresos');
+    }
+
+    /**
+     * Una devolución cuya venta quedó fuera del período del cierre sigue
+     * siendo un egreso del cierre nuevo (residual cross-window aceptado).
+     */
+    public function test_cierre_cuenta_devolucion_de_venta_fuera_de_la_ventana()
+    {
+        $taquilla = $this->crearTaquilla('TTC52', $this->grupoSeeded()->id);
+
+        // Cierre de AYER: el período actual inicia 2026-08-11 23:50.
+        $this->crearCierre($taquilla, [
+            'fecha_inicio' => Carbon::create(2026, 8, 11, 8, 0, 0),
+            'fecha_fin' => Carbon::create(2026, 8, 11, 23, 50, 0),
+        ]);
+
+        // Venta anulada FUERA del período actual (antes de las 23:50).
+        $anulada = $this->crearApuesta($taquilla, [
+            'amount_bs' => 1000,
+            'total_bs_equivalent' => 1000,
+            'estado' => 'anulada',
+            'fecha_hora' => Carbon::create(2026, 8, 11, 23, 0, 0),
+        ]);
+        $anulada->delete();
+        $this->crearPago($taquilla, [
+            'tipo' => 'devolucion',
+            'apuesta_id' => $anulada->id,
+            'amount_bs' => 1000,
+            'metodo_pago' => 'efectivo',
+            'created_at' => Carbon::create(2026, 8, 12, 11, 0, 0),
+        ]);
+
+        // Venta viva del período actual.
+        $viva = $this->crearApuesta($taquilla, [
+            'amount_bs' => 1000,
+            'total_bs_equivalent' => 1000,
+            'fecha_hora' => Carbon::create(2026, 8, 12, 10, 0, 0),
+        ]);
+        $this->crearPago($taquilla, [
+            'tipo' => 'ingreso',
+            'apuesta_id' => $viva->id,
+            'amount_bs' => 1000,
+            'metodo_pago' => 'efectivo',
+            'created_at' => Carbon::create(2026, 8, 12, 10, 0, 0),
+        ]);
+
+        $response = $this->actingAs($this->superUser(), 'sanctum')
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id]);
+
+        $response->assertStatus(201);
+
+        $cierre = $response->json();
+
+        $this->assertEquals(1000.0, (float) $cierre['total_ventas_bs']);
+        $this->assertEquals(1000.0, (float) $cierre['total_egresos_bs'], 'La devolución cross-window es egreso real');
+        $this->assertEquals(0.0, (float) $cierre['total_efectivo_bs']);
+    }
 }
