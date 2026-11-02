@@ -2,15 +2,16 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exceptions\TicketAnulacionException;
 use App\Http\Controllers\Controller;
 use App\Models\Apuesta;
 use App\Models\Pago;
 use App\Models\Resultado;
 use App\Models\Ticket;
-use App\Policies\ApuestaPolicy;
 use App\Services\ApuestaService;
 use App\Services\JuegoPluginManager;
 use App\Services\PremiosEngine;
+use App\Services\TicketAnulacionService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -20,12 +21,14 @@ class TicketController extends Controller
 {
     protected ApuestaService $apuestaService;
 
-    protected ApuestaPolicy $apuestaPolicy;
+    protected TicketAnulacionService $ticketAnulacionService;
 
-    public function __construct(ApuestaService $apuestaService, ApuestaPolicy $apuestaPolicy)
-    {
+    public function __construct(
+        ApuestaService $apuestaService,
+        TicketAnulacionService $ticketAnulacionService
+    ) {
         $this->apuestaService = $apuestaService;
-        $this->apuestaPolicy = $apuestaPolicy;
+        $this->ticketAnulacionService = $ticketAnulacionService;
     }
 
     public function index(Request $request)
@@ -223,43 +226,51 @@ class TicketController extends Controller
         }
     }
 
+    /**
+     * Anular un ticket pre-sorteo y registrar su devolución (WU3-A).
+     *
+     * Toda la regla de negocio (estado, ventana, ownership por línea) y la
+     * transacción viven en `TicketAnulacionService`; el controller solo valida
+     * el body opcional y mapea la excepción de dominio a HTTP.
+     */
     public function destroy(Request $request, Ticket $ticket)
     {
-        $user = $request->user();
+        $request->validate([
+            'metodo_pago' => ['nullable', Rule::in(Pago::METODOS_PAGO)],
+            'referencia' => 'nullable|string|max:255',
+            'motivo' => 'nullable|string|max:255',
+        ]);
 
-        if ($ticket->estado !== 'pendiente') {
-            return response()->json(['message' => 'Solo se pueden anular tickets pendientes.'], 422);
+        try {
+            $resultado = $this->ticketAnulacionService->anularTicket(
+                $ticket,
+                $request->user(),
+                [
+                    'metodo_pago' => $request->input('metodo_pago'),
+                    'referencia' => $request->input('referencia'),
+                    'motivo' => $request->input('motivo'),
+                    'ip' => $request->ip(),
+                    'user_agent' => $request->header('User-Agent'),
+                ]
+            );
+        } catch (TicketAnulacionException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $e->status);
         }
 
-        $tiempoEliminacion = $this->apuestaService
-            ->getEffectiveTiempoEliminacion($ticket->taquilla_id);
-
-        // WU1: la policy devuelve un código de motivo; el mapeo a mensaje vive
-        // solo aquí (antes se re-derivaba el motivo por cada línea).
-        $rechazada = null;
-        foreach ($ticket->apuestas as $apuesta) {
-            $motivo = $this->apuestaPolicy
-                ->motivoNoAnulable($user, $apuesta, $tiempoEliminacion);
-
-            if ($motivo !== null) {
-                $rechazada = $this->mensajeRechazo($motivo, $tiempoEliminacion);
-                break;
-            }
-        }
-
-        if ($rechazada) {
-            return response()->json(['message' => $rechazada], 422);
-        }
-
-        DB::transaction(function () use ($ticket) {
-            foreach ($ticket->apuestas as $apuesta) {
-                $apuesta->delete();
-            }
-            $ticket->update(['estado' => 'anulada']);
-            $ticket->delete();
-        });
-
-        return response()->json(['message' => 'Ticket anulado correctamente.']);
+        return response()->json([
+            'success' => true,
+            'message' => 'Ticket anulado correctamente.',
+            'data' => [
+                'ticket_id' => $resultado['ticket_id'],
+                'apuestas' => $resultado['apuestas_count'],
+                'devoluciones' => $resultado['devoluciones'],
+                'total_bs' => $resultado['total_bs'],
+                'total_usd' => $resultado['total_usd'],
+            ],
+        ]);
     }
 
     public function ganadores(Request $request)
@@ -431,19 +442,5 @@ class TicketController extends Controller
 
         return count($selecciones) >= 3
             && (($combinacion['modalidad'] ?? 'tripleta') === 'tripleta');
-    }
-
-    /**
-     * Único mapeo código de motivo → mensaje de anulación (WU1). Los textos
-     * son byte a byte los históricos: no agregar acentos ni cambiarlos.
-     */
-    private function mensajeRechazo(string $motivo, int $minutos): string
-    {
-        return match ($motivo) {
-            ApuestaPolicy::MOTIVO_FUERA_DE_VENTANA => "El ticket excedió los {$minutos} minutos para ser anulado.",
-            ApuestaPolicy::MOTIVO_SORTEO_OCURRIDO => 'El sorteo de una o mas jugadas ya ocurrio, no se puede anular.',
-            ApuestaPolicy::MOTIVO_SIN_OWNERSHIP => 'No autorizado.',
-            default => 'No se puede anular el ticket.',
-        };
     }
 }

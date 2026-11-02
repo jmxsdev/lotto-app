@@ -180,6 +180,7 @@ class EliminacionApuestasTest extends TestCase
     public function test_apuesta_dentro_ventana_se_puede_eliminar()
     {
         $ticket = $this->crearTicketConApuesta(null, 3);
+        $apuesta = $ticket->apuestas()->firstOrFail();
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
             ->deleteJson('/api/v1/tickets/'.$ticket->id);
@@ -188,6 +189,25 @@ class EliminacionApuestasTest extends TestCase
             ->assertJsonPath('message', 'Ticket anulado correctamente.');
 
         $this->assertSoftDeleted('apuestas', ['ticket_id' => $ticket->id]);
+        $this->assertDatabaseHas('apuestas', [
+            'id' => $apuesta->id,
+            'estado' => 'anulada',
+        ]);
+        $this->assertDatabaseHas('tickets', [
+            'id' => $ticket->id,
+            'estado' => 'anulada',
+        ]);
+
+        // WU3-A: la anulación deja una devolución espejo de la venta. La
+        // fixture no crea `ingreso`, así que el método cae al fallback.
+        $this->assertDatabaseHas('pagos', [
+            'apuesta_id' => $apuesta->id,
+            'tipo' => 'devolucion',
+            'amount_bs' => 1000,
+            'amount_usd' => 0,
+            'moneda' => 'bs',
+            'metodo_pago' => 'efectivo',
+        ]);
     }
 
     public function test_apuesta_fuera_ventana_no_se_puede_eliminar()
@@ -201,18 +221,28 @@ class EliminacionApuestasTest extends TestCase
             ->assertJsonPath('message', 'El ticket excedió los 5 minutos para ser anulado.');
 
         $this->assertDatabaseHas('apuestas', ['ticket_id' => $ticket->id]);
+        $this->assertDatabaseMissing('pagos', ['tipo' => 'devolucion']);
     }
 
     public function test_ventana_configurable_respetada()
     {
         // Agencia con ventana de 10 minutos permite eliminar una apuesta de 7
         $ticket = $this->crearTicketConApuesta(10, 7);
+        $apuesta = $ticket->apuestas()->firstOrFail();
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
             ->deleteJson('/api/v1/tickets/'.$ticket->id);
 
         $response->assertStatus(200);
         $this->assertSoftDeleted('apuestas', ['ticket_id' => $ticket->id]);
+        $this->assertDatabaseHas('apuestas', [
+            'id' => $apuesta->id,
+            'estado' => 'anulada',
+        ]);
+        $this->assertDatabaseHas('pagos', [
+            'apuesta_id' => $apuesta->id,
+            'tipo' => 'devolucion',
+        ]);
     }
 
     public function test_mensaje_ticket_dinamico()
@@ -242,6 +272,7 @@ class EliminacionApuestasTest extends TestCase
             ->assertJsonPath('message', 'El sorteo de una o mas jugadas ya ocurrio, no se puede anular.');
 
         $this->assertNotSoftDeleted('apuestas', ['ticket_id' => $ticket->id]);
+        $this->assertDatabaseMissing('pagos', ['tipo' => 'devolucion']);
     }
 
     /**
@@ -259,11 +290,12 @@ class EliminacionApuestasTest extends TestCase
             ->assertJsonPath('message', 'No se puede anular el ticket.');
 
         $this->assertNotSoftDeleted('apuestas', ['ticket_id' => $ticket->id]);
+        $this->assertDatabaseMissing('pagos', ['tipo' => 'devolucion']);
     }
 
     /**
-     * WU1: el código `sin_ownership` se mapea a `No autorizado.`. En este
-     * slice el status sigue siendo 422; WU3-A lo mueve a 403.
+     * WU1/WU3-A: el código `sin_ownership` se mapea a `No autorizado.` y el
+     * servicio de anulación lo expone con status 403 (D13).
      *
      * Se usa un usuario `grupo` ajeno (rol permitido por la ruta y sin
      * verificación MAC) para ejercitar la ownership de la policy; un rol
@@ -290,9 +322,10 @@ class EliminacionApuestasTest extends TestCase
         $response = $this->actingAs($user, 'sanctum')
             ->deleteJson('/api/v1/tickets/'.$ticket->id);
 
-        $response->assertStatus(422)
+        $response->assertStatus(403)
             ->assertJsonPath('message', 'No autorizado.');
 
         $this->assertNotSoftDeleted('apuestas', ['ticket_id' => $ticket->id]);
+        $this->assertDatabaseMissing('pagos', ['tipo' => 'devolucion']);
     }
 }
