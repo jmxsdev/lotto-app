@@ -169,13 +169,15 @@ RED — write first:
 - Command: `cd backend && php artisan test --filter='CuadreCaja|CierreCaja|Estadistica'` → expect RED.
 
 Implementation tasks:
-- [ ] 5.1 Create `ReversalPairQuery::aplicar(Builder, $desde, $hasta, bool $halfOpen = false): Builder` — the `whereNotExists` predicate (`from('apuestas as a_sale')`, `estado='anulada'` or `deleted_at` not null, sale `fecha_hora` window; `whereDate` vs half-open `>=`/`<`).
-- [ ] 5.2 `ApuestaService::pagosCuadrePorNivel` + `timeSeriesData` step 5: apply predicate only when `$tipo === 'devolucion'`; `Efectivo`/`saldo` arithmetic unchanged.
-- [ ] 5.3 `CierreService::calcularTotales`: replace `whereIn('tipo',['egreso','devolucion'])` with grouped `egreso OR (devolucion AND NOT EXISTS sale-in-window)` using half-open `[fechaInicio, fechaFin)`; keep `$ventasDesglose` unchanged (AD-7).
-- [ ] 5.4 Document reversal-pair rule + cross-window/cross-midnight residual in `docs/dev/motor-cierres-comisiones.md`; mark Alta #2 fixed.
+- [x] 5.1 Create `ReversalPairQuery::aplicar(Builder, $desde, $hasta, bool $halfOpen = false): Builder` — the `whereNotExists` predicate (`from('apuestas as a_sale')`, `estado='anulada'` or `deleted_at` not null, sale `fecha_hora` window; `whereDate` vs half-open `>=`/`<`).
+- [x] 5.2 `ApuestaService::pagosCuadrePorNivel` + `timeSeriesData` step 5: apply predicate only when `$tipo === 'devolucion'`; `Efectivo`/`saldo` arithmetic unchanged.
+- [x] 5.3 `CierreService::calcularTotales`: replace `whereIn('tipo',['egreso','devolucion'])` with grouped `egreso OR (devolucion AND NOT EXISTS sale-in-window)` using half-open `[fechaInicio, fechaFin)`; keep `$ventasDesglose` unchanged (AD-7).
+- [x] 5.4 Document reversal-pair rule + cross-window/cross-midnight residual in `docs/dev/motor-cierres-comisiones.md`; mark Alta #2 fixed.
 
 GREEN — `cd backend && php artisan test --filter='CuadreCaja|CierreCaja|Estadistica'` → GREEN.
 Rollback: **must not ship without WU3-A/B**; reverting WU4 alone reintroduces `Efectivo = −R`.
+
+Status (apply batch WU4): **GREEN (user-reported)** on the focused command above. The agent never executes tests.
 
 ---
 

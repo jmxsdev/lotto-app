@@ -223,6 +223,80 @@ Deviations / notes:
 - No migrations, routes, model changes, `PagoController`, reports, or WU4 files
   were touched. Changes are intentionally left uncommitted.
 
+## WU4 — report reversal-pair exclusion
+
+Status: **complete / GREEN (user-reported)**. The agent never executes tests.
+
+Files:
+- `backend/app/Support/ReversalPairQuery.php` (new)
+- `backend/app/Services/ApuestaService.php` (modified)
+- `backend/app/Services/CierreService.php` (modified)
+- `backend/tests/Feature/CuadreCajaReportTest.php` (modified)
+- `backend/tests/Feature/CierreCajaTest.php` (modified)
+- `backend/tests/Feature/EstadisticaTest.php` (modified)
+- `docs/dev/motor-cierres-comisiones.md` (integrated from `main`; see deviation)
+
+Behavior:
+- `ReversalPairQuery::aplicar(Builder, $desde, $hasta, bool $halfOpen = false)`
+  adds one `whereNotExists` over `apuestas as a_sale` with a raw `from()`
+  (bypasses the SoftDeletes global scope), matches
+  `a_sale.id = pagos.apuesta_id`, requires `estado='anulada'` OR
+  `deleted_at IS NOT NULL`, and filters the sale `fecha_hora` with `whereDate`
+  (inclusive) or `[desde, hasta)` when `$halfOpen = true`.
+  `pagos.apuesta_id IS NULL` yields no match, so untied refunds still count.
+- `ApuestaService::pagosCuadrePorNivel` applies the predicate only for
+  `$tipo === 'devolucion'`; `egreso` is untouched and
+  `Efectivo = Venta − Pagados − Devoluciones − Vencidos` is unchanged.
+- `ApuestaService::timeSeriesData` step 5 applies the predicate to the
+  `devolucion` query; the six series keys and
+  `saldo = ventas − (premios + pagados + devolucion)` are unchanged.
+- `CierreService::calcularTotales` replaces `whereIn('tipo', ['egreso','devolucion'])`
+  with `egreso OR (devolucion AND NOT EXISTS sale-in-window)` using the
+  half-open `[fechaInicio, fechaFin)`. The same filtered query feeds
+  `total_egresos_*` and `egresosDesglose` (reconciliation by construction);
+  `$ventasDesglose` is unchanged (AD-7).
+- Tests cover: same-window pair 0/0/0, soft-deleted sale pair, cross-window
+  refund as real outflow, untied refund, annulled sale without refund (no
+  regression); cierre pair exclusion + unchanged cash + `desglose_metodos`
+  reconciliation (BS/USD→efectivo) + cross-window refund still an egreso;
+  same-day time-series pair 0/0/0 with the six keys and the cross-midnight
+  residual documented.
+
+TDD evidence (Strict TDD active; the agent never runs tests):
+
+| Task | RED (test written first) | GREEN (user-run) | REFACTOR |
+|---|---|---|---|
+| 5.1 | `CuadreCajaReportTest::test_cuadre_excluye_par_de_reversion_*`, `test_cuadre_cuenta_devolucion_de_venta_fuera_de_la_ventana`, `test_cuadre_cuenta_devolucion_sin_apuesta_asociada`, `test_cuadre_venta_anulada_sin_devolucion_no_regresiona` | pending | n/a |
+| 5.2 | `EstadisticaTest::test_time_series_excluye_par_de_reversion_y_conserva_las_seis_series`, `test_time_series_par_cross_midnight_nets_cero_en_la_ventana` | pending | n/a |
+| 5.3 | `CierreCajaTest::test_cierre_excluye_par_de_reversion_y_conserva_el_efectivo`, `test_cierre_desglose_metodos_cuadra_con_ventas_incluyendo_usd`, `test_cierre_cuenta_devolucion_de_venta_fuera_de_la_ventana` | pending | n/a |
+| 5.4 | n/a (documentation; verified against helper/services) | pending | n/a |
+
+Work Unit Evidence (WU4):
+
+| Evidence | Value |
+|---|---|
+| Focused test command | `cd backend && php artisan test --filter='CuadreCaja\|CierreCaja\|Estadistica'` -> **user-run pending** |
+| Runtime harness | HTTP feature tests through `GET /api/v1/reportes/cuadre-caja`, `GET /api/v1/estadisticas/rendimiento`, `POST /api/v1/cierre` (Sanctum + MySQL `lotto_test`), real service queries against `pagos`/`apuestas` |
+| Rollback boundary | `ReversalPairQuery`, the two report/cierre service edits, the three test files and the doc; **must not revert WU4 alone** (reintroduces `Efectivo = −R`) |
+
+Deviations / notes:
+- `docs/dev/motor-cierres-comisiones.md` does not exist at this branch base
+  (`6feb1fe`); it was added on `main` later (`72bc1c6`, `47fa94d`). To keep one
+  coherent document instead of a second fragment, the branch now carries the
+  current `main` version with the WU4 content integrated in place: §4.3
+  (egresos del cierre), §7.1–§7.2 (regla, consumidores, aritmética y
+  residuales), §8 (assertions added to `CierreCajaTest`/`CuadreCajaReportTest`)
+  and §9 Alta #2 marked **FIXED** (WU2 + WU3 + WU4). When the chain is rebased
+  onto current `main`, the doc merge is therefore conflict-free or trivially
+  identical.
+- The report tests use an `anulada` sale **without soft delete** for the
+  same-window pair so `cuadreCaja`/`timeSeriesData` still derive the taquilla
+  from the sales query; the soft-deleted branch is covered by
+  `test_cuadre_excluye_par_de_reversion_con_venta_soft_deleted` with a live
+  sale keeping the taquilla visible (pre-existing R11 visibility quirk).
+- No migrations, routes, model changes, `PagoController`, `TicketAnulacionService`,
+  `ApuestaController`, or WU5 files were touched. Changes are left uncommitted.
+
 ## Next
 
-WU4 — report reversal-pair exclusion. Not started (out of this batch's scope).
+WU5 — legacy audit (owner-gated). Not started (out of this batch's scope).
