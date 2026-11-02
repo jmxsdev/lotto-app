@@ -82,14 +82,16 @@ RED — write first:
 - Command: `cd backend && php artisan test --filter='PagoIngresoRechazado|PagoEgresoUnicoMutante|PagoTipo|ApuestaTest'` → expect RED.
 
 Implementation tasks:
-- [ ] 2.1 Add early non-egreso rejection in `PagoController::store` immediately after input validation: `ingreso` → 422 `El ingreso se registra automáticamente al vender; no se admite por este endpoint.`; `devolucion` → 422 `Las devoluciones se registran anulando el ticket: use DELETE /api/v1/tickets/{id}.` (no apuesta load, no writes).
-- [ ] 2.2 Wrap the egreso path in `DB::transaction` with `Apuesta::lockForUpdate()->find($id)`; re-check existence, ownership (taquilla), `estado ∈ {pendiente,ganadora}`, `resultado_id`, engine prize, ±0.01 tolerance inside the lock.
-- [ ] 2.3 Persist engine-authoritative amounts (`Pago` amounts + `detalle_apuestas.premio_ganado(_usd)` = engine); request amounts are tolerance-only; return `premio` in the 201 response.
-- [ ] 2.4 Harden the ticket cascade: skip trashed/`anulada` tickets and require `apuestas->isNotEmpty()` before the `every()` check.
-- [ ] 2.5 Keep `pago_premio` audit log for egreso only; update class docblock; update `collections/Pagos/Registrar Pago (Token required).yml` (egreso-only, 422 messages, `premio` field).
+- [x] 2.1 Add early non-egreso rejection in `PagoController::store` immediately after input validation: `ingreso` → 422 `El ingreso se registra automáticamente al vender; no se admite por este endpoint.`; `devolucion` → 422 `Las devoluciones se registran anulando el ticket: use DELETE /api/v1/tickets/{id}.` (no apuesta load, no writes).
+- [x] 2.2 Wrap the egreso path in `DB::transaction` with `Apuesta::lockForUpdate()->find($id)`; re-check existence, ownership (taquilla), `estado ∈ {pendiente,ganadora}`, `resultado_id`, engine prize, ±0.01 tolerance inside the lock.
+- [x] 2.3 Persist engine-authoritative amounts (`Pago` amounts + `detalle_apuestas.premio_ganado(_usd)` = engine); request amounts are tolerance-only; return `premio` in the 201 response.
+- [x] 2.4 Harden the ticket cascade: skip trashed/`anulada` tickets and require `apuestas->isNotEmpty()` before the `every()` check.
+- [x] 2.5 Keep `pago_premio` audit log for egreso only; update class docblock; update `collections/Pagos/Registrar Pago (Token required).yml` (egreso-only, 422 messages, `premio` field).
 
 GREEN — `cd backend && php artisan test --filter='PagoIngresoRechazado|PagoEgresoUnicoMutante|PagoTipo|ApuestaTest'` → GREEN.
 Rollback: revert `PagoController` + collection; no data effect if no refunds exist yet.
+
+Status (apply batch WU2): implementation + RED tests written; **GREEN (user-reported)** on the focused command above. The agent never executes tests.
 
 ---
 
