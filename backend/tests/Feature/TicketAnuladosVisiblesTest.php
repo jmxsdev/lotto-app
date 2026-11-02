@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Apuesta;
 use App\Models\Juego;
+use App\Models\Pago;
 use App\Models\Taquilla;
 use App\Models\Ticket;
 use App\Models\User;
@@ -38,28 +39,31 @@ class TicketAnuladosVisiblesTest extends TestCase
         return $user;
     }
 
-    private function ticketConApuesta(Taquilla $taquilla): Ticket
+    private function ticketConApuesta(Taquilla $taquilla, int $lineas = 1): Ticket
     {
         $ticket = Ticket::create([
             'taquilla_id' => $taquilla->id,
-            'total_bs' => 10,
+            'total_bs' => 10 * $lineas,
             'total_usd' => 0,
             'estado' => 'pendiente',
         ]);
-        Apuesta::create([
-            'taquilla_id' => $taquilla->id,
-            'juego_id' => Juego::where('slug', 'lotto-activo')->first()->id,
-            'combinacion' => json_encode(['animal' => 'Perro', 'numero' => 14]),
-            'amount_bs' => 10,
-            'amount_usd' => 0,
-            'exchange_rate_applied' => 36.50,
-            'total_bs_equivalent' => 10,
-            'estado' => 'pendiente',
-            'fecha_hora' => now(),
-            'sorteo_hora' => now()->addHour(),
-            'ticket_id' => $ticket->id,
-            'ticket_code' => $ticket->ticket_code,
-        ]);
+
+        for ($i = 0; $i < $lineas; $i++) {
+            Apuesta::create([
+                'taquilla_id' => $taquilla->id,
+                'juego_id' => Juego::where('slug', 'lotto-activo')->first()->id,
+                'combinacion' => json_encode(['animal' => 'Perro', 'numero' => 14]),
+                'amount_bs' => 10,
+                'amount_usd' => 0,
+                'exchange_rate_applied' => 36.50,
+                'total_bs_equivalent' => 10,
+                'estado' => 'pendiente',
+                'fecha_hora' => now(),
+                'sorteo_hora' => now()->addHour(),
+                'ticket_id' => $ticket->id,
+                'ticket_code' => $ticket->ticket_code,
+            ]);
+        }
 
         return $ticket;
     }
@@ -88,6 +92,42 @@ class TicketAnuladosVisiblesTest extends TestCase
         $this->assertSame([], $item['apuestas'], 'las apuestas trashed no ensucian el shape');
         $this->assertSame(0, $item['ganadoras_count']);
         $this->assertFalse($item['tiene_ganadores'], 'un anulado nunca figura con premios');
+    }
+
+    public function test_ticket_anulado_con_varias_lineas_sigue_visible_y_sin_lineas_vivas(): void
+    {
+        $taquilla = Taquilla::factory()->create();
+        $ticket = $this->ticketConApuesta($taquilla, 2);
+        $user = $this->taquillaUser($taquilla);
+        $apuestaIds = Apuesta::where('ticket_id', $ticket->id)->pluck('id')->all();
+
+        $this->actingAs($user, 'sanctum')
+            ->withHeader('X-Device-MAC', $taquilla->mac_address)
+            ->deleteJson('/api/v1/tickets/'.$ticket->id)
+            ->assertOk();
+
+        // WU3-B: la anulación deja una devolución por línea y sigue ocultando
+        // las líneas vivas del historial.
+        $this->assertSame(
+            2,
+            Pago::whereIn('apuesta_id', $apuestaIds)
+                ->where('tipo', 'devolucion')
+                ->count()
+        );
+        $this->assertSame(0, Apuesta::where('ticket_id', $ticket->id)->count());
+
+        $resp = $this->actingAs($user, 'sanctum')
+            ->withHeader('X-Device-MAC', $taquilla->mac_address)
+            ->getJson('/api/v1/tickets');
+
+        $resp->assertOk();
+        $item = collect($resp->json('data.data'))->firstWhere('id', $ticket->id);
+
+        $this->assertNotNull($item, 'el ticket anulado con varias líneas sigue visible');
+        $this->assertSame('anulada', $item['estado']);
+        $this->assertSame([], $item['apuestas']);
+        $this->assertSame(0, $item['ganadoras_count']);
+        $this->assertFalse($item['tiene_ganadores']);
     }
 
     public function test_filtro_estado_anulada_devuelve_solo_anulados(): void

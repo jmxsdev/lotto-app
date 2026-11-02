@@ -275,6 +275,125 @@ class MetodoPagoTest extends TestCase
             ->assertJsonValidationErrors('metodo_pago');
     }
 
+    private function postTicket(User $user, array $lines, ?string $metodoPago = null): TestResponse
+    {
+        $payload = ['lines' => $lines];
+
+        if ($metodoPago !== null) {
+            $payload['metodo_pago'] = $metodoPago;
+        }
+
+        return $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
+            ->actingAs($user, 'sanctum')
+            ->postJson('/api/v1/tickets', $payload);
+    }
+
+    private function deleteTicket(User $user, int $ticketId, array $payload = []): TestResponse
+    {
+        return $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
+            ->actingAs($user, 'sanctum')
+            ->deleteJson('/api/v1/tickets/'.$ticketId, $payload);
+    }
+
+    private function lineaTicket(int $juegoId, float $bs, float $usd): array
+    {
+        return [
+            'juego_id' => $juegoId,
+            'combinacion' => ['animal' => 'perro', 'numero' => 5],
+            'amount_bs' => $bs,
+            'amount_usd' => $usd,
+        ];
+    }
+
+    public function test_devolucion_espeja_el_metodo_de_la_venta(): void
+    {
+        [$juego, $taquilla, $user] = $this->crearTaquillaUsuario();
+
+        $ticket = $this->postTicket(
+            $user,
+            [$this->lineaTicket($juego->id, 1800, 0)],
+            'pago_movil'
+        );
+        $ticket->assertStatus(201);
+
+        $this->deleteTicket($user, $ticket->json('data.id'))->assertOk();
+
+        $this->assertDatabaseHas('pagos', [
+            'taquilla_id' => $taquilla->id,
+            'tipo' => 'devolucion',
+            'metodo_pago' => 'pago_movil',
+        ]);
+    }
+
+    public function test_devolucion_permite_override_explicito_del_metodo(): void
+    {
+        [$juego, $taquilla, $user] = $this->crearTaquillaUsuario();
+
+        $ticket = $this->postTicket(
+            $user,
+            [$this->lineaTicket($juego->id, 1800, 0)],
+            'pago_movil'
+        );
+        $ticket->assertStatus(201);
+
+        $this->deleteTicket($user, $ticket->json('data.id'), [
+            'metodo_pago' => 'transferencia',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('pagos', [
+            'taquilla_id' => $taquilla->id,
+            'tipo' => 'devolucion',
+            'metodo_pago' => 'transferencia',
+        ]);
+    }
+
+    public function test_devolucion_usd_fuerza_metodo_efectivo_aunque_haya_override(): void
+    {
+        [$juego, $taquilla, $user] = $this->crearTaquillaUsuario();
+
+        $ticket = $this->postTicket(
+            $user,
+            [$this->lineaTicket($juego->id, 0, 5)],
+            'transferencia'
+        );
+        $ticket->assertStatus(201);
+
+        $this->deleteTicket($user, $ticket->json('data.id'), [
+            'metodo_pago' => 'transferencia',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('pagos', [
+            'taquilla_id' => $taquilla->id,
+            'tipo' => 'devolucion',
+            'amount_usd' => 5,
+            'moneda' => 'usd',
+            'metodo_pago' => 'efectivo',
+        ]);
+    }
+
+    public function test_devolucion_metodo_pago_invalido_responde_422_sin_escrituras(): void
+    {
+        [$juego, $taquilla, $user] = $this->crearTaquillaUsuario();
+
+        $ticket = $this->postTicket(
+            $user,
+            [$this->lineaTicket($juego->id, 1800, 0)],
+            'pago_movil'
+        );
+        $ticket->assertStatus(201);
+        $ticketId = $ticket->json('data.id');
+
+        $this->deleteTicket($user, $ticketId, ['metodo_pago' => 'tarjeta'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('metodo_pago');
+
+        $this->assertDatabaseMissing('pagos', [
+            'taquilla_id' => $taquilla->id,
+            'tipo' => 'devolucion',
+        ]);
+        $this->assertNotSoftDeleted('tickets', ['id' => $ticketId]);
+    }
+
     private function crearApuestaGanadora(Juego $juego, Taquilla $taquilla, float $bs, float $usd): Apuesta
     {
         $apuesta = Apuesta::create([

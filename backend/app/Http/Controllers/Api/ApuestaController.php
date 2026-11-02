@@ -2,21 +2,30 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exceptions\TicketAnulacionException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ApuestaStoreRequest;
 use App\Models\Apuesta;
 use App\Models\JuegoHorario;
-use App\Models\Log;
+use App\Models\Pago;
 use App\Services\ApuestaService;
+use App\Services\TicketAnulacionService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class ApuestaController extends Controller
 {
     protected ApuestaService $apuestaService;
 
-    public function __construct(ApuestaService $apuestaService)
-    {
+    protected TicketAnulacionService $ticketAnulacionService;
+
+    public function __construct(
+        ApuestaService $apuestaService,
+        TicketAnulacionService $ticketAnulacionService
+    ) {
         $this->apuestaService = $apuestaService;
+        $this->ticketAnulacionService = $ticketAnulacionService;
     }
 
     /**
@@ -252,34 +261,69 @@ class ApuestaController extends Controller
     }
 
     /**
-     * Eliminar (soft delete) una apuesta dentro de la ventana de 5 minutos.
+     * Anular una venta suelta pre-sorteo y registrar su devolución (WU3-B).
+     *
+     * `DELETE /apuestas` ya NO soft-deletea a secas: la regla de negocio
+     * (estado, `resultado_id`, sorteo, ventana efectiva, ownership) vive en
+     * `ApuestaPolicy`, y la transición + la devolución las ejecuta
+     * `TicketAnulacionService::anularApuestaSuelta`.
+     *
+     * El `authorize('view')` va primero por diseño (§7.3): un caller ajeno
+     * recibe 403 antes del 422 de "esto es una línea de ticket", de modo que
+     * una URL de línea nunca filtra si pertenece a un ticket ni permite mutar
+     * un ticket que no posee.
      */
     public function destroy(Request $request, Apuesta $apuesta)
     {
-        $this->authorize('delete', $apuesta);
+        try {
+            $this->authorize('view', $apuesta);
+        } catch (AuthorizationException $e) {
+            // La excepción se convierte a AccessDeniedHttpException antes de
+            // los render callbacks globales; se normaliza aquí para mantener
+            // el contrato JSON "No autorizado." de la API.
+            return response()->json(['message' => 'No autorizado.'], 403);
+        }
 
-        $user = $request->user();
-        $motivo = $request->input('motivo', 'Sin motivo especificado');
-
-        $oldData = $apuesta->toArray();
-
-        $apuesta->delete();
-
-        Log::create([
-            'user_id' => $user->id,
-            'action' => 'apuesta.deleted',
-            'details' => [
-                'apuesta_id' => $apuesta->id,
-                'ticket_code' => $apuesta->ticket_code,
-                'motivo' => $motivo,
-                'old_values' => $oldData,
-            ],
-            'ip' => $request->ip(),
-            'user_agent' => $request->userAgent(),
+        $request->validate([
+            'metodo_pago' => ['nullable', Rule::in(Pago::METODOS_PAGO)],
+            'referencia' => 'nullable|string|max:255',
+            'motivo' => 'nullable|string|max:255',
         ]);
 
+        try {
+            $pago = $this->ticketAnulacionService->anularApuestaSuelta(
+                $apuesta,
+                $request->user(),
+                [
+                    'metodo_pago' => $request->input('metodo_pago'),
+                    'referencia' => $request->input('referencia'),
+                    'motivo' => $request->input('motivo'),
+                    'ip' => $request->ip(),
+                    'user_agent' => $request->header('User-Agent'),
+                ]
+            );
+        } catch (TicketAnulacionException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $e->status);
+        }
+
         return response()->json([
+            'success' => true,
             'message' => 'Apuesta anulada correctamente.',
+            'data' => [
+                'devolucion' => [
+                    'id' => $pago->id,
+                    'pago_id' => $pago->id,
+                    'apuesta_id' => $pago->apuesta_id,
+                    'amount_bs' => (string) $pago->amount_bs,
+                    'amount_usd' => (string) $pago->amount_usd,
+                    'exchange_rate_applied' => (string) $pago->exchange_rate_applied,
+                    'metodo_pago' => $pago->metodo_pago,
+                    'moneda' => $pago->moneda,
+                ],
+            ],
         ]);
     }
 }

@@ -15,9 +15,32 @@ http:
     type: json
     data: |-
       {
+        "metodo_pago": "transferencia",
+        "referencia": "DEV-SUELTA",
         "motivo": "Error del operador"
       }
   auth: inherit
+
+docs:
+  - |
+    # Eliminar/anular una apuesta SUELTA (sin ticket)
+    - Roles: SM | M | B | G | T | A
+    - Autenticación: Sanctum + verify.mac — auth: inherit
+    - Body OPCIONAL: `metodo_pago` ∈ efectivo|transferencia|pago_movil|punto_venta,
+      `referencia` ≤255, `motivo` ≤255.
+    - Este endpoint SOLO anula ventas sueltas (`ticket_id = null`). Una línea de
+      ticket responde 422:
+      `La anulación se realiza a nivel de ticket: use DELETE /api/v1/tickets/{ticket_id}.`
+    - El cross-tenant se resuelve primero con la política `view`: 403
+      `No autorizado.` ANTES del redirect 422, incluso si la línea pertenece a un
+      ticket ajeno.
+    - La devolución espeja la venta y usa el mismo contrato de método que el
+      ticket: override explícito → `metodo_pago` del `ingreso` → `efectivo`; USD
+      fuerza `efectivo`.
+    - Errores: 403 cross-tenant, 404 apuesta inexistente, 422 estado /
+      `resultado_id` / sorteo ocurrido / fuera de ventana / línea de ticket.
+    - Respuesta 200:
+      `{ success: true, message: "Apuesta anulada correctamente.", data: { devolucion: { pago_id, apuesta_id, amount_bs, amount_usd, exchange_rate_applied, metodo_pago, moneda } } }`
 
 settings:
   encodeUrl: true

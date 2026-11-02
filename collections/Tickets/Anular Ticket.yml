@@ -9,16 +9,37 @@ http:
   headers:
     - name: Authorization
       value: Bearer {{token}}
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "metodo_pago": "pago_movil",
+        "referencia": "DEV-0001",
+        "motivo": "Error del operador"
+      }
   auth: inherit
 
 docs:
   - |
-    # Anular ticket
+    # Anular ticket (anulación + devolución pre-sorteo)
     - Roles: SM | M | B | G | T (sin agencia)
     - Autenticación: Sanctum + verify.mac — auth: inherit
-    - Solo tickets `pendiente` (422 si otro estado); validado contra la ventana de
-      eliminación configurada y el sorteo (422 si el sorteo ya ocurrió o excedió los minutos)
-    - Respuesta: 200 con `{ "message": "Ticket anulado correctamente." }`
+    - Body OPCIONAL: `metodo_pago` ∈ efectivo|transferencia|pago_movil|punto_venta,
+      `referencia` ≤255, `motivo` ≤255.
+    - Solo tickets `pendiente`; se valida cada línea viva contra la ventana de
+      eliminación efectiva (taquilla → grupo → banca → 5) y el sorteo.
+    - Efecto atómico: registra un `Pago(tipo=devolucion)` por línea espejando la
+      venta (`amount_bs`, `amount_usd`, `exchange_rate_applied`), marca las
+      apuestas y el ticket `anulada`, los soft-deletea y escribe el log
+      `ticket_anulado`. Si una línea falla, NO se escribe nada (all-or-nothing).
+    - `metodo_pago` de la devolución: override explícito → método del `ingreso`
+      de la venta → `efectivo`; USD (o componente USD) siempre fuerza `efectivo`.
+    - Errores: 403 cross-tenant (`No autorizado.`), 404 ticket inexistente o ya
+      anulado, 422 estado/ventana/sorteo/ticket sin jugadas activas.
+    - Respuesta 200:
+      `{ success: true, message: "Ticket anulado correctamente.", data: { ticket_id, apuestas, devoluciones: [{ pago_id, apuesta_id, amount_bs, amount_usd, metodo_pago, moneda }], total_bs, total_usd } }`
 
 settings:
   encodeUrl: true
