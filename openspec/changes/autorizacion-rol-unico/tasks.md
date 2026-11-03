@@ -285,9 +285,9 @@ php artisan test --filter=RoleAuthorization
   - Limpieza de fixtures/pruebas condicionadas a `Schema::hasColumn`.
 
 **Tareas**:
-- [ ] 7.1 Crear la migración de drop idempotente (fecha ajustada al merge real).
-- [ ] 7.2 Limpiar fixtures/pruebas condicionadas a la existencia de la columna (escribir columna con `DB::table` solo si `Schema::hasColumn`).
-- [ ] 7.3 Verificar grep sin `where('role')` ni `User::factory(...)->role` en `app/` y `tests/`.
+- [x] 7.1 Crear la migración de drop idempotente (fecha ajustada al merge real).
+- [x] 7.2 Limpiar fixtures/pruebas condicionadas a la existencia de la columna (escribir columna con `DB::table` solo si `Schema::hasColumn`).
+- [x] 7.3 Verificar grep sin `where('role')` ni `User::factory(...)->role` en `app/` y `tests/`.
 
 **Tests a escribir/actualizar**: limpieza de fixtures condicionados; suite completa.
 

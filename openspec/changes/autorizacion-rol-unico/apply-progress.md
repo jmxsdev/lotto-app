@@ -177,4 +177,24 @@
 
 ## WU-7 — Contract: drop `users.role` (Merge 2)
 
-**Estado**: ⏳ pendiente
+**Estado**: ✅ completado (Pint + suite completa ejecutados por el usuario: verdes)
+
+**Rama**: `feature/rol-unico-contract` (base local `feature/rol-unico-wu6`; PR final contra `main` post-Merge 1)
+
+**Cambios**:
+- `backend/database/migrations/2026_11_03_000001_drop_role_from_users_table.php`: drop idempotente con `Schema::hasColumn`; `down()` re-agrega la columna nullable/default.
+- `backend/tests/Unit/UserRoleAccessorTest.php`: eliminado el test de columna legacy; quedan los 6 tests Spatie/accessor/factory.
+- `backend/tests/Feature/UsuarioRolApiTest.php`: eliminados los bloques `Schema::hasColumn` y aserciones de columna; 6 tests Spatie.
+- `backend/tests/Feature/DivergenciaRolTest.php`: eliminado `divergirColumna()` y sus llamadas; 8 tests de contrato Spatie post-drop.
+- Verificación estática: sin `where('role',...)`, `DB::table('users')` con role ni `hasColumn` fuera de la migración.
+
+**Verificación**:
+- `vendor/bin/pint --test` — verde.
+- `composer test` — 1355 tests, 7794 assertions, OK (tests skipped esperados).
+- `evidence-revision`: `0cd01ce8655b7167d6a005701f0a16018424720a64debedb52a0d3fa11236d89`.
+
+**Notas**:
+- El deploy de Merge 2 solo dropea la columna; **no borra datos**.
+- El wipe (`migrate:fresh --seed`) es manual y posterior; requiere backup.
+
+**Próximo**: sdd-verify + merge/deploy.
