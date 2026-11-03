@@ -53,21 +53,21 @@ El sistema MUST permitir `taquillas.agencia_id` y `users.agencia_id` (nullable e
 - WHEN se introduce el nivel agencia
 - THEN `taquillas.grupo_id` se conserva sin migrar
 
-### Requirement: Rol agencia en ambas fuentes
+### Requirement: Rol agencia en Spatie
 
-El sistema MUST registrar el rol `agencia` en AMBAS fuentes: columna `users.role` y rol Spatie, con permisos `view_taquillas, manage_taquillas, view_apuestas, create_apuesta, delete_apuesta, create_pago, view_pagos, view_reports, create_cierre, view_cierre`.
+El sistema MUST registrar el rol `agencia` únicamente en Spatie (`roles`/`model_has_roles`), con permisos `view_taquillas, manage_taquillas, view_apuestas, create_apuesta, delete_apuesta, create_pago, view_pagos, view_reports, create_cierre, view_cierre`. La columna `users.role` MUST NOT ser fuente ni destino del rol.
 
-#### Scenario: Doble registro
+#### Scenario: Registro único en Spatie
 
 - GIVEN un usuario rol agencia
 - WHEN se consulta su rol
-- THEN `users.role = 'agencia'` Y posee el rol Spatie con los permisos listados
+- THEN posee el rol Spatie `agencia` con los permisos listados, sin depender de `users.role`
 
-#### Scenario: Fuente faltante
+#### Scenario: Divergencia con la columna legacy
 
-- GIVEN un usuario con solo una de las dos fuentes configurada
+- GIVEN un usuario con Spatie `agencia` y columna `users.role` distinta
 - WHEN accede a un recurso protegido
-- THEN el acceso falla (ambas fuentes son obligatorias)
+- THEN la autorización usa Spatie (accede según `agencia`), ignorando la columna
 
 ### Requirement: Cadena de activación con agencia
 

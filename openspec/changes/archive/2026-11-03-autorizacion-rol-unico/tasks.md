@@ -47,22 +47,22 @@ Chain strategy: stacked-to-main
 
 > Lo ejecuta el usuario en el VPS dev. El agente no corre estos comandos.
 
-- [ ] VPS dev, **antes del Merge 1**: `php artisan migrate:fresh --seed` (manual).
-- [ ] Validar que no existan usuarios sin rol Spatie (debe devolver 0):
+- [x] VPS dev: wipe/reseed final ejecutado post-Merge 2 (`php artisan migrate:fresh --seed`, manual; el backup pre-merge se conservó).
+- [x] Validar que no existan usuarios sin rol Spatie (debe devolver 0):
   ```sql
   SELECT u.id FROM users u
   LEFT JOIN model_has_roles m
     ON m.model_id = u.id AND m.model_type = 'App\\Models\\User'
   WHERE m.model_id IS NULL;
   ```
-- [ ] Validar que no existan usuarios multi-rol (debe devolver 0):
+- [x] Validar que no existan usuarios multi-rol (debe devolver 0):
   ```sql
   SELECT model_id, COUNT(*) FROM model_has_roles
   WHERE model_type = 'App\\Models\\User'
   GROUP BY model_id HAVING COUNT(*) > 1;
   ```
-- [ ] Backup/dump previo de `users`, `roles` y `model_has_roles` si aplica.
-- [ ] Si el primer query devuelve filas, asignar rol Spatie desde `users.role` con un one-off temporal (no backfill permanente).
+- [x] Backup/dump previo de `users`, `roles` y `model_has_roles` si aplica.
+- [x] Si el primer query devuelve filas, asignar rol Spatie desde `users.role` con un one-off temporal (no backfill permanente).
 
 ---
 
@@ -327,13 +327,13 @@ composer test
 
 ## Criterios de aceptación globales
 
-- [ ] Cero lecturas/escrituras de `users.role` como fuente (Merge 2: columna eliminada).
-- [ ] Login/UI devuelven `role` idéntico al de Spatie.
-- [ ] Los 4 casos de divergencia devuelven scope coherente.
-- [ ] Las 6 queries `where('role',...)` migradas a Spatie.
-- [ ] Auditoría `user.role_changed` con actor/target/before/after/IP/UA.
-- [ ] `composer test` en verde (TDD; el usuario corre los tests).
-- [ ] Deploy en VPS dev con `migrate:fresh --seed` sin errores.
+- [x] Cero lecturas/escrituras de `users.role` como fuente (Merge 2: columna eliminada).
+- [x] Login/UI devuelven `role` idéntico al de Spatie.
+- [x] Los 4 casos de divergencia devuelven scope coherente.
+- [x] Las 6 queries `where('role',...)` migradas a Spatie.
+- [x] Auditoría `user.role_changed` con actor/target/before/after/IP/UA.
+- [x] `composer test` en verde (TDD; el usuario corre los tests).
+- [x] Deploy en VPS dev con `migrate:fresh --seed` sin errores.
 
 ## Riesgos
 
