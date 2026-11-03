@@ -293,6 +293,29 @@ class PagoEgresoUnicoMutanteTest extends TestCase
         $this->assertSoftDeleted('apuestas', ['id' => $borrada->id]);
     }
 
+    public function test_egreso_con_premio_cero_rechaza_sin_escrituras(): void
+    {
+        $juego = $this->juego();
+        $taquilla = Taquilla::factory()->create();
+        $resultado = Resultado::create([
+            'juego_id' => $juego->id,
+            'fecha_sorteo' => now(),
+            'numeros_ganadores' => ['nombre_animal' => 'Gato', 'numero' => 9],
+        ]);
+        $apuesta = $this->apuesta($juego, $taquilla, null, 'ganadora', $resultado);
+        $this->detalle($apuesta);
+
+        $response = $this->pagar($apuesta);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'La apuesta no resultó ganadora. No puede pagarse un premio.');
+
+        $this->assertSame('ganadora', $apuesta->fresh()->estado);
+        $this->assertNull($apuesta->fresh()->detalles()->first()->premio_ganado);
+        $this->assertSame(0, Pago::where('apuesta_id', $apuesta->id)->count());
+        $this->assertSame(0, Log::where('action', 'pago_premio')->count());
+    }
+
     public function test_cascada_ignora_tickets_soft_deleted(): void
     {
         // Guard de la cascada: un ticket trashed no se re-marca `pagada` ni

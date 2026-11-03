@@ -487,6 +487,44 @@ class PagoDevolucionAnulacionTest extends TestCase
         $this->assertNotSoftDeleted('tickets', ['id' => $ticket->id]);
     }
 
+    public function test_rollback_si_falla_el_log_no_deja_devolucion_ni_anulacion(): void
+    {
+        $user = $this->superUser();
+        [$banca, $grupo, $taquilla] = $this->crearJerarquia('ROLLBACK');
+        $juego = $this->juego();
+        [$ticket, $apuestas] = $this->crearTicket($taquilla, $juego, $user, [
+            ['amount_bs' => 1000],
+        ]);
+
+        // Falla inyectada en la última escritura de la transacción (el log):
+        // Pago, estado y soft-deletes ya se ejecutaron y deben revertirse.
+        Log::creating(function (): void {
+            throw new \RuntimeException('fallo inyectado en log');
+        });
+
+        try {
+            $this->withoutExceptionHandling()
+                ->actingAs($user, 'sanctum')
+                ->deleteJson('/api/v1/tickets/'.$ticket->id);
+
+            $this->fail('Se esperaba la excepción inyectada en el log.');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('fallo inyectado en log', $e->getMessage());
+        } finally {
+            Log::flushEventListeners();
+        }
+
+        $this->assertSame(
+            0,
+            Pago::where('apuesta_id', $apuestas[0]->id)->where('tipo', 'devolucion')->count()
+        );
+        $this->assertSame('pendiente', $apuestas[0]->fresh()->estado);
+        $this->assertNotSoftDeleted('apuestas', ['id' => $apuestas[0]->id]);
+        $this->assertSame('pendiente', $ticket->fresh()->estado);
+        $this->assertNotSoftDeleted('tickets', ['id' => $ticket->id]);
+        $this->assertSame(0, Log::where('action', 'ticket_anulado')->count());
+    }
+
     public function test_anular_apuesta_suelta_registra_devolucion_y_la_anula(): void
     {
         $user = $this->superUser();
