@@ -95,7 +95,7 @@ class PagoController extends Controller
             }
 
             // Verificar ownership (re-chequeado dentro del lock)
-            if ($user->role === 'taquilla' && $apuesta->taquilla_id !== $user->taquilla_id) {
+            if ($user->hasRole('taquilla') && $apuesta->taquilla_id !== $user->taquilla_id) {
                 return $this->rechazo(403, ['message' => 'No autorizado.']);
             }
 

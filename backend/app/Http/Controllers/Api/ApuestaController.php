@@ -38,27 +38,32 @@ class ApuestaController extends Controller
         $query = Apuesta::with(['juego', 'taquilla', 'resultado'])
             ->latest();
 
-        // Filtrado jerárquico según rol del usuario
-        if ($user->role === 'taquilla') {
+        // Filtrado jerárquico según rol del usuario (fuente única: Spatie)
+        if ($user->hasRole('taquilla')) {
             $query->where('taquilla_id', $user->taquilla_id);
-        } elseif ($user->role === 'agencia') {
+        } elseif ($user->hasRole('agencia')) {
             $query->whereHas('taquilla', function ($q) use ($user) {
                 $q->where('agencia_id', $user->agencia_id);
             });
-        } elseif ($user->role === 'grupo') {
+        } elseif ($user->hasRole('grupo')) {
             $query->whereHas('taquilla.grupo', function ($q) use ($user) {
                 $q->where('grupo_id', $user->grupo_id);
             });
-        } elseif ($user->role === 'banca') {
+        } elseif ($user->hasRole('banca')) {
             $query->whereHas('taquilla.grupo.banca', function ($q) use ($user) {
                 $q->where('banca_id', $user->banca_id);
             });
-        } elseif ($user->role === 'master') {
+        } elseif ($user->hasRole('master')) {
             // master ve solo las bancas que administra (y su descendencia);
             // sin bancas asignadas ve NADA (whereRaw 1=0, nunca global)
             $user->masterBancaChainScope()($query);
+        } elseif ($user->hasRole('super_master')) {
+            // super_master ve todo (sin filtro adicional)
+        } else {
+            // Fail-closed (REQ-4): sin rol, o con rol fuera de catálogo, no
+            // hay scope válido; nunca se cae a un resultado global.
+            abort(403, 'No autorizado.');
         }
-        // super_master ve todo
 
         // Filtros opcionales
         if ($request->has('fecha_desde')) {
@@ -169,23 +174,28 @@ class ApuestaController extends Controller
             ->latest();
 
         // Aplicar mismo filtrado jerárquico que index
-        if ($user->role === 'taquilla') {
+        if ($user->hasRole('taquilla')) {
             $query->where('taquilla_id', $user->taquilla_id);
-        } elseif ($user->role === 'agencia') {
+        } elseif ($user->hasRole('agencia')) {
             $query->whereHas('taquilla', function ($q) use ($user) {
                 $q->where('agencia_id', $user->agencia_id);
             });
-        } elseif ($user->role === 'grupo') {
+        } elseif ($user->hasRole('grupo')) {
             $query->whereHas('taquilla.grupo', function ($q) use ($user) {
                 $q->where('grupo_id', $user->grupo_id);
             });
-        } elseif ($user->role === 'banca') {
+        } elseif ($user->hasRole('banca')) {
             $query->whereHas('taquilla.grupo.banca', function ($q) use ($user) {
                 $q->where('banca_id', $user->banca_id);
             });
-        } elseif ($user->role === 'master') {
+        } elseif ($user->hasRole('master')) {
             // master ve solo las bancas que administra (y su descendencia)
             $user->masterBancaChainScope()($query);
+        } elseif ($user->hasRole('super_master')) {
+            // super_master ve todo (sin filtro adicional)
+        } else {
+            // Fail-closed (REQ-4): rol desconocido o ausente nunca es global.
+            abort(403, 'No autorizado.');
         }
 
         // Filtros avanzados
@@ -228,23 +238,28 @@ class ApuestaController extends Controller
         $query = Apuesta::query();
 
         // Aplicar filtrado jerárquico
-        if ($user->role === 'taquilla') {
+        if ($user->hasRole('taquilla')) {
             $query->where('taquilla_id', $user->taquilla_id);
-        } elseif ($user->role === 'agencia') {
+        } elseif ($user->hasRole('agencia')) {
             $query->whereHas('taquilla', function ($q) use ($user) {
                 $q->where('agencia_id', $user->agencia_id);
             });
-        } elseif ($user->role === 'grupo') {
+        } elseif ($user->hasRole('grupo')) {
             $query->whereHas('taquilla.grupo', function ($q) use ($user) {
                 $q->where('grupo_id', $user->grupo_id);
             });
-        } elseif ($user->role === 'banca') {
+        } elseif ($user->hasRole('banca')) {
             $query->whereHas('taquilla.grupo.banca', function ($q) use ($user) {
                 $q->where('banca_id', $user->banca_id);
             });
-        } elseif ($user->role === 'master') {
+        } elseif ($user->hasRole('master')) {
             // master ve solo las bancas que administra (y su descendencia)
             $user->masterBancaChainScope()($query);
+        } elseif ($user->hasRole('super_master')) {
+            // super_master ve todo (sin filtro adicional)
+        } else {
+            // Fail-closed (REQ-4): rol desconocido o ausente nunca es global.
+            abort(403, 'No autorizado.');
         }
 
         // Filtros temporales

@@ -25,25 +25,25 @@ class ApuestaPolicy
 
     public function viewAny(User $user): bool
     {
-        return in_array($user->role, ['super_master', 'master', 'banca', 'grupo', 'agencia', 'taquilla']);
+        return $user->hasAnyRole(['super_master', 'master', 'banca', 'grupo', 'agencia', 'taquilla']);
     }
 
     public function view(User $user, Apuesta $apuesta): bool
     {
-        if (in_array($user->role, ['super_master', 'master'])) {
+        if ($user->hasAnyRole(['super_master', 'master'])) {
             return true;
         }
-        if ($user->role === 'banca') {
+        if ($user->hasRole('banca')) {
             return $apuesta->taquilla->grupo->banca_id === $user->banca_id;
         }
-        if ($user->role === 'grupo') {
+        if ($user->hasRole('grupo')) {
             return $apuesta->taquilla->grupo_id === $user->grupo_id;
         }
-        if ($user->role === 'agencia') {
+        if ($user->hasRole('agencia')) {
             return $user->agencia_id !== null
                 && $apuesta->taquilla->agencia_id === $user->agencia_id;
         }
-        if ($user->role === 'taquilla') {
+        if ($user->hasRole('taquilla')) {
             return $apuesta->taquilla_id === $user->taquilla_id;
         }
 
@@ -52,7 +52,7 @@ class ApuestaPolicy
 
     public function create(User $user): bool
     {
-        return $user->role === 'taquilla';
+        return $user->hasRole('taquilla');
     }
 
     public function delete(User $user, Apuesta $apuesta): bool
@@ -103,23 +103,23 @@ class ApuestaPolicy
      */
     private function poseeApuesta(User $user, Apuesta $apuesta): bool
     {
-        if ($user->role === 'taquilla') {
+        if ($user->hasRole('taquilla')) {
             return $apuesta->taquilla_id === $user->taquilla_id;
         }
 
-        if ($user->role === 'agencia') {
+        if ($user->hasRole('agencia')) {
             return $user->agencia_id !== null
                 && $apuesta->taquilla->agencia_id === $user->agencia_id;
         }
 
-        if ($user->role === 'grupo') {
+        if ($user->hasRole('grupo')) {
             return $apuesta->taquilla->grupo_id === $user->grupo_id;
         }
 
-        if ($user->role === 'banca') {
+        if ($user->hasRole('banca')) {
             return $apuesta->taquilla->grupo->banca_id === $user->banca_id;
         }
 
-        return in_array($user->role, ['super_master', 'master']);
+        return $user->hasAnyRole(['super_master', 'master']);
     }
 }

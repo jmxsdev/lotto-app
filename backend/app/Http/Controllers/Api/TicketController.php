@@ -8,6 +8,7 @@ use App\Models\Apuesta;
 use App\Models\Pago;
 use App\Models\Resultado;
 use App\Models\Ticket;
+use App\Models\User;
 use App\Services\ApuestaService;
 use App\Services\JuegoPluginManager;
 use App\Services\PremiosEngine;
@@ -34,6 +35,7 @@ class TicketController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
+        $this->autorizarScope($user);
 
         $query = Ticket::withTrashed()
             ->where(function ($q) {
@@ -52,13 +54,13 @@ class TicketController extends Controller
             }])
             ->latest();
 
-        if ($user->role === 'taquilla') {
+        if ($user->hasRole('taquilla')) {
             $query->where('taquilla_id', $user->taquilla_id);
-        } elseif ($user->role === 'grupo') {
+        } elseif ($user->hasRole('grupo')) {
             $query->whereHas('taquilla.grupo', function ($q) use ($user) {
                 $q->where('grupo_id', $user->grupo_id);
             });
-        } elseif ($user->role === 'banca') {
+        } elseif ($user->hasRole('banca')) {
             $query->whereHas('taquilla.grupo.banca', function ($q) use ($user) {
                 $q->where('banca_id', $user->banca_id);
             });
@@ -95,12 +97,13 @@ class TicketController extends Controller
     public function show(Request $request, Ticket $ticket)
     {
         $user = $request->user();
+        $this->autorizarScope($user);
 
-        if ($user->role === 'taquilla' && $ticket->taquilla_id !== $user->taquilla_id) {
+        if ($user->hasRole('taquilla') && $ticket->taquilla_id !== $user->taquilla_id) {
             return response()->json(['message' => 'No autorizado.'], 403);
-        } elseif ($user->role === 'grupo' && $ticket->taquilla?->grupo_id !== $user->grupo_id) {
+        } elseif ($user->hasRole('grupo') && $ticket->taquilla?->grupo_id !== $user->grupo_id) {
             return response()->json(['message' => 'No autorizado.'], 403);
-        } elseif ($user->role === 'banca' && $ticket->taquilla?->grupo?->banca_id !== $user->banca_id) {
+        } elseif ($user->hasRole('banca') && $ticket->taquilla?->grupo?->banca_id !== $user->banca_id) {
             return response()->json(['message' => 'No autorizado.'], 403);
         }
 
@@ -278,6 +281,7 @@ class TicketController extends Controller
         $request->validate(['fecha' => 'required|date_format:Y-m-d']);
 
         $user = $request->user();
+        $this->autorizarScope($user);
         $fecha = $request->fecha;
 
         $resultados = Resultado::with('juego')
@@ -303,11 +307,11 @@ class TicketController extends Controller
                 ->whereDate('sorteo_hora', $fecha)
                 ->whereTime('sorteo_hora', $horaSorteo);
 
-            if ($user->role === 'taquilla') {
+            if ($user->hasRole('taquilla')) {
                 $apuestasQuery->where('taquilla_id', $user->taquilla_id);
-            } elseif ($user->role === 'grupo') {
+            } elseif ($user->hasRole('grupo')) {
                 $apuestasQuery->whereHas('taquilla.grupo', fn ($q) => $q->where('grupo_id', $user->grupo_id));
-            } elseif ($user->role === 'banca') {
+            } elseif ($user->hasRole('banca')) {
                 $apuestasQuery->whereHas('taquilla.grupo.banca', fn ($q) => $q->where('banca_id', $user->banca_id));
             }
 
@@ -371,11 +375,11 @@ class TicketController extends Controller
             ->whereDate('sorteo_hora', $fecha)
             ->whereNotNull('resultado_ids');
 
-        if ($user->role === 'taquilla') {
+        if ($user->hasRole('taquilla')) {
             $multiQuery->where('taquilla_id', $user->taquilla_id);
-        } elseif ($user->role === 'grupo') {
+        } elseif ($user->hasRole('grupo')) {
             $multiQuery->whereHas('taquilla.grupo', fn ($q) => $q->where('grupo_id', $user->grupo_id));
-        } elseif ($user->role === 'banca') {
+        } elseif ($user->hasRole('banca')) {
             $multiQuery->whereHas('taquilla.grupo.banca', fn ($q) => $q->where('banca_id', $user->banca_id));
         }
 
@@ -431,6 +435,21 @@ class TicketController extends Controller
         }
 
         return response()->json(['data' => array_values($ganadores)]);
+    }
+
+    /**
+     * Fail-closed del scoping por rol (REQ-4): un usuario sin rol Spatie, o
+     * con un rol fuera de catálogo, no tiene scope válido y se deniega.
+     *
+     * `master` y `agencia` NO tienen rama de scoping en este controller y
+     * conservan su alcance global actual; eso es el issue #84 y queda fuera
+     * de este change (no se agregan ramas nuevas aquí).
+     */
+    private function autorizarScope(User $user): void
+    {
+        if (! $user->hasAnyRole(['super_master', 'master', 'agencia', 'grupo', 'banca', 'taquilla'])) {
+            abort(403, 'No autorizado.');
+        }
     }
 
     /**
