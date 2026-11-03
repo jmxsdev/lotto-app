@@ -14,6 +14,28 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, HasRoles, Notifiable;
 
     /**
+     * Orden de prioridad del rol efectivo cuando el usuario tiene varios.
+     *
+     * @var array<int, string>
+     */
+    private const ROLE_PRIORITY = [
+        'super_master',
+        'master',
+        'banca',
+        'grupo',
+        'agencia',
+        'taquilla',
+    ];
+
+    /**
+     * Atributo calculado `role` (no persistido) para conservar el contrato
+     * de API/panel; sale siempre de Spatie.
+     *
+     * @var array<int, string>
+     */
+    protected $appends = ['role'];
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var array<int, string>
@@ -22,7 +44,6 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'role',
         'banca_id',
         'grupo_id',
         'taquilla_id',
@@ -55,6 +76,35 @@ class User extends Authenticatable
     public function guardName()
     {
         return 'api';
+    }
+
+    /**
+     * Rol único efectivo del usuario. Fuente única: Spatie (`getRoleNames()`);
+     * nunca la columna legacy `users.role`.
+     *
+     * Prioridad fija `super_master > master > banca > grupo > agencia >
+     * taquilla`; para roles fuera de catálogo, el primero en orden alfabético.
+     * Sin roles: `null` (fail-closed).
+     */
+    public function primaryRole(): ?string
+    {
+        $names = $this->getRoleNames();
+
+        foreach (self::ROLE_PRIORITY as $role) {
+            if ($names->contains($role)) {
+                return $role;
+            }
+        }
+
+        return $names->sort()->first();
+    }
+
+    /**
+     * Accessor del atributo calculado `role` (compatibilidad de API/panel).
+     */
+    public function getRoleAttribute(): ?string
+    {
+        return $this->primaryRole();
     }
 
     // Relaciones

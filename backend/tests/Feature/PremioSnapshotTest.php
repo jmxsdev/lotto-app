@@ -75,7 +75,6 @@ class PremioSnapshotTest extends TestCase
 
         $user = User::factory()->create([
             'taquilla_id' => $taquilla->id,
-            'role' => 'taquilla',
         ]);
         $user->assignRole('taquilla');
 

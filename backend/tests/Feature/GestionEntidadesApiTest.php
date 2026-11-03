@@ -95,7 +95,7 @@ class GestionEntidadesApiTest extends TestCase
      */
     private function crearUsuario(string $role, array $overrides = []): User
     {
-        $user = User::factory()->create(array_merge(['role' => $role], $overrides));
+        $user = User::factory()->create($overrides);
         $user->assignRole($role);
 
         return $user;

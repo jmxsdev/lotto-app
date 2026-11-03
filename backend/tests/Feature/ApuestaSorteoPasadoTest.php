@@ -29,7 +29,6 @@ class ApuestaSorteoPasadoTest extends TestCase
         $taquilla = Taquilla::factory()->create();
         $taquillaUser = User::factory()->create([
             'taquilla_id' => $taquilla->id,
-            'role' => 'taquilla',
         ]);
         $taquillaUser->assignRole('taquilla');
         $taquilla->update(['mac_address' => 'AA:BB:CC:DD:EE:FF']);

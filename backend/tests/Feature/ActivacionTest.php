@@ -120,7 +120,6 @@ class ActivacionTest extends TestCase
         $taquilla = Taquilla::factory()->create();
         $user = User::factory()->create([
             'taquilla_id' => $taquilla->id,
-            'role' => 'taquilla',
         ]);
         $user->assignRole('taquilla');
 
@@ -138,7 +137,6 @@ class ActivacionTest extends TestCase
         ]);
         $user = User::factory()->create([
             'taquilla_id' => $taquilla->id,
-            'role' => 'taquilla',
         ]);
         $user->assignRole('taquilla');
 
@@ -157,7 +155,6 @@ class ActivacionTest extends TestCase
         ]);
         $user = User::factory()->create([
             'taquilla_id' => $taquilla->id,
-            'role' => 'taquilla',
         ]);
         $user->assignRole('taquilla');
 

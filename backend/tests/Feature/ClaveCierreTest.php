@@ -365,7 +365,6 @@ class ClaveCierreTest extends TestCase
         ]);
 
         $bancaAjena = User::factory()->create([
-            'role' => 'banca',
             'banca_id' => $otraBanca->id,
         ]);
         $bancaAjena->assignRole('banca');

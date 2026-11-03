@@ -30,8 +30,7 @@ class AgenciasBackfillTest extends TestCase
         $taquilla1 = Taquilla::factory()->create(['grupo_id' => $grupo1->id, 'code' => 'TB001']);
         $taquilla2 = Taquilla::factory()->create(['grupo_id' => $grupo2->id, 'code' => 'TB002']);
 
-        $user1 = User::factory()->create([
-            'role' => 'taquilla',
+        $user1 = User::factory()->withRole('taquilla')->create([
             'taquilla_id' => $taquilla1->id,
             'grupo_id' => $grupo1->id,
             'banca_id' => $banca->id,
@@ -138,8 +137,7 @@ class AgenciasBackfillTest extends TestCase
         $banca = Banca::factory()->create(['name' => 'Banca Grupos', 'code' => 'BG001']);
         $grupo = Grupo::factory()->create(['name' => 'Grupo Usuarios', 'code' => 'GUS01', 'banca_id' => $banca->id]);
 
-        $userGrupo = User::factory()->create([
-            'role' => 'grupo',
+        $userGrupo = User::factory()->withRole('grupo')->create([
             'grupo_id' => $grupo->id,
             'banca_id' => $banca->id,
         ]);

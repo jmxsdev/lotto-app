@@ -25,7 +25,7 @@ class RoleAuthorizationTest extends TestCase
 
     public function test_taquilla_cannot_list_users_but_master_can_list_su_banca()
     {
-        $taquillaUser = User::factory()->create(['role' => 'taquilla']);
+        $taquillaUser = User::factory()->create();
         $taquillaUser->assignRole('taquilla');
 
         $response = $this->actingAs($taquillaUser, 'sanctum')
@@ -56,7 +56,6 @@ class RoleAuthorizationTest extends TestCase
         $banca2 = Banca::factory()->create(['name' => 'Banca 2']);
 
         $userBanca1 = User::factory()->create([
-            'role' => 'banca',
             'banca_id' => $banca1->id,
         ]);
         $userBanca1->assignRole('banca');
@@ -97,7 +96,6 @@ class RoleAuthorizationTest extends TestCase
         $local2 = Agencia::factory()->create(['grupo_id' => $grupo2->id, 'active' => true]);
 
         $userGrupo1 = User::factory()->create([
-            'role' => 'grupo',
             'grupo_id' => $grupo1->id,
         ]);
         $userGrupo1->assignRole('grupo');

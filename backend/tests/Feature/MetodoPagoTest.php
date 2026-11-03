@@ -42,7 +42,6 @@ class MetodoPagoTest extends TestCase
 
         $taquillaUser = User::factory()->create([
             'taquilla_id' => $taquilla->id,
-            'role' => 'taquilla',
         ]);
         $taquillaUser->assignRole('taquilla');
 

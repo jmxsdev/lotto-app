@@ -265,7 +265,6 @@ class GestionUsuariosTest extends TestCase
     {
         $otraBanca = Banca::create(['name' => 'Banca Ajena', 'code' => 'BA001', 'created_by' => $this->superUser()->id]);
         $usuarioAjeno = User::factory()->create([
-            'role' => 'banca',
             'banca_id' => $otraBanca->id,
         ]);
         $usuarioAjeno->assignRole('banca');
@@ -352,7 +351,6 @@ class GestionUsuariosTest extends TestCase
     {
         $otraBanca = Banca::create(['name' => 'Banca Ajena U', 'code' => 'BAU01', 'created_by' => $this->superUser()->id]);
         $usuarioAjeno = User::factory()->create([
-            'role' => 'taquilla',
             'banca_id' => $otraBanca->id,
         ]);
         $usuarioAjeno->assignRole('taquilla');

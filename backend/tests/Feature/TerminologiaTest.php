@@ -125,7 +125,6 @@ class TerminologiaTest extends TestCase
         $taquilla = Taquilla::factory()->create(['active' => false]);
         $user = User::factory()->create([
             'taquilla_id' => $taquilla->id,
-            'role' => 'taquilla',
         ]);
         $user->assignRole('taquilla');
 
@@ -190,7 +189,7 @@ class TerminologiaTest extends TestCase
         $grupo = Grupo::create(['name' => 'Grupo Moneda', 'code' => 'GMON', 'banca_id' => $banca->id, 'active' => true]);
         $taquilla = Taquilla::create(['name' => 'Taquilla Moneda', 'code' => 'TMON', 'grupo_id' => $grupo->id, 'active' => true, 'mac_address' => 'AA:BB:CC:DD:EE:FF']);
 
-        $taquillaUser = User::factory()->create(['taquilla_id' => $taquilla->id, 'role' => 'taquilla']);
+        $taquillaUser = User::factory()->create(['taquilla_id' => $taquilla->id]);
         $taquillaUser->assignRole('taquilla');
 
         $juego = Juego::where('slug', 'lotto-activo')->first();
@@ -218,7 +217,7 @@ class TerminologiaTest extends TestCase
         $grupo = Grupo::create(['name' => 'Grupo Ticket', 'code' => 'GTIC', 'banca_id' => $banca->id, 'active' => true]);
         $taquilla = Taquilla::create(['name' => 'Taquilla Ticket', 'code' => 'TTIC', 'grupo_id' => $grupo->id, 'active' => true, 'mac_address' => 'AA:BB:CC:DD:EE:FF']);
 
-        $taquillaUser = User::factory()->create(['taquilla_id' => $taquilla->id, 'role' => 'taquilla']);
+        $taquillaUser = User::factory()->create(['taquilla_id' => $taquilla->id]);
         $taquillaUser->assignRole('taquilla');
 
         $juego = Juego::where('slug', 'lotto-activo')->first();

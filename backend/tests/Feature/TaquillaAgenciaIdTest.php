@@ -59,7 +59,6 @@ class TaquillaAgenciaIdTest extends TestCase
         $otroLocal = Agencia::factory()->create(['grupo_id' => $otroGrupo->id, 'active' => true]);
 
         $agenciaUser = User::factory()->create([
-            'role' => 'agencia',
             'agencia_id' => $local->id,
             'grupo_id' => $grupo->id,
             'banca_id' => $banca->id,

@@ -196,7 +196,6 @@ class PagoDevolucionRechazosTest extends TestCase
         [$otraBanca, $otroGrupo] = $this->crearJerarquia('AJENA');
 
         $ajeno = User::factory()->create([
-            'role' => 'grupo',
             'grupo_id' => $otroGrupo->id,
             'banca_id' => $otraBanca->id,
         ]);

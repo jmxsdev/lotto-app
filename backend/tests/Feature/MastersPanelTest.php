@@ -53,7 +53,7 @@ class MastersPanelTest extends TestCase
 
     private function createMaster(string $email): User
     {
-        $master = User::factory()->create(['role' => 'master', 'email' => $email, 'active' => true]);
+        $master = User::factory()->create(['email' => $email, 'active' => true]);
         $master->assignRole('master');
 
         return $master;

@@ -626,7 +626,6 @@ class CierreCajaTest extends TestCase
 
         $taquillaUser = User::factory()->create([
             'taquilla_id' => $taquilla->id,
-            'role' => 'taquilla',
         ]);
         $taquillaUser->assignRole('taquilla');
 
@@ -1554,7 +1553,7 @@ class CierreCajaTest extends TestCase
 
         // Banca ajena con clave: NO pertenece a la cadena de la taquilla
         $otraBanca = Banca::create(['name' => 'Banca Ajena R', 'code' => 'BTAR01', 'created_by' => $this->superUser()->id]);
-        $bancaAjena = User::factory()->create(['role' => 'banca', 'banca_id' => $otraBanca->id]);
+        $bancaAjena = User::factory()->create(['banca_id' => $otraBanca->id]);
         $bancaAjena->assignRole('banca');
         $bancaAjena->update(['clave_cierre' => Hash::make('555555')]);
 

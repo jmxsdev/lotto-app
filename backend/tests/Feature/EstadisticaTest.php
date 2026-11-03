@@ -219,7 +219,6 @@ class EstadisticaTest extends TestCase
         ]);
 
         $agenciaUser = User::factory()->create([
-            'role' => 'agencia',
             'agencia_id' => $localPropio->id,
         ]);
         $agenciaUser->assignRole('agencia');

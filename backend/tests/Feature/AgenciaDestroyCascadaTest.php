@@ -101,7 +101,6 @@ class AgenciaDestroyCascadaTest extends TestCase
         ]);
 
         $usuario = User::factory()->create([
-            'role' => 'taquilla',
             'taquilla_id' => $taquilla->id,
             'agencia_id' => $local->id,
             'active' => true,

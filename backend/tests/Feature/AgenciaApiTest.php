@@ -205,7 +205,6 @@ class AgenciaApiTest extends TestCase
             'grupo_id' => $local->grupo_id, 'agencia_id' => $local->id, 'active' => true,
         ]);
         $user = User::factory()->create([
-            'role' => 'taquilla',
             'taquilla_id' => $taquilla->id,
             'agencia_id' => $local->id,
         ]);

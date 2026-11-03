@@ -55,7 +55,6 @@ class ActivacionEntidadesTest extends TestCase
     {
         $user = User::factory()->create([
             'taquilla_id' => $taquilla->id,
-            'role' => 'taquilla',
         ]);
         $user->assignRole('taquilla');
 
@@ -335,7 +334,6 @@ class ActivacionEntidadesTest extends TestCase
         ]);
         $user = User::factory()->create([
             'taquilla_id' => $taquilla->id,
-            'role' => 'taquilla',
             'email' => 'taq-cadena@test.com',
             'password' => bcrypt('password'),
         ]);
@@ -356,7 +354,6 @@ class ActivacionEntidadesTest extends TestCase
         $banca = Banca::factory()->create(['active' => false]);
         $user = User::factory()->create([
             'banca_id' => $banca->id,
-            'role' => 'banca',
             'email' => 'banca-cadena@test.com',
             'password' => bcrypt('password'),
         ]);

@@ -45,7 +45,6 @@ class ApuestaTest extends TestCase
         $taquilla = Taquilla::factory()->create();
         $taquillaUser = User::factory()->create([
             'taquilla_id' => $taquilla->id,
-            'role' => 'taquilla',
         ]);
         $taquillaUser->assignRole('taquilla');
         $taquilla->update(['mac_address' => 'AA:BB:CC:DD:EE:FF']);
@@ -97,7 +96,6 @@ class ApuestaTest extends TestCase
         ]);
         $taquillaUser = User::factory()->create([
             'taquilla_id' => $taquilla->id,
-            'role' => 'taquilla',
         ]);
         $taquillaUser->assignRole('taquilla');
         $taquilla->update(['mac_address' => 'AA:BB:CC:DD:EE:FF']);
@@ -134,7 +132,6 @@ class ApuestaTest extends TestCase
         $taquilla = Taquilla::factory()->create();
         $taquillaUser = User::factory()->create([
             'taquilla_id' => $taquilla->id,
-            'role' => 'taquilla',
         ]);
         $taquillaUser->assignRole('taquilla');
         $taquilla->update(['mac_address' => 'AA:BB:CC:DD:EE:FF']);
@@ -188,14 +185,12 @@ class ApuestaTest extends TestCase
 
         $taquillaUser1 = User::factory()->create([
             'taquilla_id' => $taquilla1->id,
-            'role' => 'taquilla',
         ]);
         $taquillaUser1->assignRole('taquilla');
         $taquilla1->update(['mac_address' => 'AA:BB:CC:DD:EE:FF']);
 
         $taquillaUser2 = User::factory()->create([
             'taquilla_id' => $taquilla2->id,
-            'role' => 'taquilla',
         ]);
         $taquillaUser2->assignRole('taquilla');
         $taquilla2->update(['mac_address' => '11:22:33:44:55:66']);
@@ -294,7 +289,6 @@ class ApuestaTest extends TestCase
         $taquilla = Taquilla::factory()->create();
         $taquillaUser = User::factory()->create([
             'taquilla_id' => $taquilla->id,
-            'role' => 'taquilla',
         ]);
         $taquillaUser->assignRole('taquilla');
         $taquilla->update(['mac_address' => 'AA:BB:CC:DD:EE:FF']);
@@ -330,7 +324,6 @@ class ApuestaTest extends TestCase
         $taquilla = Taquilla::factory()->create();
         $taquillaUser = User::factory()->create([
             'taquilla_id' => $taquilla->id,
-            'role' => 'taquilla',
         ]);
         $taquillaUser->assignRole('taquilla');
         $taquilla->update(['mac_address' => 'AA:BB:CC:DD:EE:FF']);
@@ -366,7 +359,6 @@ class ApuestaTest extends TestCase
         $taquilla = Taquilla::factory()->create();
         $taquillaUser = User::factory()->create([
             'taquilla_id' => $taquilla->id,
-            'role' => 'taquilla',
         ]);
         $taquillaUser->assignRole('taquilla');
         $taquilla->update(['mac_address' => 'AA:BB:CC:DD:EE:FF']);
@@ -454,7 +446,6 @@ class ApuestaTest extends TestCase
         $taquilla = Taquilla::factory()->create();
         $taquillaUser = User::factory()->create([
             'taquilla_id' => $taquilla->id,
-            'role' => 'taquilla',
         ]);
         $taquillaUser->assignRole('taquilla');
         $taquilla->update(['mac_address' => 'AA:BB:CC:DD:EE:FF']);
@@ -526,7 +517,6 @@ class ApuestaTest extends TestCase
 
         $taquillaUser = User::factory()->create([
             'taquilla_id' => $taquilla->id,
-            'role' => 'taquilla',
         ]);
         $taquillaUser->assignRole('taquilla');
         $taquilla->update(['mac_address' => 'AA:BB:CC:DD:EE:FF']);
@@ -588,7 +578,6 @@ class ApuestaTest extends TestCase
 
         $taquillaUser = User::factory()->create([
             'taquilla_id' => $taquilla->id,
-            'role' => 'taquilla',
         ]);
         $taquillaUser->assignRole('taquilla');
         $taquilla->update(['mac_address' => 'AA:BB:CC:DD:EE:FF']);
@@ -640,7 +629,6 @@ class ApuestaTest extends TestCase
 
         $taquillaUser = User::factory()->create([
             'taquilla_id' => $taquilla->id,
-            'role' => 'taquilla',
         ]);
         $taquillaUser->assignRole('taquilla');
         $taquilla->update(['mac_address' => 'AA:BB:CC:DD:EE:FF']);
@@ -714,7 +702,6 @@ class ApuestaTest extends TestCase
 
         $taquillaUser = User::factory()->create([
             'taquilla_id' => $taquilla->id,
-            'role' => 'taquilla',
         ]);
         $taquillaUser->assignRole('taquilla');
         $taquilla->update(['mac_address' => 'AA:BB:CC:DD:EE:FF']);
@@ -757,7 +744,6 @@ class ApuestaTest extends TestCase
 
         $taquillaUser = User::factory()->create([
             'taquilla_id' => $taquilla->id,
-            'role' => 'taquilla',
         ]);
         $taquillaUser->assignRole('taquilla');
         $taquilla->update(['mac_address' => 'AA:BB:CC:DD:EE:FF']);

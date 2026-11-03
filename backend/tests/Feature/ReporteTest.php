@@ -203,7 +203,6 @@ class ReporteTest extends TestCase
         $taquillaA->update(['mac_address' => 'AA:BB:CC:DD:EE:FF']);
         $taquillaUser = User::factory()->create([
             'taquilla_id' => $taquillaA->id,
-            'role' => 'taquilla',
         ]);
         $taquillaUser->assignRole('taquilla');
 

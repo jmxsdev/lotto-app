@@ -46,7 +46,6 @@ class ExchangeRateTest extends TestCase
     {
         $banca = Banca::factory()->create();
         $userBanca = User::factory()->create([
-            'role' => 'banca',
             'banca_id' => $banca->id,
         ]);
         $userBanca->assignRole('banca');
@@ -60,7 +59,6 @@ class ExchangeRateTest extends TestCase
         $response->assertStatus(403);
 
         $userMaster = User::factory()->create([
-            'role' => 'master',
             'banca_id' => $banca->id,
         ]);
         $userMaster->assignRole('master');

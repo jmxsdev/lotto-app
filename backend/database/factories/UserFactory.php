@@ -30,7 +30,6 @@ class UserFactory extends Factory
             'email' => $this->faker->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => bcrypt('password'),
-            'role' => 'taquilla', // por defecto
             'banca_id' => null,
             'grupo_id' => null,
             'taquilla_id' => null,
@@ -49,13 +48,20 @@ class UserFactory extends Factory
             $taquilla = $taquilla ?? Taquilla::factory()->forAgencia()->create();
 
             return [
-                'role' => 'taquilla',
                 'taquilla_id' => $taquilla->id,
                 'grupo_id' => $taquilla->grupo_id,
                 'banca_id' => $taquilla->grupo->banca_id,
                 'agencia_id' => $taquilla->agencia_id,
             ];
-        });
+        })->withRole('taquilla');
+    }
+
+    /**
+     * Asigna exactamente un rol Spatie después de crear el usuario.
+     */
+    public function withRole(string $role): static
+    {
+        return $this->afterCreating(fn (User $user) => $user->syncRoles([$role]));
     }
 
     /**

@@ -36,7 +36,7 @@ class ConfiguracionVencimientoTest extends TestCase
 
     private function taquillaUser(): User
     {
-        $user = User::factory()->create(['role' => 'taquilla']);
+        $user = User::factory()->create();
         $user->assignRole('taquilla');
 
         return $user;
@@ -76,7 +76,7 @@ class ConfiguracionVencimientoTest extends TestCase
 
     public function test_master_puede_leer_y_editar_la_ventana(): void
     {
-        $master = User::factory()->create(['role' => 'master']);
+        $master = User::factory()->create();
         $master->assignRole('master');
 
         $get = $this->actingAs($master, 'sanctum')

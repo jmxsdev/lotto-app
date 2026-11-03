@@ -131,7 +131,7 @@ class ApuestaPolicyAnulacionTest extends TestCase
             default => [],
         };
 
-        return User::factory()->create(['role' => $role] + $contexto);
+        return User::factory()->withRole($role)->create($contexto);
     }
 
     public function test_los_codigos_de_motivo_son_estables(): void
@@ -284,7 +284,7 @@ class ApuestaPolicyAnulacionTest extends TestCase
 
     public function test_agencia_sin_agencia_asignada_no_tiene_ownership(): void
     {
-        $user = User::factory()->create(['role' => 'agencia', 'agencia_id' => null]);
+        $user = User::factory()->withRole('agencia')->create(['agencia_id' => null]);
 
         $this->assertSame(
             ApuestaPolicy::MOTIVO_SIN_OWNERSHIP,

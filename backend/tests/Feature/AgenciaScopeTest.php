@@ -74,7 +74,6 @@ class AgenciaScopeTest extends TestCase
         ]);
 
         $user = User::factory()->create([
-            'role' => 'agencia',
             'agencia_id' => $agencia->id,
             'grupo_id' => $grupo->id,
             'banca_id' => $banca->id,
@@ -129,7 +128,6 @@ class AgenciaScopeTest extends TestCase
         $grupo = Grupo::factory()->create(['banca_id' => $banca->id, 'active' => true]);
         $agencia = Agencia::factory()->create(['grupo_id' => $grupo->id, 'active' => false]);
         $user = User::factory()->create([
-            'role' => 'agencia',
             'email' => 'agencia-inactiva@test.com',
             'password' => bcrypt('password'),
             'agencia_id' => $agencia->id,
@@ -154,7 +152,6 @@ class AgenciaScopeTest extends TestCase
         $grupo = Grupo::factory()->create(['banca_id' => $banca->id, 'active' => false]);
         $agencia = Agencia::factory()->create(['grupo_id' => $grupo->id, 'active' => true]);
         $user = User::factory()->create([
-            'role' => 'agencia',
             'email' => 'agencia-grupo-inactivo@test.com',
             'password' => bcrypt('password'),
             'agencia_id' => $agencia->id,
@@ -204,7 +201,6 @@ class AgenciaScopeTest extends TestCase
         $user->agencia->update(['active' => false]);
 
         $taquillaUser = User::factory()->create([
-            'role' => 'taquilla',
             'taquilla_id' => $taquilla->id,
             'agencia_id' => $taquilla->agencia_id,
         ]);
@@ -233,7 +229,6 @@ class AgenciaScopeTest extends TestCase
             'device_fingerprint' => 'fp-001',
         ]);
         $user = User::factory()->create([
-            'role' => 'taquilla',
             'email' => 'taq-local-inactivo@test.com',
             'password' => bcrypt('password'),
             'taquilla_id' => $taquilla->id,
@@ -409,7 +404,6 @@ class AgenciaScopeTest extends TestCase
     {
         [$user, $agencia, $taquilla1] = $this->jerarquiaLocal();
         User::factory()->create([
-            'role' => 'taquilla',
             'taquilla_id' => $taquilla1->id,
             'agencia_id' => $agencia->id,
         ])->assignRole('taquilla');
@@ -418,7 +412,6 @@ class AgenciaScopeTest extends TestCase
             'grupo_id' => $otroLocal->grupo_id, 'agencia_id' => $otroLocal->id, 'active' => true,
         ]);
         $usuarioAjeno = User::factory()->create([
-            'role' => 'taquilla',
             'taquilla_id' => $otraTaquilla->id,
             'agencia_id' => $otroLocal->id,
         ]);

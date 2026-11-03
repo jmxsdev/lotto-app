@@ -207,7 +207,6 @@ class SuperBancaScopeTest extends TestCase
         $ajena = $this->crearJerarquia('Ajena');
 
         $usuarioPropio = User::factory()->create([
-            'role' => 'taquilla',
             'banca_id' => $propia['banca']->id,
             'grupo_id' => $propia['grupo']->id,
             'taquilla_id' => $propia['taquilla']->id,
@@ -215,7 +214,6 @@ class SuperBancaScopeTest extends TestCase
         $usuarioPropio->assignRole('taquilla');
 
         $usuarioAjeno = User::factory()->create([
-            'role' => 'taquilla',
             'banca_id' => $ajena['banca']->id,
             'grupo_id' => $ajena['grupo']->id,
             'taquilla_id' => $ajena['taquilla']->id,

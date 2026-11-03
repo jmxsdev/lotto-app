@@ -313,7 +313,6 @@ class EliminacionApuestasTest extends TestCase
             'active' => true,
         ]);
         $user = User::factory()->create([
-            'role' => 'grupo',
             'grupo_id' => $otroGrupo->id,
             'banca_id' => $otraBanca->id,
         ]);

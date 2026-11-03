@@ -27,8 +27,7 @@ class AgenciaModelTest extends TestCase
         $grupo = Grupo::factory()->create(['name' => 'Grupo Model', 'code' => 'GM001', 'banca_id' => $banca->id]);
         $agencia = Agencia::factory()->create(['name' => 'Local Model', 'code' => 'LM001', 'grupo_id' => $grupo->id]);
         $taquilla = Taquilla::factory()->create(['grupo_id' => $grupo->id, 'agencia_id' => $agencia->id, 'code' => 'TM001']);
-        $user = User::factory()->create([
-            'role' => 'taquilla',
+        $user = User::factory()->withRole('taquilla')->create([
             'taquilla_id' => $taquilla->id,
             'agencia_id' => $agencia->id,
         ]);
