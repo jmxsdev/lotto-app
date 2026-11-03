@@ -183,7 +183,6 @@ class TaquillaController extends Controller
                 'name' => $request->user_name,
                 'email' => $request->user_email,
                 'password' => Hash::make($request->user_password),
-                'role' => 'taquilla',
                 'banca_id' => $grupo->banca_id,
                 'grupo_id' => $request->grupo_id,
                 'taquilla_id' => $taquilla->id,

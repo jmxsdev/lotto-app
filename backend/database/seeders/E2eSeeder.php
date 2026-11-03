@@ -114,7 +114,6 @@ class E2eSeeder extends Seeder
             [
                 'name' => 'E2E User',
                 'password' => Hash::make((string) env('SEEDER_PASSWORD', 'password')),
-                'role' => 'taquilla',
                 'banca_id' => $grupo->banca_id,
                 'grupo_id' => $grupo->id,
                 'taquilla_id' => $taquilla->id,
@@ -122,7 +121,7 @@ class E2eSeeder extends Seeder
                 'clave_cierre' => Hash::make($clave),
             ]
         );
-        $user->assignRole('taquilla');
+        $user->syncRoles(['taquilla']);
 
         // 3. clave_cierre en los candidatos que valida CierreService::validarClaveCierre
         // (banca del grupo + super_master). Determinista para el harness: la clave

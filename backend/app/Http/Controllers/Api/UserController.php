@@ -8,6 +8,7 @@ use App\Models\Grupo;
 use App\Models\Taquilla;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -108,7 +109,7 @@ class UserController extends Controller
         // Un master que filtre role=master solo vería masters con banca_id dentro
         // de sus bancas, que no existen (los masters no pertenecen a una banca) → vacío.
         if (isset($filtros['role'])) {
-            $query->where('role', $filtros['role']);
+            $query->role($filtros['role']);
         }
 
         $users = $query->with('banca', 'grupo', 'taquilla', 'roles', 'bancas')->get();
@@ -144,7 +145,6 @@ class UserController extends Controller
             'name' => $request->user_name,
             'email' => $request->user_email,
             'password' => Hash::make($request->user_password),
-            'role' => $request->role,
             'active' => $request->active ?? true,
         ] + $bindings;
 
@@ -154,9 +154,12 @@ class UserController extends Controller
         // Verificar que el usuario autenticado pueda asignar este rol y vínculos
         $this->authorizeEntityBinding($user, $data, $request->role);
 
-        $newUser = User::create($data);
+        $newUser = DB::transaction(function () use ($request, $data) {
+            $newUser = User::create($data);
+            $newUser->syncRoles([$request->role]);
 
-        $newUser->assignRole($request->role);
+            return $newUser;
+        });
 
         return response()->json($newUser->load('roles'), 201);
     }
@@ -192,7 +195,7 @@ class UserController extends Controller
             'taquilla_id' => 'nullable|exists:taquillas,id',
         ]);
 
-        $data = $request->only(['name', 'email', 'role', 'active']);
+        $data = $request->only(['name', 'email', 'active']);
 
         // Derivar los nuevos vínculos de entidad si se enviaron
         $bindings = $this->deriveEntityBindings($request);
@@ -200,10 +203,16 @@ class UserController extends Controller
             $data = array_merge($data, $bindings);
         }
 
-        $finalRole = $data['role'] ?? $user->role;
+        $finalRole = $request->input('role', $user->primaryRole());
+
+        // Sin rol efectivo (ni en el request ni en Spatie) no se puede validar
+        // ni autorizar la operación: fail-closed.
+        if ($finalRole === null) {
+            abort(403, 'El usuario no tiene un rol asignado.');
+        }
 
         // Al cambiar rol o vínculos: validar consistencia y autorización jerárquica
-        if (isset($data['role']) || $bindings !== []) {
+        if ($request->filled('role') || $bindings !== []) {
             $this->validateRoleBindings($finalRole, $data, $user);
             $this->authorizeEntityBinding($currentUser, $data, $finalRole, $user);
         }
@@ -212,11 +221,13 @@ class UserController extends Controller
             $data['password'] = Hash::make($request->password);
         }
 
-        if ($request->has('role')) {
-            $user->syncRoles([$request->role]);
-        }
+        DB::transaction(function () use ($request, $user, $data) {
+            $user->update($data);
 
-        $user->update($data);
+            if ($request->filled('role')) {
+                $user->syncRoles([$request->role]);
+            }
+        });
 
         return response()->json($user->load('roles'));
     }

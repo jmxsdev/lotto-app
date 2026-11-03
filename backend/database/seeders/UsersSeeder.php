@@ -19,7 +19,6 @@ class UsersSeeder extends Seeder
             'name' => 'Super Master',
             'email' => 'super@lotto.com',
             'password' => Hash::make(env('SEEDER_PASSWORD', 'password')),
-            'role' => 'super_master',
             'active' => true,
         ]);
         $super->assignRole('super_master');
@@ -29,7 +28,6 @@ class UsersSeeder extends Seeder
             'name' => 'Master Test',
             'email' => 'master@lotto.com',
             'password' => Hash::make(env('SEEDER_PASSWORD', 'password')),
-            'role' => 'master',
             'active' => true,
         ]);
         $master->assignRole('master');
@@ -44,7 +42,6 @@ class UsersSeeder extends Seeder
             'name' => 'Banca User',
             'email' => 'banca@lotto.com',
             'password' => Hash::make(env('SEEDER_PASSWORD', 'password')),
-            'role' => 'banca',
             'banca_id' => $banca->id,
             'active' => true,
         ]);
@@ -61,7 +58,6 @@ class UsersSeeder extends Seeder
             'name' => 'Grupo User',
             'email' => 'grupo@lotto.com',
             'password' => Hash::make(env('SEEDER_PASSWORD', 'password')),
-            'role' => 'grupo',
             'banca_id' => $grupo->banca_id,
             'grupo_id' => $grupo->id,
             'active' => true,
@@ -81,7 +77,6 @@ class UsersSeeder extends Seeder
             'name' => 'Taquilla User',
             'email' => 'taquilla@lotto.com',
             'password' => Hash::make(env('SEEDER_PASSWORD', 'password')),
-            'role' => 'taquilla',
             'banca_id' => $grupo->banca_id,
             'grupo_id' => $grupo->id,
             'taquilla_id' => $taquilla->id,
@@ -104,7 +99,6 @@ class UsersSeeder extends Seeder
             'name' => 'Demo User',
             'email' => 'demo@lotto.com',
             'password' => Hash::make(env('SEEDER_PASSWORD', 'password')),
-            'role' => 'taquilla',
             'banca_id' => $grupo->banca_id,
             'grupo_id' => $grupo->id,
             'taquilla_id' => $demoTaquilla->id,
@@ -124,7 +118,6 @@ class UsersSeeder extends Seeder
             'name' => 'Agencia User',
             'email' => 'agencia@lotto.com',
             'password' => Hash::make(env('SEEDER_PASSWORD', 'password')),
-            'role' => 'agencia',
             'banca_id' => $grupo->banca_id,
             'grupo_id' => $grupo->id,
             'agencia_id' => $agencia->id,

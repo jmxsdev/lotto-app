@@ -153,7 +153,6 @@ class GrupoController extends Controller
                 'name' => $request->user_name,
                 'email' => $request->user_email,
                 'password' => Hash::make($request->user_password),
-                'role' => 'grupo',
                 'banca_id' => $request->banca_id,
                 'grupo_id' => $grupo->id,
                 'active' => $request->active ?? true,

@@ -99,11 +99,13 @@ class GestionUsuariosTest extends TestCase
             ->assertJsonPath('role', 'banca')
             ->assertJsonPath('banca_id', $banca->id);
 
+        $creado = User::where('email', $response->json('email'))->firstOrFail();
+
         $this->assertDatabaseHas('users', [
             'email' => $response->json('email'),
-            'role' => 'banca',
             'banca_id' => $banca->id,
         ]);
+        $this->assertTrue($creado->hasRole('banca'));
     }
 
     public function test_banca_puede_crear_usuario_para_uno_de_sus_grupos()
@@ -120,12 +122,14 @@ class GestionUsuariosTest extends TestCase
             ->assertJsonPath('role', 'grupo')
             ->assertJsonPath('grupo_id', $grupo->id);
 
+        $creado = User::where('email', $response->json('email'))->firstOrFail();
+
         $this->assertDatabaseHas('users', [
             'email' => $response->json('email'),
-            'role' => 'grupo',
             'grupo_id' => $grupo->id,
             'banca_id' => $grupo->banca_id,
         ]);
+        $this->assertTrue($creado->hasRole('grupo'));
     }
 
     public function test_grupo_puede_crear_usuario_para_una_de_sus_agencias()
@@ -142,13 +146,15 @@ class GestionUsuariosTest extends TestCase
             ->assertJsonPath('role', 'taquilla')
             ->assertJsonPath('taquilla_id', $taquilla->id);
 
+        $creado = User::where('email', $response->json('email'))->firstOrFail();
+
         $this->assertDatabaseHas('users', [
             'email' => $response->json('email'),
-            'role' => 'taquilla',
             'taquilla_id' => $taquilla->id,
             'grupo_id' => $taquilla->grupo_id,
             'banca_id' => $taquilla->grupo->banca_id,
         ]);
+        $this->assertTrue($creado->hasRole('taquilla'));
     }
 
     public function test_banca_no_puede_crear_usuario_para_otra_banca()

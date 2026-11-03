@@ -102,11 +102,13 @@ class MastersPanelTest extends TestCase
         $response->assertStatus(201)
             ->assertJsonPath('role', 'master');
 
+        $creado = User::where('email', 'master-creado@test.com')->firstOrFail();
+
         $this->assertDatabaseHas('users', [
             'email' => 'master-creado@test.com',
-            'role' => 'master',
             'banca_id' => null,
         ]);
+        $this->assertTrue($creado->hasRole('master'));
     }
 
     public function test_master_sin_bancas_expone_bancas_vacias()
