@@ -34,13 +34,35 @@
 
 ## WU-2 — Escrituras UserController + entidades + seeders + filtro index (Merge 1)
 
-**Estado**: ⏳ pendiente
+**Estado**: ✅ completado (tests ejecutados por el usuario: verdes)
 
 **Rama**: `feature/rol-unico-wu2` (base `feature/rol-unico-wu1`)
 
-**Objetivo**: eliminar las escrituras de `users.role`; `store/update` transaccionales con `syncRoles`; `index` filtra por Spatie; migrar 4 `assertDatabaseHas` de tests.
+**Cambios**:
+- `UserController::store`: `$data` sin `role`; `User::create` + `syncRoles` en `DB::transaction`.
+- `UserController::update`: `$data` sin `role`; `$finalRole = input('role', primaryRole())`; 403 si null; `syncRoles` en la misma transacción.
+- `UserController::index`: filtro por scope Spatie `role()`.
+- `Banca/Grupo/TaquillaController`: eliminadas las escrituras `'role' => ...`.
+- `UsersSeeder`: eliminados los 7 `'role' => ...`; se conservan `assignRole`.
+- `E2eSeeder`: sin escritura de `role`; `syncRoles(['taquilla'])`.
+- `UsuarioRolApiTest` (6 tests), `GestionUsuariosTest` (3 aserciones), `MastersPanelTest` (1 aserción).
 
-**Tests del usuario**: ver `tasks.md` WU-2. No ejecutados aún.
+**Tests ejecutados por el usuario**:
+- `UsuarioRolApiTest` — verde.
+- `GestionUsuariosTest` — verde.
+- `MastersPanelTest` — verde (8 passed, 32 assertions).
+- `RoleAuthorizationTest` — verde (9 passed, 21 assertions).
+- `vendor/bin/pint --test` — verde.
+
+**Evidencia**:
+- `evidence-revision`: `2d0eb21458dbdad7871a48b8290e68410bcbffd89e3e3c525e5645210c0b9d1c`.
+- El ledger registró 1230 líneas porque contó artefactos SDD de WU-1; reset autorizado por el maintainer para corregir el conteo. Diff real de WU-2: ~240 líneas.
+
+**Notas transicionales**:
+- `users.role` sigue existiendo pero ya no se escribe desde la app/seeders.
+- `CierreService`, `AgenciaController`, `AgenciasBackfill` y `E2eSeeder` todavía tienen lecturas legacy hasta WU-6.
+
+**Próximo**: WU-3 — auditoría `user.role_changed`.
 
 ---
 

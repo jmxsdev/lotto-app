@@ -114,11 +114,11 @@ php artisan test --filter=AgenciasBackfillTest
   - Tests: `UsuarioRolApiTest.php` (nuevo); `GestionUsuariosTest`, `MastersPanelTest`, `RoleAuthorizationTest`.
 
 **Tareas**:
-- [ ] 2.1 Escribir `UsuarioRolApiTest` (RED): `store` asigna Spatie sin escribir columna; `update` cambia rol en transacción; `index` filtra por `role()`; `login` devuelve `role` Spatie.
-- [ ] 2.2 Migrar 4 `assertDatabaseHas('users', ['role'=>...])` a `assertTrue(User::find($id)->hasRole($rol))` o `assertDatabaseHas('model_has_roles', [...])`: `GestionUsuariosTest:102/123/145`, `MastersPanelTest:105`.
-- [ ] 2.3 Implementar `UserController` store/update/index con `syncRoles` en `DB::transaction`.
-- [ ] 2.4 Quitar `'role' =>` de `BancaController`, `GrupoController`, `TaquillaController`.
-- [ ] 2.5 Actualizar `UsersSeeder` y `E2eSeeder` (escritura).
+- [x] 2.1 Escribir `UsuarioRolApiTest` (RED): `store` asigna Spatie sin escribir columna; `update` cambia rol en transacción; `index` filtra por `role()`; `login` devuelve `role` Spatie.
+- [x] 2.2 Migrar 4 `assertDatabaseHas('users', ['role'=>...])` a `assertTrue(User::find($id)->hasRole($rol))` o `assertDatabaseHas('model_has_roles', [...])`: `GestionUsuariosTest:102/123/145`, `MastersPanelTest:105`.
+- [x] 2.3 Implementar `UserController` store/update/index con `syncRoles` en `DB::transaction`.
+- [x] 2.4 Quitar `'role' =>` de `BancaController`, `GrupoController`, `TaquillaController`.
+- [x] 2.5 Actualizar `UsersSeeder` y `E2eSeeder` (escritura).
 
 **Tests a escribir/actualizar**: `UsuarioRolApiTest` (nuevo); `GestionUsuariosTest`, `MastersPanelTest`, `RoleAuthorizationTest`.
 
