@@ -6,9 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Apuesta;
 use App\Models\Log;
 use App\Models\Pago;
-use App\Models\Resultado;
 use App\Models\Ticket;
-use App\Services\JuegoPluginManager;
+use App\Services\PremiosLiquidador;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -16,6 +15,10 @@ use Illuminate\Validation\Rule;
 
 class PagoController extends Controller
 {
+    public function __construct(
+        private readonly PremiosLiquidador $premios,
+    ) {}
+
     /**
      * Registrar el pago de un premio (egreso).
      *
@@ -112,7 +115,7 @@ class PagoController extends Controller
                 ]);
             }
 
-            $premio = $this->calcularPremio($apuesta, $apuesta->resultado);
+            $premio = $this->premios->calcular($apuesta, $apuesta->resultado);
 
             if ($premio['premio_bs'] == 0 && $premio['premio_usd'] == 0) {
                 return $this->rechazo(422, [
@@ -261,96 +264,5 @@ class PagoController extends Controller
             'success' => true,
             'data' => $pagos,
         ]);
-    }
-
-    /**
-     * Calcular premio con el MOTOR corregido (REQ10/N11): config-driven,
-     * acentos, terminales y comodines. El manager delega en PremiosEngine;
-     * nunca se usa el plugin directo (que no normaliza ni lee config).
-     * S2/D4: con snapshot persistido al vender, se valida contra él
-     * (override); null → config.premios actual (fallback legacy).
-     */
-    private function calcularPremio(Apuesta $apuesta, ?Resultado $resultado): array
-    {
-        $combinacion = is_string($apuesta->combinacion)
-            ? json_decode($apuesta->combinacion, true)
-            : $apuesta->combinacion;
-
-        $combinacion = is_array($combinacion) ? $combinacion : [];
-
-        // Guard null-safe (verify SUGGESTION#1): la invariante vigente es UN
-        // detalle por apuesta (createApuesta). Sin detalle — o con el detalle
-        // sin snapshot — la resolucion cae al config.premios actual (fallback
-        // legacy) y el flujo de pago sigue. Multi-detalle futuro: se usa el
-        // primero, documentado aqui para cuando exista multi-seleccion.
-        $detalle = $apuesta->detalles->first();
-        $premiosSnapshot = $detalle?->premios_snapshot;
-
-        // Tripleta multi-sorteo: el premio se recalcula con la evidencia de
-        // los 3 resultados guardados al liquidar, no con un único resultado.
-        if ($this->esMultiSorteo($combinacion)) {
-            $ids = $apuesta->resultado_ids ?? [];
-
-            if (empty($ids)) {
-                return ['premio_bs' => 0.0, 'premio_usd' => 0.0];
-            }
-
-            $resultados = Resultado::whereIn('id', $ids)
-                ->where('juego_id', $apuesta->juego_id)
-                ->orderBy('hora_sorteo')
-                ->get()
-                ->map(fn (Resultado $r) => [
-                    'id' => $r->id,
-                    'hora_sorteo' => $r->hora_sorteo,
-                    'numeros_ganadores' => $r->numeros_ganadores,
-                ])
-                ->values()
-                ->all();
-
-            $manager = app(JuegoPluginManager::class);
-            $acierto = $manager->evaluarMultiSorteo(
-                $apuesta->juego,
-                ['combinacion' => $combinacion],
-                $resultados
-            );
-
-            if (! ($acierto['coincide'] ?? false)) {
-                return ['premio_bs' => 0.0, 'premio_usd' => 0.0];
-            }
-
-            return $manager->calcularPremioMultiSorteo(
-                $apuesta->juego,
-                [
-                    'amount_bs' => (float) $apuesta->amount_bs,
-                    'amount_usd' => (float) $apuesta->amount_usd,
-                ],
-                $acierto,
-                $premiosSnapshot
-            );
-        }
-
-        $resultados = $resultado ? $resultado->toArray() : [];
-
-        return app(JuegoPluginManager::class)->calcularPremio(
-            $apuesta->juego,
-            [
-                'combinacion' => $combinacion,
-                'amount_bs' => (float) $apuesta->amount_bs,
-                'amount_usd' => (float) $apuesta->amount_usd,
-            ],
-            $resultados,
-            $premiosSnapshot
-        );
-    }
-
-    /**
-     * @param  array<string, mixed>  $combinacion
-     */
-    private function esMultiSorteo(array $combinacion): bool
-    {
-        $selecciones = $combinacion['selecciones'] ?? [];
-
-        return count($selecciones) >= 3
-            && (($combinacion['modalidad'] ?? 'tripleta') === 'tripleta');
     }
 }

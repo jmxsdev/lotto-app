@@ -79,6 +79,81 @@ La transición es segura: el mutex Redis (`withoutOverlapping`) evitó el doble
 dispatch durante el solapamiento, y el upsert idempotente (`saveResults`) hace
 seguro re-ejecutar sin duplicados.
 
+## Auditoría legacy de pagos (`pagos:auditar-legacy`)
+
+Comando **owner-gated** (WU5): detecta y corrige, solo con ids explícitos, la
+corrupción histórica del flujo de pagos (C1-C5 de `design.md` §10.1). No tiene
+efecto en runtime: ningún endpoint lo invoca y el default es dry-run.
+
+### Qué detecta (C1-C5)
+
+| Clase | Caso |
+|---|---|
+| C1/C2 | `apuestas.estado='pagada'` sin ninguna fila `pagos.tipo='egreso'` (premio sin evidencia de pago) |
+| C3 | `tickets.estado='pagada'` con una línea `pagada` sin `egreso` |
+| C4 | `tickets.estado='pagada'` sin líneas vivas |
+| C5 | venta con más de un `pagos.tipo='ingreso'` |
+
+`--apply` opera sobre ids de **apuesta** C1/C2 (incluye la línea reportada como
+C3). C4 (ticket sin apuesta viva) y C5 (duplicado en `pagos`, evidencia de caja)
+se reportan para revisión manual: el comando no inventa ids ni toca `pagos`.
+
+### 1. Dry-run (siempre primero)
+
+```bash
+docker exec lotto_api_prod php artisan pagos:auditar-legacy
+docker exec lotto_api_prod php artisan pagos:auditar-legacy --csv=/tmp/auditoria-pagos.csv
+```
+
+- Agrupa los hallazgos por taquilla e imprime C1/C2, C3, C4 y C5.
+- **Cero escrituras de base de datos.** `--csv` solo escribe el archivo indicado.
+- Exit code `0` aun cuando haya hallazgos: es un reporte, no un fallo.
+
+### 2. Revisión y aprobación del owner
+
+Antes de cualquier `--apply`:
+
+1. Revisar el CSV con el owner/operador responsable de cada taquilla.
+2. Confirmar que los ids a corregir son C1/C2 y que el premio esperado coincide con el ticket.
+3. **Backup obligatorio** de la base antes de aplicar:
+   ```bash
+   docker exec lotto_mysql_prod mysqldump -u root -p"$MYSQL_ROOT_PASSWORD" lotto \
+     | gzip > /home/deploy/backups/pre-auditoria-pagos-$(date +%Y%m%d-%H%M).sql.gz
+   ```
+4. Registrar los ids aprobados en el ticket/issue de operación.
+
+### 3. Apply (solo ids explícitos)
+
+```bash
+docker exec lotto_api_prod php artisan pagos:auditar-legacy --apply --ids=123,456
+```
+
+- Sin `--ids` el comando **rechaza** con exit `1` y no escribe nada. Nunca hace un update en bloque.
+- Por cada apuesta C1/C2: recalcula el premio con el motor (`PremiosLiquidador`, mismo camino que el egreso), pasa `pagada → ganadora` (premio > 0) o `pagada → perdida` (premio = 0) — **nunca** vuelve a `pendiente` —, restaura `detalle_apuestas.premio_ganado(_usd)` y recomputa `tickets.estado` (`anulada` / `ganador` / `pagada`).
+- Conserva las filas existentes de `pagos` (evidencia de caja): no crea egresos ni modifica `pagos.amount_*`.
+- **Nunca** toca `cierres_caja` ni `comisiones`.
+- Escribe **un** log `auditoria.pago_legacy` por apuesta con `details.old_values` y `details.new_values` (`estado`, `premio_ganado`, `premio_ganado_usd`, `ticket_estado`).
+- Un ticket multilínea cuya suma del motor no cuadra con `tickets.premio_total_*` (±0.01) se deriva a **REVISION MANUAL**: no se escribe y el comando termina con exit `1`.
+- Exit `0` solo si todos los ids se aplicaron; `1` si alguno se saltó o falló.
+
+### 4. Revert (desde el log)
+
+```bash
+docker exec lotto_api_prod php artisan pagos:auditar-legacy --revert --ids=123,456
+```
+
+- Lee el **último** log `auditoria.pago_legacy` por apuesta y restaura `old_values` (estado, premio y estado del ticket).
+- Sin `--ids` rechaza con exit `1`; no escribe logs nuevos ni toca `pagos`, `cierres_caja` o `comisiones`.
+- Si el estado actual ya no coincide con `new_values` (por ejemplo, un egreso posterior), el id se salta con warning: resolver manualmente.
+- `--apply` y `--revert` son mutuamente excluyentes; `--dry-run` es el default.
+
+### Rollback del slice
+
+El comando es off por defecto y no participa del runtime. Revertir el código
+(`PremiosLiquidador`, comando, delegación del controlador) no requiere compensar
+datos; si ya se aplicó una corrección, usar `--revert` con los mismos ids antes
+de retirar el comando.
+
 ## Taquilla Windows release (build + re-publicación)
 
 La taquilla es una app Electron (Astro) en `taquilla/`. Las releases se publican
