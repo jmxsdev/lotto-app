@@ -34,7 +34,8 @@ use Tests\TestCase;
  * - `--revert --ids` restores `old_values` from the latest log, no other write;
  * - a multi-line ticket that does not reconcile against
  *   `tickets.premio_total_*` goes to manual review with zero writes;
- * - `pagos.amount_*`, `cierres_caja` and `comisiones` are never touched.
+ * - `pagos.amount_*` and `cierres_caja` are never touched. (The retired
+ *   `comisiones` ledger is no longer part of the schema — Modelo A.)
  */
 class AuditarPagosLegacyTest extends TestCase
 {
@@ -288,15 +289,6 @@ class AuditarPagosLegacyTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $comisionId = DB::table('comisiones')->insertGetId([
-            'taquilla_id' => $apuesta->taquilla_id,
-            'periodo' => '2026-11',
-            'monto_comision' => 50,
-            'estado' => 'pendiente',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
         $this->artisan('pagos:auditar-legacy', [
             '--apply' => true,
             '--ids' => (string) $apuesta->id,
@@ -318,9 +310,8 @@ class AuditarPagosLegacyTest extends TestCase
         $this->assertSame($pagosAntes, $pagosDespues);
         $this->assertSame(0, Pago::where('apuesta_id', $apuesta->id)->where('tipo', 'egreso')->count());
 
-        // Cierres y comisiones intactos.
+        // Cierres intactos (el ledger de comisiones fue retirado en Modelo A).
         $this->assertDatabaseHas('cierres_caja', ['id' => $cierreId, 'total_ventas_bs' => 123.45]);
-        $this->assertDatabaseHas('comisiones', ['id' => $comisionId, 'monto_comision' => 50]);
 
         // Un unico log por apuesta, con old_values/new_values.
         $this->assertSame(1, Log::where('action', self::ACTION)->count());
