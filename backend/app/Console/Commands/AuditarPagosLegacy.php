@@ -700,7 +700,7 @@ final class AuditarPagosLegacy extends Command
     // ------------------------------------------------------------------
 
     /**
-     * @return array<int, int>|null  null = formato inválido; [] = sin ids
+     * @return array<int, int>|null null = formato inválido; [] = sin ids
      */
     private function parseIds(mixed $raw): ?array
     {
