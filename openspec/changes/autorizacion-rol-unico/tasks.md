@@ -178,11 +178,11 @@ php artisan test --filter=GestionUsuariosTest
   - Fixtures de esas suites.
 
 **Tareas**:
-- [ ] 4.1 Convertir `ApuestaController` (index/historial/resumen) con `hasRole` + fail-closed final.
-- [ ] 4.2 Convertir `ReporteController` y `EstadisticaController`; denegar si no es `super_master`/rol esperado.
-- [ ] 4.3 Convertir `TicketController` preservando el alcance global actual de `master`/`agencia` (no agregar ramas nuevas; eso es #84); denegar solo usuario sin rol.
-- [ ] 4.4 Convertir `PagoController` y `ApuestaPolicy`.
-- [ ] 4.5 Actualizar fixtures de las suites afectadas (`Apuesta*`, `Reporte*`, `Estadistica*`, `Ticket*`, `Pago*`, `ApuestaPolicy*`).
+- [x] 4.1 Convertir `ApuestaController` (index/historial/resumen) con `hasRole` + fail-closed final.
+- [x] 4.2 Convertir `ReporteController` y `EstadisticaController`; denegar si no es `super_master`/rol esperado.
+- [x] 4.3 Convertir `TicketController` preservando el alcance global actual de `master`/`agencia` (no agregar ramas nuevas; eso es #84); denegar solo usuario sin rol.
+- [x] 4.4 Convertir `PagoController` y `ApuestaPolicy`.
+- [x] 4.5 Actualizar fixtures de las suites afectadas (`Apuesta*`, `Reporte*`, `Estadistica*`, `Ticket*`, `Pago*`, `ApuestaPolicy*`).
 
 **Tests a escribir/actualizar**: fixtures de `ApuestaTest`, `PagoDevolucion*`, `ReporteTest`, `CuadreCajaReportTest`, `EstadisticaTest`, `Ticket*`, `ApuestaPolicyAnulacionTest`.
 

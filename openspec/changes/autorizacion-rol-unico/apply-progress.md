@@ -88,7 +88,30 @@
 
 ## WU-4 — Scoping apuestas/reportes/estadísticas/tickets/pagos/policy (Merge 1)
 
-**Estado**: ⏳ pendiente
+**Estado**: ✅ completado (tests ejecutados por el usuario: verdes)
+
+**Rama**: `feature/rol-unico-wu4` (base `feature/rol-unico-wu3`)
+
+**Cambios**:
+- `ApuestaController` (15 refs), `ReporteController` (10), `EstadisticaController` (5): escaleras convertidas a `hasRole`, rama explícita `super_master` y `else abort(403)` fail-closed.
+- `TicketController` (12): `hasRole`; `autorizarScope()` deniega solo usuario sin rol/fuera de catálogo; `master`/`agencia` conservan alcance global actual (#84).
+- `PagoController` (1): `hasRole('taquilla')`; cross-tenant de banca intacto (#84).
+- `ApuestaPolicy` (12): `hasRole`/`hasAnyRole`; `master` global preservado (#84).
+
+**Tests ejecutados por el usuario**:
+- `ApuestaPolicyAnulacionTest` — verde (17 passed, 43 assertions).
+- Suites `Apuesta`, `PagoDevolucion`, `Reporte`, `CuadreCaja`, `Estadistica`, `Ticket` — verdes.
+- `vendor/bin/pint --test` — verde.
+
+**Evidencia**:
+- `evidence-revision`: `54160ef9b4a5b4fcbbb84476302661bc62b97fd08cbd8860d6412f561e8fa15e`.
+- 0 referencias `->role` en los 6 archivos de WU-4.
+
+**Notas**:
+- WU-4 es semánticamente neutro para usuarios mono-rol; el accessor Spatie de WU-1 ya resolvía las lecturas. El cambio deja explícito el uso de Spatie y agrega fail-closed.
+- #84 queda intacto deliberadamente.
+
+**Próximo**: WU-5 — `JuegoController` / límites.
 
 ## WU-5 — JuegoController / límites (Merge 1)
 
