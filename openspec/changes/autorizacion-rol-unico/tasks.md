@@ -215,8 +215,8 @@ php artisan test --filter=ApuestaPolicy
   - Tests: `LimitesApiTest`, `LimitesScopedApiTest`, `JuegoLimiteServiceTest`, `JuegoPremiosApiTest`, `JuegoToggleTest`, `JuegoUpdateTest`, `SuperBancaScopeTest`, `AgenciaMasterScopeTest`.
 
 **Tareas**:
-- [ ] 5.1 Reescribir `JuegoController` con `hasRole`/`hasAnyRole`, preservando orden y semántica de ramas.
-- [ ] 5.2 Actualizar fixtures/expectativas de las suites de límites y scopes.
+- [x] 5.1 Reescribir `JuegoController` con `hasRole`/`hasAnyRole`, preservando orden y semántica de ramas.
+- [x] 5.2 Actualizar fixtures/expectativas de las suites de límites y scopes.
 
 **Tests a escribir/actualizar**: suites de límites (`Limites*`, `Juego*`) y scopes (`SuperBancaScope`, `AgenciaMasterScope`).
 

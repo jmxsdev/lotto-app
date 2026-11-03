@@ -115,7 +115,31 @@
 
 ## WU-5 — JuegoController / límites (Merge 1)
 
-**Estado**: ⏳ pendiente
+**Estado**: ✅ completado (tests ejecutados por el usuario: verdes)
+
+**Rama**: `feature/rol-unico-wu5` (base `feature/rol-unico-wu4`)
+
+**Cambios**:
+- `JuegoController`: 40 referencias `->role` convertidas a `hasRole`/`hasAnyRole`.
+- `expandirTipoAlcance`: `match(true)` reemplazado por `if/elseif`, preservando orden y override de `grupo`.
+- `entidadesVisiblesPorTipo`: rama explícita `super_master` sin filtro; rol ausente/fuera de catálogo → colección vacía.
+- `limites`, `listarLimites`, `updateLimites`, `destroyLimite`, `batchLimites`, helpers de autorización y `entidadDentroDelAlcance` convertidos.
+- Sin cambios de tests, seeders, migraciones ni otros controllers.
+
+**Tests ejecutados por el usuario**:
+- `Limites` — 64 passed, 543 assertions.
+- `Juego` — 111 passed, 1 skipped, 2673 assertions.
+- `SuperBancaScope` — 12 passed, 46 assertions.
+- `AgenciaMasterScope` — 8 passed, 17 assertions.
+- `vendor/bin/pint --test` — verde.
+
+**Evidencia**:
+- `evidence-revision`: `235336f25bd12e9841cdc735b1aaf00077f2f6beecc559c3a8f412175cab0629`.
+- 0 referencias `->role` en `JuegoController`.
+
+**Nota**: el fail-closed nuevo para rol fuera de catálogo en `entidadesVisiblesPorTipo` no es alcanzable por ruta, pero evita el default global.
+
+**Próximo**: WU-6 — auth/panel + queries ocultas + `DivergenciaRolTest`.
 
 ## WU-6 — Auth/panel + queries ocultas + divergencia (Merge 1)
 
