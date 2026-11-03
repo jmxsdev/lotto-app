@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Agencia;
 use App\Models\Grupo;
+use App\Models\Log;
 use App\Models\Taquilla;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -221,11 +222,32 @@ class UserController extends Controller
             $data['password'] = Hash::make($request->password);
         }
 
-        DB::transaction(function () use ($request, $user, $data) {
+        // Snapshot del set completo de roles antes de persistir: permite
+        // auditar también el colapso de un usuario multi-rol.
+        $before = $user->getRoleNames()->sort()->values()->all();
+        $cambioRol = $request->filled('role') && $before !== [$request->role];
+
+        DB::transaction(function () use ($request, $currentUser, $user, $data, $cambioRol, $before) {
             $user->update($data);
 
             if ($request->filled('role')) {
                 $user->syncRoles([$request->role]);
+            }
+
+            if ($cambioRol) {
+                Log::create([
+                    'user_id' => $currentUser->id, // actor
+                    'action' => 'user.role_changed',
+                    'details' => [
+                        'actor_id' => $currentUser->id,
+                        'target_id' => $user->id,
+                        'target_email' => $user->email,
+                        'before' => $before,
+                        'after' => $user->getRoleNames()->sort()->values()->all(),
+                    ],
+                    'ip' => $request->ip(),
+                    'user_agent' => $request->header('User-Agent'),
+                ]);
             }
         });
 
