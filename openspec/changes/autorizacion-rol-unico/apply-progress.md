@@ -68,7 +68,23 @@
 
 ## WU-3 — Auditoría `user.role_changed` (Merge 1)
 
-**Estado**: ⏳ pendiente
+**Estado**: ✅ completado (tests ejecutados por el usuario: verdes)
+
+**Rama**: `feature/rol-unico-wu3` (base `feature/rol-unico-wu2`)
+
+**Cambios**:
+- `UserController::update`: `$before` con `getRoleNames()->sort()->values()->all()`; `$cambioRol` por set completo; `Log::create` dentro de la transacción con `action='user.role_changed'`, actor (`user_id` + `details.actor_id`), target, email, before/after, IP y UA.
+- `AuditoriaRolTest` (5 tests): cambio registra log; mismo rol/sin `role` no registra; actor/target/before/after; `details` array sin doble JSON; 403 no registra.
+
+**Tests ejecutados por el usuario**:
+- `AuditoriaRolTest` — verde (5 passed, 27 assertions).
+- `GestionUsuariosTest` — verde (16 passed, 60 assertions).
+- `vendor/bin/pint --test` — verde.
+
+**Evidencia**:
+- `evidence-revision`: `a4b7b4e0cdbc64a21de3a5c4e2ccb67da9942de91739915f1ae288d0de0e0c67`.
+
+**Próximo**: WU-4 — scoping de apuestas/reportes/estadísticas/tickets/pagos/policy.
 
 ## WU-4 — Scoping apuestas/reportes/estadísticas/tickets/pagos/policy (Merge 1)
 

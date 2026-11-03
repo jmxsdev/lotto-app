@@ -148,8 +148,8 @@ php artisan test --filter=RoleAuthorizationTest
   - `backend/tests/Feature/AuditoriaRolTest.php` (nuevo).
 
 **Tareas**:
-- [ ] 3.1 Escribir `AuditoriaRolTest` (RED): cambio registra `user.role_changed`; mismo rol no registra; `details` incluye actor/target/before/after; `details` es array (no JSON string); 403 no registra.
-- [ ] 3.2 Implementar auditoría en `update`: `$before = getRoleNames()->sort()->values()->all()`; `$cambioRol = $request->filled('role') && $before !== [$request->role]`; `Log::create([...])` con `actor`, `target`, `before`, `after`, `ip`, `user_agent`.
+- [x] 3.1 Escribir `AuditoriaRolTest` (RED): cambio registra `user.role_changed`; mismo rol no registra; `details` incluye actor/target/before/after; `details` es array (no JSON string); 403 no registra.
+- [x] 3.2 Implementar auditoría en `update`: `$before = getRoleNames()->sort()->values()->all()`; `$cambioRol = $request->filled('role') && $before !== [$request->role]`; `Log::create([...])` con `actor`, `target`, `before`, `after`, `ip`, `user_agent`.
 
 **Tests a escribir/actualizar**: `AuditoriaRolTest` (nuevo); `GestionUsuariosTest`.
 
