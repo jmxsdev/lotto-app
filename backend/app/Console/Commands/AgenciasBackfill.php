@@ -36,7 +36,7 @@ class AgenciasBackfill extends Command
             'bancas_master_skipped' => 0,
         ];
 
-        $super = User::query()->where('role', 'super_master')->orderBy('id')->first();
+        $super = User::query()->role('super_master')->orderBy('id')->first();
 
         // 1. Crear 1 local por grupo sin agencias
         $gruposSinAgencia = Grupo::query()
@@ -92,7 +92,7 @@ class AgenciasBackfill extends Command
             }
 
             $usuarios = User::query()
-                ->where('role', 'taquilla')
+                ->role('taquilla')
                 ->whereHas('taquilla', fn ($q) => $q->where('grupo_id', $grupo->id))
                 ->get();
 
@@ -125,7 +125,7 @@ class AgenciasBackfill extends Command
         foreach ($bancasSinMaster as $banca) {
             $creador = User::find($banca->created_by);
 
-            if (! $creador || $creador->role !== 'master') {
+            if (! $creador || ! $creador->hasRole('master')) {
                 $counts['bancas_master_skipped']++;
 
                 continue;

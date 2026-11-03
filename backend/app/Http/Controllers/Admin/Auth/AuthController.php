@@ -30,8 +30,8 @@ class AuthController extends Controller
             ])->withInput($request->only('email'));
         }
 
-        // Verificar que el usuario tenga rol de super_master o master
-        if ($user->role !== 'super_master' && $user->role !== 'master') {
+        // Verificar que el usuario tenga rol de super_master o master (Spatie)
+        if (! $user->hasAnyRole(['super_master', 'master'])) {
             return back()->withErrors([
                 'email' => 'No tienes permisos para acceder al panel de administración.',
             ])->withInput($request->only('email'));
@@ -41,7 +41,7 @@ class AuthController extends Controller
 
         Auth::login($user);
 
-        $request->session()->put('user_role', $user->role);
+        $request->session()->put('user_role', $user->primaryRole());
 
         return redirect()->intended(route('admin.resultados.index'));
     }

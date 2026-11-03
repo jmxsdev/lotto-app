@@ -77,7 +77,7 @@ class E2eSeeder extends Seeder
             return;
         }
 
-        $super = User::where('role', 'super_master')->first();
+        $super = User::role('super_master')->first();
         $creadoPor = $super?->id;
 
         // 0. Liberar la identidad E2E: DEMO01 (provisional de S1) pudo haber
@@ -126,8 +126,8 @@ class E2eSeeder extends Seeder
         // 3. clave_cierre en los candidatos que valida CierreService::validarClaveCierre
         // (banca del grupo + super_master). Determinista para el harness: la clave
         // E2E siempre funciona en re-cierre (spec 07).
-        $candidatos = User::where('role', 'super_master')
-            ->orWhere(fn ($q) => $q->where('role', 'banca')->where('banca_id', $grupo->banca_id))
+        $candidatos = User::role('super_master')
+            ->orWhere(fn ($q) => $q->role('banca')->where('banca_id', $grupo->banca_id))
             ->get();
         foreach ($candidatos as $candidato) {
             $candidato->update(['clave_cierre' => Hash::make($clave)]);

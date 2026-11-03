@@ -175,7 +175,7 @@ class AgenciaController extends Controller
             $agencia->taquillas()->delete();
 
             // Usuarios rol taquilla del local: se desactivan (no se borran)
-            $agencia->users()->where('role', 'taquilla')->update(['active' => false]);
+            $agencia->users()->role('taquilla')->update(['active' => false]);
 
             $agencia->delete();
         });

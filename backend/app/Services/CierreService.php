@@ -143,11 +143,12 @@ class CierreService
 
     /**
      * Validar la clave de cierre contra la cadena jerárquica de la taquilla
-     * (AD-7): (1) usuarios role=banca con banca_id = banca del grupo de la
-     * taquilla; (2) el usuario role=master con id = Banca.master_id de esa
-     * banca; (3) todos los role=super_master. Solo cuentan los candidatos
-     * con clave configurada (whereNotNull) y la clave se verifica con
-     * Hash::check en OR. La clave nunca se persiste ni se expone.
+     * (AD-7): (1) usuarios con rol Spatie `banca` y banca_id = banca del grupo
+     * de la taquilla; (2) el usuario con rol Spatie `master` e id =
+     * Banca.master_id de esa banca; (3) todos los `super_master`. El rol sale
+     * siempre de Spatie (`role()`), nunca de la columna legacy. Solo cuentan
+     * los candidatos con clave configurada (whereNotNull) y la clave se
+     * verifica con Hash::check en OR. La clave nunca se persiste ni se expone.
      *
      * @throws \RuntimeException si la taquilla no existe, ningún candidato
      *                           tiene clave configurada o ninguna coincide
@@ -166,14 +167,14 @@ class CierreService
         $candidatos = User::query()
             ->where(function ($query) use ($bancaId, $masterId) {
                 if ($bancaId !== null) {
-                    $query->orWhere(fn ($q) => $q->where('role', 'banca')->where('banca_id', $bancaId));
+                    $query->orWhere(fn ($q) => $q->role('banca')->where('banca_id', $bancaId));
                 }
 
                 if ($masterId !== null) {
-                    $query->orWhere(fn ($q) => $q->where('id', $masterId)->where('role', 'master'));
+                    $query->orWhere(fn ($q) => $q->where('id', $masterId)->role('master'));
                 }
 
-                $query->orWhere('role', 'super_master');
+                $query->orWhere(fn ($q) => $q->role('super_master'));
             })
             ->whereNotNull('clave_cierre')
             ->get();

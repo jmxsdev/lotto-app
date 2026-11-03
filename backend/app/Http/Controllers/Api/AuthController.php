@@ -27,7 +27,13 @@ class AuthController extends Controller
             return response()->json(['message' => 'Usuario inactivo'], 403);
         }
 
-        if ($user->role === 'taquilla' && $user->taquilla_id) {
+        // Fail-closed: sin rol Spatie no hay flujo de login válido; nunca se
+        // infiere un rol desde la columna legacy (fuente única: Spatie).
+        if ($user->primaryRole() === null) {
+            return response()->json(['message' => 'Usuario sin rol asignado.'], 403);
+        }
+
+        if ($user->hasRole('taquilla') && $user->taquilla_id) {
             $taquilla = $user->taquilla;
             if (! $taquilla || ! $taquilla->active) {
                 return response()->json(['message' => 'Este dispositivo no ha sido activado. Use el código de activación.'], 403);
@@ -49,13 +55,13 @@ class AuthController extends Controller
             return response()->json(['message' => $mensajeCadena], 403);
         }
 
-        // Validar rol según tipo de cliente
+        // Validar rol según tipo de cliente (fuente única: Spatie)
         if ($request->header('X-Panel') === 'true') {
-            if (! in_array($user->role, ['super_master', 'master', 'banca', 'grupo', 'agencia'])) {
+            if (! $user->hasAnyRole(['super_master', 'master', 'banca', 'grupo', 'agencia'])) {
                 return response()->json(['message' => 'Las taquillas deben usar la app de escritorio.'], 403);
             }
         } else {
-            if ($user->role !== 'taquilla') {
+            if (! $user->hasRole('taquilla')) {
                 return response()->json(['message' => 'Use el panel de administración para acceder.'], 403);
             }
         }
@@ -65,7 +71,7 @@ class AuthController extends Controller
         return response()->json([
             'token' => $token,
             'user' => $user,
-            'role' => $user->role,
+            'role' => $user->primaryRole(),
         ]);
     }
 
@@ -85,10 +91,11 @@ class AuthController extends Controller
      * Devuelve el mensaje de bloqueo si la cadena de la entidad del usuario
      * (banca → grupo → agencia) contiene una entidad inactiva, o null si puede entrar.
      * Bindings faltantes se consideran activos; super_master/master no aplican.
+     * El rol se resuelve siempre por Spatie (REQ-1).
      */
     private function mensajeCadenaInactiva(User $user): ?string
     {
-        if ($user->role === 'taquilla' && $user->taquilla_id) {
+        if ($user->hasRole('taquilla') && $user->taquilla_id) {
             $taquilla = $user->taquilla;
             if (! $taquilla) {
                 return null;
@@ -107,7 +114,7 @@ class AuthController extends Controller
             };
         }
 
-        if ($user->role === 'agencia' && $user->agencia_id) {
+        if ($user->hasRole('agencia') && $user->agencia_id) {
             $agencia = $user->agencia;
             if (! $agencia) {
                 return null;
@@ -125,7 +132,7 @@ class AuthController extends Controller
             return null;
         }
 
-        if ($user->role === 'grupo' && $user->grupo_id) {
+        if ($user->hasRole('grupo') && $user->grupo_id) {
             $grupo = $user->grupo;
             if (! $grupo) {
                 return null;
@@ -140,7 +147,7 @@ class AuthController extends Controller
             return null;
         }
 
-        if ($user->role === 'banca' && $user->banca_id) {
+        if ($user->hasRole('banca') && $user->banca_id) {
             $banca = $user->banca;
             if (! $banca) {
                 return null;
