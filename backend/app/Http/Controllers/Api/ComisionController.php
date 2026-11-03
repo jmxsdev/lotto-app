@@ -3,11 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Comision;
 use App\Models\ComisionDefault;
-use App\Models\Grupo;
-use App\Models\Log;
-use App\Models\Taquilla;
 use App\Models\User;
 use App\Services\ComisionService;
 use Illuminate\Http\Request;
@@ -63,50 +59,16 @@ class ComisionController extends Controller
     }
 
     /**
-     * Listar comisiones del ledger, paginadas (D8).
+     * Consulta read-only de comisiones por rango (Modelo A).
      *
-     * GET /api/v1/comisiones — super_master|master. El super_master ve
-     * todo; el master solo las filas de las bancas que administra
-     * (masterBancaIds); sin bancas ⇒ lista vacía, nunca global.
+     * GET /api/v1/comisiones/consulta — super_master|master (sin
+     * manage_comisiones). Valida desde/hasta (date, hasta >= desde) → 422;
+     * el super_master consulta global o filtra por `banca_ids`; el master
+     * solo sus bancas (masterBancaIds), y `banca_ids` fuera de alcance ⇒
+     * 403. No persiste nada ni expone estado/conflictos del ledger.
      */
-    public function index(Request $request)
+    public function consulta(Request $request)
     {
-        $user = $request->user();
-        $query = Comision::query();
-
-        if ($user->role === 'master') {
-            $bancaIds = $user->masterBancaIds();
-
-            if ($bancaIds->isEmpty()) {
-                $query->whereRaw('1=0');
-            } else {
-                $query->where(function ($q) use ($bancaIds) {
-                    $q->whereIn('banca_id', $bancaIds)
-                        ->orWhereHas('grupo', fn ($g) => $g->whereIn('banca_id', $bancaIds))
-                        ->orWhereHas('taquilla', fn ($t) => $t->whereHas('grupo', fn ($g) => $g->whereIn('banca_id', $bancaIds)));
-                });
-            }
-        }
-
-        return response()->json(
-            $query->with(['banca', 'grupo', 'taquilla'])
-                ->latest('id')
-                ->paginate((int) $request->input('per_page', 15))
-        );
-    }
-
-    /**
-     * Liquidar comisiones de un rango (D4/D7/D8).
-     *
-     * POST /api/v1/comisiones/liquidar — super_master|master +
-     * manage_comisiones. El master liquida SOLO sus bancas: `banca_ids`
-     * fuera de su alcance ⇒ 403; sin `banca_ids` ⇒ masterBancaIds().
-     * Rango solapado con filas existentes ⇒ 422 con los ids en conflicto.
-     */
-    public function liquidar(Request $request)
-    {
-        $user = $request->user();
-
         $validator = Validator::make($request->all(), [
             'desde' => ['required', 'date'],
             'hasta' => ['required', 'date', 'after_or_equal:desde'],
@@ -118,101 +80,58 @@ class ComisionController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
+        $user = $request->user();
         $bancaIds = $request->input('banca_ids');
+        $permitidas = $this->bancasEnAlcance($user);
 
-        if ($user->role === 'master') {
-            $permitidas = $user->masterBancaIds();
-
+        if ($permitidas !== null) {
             if ($bancaIds !== null) {
-                $foraneas = array_diff($bancaIds, $permitidas->all());
+                $foraneas = array_diff($bancaIds, $permitidas);
 
                 if ($foraneas !== []) {
                     return response()->json(['message' => 'No autorizado: banca_ids fuera de su alcance.'], 403);
                 }
             } else {
-                $bancaIds = $permitidas->all();
+                $bancaIds = $permitidas;
             }
         }
 
-        $resultado = $this->comisiones->liquidar(
-            Carbon::parse($request->input('desde')),
-            Carbon::parse($request->input('hasta')),
-            $bancaIds,
-            $user->id
-        );
+        $desde = Carbon::parse($request->input('desde'));
+        $hasta = Carbon::parse($request->input('hasta'));
 
-        if ($resultado['conflictos'] !== []) {
-            return response()->json([
-                'message' => 'El rango se solapa con liquidaciones existentes. No se puede liquidar dos veces el mismo período.',
-                'conflictos' => $resultado['conflictos'],
-            ], 422);
-        }
+        $rows = $this->comisiones->filasPorRango($desde, $hasta, $bancaIds);
+
+        $data = array_map(fn (array $fila) => [
+            'nivel' => $fila['nivel'],
+            'entidad_id' => $fila['entidad_id'],
+            'entidad' => $fila['entidad'],
+            'monto_comision' => number_format((float) $fila['monto_comision'], 2, '.', ''),
+        ], $rows);
 
         return response()->json([
-            'success' => true,
-            'message' => 'Comisiones liquidadas correctamente.',
-            'data' => $resultado['rows'],
-        ], 201);
+            'data' => $data,
+            'meta' => [
+                'desde' => $desde->toDateString(),
+                'hasta' => $hasta->toDateString(),
+                'total' => count($data),
+            ],
+        ]);
     }
 
     /**
-     * Marcar una comisión como pagada (D5).
+     * Bancas visibles para el usuario en la consulta.
      *
-     * PATCH /api/v1/comisiones/{comision}/pagar — super_master|master +
-     * manage_comisiones; el master solo dentro de masterBancaIds (403).
-     * pendiente→pagado; PATCH sobre una fila ya pagada = no-op idempotente.
+     * super_master ⇒ null (sin restricción, alcance global); master ⇒ ids
+     * de las bancas que administra (posiblemente vacío, nunca global).
+     *
+     * @return array<int, int>|null
      */
-    public function pagar(Request $request, Comision $comision)
+    private function bancasEnAlcance(User $user): ?array
     {
-        $user = $request->user();
-
-        if ($user->role === 'master' && ! $this->comisionEnAlcanceMaster($user, $comision)) {
-            return response()->json(['message' => 'No autorizado.'], 403);
+        if ($user->role === 'master') {
+            return $user->masterBancaIds()->all();
         }
 
-        if ($comision->estado === 'pendiente') {
-            $comision->update(['estado' => 'pagado']);
-
-            Log::create([
-                'user_id' => $user->id,
-                'action' => 'comision_pagar',
-                'details' => json_encode(['comision_id' => $comision->id]),
-                'ip' => $request->ip(),
-                'user_agent' => $request->header('User-Agent'),
-            ]);
-        }
-
-        return response()->json($comision->fresh());
-    }
-
-    /**
-     * ¿La comisión pertenece a una banca administrada por este master?
-     * Cubre los tres niveles del ledger (banca, grupo y taquilla).
-     */
-    private function comisionEnAlcanceMaster(User $user, Comision $comision): bool
-    {
-        $bancaIds = $user->masterBancaIds();
-
-        if ($bancaIds->isEmpty()) {
-            return false;
-        }
-
-        if ($comision->banca_id !== null) {
-            return $bancaIds->contains((int) $comision->banca_id);
-        }
-
-        if ($comision->grupo_id !== null) {
-            return Grupo::where('id', $comision->grupo_id)
-                ->whereIn('banca_id', $bancaIds)
-                ->exists();
-        }
-
-        if ($comision->taquilla_id !== null) {
-            return Taquilla::where('id', $comision->taquilla_id)
-                ->whereHas('grupo', fn ($g) => $g->whereIn('banca_id', $bancaIds))
-                ->exists();
-        }
-
-        return false;
+        return null;
     }
 }

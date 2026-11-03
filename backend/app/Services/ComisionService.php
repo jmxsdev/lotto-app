@@ -4,16 +4,13 @@ namespace App\Services;
 
 use App\Models\Apuesta;
 use App\Models\Banca;
-use App\Models\Comision;
 use App\Models\ComisionDefault;
 use App\Models\Grupo;
 use App\Models\Juego;
 use App\Models\JuegoLimite;
-use App\Models\Log;
 use App\Models\Taquilla;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Lectores de tasa de comisión (S2, D2/D11).
@@ -190,7 +187,7 @@ class ComisionService
     }
 
     // ==================================================
-    // S3 — Cálculo por rango (D6) y previsualización (D7)
+    // S3 — Cálculo por rango (D6) y consulta read-only
     // ==================================================
 
     /**
@@ -511,120 +508,21 @@ class ComisionService
     }
 
     /**
-     * Previsualización de liquidación (D7): filas candidatas (banca +
-     * grupo + taquilla; sin filas para entidades con base 0) y conflictos
-     * (entidades con filas `comisiones` cuyo rango se solapa con
-     * [desde, hasta]).
+     * Consulta read-only de comisiones por rango (Modelo A).
      *
-     * @return array{rows: array<int, array<string, mixed>>, conflictos: array<int, array<string, int>>}
+     * Devuelve una fila por entidad (banca, grupo y taquilla) con ventas
+     * en [desde, hasta], reusando el mismo motor de cálculo y topes que
+     * los reportes. Normaliza el rango a startOfDay/endOfDay; las
+     * entidades con base 0 se omiten. No persiste nada ni expone
+     * conflictos del ledger: solo las filas.
+     *
+     * @return array<int, array<string, mixed>>
      */
-    public function previsualizar(Carbon $desde, Carbon $hasta, ?array $bancaIds = null): array
+    public function filasPorRango(Carbon $desde, Carbon $hasta, ?array $bancaIds = null): array
     {
         $desde = $desde->copy()->startOfDay();
         $hasta = $hasta->copy()->endOfDay();
 
-        $filas = $this->filasLiquidables($desde, $hasta, $bancaIds);
-
-        return [
-            'rows' => $filas['rows'],
-            'conflictos' => $this->conflictosPorRango(
-                $filas['bancaIds'],
-                $filas['grupoIds'],
-                $filas['taquillaIds'],
-                $desde,
-                $hasta
-            ),
-        ];
-    }
-
-    /**
-     * Liquidar comisiones del rango en el ledger (D4/D7).
-     *
-     * Escribe UNA fila por (nivel, entidad, rango) para Banca, Grupo y
-     * Taquilla con base > 0 (todos los niveles cobran su propia comisión);
-     * `estado` pendiente; rango persistido en `fecha_inicio`/`fecha_fin` y
-     * etiqueta `periodo` `YYYY-MM-DD..YYYY-MM-DD`. Si alguna entidad en
-     * alcance ya tiene filas con rango solapado (`fecha_inicio <= hasta AND
-     * fecha_fin >= desde`), rechaza TODO el lote y devuelve los ids en
-     * conflicto (el controlador responde 422); la re-liquidación idéntica
-     * también es solapamiento (sin doble conteo). Todo dentro de
-     * `DB::transaction` y el query de solapamiento usa `lockForUpdate`
-     * para serializar liquidaciones concurrentes del mismo rango.
-     *
-     * @return array{rows: array<int, Comision>, conflictos: array<int, array<string, int>>}
-     */
-    public function liquidar(Carbon $desde, Carbon $hasta, ?array $bancaIds, int $userId): array
-    {
-        $desde = $desde->copy()->startOfDay();
-        $hasta = $hasta->copy()->endOfDay();
-
-        return DB::transaction(function () use ($desde, $hasta, $bancaIds, $userId) {
-            $filas = $this->filasLiquidables($desde, $hasta, $bancaIds);
-
-            $conflictos = $this->conflictosPorRango(
-                $filas['bancaIds'],
-                $filas['grupoIds'],
-                $filas['taquillaIds'],
-                $desde,
-                $hasta,
-                lock: true
-            );
-
-            if ($conflictos !== []) {
-                return ['rows' => [], 'conflictos' => $conflictos];
-            }
-
-            $creadas = [];
-
-            foreach ($filas['rows'] as $fila) {
-                $data = [
-                    'periodo' => $desde->toDateString().'..'.$hasta->toDateString(),
-                    'monto_comision' => $fila['monto_comision'],
-                    'estado' => 'pendiente',
-                    'fecha_inicio' => $desde->toDateString(),
-                    'fecha_fin' => $hasta->toDateString(),
-                ];
-
-                if ($fila['nivel'] === 'banca') {
-                    $data['banca_id'] = $fila['entidad_id'];
-                } elseif ($fila['nivel'] === 'grupo') {
-                    $data['grupo_id'] = $fila['entidad_id'];
-                } else {
-                    $data['taquilla_id'] = $fila['entidad_id'];
-                }
-
-                $creadas[] = Comision::create($data);
-            }
-
-            // Auditoría de la liquidación (mismo patrón Log::create del resto
-            // de escrituras; el usuario llega por contrato D7).
-            Log::create([
-                'user_id' => $userId,
-                'action' => 'comision_liquidar',
-                'details' => json_encode([
-                    'desde' => $desde->toDateString(),
-                    'hasta' => $hasta->toDateString(),
-                    'filas' => count($creadas),
-                    'total' => array_sum(array_map(fn ($c) => (float) $c->monto_comision, $creadas)),
-                ]),
-            ]);
-
-            return ['rows' => $creadas, 'conflictos' => []];
-        });
-    }
-
-    /**
-     * Filas candidatas de liquidación (D7) + ids de las entidades en
-     * alcance (para el query de solapamiento).
-     *
-     * Entidades con base de ventas > 0; Banca, Grupo y Taquilla generan
-     * fila (todos los niveles cobran su propia comisión).
-     * `desde`/`hasta` deben venir normalizados (startOfDay/endOfDay).
-     *
-     * @return array{rows: array<int, array<string, mixed>>, bancaIds: array<int, int>, grupoIds: array<int, int>, taquillaIds: array<int, int>}
-     */
-    private function filasLiquidables(Carbon $desde, Carbon $hasta, ?array $bancaIds): array
-    {
         $bancaQuery = Banca::query();
         $grupoQuery = Grupo::query();
         $taquillaQuery = Taquilla::query();
@@ -641,10 +539,6 @@ class ComisionService
             'grupo' => $grupoQuery->get(),
             'taquilla' => $taquillaQuery->get(),
         ];
-
-        $bancaIdsEnAlcance = $entidadesPorNivel['banca']->pluck('id')->all();
-        $grupoIds = $entidadesPorNivel['grupo']->pluck('id')->all();
-        $taquillaIds = $entidadesPorNivel['taquilla']->pluck('id')->all();
 
         $rows = [];
 
@@ -685,67 +579,6 @@ class ComisionService
             }
         }
 
-        return [
-            'rows' => $rows,
-            'bancaIds' => $bancaIdsEnAlcance,
-            'grupoIds' => $grupoIds,
-            'taquillaIds' => $taquillaIds,
-        ];
-    }
-
-    /**
-     * Entidades con filas `comisiones` cuyo rango se solapa con [desde, hasta].
-     *
-     * Con `$lock = true` (liquidar) la consulta usa `lockForUpdate` para
-     * serializar liquidaciones concurrentes: las lecturas con bloqueo ven
-     * el último estado confirmado, así una segunda liquidación del mismo
-     * rango detecta las filas recién insertadas por la primera (D4).
-     *
-     * @return array<int, array<string, int>>
-     */
-    private function conflictosPorRango(array $bancaIds, array $grupoIds, array $taquillaIds, Carbon $desde, Carbon $hasta, bool $lock = false): array
-    {
-        $conflictos = [];
-
-        if ($bancaIds === [] && $grupoIds === [] && $taquillaIds === []) {
-            return $conflictos;
-        }
-
-        $query = Comision::where('fecha_inicio', '<=', $hasta->toDateString())
-            ->where('fecha_fin', '>=', $desde->toDateString())
-            ->where(function ($q) use ($bancaIds, $grupoIds, $taquillaIds) {
-                $primera = true;
-
-                foreach ([['banca_id', $bancaIds], ['grupo_id', $grupoIds], ['taquilla_id', $taquillaIds]] as [$columna, $ids]) {
-                    if ($ids === []) {
-                        continue;
-                    }
-
-                    $primera ? $q->whereIn($columna, $ids) : $q->orWhereIn($columna, $ids);
-                    $primera = false;
-                }
-            });
-
-        if ($lock) {
-            $query->lockForUpdate();
-        }
-
-        $solapadas = $query->get(['banca_id', 'grupo_id', 'taquilla_id']);
-
-        foreach ($solapadas as $comision) {
-            if ($comision->banca_id !== null) {
-                $conflictos[] = ['nivel' => 'banca', 'entidad_id' => $comision->banca_id];
-            }
-
-            if ($comision->grupo_id !== null) {
-                $conflictos[] = ['nivel' => 'grupo', 'entidad_id' => $comision->grupo_id];
-            }
-
-            if ($comision->taquilla_id !== null) {
-                $conflictos[] = ['nivel' => 'taquilla', 'entidad_id' => $comision->taquilla_id];
-            }
-        }
-
-        return array_values(array_unique($conflictos, SORT_REGULAR));
+        return $rows;
     }
 }

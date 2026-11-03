@@ -1,0 +1,35 @@
+info:
+  name: Consultar Comisiones
+  type: http
+  seq: 6
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/v1/comisiones/consulta?desde=2026-09-01&hasta=2026-09-30"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+  params:
+    - name: desde
+      value: "2026-09-01"
+      type: query
+    - name: hasta
+      value: "2026-09-30"
+      type: query
+  auth: inherit
+
+docs:
+  - |
+    # Consultar comisiones por rango (solo lectura)
+    - Roles: SM | M (master scoped a `masterBancaIds()`; sin bancas → lista vacía)
+    - Autenticación: Sanctum (Bearer) — auth: inherit
+    - `desde`/`hasta` required (date; `hasta` ≥ `desde` → si no, **422** `{ errors }`)
+    - `banca_ids[]` opcional (array de enteros): el SM filtra bancas; un master con ids fuera de su alcance → **403**. Sin `banca_ids`, el master consulta sus bancas.
+    - No persiste nada: sin `estado`, sin `pendiente`/`pagado`, sin acciones de pago ni conflictos; las entidades sin ventas (base 0) se omiten.
+    - Respuesta 200: `{ data: [{ nivel, entidad_id, entidad, monto_comision }], meta: { desde, hasta, total } }`; `monto_comision` es string de 2 decimales (bs-equivalente) y `meta` refleja el rango aplicado.
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

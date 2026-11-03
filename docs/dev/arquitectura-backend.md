@@ -63,7 +63,7 @@ banca/grupo/taquilla/agencia con comisiones y cierres de caja.
 | `Http/Middleware/` | Negocio | `VerifyMac` (huella MAC del dispositivo de taquilla), `CheckRole` |
 | `Http/Requests/` | Negocio | `ApuestaStoreRequest`: pide las reglas de validación **al plugin del juego**, así la forma de `combinacion` cambia por tipo de juego |
 | `Jobs/` | Negocio | `ScrapeSourceJob` (canónico, por fuente), `ScrapeResultsJob` (por juego, legado), `FetchResultsJob` (legado animalitos), `ScrapeExchangeRateJob`, `ExpireUnclaimedPrizesJob`, `MarcarApuestasVencidasJob` |
-| `Models/` | Negocio | Eloquent de dominio (`Apuesta`, `DetalleApuesta`, `Ticket`, `Juego`, `JuegoOpcion`, `JuegoHorario`, `JuegoLimite`, `Resultado`, `Pago`, jerarquía `Banca`/`Grupo`/`Agencia`/`Taquilla`, `Comision`, `CierreCaja`, …) |
+| `Models/` | Negocio | Eloquent de dominio (`Apuesta`, `DetalleApuesta`, `Ticket`, `Juego`, `JuegoOpcion`, `JuegoHorario`, `JuegoLimite`, `Resultado`, `Pago`, jerarquía `Banca`/`Grupo`/`Agencia`/`Taquilla`, `ComisionDefault`, `CierreCaja`, …) |
 | `Plugins/Contracts/` | Negocio | `JuegoInterface` |
 | `Plugins/Juegos/` | Negocio | `Animalitos`, `Terminales`, `Tripletas` (plugins de **juego**) |
 | `Plugins/Scrapers/` | Negocio | `BaseScraper` + ~18 scrapers concretos (`LoteriaDeHoyScraper`, `LaGranjitaScraper`, `TripleCalienteOficialScraper`, …) |

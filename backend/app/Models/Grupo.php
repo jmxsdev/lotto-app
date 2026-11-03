@@ -47,11 +47,6 @@ class Grupo extends Model
         return $this->hasMany(User::class);
     }
 
-    public function comisiones()
-    {
-        return $this->hasMany(Comision::class);
-    }
-
     public function juegoLimites()
     {
         return $this->hasMany(JuegoLimite::class);

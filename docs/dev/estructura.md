@@ -44,7 +44,6 @@ lotto-app/                           # Raíz del proyecto
 │   │   │   ├── Pago.php
 │   │   │   ├── CierreCaja.php
 │   │   │   ├── ExchangeRate.php
-│   │   │   ├── Comision.php
 │   │   │   ├── Juego.php
 │   │   │   ├── PluginJuego.php
 │   │   │   └── Log.php
