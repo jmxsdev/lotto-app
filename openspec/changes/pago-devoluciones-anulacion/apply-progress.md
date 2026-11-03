@@ -297,6 +297,84 @@ Deviations / notes:
 - No migrations, routes, model changes, `PagoController`, `TicketAnulacionService`,
   `ApuestaController`, or WU5 files were touched. Changes are left uncommitted.
 
+## WU5 (gated) — legacy audit
+
+Status: **complete / GREEN (user-reported)** on the focused command and the combined WU suite. Owner-gated:
+dry-run review before any `--apply`. The agent never executes tests. **size:exception approved by owner** for the cycle.
+
+Files:
+- `backend/app/Services/PremiosLiquidador.php` (new)
+- `backend/app/Http/Controllers/Api/PagoController.php` (modified — delegates to the new service)
+- `backend/app/Console/Commands/AuditarPagosLegacy.php` (new)
+- `backend/tests/Feature/AuditarPagosLegacyTest.php` (new)
+- `docs/dev/runbook-ops.md` (modified — dry-run/apply/revert procedure + owner approval + backup warning)
+
+Behavior:
+- Behavior-neutral extraction: `PremiosLiquidador::calcular(Apuesta, ?Resultado)`
+  and `esMultiSorteo(array)` are the previous `PagoController` private methods,
+  including `premios_snapshot`, the multi-sorteo/tripleta path and the legacy
+  fallback. `PagoController` receives the service in the constructor and calls
+  `$this->premios->calcular(...)`; egreso responses/statuses are unchanged.
+- `pagos:auditar-legacy` is off by default. Without `--apply`/`--revert` it is a
+  dry-run: runs the C1-C5 queries from design §10.1, groups the findings by
+  taquilla, optionally writes a CSV (`--csv=path`), and performs **zero DB
+  writes**. `--apply` and `--revert` are mutually exclusive.
+- `--apply` and `--revert` refuse without numeric `--ids` (exit `1`, zero writes).
+- `--apply --ids` is per-id and transactional: recomputes the engine prize,
+  transitions `pagada -> ganadora` (prize > 0) or `pagada -> perdida` (prize = 0)
+  — never back to `pendiente` —, restores `detalle_apuestas.premio_ganado(_usd)`,
+  recomputes the ticket state (`anulada` if zero live lines, `ganador` if any
+  unpaid winner, `pagada` if every live line is resolved), keeps the `pagos`
+  rows untouched and writes exactly one `auditoria.pago_legacy` log per changed
+  apuesta with structured `old_values`/`new_values`.
+- A multi-line ticket whose engine sum does not reconcile with
+  `tickets.premio_total_*` (±0.01) is skipped as **REVISION MANUAL** (exit `1`,
+  no write). `pagos.amount_*`, `cierres_caja` and `comisiones` are never touched.
+- `--revert --ids` reads the latest `auditoria.pago_legacy` log per apuesta and
+  restores `old_values` (state, prize evidence, ticket state) inside a
+  transaction; it writes no new logs and refuses without `--ids`. A state that
+  no longer matches `new_values` is skipped with a warning.
+- The test lives in `tests/Feature` instead of the design-forecast `tests/Unit`
+  because the command needs `RefreshDatabase`, the seeded catalog and the real
+  plugin engine; a Unit test would fake persistence and stop proving the write
+  guarantees. `tasks.md` records this placement.
+
+TDD evidence (Strict TDD active; the agent never runs tests):
+
+| Task | RED (test written first) | GREEN (user-run) | REFACTOR |
+|---|---|---|---|
+| 6.1 | Existing `Pago`/`Apuesta` prize tests exercise the engine through the controller after the extraction (no behavior change) | pending | n/a |
+| 6.2 | `test_dry_run_encuentra_c1_c2_c3_c4_c5_y_no_escribe_nada`, `test_dry_run_exporta_csv_sin_escribir_en_la_base`, `test_apply_sin_ids_se_rechaza_y_no_escribe`, `test_apply_recalcula_premio_estado_detalle_y_ticket_y_conserva_pagos`, `test_apply_marca_perdida_cuando_el_motor_calcula_cero`, `test_revert_sin_ids_se_rechaza_y_no_escribe`, `test_revert_restaura_los_old_values_del_ultimo_log`, `test_apply_y_revert_son_mutuamente_excluyentes`, `test_apply_ignora_ids_que_no_son_c1_c2_sin_escribir` | pending | n/a |
+| 6.3 | `test_ticket_multilinea_que_no_cuadra_va_a_revision_manual_sin_escrituras` + `pagos`/`cierres_caja`/`comisiones` assertions in the apply test | pending | n/a |
+| 6.4 | n/a (documentation; verified against the command options and guarantees) | pending | n/a |
+
+Work Unit Evidence (WU5):
+
+| Evidence | Value |
+|---|---|
+| Focused test command | `cd backend && php artisan test --filter=AuditarPagosLegacy` -> **user-run pending** |
+| Runtime harness | Artisan command in the Feature test suite against MySQL `lotto_test`: real C1-C5 SQL, seeded `lotto-activo` plugin engine, real transactions and `logs` writes; dry-run/apply/revert asserted end-to-end |
+| Rollback boundary | `PremiosLiquidador`, `AuditarPagosLegacy`, the `PagoController` constructor/delegation and the WU5 test/doc; command is off by default, no runtime effect. If an apply already ran, use `--revert --ids` before reverting code |
+
+Deviations / notes:
+- Test placement Feature vs. design Unit (justified above; `tasks.md` updated).
+- Review size is above the design's per-file estimate (the dry-run grouping/CSV
+  and the revert guards are explicit), but stays within the WU5 contract; no
+  behavior outside the gated audit was added.
+- `PremiosLiquidador::calcular` reads `detalles` from the loaded relation when
+  present and falls back to the relation query otherwise; the calculation inputs
+  are byte-identical to the previous controller method.
+- `--revert` refuses to restore an apuesta whose current state no longer matches
+  the recorded `new_values`, and only restores the ticket state when it still
+  matches `new_values.ticket_estado`; this prevents clobbering a later egreso.
+  In the normal apply -> revert flow it restores the full `old_values`.
+- Exit codes: `0` for a dry-run and for a fully applied/reverted run; `1` for
+  bad/missing ids, mixed `--apply`/`--revert`, any skipped id (manual review) or
+  an unexpected exception.
+- No migrations, routes, model changes, reports, WU3/WU4 files or earlier WU
+  tests were touched. Changes are intentionally left uncommitted.
+
 ## Next
 
-WU5 — legacy audit (owner-gated). Not started (out of this batch's scope).
+WU5 is owner-gated: run the focused command, review the dry-run output, then
+`--apply --ids=...` only after the owner approves the ids and a backup exists.

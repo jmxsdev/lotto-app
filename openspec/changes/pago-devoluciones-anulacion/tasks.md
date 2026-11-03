@@ -185,22 +185,31 @@ Status (apply batch WU4): **GREEN (user-reported)** on the focused command above
 
 Files:
 - `backend/app/Services/PremiosLiquidador.php` (create — extract `calcularPremio`/`esMultiSorteo`)
+- `backend/app/Http/Controllers/Api/PagoController.php` (modify — delegate to `PremiosLiquidador`)
 - `backend/app/Console/Commands/AuditarPagosLegacy.php` (create)
-- `backend/tests/Unit/AuditarPagosLegacyTest.php` (create)
+- `backend/tests/Feature/AuditarPagosLegacyTest.php` (create)
 - `docs/dev/runbook-ops.md` (modify)
 
+> Test placement: Feature (design forecast `tests/Unit/`). The command executes the
+> C1-C5 SQL queries, recomputes prizes through the real plugin engine, and
+> mutates the DB; it needs `RefreshDatabase`, the seeded catalog and the DB
+> connection, so a Unit test would have to fake the entire persistence layer
+> and would stop proving the write guarantees.
+
 RED — write first:
-- `AuditarPagosLegacyTest.php` (C1-C5 dry-run output; zero writes by default; `--apply` refuses without explicit `--ids`; `--revert` reads `old_values` from `logs`)
+- `AuditarPagosLegacyTest.php` (C1-C5 dry-run output; zero writes by default; `--apply` refuses without explicit `--ids`; `--apply --ids` recomputes prize/state/detail/ticket and keeps `pagos`; `--revert` reads `old_values` from `logs`; multi-line mismatch → manual review; `pagos.amount_*`/`cierres_caja`/`comisiones` untouched)
 - Command: `cd backend && php artisan test --filter=AuditarPagosLegacy` → expect RED.
 
 Implementation tasks (owner-gated; only after dry-run review):
-- [ ] 6.1 Extract `calcularPremio` + `esMultiSorteo` from `PagoController` into `PremiosLiquidador` (behavior-neutral; controller delegates).
-- [ ] 6.2 Create `pagos:auditar-legacy` command: `--dry-run` (queries grouped by taquilla + CSV, zero writes), `--apply --ids=` (explicit ids only: recompute prize, `estado` → `ganadora`/`perdida`, restore `premio_ganado`, recompute ticket estado, keep `pagos` rows, one `logs` entry), `--revert`.
-- [ ] 6.3 Never touch `pagos.amount_*`, `cierres_caja`, `comisiones`; multi-line tickets that don't reconcile → manual review, no write.
-- [ ] 6.4 Document dry-run/apply/revert + owner approval in `docs/dev/runbook-ops.md`.
+- [x] 6.1 Extract `calcularPremio` + `esMultiSorteo` from `PagoController` into `PremiosLiquidador` (behavior-neutral; controller delegates).
+- [x] 6.2 Create `pagos:auditar-legacy` command: `--dry-run` (queries grouped by taquilla + CSV, zero writes), `--apply --ids=` (explicit ids only: recompute prize, `estado` → `ganadora`/`perdida`, restore `premio_ganado`, recompute ticket estado, keep `pagos` rows, one `logs` entry), `--revert`.
+- [x] 6.3 Never touch `pagos.amount_*`, `cierres_caja`, `comisiones`; multi-line tickets that don't reconcile → manual review, no write.
+- [x] 6.4 Document dry-run/apply/revert + owner approval in `docs/dev/runbook-ops.md`.
 
 GREEN — `cd backend && php artisan test --filter=AuditarPagosLegacy` → GREEN.
 Rollback: command off by default; no runtime effect; `--revert` from `logs`.
+
+Status (apply batch WU5): **GREEN (user-reported)** on the focused command and the combined WU suite. The agent never executes tests. Owner-gated: dry-run review before any `--apply`. **size:exception approved by owner** for the cycle.
 
 ---
 
