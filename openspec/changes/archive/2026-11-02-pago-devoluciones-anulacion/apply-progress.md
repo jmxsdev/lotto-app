@@ -5,6 +5,8 @@ Branch: `feature/pago-devoluciones-anulacion`
 Strategy: `feature-branch-chain` / `auto-chain`
 Test execution: user-run only (the agent never executes tests).
 
+Final state (refreshed at archive on 2026-11-02): WU1–WU5 are committed on the branch. `verify-report` round 2 = **pass_with_warnings** (13/13 requirements, 41/41 scenarios); the two round-1 blockers were closed by `4b36597` (two tests only, no production change). User-reported evidence: every focused filter GREEN and `composer test:parallel` = **1337 tests, 7726 assertions, 2 skipped, OK**. The `GREEN` columns below were refreshed from the stale `pending` values to this verified final state.
+
 ## WU1 — `ApuestaPolicy` reason extraction
 
 Status: **complete / GREEN (user-reported)**
@@ -78,7 +80,7 @@ Work Unit Evidence (WU2):
 
 | Evidence | Value |
 |---|---|
-| Focused test command | `cd backend && php artisan test --filter='PagoIngresoRechazado\|PagoEgresoUnicoMutante\|PagoTipo\|ApuestaTest'` -> **user-run pending** |
+| Focused test command | `cd backend && php artisan test --filter='PagoIngresoRechazado\|PagoEgresoUnicoMutante\|PagoTipo\|ApuestaTest'` -> **GREEN (user-reported)** |
 | Runtime harness | HTTP feature tests through `/api/v1/pagos` (Sanctum + role middleware + MySQL `lotto_test`), real engine, real transaction/lock; `DB::getQueryLog()` asserts the `select ... for update` |
 | Rollback boundary | `PagoController::store` + `collections/Pagos/Registrar Pago (Token required).yml` + the WU2 tests; no data effect (no refunds exist yet) |
 
@@ -135,17 +137,17 @@ TDD evidence (Strict TDD active; the agent never runs tests):
 
 | Task | RED (test written first) | GREEN (user-run) | REFACTOR |
 |---|---|---|---|
-| 3.1 | `PagoDevolucionAnulacionTest` (403/404/422 paths through the controller) | pending | n/a |
-| 3.2 | `test_anulacion_registra_devolucion_espejo_de_la_venta`, `test_anulacion_multilinea_registra_una_devolucion_por_linea` | pending | n/a |
-| 3.3 | `test_apuestas_y_ticket_quedan_anulados_y_soft_deleted`, `test_la_devolucion_no_toca_el_premio_ganado`, `test_anulacion_registra_el_log_ticket_anulado`, `test_reintento_tras_la_anulacion_devuelve_404`, `test_ticket_de_otro_grupo_devuelve_403`, `test_ticket_sin_jugadas_vivas_devuelve_422`, `test_all_or_nothing_una_linea_mala_no_escribe_nada`, `test_ticket_no_pendiente_devuelve_422_sin_escrituras` | pending | n/a |
-| 3.4 | `EliminacionApuestasTest` updated (refund row after `DELETE /tickets`, 403 ownership) | pending | n/a |
-| 3.5 | `test_anular_apuesta_suelta_registra_devolucion_y_la_anula` | pending | n/a |
+| 3.1 | `PagoDevolucionAnulacionTest` (403/404/422 paths through the controller) | GREEN (user-reported) | n/a |
+| 3.2 | `test_anulacion_registra_devolucion_espejo_de_la_venta`, `test_anulacion_multilinea_registra_una_devolucion_por_linea` | GREEN (user-reported) | n/a |
+| 3.3 | `test_apuestas_y_ticket_quedan_anulados_y_soft_deleted`, `test_la_devolucion_no_toca_el_premio_ganado`, `test_anulacion_registra_el_log_ticket_anulado`, `test_reintento_tras_la_anulacion_devuelve_404`, `test_ticket_de_otro_grupo_devuelve_403`, `test_ticket_sin_jugadas_vivas_devuelve_422`, `test_all_or_nothing_una_linea_mala_no_escribe_nada`, `test_ticket_no_pendiente_devuelve_422_sin_escrituras` | GREEN (user-reported) | n/a |
+| 3.4 | `EliminacionApuestasTest` updated (refund row after `DELETE /tickets`, 403 ownership) | GREEN (user-reported) | n/a |
+| 3.5 | `test_anular_apuesta_suelta_registra_devolucion_y_la_anula` | GREEN (user-reported) | n/a |
 
 Work Unit Evidence (WU3-A):
 
 | Evidence | Value |
 |---|---|
-| Focused test command | `cd backend && php artisan test --filter='PagoDevolucionAnulacion\|EliminacionApuestas'` -> **user-run pending** |
+| Focused test command | `cd backend && php artisan test --filter='PagoDevolucionAnulacion\|EliminacionApuestas'` -> **GREEN (user-reported)** |
 | Runtime harness | HTTP feature tests through `DELETE /api/v1/tickets/{id}` (Sanctum + role middleware + MySQL `lotto_test`), real policy, real transaction/lock, plus a direct service call for the ticketless path |
 | Rollback boundary | `TicketAnulacionService`, `TicketAnulacionException`, `TicketController::destroy`, `PagoDevolucionAnulacionTest`, `EliminacionApuestasTest`; safe only if no production refunds were recorded |
 
@@ -197,16 +199,16 @@ TDD evidence (Strict TDD active; the agent never runs tests):
 
 | Task | RED (test written first) | GREEN (user-run) | REFACTOR |
 |---|---|---|---|
-| 4.1 | `PagoDevolucionRechazosTest` (ticketless 200, ticket-line 422 redirect, cross-tenant 403 before redirect, out-of-window 422, no partial writes) | pending | n/a |
-| 4.2 | `PagoDevolucionRechazosTest` (states `ganadora`/`pagada`/`perdida`/`vencido`/`anulada`, `resultado_id`, sorteo ocurrido, window boundary 5/10/15 with `Carbon::setTestNow`, unknown ticket 404, zero live lines 422, cross-tenant 403, all-or-nothing), `MetodoPagoTest` (mirror/override/USD/invalid override) | pending | n/a |
-| 4.3 | n/a (documentation; verified against controller/tests) | pending | n/a |
-| visible | `TicketAnuladosVisiblesTest` (multi-line annulment stays visible, zero live lines, one refund per line) | pending | n/a |
+| 4.1 | `PagoDevolucionRechazosTest` (ticketless 200, ticket-line 422 redirect, cross-tenant 403 before redirect, out-of-window 422, no partial writes) | GREEN (user-reported) | n/a |
+| 4.2 | `PagoDevolucionRechazosTest` (states `ganadora`/`pagada`/`perdida`/`vencido`/`anulada`, `resultado_id`, sorteo ocurrido, window boundary 5/10/15 with `Carbon::setTestNow`, unknown ticket 404, zero live lines 422, cross-tenant 403, all-or-nothing), `MetodoPagoTest` (mirror/override/USD/invalid override) | GREEN (user-reported) | n/a |
+| 4.3 | n/a (documentation; verified against controller/tests) | GREEN (user-reported) | n/a |
+| visible | `TicketAnuladosVisiblesTest` (multi-line annulment stays visible, zero live lines, one refund per line) | GREEN (user-reported) | n/a |
 
 Work Unit Evidence (WU3-B):
 
 | Evidence | Value |
 |---|---|
-| Focused test command | `cd backend && php artisan test --filter='PagoDevolucionRechazos\|MetodoPago\|TicketAnuladosVisibles'` -> **user-run pending** |
+| Focused test command | `cd backend && php artisan test --filter='PagoDevolucionRechazos\|MetodoPago\|TicketAnuladosVisibles'` -> **GREEN (user-reported)** |
 | Runtime harness | HTTP feature tests through `DELETE /api/v1/apuestas/{id}` and `DELETE /api/v1/tickets/{id}` (Sanctum + role/MAC middleware, MySQL `lotto_test`), real policy, real service transaction/lock |
 | Rollback boundary | `ApuestaController::destroy` + the two collections + WU3-B tests; ticket refunds from WU3-A stay working |
 
@@ -221,7 +223,7 @@ Deviations / notes:
   lines have no ticket, no `resultado_id`, a fresh `created_at` and a null
   `sorteo_hora`, so the service annuls + refunds them.
 - No migrations, routes, model changes, `PagoController`, reports, or WU4 files
-  were touched. Changes are intentionally left uncommitted.
+  were touched. All changes are committed on the branch (commit list in `archive-report.md`).
 
 ## WU4 — report reversal-pair exclusion
 
@@ -266,16 +268,16 @@ TDD evidence (Strict TDD active; the agent never runs tests):
 
 | Task | RED (test written first) | GREEN (user-run) | REFACTOR |
 |---|---|---|---|
-| 5.1 | `CuadreCajaReportTest::test_cuadre_excluye_par_de_reversion_*`, `test_cuadre_cuenta_devolucion_de_venta_fuera_de_la_ventana`, `test_cuadre_cuenta_devolucion_sin_apuesta_asociada`, `test_cuadre_venta_anulada_sin_devolucion_no_regresiona` | pending | n/a |
-| 5.2 | `EstadisticaTest::test_time_series_excluye_par_de_reversion_y_conserva_las_seis_series`, `test_time_series_par_cross_midnight_nets_cero_en_la_ventana` | pending | n/a |
-| 5.3 | `CierreCajaTest::test_cierre_excluye_par_de_reversion_y_conserva_el_efectivo`, `test_cierre_desglose_metodos_cuadra_con_ventas_incluyendo_usd`, `test_cierre_cuenta_devolucion_de_venta_fuera_de_la_ventana` | pending | n/a |
-| 5.4 | n/a (documentation; verified against helper/services) | pending | n/a |
+| 5.1 | `CuadreCajaReportTest::test_cuadre_excluye_par_de_reversion_*`, `test_cuadre_cuenta_devolucion_de_venta_fuera_de_la_ventana`, `test_cuadre_cuenta_devolucion_sin_apuesta_asociada`, `test_cuadre_venta_anulada_sin_devolucion_no_regresiona` | GREEN (user-reported) | n/a |
+| 5.2 | `EstadisticaTest::test_time_series_excluye_par_de_reversion_y_conserva_las_seis_series`, `test_time_series_par_cross_midnight_nets_cero_en_la_ventana` | GREEN (user-reported) | n/a |
+| 5.3 | `CierreCajaTest::test_cierre_excluye_par_de_reversion_y_conserva_el_efectivo`, `test_cierre_desglose_metodos_cuadra_con_ventas_incluyendo_usd`, `test_cierre_cuenta_devolucion_de_venta_fuera_de_la_ventana` | GREEN (user-reported) | n/a |
+| 5.4 | n/a (documentation; verified against helper/services) | GREEN (user-reported) | n/a |
 
 Work Unit Evidence (WU4):
 
 | Evidence | Value |
 |---|---|
-| Focused test command | `cd backend && php artisan test --filter='CuadreCaja\|CierreCaja\|Estadistica'` -> **user-run pending** |
+| Focused test command | `cd backend && php artisan test --filter='CuadreCaja\|CierreCaja\|Estadistica'` -> **GREEN (user-reported)** |
 | Runtime harness | HTTP feature tests through `GET /api/v1/reportes/cuadre-caja`, `GET /api/v1/estadisticas/rendimiento`, `POST /api/v1/cierre` (Sanctum + MySQL `lotto_test`), real service queries against `pagos`/`apuestas` |
 | Rollback boundary | `ReversalPairQuery`, the two report/cierre service edits, the three test files and the doc; **must not revert WU4 alone** (reintroduces `Efectivo = −R`) |
 
@@ -295,7 +297,7 @@ Deviations / notes:
   `test_cuadre_excluye_par_de_reversion_con_venta_soft_deleted` with a live
   sale keeping the taquilla visible (pre-existing R11 visibility quirk).
 - No migrations, routes, model changes, `PagoController`, `TicketAnulacionService`,
-  `ApuestaController`, or WU5 files were touched. Changes are left uncommitted.
+  `ApuestaController`, or WU5 files were touched. All changes are committed on the branch (commit list in `archive-report.md`).
 
 ## WU5 (gated) — legacy audit
 
@@ -343,16 +345,16 @@ TDD evidence (Strict TDD active; the agent never runs tests):
 
 | Task | RED (test written first) | GREEN (user-run) | REFACTOR |
 |---|---|---|---|
-| 6.1 | Existing `Pago`/`Apuesta` prize tests exercise the engine through the controller after the extraction (no behavior change) | pending | n/a |
-| 6.2 | `test_dry_run_encuentra_c1_c2_c3_c4_c5_y_no_escribe_nada`, `test_dry_run_exporta_csv_sin_escribir_en_la_base`, `test_apply_sin_ids_se_rechaza_y_no_escribe`, `test_apply_recalcula_premio_estado_detalle_y_ticket_y_conserva_pagos`, `test_apply_marca_perdida_cuando_el_motor_calcula_cero`, `test_revert_sin_ids_se_rechaza_y_no_escribe`, `test_revert_restaura_los_old_values_del_ultimo_log`, `test_apply_y_revert_son_mutuamente_excluyentes`, `test_apply_ignora_ids_que_no_son_c1_c2_sin_escribir` | pending | n/a |
-| 6.3 | `test_ticket_multilinea_que_no_cuadra_va_a_revision_manual_sin_escrituras` + `pagos`/`cierres_caja`/`comisiones` assertions in the apply test | pending | n/a |
-| 6.4 | n/a (documentation; verified against the command options and guarantees) | pending | n/a |
+| 6.1 | Existing `Pago`/`Apuesta` prize tests exercise the engine through the controller after the extraction (no behavior change) | GREEN (user-reported) | n/a |
+| 6.2 | `test_dry_run_encuentra_c1_c2_c3_c4_c5_y_no_escribe_nada`, `test_dry_run_exporta_csv_sin_escribir_en_la_base`, `test_apply_sin_ids_se_rechaza_y_no_escribe`, `test_apply_recalcula_premio_estado_detalle_y_ticket_y_conserva_pagos`, `test_apply_marca_perdida_cuando_el_motor_calcula_cero`, `test_revert_sin_ids_se_rechaza_y_no_escribe`, `test_revert_restaura_los_old_values_del_ultimo_log`, `test_apply_y_revert_son_mutuamente_excluyentes`, `test_apply_ignora_ids_que_no_son_c1_c2_sin_escribir` | GREEN (user-reported) | n/a |
+| 6.3 | `test_ticket_multilinea_que_no_cuadra_va_a_revision_manual_sin_escrituras` + `pagos`/`cierres_caja`/`comisiones` assertions in the apply test | GREEN (user-reported) | n/a |
+| 6.4 | n/a (documentation; verified against the command options and guarantees) | GREEN (user-reported) | n/a |
 
 Work Unit Evidence (WU5):
 
 | Evidence | Value |
 |---|---|
-| Focused test command | `cd backend && php artisan test --filter=AuditarPagosLegacy` -> **user-run pending** |
+| Focused test command | `cd backend && php artisan test --filter=AuditarPagosLegacy` -> **GREEN (user-reported)** |
 | Runtime harness | Artisan command in the Feature test suite against MySQL `lotto_test`: real C1-C5 SQL, seeded `lotto-activo` plugin engine, real transactions and `logs` writes; dry-run/apply/revert asserted end-to-end |
 | Rollback boundary | `PremiosLiquidador`, `AuditarPagosLegacy`, the `PagoController` constructor/delegation and the WU5 test/doc; command is off by default, no runtime effect. If an apply already ran, use `--revert --ids` before reverting code |
 
@@ -372,7 +374,7 @@ Deviations / notes:
   bad/missing ids, mixed `--apply`/`--revert`, any skipped id (manual review) or
   an unexpected exception.
 - No migrations, routes, model changes, reports, WU3/WU4 files or earlier WU
-  tests were touched. Changes are intentionally left uncommitted.
+  tests were touched. All changes are committed on the branch (commit list in `archive-report.md`).
 
 ## Next
 

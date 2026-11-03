@@ -64,10 +64,13 @@ Los ejemplos MUST ser fieles al contrato de `main` (autoridad: controladores, no
 |---|---|
 | Límites | sin `fraccion`/`limite_tiempo`; PUT `banca_id` required; batch modo `scope` |
 | Apuestas/Tickets | `selecciones[]`; modalidades single-draw |
-| Pagos | montos opcionales (premio autoritativo); pagable `pendiente\|ganadora` |
+| Pagos | `POST /pagos` egreso-only; `ingreso`/`devolucion` → 422; montos opcionales (premio autoritativo); pagable `pendiente\|ganadora` |
+| Tickets | `DELETE /tickets/{id}` anula el ticket y registra `devolucion` `Pago`(s) |
 | Usuarios/Taquillas | `agencia_id`; rol `agencia` |
 | Auth | `X-Panel` o fingerprint según flujo |
 | Juegos/reglas | respuesta con `premios` |
+
+(Previously: the Pagos row allowed any `tipo` and `devolucion` mutated state; Tickets had no annulment+refund row.)
 
 #### Scenario: Límites sin campos retirados
 
@@ -75,7 +78,7 @@ Los ejemplos MUST ser fieles al contrato de `main` (autoridad: controladores, no
 - WHEN se inspecciona el body
 - THEN no incluye `fraccion` ni `limite_tiempo`, y `banca_id` es required
 
-#### Scenario: Pago autoritativo
+#### Scenario: Pago autoritativo (egreso)
 
 - GIVEN `POST /api/v1/pagos` tipo `egreso` sin montos
 - WHEN la apuesta está `pendiente|ganadora`
@@ -86,6 +89,12 @@ Los ejemplos MUST ser fieles al contrato de `main` (autoridad: controladores, no
 - GIVEN `POST /api/v1/apuestas` o `/tickets`
 - WHEN se inspecciona el body
 - THEN ejemplifica `combinacion.selecciones[]`
+
+#### Scenario: ingreso/devolucion rejected
+
+- GIVEN `POST /api/v1/pagos` con `tipo=ingreso` o `tipo=devolucion`
+- WHEN se inspecciona el contrato
+- THEN documenta 422 con el mensaje de redirección (ingreso automático en venta; devolución por anulación de ticket)
 
 ### Requirement: Credenciales y secretos
 
@@ -118,3 +127,13 @@ Los YAML MUST ser válidos OpenCollection 1.0.0 (`folder.yml`/request con `info`
 - GIVEN entorno `Local` y `baseUrl` correcto
 - WHEN se ejecutan F1/F2
 - THEN resuelven sin 404 por prefijo y la revisión estática confirma cobertura
+
+### Requirement: Annulment + refund contract in collections
+
+The collection MUST document that `DELETE /api/v1/tickets/{id}` performs a pre-draw annulment with refund, and MUST document the error codes: 422 for invalid state/window, 403 for cross-tenant, 404 for unknown ticket.
+
+#### Scenario: annulment documented
+
+- GIVEN the `Tickets` collection
+- WHEN `DELETE /tickets/{id}` is inspected
+- THEN it documents refund + annulment semantics and the 422/403/404 codes

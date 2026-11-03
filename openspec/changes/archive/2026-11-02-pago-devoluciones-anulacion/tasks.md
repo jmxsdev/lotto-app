@@ -1,7 +1,9 @@
 # Tasks: Pago, devoluciones y anulación
 
-Change: `pago-devoluciones-anulacion` · Issue #66 · Phase: tasks (ready for apply)
+Change: `pago-devoluciones-anulacion` · Issue #66 · Phase: archive (2026-11-02)
 Strict TDD: **active**. The agent MUST NOT run any test; the user runs every command.
+
+> **Final state (archive, 2026-11-02)**: all implementation tasks complete; `verify-report` round 2 = **pass_with_warnings** (13/13 requirements, 41/41 scenarios). Remediation commit `4b36597` closed both round-1 blockers (zero-prize egreso, mid-cascade rollback). User-reported evidence: focused filters GREEN and `composer test:parallel` = **1337 tests, 7726 assertions, 2 skipped, OK**. The acceptance checklist below was reconciled from stale unchecked boxes at archive time, backed by `apply-progress.md` and `verify-report.md`.
 
 ## Review Workload Forecast
 
@@ -215,19 +217,19 @@ Status (apply batch WU5): **GREEN (user-reported)** on the focused command and t
 
 ## Acceptance checklist (spec mapping)
 
-- [ ] `POST /pagos` accepts only `tipo=egreso`; `ingreso`/`devolucion` → 422 with flow message; no `Pago`/state/prize/cascade (pagos: egreso-only, rejected-types).
-- [ ] Egreso: engine-authoritative amounts; `ganadora` + legacy `pendiente`+`resultado_id`; no-resultado / zero-prize / ±0.01 mismatch → 422; response `premio` (pagos: egreso requirements).
-- [ ] Egreso is atomic + row-locked; concurrent double egreso → one 201, one 422, one row (pagos: atomic/no double payment).
-- [ ] Refund = ticket-level annulment via `DELETE /tickets/{id}`; one `devolucion` `Pago` per line mirroring sale; apuestas+ticket `anulada` + soft-deleted; `premio_ganado` untouched; one transaction (pagos: pre-draw refund).
-- [ ] All-or-nothing: one bad line → whole ticket untouched; rollback on mid-cascade failure (pagos: whole-ticket / rollback).
-- [ ] Refund rejected outside pre-draw window (non-`pendiente`, `resultado_id`, past `sorteo_hora`, age ≥ effective minutes); no post-resolution refund (pagos: rejected outside window).
-- [ ] Ownership reused for all roles; cross-tenant → 403 (pagos: ownership, D13).
-- [ ] RF-05.2/05.3 restated: refund never marks `pagada`, never modifies prize (pagos: RF restated).
-- [ ] Refund mirrors sale `metodo_pago`; override allowed; USD forced `efectivo` (metodo-pago).
-- [ ] `cuadreCaja`/`timeSeriesData` reversal-pair exclusion; same-window pair nets 0; cross-window + untied refunds stay outflows (reportes-agencia).
-- [ ] `CierreService` pair excluded; `total_efectivo_*` unchanged; `desglose_metodos` reconciles with `total_ventas_*` (cierre-caja).
-- [ ] Collections document egreso-only + annulment/refund contracts + 422/403/404 (colecciones-api).
-- [ ] Existing annulment strings byte-identical (`EliminacionApuestasTest`, `TicketEliminacionTest`).
+- [x] `POST /pagos` accepts only `tipo=egreso`; `ingreso`/`devolucion` → 422 with flow message; no `Pago`/state/prize/cascade (pagos: egreso-only, rejected-types).
+- [x] Egreso: engine-authoritative amounts; `ganadora` + legacy `pendiente`+`resultado_id`; no-resultado / zero-prize / ±0.01 mismatch → 422; response `premio` (pagos: egreso requirements).
+- [x] Egreso is atomic + row-locked; concurrent double egreso → one 201, one 422, one row (pagos: atomic/no double payment).
+- [x] Refund = ticket-level annulment via `DELETE /tickets/{id}`; one `devolucion` `Pago` per line mirroring sale; apuestas+ticket `anulada` + soft-deleted; `premio_ganado` untouched; one transaction (pagos: pre-draw refund).
+- [x] All-or-nothing: one bad line → whole ticket untouched; rollback on mid-cascade failure (pagos: whole-ticket / rollback).
+- [x] Refund rejected outside pre-draw window (non-`pendiente`, `resultado_id`, past `sorteo_hora`, age ≥ effective minutes); no post-resolution refund (pagos: rejected outside window).
+- [x] Ownership reused for all roles; cross-tenant → 403 (pagos: ownership, D13).
+- [x] RF-05.2/05.3 restated: refund never marks `pagada`, never modifies prize (pagos: RF restated).
+- [x] Refund mirrors sale `metodo_pago`; override allowed; USD forced `efectivo` (metodo-pago).
+- [x] `cuadreCaja`/`timeSeriesData` reversal-pair exclusion; same-window pair nets 0; cross-window + untied refunds stay outflows (reportes-agencia).
+- [x] `CierreService` pair excluded; `total_efectivo_*` unchanged; `desglose_metodos` reconciles with `total_ventas_*` (cierre-caja).
+- [x] Collections document egreso-only + annulment/refund contracts + 422/403/404 (colecciones-api).
+- [x] Existing annulment strings byte-identical (`EliminacionApuestasTest`, `TicketEliminacionTest`).
 
 ## Test command inventory (user-run only)
 
