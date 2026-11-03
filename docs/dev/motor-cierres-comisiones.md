@@ -68,7 +68,8 @@ super_master (global)
   taquillas apuntan opcionalmente a él. **No configura límites, monedas, vigencia
   ni comisión propia.** No cobra comisión; su valor en reportes es un *rollup*
   informativo (`Σ grupo + Σ taquilla`).
-- **User** se ancla a un nivel por `role` + columna foránea (`banca_id` /
+- **User** se ancla a un nivel por su **rol Spatie** (`roles`/
+  `model_has_roles`, única fuente de verdad) + columna foránea (`banca_id` /
   `grupo_id` / `taquilla_id` / `agencia_id`). El `master` administra bancas vía
   `bancas.master_id`.
 
@@ -123,9 +124,9 @@ Dentro de `DB::transaction`:
 ### 4.5 Re-cierre del día y `clave_cierre`
 
 Si ya existe un cierre del día, se exige `clave_cierre` y se valida
-(`validarClaveCierre`) contra los candidatos de la cadena: usuarios `role='banca'`
-de la banca del grupo, el `master` de la banca, y todos los `super_master`
-(`Hash::check` en OR).
+(`validarClaveCierre`) contra los candidatos de la cadena: usuarios con rol
+Spatie `banca` de la banca del grupo, el `master` de la banca, y todos los
+`super_master` (`Hash::check` en OR).
 
 Actualiza **la misma fila**: recalcula desde el `fecha_inicio` original, extiende
 `fecha_fin = now()`, refresca totales/arqueo/desglose/comisión y registra
@@ -358,6 +359,6 @@ egreso del cierre nuevo.
 ### Baja
 
 4. **`updateDefaults` limita `porcentaje_pago` a `max:16`** aunque los topes reales por tipo son 16/25/100.
-5. **Verificación de rol inconsistente**: `CierreController` usa `hasRole()` (Spatie) y `ComisionController`/`ReporteController` usan la columna `$user->role`. Si divergen, la autorización diverge.
+5. ~~**Verificación de rol inconsistente**: `CierreController` usa `hasRole()` (Spatie) y `ComisionController`/`ReporteController` usan la columna `$user->role`. Si divergen, la autorización diverge.~~ **FIXED** (`autorizacion-rol-unico`, WU-6): Spatie es la única fuente de rol; `CierreService::validarClaveCierre`, `ComisionController` y los seeders/backfill resuelven con `role()`/`hasRole()`, sin leer `users.role`. Ver `DivergenciaRolTest`.
 6. **El desglose (desde `pagos`) puede no cuadrar con el total de ventas (desde `apuestas`)** si falta el pago ingreso. Sin aserción en runtime.
 7. **`Vencidos` se cuenta dos veces por diseño** en `cuadreCaja` (dentro de `Venta` y restado en `Efectivo`); correcto pero sin comentario.

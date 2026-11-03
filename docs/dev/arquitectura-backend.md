@@ -243,6 +243,7 @@ schedule:work  → hora/+15/+30/+45 → ScrapeSourceJob ─ ¿faltan sorteos? �
 4. **`DrawReconciliationService` no reconcilia apuestas**, solo sorteos.
 5. **`config/scraper.php` no existe** → los scrapers que leen `config('scraper.product_id', …)` siempre caen al default; los demás usan `juego.config['scraper']['product_id']` (que sí existe por seeder).
 6. **`hora_sorteo` no está en `$casts`** de `Resultado` (es string); el formato se normaliza a `H:i` antes del upsert.
+7. **El rol del usuario tiene una sola fuente: Spatie.** Autorización, scoping y login resuelven con `hasRole()`/`hasAnyRole()`/`role()`; el atributo `role` que expone la API es un accessor calculado (`primaryRole()`), no una columna. No leas ni escribas `users.role`: la columna legacy queda muerta en el expand y se elimina en el contract (`autorizacion-rol-unico`).
 
 ---
 

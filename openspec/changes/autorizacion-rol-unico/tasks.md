@@ -246,14 +246,14 @@ php artisan test --filter=AgenciaMasterScope
   - `backend/app/Http/Controllers/Api/ComisionController.php` (`bancasEnAlcance`: master→ids, super_master→null, resto 403), `AgenciaController.php` (`destroy` con `role('taquilla')`).
   - `backend/app/Services/CierreService.php` (3 `where('role')` → `role()`), `backend/app/Console/Commands/AgenciasBackfill.php` (2 queries → `role()`), `backend/database/seeders/E2eSeeder.php` (3 queries de lectura → `role()`).
   - `backend/tests/Feature/DivergenciaRolTest.php` (nuevo); `ClaveCierreTest`, `ComisionesApiTest`, `ComisionReporteTest`, `Agencia*`, `MastersPanelTest`, `RoleAuthorizationTest`.
-  - Docs: `doc/backend-architecture/src/documento.md` y `docs/dev/motor-cierres-comisiones.md` (hallazgo #7).
+  - Docs: `docs/dev/arquitectura-backend.md` y `docs/dev/motor-cierres-comisiones.md` (hallazgo de rol inconsistente, §9 #5).
 
 **Tareas**:
-- [ ] 6.1 Escribir `DivergenciaRolTest` (RED): comisiones (`taquilla` columna + `master` Spatie ⇒ alcance master); apuestas/cierres misma fuente; reportes (`super_master` columna + `taquilla` Spatie ⇒ alcance taquilla); `VerifyMac` exige MAC solo a `taquilla` Spatie; usuario sin rol ⇒ 403/scope vacío.
-- [ ] 6.2 Convertir `Api\AuthController` y `Admin\AuthController` a `hasRole`/`hasAnyRole`; respuesta `role => primaryRole()`; sin rol ⇒ 403.
-- [ ] 6.3 Migrar las 6 queries `where('role',...)` en `CierreService`, `AgenciaController`, `AgenciasBackfill`, `E2eSeeder` (lectura).
-- [ ] 6.4 Corregir `ComisionController::bancasEnAlcance` (caso 1 del proposal).
-- [ ] 6.5 Actualizar `doc/backend-architecture/src/documento.md` y `docs/dev/motor-cierres-comisiones.md` (fuente única Spatie).
+- [x] 6.1 Escribir `DivergenciaRolTest` (RED): comisiones (`taquilla` columna + `master` Spatie ⇒ alcance master); apuestas/cierres misma fuente; reportes (`super_master` columna + `taquilla` Spatie ⇒ alcance taquilla); `VerifyMac` exige MAC solo a `taquilla` Spatie; usuario sin rol ⇒ 403/scope vacío.
+- [x] 6.2 Convertir `Api\AuthController` y `Admin\AuthController` a `hasRole`/`hasAnyRole`; respuesta `role => primaryRole()`; sin rol ⇒ 403.
+- [x] 6.3 Migrar las 6 queries `where('role',...)` en `CierreService`, `AgenciaController`, `AgenciasBackfill`, `E2eSeeder` (lectura).
+- [x] 6.4 Corregir `ComisionController::bancasEnAlcance` (caso 1 del proposal).
+- [x] 6.5 Actualizar `docs/dev/arquitectura-backend.md` y `docs/dev/motor-cierres-comisiones.md` (fuente única Spatie).
 
 **Tests a escribir/actualizar**: `DivergenciaRolTest` (nuevo); `ClaveCierreTest`, `ComisionesApiTest`, `ComisionReporteTest`, `Agencia*`, `MastersPanelTest`, `RoleAuthorizationTest`.
 
@@ -322,7 +322,7 @@ composer test
 
 ## Docs / spec
 
-- WU-6 actualiza `doc/backend-architecture/src/documento.md` y `docs/dev/motor-cierres-comisiones.md` (hallazgo #7: CierreService ya no usa `users.role`).
+- WU-6 actualiza `docs/dev/arquitectura-backend.md` y `docs/dev/motor-cierres-comisiones.md` (hallazgo de rol inconsistente: CierreService ya no usa `users.role`).
 - El spec principal `openspec/specs/jerarquia-agencias/spec.md` y la capability `autorizacion-rol-unico` se actualizan en **sdd-archive**, no en apply.
 
 ## Criterios de aceptación globales

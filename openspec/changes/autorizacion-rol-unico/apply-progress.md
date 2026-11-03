@@ -143,7 +143,37 @@
 
 ## WU-6 — Auth/panel + queries ocultas + divergencia (Merge 1)
 
-**Estado**: ⏳ pendiente
+**Estado**: ✅ completado (tests ejecutados por el usuario: verdes)
+
+**Rama**: `feature/rol-unico-wu6` (base `feature/rol-unico-wu5`)
+
+**Cambios**:
+- `Api\AuthController`: 8 refs convertidas (`hasRole`/`hasAnyRole`); guard fail-closed `primaryRole() === null` → 403 antes de emitir token; respuesta `role => primaryRole()`.
+- `Admin\Auth\AuthController`: `hasAnyRole(['super_master','master'])`; `session('user_role')` con `primaryRole()`.
+- `ComisionController::bancasEnAlcance`: `master` → ids; `super_master` → `null`; cualquier otro → `abort(403)`.
+- `AgenciaController::destroy`: `users()->role('taquilla')->update(...)`.
+- `CierreService::validarClaveCierre`: candidatos con `role('banca')`, `role('master')`, `role('super_master')` (misma lógica de `Hash::check`).
+- `AgenciasBackfill`: `role('super_master')`, `role('taquilla')`, `$creador->hasRole('master')`.
+- `E2eSeeder`: lecturas `role('super_master')` / `role('banca')`.
+- `DivergenciaRolTest` (nuevo, 8 tests): comisiones master, apuestas/cierres compartidos, reportes taquilla, VerifyMac Spatie, sin rol → 403, clave de cierre por Spatie, login taquilla y login sin rol.
+- Docs: `docs/dev/motor-cierres-comisiones.md` (fuente única + hallazgo de rol marcado FIXED) y `docs/dev/arquitectura-backend.md` (gotcha de rol único). La referencia original a `doc/backend-architecture/src/documento.md` se corrigió: ese árbol no existe en el repo.
+
+**Tests ejecutados por el usuario**:
+- `DivergenciaRolTest` — 8 passed, 21 assertions.
+- `ClaveCierreTest` — 16 passed, 67 assertions.
+- `Comision*` — 75 passed, 228 assertions.
+- `Agencia*` — 95 passed, 376 assertions.
+- `MastersPanelTest` — 8 passed, 32 assertions.
+- `RoleAuthorizationTest` — 9 passed, 21 assertions.
+- `vendor/bin/pint --test` — verde.
+
+**Evidencia**:
+- `evidence-revision`: `7b28370da420349ce62a5c7cb70bafd113d1713cff034e6a94691b816f4cf2fc`.
+- Sin ejecución de tests/pint por el agente (regla del usuario).
+
+**Notas transicionales**:
+- `DivergenciaRolTest` fija el contrato de fuente única; el RED real de este WU estaba en la query de `CierreService` y en las suites de auth/agencias/comisiones.
+- `users.role` sigue existiendo físicamente, pero ya no se lee ni se escribe como fuente. WU-7 la elimina.
 
 ## WU-7 — Contract: drop `users.role` (Merge 2)
 
