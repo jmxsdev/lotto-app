@@ -6,17 +6,16 @@ use App\Models\Banca;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
- * WU-2 — escrituras de rol vía Spatie en la API de usuarios.
+ * Escrituras de rol vía Spatie en la API de usuarios.
  *
- * El rol solo se persiste en `model_has_roles` (syncRoles): `users.role` deja
- * de escribirse; `index` filtra con el scope Spatie `role()`; el login sigue
- * exponiendo `role`/`user.role` desde el accessor calculado.
+ * El rol solo se persiste en `model_has_roles` (syncRoles); la columna
+ * `users.role` fue eliminada en WU-7. `index` filtra con el scope Spatie
+ * `role()`; el login sigue exponiendo `role`/`user.role` desde el accessor
+ * calculado.
  */
 class UsuarioRolApiTest extends TestCase
 {
@@ -33,7 +32,7 @@ class UsuarioRolApiTest extends TestCase
         return User::factory()->withRole('super_master')->create();
     }
 
-    public function test_store_asigna_rol_spatie_sin_escribir_columna(): void
+    public function test_store_asigna_rol_spatie(): void
     {
         $response = $this->actingAs($this->superUser(), 'sanctum')
             ->postJson('/api/v1/users', [
@@ -57,12 +56,6 @@ class UsuarioRolApiTest extends TestCase
             'model_id' => $created->id,
             'model_type' => User::class,
         ]);
-
-        // La columna legacy (si existe) no recibe el rol nuevo: queda en su
-        // default de esquema (taquilla o null).
-        if (Schema::hasColumn('users', 'role')) {
-            $this->assertNotSame('master', DB::table('users')->where('id', $created->id)->value('role'));
-        }
     }
 
     public function test_store_con_vinculo_asigna_rol_spatie(): void
@@ -84,21 +77,12 @@ class UsuarioRolApiTest extends TestCase
 
         $created = User::where('email', 'banca-nueva@test.com')->firstOrFail();
         $this->assertTrue($created->hasRole('banca'));
-
-        if (Schema::hasColumn('users', 'role')) {
-            $this->assertNotSame('banca', DB::table('users')->where('id', $created->id)->value('role'));
-        }
     }
 
     public function test_update_cambia_rol_spatie_en_transaccion(): void
     {
         $banca = Banca::factory()->create();
         $target = User::factory()->withRole('banca')->create(['banca_id' => $banca->id]);
-
-        // Sentinela: si el update escribiera `users.role`, lo pisaría.
-        if (Schema::hasColumn('users', 'role')) {
-            DB::table('users')->where('id', $target->id)->update(['role' => 'banca']);
-        }
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
             ->putJson('/api/v1/users/'.$target->id, ['role' => 'master']);
@@ -111,10 +95,6 @@ class UsuarioRolApiTest extends TestCase
         $this->assertTrue($target->hasRole('master'));
         $this->assertFalse($target->hasRole('banca'));
         $this->assertSame(['master'], $target->getRoleNames()->all());
-
-        if (Schema::hasColumn('users', 'role')) {
-            $this->assertSame('banca', DB::table('users')->where('id', $target->id)->value('role'));
-        }
     }
 
     public function test_index_filtra_por_rol_spatie(): void
@@ -123,12 +103,6 @@ class UsuarioRolApiTest extends TestCase
 
         $master = User::factory()->withRole('master')->create(['email' => 'master-spatie@test.com']);
         $taquilla = User::factory()->withRole('taquilla')->create(['email' => 'taquilla-spatie@test.com']);
-
-        // Divergencia: columna `master`, Spatie `taquilla` → no debe aparecer.
-        $divergente = User::factory()->withRole('taquilla')->create(['email' => 'divergente@test.com']);
-        if (Schema::hasColumn('users', 'role')) {
-            DB::table('users')->where('id', $divergente->id)->update(['role' => 'master']);
-        }
 
         $response = $this->actingAs($super, 'sanctum')
             ->getJson('/api/v1/users?role=master');
@@ -139,7 +113,6 @@ class UsuarioRolApiTest extends TestCase
 
         $this->assertTrue($emails->contains($master->email));
         $this->assertFalse($emails->contains($taquilla->email));
-        $this->assertFalse($emails->contains($divergente->email));
     }
 
     public function test_login_panel_devuelve_role_de_spatie(): void
@@ -148,11 +121,6 @@ class UsuarioRolApiTest extends TestCase
             'email' => 'master-login@test.com',
             'password' => bcrypt('password'),
         ]);
-
-        // Divergencia de columna: el login debe seguir resolviendo Spatie.
-        if (Schema::hasColumn('users', 'role')) {
-            DB::table('users')->where('id', $user->id)->update(['role' => 'taquilla']);
-        }
 
         $response = $this->withHeaders(['X-Panel' => 'true'])
             ->postJson('/api/v1/login', [

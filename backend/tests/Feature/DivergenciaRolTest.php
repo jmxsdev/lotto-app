@@ -13,21 +13,17 @@ use App\Models\User;
 use App\Services\CierreService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /**
- * WU-6 — Divergencia entre `users.role` (columna legacy) y Spatie.
+ * Contrato Spatie post-`drop` (WU-7): autorización, scoping, login y las
+ * queries ocultas (`role(...)`) resuelven siempre por Spatie, la única fuente
+ * de verdad (REQ-1, REQ-4, REQ-5, REQ-6, REQ-9).
  *
- * Cada caso parte de un usuario cuya columna `users.role` dice un rol
- * distinto al de Spatie y exige que autorización, scoping, login y las
- * queries ocultas (`role(...)`) resuelvan por Spatie, la única fuente de
- * verdad (REQ-1, REQ-4, REQ-5, REQ-6, REQ-9).
- *
- * La columna se escribe con `DB::table` solo si sigue existiendo, para que
- * el archivo sobreviva al drop de WU-7.
+ * Los casos nacieron como pruebas de divergencia contra la columna legacy
+ * `users.role`; tras el Merge 2 esa columna ya no existe, así que cada caso
+ * queda como test de contrato del rol Spatie.
  */
 class DivergenciaRolTest extends TestCase
 {
@@ -42,17 +38,6 @@ class DivergenciaRolTest extends TestCase
     // ==================================================
     // Helpers
     // ==================================================
-
-    /**
-     * Simula la columna legacy divergente: escribe `users.role` mientras la
-     * columna exista (WU-7 la elimina).
-     */
-    private function divergirColumna(User $user, string $role): void
-    {
-        if (Schema::hasColumn('users', 'role')) {
-            DB::table('users')->where('id', $user->id)->update(['role' => $role]);
-        }
-    }
 
     /**
      * @return array{0: Banca, 1: Grupo, 2: Taquilla}
@@ -130,7 +115,7 @@ class DivergenciaRolTest extends TestCase
     }
 
     // ==================================================
-    // Caso 1 — comisiones: columna taquilla + Spatie master
+    // Caso 1 — comisiones: alcance del rol Spatie master
     // ==================================================
 
     public function test_comision_consulta_usa_spatie_master(): void
@@ -140,7 +125,6 @@ class DivergenciaRolTest extends TestCase
 
         $master = User::factory()->withRole('master')->create();
         Banca::whereKey($bancaMia->id)->update(['master_id' => $master->id]);
-        $this->divergirColumna($master, 'taquilla');
 
         $juego = $this->crearJuego();
         // Suma cero por cadena (10 + 20 + 100) para que existan las 3 filas.
@@ -189,7 +173,6 @@ class DivergenciaRolTest extends TestCase
             'grupo_id' => $grupoB->id,
             'banca_id' => $bancaB->id,
         ]);
-        $this->divergirColumna($user, 'master');
 
         $juego = $this->crearJuego();
         $this->apuesta($juego->id, $taquillaA->id, 100);
@@ -226,7 +209,7 @@ class DivergenciaRolTest extends TestCase
     }
 
     // ==================================================
-    // Caso 3 — reportes: columna super_master + Spatie taquilla
+    // Caso 3 — reportes: alcance del rol Spatie taquilla
     // ==================================================
 
     public function test_reportes_usan_spatie_taquilla(): void
@@ -240,7 +223,6 @@ class DivergenciaRolTest extends TestCase
             'grupo_id' => $grupoMio->id,
             'banca_id' => $bancaMia->id,
         ]);
-        $this->divergirColumna($user, 'super_master');
 
         $juego = $this->crearJuego();
         $this->apuesta($juego->id, $taquillaMia->id, 2000, now()->subDay()->toDateTimeString());
@@ -254,7 +236,7 @@ class DivergenciaRolTest extends TestCase
         $this->assertEquals(
             2000,
             collect($response->json('data'))->sum('Venta'),
-            'La columna super_master no debe otorgar alcance global: solo las ventas de su taquilla.'
+            'Solo debe ver las ventas de su taquilla: el rol Spatie no otorga alcance global.'
         );
     }
 
@@ -270,7 +252,6 @@ class DivergenciaRolTest extends TestCase
         $taquillero = User::factory()->withRole('taquilla')->create([
             'taquilla_id' => $taquilla->id,
         ]);
-        $this->divergirColumna($taquillero, 'master');
 
         // Spatie taquilla: sin headers de dispositivo → 403
         $this->actingAs($taquillero, 'sanctum')
@@ -283,9 +264,8 @@ class DivergenciaRolTest extends TestCase
             ->getJson('/api/v1/juegos')
             ->assertStatus(200);
 
-        // Spatie master (columna taquilla) → no exige MAC
+        // Spatie master → no exige MAC
         $master = User::factory()->withRole('master')->create();
-        $this->divergirColumna($master, 'taquilla');
 
         $this->actingAs($master, 'sanctum')
             ->getJson('/api/v1/juegos')
@@ -299,7 +279,6 @@ class DivergenciaRolTest extends TestCase
     public function test_usuario_sin_rol_spatie_recibe_403(): void
     {
         $sinRol = User::factory()->create(['active' => true]);
-        $this->divergirColumna($sinRol, 'super_master');
 
         $this->actingAs($sinRol, 'sanctum')
             ->getJson('/api/v1/users')
@@ -321,8 +300,6 @@ class DivergenciaRolTest extends TestCase
         $bancaUser = User::factory()->withRole('banca')->create([
             'banca_id' => $banca->id,
         ]);
-        // La query legacy `where('role','banca')` lo excluiría con esta columna.
-        $this->divergirColumna($bancaUser, 'taquilla');
         $bancaUser->update(['clave_cierre' => Hash::make('123456')]);
 
         app(CierreService::class)->validarClaveCierre($taquilla->id, '123456');
@@ -349,7 +326,6 @@ class DivergenciaRolTest extends TestCase
             'grupo_id' => $grupo->id,
             'banca_id' => $banca->id,
         ]);
-        $this->divergirColumna($user, 'master');
 
         $response = $this->withHeaders(['X-Device-Fingerprint' => 'fd-divergencia-06'])
             ->postJson('/api/v1/login', [
@@ -368,7 +344,6 @@ class DivergenciaRolTest extends TestCase
             'email' => 'divergencia-sin-rol@test.com',
             'password' => bcrypt('password'),
         ]);
-        $this->divergirColumna($sinRol, 'master');
 
         $this->withHeaders(['X-Panel' => 'true'])
             ->postJson('/api/v1/login', [

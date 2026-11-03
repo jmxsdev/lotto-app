@@ -5,14 +5,12 @@ namespace Tests\Unit;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
- * WU-1 — rol de fuente única: el accessor `User::role` sale siempre de Spatie
- * (`getRoleNames()`), nunca de la columna legacy `users.role`.
+ * Rol de fuente única: el accessor `User::role` sale siempre de Spatie
+ * (`getRoleNames()`); la columna legacy `users.role` ya no existe (WU-7).
  */
 class UserRoleAccessorTest extends TestCase
 {
@@ -30,23 +28,6 @@ class UserRoleAccessorTest extends TestCase
 
         $this->assertSame('agencia', $user->role);
         $this->assertSame('agencia', $user->primaryRole());
-    }
-
-    public function test_accessor_ignora_columna_legacy_divergente(): void
-    {
-        if (! Schema::hasColumn('users', 'role')) {
-            $this->markTestSkipped('La columna legacy users.role ya no existe (post-contract).');
-        }
-
-        $user = User::factory()->withRole('master')->create();
-
-        DB::table('users')->where('id', $user->id)->update(['role' => 'taquilla']);
-        $user->refresh();
-
-        // La columna dice `taquilla`; el rol efectivo (y serializado) es Spatie.
-        $this->assertSame('taquilla', DB::table('users')->where('id', $user->id)->value('role'));
-        $this->assertSame('master', $user->role);
-        $this->assertSame('master', $user->toArray()['role']);
     }
 
     public function test_accessor_devuelve_null_sin_rol(): void
