@@ -7,6 +7,7 @@ use App\Models\Banca;
 use App\Models\Grupo;
 use App\Models\User;
 use App\Services\JuegoLimiteService;
+use App\Support\Scope\AlcanceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -14,6 +15,10 @@ use Illuminate\Validation\Rule;
 
 class GrupoController extends Controller
 {
+    public function __construct(
+        private readonly AlcanceService $alcance,
+    ) {}
+
     /* public function __construct()
      {
          // Aplicar middleware de autenticación y permisos
@@ -27,35 +32,14 @@ class GrupoController extends Controller
      */
     public function index(Request $request)
     {
-        $user = $request->user();
-        $query = Grupo::query();
-
-        // Super Master: ve todos
-        if ($user->hasRole('super_master')) {
-            // Sin filtro adicional
-        }
-        // Master: ve solo los grupos de sus bancas
-        elseif ($user->hasRole('master')) {
-            $user->masterBancaScope()($query);
-        }
-        // Banca: ve solo sus grupos
-        elseif ($user->hasRole('banca')) {
-            if (! $user->banca_id) {
-                return response()->json(['message' => 'No tienes una banca asociada.'], 403);
-            }
-            $query->where('banca_id', $user->banca_id);
-        }
-        // Grupo: ve solo su grupo (aunque no debería ver grupos, pero por si acaso)
-        elseif ($user->hasRole('grupo')) {
-            if (! $user->grupo_id) {
-                return response()->json(['message' => 'No tienes un grupo asociado.'], 403);
-            }
-            $query->where('id', $user->grupo_id);
-        }
-        // Otros roles no pueden ver grupos
-        else {
-            return response()->json(['message' => 'No tienes permiso para ver grupos.'], 403);
-        }
+        // Scoping jerárquico por rol (fuente única: AlcanceService, ENTIDADES).
+        // master ve solo los grupos de sus bancas; sin bancas ve NADA.
+        $query = $this->alcance->applyToEntidades(
+            Grupo::query(),
+            $request->user(),
+            'grupo',
+            'No tienes permiso para ver grupos.'
+        );
 
         $grupos = $query->with('banca')->get();
 
@@ -182,7 +166,7 @@ class GrupoController extends Controller
     {
         $user = auth()->user();
 
-        // Verificar acceso jerárquico
+        // Lectura acotada al alcance del rol (fuente única: AlcanceService, ENTIDADES).
         $this->authorizeGrupoAccess($user, $grupo);
 
         return response()->json($grupo->load('banca', 'taquillas'));
@@ -195,8 +179,8 @@ class GrupoController extends Controller
     {
         $user = auth()->user();
 
-        // Verificar acceso
-        $this->authorizeGrupoAccess($user, $grupo);
+        // Escritura acotada al alcance de gestión del rol (AlcanceService, ENTIDADES).
+        $this->authorizeGestion($user, $grupo);
 
         $request->validate([
             'name' => 'sometimes|string|max:255',
@@ -266,7 +250,8 @@ class GrupoController extends Controller
     {
         $user = auth()->user();
 
-        $this->authorizeGrupoAccess($user, $grupo);
+        // Escritura acotada al alcance de gestión del rol (AlcanceService, ENTIDADES).
+        $this->authorizeGestion($user, $grupo);
 
         $grupo->update(['active' => ! $grupo->active]);
 
@@ -280,7 +265,8 @@ class GrupoController extends Controller
     {
         $user = auth()->user();
 
-        $this->authorizeGrupoAccess($user, $grupo);
+        // Escritura acotada al alcance de gestión del rol (AlcanceService, ENTIDADES).
+        $this->authorizeGestion($user, $grupo);
 
         // Verificar que no tenga taquillas asociadas (opcional)
         if ($grupo->taquillas()->count() > 0) {
@@ -349,40 +335,23 @@ class GrupoController extends Controller
         abort(403, 'No tienes permiso para gestionar esta banca.');
     }
 
-    private function authorizeGrupoAccess($user, Grupo $grupo)
+    /**
+     * Lectura acotada al alcance del rol (fuente única: AlcanceService, ENTIDADES).
+     */
+    private function authorizeGrupoAccess($user, Grupo $grupo): void
     {
-        // Super Master puede todo
-        if ($user->hasRole('super_master')) {
-            return;
+        if (! $this->alcance->alcanceDeEntidad($user, 'grupo', $grupo)) {
+            abort(403, 'No tienes acceso a este grupo.');
         }
+    }
 
-        // Master solo puede acceder a grupos de sus bancas
-        if ($user->hasRole('master')) {
-            if ($grupo->banca_id === null || ! $user->masterCanAccessBanca((int) $grupo->banca_id)) {
-                abort(403, 'No tienes acceso a este grupo.');
-            }
-
-            return;
+    /**
+     * Escritura acotada al alcance de gestión del rol (AlcanceService, ENTIDADES).
+     */
+    private function authorizeGestion($user, Grupo $grupo): void
+    {
+        if (! $this->alcance->puedeGestionar($user, 'grupo', $grupo)) {
+            abort(403, 'No tienes acceso a este grupo.');
         }
-
-        // Banca solo puede acceder a grupos de su banca
-        if ($user->hasRole('banca')) {
-            if (! $user->banca_id || $user->banca_id != $grupo->banca_id) {
-                abort(403, 'No tienes acceso a este grupo.');
-            }
-
-            return;
-        }
-
-        // Grupo solo puede acceder a su propio grupo
-        if ($user->hasRole('grupo')) {
-            if (! $user->grupo_id || $user->grupo_id != $grupo->id) {
-                abort(403, 'No tienes acceso a este grupo.');
-            }
-
-            return;
-        }
-
-        abort(403, 'No tienes permiso para acceder a este grupo.');
     }
 }
