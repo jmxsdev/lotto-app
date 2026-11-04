@@ -9,6 +9,7 @@ use App\Models\Log;
 use App\Models\Taquilla;
 use App\Models\User;
 use App\Policies\UserPolicy;
+use App\Support\Scope\AlcanceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -17,6 +18,10 @@ use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
+    public function __construct(
+        private readonly AlcanceService $alcance,
+    ) {}
+
     /**
      * Listar usuarios (filtrados según jerarquía y opcionalmente por entidad).
      * GET /api/users?banca_id=&grupo_id=&taquilla_id=
@@ -33,68 +38,15 @@ class UserController extends Controller
             'role' => ['nullable', Rule::in(['super_master', 'master', 'banca', 'grupo', 'agencia', 'taquilla'])],
         ]);
 
-        $query = User::query();
-
-        // Super Master ve todos
-        if ($user->hasRole('super_master')) {
-            // Sin filtro
-        }
-        // Master ve solo los usuarios de las bancas que administra (y su
-        // descendencia por cadena) más los que creó; sin bancas asignadas
-        // conserva únicamente a sus creados.
-        elseif ($user->hasRole('master')) {
-            $masterIds = $user->masterBancaIds();
-            $query->where(function ($q) use ($user, $masterIds) {
-                if ($masterIds->isEmpty()) {
-                    $q->where('created_by', $user->id);
-                } else {
-                    $q->whereIn('banca_id', $masterIds)
-                        ->orWhereHas('taquilla', fn ($t) => $t->whereHas('grupo', fn ($g) => $g->whereIn('banca_id', $masterIds)))
-                        ->orWhere('created_by', $user->id);
-                }
-            });
-        }
-        // Banca ve los usuarios de su banca (por vínculo directo o por cadena)
-        // más los que creó.
-        elseif ($user->hasRole('banca')) {
-            if (! $user->banca_id) {
-                return response()->json(['message' => 'No tienes una banca asociada.'], 403);
-            }
-            $query->where(function ($q) use ($user) {
-                $q->where('banca_id', $user->banca_id)
-                    ->orWhereHas('taquilla', fn ($t) => $t->whereHas('grupo', fn ($g) => $g->where('banca_id', $user->banca_id)))
-                    ->orWhere('created_by', $user->id);
-            });
-        }
-        // Grupo ve los usuarios de su grupo, de sus agencias y los que creó.
-        elseif ($user->hasRole('grupo')) {
-            if (! $user->grupo_id) {
-                return response()->json(['message' => 'No tienes un grupo asociado.'], 403);
-            }
-            $query->where(function ($q) use ($user) {
-                $q->where('grupo_id', $user->grupo_id)
-                    ->orWhereHas('taquilla', fn ($t) => $t->where('grupo_id', $user->grupo_id))
-                    ->orWhere('created_by', $user->id);
-            });
-        }
-        // Agencia ve los usuarios de su local y los que creó.
-        elseif ($user->hasRole('agencia')) {
-            if (! $user->agencia_id) {
-                return response()->json(['message' => 'No tienes una agencia asociada.'], 403);
-            }
-            $query->where(function ($q) use ($user) {
-                $q->where('agencia_id', $user->agencia_id)
-                    ->orWhere('created_by', $user->id);
-            });
-        }
-        // Taquilla solo se ve a sí misma
-        elseif ($user->hasRole('taquilla')) {
-            $query->where('id', $user->id);
-        }
-        // Otros roles no pueden listar usuarios
-        else {
-            return response()->json(['message' => 'No tienes permisos para ver usuarios.'], 403);
-        }
+        // Scoping jerárquico por rol (fuente única: AlcanceService, ENTIDADES).
+        // super_master ve todo; master/banca/grupo incluyen además los usuarios
+        // que crearon (`created_by`); agencia ve su local; taquilla solo se ve
+        // a sí misma. Los roles sin listado permitido se deniegan con 403.
+        $query = $this->alcance->applyToUsuarios(
+            User::query(),
+            $user,
+            'No tienes permisos para ver usuarios.'
+        );
 
         // Filtros explícitos por entidad (validados previamente).
         // Se aplican DESPUÉS del alcance jerárquico: intersectan, nunca amplían.
