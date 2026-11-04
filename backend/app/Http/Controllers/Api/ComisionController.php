@@ -125,22 +125,14 @@ class ComisionController extends Controller
     /**
      * Bancas visibles para el usuario en la consulta.
      *
-     * super_master ⇒ null (sin restricción, alcance global); master ⇒ ids
-     * de las bancas que administra (posiblemente vacío, nunca global);
-     * cualquier otro rol ⇒ 403 (fail-closed, REQ-4).
+     * Delega en `AlcanceService::bancasParaComisiones`: super_master ⇒ null
+     * (alcance global); master ⇒ ids de las bancas que administra; cualquier
+     * otro rol ⇒ 403 (fail-closed, REQ-4).
      *
      * @return array<int, int>|null
      */
     private function bancasEnAlcance(User $user): ?array
     {
-        if ($user->hasRole('master')) {
-            return $this->alcance->bancasDeMaster($user)->all();
-        }
-
-        if ($user->hasRole('super_master')) {
-            return null;
-        }
-
-        $this->alcance->denegar('No autorizado: rol sin alcance de comisiones.');
+        return $this->alcance->bancasParaComisiones($user);
     }
 }

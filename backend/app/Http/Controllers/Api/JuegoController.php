@@ -621,60 +621,7 @@ class JuegoController extends Controller
             return $this->objetivosDesdeEntidades($entidades, $singular);
         }
 
-        if ($singular === 'banca') {
-            // Mismo orden efectivo que el `match` original: banca/agencia
-            // primero, master después, super_master como rama sin filtro y
-            // el override de grupo al final.
-            if ($user->hasRole('banca') || $user->hasRole('agencia')) {
-                $ids = [$user->banca_id];
-            } elseif ($user->hasRole('master')) {
-                $ids = $this->alcance->bancasDeMaster($user)->all();
-            } elseif ($user->hasRole('grupo')) {
-                $ids = [$user->banca_id];
-            } elseif ($user->hasRole('super_master')) {
-                $ids = Banca::pluck('id')->all();
-            } else {
-                // Rol ausente o fuera de catálogo: fail-closed (REQ-4).
-                $this->alcance->denegar('No tienes acceso a la entidad raíz del alcance.');
-            }
-        } elseif ($singular === 'grupo') {
-            if ($user->hasRole('super_master')) {
-                $ids = Grupo::pluck('id');
-            } elseif ($user->hasRole('master')) {
-                // master ve solo los grupos de las bancas que administra
-                $masterIds = $this->alcance->bancasDeMaster($user);
-                $ids = $masterIds->isEmpty()
-                    ? collect()
-                    : Grupo::whereIn('banca_id', $masterIds)->pluck('id');
-            } elseif ($user->hasRole('banca')) {
-                $ids = Grupo::where('banca_id', $user->banca_id)->pluck('id');
-            } elseif ($user->hasRole('grupo') || $user->hasRole('agencia')) {
-                // El `else` original cubría grupo y agencia (ambos cuelgan
-                // de un grupo); agencia no alcanza este endpoint por ruta.
-                $ids = [$user->grupo_id];
-            } else {
-                $this->alcance->denegar('No tienes acceso a la entidad raíz del alcance.');
-            }
-        } else { // taquilla
-            if ($user->hasRole('super_master')) {
-                $ids = Taquilla::pluck('id');
-            } elseif ($user->hasRole('master')) {
-                // master ve solo las taquillas de las bancas que administra
-                $masterIds = $this->alcance->bancasDeMaster($user);
-                $ids = $masterIds->isEmpty()
-                    ? collect()
-                    : Taquilla::whereHas('grupo', fn ($q) => $q->whereIn('banca_id', $masterIds))->pluck('id');
-            } elseif ($user->hasRole('banca')) {
-                $ids = Taquilla::whereHas('grupo', fn ($q) => $q->where('banca_id', $user->banca_id))->pluck('id');
-            } elseif ($user->hasRole('agencia')) {
-                $ids = Taquilla::where('agencia_id', $user->agencia_id)->pluck('id');
-            } elseif ($user->hasRole('grupo')) {
-                $ids = Taquilla::where('grupo_id', $user->grupo_id)->pluck('id');
-            } else {
-                // Rol ausente o fuera de catálogo: fail-closed (REQ-4).
-                $this->alcance->denegar('No tienes acceso a la entidad raíz del alcance.');
-            }
-        }
+        $ids = $this->alcance->idsPorTipo($user, $singular);
 
         $objetivos = collect($ids)
             ->filter()
@@ -1119,79 +1066,14 @@ class JuegoController extends Controller
     }
 
     /**
-     * Entidades del tipo consultado visibles para el rol: super_master y
-     * master ven todas; banca solo las de su propia cadena (su banca, sus
-     * grupos y sus taquillas); grupo solo su grupo, su banca y sus taquillas.
-     * Rol ausente o fuera de catálogo: colección vacía (fail-closed, REQ-4).
+     * Entidades del tipo consultado visibles para el rol (`JUEGO_VIS`).
+     *
+     * Delega en `AlcanceService::entidadesVisibles`; el orden y las ramas
+     * viven en el servicio, no en el controller.
      */
     private function entidadesVisiblesPorTipo($user, string $tipo, ?array $raiz = null): Collection
     {
-        $query = match ($tipo) {
-            'banca' => Banca::query(),
-            'grupo' => Grupo::query(),
-            'taquilla' => Taquilla::query(),
-        };
-
-        if ($user->hasRole('banca')) {
-            if ($tipo === 'banca') {
-                $query->whereKey($user->banca_id);
-            } elseif ($tipo === 'grupo') {
-                $query->where('banca_id', $user->banca_id);
-            } else {
-                $query->whereHas('grupo', fn ($q) => $q->where('banca_id', $user->banca_id));
-            }
-        } elseif ($user->hasRole('master')) {
-            // master ve solo las bancas que administra y su descendencia;
-            // sin bancas asignadas ve NADA (whereRaw 1=0, nunca global)
-            $ids = $this->alcance->bancasDeMaster($user);
-            if ($ids->isEmpty()) {
-                $query->whereRaw('1=0');
-            } elseif ($tipo === 'banca') {
-                $query->whereIn('id', $ids);
-            } elseif ($tipo === 'grupo') {
-                $query->whereIn('banca_id', $ids);
-            } else {
-                $query->whereHas('grupo', fn ($q) => $q->whereIn('banca_id', $ids));
-            }
-        } elseif ($user->hasRole('grupo')) {
-            if ($tipo === 'grupo') {
-                $query->whereKey($user->grupo_id);
-            } elseif ($tipo === 'banca') {
-                $query->whereKey($user->banca_id);
-            } else {
-                $query->where('grupo_id', $user->grupo_id);
-            }
-        } elseif ($user->hasRole('agencia')) {
-            if ($tipo === 'grupo') {
-                $query->whereKey($user->grupo_id);
-            } elseif ($tipo === 'banca') {
-                $query->whereKey($user->banca_id);
-            } else {
-                $query->where('agencia_id', $user->agencia_id);
-            }
-        } elseif ($user->hasRole('super_master')) {
-            // Sin filtro: super_master ve todas las entidades del tipo.
-            // Antes era el default implícito del if/elseif; ahora es una
-            // rama explícita para que ningún rol desconocido herede "todas".
-        } else {
-            // Rol ausente o fuera de catálogo: fail-closed (REQ-4).
-            return collect();
-        }
-
-        // Intersección con raíz (mini-alcance de las pestañas de entidad):
-        // scope=grupos&banca_id=X → grupos de la banca X; scope=taquillas&banca_id=X
-        // → taquillas de la banca X; scope=taquillas&grupo_id=Y → taquillas del grupo Y.
-        if ($raiz !== null && $raiz['tipo'] === 'banca') {
-            if ($tipo === 'grupo') {
-                $query->where('banca_id', $raiz['id']);
-            } elseif ($tipo === 'taquilla') {
-                $query->whereHas('grupo', fn ($q) => $q->where('banca_id', $raiz['id']));
-            }
-        } elseif ($raiz !== null && $raiz['tipo'] === 'grupo' && $tipo === 'taquilla') {
-            $query->where('grupo_id', $raiz['id']);
-        }
-
-        return $query->orderBy('id')->get(['id', 'name']);
+        return $this->alcance->entidadesVisibles($user, $tipo, $raiz);
     }
 
     /**
