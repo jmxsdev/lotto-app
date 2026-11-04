@@ -213,7 +213,8 @@ class AlcanceJuegoTest extends TestCase
         $this->assertCount(Grupo::count(), $this->visiblesDe($this->super, 'grupo'));
         $this->assertCount(Taquilla::count(), $this->visiblesDe($this->super, 'taquilla'));
 
-        $this->assertIds([$this->bancaB->id, $this->bancaA->id], $this->visiblesDe($this->super, 'banca'));
+        $bancaSeed = Banca::where('code', 'BT001')->firstOrFail();
+        $this->assertIds([$bancaSeed->id, $this->bancaB->id, $this->bancaA->id], $this->visiblesDe($this->super, 'banca'));
         $this->assertIds([$this->grupoB->id], $this->visiblesDe($this->super, 'grupo', ['tipo' => 'banca', 'id' => $this->bancaB->id]));
 
         // Rol ausente o fuera de catálogo: colección vacía, sin excepción.
@@ -276,8 +277,10 @@ class AlcanceJuegoTest extends TestCase
         $this->assertCount(Grupo::count(), $this->idsDe($this->super, 'grupo'));
         $this->assertCount(Taquilla::count(), $this->idsDe($this->super, 'taquilla'));
 
-        $this->assertIds([$this->bancaB->id, $this->bancaA->id], $this->idsDe($this->super, 'banca'));
-        $this->assertIds([$this->taquillaB->id, $this->taquillaA2->id, $this->taquillaA1->id], $this->idsDe($this->super, 'taquilla'));
+        $bancaSeed = Banca::where('code', 'BT001')->firstOrFail();
+        $this->assertIds([$bancaSeed->id, $this->bancaB->id, $this->bancaA->id], $this->idsDe($this->super, 'banca'));
+        $taquillaSeed = Taquilla::where('code', 'TT001')->firstOrFail();
+        $this->assertIds([$taquillaSeed->id, $this->taquillaB->id, $this->taquillaA2->id, $this->taquillaA1->id], $this->idsDe($this->super, 'taquilla'));
     }
 
     public function test_ids_por_tipo_fail_closed_con_mensaje_exacto(): void
