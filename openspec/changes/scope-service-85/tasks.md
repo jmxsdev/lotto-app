@@ -91,13 +91,14 @@ Rama base raíz: `feature/alcance-scope-service-85`. Cadena local: cada WU hered
 
 #### 0c — Visibilidad/gestión por entidad (DIFERIDO)
 
-- **Objetivo**: `entidadesVisibles`, `alcanceDeEntidad`, `puedeGestionar`, `puedeOperarTaquilla` + helpers de visibilidad por entidad.
+- **Objetivo**: `alcanceDeEntidad`, `puedeGestionar`, `puedeOperarTaquilla` + helpers de visibilidad/gestión por entidad. `entidadesVisibles` se difiere a 4a/4b (solo la consumen Juego/Cierre).
 - **Rama**: `feat/85-0c-visibilidad-entidades` · **Base**: la rama vigente cuando la primera oleada lo consuma (2c/3a/4a).
 - **Motivo del diferimiento**: WU-0a completo superaba el presupuesto de 800 líneas; esta API no tiene consumidores hasta las oleadas CRUD/volumen. Se implementa cuando un controller la necesite, con tests de matriz.
 - **Tareas**:
-  - [ ] Implementar `entidadesVisibles`, `alcanceDeEntidad`, `puedeGestionar`, `puedeOperarTaquilla`.
-  - [ ] Helpers de visibilidad/gestión por entidad y constantes `POLICY`/`LIMITES`/`JUEGO_VIS`.
-  - [ ] `AlcanceEntidadesTest` con matriz rol×entidad.
+  - [x] Implementar `alcanceDeEntidad`, `puedeGestionar`, `puedeOperarTaquilla`.
+  - [x] Helpers de visibilidad/gestión por entidad y constantes `POLICY`/`LIMITES`/`JUEGO_VIS`.
+  - [x] `AlcanceEntidadesTest` con matriz rol×entidad.
+  - [ ] Diferir `entidadesVisibles` (+ helpers `visibilidadBanca/Master/Grupo/Agencia`) a 4a/4b.
 - **Líneas estimadas**: ~660–850 (partir si supera 800).
 - **Rollback**: `git revert` (aditivo).
 
@@ -110,9 +111,9 @@ Rama base raíz: `feature/alcance-scope-service-85`. Cadena local: cada WU hered
   - Modificar `backend/app/Providers/AppServiceProvider.php` (6 `Gate::policy(...)`)
   - Crear `backend/tests/Feature/AlcancePoliciesTest.php`
 - **Tareas**:
-  - [ ] Crear cada policy delegando scope/acción en `AlcanceService` (una línea por método).
-  - [ ] Registrar las 6 en `AppServiceProvider::boot()` junto al registro existente de `UserPolicy`.
-  - [ ] Escribir `AlcancePoliciesTest`: matriz rol×entidad (6 roles × 6 entidades) con tabla de verdad esperada.
+  - [x] Crear cada policy delegando scope/acción en `AlcanceService` (una línea por método).
+  - [x] Registrar las 6 en `AppServiceProvider::boot()` junto al registro existente de `UserPolicy`.
+  - [x] Escribir `AlcancePoliciesTest`: matriz rol×entidad (6 roles × 6 entidades) con tabla de verdad esperada.
 - **Tests**: `AlcancePoliciesTest` (nuevo). Baseline intacto.
 - **Comandos**: `cd backend && php artisan test --filter=AlcancePoliciesTest`
 - **Done**: policies registradas; matriz verde; baseline sin cambios.
