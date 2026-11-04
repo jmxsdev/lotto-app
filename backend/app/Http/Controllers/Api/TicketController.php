@@ -64,6 +64,9 @@ class TicketController extends Controller
             $query->whereHas('taquilla.grupo.banca', function ($q) use ($user) {
                 $q->where('banca_id', $user->banca_id);
             });
+        } elseif ($user->hasRole('master')) {
+            // Caso 4 (#84): master solo sus bancas; sin bancas → vacío.
+            $user->masterBancaChainScope()($query);
         }
 
         if ($request->has('estado')) {
@@ -105,6 +108,13 @@ class TicketController extends Controller
             return response()->json(['message' => 'No autorizado.'], 403);
         } elseif ($user->hasRole('banca') && $ticket->taquilla?->grupo?->banca_id !== $user->banca_id) {
             return response()->json(['message' => 'No autorizado.'], 403);
+        } elseif ($user->hasRole('master')) {
+            // Caso 4 (#84): master solo sus bancas; ticket ajeno → 403.
+            $bancaId = $ticket->taquilla?->grupo?->banca_id;
+
+            if ($bancaId === null || ! $user->masterCanAccessBanca((int) $bancaId)) {
+                return response()->json(['message' => 'No autorizado.'], 403);
+            }
         }
 
         $ticket->load(['apuestas.juego', 'apuestas.detalles', 'taquilla']);
@@ -313,6 +323,8 @@ class TicketController extends Controller
                 $apuestasQuery->whereHas('taquilla.grupo', fn ($q) => $q->where('grupo_id', $user->grupo_id));
             } elseif ($user->hasRole('banca')) {
                 $apuestasQuery->whereHas('taquilla.grupo.banca', fn ($q) => $q->where('banca_id', $user->banca_id));
+            } elseif ($user->hasRole('master')) {
+                $user->masterBancaChainScope()($apuestasQuery);
             }
 
             $apuestas = $apuestasQuery->get();
@@ -381,6 +393,8 @@ class TicketController extends Controller
             $multiQuery->whereHas('taquilla.grupo', fn ($q) => $q->where('grupo_id', $user->grupo_id));
         } elseif ($user->hasRole('banca')) {
             $multiQuery->whereHas('taquilla.grupo.banca', fn ($q) => $q->where('banca_id', $user->banca_id));
+        } elseif ($user->hasRole('master')) {
+            $user->masterBancaChainScope()($multiQuery);
         }
 
         foreach ($multiQuery->get() as $apuesta) {
@@ -441,9 +455,8 @@ class TicketController extends Controller
      * Fail-closed del scoping por rol (REQ-4): un usuario sin rol Spatie, o
      * con un rol fuera de catálogo, no tiene scope válido y se deniega.
      *
-     * `master` y `agencia` NO tienen rama de scoping en este controller y
-     * conservan su alcance global actual; eso es el issue #84 y queda fuera
-     * de este change (no se agregan ramas nuevas aquí).
+     * `master` ya tiene rama de scoping (#84, caso 4); `agencia` no está en el
+     * middleware de `/tickets` y permanece fuera del contrato.
      */
     private function autorizarScope(User $user): void
     {

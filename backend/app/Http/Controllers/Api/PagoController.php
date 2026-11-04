@@ -10,6 +10,7 @@ use App\Models\Ticket;
 use App\Services\PremiosLiquidador;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
@@ -94,8 +95,11 @@ class PagoController extends Controller
                 ]);
             }
 
-            // Verificar ownership (re-chequeado dentro del lock)
-            if ($user->hasRole('taquilla') && $apuesta->taquilla_id !== $user->taquilla_id) {
+            // Autorización jerárquica re-chequeada DENTRO del lock y ANTES del
+            // estado: taquilla/grupo/banca/master solo su árbol; super_master
+            // global. Un caller ajeno recibe 403 y no hay ventana de mutación.
+            // Se normaliza el body al contrato JSON de la API ("No autorizado.").
+            if (Gate::denies('view', $apuesta)) {
                 return $this->rechazo(403, ['message' => 'No autorizado.']);
             }
 

@@ -244,7 +244,7 @@ class ApuestaPolicyAnulacionTest extends TestCase
     {
         $apuesta = $this->apuesta();
 
-        foreach (['taquilla', 'agencia', 'grupo', 'banca', 'master', 'super_master'] as $role) {
+        foreach (['taquilla', 'agencia', 'grupo', 'banca', 'super_master'] as $role) {
             $user = $this->usuario($role);
 
             $this->assertNull(
@@ -252,6 +252,37 @@ class ApuestaPolicyAnulacionTest extends TestCase
                 "rol {$role} puede anular una apuesta de su propio árbol"
             );
         }
+
+        // master: solo si administra la banca de la apuesta (#84, caso 2).
+        $master = $this->usuario('master');
+        $this->banca->update(['master_id' => $master->id]);
+
+        $this->assertNull(
+            $this->policy->motivoNoAnulable($master, $apuesta),
+            'master administra la banca de la apuesta'
+        );
+    }
+
+    public function test_master_sin_bancas_o_de_banca_ajena_no_tiene_ownership(): void
+    {
+        $apuesta = $this->apuesta();
+
+        $sinBancas = $this->usuario('master');
+        $this->assertSame(
+            ApuestaPolicy::MOTIVO_SIN_OWNERSHIP,
+            $this->policy->motivoNoAnulable($sinBancas, $apuesta),
+            'master sin bancas no puede anular'
+        );
+
+        $otraBanca = Banca::factory()->create();
+        $deOtraBanca = $this->usuario('master');
+        $otraBanca->update(['master_id' => $deOtraBanca->id]);
+
+        $this->assertSame(
+            ApuestaPolicy::MOTIVO_SIN_OWNERSHIP,
+            $this->policy->motivoNoAnulable($deOtraBanca, $apuesta),
+            'master de otra banca no puede anular'
+        );
     }
 
     public function test_ownership_por_rol_fuera_del_arbol(): void

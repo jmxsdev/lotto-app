@@ -156,7 +156,13 @@ class ApuestaController extends Controller
      */
     public function show(Apuesta $apuesta)
     {
-        $this->authorize('view', $apuesta);
+        try {
+            $this->authorize('view', $apuesta);
+        } catch (AuthorizationException $e) {
+            // Contrato JSON de la API: 403 con "No autorizado." (mismo criterio
+            // que destroy), también para el alcance master del issue #84.
+            return response()->json(['message' => 'No autorizado.'], 403);
+        }
 
         return response()->json([
             'data' => $apuesta->load(['juego', 'taquilla', 'resultado', 'detalles', 'pago']),

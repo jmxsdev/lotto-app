@@ -30,24 +30,7 @@ class ApuestaPolicy
 
     public function view(User $user, Apuesta $apuesta): bool
     {
-        if ($user->hasAnyRole(['super_master', 'master'])) {
-            return true;
-        }
-        if ($user->hasRole('banca')) {
-            return $apuesta->taquilla->grupo->banca_id === $user->banca_id;
-        }
-        if ($user->hasRole('grupo')) {
-            return $apuesta->taquilla->grupo_id === $user->grupo_id;
-        }
-        if ($user->hasRole('agencia')) {
-            return $user->agencia_id !== null
-                && $apuesta->taquilla->agencia_id === $user->agencia_id;
-        }
-        if ($user->hasRole('taquilla')) {
-            return $apuesta->taquilla_id === $user->taquilla_id;
-        }
-
-        return false;
+        return $this->poseeApuesta($user, $apuesta);
     }
 
     public function create(User $user): bool
@@ -98,28 +81,54 @@ class ApuestaPolicy
     }
 
     /**
-     * Ownership del árbol de la taquilla (taquilla → agencia → grupo → banca;
-     * `master`/`super_master` sobre cualquiera).
+     * Ownership de la apuesta según el alcance jerárquico del actor.
+     *
+     * - `super_master`: global.
+     * - `master`: solo apuestas de una banca que administra (`master_id`).
+     * - `banca`/`grupo`/`agencia`/`taquilla`: su rama del árbol.
+     * - Sin cadena visible de taquilla → `false` (nunca global por accidente).
      */
     private function poseeApuesta(User $user, Apuesta $apuesta): bool
     {
+        if ($user->hasRole('super_master')) {
+            return true;
+        }
+
+        $taquilla = $apuesta->taquilla;
+
+        if (! $taquilla) {
+            return false;
+        }
+
         if ($user->hasRole('taquilla')) {
             return $apuesta->taquilla_id === $user->taquilla_id;
         }
 
         if ($user->hasRole('agencia')) {
             return $user->agencia_id !== null
-                && $apuesta->taquilla->agencia_id === $user->agencia_id;
+                && $taquilla->agencia_id === $user->agencia_id;
         }
 
         if ($user->hasRole('grupo')) {
-            return $apuesta->taquilla->grupo_id === $user->grupo_id;
+            return $user->grupo_id !== null
+                && $taquilla->grupo_id === $user->grupo_id;
+        }
+
+        $bancaId = $taquilla->grupo?->banca_id;
+
+        if ($bancaId === null) {
+            return false;
         }
 
         if ($user->hasRole('banca')) {
-            return $apuesta->taquilla->grupo->banca_id === $user->banca_id;
+            return $user->banca_id !== null
+                && (int) $bancaId === (int) $user->banca_id;
         }
 
-        return $user->hasAnyRole(['super_master', 'master']);
+        if ($user->hasRole('master')) {
+            return $user->masterCanAccessBanca((int) $bancaId);
+        }
+
+        return false;
     }
 }
