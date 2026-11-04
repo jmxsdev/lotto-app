@@ -188,7 +188,7 @@ Rama base raíz: `feature/alcance-scope-service-85`. Cadena local: cada WU hered
 - **Rama**: `feat/85-2b-grupo` · **Base**: `feat/85-2a-banca-agencia`
 - **Archivos**: Modificar `backend/app/Http/Controllers/Api/GrupoController.php`.
 - **Tareas**:
-  - [ ] Escalera → `applyToEntidades`/`GrupoPolicy`; denegación unificada.
+  - [x] Escalera → `applyToEntidades`/`GrupoPolicy`; denegación unificada. (`index` → `applyToEntidades($query,$user,'grupo','No tienes permiso para ver grupos.')`; `show` → `alcanceDeEntidad('grupo')`; `update`/`toggle`/`destroy` → `puedeGestionar('grupo')`; `authorizeBancaAccess` y la lógica de creación/validación/cascadas intactas.)
 - **Tests**: `AlcanceJerarquicoUsuariosTest`, `GestionEntidadesApiTest` (existentes, sin modificar).
 - **Comandos**: `cd backend && php artisan test --filter='Grupo'`
 - **Done**: scope de grupo idéntico; tests verdes.
