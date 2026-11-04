@@ -79,6 +79,9 @@ class E2eSeeder extends Seeder
 
         $super = User::role('super_master')->first();
         $creadoPor = $super?->id;
+        // El usuario taquilla del fixture lo crea el actor de su nivel
+        // (usuario grupo del mismo grupo sembrado); fallback al super_master.
+        $creadorUsuario = User::role('grupo')->where('grupo_id', $grupo->id)->first()?->id ?? $creadoPor;
 
         // 0. Liberar la identidad E2E: DEMO01 (provisional de S1) pudo haber
         // tomado el MAC/fingerprint E2E a mano. Se restaura a sus valores de
@@ -112,6 +115,7 @@ class E2eSeeder extends Seeder
         $user = User::updateOrCreate(
             ['email' => 'e2e@lotto.com'],
             [
+                'created_by' => $creadorUsuario,
                 'name' => 'E2E User',
                 'password' => Hash::make((string) env('SEEDER_PASSWORD', 'password')),
                 'banca_id' => $grupo->banca_id,

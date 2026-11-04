@@ -180,6 +180,7 @@ class TaquillaController extends Controller
             ]);
 
             $userCreado = User::create([
+                'created_by' => $user->id,
                 'name' => $request->user_name,
                 'email' => $request->user_email,
                 'password' => Hash::make($request->user_password),

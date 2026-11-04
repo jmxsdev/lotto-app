@@ -41,6 +41,7 @@ class User extends Authenticatable
      * @var array<int, string>
      */
     protected $fillable = [
+        'created_by',
         'name',
         'email',
         'password',
@@ -119,6 +120,22 @@ class User extends Authenticatable
     public function bancas()
     {
         return $this->hasMany(Banca::class, 'master_id');
+    }
+
+    /**
+     * Usuario que creó esta fila (metadata; puede ser null en preexistentes).
+     */
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Usuarios creados por este usuario (metadata de fila).
+     */
+    public function createdUsers()
+    {
+        return $this->hasMany(User::class, 'created_by');
     }
 
     public function grupo()

@@ -23,8 +23,9 @@ class UsersSeeder extends Seeder
         ]);
         $super->assignRole('super_master');
 
-        // Master (ejemplo)
+        // Master (ejemplo) — creado por el super_master
         $master = User::create([
+            'created_by' => $super->id,
             'name' => 'Master Test',
             'email' => 'master@lotto.com',
             'password' => Hash::make(env('SEEDER_PASSWORD', 'password')),
@@ -39,6 +40,7 @@ class UsersSeeder extends Seeder
             'created_by' => $super->id,
         ]);
         $bancaUser = User::create([
+            'created_by' => $master->id,
             'name' => 'Banca User',
             'email' => 'banca@lotto.com',
             'password' => Hash::make(env('SEEDER_PASSWORD', 'password')),
@@ -55,6 +57,7 @@ class UsersSeeder extends Seeder
             'created_by' => $super->id,
         ]);
         $grupoUser = User::create([
+            'created_by' => $bancaUser->id,
             'name' => 'Grupo User',
             'email' => 'grupo@lotto.com',
             'password' => Hash::make(env('SEEDER_PASSWORD', 'password')),
@@ -74,6 +77,7 @@ class UsersSeeder extends Seeder
             'created_by' => $super->id,
         ]);
         $taquillaUser = User::create([
+            'created_by' => $grupoUser->id,
             'name' => 'Taquilla User',
             'email' => 'taquilla@lotto.com',
             'password' => Hash::make(env('SEEDER_PASSWORD', 'password')),
@@ -96,6 +100,7 @@ class UsersSeeder extends Seeder
             'created_by' => $super->id,
         ]);
         $demoUser = User::create([
+            'created_by' => $grupoUser->id,
             'name' => 'Demo User',
             'email' => 'demo@lotto.com',
             'password' => Hash::make(env('SEEDER_PASSWORD', 'password')),
@@ -115,6 +120,7 @@ class UsersSeeder extends Seeder
             'created_by' => $super->id,
         ]);
         $agenciaUser = User::create([
+            'created_by' => $grupoUser->id,
             'name' => 'Agencia User',
             'email' => 'agencia@lotto.com',
             'password' => Hash::make(env('SEEDER_PASSWORD', 'password')),
