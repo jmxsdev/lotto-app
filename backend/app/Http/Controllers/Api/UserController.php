@@ -8,6 +8,7 @@ use App\Models\Grupo;
 use App\Models\Log;
 use App\Models\Taquilla;
 use App\Models\User;
+use App\Policies\UserPolicy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -39,44 +40,52 @@ class UserController extends Controller
             // Sin filtro
         }
         // Master ve solo los usuarios de las bancas que administra (y su
-        // descendencia por cadena); sin bancas asignadas ve NADA
+        // descendencia por cadena) más los que creó; sin bancas asignadas
+        // conserva únicamente a sus creados.
         elseif ($user->hasRole('master')) {
             $masterIds = $user->masterBancaIds();
-            if ($masterIds->isEmpty()) {
-                $query->whereRaw('1=0');
-            } else {
-                $query->where(function ($q) use ($masterIds) {
+            $query->where(function ($q) use ($user, $masterIds) {
+                if ($masterIds->isEmpty()) {
+                    $q->where('created_by', $user->id);
+                } else {
                     $q->whereIn('banca_id', $masterIds)
-                        ->orWhereHas('taquilla', fn ($t) => $t->whereHas('grupo', fn ($g) => $g->whereIn('banca_id', $masterIds)));
-                });
-            }
+                        ->orWhereHas('taquilla', fn ($t) => $t->whereHas('grupo', fn ($g) => $g->whereIn('banca_id', $masterIds)))
+                        ->orWhere('created_by', $user->id);
+                }
+            });
         }
         // Banca ve los usuarios de su banca (por vínculo directo o por cadena)
+        // más los que creó.
         elseif ($user->hasRole('banca')) {
             if (! $user->banca_id) {
                 return response()->json(['message' => 'No tienes una banca asociada.'], 403);
             }
             $query->where(function ($q) use ($user) {
                 $q->where('banca_id', $user->banca_id)
-                    ->orWhereHas('taquilla', fn ($t) => $t->whereHas('grupo', fn ($g) => $g->where('banca_id', $user->banca_id)));
+                    ->orWhereHas('taquilla', fn ($t) => $t->whereHas('grupo', fn ($g) => $g->where('banca_id', $user->banca_id)))
+                    ->orWhere('created_by', $user->id);
             });
         }
-        // Grupo ve los usuarios de su grupo y de sus agencias
+        // Grupo ve los usuarios de su grupo, de sus agencias y los que creó.
         elseif ($user->hasRole('grupo')) {
             if (! $user->grupo_id) {
                 return response()->json(['message' => 'No tienes un grupo asociado.'], 403);
             }
             $query->where(function ($q) use ($user) {
                 $q->where('grupo_id', $user->grupo_id)
-                    ->orWhereHas('taquilla', fn ($t) => $t->where('grupo_id', $user->grupo_id));
+                    ->orWhereHas('taquilla', fn ($t) => $t->where('grupo_id', $user->grupo_id))
+                    ->orWhere('created_by', $user->id);
             });
         }
-        // Agencia ve los usuarios de su local (agencia_id directo o vía taquilla)
+        // Agencia ve los usuarios de su local y los que creó.
         elseif ($user->hasRole('agencia')) {
             if (! $user->agencia_id) {
                 return response()->json(['message' => 'No tienes una agencia asociada.'], 403);
             }
-            $query->where('agencia_id', $user->agencia_id);
+            $query->where(function ($q) use ($user) {
+                $q->where('agencia_id', $user->agencia_id)
+                    ->orWhere('created_by', $user->id);
+            });
         }
         // Taquilla solo se ve a sí misma
         elseif ($user->hasRole('taquilla')) {
@@ -213,9 +222,16 @@ class UserController extends Controller
             abort(403, 'El usuario no tiene un rol asignado.');
         }
 
-        // Al cambiar rol o vínculos: validar consistencia y autorización jerárquica
+        $roleChanging = $request->filled('role') && ! $user->hasRole($request->role);
+
+        // Al cambiar rol o vínculos: validar consistencia y autorización
+        // jerárquica. `canAssign` impide autopromoción, pares y mover al
+        // usuario fuera del subárbol del actor.
         if ($request->filled('role') || $bindings !== []) {
             $this->validateRoleBindings($finalRole, $data, $user);
+        }
+
+        if ($roleChanging || $bindings !== []) {
             $this->authorizeEntityBinding($currentUser, $data, $finalRole, $user);
         }
 
@@ -256,7 +272,8 @@ class UserController extends Controller
     }
 
     /**
-     * Eliminar un usuario (solo Super Master y Master)
+     * Eliminar un usuario (super_master global; master/banca/grupo/agencia
+     * solo dentro de su subárbol o sobre sus creados, siempre de rango menor).
      */
     public function destroy(User $user)
     {
@@ -271,84 +288,22 @@ class UserController extends Controller
 
     /**
      * Autorizar la creación/asignación de un usuario con un rol y unos
-     * vínculos de entidad, según la jerarquía del usuario autenticado.
+     * vínculos de entidad, delegando en `UserPolicy`.
      *
-     * super_master: todo; master: cualquier banca (no super_master);
-     * banca: solo entidades de su banca; grupo: solo entidades de su grupo.
+     * `canCreate` cubre el alta; `canAssign` cubre la edición de un usuario
+     * existente (cambio de rol o de vínculos).
      */
     private function authorizeEntityBinding($currentUser, array $data, string $role, ?User $existing = null)
     {
-        if ($currentUser->hasRole('super_master')) {
-            return;
+        $policy = app(UserPolicy::class);
+
+        $allowed = $existing === null
+            ? $policy->canCreate($currentUser, $role, $data)
+            : $policy->canAssign($currentUser, $role, $data, $existing);
+
+        if (! $allowed) {
+            abort(403, 'No tienes permisos para gestionar usuarios con ese rol o vínculo.');
         }
-
-        if ($currentUser->hasRole('master')) {
-            if ($role === 'super_master') {
-                abort(403, 'No puedes asignar el rol super_master.');
-            }
-
-            // Los masters son pares del master autenticado: solo el super_master
-            // asigna el rol master (jerarquía: super_master → master → ...).
-            if ($role === 'master') {
-                abort(403, 'No puedes asignar el rol master.');
-            }
-
-            // El master solo puede vincular usuarios a sus propias bancas
-            // (o a entidades de su descendencia).
-            $effectiveBanca = $data['banca_id'] ?? $this->resolveBancaId($existing);
-            if ($effectiveBanca !== null && ! $currentUser->masterCanAccessBanca((int) $effectiveBanca)) {
-                abort(403, 'No puedes vincular usuarios a entidades de otra banca.');
-            }
-
-            return;
-        }
-
-        if ($currentUser->hasRole('banca')) {
-            if (! $currentUser->banca_id) {
-                abort(403, 'No tienes una banca asociada.');
-            }
-            if (in_array($role, ['super_master', 'master'], true)) {
-                abort(403, 'No tienes permisos para asignar este rol.');
-            }
-            $effectiveBanca = $data['banca_id'] ?? $this->resolveBancaId($existing);
-            if ($effectiveBanca != $currentUser->banca_id) {
-                abort(403, 'No puedes vincular usuarios a entidades de otra banca.');
-            }
-
-            return;
-        }
-
-        if ($currentUser->hasRole('grupo')) {
-            if (! $currentUser->grupo_id) {
-                abort(403, 'No tienes un grupo asociado.');
-            }
-            if (in_array($role, ['super_master', 'master', 'banca'], true)) {
-                abort(403, 'No tienes permisos para asignar este rol.');
-            }
-            $effectiveGrupo = $data['grupo_id'] ?? $this->resolveGrupoId($existing);
-            if ($effectiveGrupo != $currentUser->grupo_id) {
-                abort(403, 'No puedes vincular usuarios a entidades de otro grupo.');
-            }
-
-            return;
-        }
-
-        if ($currentUser->hasRole('agencia')) {
-            if (! $currentUser->agencia_id) {
-                abort(403, 'No tienes una agencia asociada.');
-            }
-            if (in_array($role, ['super_master', 'master', 'banca', 'grupo'], true)) {
-                abort(403, 'No tienes permisos para asignar este rol.');
-            }
-            $effectiveAgencia = $data['agencia_id'] ?? $this->resolveAgenciaId($existing);
-            if ($effectiveAgencia != $currentUser->agencia_id) {
-                abort(403, 'No puedes vincular usuarios a entidades de otro local.');
-            }
-
-            return;
-        }
-
-        abort(403, 'No tienes permisos para gestionar usuarios.');
     }
 
     // --- Helpers de vínculos ---

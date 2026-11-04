@@ -167,6 +167,26 @@ class MastersPanelTest extends TestCase
         $this->assertFalse($emails->contains('master@lotto.com'));
     }
 
+    public function test_master_no_ve_super_ni_otros_masters_en_el_listado_completo()
+    {
+        $this->createMaster('master-fuera@test.com');
+
+        $response = $this->actingAs($this->masterUser(), 'sanctum')
+            ->getJson('/api/v1/users');
+
+        $response->assertStatus(200);
+
+        $emails = collect($response->json())->pluck('email');
+
+        // WU-1b: el master ve su subárbol y los usuarios que creó.
+        $this->assertTrue($emails->contains('banca@lotto.com'));
+
+        // Nunca super_master ni masters pares.
+        $this->assertFalse($emails->contains('super@lotto.com'));
+        $this->assertFalse($emails->contains('master-fuera@test.com'));
+        $this->assertFalse($emails->contains('master@lotto.com'));
+    }
+
     public function test_filtro_role_invalido_devuelve_422()
     {
         $response = $this->actingAs($this->superUser(), 'sanctum')

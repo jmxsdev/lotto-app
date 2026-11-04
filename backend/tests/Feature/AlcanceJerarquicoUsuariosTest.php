@@ -170,6 +170,59 @@ class AlcanceJerarquicoUsuariosTest extends TestCase
     }
 
     // ==================================================
+    // Pares y superiores no se crean
+    // ==================================================
+
+    public function test_banca_no_puede_crear_otra_banca()
+    {
+        $banca = $this->bancaSeeded();
+        $email = 'banca-par-'.uniqid().'@lotto.com';
+
+        $response = $this->actingAs($this->bancaUser(), 'sanctum')
+            ->postJson('/api/v1/users', $this->payloadUsuario([
+                'user_email' => $email,
+                'role' => 'banca',
+                'banca_id' => $banca->id,
+            ]));
+
+        $response->assertStatus(403);
+        $this->assertDatabaseMissing('users', ['email' => $email]);
+    }
+
+    public function test_grupo_no_puede_crear_otro_grupo()
+    {
+        $grupo = $this->grupoSeeded();
+        $email = 'grupo-par-'.uniqid().'@lotto.com';
+
+        $response = $this->actingAs($this->grupoUser(), 'sanctum')
+            ->postJson('/api/v1/users', $this->payloadUsuario([
+                'user_email' => $email,
+                'role' => 'grupo',
+                'grupo_id' => $grupo->id,
+            ]));
+
+        $response->assertStatus(403);
+        $this->assertDatabaseMissing('users', ['email' => $email]);
+    }
+
+    public function test_agencia_no_puede_crear_otra_agencia()
+    {
+        $agencia = $this->agenciaUser();
+        $local = $agencia->agencia;
+        $email = 'agencia-par-'.uniqid().'@lotto.com';
+
+        $response = $this->actingAs($agencia, 'sanctum')
+            ->postJson('/api/v1/users', $this->payloadUsuario([
+                'user_email' => $email,
+                'role' => 'agencia',
+                'agencia_id' => $local->id,
+            ]));
+
+        $response->assertStatus(403);
+        $this->assertDatabaseMissing('users', ['email' => $email]);
+    }
+
+    // ==================================================
     // Borrado de rango menor dentro del subárbol
     // ==================================================
 
@@ -253,6 +306,42 @@ class AlcanceJerarquicoUsuariosTest extends TestCase
         $this->assertDatabaseHas('users', ['id' => $target->id]);
     }
 
+    public function test_banca_no_puede_mover_usuario_fuera_de_su_subarbol()
+    {
+        $target = User::where('email', 'taquilla@lotto.com')->firstOrFail();
+
+        $otraBanca = Banca::factory()->create(['active' => true]);
+        $otroGrupo = Grupo::factory()->create([
+            'banca_id' => $otraBanca->id,
+            'active' => true,
+        ]);
+
+        $response = $this->actingAs($this->bancaUser(), 'sanctum')
+            ->putJson('/api/v1/users/'.$target->id, [
+                'grupo_id' => $otroGrupo->id,
+            ]);
+
+        $response->assertStatus(403);
+        $this->assertDatabaseHas('users', [
+            'id' => $target->id,
+            'grupo_id' => $this->grupoSeeded()->id,
+        ]);
+    }
+
+    public function test_banca_no_puede_autopromocionarse()
+    {
+        $banca = $this->bancaUser();
+
+        $response = $this->actingAs($banca, 'sanctum')
+            ->putJson('/api/v1/users/'.$banca->id, [
+                'role' => 'master',
+            ]);
+
+        $response->assertStatus(403);
+        $this->assertTrue($banca->fresh()->hasRole('banca'));
+        $this->assertFalse($banca->fresh()->hasRole('master'));
+    }
+
     // ==================================================
     // Taquilla: solo lectura de su propio usuario
     // ==================================================
@@ -290,4 +379,53 @@ class AlcanceJerarquicoUsuariosTest extends TestCase
         $this->assertDatabaseHas('users', ['id' => $demo->id]);
     }
 
+    // ==================================================
+    // created_by: metadata de fila, nunca del payload
+    // ==================================================
+
+    public function test_created_by_del_payload_se_ignora()
+    {
+        $actor = $this->superUser();
+        $otro = $this->masterUser();
+        $banca = $this->bancaSeeded();
+
+        $response = $this->actingAs($actor, 'sanctum')
+            ->postJson('/api/v1/users', $this->payloadUsuario([
+                'role' => 'banca',
+                'banca_id' => $banca->id,
+                'created_by' => $otro->id,
+            ]));
+
+        $response->assertStatus(201);
+
+        $creado = User::where('email', $response->json('email'))->firstOrFail();
+
+        $this->assertSame((int) $actor->id, (int) $creado->created_by);
+        $this->assertNotSame((int) $otro->id, (int) $creado->created_by);
+    }
+
+    public function test_index_incluye_usuarios_creados_y_excluye_ajenos()
+    {
+        $banca = $this->bancaUser();
+
+        $creado = User::factory()->withRole('taquilla')->create([
+            'created_by' => $banca->id,
+        ]);
+
+        $otraBanca = Banca::factory()->create(['active' => true]);
+        $ajeno = User::factory()->withRole('taquilla')->create([
+            'banca_id' => $otraBanca->id,
+        ]);
+
+        $response = $this->actingAs($banca, 'sanctum')
+            ->getJson('/api/v1/users');
+
+        $response->assertStatus(200);
+
+        $emails = collect($response->json())->pluck('email');
+
+        $this->assertContains($creado->email, $emails);
+        $this->assertNotContains($ajeno->email, $emails);
+        $this->assertNotContains('super@lotto.com', $emails);
+    }
 }
