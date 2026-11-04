@@ -323,12 +323,12 @@ Rama base raíz: `feature/alcance-scope-service-85`. Cadena local: cada WU hered
 ## Criterios de aceptación globales
 
 - [x] Ningún controller de `Api/` compara roles para decidir qué filas ve (solo autorización de acción puntual).
-- [ ] `AlcanceService` es la única implementación de `taquilla → grupo → banca` y `taquilla → agencia → grupo → banca`.
-- [ ] `->masterBancaIds()` en `app/` queda limitado a `User` (definición + helpers) y `AlcanceService`; 0 usos en `app/Http/Controllers` (lo verifica `ArquitecturaAlcanceTest`).
-- [ ] Baseline intacto sin modificar: `SuperBancaScopeTest`, `AgenciaScopeTest`, `MastersPanelTest`, `RoleAuthorizationTest`, `LimitesScopedApiTest`, `TicketMasterScopeTest`, `ApuestaScopePolicyTest`, `PagoEgresoScopeTest`, `AlcanceJerarquicoUsuariosTest`, `CreatedByTest`.
-- [ ] Nuevos tests: `AlcanceServiceScopeTest`, `AlcancePoliciesTest`, `ArquitecturaAlcanceTest`, `AlcanceJuegoTest`.
-- [ ] `composer test` en verde y `pint --test` limpio (ejecutados por el usuario).
-- [ ] Docs del modelo de alcance en `docs/dev/`.
+- [x] `AlcanceService` es la única implementación de `taquilla → grupo → banca` y `taquilla → agencia → grupo → banca`.
+- [x] `->masterBancaIds()` en `app/` queda limitado a `User` (definición + helpers) y `AlcanceService`; 0 usos en `app/Http/Controllers` (lo verifica `ArquitecturaAlcanceTest`).
+- [x] Baseline intacto sin modificar: `SuperBancaScopeTest`, `AgenciaScopeTest`, `MastersPanelTest`, `RoleAuthorizationTest`, `LimitesScopedApiTest`, `TicketMasterScopeTest`, `ApuestaScopePolicyTest`, `PagoEgresoScopeTest`, `AlcanceJerarquicoUsuariosTest`, `CreatedByTest`.
+- [x] Nuevos tests: `AlcanceServiceScopeTest`, `AlcancePoliciesTest`, `ArquitecturaAlcanceTest`, `AlcanceJuegoTest`.
+- [x] `composer test` en verde y `pint --test` limpio (ejecutados por el usuario).
+- [x] Docs del modelo de alcance en `docs/dev/`.
 
 ## Riesgos
 
