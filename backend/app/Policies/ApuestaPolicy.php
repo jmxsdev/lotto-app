@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Models\Apuesta;
 use App\Models\User;
 use App\Services\ApuestaService;
+use App\Support\Scope\AlcanceService;
 
 class ApuestaPolicy
 {
@@ -83,52 +84,16 @@ class ApuestaPolicy
     /**
      * Ownership de la apuesta según el alcance jerárquico del actor.
      *
-     * - `super_master`: global.
-     * - `master`: solo apuestas de una banca que administra (`master_id`).
-     * - `banca`/`grupo`/`agencia`/`taquilla`: su rama del árbol.
-     * - Sin cadena visible de taquilla → `false` (nunca global por accidente).
+     * Delega en `AlcanceService::alcanceDeEntidad` (precedencia `POLICY`:
+     * super_master → taquilla → agencia → grupo → banca → master); el servicio
+     * es la única implementación de la jerarquía (issue #85).
+     *
+     * Se resuelve por contenedor y no por constructor para conservar la firma
+     * pública: `ApuestaPolicy` se instancia sin argumentos en tests y en
+     * `Gate` (auto-discovery).
      */
     private function poseeApuesta(User $user, Apuesta $apuesta): bool
     {
-        if ($user->hasRole('super_master')) {
-            return true;
-        }
-
-        $taquilla = $apuesta->taquilla;
-
-        if (! $taquilla) {
-            return false;
-        }
-
-        if ($user->hasRole('taquilla')) {
-            return $apuesta->taquilla_id === $user->taquilla_id;
-        }
-
-        if ($user->hasRole('agencia')) {
-            return $user->agencia_id !== null
-                && $taquilla->agencia_id === $user->agencia_id;
-        }
-
-        if ($user->hasRole('grupo')) {
-            return $user->grupo_id !== null
-                && $taquilla->grupo_id === $user->grupo_id;
-        }
-
-        $bancaId = $taquilla->grupo?->banca_id;
-
-        if ($bancaId === null) {
-            return false;
-        }
-
-        if ($user->hasRole('banca')) {
-            return $user->banca_id !== null
-                && (int) $bancaId === (int) $user->banca_id;
-        }
-
-        if ($user->hasRole('master')) {
-            return $user->masterCanAccessBanca((int) $bancaId);
-        }
-
-        return false;
+        return app(AlcanceService::class)->alcanceDeEntidad($user, 'apuesta', $apuesta);
     }
 }
