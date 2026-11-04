@@ -67,10 +67,10 @@ banca/grupo/taquilla/agencia con comisiones y cierres de caja.
 | `Plugins/Contracts/` | Negocio | `JuegoInterface` |
 | `Plugins/Juegos/` | Negocio | `Animalitos`, `Terminales`, `Tripletas` (plugins de **juego**) |
 | `Plugins/Scrapers/` | Negocio | `BaseScraper` + ~18 scrapers concretos (`LoteriaDeHoyScraper`, `LaGranjitaScraper`, `TripleCalienteOficialScraper`, …) |
-| `Policies/` | Convención + negocio | `ApuestaPolicy` |
+| `Policies/` | Convención + negocio | `ApuestaPolicy`, `UserPolicy` y las 6 policies del alcance (`Banca`, `Grupo`, `Agencia`, `Taquilla`, `Ticket`, `Cierre`) |
 | `Providers/` | Mixto | `AppServiceProvider` (estándar); `PluginServiceProvider` y `ScheduleServiceProvider` (negocio) |
 | `Services/` | Negocio | Corazón: `PremiosEngine`, `ApuestaService`, `JuegoPluginManager`, `PremiosConfigService`, `ScraperSourceResolver`, `ScraperSource`, `DrawReconciliationService`, `CierreService`, `ComisionService`, `ConfiguracionService`, `JuegoLimiteService`, `JuegoCatalogoService`, `ActivacionEfectivaService` |
-| `Support/` | Negocio | `PremiosOficiales` (catálogo en código de los 21 juegos), `Texto` (normalización) |
+| `Support/` | Negocio | `PremiosOficiales` (catálogo en código de los 21 juegos), `Texto` (normalización), `Scope/AlcanceService` (jerarquía de alcance, ver §3.2) |
 
 ### 3.1 Nota clave: hay DOS sistemas de plugins
 
@@ -85,6 +85,20 @@ Comparten `app/Plugins/` pero no tienen relación entre sí:
 | Decide | **Forma** del acierto y validación | **De dónde y cómo** se obtiene el dato |
 
 Ninguno de los dos decide el **dinero**; eso es exclusivo de `PremiosEngine`.
+
+### 3.2 Alcance jerárquico
+
+**Regla**: `App\Support\Scope\AlcanceService` es la única implementación del
+recorrido `taquilla → grupo → banca` y `taquilla → agencia → grupo → banca`.
+Los controllers delegan en `applyTo*`/`alcanceDeEntidad`/`puedeGestionar` y las
+policies en una línea; **ningún controller compara roles para decidir qué filas
+ve**. `App\Models\User` conserva los helpers de bajo nivel (`masterBancaIds()` y
+las closures de master) y `AlcanceService` es su único consumidor externo.
+
+El orden de precedencia depende del contrato de cada endpoint (`APUESTAS`,
+`TICKETS`, `POLICY`, `ENTIDADES`, `CIERRE_ITEM`, `LIMITES`, `JUEGO_VIS`), no de
+un orden global. Detalle, excepciones deliberadas y guía de migración en
+[`alcance-jerarquico.md`](alcance-jerarquico.md).
 
 ## 4. Motor de premios
 
