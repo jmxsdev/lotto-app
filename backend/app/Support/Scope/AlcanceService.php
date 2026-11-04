@@ -362,16 +362,87 @@ final class AlcanceService
         };
     }
 
-    /**
-     * Entidades del tipo consultado visibles para el actor.
-     *
-     * `$raiz` interseca el alcance del rol con el mini-alcance de las pestañas
-     * de entidad: `['tipo' => 'banca', 'id' => X]` o `['tipo' => 'grupo', 'id' => Y]`.
-     * Rol ausente o fuera de catálogo: colección vacía (fail-closed).
-     *
-     * @param  array{tipo: string, id: int}|null  $raiz
-     * @return Collection<int, Banca|Grupo|Taquilla>
-     */
+    /** ¿La entidad está dentro del alcance de VISIBILIDAD del actor? */
+    public function alcanceDeEntidad(User $actor, string $entidad, Model $modelo): bool
+    {
+        return match ($entidad) {
+            'banca' => $this->bancaVisible($actor, $modelo),
+            'grupo' => $this->grupoVisible($actor, $modelo),
+            'agencia' => $this->agenciaVisible($actor, $modelo),
+            'taquilla' => $this->taquillaVisible($actor, $modelo),
+            'limite' => $this->limiteVisible($actor, $modelo),
+            'apuesta' => $this->apuestaVisible($actor, $modelo),
+            'ticket' => $this->ticketVisible($actor, $modelo),
+            'cierre' => $this->cierreVisible($actor, $modelo),
+            default => false,
+        };
+    }
+
+    /** ¿El actor puede GESTIONAR (crear/editar/borrar) la entidad? */
+    public function puedeGestionar(User $actor, string $entidad, Model $modelo): bool
+    {
+        return match ($entidad) {
+            'banca' => $this->puedeGestionarBanca($actor, $modelo),
+            'grupo' => $this->puedeGestionarGrupo($actor, $modelo),
+            'agencia' => $this->puedeGestionarAgencia($actor, $modelo),
+            'taquilla' => $this->puedeGestionarTaquilla($actor, $modelo),
+            'limite' => $this->puedeGestionarLimite($actor, $modelo),
+            'apuesta' => $this->apuestaVisible($actor, $modelo),
+            'ticket' => $this->ticketVisible($actor, $modelo),
+            'cierre' => $this->cierreVisible($actor, $modelo),
+            default => false,
+        };
+    }
+
+    /** ¿El actor puede operar (cerrar caja de) la taquilla indicada? (`CIERRE_ITEM`, agencia→grupo). */
+    public function puedeOperarTaquilla(User $actor, Taquilla $taquilla): bool
+    {
+        $rol = $this->primerRol($actor, self::CIERRE_ITEM);
+
+        if ($rol === 'taquilla') {
+            return $actor->taquilla_id !== null
+                && (int) $actor->taquilla_id === (int) $taquilla->id;
+        }
+
+        if ($rol === 'super_master') {
+            return true;
+        }
+
+        $bancaId = $taquilla->grupo?->banca_id;
+
+        if ($rol === 'master') {
+            return $bancaId !== null && $actor->masterCanAccessBanca((int) $bancaId);
+        }
+
+        if ($rol === 'agencia') {
+            if ($actor->agencia_id === null) {
+                return false;
+            }
+
+            if ((int) $actor->agencia_id === (int) $taquilla->agencia_id) {
+                return true;
+            }
+
+            return $taquilla->grupo?->agencias()
+                ->where('id', $actor->agencia_id)
+                ->exists() ?? false;
+        }
+
+        if ($rol === 'banca') {
+            return $actor->banca_id !== null
+                && $bancaId !== null
+                && (int) $actor->banca_id === (int) $bancaId;
+        }
+
+        if ($rol === 'grupo') {
+            return $actor->grupo_id !== null
+                && (int) $actor->grupo_id === (int) $taquilla->grupo_id;
+        }
+
+        return false;
+    }
+
+    // `entidadesVisibles()` y los helpers `visibilidad*` se difieren a 4a/4b (consumidores: Juego/Cierre).
 
     /**
      * Bancas que el actor administra como master.
@@ -567,9 +638,460 @@ final class AlcanceService
     }
 
     // -----------------------------------------------------------------
-    // Visibilidad de entidades (JuegoController)
+    // Decisión por entidad: visibilidad y gestión
     // -----------------------------------------------------------------
 
+    private function bancaVisible(User $actor, Model $modelo): bool
+    {
+        if (! $modelo instanceof Banca) {
+            return false;
+        }
+
+        $rol = $this->primerRol($actor, self::ENTIDADES);
+
+        if ($rol === 'super_master') {
+            return true;
+        }
+
+        if ($rol === 'master') {
+            return $actor->masterCanAccessBanca((int) $modelo->id);
+        }
+
+        // banca / grupo / agencia descienden de la banca; taquilla no tiene nivel banca.
+        return in_array($rol, ['banca', 'grupo', 'agencia'], true)
+            && $actor->banca_id !== null
+            && (int) $actor->banca_id === (int) $modelo->id;
+    }
+
+    private function grupoVisible(User $actor, Model $modelo): bool
+    {
+        if (! $modelo instanceof Grupo) {
+            return false;
+        }
+
+        $rol = $this->primerRol($actor, self::ENTIDADES);
+
+        if ($rol === 'super_master') {
+            return true;
+        }
+
+        if ($rol === 'master') {
+            return $modelo->banca_id !== null
+                && $actor->masterCanAccessBanca((int) $modelo->banca_id);
+        }
+
+        if ($rol === 'banca') {
+            return $actor->banca_id !== null
+                && (int) $actor->banca_id === (int) $modelo->banca_id;
+        }
+
+        if (in_array($rol, ['grupo', 'agencia'], true)) {
+            return $actor->grupo_id !== null
+                && (int) $actor->grupo_id === (int) $modelo->id;
+        }
+
+        return false;
+    }
+
+    private function agenciaVisible(User $actor, Model $modelo): bool
+    {
+        if (! $modelo instanceof Agencia) {
+            return false;
+        }
+
+        $rol = $this->primerRol($actor, self::ENTIDADES);
+
+        if ($rol === 'super_master') {
+            return true;
+        }
+
+        if ($rol === 'master') {
+            $bancaId = $modelo->grupo?->banca_id;
+
+            return $bancaId !== null && $actor->masterCanAccessBanca((int) $bancaId);
+        }
+
+        if ($rol === 'banca') {
+            return $actor->banca_id !== null
+                && (int) $actor->banca_id === (int) $modelo->grupo?->banca_id;
+        }
+
+        if ($rol === 'grupo') {
+            return $actor->grupo_id !== null
+                && (int) $actor->grupo_id === (int) $modelo->grupo_id;
+        }
+
+        if ($rol === 'agencia') {
+            return $actor->agencia_id !== null
+                && (int) $actor->agencia_id === (int) $modelo->id;
+        }
+
+        return false;
+    }
+
+    private function taquillaVisible(User $actor, Model $modelo): bool
+    {
+        if (! $modelo instanceof Taquilla) {
+            return false;
+        }
+
+        $rol = $this->primerRol($actor, self::ENTIDADES);
+
+        if ($rol === 'super_master') {
+            return true;
+        }
+
+        $bancaId = $modelo->grupo?->banca_id;
+
+        if ($rol === 'master') {
+            return $bancaId !== null && $actor->masterCanAccessBanca((int) $bancaId);
+        }
+
+        if ($rol === 'banca') {
+            return $actor->banca_id !== null
+                && (int) $actor->banca_id === (int) $bancaId;
+        }
+
+        if ($rol === 'grupo') {
+            return $actor->grupo_id !== null
+                && (int) $actor->grupo_id === (int) $modelo->grupo_id;
+        }
+
+        if ($rol === 'agencia') {
+            return $actor->agencia_id !== null
+                && (int) $actor->agencia_id === (int) $modelo->agencia_id;
+        }
+
+        if ($rol === 'taquilla') {
+            return $actor->taquilla_id !== null
+                && (int) $actor->taquilla_id === (int) $modelo->id;
+        }
+
+        return false;
+    }
+
+    private function limiteVisible(User $actor, Model $modelo): bool
+    {
+        if (! $modelo instanceof JuegoLimite) {
+            return false;
+        }
+
+        $rol = $this->primerRol($actor, self::LIMITES);
+
+        if ($rol === 'super_master') {
+            return true;
+        }
+
+        if ($rol === 'master') {
+            return $actor->masterCanAccessBanca((int) $modelo->banca_id);
+        }
+
+        if ($rol === 'banca') {
+            return $actor->banca_id !== null
+                && (int) $actor->banca_id === (int) $modelo->banca_id;
+        }
+
+        if ($rol === 'agencia') {
+            if ($actor->agencia_id === null) {
+                return false;
+            }
+
+            if ($modelo->taquilla_id !== null) {
+                return Taquilla::whereKey($modelo->taquilla_id)
+                    ->where('agencia_id', $actor->agencia_id)
+                    ->exists();
+            }
+
+            if ($modelo->grupo_id !== null) {
+                return (int) $modelo->grupo_id === (int) $actor->grupo_id;
+            }
+
+            return $actor->banca_id !== null
+                && (int) $modelo->banca_id === (int) $actor->banca_id;
+        }
+
+        if ($rol === 'grupo') {
+            return $actor->grupo_id !== null
+                && (int) $actor->grupo_id === (int) $modelo->grupo_id;
+        }
+
+        return false;
+    }
+
+    private function apuestaVisible(User $actor, Model $modelo): bool
+    {
+        if (! $modelo instanceof Apuesta) {
+            return false;
+        }
+
+        $rol = $this->primerRol($actor, self::POLICY);
+
+        if ($rol === 'super_master') {
+            return true;
+        }
+
+        $taquilla = $modelo->taquilla;
+
+        if (! $taquilla) {
+            return false;
+        }
+
+        if ($rol === 'taquilla') {
+            return $modelo->taquilla_id === $actor->taquilla_id;
+        }
+
+        if ($rol === 'agencia') {
+            return $actor->agencia_id !== null
+                && $taquilla->agencia_id === $actor->agencia_id;
+        }
+
+        if ($rol === 'grupo') {
+            return $actor->grupo_id !== null
+                && $taquilla->grupo_id === $actor->grupo_id;
+        }
+
+        $bancaId = $taquilla->grupo?->banca_id;
+
+        if ($bancaId === null) {
+            return false;
+        }
+
+        if ($rol === 'banca') {
+            return $actor->banca_id !== null
+                && (int) $bancaId === (int) $actor->banca_id;
+        }
+
+        if ($rol === 'master') {
+            return $actor->masterCanAccessBanca((int) $bancaId);
+        }
+
+        return false;
+    }
+
+    private function ticketVisible(User $actor, Model $modelo): bool
+    {
+        if (! $modelo instanceof Ticket) {
+            return false;
+        }
+
+        $rol = $this->primerRol($actor, self::TICKETS);
+
+        // Paridad con TicketController::show: agencia y super_master no tienen
+        // rama de restricción y conservan acceso.
+        if ($rol === null) {
+            return true;
+        }
+
+        $taquilla = $modelo->taquilla;
+
+        if ($rol === 'taquilla') {
+            return $modelo->taquilla_id === $actor->taquilla_id;
+        }
+
+        if (! $taquilla) {
+            return false;
+        }
+
+        if ($rol === 'grupo') {
+            return $actor->grupo_id !== null
+                && $taquilla->grupo_id === $actor->grupo_id;
+        }
+
+        if ($rol === 'banca') {
+            return $actor->banca_id !== null
+                && (int) $taquilla->grupo?->banca_id === (int) $actor->banca_id;
+        }
+
+        $bancaId = $taquilla->grupo?->banca_id;
+
+        return $bancaId !== null && $actor->masterCanAccessBanca((int) $bancaId);
+    }
+
+    private function cierreVisible(User $actor, Model $modelo): bool
+    {
+        if (! $modelo instanceof CierreCaja) {
+            return false;
+        }
+
+        $rol = $this->primerRol($actor, self::ENTIDADES);
+
+        if ($rol === 'super_master') {
+            return true;
+        }
+
+        $taquilla = $modelo->taquilla;
+
+        if (! $taquilla) {
+            return false;
+        }
+
+        $bancaId = $taquilla->grupo?->banca_id;
+
+        if ($rol === 'master') {
+            return $bancaId !== null && $actor->masterCanAccessBanca((int) $bancaId);
+        }
+
+        if ($rol === 'banca') {
+            return $actor->banca_id !== null
+                && (int) $actor->banca_id === (int) $bancaId;
+        }
+
+        if ($rol === 'grupo') {
+            return $actor->grupo_id !== null
+                && (int) $actor->grupo_id === (int) $taquilla->grupo_id;
+        }
+
+        if ($rol === 'agencia') {
+            return $actor->agencia_id !== null
+                && (int) $actor->agencia_id === (int) $taquilla->agencia_id;
+        }
+
+        if ($rol === 'taquilla') {
+            return $actor->taquilla_id !== null
+                && (int) $actor->taquilla_id === (int) $modelo->taquilla_id;
+        }
+
+        return false;
+    }
+
+    // -----------------------------------------------------------------
+    // Gestión por entidad
+    // -----------------------------------------------------------------
+
+    private function puedeGestionarBanca(User $actor, Model $modelo): bool
+    {
+        if (! $modelo instanceof Banca) {
+            return false;
+        }
+
+        if ($actor->hasRole('super_master')) {
+            return true;
+        }
+
+        return $actor->hasRole('master') && $actor->masterCanAccessBanca((int) $modelo->id);
+    }
+
+    private function puedeGestionarGrupo(User $actor, Model $modelo): bool
+    {
+        if (! $modelo instanceof Grupo) {
+            return false;
+        }
+
+        $rol = $this->primerRol($actor, self::ENTIDADES);
+
+        return match ($rol) {
+            'super_master' => true,
+            'master' => $modelo->banca_id !== null
+                && $actor->masterCanAccessBanca((int) $modelo->banca_id),
+            'banca' => $actor->banca_id !== null
+                && (int) $actor->banca_id === (int) $modelo->banca_id,
+            'grupo' => $actor->grupo_id !== null
+                && (int) $actor->grupo_id === (int) $modelo->id,
+            default => false,
+        };
+    }
+
+    private function puedeGestionarAgencia(User $actor, Model $modelo): bool
+    {
+        if (! $modelo instanceof Agencia) {
+            return false;
+        }
+
+        $rol = $this->primerRol($actor, self::ENTIDADES);
+        $bancaId = $modelo->grupo?->banca_id;
+
+        return match ($rol) {
+            'super_master' => true,
+            'master' => $bancaId !== null && $actor->masterCanAccessBanca((int) $bancaId),
+            'banca' => $actor->banca_id !== null
+                && (int) $actor->banca_id === (int) $bancaId,
+            'grupo' => $actor->grupo_id !== null
+                && (int) $actor->grupo_id === (int) $modelo->grupo_id,
+            'agencia' => $actor->agencia_id !== null
+                && (int) $actor->agencia_id === (int) $modelo->id,
+            default => false,
+        };
+    }
+
+    private function puedeGestionarTaquilla(User $actor, Model $modelo): bool
+    {
+        if (! $modelo instanceof Taquilla) {
+            return false;
+        }
+
+        $rol = $this->primerRol($actor, self::ENTIDADES);
+        $bancaId = $modelo->grupo?->banca_id;
+
+        if ($rol === 'super_master') {
+            return true;
+        }
+
+        if ($rol === 'master') {
+            return $bancaId !== null && $actor->masterCanAccessBanca((int) $bancaId);
+        }
+
+        if ($rol === 'banca') {
+            return $actor->banca_id !== null
+                && (int) $actor->banca_id === (int) $bancaId;
+        }
+
+        if ($rol === 'grupo') {
+            return $actor->grupo_id !== null
+                && (int) $actor->grupo_id === (int) $modelo->grupo_id;
+        }
+
+        if ($rol === 'agencia') {
+            if ($actor->agencia_id === null) {
+                return false;
+            }
+
+            if ((int) $actor->agencia_id === (int) $modelo->agencia_id) {
+                return true;
+            }
+
+            // Variante agencia→grupo: el local cuelga del grupo de la taquilla.
+            return $modelo->grupo?->agencias()
+                ->where('id', $actor->agencia_id)
+                ->exists() ?? false;
+        }
+
+        return false;
+    }
+
+    private function puedeGestionarLimite(User $actor, Model $modelo): bool
+    {
+        if (! $modelo instanceof JuegoLimite) {
+            return false;
+        }
+
+        $rol = $this->primerRol($actor, self::LIMITES);
+
+        if ($rol === 'super_master') {
+            return true;
+        }
+
+        if ($rol === 'master') {
+            return $actor->masterCanAccessBanca((int) $modelo->banca_id);
+        }
+
+        if ($rol === 'banca') {
+            return $actor->banca_id !== null
+                && (int) $actor->banca_id === (int) $modelo->banca_id;
+        }
+
+        if ($rol === 'grupo') {
+            return $actor->banca_id !== null
+                && $actor->grupo_id !== null
+                && (int) $actor->banca_id === (int) $modelo->banca_id
+                && (int) $actor->grupo_id === (int) $modelo->grupo_id;
+        }
+
+        return false;
+    }
+
+    // -----------------------------------------------------------------
+    // Helpers
+    // -----------------------------------------------------------------
 
     /**
      * Primer rol del actor en el orden de precedencia del contrato.
