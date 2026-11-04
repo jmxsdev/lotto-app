@@ -280,7 +280,11 @@ class AlcanceJuegoTest extends TestCase
         $bancaSeed = Banca::where('code', 'BT001')->firstOrFail();
         $this->assertIds([$bancaSeed->id, $this->bancaB->id, $this->bancaA->id], $this->idsDe($this->super, 'banca'));
         $taquillaSeed = Taquilla::where('code', 'TT001')->firstOrFail();
-        $this->assertIds([$taquillaSeed->id, $this->taquillaB->id, $this->taquillaA2->id, $this->taquillaA1->id], $this->idsDe($this->super, 'taquilla'));
+        $taquillaDemo = Taquilla::where('code', 'DEMO01')->firstOrFail();
+        $this->assertIds(
+            [$taquillaSeed->id, $taquillaDemo->id, $this->taquillaB->id, $this->taquillaA2->id, $this->taquillaA1->id],
+            $this->idsDe($this->super, 'taquilla')
+        );
     }
 
     public function test_ids_por_tipo_fail_closed_con_mensaje_exacto(): void
