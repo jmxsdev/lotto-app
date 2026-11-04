@@ -173,9 +173,9 @@ Rama base raíz: `feature/alcance-scope-service-85`. Cadena local: cada WU hered
 - **Rama**: `feat/85-2a-banca-agencia` · **Base**: `feat/85-1c-ticket`
 - **Archivos**: Modificar `backend/app/Http/Controllers/Api/BancaController.php`, `backend/app/Http/Controllers/Api/AgenciaController.php`.
 - **Tareas**:
-  - [ ] `BancaController`: escalera → `applyToEntidades`/`BancaPolicy`.
-  - [ ] `AgenciaController`: escalera → `applyToEntidades`/`AgenciaPolicy`.
-  - [ ] Denegaciones manuales → policy (`denegar`).
+  - [x] `BancaController`: escalera → `applyToEntidades`/`BancaPolicy`. (`index` delega en `applyToEntidades($query,$user,'banca',$mensaje)`; `show`/`update`/`toggle`/`destroy` delegan la decisión en `alcanceDeEntidad`/`puedeGestionar`.)
+  - [x] `AgenciaController`: escalera → `applyToEntidades`/`AgenciaPolicy`. (`index` → `applyToEntidades('agencia')`; `authorizeAgenciaAccess` → `alcanceDeEntidad('agencia')`; `authorizeGestion` gana la variante con entidad → `puedeGestionar('agencia')`, conservando el guard de agencia y la rama de ficha propia de #84.)
+  - [x] Denegaciones manuales → policy (`denegar`). (El cuerpo/status/mensaje se preserva con el mecanismo existente en cada endpoint: `applyToEntidades` deniega con `denegar()` y los chequeos por entidad usan `abort`/`response()->json` con el texto exacto; `authorizeGrupoAccess` queda intacto.)
 - **Tests**: `SuperBancaScopeTest`, `AgenciaScopeTest`, `AgenciaMasterScopeTest`, `BancaMasterIdTest` (existentes, sin modificar).
 - **Comandos**: `cd backend && php artisan test --filter='Banca|Agencia'`
 - **Done**: scope de banca/agencia idéntico; tests verdes.
