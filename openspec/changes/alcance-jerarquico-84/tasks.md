@@ -160,15 +160,15 @@ php artisan test --filter='LimitesScopedApiTest|AgenciaScopeTest'
 
 ## Criterios de aceptación globales
 
-- [ ] `ApuestaPolicy::view/delete` niegan apuestas de banca ajena para master (403); super global; master sin bancas denegado.
-- [ ] `PagoController::store` rechaza egreso cross-tenant para banca/grupo/master (403), sin `Pago` ni cambio de estado.
-- [ ] `TicketController::index/show/ganadores` acotan master a sus bancas; super global; master sin bancas → vacío.
-- [ ] `authorizeEscrituraLimite` valida `grupo_id`/`taquilla_id`; `updateLimites` devuelve 403 (no 422) para datos ajenos.
-- [ ] `users.created_by` nullable, poblado en store/seeders; `creator()`/`createdUsers()`; backfill → `null`.
-- [ ] `authorizeEntityBinding`/`UserPolicy` rechazan pares (banca→banca, grupo→grupo, agencia→agencia).
-- [ ] super_master intocable; master no borra otro master/super/creador; banca/grupo/agencia borran subárbol/creados de rango menor.
-- [ ] Caso 5 cubierto solo por test de regresión.
-- [ ] `composer test` y `pint --test` en verde al cierre del ciclo (una sola vez, lo ejecuta el usuario).
+- [x] `ApuestaPolicy::view/delete` niegan apuestas de banca ajena para master (403); super global; master sin bancas denegado.
+- [x] `PagoController::store` rechaza egreso cross-tenant para banca/grupo/master (403), sin `Pago` ni cambio de estado.
+- [x] `TicketController::index/show/ganadores` acotan master a sus bancas; super global; master sin bancas → vacío.
+- [x] `authorizeEscrituraLimite` valida `grupo_id`/`taquilla_id`; `updateLimites` devuelve 403 (no 422) para datos ajenos.
+- [x] `users.created_by` nullable, poblado en store/seeders; `creator()`/`createdUsers()`; backfill → `null`.
+- [x] `authorizeEntityBinding`/`UserPolicy` rechazan pares (banca→banca, grupo→grupo, agencia→agencia).
+- [x] super_master intocable; master no borra otro master/super/creador; banca/grupo/agencia borran subárbol/creados de rango menor.
+- [x] Caso 5 cubierto solo por test de regresión.
+- [x] `composer test` y `pint --test` en verde al cierre del ciclo (una sola vez, lo ejecuta el usuario).
 
 ## Riesgos
 
