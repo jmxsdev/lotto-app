@@ -263,11 +263,11 @@ Rama base raíz: `feature/alcance-scope-service-85`. Cadena local: cada WU hered
 - **Rama**: `feat/85-4b-juego` · **Base**: `feat/85-4a-cierre`
 - **Archivos**: Modificar `backend/app/Http/Controllers/Api/JuegoController.php`.
 - **Tareas**:
-  - [ ] Escalera de límites (`LIMITES`) y visibilidad (`JUEGO_VIS`) → `applyToEntidades`/`alcanceDeEntidad`.
-  - [ ] Reemplazar los 7 call sites de `masterBancaIds()` por `bancasDeMaster`.
-  - [ ] Denegaciones → `denegar()` con mensaje exacto.
-  - [ ] NO tocar los guards 422 de validación de payload.
-  - [ ] Si el diff estimado supera 800 líneas, partir el controller por grupos de métodos (catálogo / límites / resultados) en WUs adicionales.
+  - [x] Escalera de límites (`LIMITES`) y visibilidad (`JUEGO_VIS`) → `applyToEntidades`/`alcanceDeEntidad`. (`limites()` → `applyToEntidades($query,$user,'limite','No tienes permiso para ver límites.')` con el guard de rol previo intacto; `entidadDentroDelAlcance` → `alcanceDeEntidad`, conservando el corto-circuito `super_master` para paridad con ids inexistentes en `batch` scope. `entidadesVisiblesPorTipo` NO se delega a `applyToEntidades`: su contrato `ENTIDADES` difiere de `JUEGO_VIS` — con `banca|grupo|agencia` y `tipo=banca` pasaría de "su banca" a 403, con `agencia` y `tipo=grupo` de "su grupo" a 403, y el multi-rol cambiaría de precedencia. Se preserva el orden `JUEGO_VIS` y solo cambia el origen de los ids de master a `bancasDeMaster`.)
+  - [x] Reemplazar los 7 call sites de `masterBancaIds()` por `bancasDeMaster`. (`expandirTipoAlcance` ×3 —la rama `grupo` consolidaba 2 llamadas en una variable—, `entidadDentroDelAlcance` ×2 que desaparecen al delegar en `alcanceDeEntidad`, y `entidadesVisiblesPorTipo` ×1. `grep -n "masterBancaIds" app/Http/Controllers/Api/JuegoController.php` queda vacío; se preservan `Collection`/array y la semántica de vacío: master sin bancas sigue viendo NADA.)
+  - [x] Denegaciones → `denegar()` con mensaje exacto. (Los 4 `abort(403, 'No tienes acceso a la entidad raíz del alcance.')` de `expandirTipoAlcance` ×3 y `expandirAlcance` ×1 pasan a `$this->alcance->denegar()` con texto idéntico. Los guards de rol de `limites`/`listarLimites`/`updateLimites`/`batchLimites`/`destroyLimite` se conservan como `JsonResponse` 403, y las denegaciones de escritura de #84 (`authorizeEscrituraLimite`, `assertLimiteChainWithinBanca`, `assertObjetivosDentroDelGrupo`, `destroyLimite`) quedan intactas.)
+  - [x] NO tocar los guards 422 de validación de payload. (Intactos: validaciones de `limites`/`listarLimites`/`updateLimites`/`batchLimites`, XOR de `scope`, tope de 500 entidades y raíz de taquillas.)
+  - [x] Si el diff estimado supera 800 líneas, partir el controller por grupos de métodos (catálogo / límites / resultados) en WUs adicionales. (No aplica: diff del WU = 136 líneas —36 adiciones, 100 eliminaciones— en un solo archivo.)
 - **Tests**: `LimitesScopedApiTest`, `LimitesEscrituraScopeTest`, `JuegoLimiteServiceTest`, `JuegoUpdateTest`, `JuegoToggleTest`, `JuegosJsonTest` (existentes, sin modificar).
 - **Comandos**: `cd backend && php artisan test --filter='Limites|Juego'`
 - **Done**: límites/visibilidad idénticos; guards 422 intactos; tests verdes.
