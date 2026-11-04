@@ -157,8 +157,8 @@ Rama base raíz: `feature/alcance-scope-service-85`. Cadena local: cada WU hered
 - **Rama**: `feat/85-1c-ticket` · **Base**: `feat/85-1b-apuesta`
 - **Archivos**: Modificar `backend/app/Http/Controllers/Api/TicketController.php`.
 - **Tareas**:
-  - [ ] `TicketController::{index,ganadores}`: escalera → `applyToTickets`.
-  - [ ] Denegaciones → `denegar()` con mensaje exacto.
+  - [x] `TicketController::{index,ganadores}`: escalera → `applyToTickets`.
+  - [x] Denegaciones → `denegar()` con mensaje exacto. (En `show` se usa `alcanceDeEntidad` + `response()->json(['message' => 'No autorizado.'], 403)` para preservar body/status exactos; `autorizarScope` queda fail-closed.)
 - **Tests**: `TicketMasterScopeTest`, `TicketGanadoresTest`, `TicketAnuladosVisiblesTest` (existentes, sin modificar).
 - **Comandos**: `cd backend && php artisan test --filter='Ticket'`
 - **Done**: scope de tickets idéntico; tests verdes.
