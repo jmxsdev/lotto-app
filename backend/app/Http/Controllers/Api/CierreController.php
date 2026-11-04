@@ -6,16 +6,20 @@ use App\Http\Controllers\Controller;
 use App\Models\CierreCaja;
 use App\Models\Taquilla;
 use App\Services\CierreService;
+use App\Support\Scope\AlcanceService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 class CierreController extends Controller
 {
     private CierreService $cierreService;
 
-    public function __construct(CierreService $cierreService)
-    {
+    public function __construct(
+        CierreService $cierreService,
+        private readonly AlcanceService $alcance
+    ) {
         $this->cierreService = $cierreService;
     }
 
@@ -158,44 +162,27 @@ class CierreController extends Controller
      * Acotar la consulta de cierres al alcance jerárquico del rol
      * (misma lógica que index).
      *
+     * La escalera y los mensajes de vínculo faltante viven en
+     * `AlcanceService` (contrato `ENTIDADES`). El 403 se sigue devolviendo
+     * como `JsonResponse` con solo `message` para preservar el cuerpo
+     * actual, ya que `denegar()` (abort) añadiría metadata de depuración.
+     *
      * @return JsonResponse|null respuesta 403, o null si el alcance se aplicó
      */
     private function scopeCierresPara($user, $query): ?JsonResponse
     {
-        if ($user->hasRole('super_master')) {
-            // Ve todos
-        } elseif ($user->hasRole('master')) {
-            // master ve solo las bancas que administra (y su descendencia);
-            // sin bancas asignadas ve NADA (whereRaw 1=0, nunca global)
-            $user->masterBancaChainScope()($query);
-        } elseif ($user->hasRole('banca')) {
-            if (! $user->banca_id) {
-                return response()->json(['message' => 'No tienes una banca asociada.'], 403);
+        try {
+            $this->alcance->applyToCierres(
+                $query,
+                $user,
+                'No tienes permisos para ver cierres de caja.'
+            );
+        } catch (HttpExceptionInterface $e) {
+            if ($e->getStatusCode() !== 403) {
+                throw $e;
             }
-            $query->whereHas('taquilla.grupo', function ($q) use ($user) {
-                $q->where('banca_id', $user->banca_id);
-            });
-        } elseif ($user->hasRole('grupo')) {
-            if (! $user->grupo_id) {
-                return response()->json(['message' => 'No tienes un grupo asociado.'], 403);
-            }
-            $query->whereHas('taquilla', function ($q) use ($user) {
-                $q->where('grupo_id', $user->grupo_id);
-            });
-        } elseif ($user->hasRole('agencia')) {
-            if (! $user->agencia_id) {
-                return response()->json(['message' => 'No tienes una agencia asociada.'], 403);
-            }
-            $query->whereHas('taquilla', function ($q) use ($user) {
-                $q->where('agencia_id', $user->agencia_id);
-            });
-        } elseif ($user->hasRole('taquilla')) {
-            if (! $user->taquilla_id) {
-                return response()->json(['message' => 'No tienes una taquilla asociada.'], 403);
-            }
-            $query->where('taquilla_id', $user->taquilla_id);
-        } else {
-            return response()->json(['message' => 'No tienes permisos para ver cierres de caja.'], 403);
+
+            return response()->json(['message' => $e->getMessage()], 403);
         }
 
         return null;
@@ -204,6 +191,13 @@ class CierreController extends Controller
     /**
      * Verificar que una taquilla esté dentro del alcance jerárquico del rol
      * (violación → 403).
+     *
+     * Se mantiene explícita a propósito: `AlcanceService::puedeOperarTaquilla`
+     * usa el mismo orden `CIERRE_ITEM`, pero su rama `agencia` acepta agencias
+     * del mismo grupo, mientras este contrato exige que la agencia sea dueña
+     * de la taquilla. `puedeGestionar('taquilla')` también queda descartada
+     * porque su orden es `ENTIDADES` (taquilla al final) y perdería la
+     * precedencia taquilla-first de este método.
      */
     private function assertTaquillaEnAlcance($user, Taquilla $taquilla): void
     {
@@ -375,54 +369,16 @@ class CierreController extends Controller
 
     /**
      * Verificar acceso jerárquico a un cierre.
+     *
+     * Delega en `AlcanceService::alcanceDeEntidad('cierre')`: la matriz de
+     * `cierreVisible` reproduce el orden `ENTIDADES`
+     * (super_master → master → banca → grupo → agencia → taquilla) y los
+     * mismos predicados de esta verificación.
      */
     private function authorizeCierreAccess($user, CierreCaja $cierre): void
     {
-        if ($user->hasRole('super_master')) {
-            return;
+        if (! $this->alcance->alcanceDeEntidad($user, 'cierre', $cierre)) {
+            $this->alcance->denegar('No tienes acceso a este cierre.');
         }
-
-        if ($user->hasRole('master')) {
-            $bancaId = $cierre->taquilla?->grupo?->banca_id;
-            if ($bancaId === null || ! $user->masterCanAccessBanca((int) $bancaId)) {
-                abort(403, 'No tienes acceso a este cierre.');
-            }
-
-            return;
-        }
-
-        if ($user->hasRole('banca')) {
-            if (! $user->banca_id || $user->banca_id != $cierre->taquilla?->grupo?->banca_id) {
-                abort(403, 'No tienes acceso a este cierre.');
-            }
-
-            return;
-        }
-
-        if ($user->hasRole('grupo')) {
-            if (! $user->grupo_id || $user->grupo_id != $cierre->taquilla?->grupo_id) {
-                abort(403, 'No tienes acceso a este cierre.');
-            }
-
-            return;
-        }
-
-        if ($user->hasRole('agencia')) {
-            if (! $user->agencia_id || $user->agencia_id != $cierre->taquilla?->agencia_id) {
-                abort(403, 'No tienes acceso a este cierre.');
-            }
-
-            return;
-        }
-
-        if ($user->hasRole('taquilla')) {
-            if (! $user->taquilla_id || $user->taquilla_id != $cierre->taquilla_id) {
-                abort(403, 'No tienes acceso a este cierre.');
-            }
-
-            return;
-        }
-
-        abort(403, 'No tienes acceso a este cierre.');
     }
 }
