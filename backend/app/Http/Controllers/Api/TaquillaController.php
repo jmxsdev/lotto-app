@@ -8,6 +8,7 @@ use App\Models\Grupo;
 use App\Models\Taquilla;
 use App\Models\User;
 use App\Services\JuegoLimiteService;
+use App\Support\Scope\AlcanceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -16,6 +17,10 @@ use Illuminate\Validation\Rule;
 
 class TaquillaController extends Controller
 {
+    public function __construct(
+        private readonly AlcanceService $alcance,
+    ) {}
+
     /* public function __construct()
      {
          $this->middleware('auth:sanctum');
@@ -28,35 +33,14 @@ class TaquillaController extends Controller
      */
     public function index(Request $request)
     {
-        $user = $request->user();
-        $query = Taquilla::query();
-
-        if ($user->hasRole('super_master')) {
-            // Sin filtro
-        } elseif ($user->hasRole('master')) {
-            // master ve solo las taquillas de sus bancas; sin bancas ve NADA
-            $user->masterBancaGroupScope()($query);
-        } elseif ($user->hasRole('banca')) {
-            if (! $user->banca_id) {
-                return response()->json(['message' => 'No tienes una banca asociada.'], 403);
-            }
-            // Filtrar por grupos que pertenecen a su banca
-            $query->whereHas('grupo', function ($q) use ($user) {
-                $q->where('banca_id', $user->banca_id);
-            });
-        } elseif ($user->hasRole('grupo')) {
-            if (! $user->grupo_id) {
-                return response()->json(['message' => 'No tienes un grupo asociado.'], 403);
-            }
-            $query->where('grupo_id', $user->grupo_id);
-        } elseif ($user->hasRole('agencia')) {
-            if (! $user->agencia_id) {
-                return response()->json(['message' => 'No tienes una agencia asociada.'], 403);
-            }
-            $query->where('agencia_id', $user->agencia_id);
-        } else {
-            return response()->json(['message' => 'No tienes permiso para ver taquillas.'], 403);
-        }
+        // Scoping jerárquico por rol (fuente única: AlcanceService, ENTIDADES).
+        // master ve solo las taquillas de sus bancas; sin bancas ve NADA.
+        $query = $this->alcance->applyToEntidades(
+            Taquilla::query(),
+            $request->user(),
+            'taquilla',
+            'No tienes permiso para ver taquillas.'
+        );
 
         // Orden descendente: la taquilla recién creada aparece primero.
         $taquillas = $query->with('grupo.banca')->orderByDesc('id')->get();
@@ -522,51 +506,29 @@ class TaquillaController extends Controller
         abort(403, 'No tienes permiso para acceder a esta agencia.');
     }
 
-    private function authorizeTaquillaAccess($user, Taquilla $taquilla)
+    /**
+     * Acotar la taquilla al alcance del actor (fuente única: AlcanceService).
+     *
+     * Lectura (`show`) y escritura (`update`/`toggle`/`destroy`) comparten la
+     * misma matriz en este contrato: la que aplicaba el chequeo local
+     * super_master|master|banca|grupo|agencia. Por eso ambas delegan en
+     * `alcanceDeEntidad('taquilla')` y no en `puedeGestionar()`.
+     *
+     * La variante agencia→grupo de la jerarquía (regla `CIERRE_ITEM`, expuesta
+     * por `puedeOperarTaquilla`/`TaquillaPolicy::operar`) NO se aplica aquí:
+     * incorporarla a la escritura permitiría a una agencia operar taquillas de
+     * otra agencia del mismo grupo, rompiendo la regla de #84/F1 ("la agencia
+     * solo gestiona su local"). Se preserva sin ampliarla ni restringirla.
+     *
+     * El mensaje es el único que puede alcanzar un rol habilitado en la ruta
+     * `taquillas` (super_master|master|banca|grupo|agencia); el fallback
+     * "No tienes permiso para acceder a esta taquilla." solo era alcanzable
+     * por roles que el middleware de ruta ya rechaza.
+     */
+    private function authorizeTaquillaAccess($user, Taquilla $taquilla): void
     {
-        // Super Master puede todo
-        if ($user->hasRole('super_master')) {
-            return;
+        if (! $this->alcance->alcanceDeEntidad($user, 'taquilla', $taquilla)) {
+            $this->alcance->denegar('No tienes acceso a esta taquilla.');
         }
-
-        // Master puede acceder a taquillas de sus bancas
-        if ($user->hasRole('master')) {
-            $bancaId = $taquilla->grupo?->banca_id;
-            if ($bancaId === null || ! $user->masterCanAccessBanca((int) $bancaId)) {
-                abort(403, 'No tienes acceso a esta taquilla.');
-            }
-
-            return;
-        }
-
-        // Banca puede acceder a taquillas de grupos de su banca
-        if ($user->hasRole('banca')) {
-            $grupo = $taquilla->grupo;
-            if (! $user->banca_id || $user->banca_id != $grupo->banca_id) {
-                abort(403, 'No tienes acceso a esta taquilla.');
-            }
-
-            return;
-        }
-
-        // Grupo puede acceder solo a sus taquillas
-        if ($user->hasRole('grupo')) {
-            if (! $user->grupo_id || $user->grupo_id != $taquilla->grupo_id) {
-                abort(403, 'No tienes acceso a esta taquilla.');
-            }
-
-            return;
-        }
-
-        // Agencia puede acceder solo a las taquillas de su local
-        if ($user->hasRole('agencia')) {
-            if (! $user->agencia_id || $user->agencia_id != $taquilla->agencia_id) {
-                abort(403, 'No tienes acceso a esta taquilla.');
-            }
-
-            return;
-        }
-
-        abort(403, 'No tienes permiso para acceder a esta taquilla.');
     }
 }
