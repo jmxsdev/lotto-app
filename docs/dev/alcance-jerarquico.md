@@ -58,7 +58,7 @@ se debe "simplificar" a un orden único.
 | `ENTIDADES` | `super_master → master → banca → grupo → agencia → taquilla` | `applyToEntidades`, `applyToUsuarios`, `applyToCierres`, `alcanceDeEntidad` (banca/grupo/agencia/taquilla/limite/cierre) | listados y CRUD de entidades, usuarios y cierres |
 | `CIERRE_ITEM` | `taquilla → super_master → master → agencia → banca → grupo` | `puedeOperarTaquilla`, `TaquillaPolicy::operar` | operar una taquilla concreta (cierre de caja); la rama `agencia` acepta agencias del mismo grupo |
 | `LIMITES` | `super_master → master → banca → agencia → grupo` | `applyToEntidades('limite')`, `alcanceDeEntidad('limite')`, `puedeGestionar('limite')` | límites de juego |
-| `JUEGO_VIS` | `banca → master → grupo → agencia → super_master` | `JuegoController::entidadesVisiblesPorTipo` | matriz de visibilidad de Juego (preservada, **no** delegada a `applyToEntidades`) |
+| `JUEGO_VIS` | `banca → master → grupo → agencia → super_master` | `entidadesVisibles` (consumido por `JuegoController`) | matriz de visibilidad de Juego; la escalera vive en el servicio y **no** se reutiliza `applyToEntidades` |
 
 Cómo elegir el contexto:
 
@@ -77,6 +77,12 @@ distintos para el mismo rol. Por ejemplo, con `agencia` + `tipo=grupo`,
 `JUEGO_VIS` devuelve "su grupo" mientras `ENTIDADES` denegaría; con `agencia`
 y una taquilla de otra agencia del mismo grupo, `puedeOperarTaquilla` acepta y
 `puedeGestionar('taquilla')` rechaza.
+
+`idsPorTipo` (expansión de alcance de Juego) conserva el orden de ramas
+original del controller, que **no** coincide con `JUEGO_VIS`: evalúa
+`banca|agencia` antes que `master`, y en el tipo grupo `grupo|agencia` cae en
+`[$actor->grupo_id]`. Está en el servicio y no debe "simplificarse" a otra
+constante.
 
 ## 4. Reglas clave
 
@@ -132,7 +138,11 @@ y una taquilla de otra agencia del mismo grupo, `puedeOperarTaquilla` acepta y
 
 ## 6. Denegación
 
-- `AlcanceService::denegar($mensaje)` es el mecanismo único: `abort(403, $mensaje)`.
+- `AlcanceService::denegar($mensaje)` es el mecanismo único **de la capa de
+  alcance** para decidir filas o acceso: `abort(403, $mensaje)`.
+- La **autorización de acción puntual** MAY conservar su `abort(403, $mensaje)`
+  local, con status y body idénticos; esas ramas no deciden qué filas se ven
+  (REQ-5).
 - Las policies devuelven `bool`. **No** se usan para emitir mensajes propios:
   `bootstrap/app.php` normaliza `AuthorizationException` a `No autorizado.`, así
   que una denegación de filas con mensaje custom se hace con `denegar()`.
@@ -154,9 +164,6 @@ cambiás el contrato observable:
   agencia sea **dueña** de la taquilla; `puedeOperarTaquilla` acepta agencias
   del mismo grupo y `puedeGestionar('taquilla')` usa `ENTIDADES` (perdería la
   precedencia taquilla-first). Los `abort` locales se conservan.
-- **`JuegoController::entidadesVisiblesPorTipo`.** Conserva el orden
-  `JUEGO_VIS`; delegar en `applyToEntidades` convertiría "su banca/su grupo" en
-  403 y cambiaría la precedencia multi-rol.
 - **`puedeGestionarTaquilla` vs `puedeOperarTaquilla`.**
   `puedeGestionarTaquilla` es estricto: la agencia solo gestiona su propia
   taquilla. `puedeOperarTaquilla` (regla `CIERRE_ITEM`) permite operar
@@ -176,6 +183,7 @@ cambiás el contrato observable:
 |---|---|
 | `php artisan test --filter=ArquitecturaAlcanceTest` | Scan estático: `AlcanceService` final, sin `masterBancaIds` en controllers, una definición en `User` y un único consumidor externo |
 | `php artisan test --filter=AlcanceServiceScopeTest` | Paridad del servicio con dos árboles |
+| `php artisan test --filter=AlcanceJuegoTest` | `entidadesVisibles` (`JUEGO_VIS`), `idsPorTipo` y `bancasParaComisiones` con dos árboles |
 | `php artisan test --filter=AlcancePoliciesTest` | Matriz rol × entidad de las policies |
 
 `ArquitecturaAlcanceTest` es conservador a propósito: verifica archivos y

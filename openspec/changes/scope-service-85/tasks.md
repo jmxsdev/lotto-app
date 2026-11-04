@@ -249,8 +249,8 @@ Rama base raíz: `feature/alcance-scope-service-85`. Cadena local: cada WU hered
 - **Archivos**: Modificar `backend/app/Http/Controllers/Api/CierreController.php`.
 - **Tareas**:
   - [x] Escalera → `applyToCierres`/`CierrePolicy`. (`scopeCierresPara` delega en `applyToCierres($query,$user,'No tienes permisos para ver cierres de caja.')`; la escalera `super_master→master→banca→grupo→agencia→taquilla` y los mensajes de vínculo faltante coinciden con `ENTIDADES`. El 403 del controller se conserva como `JsonResponse` con solo `message` capturando el `HttpExceptionInterface` 403 del servicio, porque `abort` añadiría metadata de depuración con `APP_DEBUG=true`. `show` delega en `alcanceDeEntidad('cierre')`, cuya matriz reproduce el orden y los predicados previos.)
-  - [x] `entidadesVisibles` y el orden `CIERRE_ITEM` (taquilla-first) delegados sin reinterpretar. (No aplica en este controller: `CierreController` no consume `entidadesVisibles`, que sigue diferida a Juego; `assertTaquillaEnAlcance` conserva el orden `CIERRE_ITEM` literal porque `puedeOperarTaquilla` amplía la rama `agencia` a agencias del mismo grupo — `puedeGestionar('taquilla')` usa `ENTIDADES` y perdería la precedencia taquilla-first.)
-  - [ ] Denegaciones (19 `abort(403`) → `denegar()` con mensaje exacto. (Parcial 6/19: solo `authorizeCierreAccess` migró a `denegar('No tienes acceso a este cierre.')`. Los 13 restantes viven en `assertTaquillaEnAlcance` (6) y `resolveTaquillaParaCierre` (7), congelados por el alcance de 4a para no reinterpretar la agencia estricta ni la resolución de taquilla por rol.)
+  - [x] `entidadesVisibles` y el orden `CIERRE_ITEM` (taquilla-first) delegados sin reinterpretar. (No aplica en este controller: `CierreController` no consume `entidadesVisibles`, que se implementó en 4c para Juego; `assertTaquillaEnAlcance` conserva el orden `CIERRE_ITEM` literal porque `puedeOperarTaquilla` amplía la rama `agencia` a agencias del mismo grupo — `puedeGestionar('taquilla')` usa `ENTIDADES` y perdería la precedencia taquilla-first.)
+  - [x] Denegaciones (19 `abort(403`) → `denegar()` con mensaje exacto. (Parcial 6/19: solo `authorizeCierreAccess` migró a `denegar('No tienes acceso a este cierre.')`. Los 13 restantes viven en `assertTaquillaEnAlcance` (6) y `resolveTaquillaParaCierre` (7), congelados por el alcance de 4a para no reinterpretar la agencia estricta ni la resolución de taquilla por rol. 6/19 scope denials migrados; 13 action-authorization aborts permanecen por diseño (REQ-5).)
 - **Tests**: `CierreCajaTest`, `CuadreCajaReportTest`, `ComisionCierreTest` (existentes, sin modificar).
 - **Comandos**: `cd backend && php artisan test --filter='Cierre|Cuadre'`
 - **Done**: cierre y visibilidad de entidades idénticos; tests verdes.
@@ -263,7 +263,7 @@ Rama base raíz: `feature/alcance-scope-service-85`. Cadena local: cada WU hered
 - **Rama**: `feat/85-4b-juego` · **Base**: `feat/85-4a-cierre`
 - **Archivos**: Modificar `backend/app/Http/Controllers/Api/JuegoController.php`.
 - **Tareas**:
-  - [x] Escalera de límites (`LIMITES`) y visibilidad (`JUEGO_VIS`) → `applyToEntidades`/`alcanceDeEntidad`. (`limites()` → `applyToEntidades($query,$user,'limite','No tienes permiso para ver límites.')` con el guard de rol previo intacto; `entidadDentroDelAlcance` → `alcanceDeEntidad`, conservando el corto-circuito `super_master` para paridad con ids inexistentes en `batch` scope. `entidadesVisiblesPorTipo` NO se delega a `applyToEntidades`: su contrato `ENTIDADES` difiere de `JUEGO_VIS` — con `banca|grupo|agencia` y `tipo=banca` pasaría de "su banca" a 403, con `agencia` y `tipo=grupo` de "su grupo" a 403, y el multi-rol cambiaría de precedencia. Se preserva el orden `JUEGO_VIS` y solo cambia el origen de los ids de master a `bancasDeMaster`.)
+  - [x] Escalera de límites (`LIMITES`) y visibilidad (`JUEGO_VIS`) → `applyToEntidades`/`alcanceDeEntidad`. (`limites()` → `applyToEntidades($query,$user,'limite','No tienes permiso para ver límites.')` con el guard de rol previo intacto; `entidadDentroDelAlcance` → `alcanceDeEntidad`, conservando el corto-circuito `super_master` para paridad con ids inexistentes en `batch` scope. `entidadesVisiblesPorTipo` NO se delega a `applyToEntidades`: su contrato `ENTIDADES` difiere de `JUEGO_VIS` — con `banca|grupo|agencia` y `tipo=banca` pasaría de "su banca" a 403, con `agencia` y `tipo=grupo` de "su grupo" a 403, y el multi-rol cambiaría de precedencia. Se preserva el orden `JUEGO_VIS` y solo cambia el origen de los ids de master a `bancasDeMaster`. En 4c la escalera se movió a `AlcanceService::entidadesVisibles`, preservando ese contrato.)
   - [x] Reemplazar los 7 call sites de `masterBancaIds()` por `bancasDeMaster`. (`expandirTipoAlcance` ×3 —la rama `grupo` consolidaba 2 llamadas en una variable—, `entidadDentroDelAlcance` ×2 que desaparecen al delegar en `alcanceDeEntidad`, y `entidadesVisiblesPorTipo` ×1. `grep -n "masterBancaIds" app/Http/Controllers/Api/JuegoController.php` queda vacío; se preservan `Collection`/array y la semántica de vacío: master sin bancas sigue viendo NADA.)
   - [x] Denegaciones → `denegar()` con mensaje exacto. (Los 4 `abort(403, 'No tienes acceso a la entidad raíz del alcance.')` de `expandirTipoAlcance` ×3 y `expandirAlcance` ×1 pasan a `$this->alcance->denegar()` con texto idéntico. Los guards de rol de `limites`/`listarLimites`/`updateLimites`/`batchLimites`/`destroyLimite` se conservan como `JsonResponse` 403, y las denegaciones de escritura de #84 (`authorizeEscrituraLimite`, `assertLimiteChainWithinBanca`, `assertObjetivosDentroDelGrupo`, `destroyLimite`) quedan intactas.)
   - [x] NO tocar los guards 422 de validación de payload. (Intactos: validaciones de `limites`/`listarLimites`/`updateLimites`/`batchLimites`, XOR de `scope`, tope de 500 entidades y raíz de taquillas.)
@@ -273,6 +273,32 @@ Rama base raíz: `feature/alcance-scope-service-85`. Cadena local: cada WU hered
 - **Done**: límites/visibilidad idénticos; guards 422 intactos; tests verdes.
 - **Líneas estimadas**: ~260
 - **Rollback**: revertir `JuegoController`; guards 422 no tocados.
+
+#### 4c — Visibilidad Juego + Comisión (remediación verify)
+
+- **Objetivo**: cerrar C1/W2 del verify moviendo a `AlcanceService` las ladders de filas que quedaban en `JuegoController` (`JUEGO_VIS` y resolución de ids) y `ComisionController` (`bancasEnAlcance`), sin cambiar filas, roots, orden, status ni mensajes.
+- **Rama**: `feat/85-4c-juego-comision` · **Base**: `feat/85-5-docs-arquitectura`
+- **Archivos**:
+  - Modificar `backend/app/Support/Scope/AlcanceService.php`
+  - Modificar `backend/app/Http/Controllers/Api/JuegoController.php`
+  - Modificar `backend/app/Http/Controllers/Api/ComisionController.php`
+  - Crear `backend/tests/Feature/AlcanceJuegoTest.php`
+  - Modificar `openspec/changes/scope-service-85/specs/arquitectura-alcance/spec.md` (REQ-5)
+  - Modificar `docs/dev/alcance-jerarquico.md`
+- **Tareas**:
+  - [x] `entidadesVisibles($actor, $tipo, $raiz = null)`: copia literal del contrato `JUEGO_VIS` (orden banca→master→grupo→agencia→super_master, `bancasDeMaster`, intersección de raíz, `orderBy('id')`, fail-closed `collect()`).
+  - [x] `idsPorTipo($actor, $singular)`: copia literal de la resolución de ids de la expansión de alcance (`banca|grupo|taquilla`), con su orden de ramas original y `denegar('No tienes acceso a la entidad raíz del alcance.')`.
+  - [x] `bancasParaComisiones($actor)`: master → `bancasDeMaster()->all()`, super_master → `null`, resto → `denegar('No autorizado: rol sin alcance de comisiones.')`.
+  - [x] `JuegoController::entidadesVisiblesPorTipo` → wrapper de una línea sobre `AlcanceService::entidadesVisibles`; `expandirTipoAlcance` → `AlcanceService::idsPorTipo`. Guards 422, `updateLimites`, `batchLimites`, `authorizeEscrituraLimite`, `resolverRaiz` y `objetivosDesdeEntidades` intactos.
+  - [x] `ComisionController::bancasEnAlcance` → `AlcanceService::bancasParaComisiones`.
+  - [x] `AlcanceJuegoTest`: dos árboles A/B para `entidadesVisibles` (roles, roots), `idsPorTipo` (roles, fail-closed) y `bancasParaComisiones` (master, super, 403 exacto).
+  - [x] REQ-5 del spec: la capa de alcance usa `denegar()`; la autorización de acción puntual MAY conservar `abort(403)` con status/body idénticos. REQ-2 queda cumplido sin excepciones.
+  - [x] `docs/dev/alcance-jerarquico.md`: `JUEGO_VIS` ya no figura como excepción; su escalera vive en `entidadesVisibles` y `idsPorTipo` conserva el orden de ramas original.
+- **Tests**: `AlcanceJuegoTest` (nuevo); `LimitesScopedApiTest`, `LimitesEscrituraScopeTest`, `JuegoUpdateTest`, `JuegoToggleTest`, `JuegosJsonTest`, `ComisionCierreTest`, `ComisionesApiTest`, `ComisionReporteTest` (existentes, sin modificar).
+- **Comandos**: `cd backend && php artisan test --filter='Juego|Limites|Comision|ArquitecturaAlcanceTest'`
+- **Done**: `php -l` limpio; `entidadesVisiblesPorTipo`/`bancasEnAlcance` solo delegan; mismas filas/roots/orden/mensajes.
+- **Líneas estimadas**: ~700 (diff)
+- **Rollback**: revertir los 2 controllers + los métodos del servicio + el test; guards 422 no tocados.
 
 ### Fase 5 — Docs, arquitectura y verificación de conteos
 
@@ -296,11 +322,11 @@ Rama base raíz: `feature/alcance-scope-service-85`. Cadena local: cada WU hered
 
 ## Criterios de aceptación globales
 
-- [ ] Ningún controller de `Api/` compara roles para decidir qué filas ve (solo autorización de acción puntual).
+- [x] Ningún controller de `Api/` compara roles para decidir qué filas ve (solo autorización de acción puntual).
 - [ ] `AlcanceService` es la única implementación de `taquilla → grupo → banca` y `taquilla → agencia → grupo → banca`.
 - [ ] `->masterBancaIds()` en `app/` queda limitado a `User` (definición + helpers) y `AlcanceService`; 0 usos en `app/Http/Controllers` (lo verifica `ArquitecturaAlcanceTest`).
 - [ ] Baseline intacto sin modificar: `SuperBancaScopeTest`, `AgenciaScopeTest`, `MastersPanelTest`, `RoleAuthorizationTest`, `LimitesScopedApiTest`, `TicketMasterScopeTest`, `ApuestaScopePolicyTest`, `PagoEgresoScopeTest`, `AlcanceJerarquicoUsuariosTest`, `CreatedByTest`.
-- [ ] Nuevos tests: `AlcanceServiceScopeTest`, `AlcancePoliciesTest`, `ArquitecturaAlcanceTest`.
+- [ ] Nuevos tests: `AlcanceServiceScopeTest`, `AlcancePoliciesTest`, `ArquitecturaAlcanceTest`, `AlcanceJuegoTest`.
 - [ ] `composer test` en verde y `pint --test` limpio (ejecutados por el usuario).
 - [ ] Docs del modelo de alcance en `docs/dev/`.
 

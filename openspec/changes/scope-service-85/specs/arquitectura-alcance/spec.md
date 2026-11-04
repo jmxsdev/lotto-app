@@ -20,7 +20,7 @@ Define el contrato **arquitectónico** del refactor de alcance jerárquico (#85)
 
 ### Requirement: Controllers sin lógica de filas por rol
 
-Ningún controller de `Api/` MUST comparar roles (`hasRole`/`hasAnyRole`) para decidir qué filas ve. Un controller MAY conservar autorización de acción puntual (create/update/delete) vía policy.
+Ningún controller de `Api/` MUST comparar roles (`hasRole`/`hasAnyRole`) para decidir qué filas ve. Un controller MAY conservar autorización de acción puntual (create/update/delete) vía policy. Las decisiones de filas (`applyTo*`, `entidadesVisibles`, `idsPorTipo`, `bancasParaComisiones`) viven en `AlcanceService`.
 
 #### Scenario: Controller sin comparaciones de rol para filas
 
@@ -50,13 +50,19 @@ MUST quedar una sola definición de `masterBancaIds()` en `User`. Los call sites
 
 ### Requirement: Denegación unificada
 
-MUST existir un solo mecanismo de denegación en la capa de alcance (policy → `AuthorizationException` o `abort(403)`), preservando el mensaje y status exactos de cada endpoint.
+La capa de alcance MUST usar un solo mecanismo de denegación: `AlcanceService::denegar()` (`abort(403, $mensaje)`), preservando el mensaje y el status exactos de cada endpoint. La autorización de acción puntual (create/update/delete o chequeos sobre la relación padre) MAY conservar su `abort(403)`/`json(..., 403)` local cuando el status y el body sean idénticos a los previos; esas ramas no deciden qué filas se ven.
 
-#### Scenario: Denegación con mensaje preservado
+#### Scenario: Denegación de filas con mensaje preservado
 
-- GIVEN un endpoint con denegación manual (`json(..., 403)` o `abort(403, ...)`)
-- WHEN se migra a la política de alcance
+- GIVEN un endpoint con denegación manual (`json(..., 403)` o `abort(403, ...)`) en una decisión de filas
+- WHEN se migra a la capa de alcance
 - THEN el status y el texto del mensaje de denegación son idénticos al original
+
+#### Scenario: Autorización de acción puntual conserva su contrato
+
+- GIVEN un endpoint con `abort(403)` en un chequeo de acción puntual
+- WHEN se migra el filtrado de filas a la capa de alcance
+- THEN el chequeo local permanece con el mismo status y mensaje, sin convertirse en decisión de filas
 
 ### Requirement: Documentación
 
