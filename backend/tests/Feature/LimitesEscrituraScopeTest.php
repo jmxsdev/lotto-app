@@ -38,6 +38,17 @@ class LimitesEscrituraScopeTest extends TestCase
         return $user;
     }
 
+    private function masterUser(): User
+    {
+        $user = User::where('email', 'master@lotto.com')->firstOrFail();
+        $user->assignRole('master');
+
+        // El master administra la banca sembrada (BT001) y su subárbol.
+        Banca::whereKey($this->bancaPropia()->id)->update(['master_id' => $user->id]);
+
+        return $user;
+    }
+
     private function bancaPropia(): Banca
     {
         return Banca::where('code', 'BT001')->firstOrFail();
@@ -153,6 +164,163 @@ class LimitesEscrituraScopeTest extends TestCase
             'taquilla_id' => null,
             'moneda' => 'bs',
             'limite_maximo' => 5000,
+        ]);
+    }
+
+    // ==================================================
+    // MASTER: BANCA ADMINISTRADA Y CADENA COHERENTE
+    // ==================================================
+
+    public function test_master_escribe_en_su_propio_grupo_y_taquilla(): void
+    {
+        $user = $this->masterUser();
+        $banca = $this->bancaPropia();
+        $grupo = $this->grupoPropio();
+        $taquilla = $this->taquillaPropia();
+        $juego = $this->juego();
+
+        $this->actingAs($user, 'sanctum')
+            ->putJson('/api/v1/limites/'.$juego->id, [
+                'banca_id' => $banca->id,
+                'grupo_id' => $grupo->id,
+                'moneda' => 'bs',
+                'limite_maximo' => 1000,
+            ])
+            ->assertSuccessful();
+
+        $this->assertDatabaseHas('juego_limites', [
+            'juego_id' => $juego->id,
+            'banca_id' => $banca->id,
+            'grupo_id' => $grupo->id,
+            'taquilla_id' => null,
+            'moneda' => 'bs',
+            'limite_maximo' => 1000,
+        ]);
+
+        $this->actingAs($user, 'sanctum')
+            ->putJson('/api/v1/limites/'.$juego->id, [
+                'banca_id' => $banca->id,
+                'grupo_id' => $grupo->id,
+                'taquilla_id' => $taquilla->id,
+                'moneda' => 'bs',
+                'limite_maximo' => 900,
+            ])
+            ->assertSuccessful();
+
+        $this->assertDatabaseHas('juego_limites', [
+            'juego_id' => $juego->id,
+            'banca_id' => $banca->id,
+            'grupo_id' => $grupo->id,
+            'taquilla_id' => $taquilla->id,
+            'moneda' => 'bs',
+            'limite_maximo' => 900,
+        ]);
+    }
+
+    public function test_master_con_grupo_de_otra_banca_403_sin_persistir(): void
+    {
+        [, $otroGrupo] = $this->jerarquiaAjena();
+
+        $this->actingAs($this->masterUser(), 'sanctum')
+            ->putJson('/api/v1/limites/'.$this->juego()->id, [
+                'banca_id' => $this->bancaPropia()->id,
+                'grupo_id' => $otroGrupo->id,
+                'moneda' => 'bs',
+                'limite_maximo' => 1234,
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('juego_limites', [
+            'juego_id' => $this->juego()->id,
+            'grupo_id' => $otroGrupo->id,
+            'moneda' => 'bs',
+            'limite_maximo' => 1234,
+        ]);
+    }
+
+    public function test_master_con_taquilla_de_otra_banca_403_sin_persistir(): void
+    {
+        [, , $taquillaAjena] = $this->jerarquiaAjena();
+
+        $this->actingAs($this->masterUser(), 'sanctum')
+            ->putJson('/api/v1/limites/'.$this->juego()->id, [
+                'banca_id' => $this->bancaPropia()->id,
+                'taquilla_id' => $taquillaAjena->id,
+                'moneda' => 'bs',
+                'limite_maximo' => 1234,
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('juego_limites', [
+            'juego_id' => $this->juego()->id,
+            'taquilla_id' => $taquillaAjena->id,
+            'moneda' => 'bs',
+            'limite_maximo' => 1234,
+        ]);
+    }
+
+    public function test_batch_master_rechaza_grupo_de_otra_banca_sin_persistir(): void
+    {
+        [, $otroGrupo] = $this->jerarquiaAjena();
+        $banca = $this->bancaPropia();
+        $juego = $this->juego();
+
+        $response = $this->actingAs($this->masterUser(), 'sanctum')
+            ->postJson('/api/v1/limites/batch', [
+                'limites' => [
+                    [
+                        'juego_id' => $juego->id,
+                        'banca_id' => $banca->id,
+                        'moneda' => 'bs',
+                        'limite_maximo' => 321,
+                    ],
+                    [
+                        // Banca propia + grupo ajeno: cadena incoherente que
+                        // el helper debe rechazar antes de la transacción.
+                        'juego_id' => $juego->id,
+                        'banca_id' => $banca->id,
+                        'grupo_id' => $otroGrupo->id,
+                        'moneda' => 'bs',
+                        'limite_maximo' => 222,
+                    ],
+                ],
+            ]);
+
+        $response->assertForbidden();
+
+        // 403 antes de la transacción: ni siquiera el ítem propio se escribe.
+        $this->assertDatabaseMissing('juego_limites', [
+            'juego_id' => $juego->id,
+            'banca_id' => $banca->id,
+            'grupo_id' => null,
+            'taquilla_id' => null,
+            'moneda' => 'bs',
+            'limite_maximo' => 321,
+        ]);
+    }
+
+    public function test_master_fuera_de_alcance_con_restrictividad_invalida_403_no_422(): void
+    {
+        [$otraBanca, $otroGrupo] = $this->jerarquiaAjena();
+        // El padre ajeno existe con max 500: el payload (max 900) violaría
+        // la restrictividad si se validara antes de autorizar.
+        $this->fijarMaximoBanca($otraBanca, 500);
+
+        $response = $this->actingAs($this->masterUser(), 'sanctum')
+            ->putJson('/api/v1/limites/'.$this->juego()->id, [
+                'banca_id' => $otraBanca->id,
+                'grupo_id' => $otroGrupo->id,
+                'moneda' => 'bs',
+                'limite_maximo' => 900,
+            ]);
+
+        $response->assertForbidden();
+
+        $this->assertDatabaseMissing('juego_limites', [
+            'juego_id' => $this->juego()->id,
+            'grupo_id' => $otroGrupo->id,
+            'moneda' => 'bs',
+            'limite_maximo' => 900,
         ]);
     }
 

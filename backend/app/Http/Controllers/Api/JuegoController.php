@@ -862,6 +862,11 @@ class JuegoController extends Controller
         if ($user->hasRole('master')) {
             $this->authorizeBancaLimitAccess($user, $bancaId);
 
+            // El grupo/taquilla del payload deben colgar de la MISMA banca
+            // autorizada; de lo contrario el límite se persistiría
+            // incoherente y afectaría al tenant ajeno.
+            $this->assertLimiteChainWithinBanca($bancaId, $grupoId, $taquillaId);
+
             return;
         }
 
@@ -870,29 +875,7 @@ class JuegoController extends Controller
                 abort(403, 'No tienes acceso a esta banca.');
             }
 
-            // El grupo del payload debe pertenecer a su banca.
-            if ($grupoId !== null) {
-                $grupoPropio = Grupo::whereKey($grupoId)
-                    ->where('banca_id', $user->banca_id)
-                    ->exists();
-
-                if (! $grupoPropio) {
-                    abort(403, 'No tienes acceso a este grupo.');
-                }
-            }
-
-            // La taquilla debe colgar de su banca y, si se indicó grupo,
-            // pertenecer exactamente a ese grupo.
-            if ($taquillaId !== null) {
-                $taquillaPropia = Taquilla::whereKey($taquillaId)
-                    ->whereHas('grupo', fn ($q) => $q->where('banca_id', $user->banca_id))
-                    ->when($grupoId !== null, fn ($q) => $q->where('grupo_id', $grupoId))
-                    ->exists();
-
-                if (! $taquillaPropia) {
-                    abort(403, 'No tienes acceso a esta taquilla.');
-                }
-            }
+            $this->assertLimiteChainWithinBanca($bancaId, $grupoId, $taquillaId);
 
             return;
         }
@@ -916,6 +899,38 @@ class JuegoController extends Controller
         }
 
         abort(403, 'No tienes acceso a esta banca.');
+    }
+
+    /**
+     * Verificar que el grupo/taquilla del payload cuelguen exactamente de la
+     * banca autorizada. Evita que un actor con acceso a una banca persista
+     * un límite con grupo/taquilla de otra banca (cadena incoherente).
+     */
+    private function assertLimiteChainWithinBanca(int $bancaId, ?int $grupoId, ?int $taquillaId): void
+    {
+        // El grupo del payload debe pertenecer a la banca.
+        if ($grupoId !== null) {
+            $grupoPropio = Grupo::whereKey($grupoId)
+                ->where('banca_id', $bancaId)
+                ->exists();
+
+            if (! $grupoPropio) {
+                abort(403, 'No tienes acceso a este grupo.');
+            }
+        }
+
+        // La taquilla debe colgar de la banca y, si se indicó grupo,
+        // pertenecer exactamente a ese grupo.
+        if ($taquillaId !== null) {
+            $taquillaPropia = Taquilla::whereKey($taquillaId)
+                ->whereHas('grupo', fn ($q) => $q->where('banca_id', $bancaId))
+                ->when($grupoId !== null, fn ($q) => $q->where('grupo_id', $grupoId))
+                ->exists();
+
+            if (! $taquillaPropia) {
+                abort(403, 'No tienes acceso a esta taquilla.');
+            }
+        }
     }
 
     /**
