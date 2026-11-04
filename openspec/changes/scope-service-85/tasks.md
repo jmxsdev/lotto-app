@@ -128,9 +128,9 @@ Rama base raíz: `feature/alcance-scope-service-85`. Cadena local: cada WU hered
 - **Rama**: `feat/85-1a-estadistica-reporte` · **Base**: `feat/85-0b-policies`
 - **Archivos**: Modificar `backend/app/Http/Controllers/Api/EstadisticaController.php`, `backend/app/Http/Controllers/Api/ReporteController.php` (`buildApuestaQuery`, `buildTicketQuery`).
 - **Tareas**:
-  - [ ] `EstadisticaController`: escalera → `AlcanceService::applyToApuestas`/`applyToTickets`.
-  - [ ] `ReporteController::{buildApuestaQuery,buildTicketQuery}`: escalera → `applyTo*`.
-  - [ ] Denegaciones manuales → `AlcanceService::denegar()` con mensaje idéntico.
+  - [x] `EstadisticaController`: escalera → `AlcanceService::applyToApuestas`/`applyToTickets`.
+  - [x] `ReporteController::{buildApuestaQuery,buildTicketQuery}`: escalera → `applyTo*`.
+  - [x] Denegaciones manuales → `AlcanceService::denegar()` con mensaje idéntico.
 - **Tests**: `EstadisticaTest`, `ReporteTest` (existentes, sin modificar).
 - **Comandos**: `cd backend && php artisan test --filter='Estadistica|Reporte'`
 - **Done**: SQL generado y status/mensajes idénticos; tests existentes verdes.
