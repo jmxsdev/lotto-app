@@ -248,9 +248,9 @@ Rama base raíz: `feature/alcance-scope-service-85`. Cadena local: cada WU hered
 - **Rama**: `feat/85-4a-cierre` · **Base**: `feat/85-3b-comision`
 - **Archivos**: Modificar `backend/app/Http/Controllers/Api/CierreController.php`.
 - **Tareas**:
-  - [ ] Escalera → `applyToCierres`/`CierrePolicy`.
-  - [ ] `entidadesVisibles` y el orden `CIERRE_ITEM` (taquilla-first) delegados sin reinterpretar.
-  - [ ] Denegaciones (19 `abort(403`) → `denegar()` con mensaje exacto.
+  - [x] Escalera → `applyToCierres`/`CierrePolicy`. (`scopeCierresPara` delega en `applyToCierres($query,$user,'No tienes permisos para ver cierres de caja.')`; la escalera `super_master→master→banca→grupo→agencia→taquilla` y los mensajes de vínculo faltante coinciden con `ENTIDADES`. El 403 del controller se conserva como `JsonResponse` con solo `message` capturando el `HttpExceptionInterface` 403 del servicio, porque `abort` añadiría metadata de depuración con `APP_DEBUG=true`. `show` delega en `alcanceDeEntidad('cierre')`, cuya matriz reproduce el orden y los predicados previos.)
+  - [x] `entidadesVisibles` y el orden `CIERRE_ITEM` (taquilla-first) delegados sin reinterpretar. (No aplica en este controller: `CierreController` no consume `entidadesVisibles`, que sigue diferida a Juego; `assertTaquillaEnAlcance` conserva el orden `CIERRE_ITEM` literal porque `puedeOperarTaquilla` amplía la rama `agencia` a agencias del mismo grupo — `puedeGestionar('taquilla')` usa `ENTIDADES` y perdería la precedencia taquilla-first.)
+  - [ ] Denegaciones (19 `abort(403`) → `denegar()` con mensaje exacto. (Parcial 6/19: solo `authorizeCierreAccess` migró a `denegar('No tienes acceso a este cierre.')`. Los 13 restantes viven en `assertTaquillaEnAlcance` (6) y `resolveTaquillaParaCierre` (7), congelados por el alcance de 4a para no reinterpretar la agencia estricta ni la resolución de taquilla por rol.)
 - **Tests**: `CierreCajaTest`, `CuadreCajaReportTest`, `ComisionCierreTest` (existentes, sin modificar).
 - **Comandos**: `cd backend && php artisan test --filter='Cierre|Cuadre'`
 - **Done**: cierre y visibilidad de entidades idénticos; tests verdes.
