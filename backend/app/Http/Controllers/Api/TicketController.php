@@ -13,6 +13,7 @@ use App\Services\ApuestaService;
 use App\Services\JuegoPluginManager;
 use App\Services\PremiosEngine;
 use App\Services\TicketAnulacionService;
+use App\Support\Scope\AlcanceService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -26,7 +27,8 @@ class TicketController extends Controller
 
     public function __construct(
         ApuestaService $apuestaService,
-        TicketAnulacionService $ticketAnulacionService
+        TicketAnulacionService $ticketAnulacionService,
+        private readonly AlcanceService $alcance
     ) {
         $this->apuestaService = $apuestaService;
         $this->ticketAnulacionService = $ticketAnulacionService;
@@ -54,20 +56,8 @@ class TicketController extends Controller
             }])
             ->latest();
 
-        if ($user->hasRole('taquilla')) {
-            $query->where('taquilla_id', $user->taquilla_id);
-        } elseif ($user->hasRole('grupo')) {
-            $query->whereHas('taquilla.grupo', function ($q) use ($user) {
-                $q->where('grupo_id', $user->grupo_id);
-            });
-        } elseif ($user->hasRole('banca')) {
-            $query->whereHas('taquilla.grupo.banca', function ($q) use ($user) {
-                $q->where('banca_id', $user->banca_id);
-            });
-        } elseif ($user->hasRole('master')) {
-            // Caso 4 (#84): master solo sus bancas; sin bancas → vacío.
-            $user->masterBancaChainScope()($query);
-        }
+        // Scoping jerárquico por rol (fuente única: AlcanceService, TICKETS).
+        $query = $this->alcance->applyToTickets($query, $user);
 
         if ($request->has('estado')) {
             $query->where('estado', $request->estado);
@@ -102,19 +92,8 @@ class TicketController extends Controller
         $user = $request->user();
         $this->autorizarScope($user);
 
-        if ($user->hasRole('taquilla') && $ticket->taquilla_id !== $user->taquilla_id) {
+        if (! $this->alcance->alcanceDeEntidad($user, 'ticket', $ticket)) {
             return response()->json(['message' => 'No autorizado.'], 403);
-        } elseif ($user->hasRole('grupo') && $ticket->taquilla?->grupo_id !== $user->grupo_id) {
-            return response()->json(['message' => 'No autorizado.'], 403);
-        } elseif ($user->hasRole('banca') && $ticket->taquilla?->grupo?->banca_id !== $user->banca_id) {
-            return response()->json(['message' => 'No autorizado.'], 403);
-        } elseif ($user->hasRole('master')) {
-            // Caso 4 (#84): master solo sus bancas; ticket ajeno → 403.
-            $bancaId = $ticket->taquilla?->grupo?->banca_id;
-
-            if ($bancaId === null || ! $user->masterCanAccessBanca((int) $bancaId)) {
-                return response()->json(['message' => 'No autorizado.'], 403);
-            }
         }
 
         $ticket->load(['apuestas.juego', 'apuestas.detalles', 'taquilla']);
@@ -317,15 +296,8 @@ class TicketController extends Controller
                 ->whereDate('sorteo_hora', $fecha)
                 ->whereTime('sorteo_hora', $horaSorteo);
 
-            if ($user->hasRole('taquilla')) {
-                $apuestasQuery->where('taquilla_id', $user->taquilla_id);
-            } elseif ($user->hasRole('grupo')) {
-                $apuestasQuery->whereHas('taquilla.grupo', fn ($q) => $q->where('grupo_id', $user->grupo_id));
-            } elseif ($user->hasRole('banca')) {
-                $apuestasQuery->whereHas('taquilla.grupo.banca', fn ($q) => $q->where('banca_id', $user->banca_id));
-            } elseif ($user->hasRole('master')) {
-                $user->masterBancaChainScope()($apuestasQuery);
-            }
+            // Scoping jerárquico por rol (fuente única: AlcanceService, TICKETS).
+            $apuestasQuery = $this->alcance->applyToTickets($apuestasQuery, $user);
 
             $apuestas = $apuestasQuery->get();
 
@@ -387,15 +359,8 @@ class TicketController extends Controller
             ->whereDate('sorteo_hora', $fecha)
             ->whereNotNull('resultado_ids');
 
-        if ($user->hasRole('taquilla')) {
-            $multiQuery->where('taquilla_id', $user->taquilla_id);
-        } elseif ($user->hasRole('grupo')) {
-            $multiQuery->whereHas('taquilla.grupo', fn ($q) => $q->where('grupo_id', $user->grupo_id));
-        } elseif ($user->hasRole('banca')) {
-            $multiQuery->whereHas('taquilla.grupo.banca', fn ($q) => $q->where('banca_id', $user->banca_id));
-        } elseif ($user->hasRole('master')) {
-            $user->masterBancaChainScope()($multiQuery);
-        }
+        // Scoping jerárquico por rol (fuente única: AlcanceService, TICKETS).
+        $multiQuery = $this->alcance->applyToTickets($multiQuery, $user);
 
         foreach ($multiQuery->get() as $apuesta) {
             $combinacion = $apuesta->combinacion;
