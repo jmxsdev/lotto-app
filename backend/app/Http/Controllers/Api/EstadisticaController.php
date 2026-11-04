@@ -5,53 +5,33 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Apuesta;
 use App\Services\ApuestaService;
+use App\Support\Scope\AlcanceService;
 use Illuminate\Http\Request;
 
 class EstadisticaController extends Controller
 {
     protected ApuestaService $apuestaService;
 
-    public function __construct(ApuestaService $apuestaService)
-    {
+    public function __construct(
+        ApuestaService $apuestaService,
+        private readonly AlcanceService $alcance,
+    ) {
         $this->apuestaService = $apuestaService;
     }
 
     /**
      * Construir query base de apuestas con filtrado jerárquico por rol.
+     *
+     * Precedencia `APUESTAS`: taquilla → agencia → grupo → banca → master →
+     * super_master. Fail-closed (REQ-4) incluido en el servicio: un rol
+     * desconocido o ausente deniega con `No autorizado.` (403).
      */
     private function buildApuestaQuery(Request $request)
     {
-        $user = $request->user();
-
-        $query = Apuesta::with(['juego', 'taquilla']);
-
-        // Filtrado jerárquico según rol (fuente única: Spatie)
-        if ($user->hasRole('taquilla')) {
-            $query->where('taquilla_id', $user->taquilla_id);
-        } elseif ($user->hasRole('agencia')) {
-            $query->whereHas('taquilla', function ($q) use ($user) {
-                $q->where('agencia_id', $user->agencia_id);
-            });
-        } elseif ($user->hasRole('grupo')) {
-            $query->whereHas('taquilla.grupo', function ($q) use ($user) {
-                $q->where('grupo_id', $user->grupo_id);
-            });
-        } elseif ($user->hasRole('banca')) {
-            $query->whereHas('taquilla.grupo.banca', function ($q) use ($user) {
-                $q->where('banca_id', $user->banca_id);
-            });
-        } elseif ($user->hasRole('master')) {
-            // master ve solo las bancas que administra (y su descendencia);
-            // sin bancas asignadas ve NADA (whereRaw 1=0, nunca global)
-            $user->masterBancaChainScope()($query);
-        } elseif ($user->hasRole('super_master')) {
-            // super_master ve todo (sin filtro adicional)
-        } else {
-            // Fail-closed (REQ-4): rol desconocido o ausente nunca es global.
-            abort(403, 'No autorizado.');
-        }
-
-        return $query;
+        return $this->alcance->applyToApuestas(
+            Apuesta::with(['juego', 'taquilla']),
+            $request->user()
+        );
     }
 
     /**
