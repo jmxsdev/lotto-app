@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ComisionDefault;
 use App\Models\User;
 use App\Services\ComisionService;
+use App\Support\Scope\AlcanceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Validator;
@@ -13,7 +14,10 @@ use Illuminate\Validation\Rule;
 
 class ComisionController extends Controller
 {
-    public function __construct(private ComisionService $comisiones) {}
+    public function __construct(
+        private ComisionService $comisiones,
+        private AlcanceService $alcance,
+    ) {}
 
     /**
      * Listar el default global de comisión (2 filas: bs y usd).
@@ -64,7 +68,7 @@ class ComisionController extends Controller
      * GET /api/v1/comisiones/consulta — super_master|master (sin
      * manage_comisiones). Valida desde/hasta (date, hasta >= desde) → 422;
      * el super_master consulta global o filtra por `banca_ids`; el master
-     * solo sus bancas (masterBancaIds), y `banca_ids` fuera de alcance ⇒
+     * solo sus bancas (`bancasDeMaster`), y `banca_ids` fuera de alcance ⇒
      * 403. No persiste nada ni expone estado/conflictos del ledger.
      */
     public function consulta(Request $request)
@@ -130,13 +134,13 @@ class ComisionController extends Controller
     private function bancasEnAlcance(User $user): ?array
     {
         if ($user->hasRole('master')) {
-            return $user->masterBancaIds()->all();
+            return $this->alcance->bancasDeMaster($user)->all();
         }
 
         if ($user->hasRole('super_master')) {
             return null;
         }
 
-        abort(403, 'No autorizado: rol sin alcance de comisiones.');
+        $this->alcance->denegar('No autorizado: rol sin alcance de comisiones.');
     }
 }
