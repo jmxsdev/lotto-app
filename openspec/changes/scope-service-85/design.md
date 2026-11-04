@@ -90,6 +90,8 @@ Request → role middleware → Controller
 
 Base `feature/alcance-scope-service-85`; slices locales encadenados; rollback `git revert`; 0a/0b aditivos.
 
+> **Nota de ejecución (2026-11-04):** WU-0a se partió en **0a-1** (listados base: apuestas/tickets/cierres) y **0a-2** (usuarios/entidades) porque el servicio completo superaba el presupuesto de 800 líneas. La API de visibilidad/gestión por entidad (`entidadesVisibles`, `alcanceDeEntidad`, `puedeGestionar`, `puedeOperarTaquilla`) se difiere a **WU-0c** y se implementará cuando la primera oleada CRUD/volumen la consuma.
+
 ## Tests
 
 | Capa | Qué | Cómo |

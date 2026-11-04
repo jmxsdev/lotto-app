@@ -23,7 +23,9 @@ Chain strategy: stacked-to-main
 
 | Unit | Goal | Likely PR | Focused test command | Runtime harness | Rollback boundary |
 |------|------|-----------|----------------------|-----------------|-------------------|
-| 0a | `AlcanceService` aditivo + test de paridad | PR 0a | `php artisan test --filter=AlcanceServiceScopeTest` | `composer test` (usuario, cierre de ciclo) | `git revert` sin tocar controllers (aditivo) |
+| 0a-1 | `AlcanceService` listados base + paridad | PR 0a-1 | `php artisan test --filter=AlcanceServiceScopeTest` | `composer test` (usuario, cierre de ciclo) | `git revert` sin tocar controllers (aditivo) |
+| 0a-2 | `AlcanceService` usuarios/entidades + paridad | PR 0a-2 | `php artisan test --filter=AlcanceServiceScopeTest` | `composer test` (usuario) | `git revert` sin tocar controllers |
+| 0c | Visibilidad/gestión por entidad (DIFERIDO) | PR 0c (cuando se consuma) | `php artisan test --filter=AlcanceEntidadesTest` | `composer test` (usuario) | `git revert` sin tocar controllers |
 | 0b | 6 policies + registro + test matriz | PR 0b | `php artisan test --filter=AlcancePoliciesTest` | `composer test` (usuario) | `git revert` sin tocar controllers |
 | 1a | Estadistica + Reporte | PR 1a | `php artisan test --filter='Estadistica|Reporte'` | `composer test` (usuario) | revertir solo 2 controllers |
 | 1b | Apuesta + `ApuestaPolicy` | PR 1b | `php artisan test --filter='Apuesta'` | `composer test` (usuario) | revertir ApuestaController/ApuestaPolicy |
@@ -53,30 +55,56 @@ Rama base raíz: `feature/alcance-scope-service-85`. Cadena local: cada WU hered
 
 ### Fase 0 — Fundación (aditiva, sin consumidores)
 
-#### 0a — `AlcanceService` + paridad
+#### 0a-1 — `AlcanceService` (listados base)
 
-- **Objetivo**: crear la capa única de alcance con la API del design, delegando en los helpers de `User`. Sin consumidores todavía.
+- **Objetivo**: crear la capa de alcance para listados (`apuestas`, `tickets`, `cierres`) delegando en los helpers de `User`. Sin consumidores todavía.
 - **Rama**: `feat/85-0a-alcance-service` · **Base**: `feature/alcance-scope-service-85`
 - **Archivos**:
-  - Crear `backend/app/Support/Scope/AlcanceService.php`
-  - Crear `backend/tests/Feature/AlcanceServiceScopeTest.php`
+  - Crear `backend/app/Support/Scope/AlcanceService.php` (subconjunto base)
+  - Crear `backend/tests/Feature/AlcanceServiceScopeTest.php` (paridad base)
 - **Tareas**:
-  - [ ] Crear `AlcanceService` (`final class`) con: `applyToApuestas`, `applyToTickets`, `applyToCierres`, `applyToUsuarios`, `applyToEntidades`, `entidadesVisibles`, `alcanceDeEntidad`, `puedeGestionar`, `puedeOperarTaquilla`, `bancasDeMaster`, `denegar`.
-  - [ ] Delegar el recorrido en helpers de `User` (`masterBancaIds`, `masterBancaScope`, `masterBancaChainScope`, `masterBancaGroupScope`, `masterCanAccessBanca`); NO reimplementar la jerarquía.
-  - [ ] Definir constantes de precedencia por contrato: `APUESTAS`, `TICKETS`, `POLICY`, `ENTIDADES`, `CIERRE_ITEM`, `LIMITES`, `JUEGO_VIS`.
-  - [ ] Mensajes de vínculo faltante (`No tienes una banca/grupo/agencia/taquilla asociada.`) como constantes; rol no soportado lo aporta el controller.
-  - [ ] `denegar()` = `abort(403, $msg)`; preservar el texto exacto.
-  - [ ] Escribir `AlcanceServiceScopeTest`: paridad por rol/método con **dos árboles** de IDs distintos.
-- **Tests**: `AlcanceServiceScopeTest` (nuevo). Baseline intacto (`SuperBancaScopeTest`, `AgenciaScopeTest`, `MastersPanelTest`, `RoleAuthorizationTest`, `LimitesScopedApiTest`, `TicketMasterScopeTest`, `ApuestaScopePolicyTest`, `PagoEgresoScopeTest`, `AlcanceJerarquicoUsuariosTest`, `CreatedByTest`).
+  - [x] `AlcanceService` (`final class`) con `applyToApuestas`, `applyToTickets`, `applyToCierres`, `bancasDeMaster`, `denegar`.
+  - [x] Delegar en `masterBancaIds`, `masterBancaScope`, `masterBancaChainScope`, `masterBancaGroupScope`, `masterCanAccessBanca`.
+  - [x] Constantes de precedencia `APUESTAS`, `TICKETS`, `ENTIDADES`, `CIERRE_ITEM` + mensajes de vínculo faltante.
+  - [x] `denegar()` = `abort(403, $msg)`.
+  - [x] `AlcanceServiceScopeTest`: paridad de esos métodos con dos árboles.
+- **Tests**: `AlcanceServiceScopeTest` (nuevo). Baseline intacto.
 - **Comandos**: `cd backend && php artisan test --filter=AlcanceServiceScopeTest`
-- **Done**: servicio compila; test de paridad verde; baseline sin cambios.
-- **Líneas estimadas**: ~330
-- **Rollback**: `git revert` (capa aditiva, ningún controller la consume aún).
+- **Done**: servicio compila; paridad base verde.
+- **Líneas estimadas**: ~800 (service 313 + test 486)
+- **Rollback**: `git revert` (aditivo).
+
+#### 0a-2 — `AlcanceService` (usuarios + entidades)
+
+- **Objetivo**: completar la capa de listados con usuarios y entidades (`banca|grupo|agencia|taquilla|limite`).
+- **Rama**: `feat/85-0a2-usuarios-entidades` · **Base**: `feat/85-0a-alcance-service`
+- **Archivos**: modificar `AlcanceService.php` y `AlcanceServiceScopeTest.php`.
+- **Tareas**:
+  - [x] `applyToUsuarios` (incluye `created_by` como metadata de fila).
+  - [x] `applyToEntidades` + `applyToBancas`/`Grupos`/`Agencias`/`Taquillas`/`Limites`.
+  - [x] Tests de paridad de usuarios/entidades con dos árboles.
+- **Tests**: `AlcanceServiceScopeTest` (ampliado).
+- **Comandos**: `cd backend && php artisan test --filter=AlcanceServiceScopeTest`
+- **Done**: paridad completa de listados verde.
+- **Líneas estimadas**: ~450 (diff)
+- **Rollback**: `git revert` (aditivo).
+
+#### 0c — Visibilidad/gestión por entidad (DIFERIDO)
+
+- **Objetivo**: `entidadesVisibles`, `alcanceDeEntidad`, `puedeGestionar`, `puedeOperarTaquilla` + helpers de visibilidad por entidad.
+- **Rama**: `feat/85-0c-visibilidad-entidades` · **Base**: la rama vigente cuando la primera oleada lo consuma (2c/3a/4a).
+- **Motivo del diferimiento**: WU-0a completo superaba el presupuesto de 800 líneas; esta API no tiene consumidores hasta las oleadas CRUD/volumen. Se implementa cuando un controller la necesite, con tests de matriz.
+- **Tareas**:
+  - [ ] Implementar `entidadesVisibles`, `alcanceDeEntidad`, `puedeGestionar`, `puedeOperarTaquilla`.
+  - [ ] Helpers de visibilidad/gestión por entidad y constantes `POLICY`/`LIMITES`/`JUEGO_VIS`.
+  - [ ] `AlcanceEntidadesTest` con matriz rol×entidad.
+- **Líneas estimadas**: ~660–850 (partir si supera 800).
+- **Rollback**: `git revert` (aditivo).
 
 #### 0b — 6 policies + registro + matriz
 
 - **Objetivo**: crear las 6 policies delegando en `AlcanceService` y registrarlas explícitamente.
-- **Rama**: `feat/85-0b-policies` · **Base**: `feat/85-0a-alcance-service`
+- **Rama**: `feat/85-0b-policies` · **Base**: `feat/85-0a2-usuarios-entidades`
 - **Archivos**:
   - Crear `backend/app/Policies/{Banca,Grupo,Agencia,Taquilla,Ticket,Cierre}Policy.php`
   - Modificar `backend/app/Providers/AppServiceProvider.php` (6 `Gate::policy(...)`)
