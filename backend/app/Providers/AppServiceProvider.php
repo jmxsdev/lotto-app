@@ -2,7 +2,19 @@
 
 namespace App\Providers;
 
+use App\Models\Agencia;
+use App\Models\Banca;
+use App\Models\CierreCaja;
+use App\Models\Grupo;
+use App\Models\Taquilla;
+use App\Models\Ticket;
 use App\Models\User;
+use App\Policies\AgenciaPolicy;
+use App\Policies\BancaPolicy;
+use App\Policies\CierrePolicy;
+use App\Policies\GrupoPolicy;
+use App\Policies\TaquillaPolicy;
+use App\Policies\TicketPolicy;
 use App\Policies\UserPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\Gate;
@@ -30,6 +42,15 @@ class AppServiceProvider extends ServiceProvider
         // Autorización jerárquica de usuarios (issue #84): registro explícito
         // de la policy, además del auto-discovery de Laravel.
         Gate::policy(User::class, UserPolicy::class);
+
+        // Policies de alcance (issue #85). Registro explícito: `CierreCaja`
+        // no se resuelve por auto-discovery (`CierrePolicy`).
+        Gate::policy(Banca::class, BancaPolicy::class);
+        Gate::policy(Grupo::class, GrupoPolicy::class);
+        Gate::policy(Agencia::class, AgenciaPolicy::class);
+        Gate::policy(Taquilla::class, TaquillaPolicy::class);
+        Gate::policy(Ticket::class, TicketPolicy::class);
+        Gate::policy(CierreCaja::class, CierrePolicy::class);
 
         // Límite dedicado de descarga del instalador (REQ-A3): 10/min por
         // usuario autenticado, o por IP para el serve firmado (sin auth).
