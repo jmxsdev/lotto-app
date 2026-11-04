@@ -75,18 +75,18 @@ php artisan migrate:fresh --seed   # verificación de cadena de creadores en see
 **Rama**: `feat/84b-user-policy-controller` ← `feat/84a-usuarios-created-by`
 **Líneas estimadas**: 300–400
 
-- [ ] **1b.1** Crear `app/Policies/UserPolicy.php` con contrato `view(User, User)`, `update(User, User)`, `delete(User, User)`, `canCreate(User, string, array)`, `canAssign(User, string, array, User)` (todas `bool`).
-- [ ] **1b.2** Implementar matriz jerárquica en `UserPolicy`: super_master intocable y no borra otro super; master no gestiona super/otros masters/su `created_by`; banca/grupo/agencia gestionan su subárbol + creados, sin pares ni superiores; taquilla solo `view` propio.
-- [ ] **1b.3** `UserController::authorizeUserAccess` → delegar a `UserPolicy::view/update/delete`; preservar helpers `resolveBancaId/resolveGrupoId/resolveAgenciaId`.
-- [ ] **1b.4** `UserController::authorizeEntityBinding` → delegar a `UserPolicy::canCreate/canAssign`; bloquear pares (banca→banca, grupo→grupo, agencia→agencia) y autopromoción (`canAssign`).
-- [ ] **1b.5** `UserController::show/update/destroy`: usar `authorize('view'|'update'|'delete', $user)`; `destroy` reemplaza el guard `hasRole(['super_master','master'])` por la policy (permite borrado por banca/grupo/agencia de subárbol/creados de rango menor).
-- [ ] **1b.6** `UserController::index`: incluir usuarios creados (`orWhere('created_by', $user->id)`) dentro del alcance ya existente, sin ampliar fugas.
-- [ ] **1b.7** Registrar `UserPolicy` en `app/Providers/*ServiceProvider.php` (Gate::policy/`policies` del modelo) si no hay auto-discovery.
+- [x] **1b.1** Crear `app/Policies/UserPolicy.php` con contrato `view(User, User)`, `update(User, User)`, `delete(User, User)`, `canCreate(User, string, array)`, `canAssign(User, string, array, User)` (todas `bool`).
+- [x] **1b.2** Implementar matriz jerárquica en `UserPolicy`: super_master intocable y no borra otro super; master no gestiona super/otros masters/su `created_by`; banca/grupo/agencia gestionan su subárbol + creados, sin pares ni superiores; taquilla solo `view` propio.
+- [x] **1b.3** `UserController::authorizeUserAccess` → delegar a `UserPolicy::view/update/delete`; preservar helpers `resolveBancaId/resolveGrupoId/resolveAgenciaId`.
+- [x] **1b.4** `UserController::authorizeEntityBinding` → delegar a `UserPolicy::canCreate/canAssign`; bloquear pares (banca→banca, grupo→grupo, agencia→agencia) y autopromoción (`canAssign`).
+- [x] **1b.5** `UserController::show/update/destroy`: usar `authorize('view'|'update'|'delete', $user)`; `destroy` reemplaza el guard `hasRole(['super_master','master'])` por la policy (permite borrado por banca/grupo/agencia de subárbol/creados de rango menor).
+- [x] **1b.6** `UserController::index`: incluir usuarios creados (`orWhere('created_by', $user->id)`) dentro del alcance ya existente, sin ampliar fugas.
+- [x] **1b.7** Registrar `UserPolicy` en `app/Providers/*ServiceProvider.php` (Gate::policy/`policies` del modelo) si no hay auto-discovery.
 
 **Tests a escribir/actualizar** (primero):
-- [ ] **1b.T1** Nuevo `tests/Feature/AlcanceJerarquicoUsuariosTest.php`: master edita/borra super 403 y password intacto; super no borra super; master no borra su creador; pares 403; taquilla solo `GET` propio; `created_by` del actor; payload ajeno ignorado; index incluye creados; banca/grupo/agencia borran subárbol/creados y no pares.
-- [ ] **1b.T2** Actualizar `tests/Feature/GestionUsuariosTest.php` y `tests/Feature/RoleAuthorizationTest.php` (expectativas de borrado de usuarios para banca/grupo/agencia).
-- [ ] **1b.T3** Actualizar `tests/Feature/MastersPanelTest.php` (master ya no ve super/otros masters).
+- [x] **1b.T1** Nuevo `tests/Feature/AlcanceJerarquicoUsuariosTest.php`: master edita/borra super 403 y password intacto; super no borra super; master no borra su creador; pares 403; taquilla solo `GET` propio; `created_by` del actor; payload ajeno ignorado; index incluye creados; banca/grupo/agencia borran subárbol/creados y no pares.
+- [x] **1b.T2** Actualizar `tests/Feature/GestionUsuariosTest.php` y `tests/Feature/RoleAuthorizationTest.php` (expectativas de borrado de usuarios para banca/grupo/agencia).
+- [x] **1b.T3** Actualizar `tests/Feature/MastersPanelTest.php` (master ya no ve super/otros masters).
 
 **Comandos (NO ejecutados)**:
 ```bash
