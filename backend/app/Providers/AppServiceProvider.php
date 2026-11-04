@@ -2,7 +2,10 @@
 
 namespace App\Providers;
 
+use App\Models\User;
+use App\Policies\UserPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
@@ -23,6 +26,10 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Schema::defaultStringLength(191);
+
+        // Autorización jerárquica de usuarios (issue #84): registro explícito
+        // de la policy, además del auto-discovery de Laravel.
+        Gate::policy(User::class, UserPolicy::class);
 
         // Límite dedicado de descarga del instalador (REQ-A3): 10/min por
         // usuario autenticado, o por IP para el serve firmado (sin auth).

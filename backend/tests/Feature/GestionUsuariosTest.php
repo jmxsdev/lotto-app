@@ -314,16 +314,31 @@ class GestionUsuariosTest extends TestCase
         $this->assertNotContains('master@lotto.com', $emails);
     }
 
-    public function test_banca_no_puede_eliminar_usuarios()
+    public function test_banca_puede_eliminar_usuarios_de_rango_menor_de_su_banca()
     {
+        // WU-1b (#84): el borrado dejó de exigir super_master|master. La banca
+        // puede borrar usuarios de su subárbol/creados de rango menor.
         $taquillaUser = User::where('email', 'taquilla@lotto.com')->first();
 
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
             ->deleteJson('/api/v1/users/'.$taquillaUser->id);
 
-        $response->assertStatus(403);
+        $response->assertStatus(200);
 
-        $this->assertDatabaseHas('users', ['id' => $taquillaUser->id]);
+        $this->assertDatabaseMissing('users', ['id' => $taquillaUser->id]);
+    }
+
+    public function test_banca_no_puede_eliminar_a_un_par_de_otra_banca()
+    {
+        $otraBanca = Banca::create(['name' => 'Banca Par', 'code' => 'BP001', 'created_by' => $this->superUser()->id]);
+        $par = User::factory()->create(['banca_id' => $otraBanca->id]);
+        $par->assignRole('banca');
+
+        $response = $this->actingAs($this->bancaUser(), 'sanctum')
+            ->deleteJson('/api/v1/users/'.$par->id);
+
+        $response->assertStatus(403);
+        $this->assertDatabaseHas('users', ['id' => $par->id]);
     }
 
     public function test_master_puede_eliminar_usuarios_de_su_alcance()

@@ -171,7 +171,7 @@ class UserController extends Controller
      */
     public function show(User $user)
     {
-        $this->authorizeUserAccess(auth()->user(), $user);
+        $this->authorize('view', $user);
 
         return response()->json($user->load('banca', 'grupo', 'taquilla', 'roles'));
     }
@@ -183,7 +183,7 @@ class UserController extends Controller
     {
         $currentUser = auth()->user();
 
-        $this->authorizeUserAccess($currentUser, $user);
+        $this->authorize('update', $user);
 
         $request->validate([
             'name' => 'sometimes|string|max:255',
@@ -260,15 +260,7 @@ class UserController extends Controller
      */
     public function destroy(User $user)
     {
-        if (! auth()->user()->hasRole(['super_master', 'master'])) {
-            abort(403, 'No tienes permisos para eliminar usuarios.');
-        }
-
-        if ($user->id === auth()->id()) {
-            return response()->json(['message' => 'No puedes eliminarte a ti mismo.'], 403);
-        }
-
-        $this->authorizeUserAccess(auth()->user(), $user);
+        $this->authorize('delete', $user);
 
         $user->delete();
 
@@ -357,60 +349,6 @@ class UserController extends Controller
         }
 
         abort(403, 'No tienes permisos para gestionar usuarios.');
-    }
-
-    private function authorizeUserAccess($currentUser, User $targetUser)
-    {
-        if ($currentUser->hasRole('super_master')) {
-            return;
-        }
-
-        if ($currentUser->hasRole('master')) {
-            $targetBanca = $this->resolveBancaId($targetUser);
-            if ($targetBanca !== null && ! $currentUser->masterCanAccessBanca((int) $targetBanca)) {
-                abort(403, 'No tienes acceso a este usuario.');
-            }
-
-            return;
-        }
-
-        // Banca solo puede gestionar usuarios dentro de su banca (vía cadena)
-        if ($currentUser->hasRole('banca')) {
-            if (! $currentUser->banca_id) {
-                abort(403, 'No tienes una banca asociada.');
-            }
-            if ($this->resolveBancaId($targetUser) != $currentUser->banca_id) {
-                abort(403, 'No tienes acceso a este usuario.');
-            }
-
-            return;
-        }
-
-        // Grupo solo puede gestionar usuarios dentro de su grupo (vía cadena)
-        if ($currentUser->hasRole('grupo')) {
-            if (! $currentUser->grupo_id) {
-                abort(403, 'No tienes un grupo asociado.');
-            }
-            if ($this->resolveGrupoId($targetUser) != $currentUser->grupo_id) {
-                abort(403, 'No tienes acceso a este usuario.');
-            }
-
-            return;
-        }
-
-        // Agencia solo puede gestionar usuarios de su local
-        if ($currentUser->hasRole('agencia')) {
-            if (! $currentUser->agencia_id) {
-                abort(403, 'No tienes una agencia asociada.');
-            }
-            if ($this->resolveAgenciaId($targetUser) != $currentUser->agencia_id) {
-                abort(403, 'No tienes acceso a este usuario.');
-            }
-
-            return;
-        }
-
-        abort(403, 'No tienes permiso para acceder a este usuario.');
     }
 
     // --- Helpers de vínculos ---

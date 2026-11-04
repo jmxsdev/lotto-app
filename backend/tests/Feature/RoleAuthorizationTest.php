@@ -87,6 +87,72 @@ class RoleAuthorizationTest extends TestCase
         $response->assertStatus(201);
     }
 
+    public function test_banca_puede_eliminar_usuario_de_rango_menor_en_su_banca()
+    {
+        // WU-1b (#84): la banca ya puede borrar usuarios de su subárbol o
+        // creados por ella mientras sean de rango estrictamente menor.
+        $banca = User::where('email', 'banca@lotto.com')->firstOrFail();
+        $target = User::where('email', 'taquilla@lotto.com')->firstOrFail();
+
+        $this->actingAs($banca, 'sanctum')
+            ->deleteJson('/api/v1/users/'.$target->id)
+            ->assertStatus(200);
+
+        $this->assertDatabaseMissing('users', ['id' => $target->id]);
+    }
+
+    public function test_grupo_puede_eliminar_usuario_de_rango_menor_en_su_grupo()
+    {
+        $grupo = User::where('email', 'grupo@lotto.com')->firstOrFail();
+        $target = User::where('email', 'demo@lotto.com')->firstOrFail();
+
+        $this->actingAs($grupo, 'sanctum')
+            ->deleteJson('/api/v1/users/'.$target->id)
+            ->assertStatus(200);
+
+        $this->assertDatabaseMissing('users', ['id' => $target->id]);
+    }
+
+    public function test_agencia_puede_eliminar_usuario_de_rango_menor_en_su_local()
+    {
+        $agencia = User::where('email', 'agencia@lotto.com')->firstOrFail();
+        $local = $agencia->agencia;
+
+        $taquilla = Taquilla::factory()->create([
+            'grupo_id' => $local->grupo_id,
+            'agencia_id' => $local->id,
+            'active' => true,
+        ]);
+
+        $target = User::factory()->withRole('taquilla')->create([
+            'banca_id' => $local->grupo->banca_id,
+            'grupo_id' => $local->grupo_id,
+            'agencia_id' => $local->id,
+            'taquilla_id' => $taquilla->id,
+            'created_by' => $agencia->id,
+        ]);
+
+        $this->actingAs($agencia, 'sanctum')
+            ->deleteJson('/api/v1/users/'.$target->id)
+            ->assertStatus(200);
+
+        $this->assertDatabaseMissing('users', ['id' => $target->id]);
+    }
+
+    public function test_master_no_puede_eliminar_a_otro_master()
+    {
+        $master = User::where('email', 'master@lotto.com')->firstOrFail();
+        Banca::where('code', 'BT001')->update(['master_id' => $master->id]);
+
+        $otroMaster = User::factory()->withRole('master')->create();
+
+        $this->actingAs($master, 'sanctum')
+            ->deleteJson('/api/v1/users/'.$otroMaster->id)
+            ->assertStatus(403);
+
+        $this->assertDatabaseHas('users', ['id' => $otroMaster->id]);
+    }
+
     public function test_grupo_can_only_create_taquillas_in_its_own_grupo()
     {
         $banca = Banca::factory()->create();
