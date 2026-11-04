@@ -232,8 +232,8 @@ Rama base raíz: `feature/alcance-scope-service-85`. Cadena local: cada WU hered
 - **Rama**: `feat/85-3b-comision` · **Base**: `feat/85-3a-user`
 - **Archivos**: Modificar `backend/app/Http/Controllers/Api/ComisionController.php`.
 - **Tareas**:
-  - [ ] Escalera → `applyTo*`; reemplazar `masterBancaIds()` por `AlcanceService::bancasDeMaster`.
-  - [ ] Denegación unificada.
+  - [x] Escalera → `applyTo*`; reemplazar `masterBancaIds()` por `AlcanceService::bancasDeMaster`. (`consulta` resuelve los `banca_ids` del cálculo vía `bancasEnAlcance`: `master` → `bancasDeMaster($user)->all()`, `super_master` → `null` global, misma precedencia master→super_master. El controller no tenía otra escalera de filas, así que no aplica `applyToEntidades`.)
+  - [x] Denegación unificada. (`abort(403, 'No autorizado: rol sin alcance de comisiones.')` → `AlcanceService::denegar()` con el mismo mensaje; status/body idénticos.)
 - **Tests**: `ComisionCierreTest`, `ComisionesApiTest`, `ComisionReporteTest` (existentes, sin modificar).
 - **Comandos**: `cd backend && php artisan test --filter='Comision'`
 - **Done**: scope de comisiones idéntico; tests verdes.
