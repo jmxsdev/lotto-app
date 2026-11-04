@@ -15,6 +15,7 @@ use App\Services\JuegoPluginManager;
 use App\Services\PremiosConfigService;
 use App\Services\PremiosEngine;
 use App\Support\PremiosOficiales;
+use App\Support\Scope\AlcanceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -23,7 +24,10 @@ use Illuminate\Validation\Rule;
 
 class JuegoController extends Controller
 {
-    public function __construct(private JuegoLimiteService $limites) {}
+    public function __construct(
+        private JuegoLimiteService $limites,
+        private readonly AlcanceService $alcance,
+    ) {}
 
     public function index()
     {
@@ -241,36 +245,15 @@ class JuegoController extends Controller
         $query = JuegoLimite::where('juego_id', $juego->id)
             ->with(['banca', 'grupo', 'taquilla']);
 
-        // Filtrar por jerarquía del usuario. Se conserva el orden de ramas
-        // original: el rol único del dominio lo hace determinista y, ante un
-        // usuario multi-rol, gana la primera rama que coincide.
-        if ($user->hasRole('super_master')) {
-            // Sin filtro: ve todos los límites
-        } elseif ($user->hasRole('master')) {
-            // master ve solo los límites de las bancas que administra;
-            // sin bancas asignadas ve NADA (whereRaw 1=0, nunca global)
-            $user->masterBancaScope()($query);
-        } elseif ($user->hasRole('banca')) {
-            $query->where('banca_id', $user->banca_id);
-        } elseif ($user->hasRole('agencia')) {
-            // La agencia ve las filas de su banca (nivel banca), de su grupo
-            // (nivel grupo) y de sus propias taquillas (nivel taquilla).
-            $query->where(function ($q) use ($user) {
-                $q->where('banca_id', $user->banca_id)
-                    ->whereNull('grupo_id')
-                    ->whereNull('taquilla_id')
-                    ->orWhere('grupo_id', $user->grupo_id)
-                    ->orWhereIn('taquilla_id', Taquilla::where('agencia_id', $user->agencia_id)->pluck('id'));
-            });
-        } elseif ($user->hasRole('grupo')) {
-            $query->where(function ($q) use ($user) {
-                $q->where('grupo_id', $user->grupo_id)
-                    ->orWhere(function ($q2) use ($user) {
-                        $q2->whereNull('grupo_id')->whereNull('taquilla_id')
-                            ->whereHas('grupo', fn ($g) => $g->where('banca_id', $user->banca_id));
-                    });
-            });
-        }
+        // Alcance de filas por jerarquía del usuario (contrato LIMITES del
+        // servicio: super_master > master > banca > agencia > grupo, primer
+        // match gana).
+        $query = $this->alcance->applyToEntidades(
+            $query,
+            $user,
+            'limite',
+            'No tienes permiso para ver límites.'
+        );
 
         // Filtros explícitos por banca, grupo o taquilla (validados previamente).
         // Se aplican DESPUÉS del alcance jerárquico: intersectan, nunca amplían.
@@ -645,23 +628,24 @@ class JuegoController extends Controller
             if ($user->hasRole('banca') || $user->hasRole('agencia')) {
                 $ids = [$user->banca_id];
             } elseif ($user->hasRole('master')) {
-                $ids = $user->masterBancaIds()->all();
+                $ids = $this->alcance->bancasDeMaster($user)->all();
             } elseif ($user->hasRole('grupo')) {
                 $ids = [$user->banca_id];
             } elseif ($user->hasRole('super_master')) {
                 $ids = Banca::pluck('id')->all();
             } else {
                 // Rol ausente o fuera de catálogo: fail-closed (REQ-4).
-                abort(403, 'No tienes acceso a la entidad raíz del alcance.');
+                $this->alcance->denegar('No tienes acceso a la entidad raíz del alcance.');
             }
         } elseif ($singular === 'grupo') {
             if ($user->hasRole('super_master')) {
                 $ids = Grupo::pluck('id');
             } elseif ($user->hasRole('master')) {
                 // master ve solo los grupos de las bancas que administra
-                $ids = $user->masterBancaIds()->isEmpty()
+                $masterIds = $this->alcance->bancasDeMaster($user);
+                $ids = $masterIds->isEmpty()
                     ? collect()
-                    : Grupo::whereIn('banca_id', $user->masterBancaIds())->pluck('id');
+                    : Grupo::whereIn('banca_id', $masterIds)->pluck('id');
             } elseif ($user->hasRole('banca')) {
                 $ids = Grupo::where('banca_id', $user->banca_id)->pluck('id');
             } elseif ($user->hasRole('grupo') || $user->hasRole('agencia')) {
@@ -669,14 +653,14 @@ class JuegoController extends Controller
                 // de un grupo); agencia no alcanza este endpoint por ruta.
                 $ids = [$user->grupo_id];
             } else {
-                abort(403, 'No tienes acceso a la entidad raíz del alcance.');
+                $this->alcance->denegar('No tienes acceso a la entidad raíz del alcance.');
             }
         } else { // taquilla
             if ($user->hasRole('super_master')) {
                 $ids = Taquilla::pluck('id');
             } elseif ($user->hasRole('master')) {
                 // master ve solo las taquillas de las bancas que administra
-                $masterIds = $user->masterBancaIds();
+                $masterIds = $this->alcance->bancasDeMaster($user);
                 $ids = $masterIds->isEmpty()
                     ? collect()
                     : Taquilla::whereHas('grupo', fn ($q) => $q->whereIn('banca_id', $masterIds))->pluck('id');
@@ -688,7 +672,7 @@ class JuegoController extends Controller
                 $ids = Taquilla::where('grupo_id', $user->grupo_id)->pluck('id');
             } else {
                 // Rol ausente o fuera de catálogo: fail-closed (REQ-4).
-                abort(403, 'No tienes acceso a la entidad raíz del alcance.');
+                $this->alcance->denegar('No tienes acceso a la entidad raíz del alcance.');
             }
         }
 
@@ -754,7 +738,7 @@ class JuegoController extends Controller
     private function expandirAlcance($user, string $tipo, int $id): array
     {
         if (! $this->entidadDentroDelAlcance($user, $tipo, $id)) {
-            abort(403, 'No tienes acceso a la entidad raíz del alcance.');
+            $this->alcance->denegar('No tienes acceso a la entidad raíz del alcance.');
         }
 
         $objetivos = [['nivel' => $tipo, 'id' => $id]];
@@ -992,8 +976,11 @@ class JuegoController extends Controller
 
     /**
      * ¿La entidad consultada está dentro de la jerarquía visible del rol?
-     * super_master/master ven todo; banca solo su propia cadena; grupo solo
-     * su propio grupo (y la banca de la que cuelga).
+     *
+     * Delega en el contrato de visibilidad por entidad del servicio
+     * (`alcanceDeEntidad`). El corto-circuito de `super_master` preserva la
+     * paridad con ids inexistentes (batch scope): antes resolvía `true` sin
+     * consultar la entidad.
      */
     private function entidadDentroDelAlcance($user, string $tipo, int $entidadId): bool
     {
@@ -1001,65 +988,14 @@ class JuegoController extends Controller
             return true;
         }
 
-        if ($user->hasRole('master')) {
-            if ($tipo === 'banca') {
-                return $user->masterCanAccessBanca($entidadId);
-            }
+        $modelo = match ($tipo) {
+            'banca' => Banca::find($entidadId),
+            'grupo' => Grupo::find($entidadId),
+            default => Taquilla::find($entidadId),
+        };
 
-            if ($tipo === 'grupo') {
-                return Grupo::whereKey($entidadId)
-                    ->whereIn('banca_id', $user->masterBancaIds())
-                    ->exists();
-            }
-
-            return Taquilla::whereKey($entidadId)
-                ->whereHas('grupo', fn ($q) => $q->whereIn('banca_id', $user->masterBancaIds()))
-                ->exists();
-        }
-
-        if ($user->hasRole('banca')) {
-            if ($tipo === 'banca') {
-                return $user->banca_id == $entidadId;
-            }
-
-            if ($tipo === 'grupo') {
-                return Grupo::whereKey($entidadId)->where('banca_id', $user->banca_id)->exists();
-            }
-
-            return Taquilla::whereKey($entidadId)
-                ->whereHas('grupo', fn ($q) => $q->where('banca_id', $user->banca_id))
-                ->exists();
-        }
-
-        if ($user->hasRole('grupo')) {
-            if ($tipo === 'grupo') {
-                return $user->grupo_id == $entidadId;
-            }
-
-            if ($tipo === 'banca') {
-                return $user->banca_id == $entidadId;
-            }
-
-            return Taquilla::whereKey($entidadId)
-                ->where('grupo_id', $user->grupo_id)
-                ->exists();
-        }
-
-        if ($user->hasRole('agencia')) {
-            if ($tipo === 'banca') {
-                return $user->banca_id == $entidadId;
-            }
-
-            if ($tipo === 'grupo') {
-                return $user->grupo_id == $entidadId;
-            }
-
-            return Taquilla::whereKey($entidadId)
-                ->where('agencia_id', $user->agencia_id)
-                ->exists();
-        }
-
-        return false;
+        return $modelo !== null
+            && $this->alcance->alcanceDeEntidad($user, $tipo, $modelo);
     }
 
     /**
@@ -1207,7 +1143,7 @@ class JuegoController extends Controller
         } elseif ($user->hasRole('master')) {
             // master ve solo las bancas que administra y su descendencia;
             // sin bancas asignadas ve NADA (whereRaw 1=0, nunca global)
-            $ids = $user->masterBancaIds();
+            $ids = $this->alcance->bancasDeMaster($user);
             if ($ids->isEmpty()) {
                 $query->whereRaw('1=0');
             } elseif ($tipo === 'banca') {
