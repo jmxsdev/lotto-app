@@ -179,6 +179,13 @@ class AlcanceEntidadesTest extends TestCase
                 "master A no debe gestionar {$entidad} de la banca B"
             );
         }
+
+        // La variante agencia→grupo NO habilita gestión de taquillas ajenas:
+        // el local A2 comparte grupo con la taquilla A, pero no es su dueño.
+        $this->assertFalse(
+            $this->service->puedeGestionar($this->agenciaA2User, 'taquilla', $this->arbolA['taquilla']),
+            'agencia A2 no debe gestionar la taquilla de la agencia A'
+        );
     }
 
     public function test_puede_operar_taquilla(): void

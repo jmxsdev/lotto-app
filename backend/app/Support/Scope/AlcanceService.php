@@ -1045,14 +1045,10 @@ final class AlcanceService
                 return false;
             }
 
-            if ((int) $actor->agencia_id === (int) $modelo->agencia_id) {
-                return true;
-            }
-
-            // Variante agencia→grupo: el local cuelga del grupo de la taquilla.
-            return $modelo->grupo?->agencias()
-                ->where('id', $actor->agencia_id)
-                ->exists() ?? false;
+            // Gestión: solo la agencia dueña de la taquilla. La variante
+            // agencia→grupo queda reservada a `puedeOperarTaquilla` (lectura/
+            // operación); usarla para escribir ampliaría el alcance de #84.
+            return (int) $actor->agencia_id === (int) $modelo->agencia_id;
         }
 
         return false;
