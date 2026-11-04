@@ -134,17 +134,17 @@ php artisan test --filter='SuperBancaScopeTest|PagoDevolucion|EliminacionApuesta
 **Rama**: `feat/84d-limites-agencia-regresion` ← `feat/84c-apuestas-pagos-tickets`
 **Líneas estimadas**: 250–400
 
-- [ ] **3.1** `app/Http/Controllers/Api/JuegoController.php` `authorizeEscrituraLimite()` (banca): validar que `grupo_id` pertenezca a su banca y que `taquilla_id` pertenezca a ese grupo; subárbol ajeno → 403.
-- [ ] **3.2** `app/Http/Controllers/Api/JuegoController.php` `updateLimites()`: mover `authorizeEscrituraLimite` ANTES de `validarRestrictividadLimite` (403 precede a 422).
-- [ ] **3.3** `app/Http/Controllers/Api/JuegoController.php` `batchLimites()`: reutilizar el helper de alcance por ítem (banca A no inyecta en subárbol de B).
-- [ ] **3.4** `app/Http/Controllers/Api/AgenciaController.php` `update()`: habilitar agencia a editar su propia ficha (`name/rif/email/telefono/direccion/estado/municipio`); `code/grupo_id/active` inmutables → 403; `store/toggle/destroy` bloqueados para agencia; agencia ajena → 403.
-- [ ] **3.5** Test de regresión caso 5: sin cambios de producción (ya cubierto por `TicketAnulacionService`).
+- [x] **3.1** `app/Http/Controllers/Api/JuegoController.php` `authorizeEscrituraLimite()` (banca): validar que `grupo_id` pertenezca a su banca y que `taquilla_id` pertenezca a ese grupo; subárbol ajeno → 403.
+- [x] **3.2** `app/Http/Controllers/Api/JuegoController.php` `updateLimites()`: mover `authorizeEscrituraLimite` ANTES de `validarRestrictividadLimite` (403 precede a 422).
+- [x] **3.3** `app/Http/Controllers/Api/JuegoController.php` `batchLimites()`: reutilizar el helper de alcance por ítem (banca A no inyecta en subárbol de B).
+- [x] **3.4** `app/Http/Controllers/Api/AgenciaController.php` `update()`: habilitar agencia a editar su propia ficha (`name/rif/email/telefono/direccion/estado/municipio`); `code/grupo_id/active` inmutables → 403; `store/toggle/destroy` bloqueados para agencia; agencia ajena → 403.
+- [x] **3.5** Test de regresión caso 5: sin cambios de producción (ya cubierto por `TicketAnulacionService`).
 
 **Tests a escribir/actualizar** (primero):
-- [ ] **3.T1** Nuevo `tests/Feature/LimitesEscrituraScopeTest.php`: propia 200; ajenos 403; batch por ítem; restrictivo ajeno 403 / propio 422 (orden 403→422).
-- [ ] **3.T2** Nuevo `tests/Feature/AgenciaSelfUpdateTest.php`: propia 200; grupo/code/active 403; otra agencia y store/toggle/destroy 403.
-- [ ] **3.T3** Nuevo `tests/Feature/TicketAnulacionRegresionTest.php`: líneas soft-deleted 422, sin devolución.
-- [ ] **3.T4** Actualizar `tests/Feature/LimitesScopedApiTest.php` y `tests/Feature/AgenciaScopeTest.php`.
+- [x] **3.T1** Nuevo `tests/Feature/LimitesEscrituraScopeTest.php`: propia 200; ajenos 403; batch por ítem; restrictivo ajeno 403 / propio 422 (orden 403→422).
+- [x] **3.T2** Nuevo `tests/Feature/AgenciaSelfUpdateTest.php`: propia 200; grupo/code/active 403; otra agencia y store/toggle/destroy 403.
+- [x] **3.T3** Nuevo `tests/Feature/TicketAnulacionRegresionTest.php`: líneas soft-deleted 422, sin devolución.
+- [x] **3.T4** Actualizar `tests/Feature/LimitesScopedApiTest.php` y `tests/Feature/AgenciaScopeTest.php` (sin cambios: sus expectativas siguen vigentes).
 
 **Comandos (NO ejecutados)**:
 ```bash
