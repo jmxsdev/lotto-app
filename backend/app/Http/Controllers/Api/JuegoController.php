@@ -458,6 +458,16 @@ class JuegoController extends Controller
             'participacion' => 'nullable|numeric|min:0|max:100',
         ]);
 
+        // Verificar alcance de escritura ANTES de validar restrictividad:
+        // un actor fuera de alcance recibe 403 y nunca 422 con datos del
+        // padre ajeno (spec limites, "Autorización antes que validación").
+        $this->authorizeEscrituraLimite(
+            $user,
+            (int) $request->banca_id,
+            $request->grupo_id !== null ? (int) $request->grupo_id : null,
+            $request->taquilla_id !== null ? (int) $request->taquilla_id : null,
+        );
+
         // Validar jerarquía de restricción: hijo ≤ padre
         if ($request->grupo_id || $request->taquilla_id) {
             $this->limites->validarRestrictividadLimite(
@@ -470,14 +480,6 @@ class JuegoController extends Controller
                 $request->limite_maximo,
             );
         }
-
-        // Verificar alcance de escritura (grupo solo dentro de su subárbol)
-        $this->authorizeEscrituraLimite(
-            $user,
-            (int) $request->banca_id,
-            $request->grupo_id !== null ? (int) $request->grupo_id : null,
-            $request->taquilla_id !== null ? (int) $request->taquilla_id : null,
-        );
 
         $limite = JuegoLimite::updateOrCreate(
             [
@@ -525,10 +527,6 @@ class JuegoController extends Controller
             'limites.*.participacion' => 'nullable|numeric|min:0|max:100',
         ]);
 
-        // Tope por tipo de juego (animalitos 16, tripletas 25): valida cada
-        // ítem antes de expandir el alcance y persistir.
-        $this->limites->validarItems($request->limites);
-
         $scope = $request->scope;
         $objetivos = null;
 
@@ -565,23 +563,33 @@ class JuegoController extends Controller
             if ($user->hasRole('grupo')) {
                 $this->assertObjetivosDentroDelGrupo($user, $objetivos);
             }
+        } else {
+            // Modo legacy: autorizar el alcance de CADA ítem antes de
+            // cualquier validación de datos (tope/restrictividad). Así un
+            // ítem de otro subárbol recibe 403 y nunca 422.
+            foreach ($request->limites as $item) {
+                $this->authorizeEscrituraLimite(
+                    $user,
+                    (int) ($item['banca_id'] ?? 0),
+                    ! empty($item['grupo_id']) ? (int) $item['grupo_id'] : null,
+                    ! empty($item['taquilla_id']) ? (int) $item['taquilla_id'] : null,
+                );
+            }
         }
+
+        // Tope por tipo de juego (animalitos 16, tripletas 25): valida cada
+        // ítem antes de persistir, después de autorizar el alcance.
+        $this->limites->validarItems($request->limites);
 
         $resultados = [];
 
-        DB::transaction(function () use ($request, $user, $objetivos, &$resultados) {
+        DB::transaction(function () use ($request, $objetivos, &$resultados) {
             foreach ($request->limites as $item) {
                 $item['juego_id'] = (int) $item['juego_id'];
 
                 if ($objetivos === null) {
-                    // Modo legacy: cada ítem con su banca_id (y opcional grupo/taquilla)
-                    $this->authorizeEscrituraLimite(
-                        $user,
-                        (int) $item['banca_id'],
-                        ! empty($item['grupo_id']) ? (int) $item['grupo_id'] : null,
-                        ! empty($item['taquilla_id']) ? (int) $item['taquilla_id'] : null,
-                    );
-
+                    // Modo legacy: el alcance ya se autorizó por ítem antes
+                    // de la validación; aquí solo queda restrictividad.
                     if (! empty($item['grupo_id']) || ! empty($item['taquilla_id'])) {
                         $this->limites->validarRestrictividadLimite(
                             (int) $item['banca_id'],
@@ -840,7 +848,8 @@ class JuegoController extends Controller
      *
      * - super_master: todo.
      * - master: bancas que administra.
-     * - banca: su propia banca.
+     * - banca: su propia banca y, dentro de ella, solo sus grupos y las
+     *   taquillas de esos grupos (subárbol propio).
      * - grupo: su propio grupo y sus taquillas (nunca nivel banca ni otro
      *   grupo/taquilla).
      */
@@ -857,11 +866,35 @@ class JuegoController extends Controller
         }
 
         if ($user->hasRole('banca')) {
-            if ($user->banca_id == $bancaId) {
-                return;
+            if ((int) $user->banca_id !== $bancaId) {
+                abort(403, 'No tienes acceso a esta banca.');
             }
 
-            abort(403, 'No tienes acceso a esta banca.');
+            // El grupo del payload debe pertenecer a su banca.
+            if ($grupoId !== null) {
+                $grupoPropio = Grupo::whereKey($grupoId)
+                    ->where('banca_id', $user->banca_id)
+                    ->exists();
+
+                if (! $grupoPropio) {
+                    abort(403, 'No tienes acceso a este grupo.');
+                }
+            }
+
+            // La taquilla debe colgar de su banca y, si se indicó grupo,
+            // pertenecer exactamente a ese grupo.
+            if ($taquillaId !== null) {
+                $taquillaPropia = Taquilla::whereKey($taquillaId)
+                    ->whereHas('grupo', fn ($q) => $q->where('banca_id', $user->banca_id))
+                    ->when($grupoId !== null, fn ($q) => $q->where('grupo_id', $grupoId))
+                    ->exists();
+
+                if (! $taquillaPropia) {
+                    abort(403, 'No tienes acceso a esta taquilla.');
+                }
+            }
+
+            return;
         }
 
         if ($user->hasRole('grupo')) {

@@ -13,8 +13,10 @@ use Illuminate\Validation\Rule;
  * CRUD de agencias (locales físicos) con alcance jerárquico por rol.
  *
  * super_master/master: todas; banca: agencias de su banca; grupo: agencias
- * de su grupo; agencia: solo su propio local (lectura). La agencia no
- * gestiona agencias (store/update/toggle/destroy → 403).
+ * de su grupo; agencia: solo su propio local. La agencia edita su propia
+ * ficha (datos de contacto/fiscales) pero no gestiona identidad ni
+ * pertenencia: code/grupo_id/active son inmutables y store/toggle/destroy
+ * siguen bloqueados (403).
  */
 class AgenciaController extends Controller
 {
@@ -106,13 +108,39 @@ class AgenciaController extends Controller
 
     /**
      * Actualizar una agencia dentro del alcance del rol.
+     *
+     * La agencia solo edita su PROPIA ficha y solo campos de contacto/
+     * fiscales; code/grupo_id/active son inmutables (403). Los demás roles
+     * conservan la gestión completa dentro de su alcance.
      */
     public function update(Request $request, Agencia $agencia)
     {
         $user = $request->user();
 
-        $this->authorizeGestion($user);
         $this->authorizeAgenciaAccess($user, $agencia);
+
+        if ($user->hasRole('agencia')) {
+            // Identidad y pertenencia no se reasignan desde la ficha propia.
+            if ($request->hasAny(['code', 'grupo_id', 'active'])) {
+                abort(403, 'No puedes modificar code, grupo_id ni active de tu agencia.');
+            }
+
+            $validated = $request->validate([
+                'name' => 'sometimes|string|max:255',
+                'rif' => 'nullable|string|max:20',
+                'email' => 'nullable|email',
+                'telefono' => 'nullable|string|max:30',
+                'direccion' => 'nullable|string|max:255',
+                'estado' => 'nullable|string|max:100',
+                'municipio' => 'nullable|string|max:100',
+            ]);
+
+            $agencia->update($validated);
+
+            return response()->json($agencia->load('grupo.banca'));
+        }
+
+        $this->authorizeGestion($user);
 
         $validated = $request->validate([
             'name' => 'sometimes|string|max:255',
