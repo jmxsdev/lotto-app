@@ -110,7 +110,7 @@ Base `feature/alcance-scope-service-85`; slices locales encadenados; rollback `g
 | Multi-rol con órdenes distintos | Constantes por contrato; no `primaryRole()` en filas |
 | `JuegoController` 1 291 líneas | Solo migran límites/visibilidad; guards 422 quedan |
 | Reglas ocultas: agencia→grupo, cierre ítem taquilla-first | `puedeOperarTaquilla`/`entidadesVisibles` conservan la variante |
-| `grep -c "masterBancaIds()"` ambiguo | Verificar `grep -rn -- "->masterBancaIds()" app/` = 1; ajustar spec |
+| `grep -c "masterBancaIds()"` ambiguo (cuenta definición y helpers internos) | Criterio medido por `ArquitecturaAlcanceTest`: 1 definición en `User`, 0 en controllers y único consumidor externo (`AlcanceService`); el `grep` literal no es criterio de aceptación |
 | 0a/0b sin consumidores | Aceptado; tests directos |
 
 ## CI/CD
@@ -123,5 +123,5 @@ N/A — sin routing, shell, subprocesos ni integración de procesos.
 
 ## Open Questions
 
-- [ ] Criterio `grep -c "masterBancaIds()"`.
+- [x] Criterio de `masterBancaIds()`: resuelto en el spec de `arquitectura-alcance` y en `ArquitecturaAlcanceTest` (1 definición en `User`, 0 usos en controllers, único consumidor externo `AlcanceService`).
 - [ ] ¿Publicar slices al cerrar #85 + BE-04?

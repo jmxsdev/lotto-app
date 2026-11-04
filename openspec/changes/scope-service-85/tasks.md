@@ -98,7 +98,7 @@ Rama base raíz: `feature/alcance-scope-service-85`. Cadena local: cada WU hered
   - [x] Implementar `alcanceDeEntidad`, `puedeGestionar`, `puedeOperarTaquilla`.
   - [x] Helpers de visibilidad/gestión por entidad y constantes `POLICY`/`LIMITES`/`JUEGO_VIS`.
   - [x] `AlcanceEntidadesTest` con matriz rol×entidad.
-  - [ ] Diferir `entidadesVisibles` (+ helpers `visibilidadBanca/Master/Grupo/Agencia`) a 4a/4b.
+  - [x] Diferir `entidadesVisibles` (+ helpers `visibilidadBanca/Master/Grupo/Agencia`) a 4a/4b. (No se consumió: 4a no la usa y 4b preservó `JUEGO_VIS` en `JuegoController`.)
 - **Líneas estimadas**: ~660–850 (partir si supera 800).
 - **Rollback**: `git revert` (aditivo).
 
@@ -281,16 +281,16 @@ Rama base raíz: `feature/alcance-scope-service-85`. Cadena local: cada WU hered
 - **Objetivo**: documentar el modelo de alcance y fijar las invariantes de no-regresión por scan estático.
 - **Rama**: `feat/85-5-docs-arquitectura` · **Base**: `feat/85-4b-juego`
 - **Archivos**:
-  - Crear `backend/docs/dev/alcance-jerarquico.md`
-  - Modificar `backend/docs/dev/arquitectura-backend.md`
+  - Crear `docs/dev/alcance-jerarquico.md` (la documentación de backend vive en `docs/dev/` del repo, junto a `arquitectura-backend.md`)
+  - Modificar `docs/dev/arquitectura-backend.md`
   - Crear `backend/tests/Feature/ArquitecturaAlcanceTest.php`
 - **Tareas**:
-  - [ ] Documentar el modelo de alcance y el orden de precedencia (`taquilla → agencia → grupo → banca`, `taquilla → grupo → banca`).
-  - [ ] Escribir `ArquitecturaAlcanceTest` (scan estático conservador): sin `->masterBancaIds()` fuera de `AlcanceService`/`User`; sin escaleras duplicadas en controllers migrados.
-  - [ ] Verificar conteos: `grep -rn -- "->masterBancaIds()" app/` = 1; `hasRole`/`hasAnyRole` para filtrar filas en `Api/` = 0.
+  - [x] Documentar el modelo de alcance y el orden de precedencia (`taquilla → agencia → grupo → banca`, `taquilla → grupo → banca`) en `docs/dev/alcance-jerarquico.md`, con enlace desde `docs/dev/arquitectura-backend.md` §3.2.
+  - [x] Escribir `ArquitecturaAlcanceTest` (scan estático conservador): `AlcanceService` final; 1 definición de `masterBancaIds` en `User`; 0 usos en `app/Http/Controllers`; único archivo consumidor externo (`AlcanceService`), incluidos los helpers `masterBanca*Scope`.
+  - [x] Verificar conteos: `->masterBancaIds()` en `app/` = 6 líneas (4 helpers internos de `User` + 2 en `AlcanceService`), 0 en controllers; la invariante la mide el test. No se usa `hasRole` como criterio: la autorización de acción puntual se conserva a propósito.
 - **Tests**: `ArquitecturaAlcanceTest` (nuevo).
 - **Comandos** (cierre del ciclo): `cd backend && php artisan test --filter=ArquitecturaAlcanceTest`, luego `composer test` y `vendor/bin/pint --test` (UNA vez, usuario).
-- **Done**: docs listas; scan verde; `grep` devuelve 1; suite completa verde.
+- **Done**: docs listas; `ArquitecturaAlcanceTest` verde (1 definición en `User`, 0 en controllers, único consumidor externo `AlcanceService`); suite completa verde.
 - **Líneas estimadas**: ~200
 - **Rollback**: revertir docs/test; sin impacto en lógica.
 
@@ -298,11 +298,11 @@ Rama base raíz: `feature/alcance-scope-service-85`. Cadena local: cada WU hered
 
 - [ ] Ningún controller de `Api/` compara roles para decidir qué filas ve (solo autorización de acción puntual).
 - [ ] `AlcanceService` es la única implementación de `taquilla → grupo → banca` y `taquilla → agencia → grupo → banca`.
-- [ ] `grep -rn -- "->masterBancaIds()" app/` devuelve **1**.
+- [ ] `->masterBancaIds()` en `app/` queda limitado a `User` (definición + helpers) y `AlcanceService`; 0 usos en `app/Http/Controllers` (lo verifica `ArquitecturaAlcanceTest`).
 - [ ] Baseline intacto sin modificar: `SuperBancaScopeTest`, `AgenciaScopeTest`, `MastersPanelTest`, `RoleAuthorizationTest`, `LimitesScopedApiTest`, `TicketMasterScopeTest`, `ApuestaScopePolicyTest`, `PagoEgresoScopeTest`, `AlcanceJerarquicoUsuariosTest`, `CreatedByTest`.
 - [ ] Nuevos tests: `AlcanceServiceScopeTest`, `AlcancePoliciesTest`, `ArquitecturaAlcanceTest`.
 - [ ] `composer test` en verde y `pint --test` limpio (ejecutados por el usuario).
-- [ ] Docs del modelo de alcance en `backend/docs/dev/`.
+- [ ] Docs del modelo de alcance en `docs/dev/`.
 
 ## Riesgos
 

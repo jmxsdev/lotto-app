@@ -40,13 +40,13 @@ Los endpoints migrados MUST preservar status, body y mensajes de denegación. Lo
 
 ### Requirement: `masterBancaIds()` único
 
-MUST quedar una sola definición de `masterBancaIds()` en `User`. Los call sites MUST resolverse vía `AlcanceService` (o helpers de `User`); al cierre `grep -c "masterBancaIds()" app/` MUST devolver 1.
+MUST quedar una sola definición de `masterBancaIds()` en `User`. Los call sites MUST resolverse vía `AlcanceService` o los helpers de `User`: ningún controller puede invocarla y, fuera de `User`, el único consumidor MUST ser `AlcanceService`. La invariante se verifica con el scan estático de `ArquitecturaAlcanceTest`; `grep -c "masterBancaIds()"` no es el criterio porque también cuenta la definición y los helpers internos de `User`.
 
 #### Scenario: `masterBancaIds()` único
 
-- GIVEN 14 usos (1 definición + 13 llamadas)
+- GIVEN 14 usos iniciales (1 definición en `User` + 13 llamadas dispersas)
 - WHEN cierran las oleadas de migración
-- THEN `grep -c "masterBancaIds()" app/` devuelve 1
+- THEN queda 1 definición en `User`, 0 usos en `app/Http/Controllers` y un único archivo consumidor externo (`AlcanceService`)
 
 ### Requirement: Denegación unificada
 
