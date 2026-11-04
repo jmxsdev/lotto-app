@@ -218,8 +218,8 @@ Rama base raíz: `feature/alcance-scope-service-85`. Cadena local: cada WU hered
 - **Rama**: `feat/85-3a-user` · **Base**: `feat/85-2c-taquilla`
 - **Archivos**: Modificar `backend/app/Http/Controllers/Api/UserController.php`.
 - **Tareas**:
-  - [ ] Escalera de usuarios → `applyToUsuarios`; eliminar call sites de `masterBancaIds()`.
-  - [ ] Denegación unificada con mensaje exacto.
+  - [x] Escalera de usuarios → `applyToUsuarios`; eliminar call sites de `masterBancaIds()`. (`index` delega en `applyToUsuarios($query, $user, 'No tienes permisos para ver usuarios.')`; el único call site `masterBancaIds()` del controller queda eliminado. `store`/`show`/`update`/`destroy`/`authorizeEntityBinding`/`deriveEntityBindings` intactos.)
+  - [x] Denegación unificada con mensaje exacto. (Los 403 de vínculo faltante usan las constantes `MENSAJE_SIN_BANCA`/`_SIN_GRUPO`/`_SIN_AGENCIA` con texto idéntico al previo; el 403 de rol no permitido conserva `'No tienes permisos para ver usuarios.'` vía `denegar()` (`abort(403, ...)`). La rama es inalcanzable por el middleware de ruta (`role:super_master|master|banca|grupo|taquilla|agencia`), así que status/mensaje se preservan.)
 - **Tests**: `AlcanceJerarquicoUsuariosTest`, `GestionUsuariosTest`, `RoleAuthorizationTest`, `UsuarioRolApiTest` (existentes, sin modificar).
 - **Comandos**: `cd backend && php artisan test --filter='UsuarioRolApi|GestionUsuarios|AlcanceJerarquicoUsuarios'`
 - **Done**: visibilidad de usuarios idéntica; tests verdes.
