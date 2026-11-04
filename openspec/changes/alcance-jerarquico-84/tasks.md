@@ -34,7 +34,7 @@ Chain strategy: stacked-to-main
 1. **Un WU por invocación**: `sdd-apply` procesa exactamente UNA work unit y se detiene.
 2. **Tests primero**: en cada WU, escribir/actualizar los tests ANTES que el código de producción (RED → GREEN).
 3. **NO ejecutar tests ni migraciones**: el agente solo DEJA los comandos; el usuario los corre localmente.
-4. **Devolver comandos**: al terminar cada WU, devolver el comando de test enfocado y el `composer test` completo para que el usuario ejecute.
+4. **Devolver comandos**: al terminar cada WU, devolver solo los comandos de test enfocados. `composer test` y `pint --test` se corren UNA sola vez al cierre del ciclo (decisión del maintainer: es caro y lento).
 5. **Detenerse**: al finalizar un WU, reportar y esperar. NO continuar al siguiente WU sin nueva invocación.
 6. **Commit por WU**: commits convencionales en español (`feat`, `fix`, `test`, `chore`). Los artefactos OpenSpec se commitean con `git add -f openspec/...`.
 
@@ -93,7 +93,6 @@ php artisan migrate:fresh --seed   # verificación de cadena de creadores en see
 cd backend
 php artisan test --filter=AlcanceJerarquicoUsuariosTest
 php artisan test --filter='GestionUsuariosTest|RoleAuthorizationTest|MastersPanelTest'
-composer test
 ```
 
 **Done**: `UserPolicy` concentra view/create/update/delete; super intocable; pares y superiores prohibidos; `created_by` opera como metadata; tests de jerarquía en verde.
@@ -106,24 +105,23 @@ composer test
 **Rama**: `feat/84c-apuestas-pagos-tickets` ← `feat/84b-user-policy-controller`
 **Líneas estimadas**: 250–350
 
-- [ ] **2.1** `app/Policies/ApuestaPolicy.php` `view()`/`poseeApuesta()`: master acotado a sus bancas (`masterBancaChainScope`/`masterCanAccessBanca`); master sin bancas → `false`; super global; null/sin bancas → `false`.
-- [ ] **2.2** `app/Http/Controllers/Api/PagoController.php` `store()`: reemplazar check `if ($user->hasRole('taquilla') && ...)` por `$this->authorize('view', $apuesta)` dentro del lock (antes del estado), cubriendo banca/grupo/master/super; mantener 422 para no-egreso/doble-egreso antes de cargar la apuesta.
-- [ ] **2.3** `app/Http/Controllers/Api/TicketController.php` `index()/show()`: añadir rama `master` usando `masterBancaChainScope` (solo sus bancas; sin bancas → vacío; show ajeno → 403). `agencia` sigue fuera de `/tickets` (middleware actual no la incluye).
-- [ ] **2.4** `app/Http/Controllers/Api/TicketController.php` `ganadores()`: acotar `master` en ambas queries (sorteo y multi-sorteo) con `masterBancaChainScope`.
-- [ ] **2.5** `app/Http/Controllers/Api/TicketController.php` `destroy()`: solo test de regresión (ya cubierto por `TicketAnulacionService`); no reimplementar.
+- [x] **2.1** `app/Policies/ApuestaPolicy.php` `view()`/`poseeApuesta()`: master acotado a sus bancas (`masterBancaChainScope`/`masterCanAccessBanca`); master sin bancas → `false`; super global; null/sin bancas → `false`.
+- [x] **2.2** `app/Http/Controllers/Api/PagoController.php` `store()`: reemplazar check `if ($user->hasRole('taquilla') && ...)` por `$this->authorize('view', $apuesta)` dentro del lock (antes del estado), cubriendo banca/grupo/master/super; mantener 422 para no-egreso/doble-egreso antes de cargar la apuesta.
+- [x] **2.3** `app/Http/Controllers/Api/TicketController.php` `index()/show()`: añadir rama `master` usando `masterBancaChainScope` (solo sus bancas; sin bancas → vacío; show ajeno → 403). `agencia` sigue fuera de `/tickets` (middleware actual no la incluye).
+- [x] **2.4** `app/Http/Controllers/Api/TicketController.php` `ganadores()`: acotar `master` en ambas queries (sorteo y multi-sorteo) con `masterBancaChainScope`.
+- [x] **2.5** `app/Http/Controllers/Api/TicketController.php` `destroy()`: solo test de regresión (ya cubierto por `TicketAnulacionService`); no reimplementar.
 
 **Tests a escribir/actualizar** (primero):
-- [ ] **2.T1** Nuevo `tests/Feature/ApuestaScopePolicyTest.php`: master propia 200; ajena/sin bancas 403; super global.
-- [ ] **2.T2** Nuevo `tests/Feature/PagoEgresoScopeTest.php`: cross-tenant 403 sin mutación; propia 201; no-egreso/doble-egreso 422.
-- [ ] **2.T3** Nuevo `tests/Feature/TicketMasterScopeTest.php`: solo propias; sin bancas vacío; show ajeno 403; super global; ganadores acotados.
-- [ ] **2.T4** Actualizar `tests/Feature/SuperBancaScopeTest.php`, `tests/Feature/PagoDevolucionRechazosTest.php`, `tests/Feature/PagoDevolucionAnulacionTest.php`, `tests/Feature/EliminacionApuestasTest.php`, `tests/Unit/ApuestaPolicyAnulacionTest.php`, `tests/Feature/TicketGanadoresTest.php` y `tests/Feature/TicketEliminacionTest.php`. Ojo: `EliminacionApuestasTest` (Feature, ventana de anulación) y `ApuestaPolicyAnulacionTest` (Unit, `motivoNoAnulable`/ownership) son archivos distintos; ambos deben quedar en verde.
+- [x] **2.T1** Nuevo `tests/Feature/ApuestaScopePolicyTest.php`: master propia 200; ajena/sin bancas 403; super global.
+- [x] **2.T2** Nuevo `tests/Feature/PagoEgresoScopeTest.php`: cross-tenant 403 sin mutación; propia 201; no-egreso/doble-egreso 422.
+- [x] **2.T3** Nuevo `tests/Feature/TicketMasterScopeTest.php`: solo propias; sin bancas vacío; show ajeno 403; super global; ganadores acotados.
+- [x] **2.T4** Actualizar `tests/Feature/SuperBancaScopeTest.php`, `tests/Feature/PagoDevolucionRechazosTest.php`, `tests/Feature/PagoDevolucionAnulacionTest.php`, `tests/Feature/EliminacionApuestasTest.php`, `tests/Unit/ApuestaPolicyAnulacionTest.php`, `tests/Feature/TicketGanadoresTest.php` y `tests/Feature/TicketEliminacionTest.php`. Ojo: `EliminacionApuestasTest` (Feature, ventana de anulación) y `ApuestaPolicyAnulacionTest` (Unit, `motivoNoAnulable`/ownership) son archivos distintos; ambos deben quedar en verde.
 
 **Comandos (NO ejecutados)**:
 ```bash
 cd backend
 php artisan test --filter='ApuestaScopePolicyTest|PagoEgresoScopeTest|TicketMasterScopeTest'
 php artisan test --filter='SuperBancaScopeTest|PagoDevolucion|EliminacionApuestasTest|ApuestaPolicyAnulacionTest|TicketGanadoresTest|TicketEliminacionTest'
-composer test
 ```
 
 **Done**: master acotado en apuestas/pagos/tickets; super global; ownership egreso por rol; tests 2/3/4 en verde.
@@ -153,7 +151,6 @@ composer test
 cd backend
 php artisan test --filter='LimitesEscrituraScopeTest|AgenciaSelfUpdateTest|TicketAnulacionRegresionTest'
 php artisan test --filter='LimitesScopedApiTest|AgenciaScopeTest'
-composer test
 ```
 
 **Done**: banca no inyecta límites ajenos; 403 precede a 422; agencia edita su ficha limitada; regresión caso 5 verde.
@@ -171,7 +168,7 @@ composer test
 - [ ] `authorizeEntityBinding`/`UserPolicy` rechazan pares (banca→banca, grupo→grupo, agencia→agencia).
 - [ ] super_master intocable; master no borra otro master/super/creador; banca/grupo/agencia borran subárbol/creados de rango menor.
 - [ ] Caso 5 cubierto solo por test de regresión.
-- [ ] `composer test` en verde y `pint --test` limpio (lo ejecuta el usuario por WU).
+- [ ] `composer test` y `pint --test` en verde al cierre del ciclo (una sola vez, lo ejecuta el usuario).
 
 ## Riesgos
 
@@ -184,12 +181,13 @@ composer test
 
 ## Comandos por WU (resumen — usuario los ejecuta)
 
-| WU | Enfocado | Suite completa |
-|----|----------|----------------|
-| 1a | `php artisan test --filter=CreatedByTest` + `php artisan migrate` | `php artisan migrate:fresh --seed` |
-| 1b | `php artisan test --filter=AlcanceJerarquicoUsuariosTest` | `composer test` |
-| 2 | `php artisan test --filter='ApuestaScopePolicyTest\|PagoEgresoScopeTest\|TicketMasterScopeTest'` | `composer test` |
-| 3 | `php artisan test --filter='LimitesEscrituraScopeTest\|AgenciaSelfUpdateTest\|TicketAnulacionRegresionTest'` | `composer test` |
+| WU | Comando enfocado |
+|----|------------------|
+| 1a | `php artisan test --filter=CreatedByTest` + `php artisan migrate` |
+| 1b | `php artisan test --filter=AlcanceJerarquicoUsuariosTest` |
+| 2 | `php artisan test --filter='ApuestaScopePolicyTest\|PagoEgresoScopeTest\|TicketMasterScopeTest'` |
+| 3 | `php artisan test --filter='LimitesEscrituraScopeTest\|AgenciaSelfUpdateTest\|TicketAnulacionRegresionTest'` |
+| Cierre | `composer test` + `pint --test` (una sola vez, lo corre el usuario) |
 
 ## Nota de versionado
 
