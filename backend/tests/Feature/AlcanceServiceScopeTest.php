@@ -14,6 +14,7 @@ use App\Models\Ticket;
 use App\Models\User;
 use App\Support\Scope\AlcanceService;
 use Database\Seeders\DatabaseSeeder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -605,7 +606,7 @@ class AlcanceServiceScopeTest extends TestCase
     }
 
     /**
-     * @return array<string, \Illuminate\Database\Eloquent\Model>
+     * @return array<string, Model>
      */
     private function entidadesA(): array
     {
