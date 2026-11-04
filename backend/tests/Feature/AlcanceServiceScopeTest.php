@@ -282,6 +282,150 @@ class AlcanceServiceScopeTest extends TestCase
         );
     }
 
+    // ==================================================
+    // Usuarios
+    // ==================================================
+
+    public function test_apply_to_usuarios_por_rol(): void
+    {
+        $mensaje = 'No tienes permisos para ver usuarios.';
+        $creadoPorMasterSinBancas = User::factory()->withRole('taquilla')->create([
+            'created_by' => $this->masterSinBancas->id,
+        ]);
+
+        $super = $this->usuariosDe($this->super, $mensaje);
+        $this->assertContains((int) $this->bancaAUser->id, $super);
+        $this->assertContains((int) $this->masterB->id, $super);
+
+        $master = $this->usuariosDe($this->masterA, $mensaje);
+        $this->assertContains((int) $this->bancaAUser->id, $master);
+        $this->assertContains((int) $this->taquillaAUser->id, $master);
+        $this->assertNotContains((int) $this->sinRol->id, $master);
+
+        $this->assertContiene($this->usuariosDe($this->bancaAUser, $mensaje), $this->taquillaAUser);
+        $this->assertContiene($this->usuariosDe($this->grupoAUser, $mensaje), $this->taquillaAUser);
+        $this->assertContiene($this->usuariosDe($this->agenciaAUser, $mensaje), $this->taquillaAUser);
+
+        $taquilla = $this->usuariosDe($this->taquillaAUser, $mensaje);
+        $this->assertSame([(int) $this->taquillaAUser->id], array_map('intval', $taquilla));
+
+        $sinBancas = $this->usuariosDe($this->masterSinBancas, $mensaje);
+        $this->assertContains((int) $creadoPorMasterSinBancas->id, $sinBancas);
+        $this->assertNotContains((int) $this->bancaAUser->id, $sinBancas);
+
+        $this->assertDeniega(
+            fn () => $this->usuariosDe($this->sinRol, $mensaje),
+            $mensaje
+        );
+    }
+
+    public function test_apply_to_usuarios_deniega_vinculos_faltantes(): void
+    {
+        $mensaje = 'No tienes permisos para ver usuarios.';
+        $bancaSinVinculo = User::factory()->withRole('banca')->create();
+        $grupoSinVinculo = User::factory()->withRole('grupo')->create(['banca_id' => $this->bancaA->id]);
+        $agenciaSinVinculo = User::factory()->withRole('agencia')->create(['banca_id' => $this->bancaA->id]);
+
+        $this->assertDeniega(
+            fn () => $this->usuariosDe($bancaSinVinculo, $mensaje),
+            AlcanceService::MENSAJE_SIN_BANCA
+        );
+        $this->assertDeniega(
+            fn () => $this->usuariosDe($grupoSinVinculo, $mensaje),
+            AlcanceService::MENSAJE_SIN_GRUPO
+        );
+        $this->assertDeniega(
+            fn () => $this->usuariosDe($agenciaSinVinculo, $mensaje),
+            AlcanceService::MENSAJE_SIN_AGENCIA
+        );
+    }
+
+    // ==================================================
+    // Entidades
+    // ==================================================
+
+    public function test_apply_to_entidades_grupo_agencia_y_taquilla(): void
+    {
+        $grupos = 'No tienes permiso para ver grupos.';
+        $agencias = 'No tienes permiso para ver agencias.';
+        $taquillas = 'No tienes permiso para ver taquillas.';
+
+        $this->assertScope($this->entidadesDe($this->masterA, 'grupo', $grupos), $this->grupoA, $this->grupoB);
+        $this->assertScope($this->entidadesDe($this->bancaAUser, 'grupo', $grupos), $this->grupoA, $this->grupoB);
+        $this->assertScope($this->entidadesDe($this->grupoAUser, 'grupo', $grupos), $this->grupoA, $this->grupoB);
+        $this->assertAmbos($this->entidadesDe($this->super, 'grupo', $grupos), $this->grupoA, $this->grupoB);
+        $this->assertDeniega(
+            fn () => $this->entidadesDe($this->agenciaAUser, 'grupo', $grupos),
+            $grupos
+        );
+
+        $this->assertScope($this->entidadesDe($this->masterA, 'agencia', $agencias), $this->agenciaA, $this->agenciaB);
+        $this->assertScope($this->entidadesDe($this->bancaAUser, 'agencia', $agencias), $this->agenciaA, $this->agenciaB);
+        $this->assertScope($this->entidadesDe($this->grupoAUser, 'agencia', $agencias), $this->agenciaA, $this->agenciaB);
+        $this->assertScope($this->entidadesDe($this->agenciaAUser, 'agencia', $agencias), $this->agenciaA, $this->agenciaB);
+        $this->assertAmbos($this->entidadesDe($this->super, 'agencia', $agencias), $this->agenciaA, $this->agenciaB);
+        $this->assertDeniega(
+            fn () => $this->entidadesDe($this->taquillaAUser, 'agencia', $agencias),
+            $agencias
+        );
+
+        $this->assertScope($this->entidadesDe($this->masterA, 'taquilla', $taquillas), $this->taquillaA, $this->taquillaB);
+        $this->assertScope($this->entidadesDe($this->bancaAUser, 'taquilla', $taquillas), $this->taquillaA, $this->taquillaB);
+        $this->assertScope($this->entidadesDe($this->grupoAUser, 'taquilla', $taquillas), $this->taquillaA, $this->taquillaB);
+        $this->assertScope($this->entidadesDe($this->agenciaAUser, 'taquilla', $taquillas), $this->taquillaA, $this->taquillaB);
+        $this->assertAmbos($this->entidadesDe($this->super, 'taquilla', $taquillas), $this->taquillaA, $this->taquillaB);
+        $this->assertDeniega(
+            fn () => $this->entidadesDe($this->taquillaAUser, 'taquilla', $taquillas),
+            $taquillas
+        );
+    }
+
+    public function test_apply_to_entidades_banca_y_limite(): void
+    {
+        $bancas = 'No tienes permiso para ver bancas.';
+        $limites = 'No tienes permiso para ver límites.';
+
+        $this->assertScope($this->entidadesDe($this->masterA, 'banca', $bancas), $this->bancaA, $this->bancaB);
+        $this->assertAmbos($this->entidadesDe($this->super, 'banca', $bancas), $this->bancaA, $this->bancaB);
+        $this->assertDeniega(
+            fn () => $this->entidadesDe($this->bancaAUser, 'banca', $bancas),
+            $bancas
+        );
+
+        $this->assertScope($this->entidadesDe($this->masterA, 'limite', $limites), $this->limiteBancaA, $this->limiteBancaB);
+        $this->assertScope($this->entidadesDe($this->bancaAUser, 'limite', $limites), $this->limiteBancaA, $this->limiteBancaB);
+        $this->assertScope($this->entidadesDe($this->agenciaAUser, 'limite', $limites), $this->limiteBancaA, $this->limiteBancaB);
+        $this->assertAmbos($this->entidadesDe($this->super, 'limite', $limites), $this->limiteBancaA, $this->limiteBancaB);
+
+        // Paridad con JuegoController: el actor grupo ve las filas de su grupo.
+        $grupo = $this->entidadesDe($this->grupoAUser, 'limite', $limites);
+        $this->assertContains((int) $this->limiteGrupoA->id, $grupo);
+        $this->assertNotContains((int) $this->limiteBancaB->id, $grupo);
+
+        $this->assertDeniega(
+            fn () => $this->entidadesDe($this->taquillaAUser, 'limite', $limites),
+            $limites
+        );
+    }
+
+    public function test_apply_to_entidades_deniega_vinculos_faltantes_y_entidad_desconocida(): void
+    {
+        $bancaSinVinculo = User::factory()->withRole('banca')->create();
+        $mensaje = 'No tienes permiso.';
+
+        $this->assertDeniega(
+            fn () => $this->entidadesDe($bancaSinVinculo, 'grupo', $mensaje),
+            AlcanceService::MENSAJE_SIN_BANCA
+        );
+        $this->assertDeniega(
+            fn () => $this->entidadesDe($this->sinRol, 'grupo', $mensaje),
+            $mensaje
+        );
+        $this->assertDeniega(
+            fn () => $this->entidadesDe($this->super, 'desconocida', $mensaje),
+            $mensaje
+        );
+    }
 
     public function test_bancas_de_master(): void
     {
@@ -298,6 +442,10 @@ class AlcanceServiceScopeTest extends TestCase
             'No autorizado.'
         );
     }
+
+    // ==================================================
+    // Helpers
+    // ==================================================
 
     private function crearApuesta(Taquilla $taquilla): Apuesta
     {
