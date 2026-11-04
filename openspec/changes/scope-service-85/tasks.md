@@ -143,8 +143,8 @@ Rama base raíz: `feature/alcance-scope-service-85`. Cadena local: cada WU hered
 - **Rama**: `feat/85-1b-apuesta` · **Base**: `feat/85-1a-estadistica-reporte`
 - **Archivos**: Modificar `backend/app/Http/Controllers/Api/ApuestaController.php`, `backend/app/Policies/ApuestaPolicy.php`.
 - **Tareas**:
-  - [ ] `ApuestaController::{index,historial,resumen}`: escalera → `applyToApuestas`.
-  - [ ] `ApuestaPolicy`: reemplazar scoping propio por delegación a `AlcanceService` (sin cambio de contrato).
+  - [x] `ApuestaController::{index,historial,resumen}`: escalera → `applyToApuestas`.
+  - [x] `ApuestaPolicy`: reemplazar scoping propio por delegación a `AlcanceService` (sin cambio de contrato).
 - **Tests**: `ApuestaScopePolicyTest`, `ApuestaTest` (existentes, sin modificar).
 - **Comandos**: `cd backend && php artisan test --filter='Apuesta'`
 - **Done**: contrato de apuestas preservado; tests verdes.
