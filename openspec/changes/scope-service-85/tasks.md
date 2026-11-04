@@ -201,9 +201,9 @@ Rama base raíz: `feature/alcance-scope-service-85`. Cadena local: cada WU hered
 - **Rama**: `feat/85-2c-taquilla` · **Base**: `feat/85-2b-grupo`
 - **Archivos**: Modificar `backend/app/Http/Controllers/Api/TaquillaController.php`.
 - **Tareas**:
-  - [ ] Escalera → `applyToEntidades`/`TaquillaPolicy`.
-  - [ ] `puedeOperarTaquilla` y la variante `agencia → grupo` delegadas en `AlcanceService` (sin reinterpretar el orden).
-  - [ ] Denegaciones → `denegar()` con mensaje exacto.
+  - [x] Escalera → `applyToEntidades`/`TaquillaPolicy`. (`index` → `applyToEntidades($query,$user,'taquilla','No tienes permiso para ver taquillas.')`; `show`/`update`/`toggle`/`destroy` → `alcanceDeEntidad('taquilla')` en `authorizeTaquillaAccess`.)
+  - [x] `puedeOperarTaquilla` y la variante `agencia → grupo` delegadas en `AlcanceService` (sin reinterpretar el orden). (El controller no tenía call site de `puedeOperarTaquilla`; su variante `agencia→grupo` sigue expuesta por `TaquillaPolicy::operar`. No se usa `puedeGestionar('taquilla')` en escritura porque añadiría esa variante a `update`/`toggle`/`destroy` y ampliaría la agencia a taquillas de otras agencias del mismo grupo (#84/F1). `authorizeGrupoAccess`/`authorizeAgenciaAccess` quedan intactas.)
+  - [x] Denegaciones → `denegar()` con mensaje exacto. (`authorizeTaquillaAccess` → `denegar('No tienes acceso a esta taquilla.')`, mismo 403/body; el fallback fuera de contrato queda inalcanzable por el middleware de ruta.)
 - **Tests**: `TaquillaStoreTest`, `TaquillaAgenciaIdTest`, `TaquillaGrupoAgenciaConsistenciaTest`, `TaquillaLocalObligatorioTest` (existentes, sin modificar).
 - **Comandos**: `cd backend && php artisan test --filter='Taquilla'`
 - **Done**: scope y operación de taquilla idénticos; tests verdes.
