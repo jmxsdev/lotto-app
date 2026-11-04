@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Banca;
 use App\Models\User;
 use App\Services\JuegoLimiteService;
+use App\Support\Scope\AlcanceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -13,22 +14,26 @@ use Illuminate\Validation\Rule;
 
 class BancaController extends Controller
 {
+    public function __construct(
+        private readonly AlcanceService $alcance,
+    ) {}
+
     public function index(Request $request)
     {
         $user = $request->user();
 
-        if ($user->hasRole('super_master')) {
-            $bancas = Banca::withCount('grupos', 'users')->with('master')->get();
-        } elseif ($user->hasRole('master')) {
-            // master ve solo las bancas que administra; sin bancas ve NADA
-            $query = Banca::query()->withCount('grupos', 'users')->with('master');
-            $user->masterBancaScope('id')($query);
-            $bancas = $query->get();
-        } else {
-            return response()->json(['message' => 'No tienes permiso para ver bancas.'], 403);
-        }
+        $query = Banca::query()->withCount('grupos', 'users')->with('master');
 
-        return response()->json($bancas);
+        // Scoping jerárquico por rol (fuente única: AlcanceService, ENTIDADES).
+        // master ve solo las bancas que administra; sin bancas ve NADA.
+        $query = $this->alcance->applyToEntidades(
+            $query,
+            $user,
+            'banca',
+            'No tienes permiso para ver bancas.'
+        );
+
+        return response()->json($query->get());
     }
 
     public function store(Request $request)
@@ -114,13 +119,8 @@ class BancaController extends Controller
 
     public function show(Banca $banca)
     {
-        $user = auth()->user();
-
-        if ($user->hasRole('super_master')) {
-            // puede ver cualquier banca
-        } elseif ($user->hasRole('master') && ! $user->masterCanAccessBanca($banca->id)) {
-            return response()->json(['message' => 'No tienes permiso para ver esta banca.'], 403);
-        } elseif (! $user->hasRole(['super_master', 'master'])) {
+        // Lectura acotada al alcance del rol (fuente única: AlcanceService, ENTIDADES).
+        if (! $this->alcance->alcanceDeEntidad(auth()->user(), 'banca', $banca)) {
             return response()->json(['message' => 'No tienes permiso para ver esta banca.'], 403);
         }
 
@@ -129,13 +129,8 @@ class BancaController extends Controller
 
     public function update(Request $request, Banca $banca)
     {
-        $user = auth()->user();
-
-        if ($user->hasRole('super_master')) {
-            // puede modificar cualquier banca
-        } elseif ($user->hasRole('master') && ! $user->masterCanAccessBanca($banca->id)) {
-            return response()->json(['message' => 'No tienes permiso para modificar esta banca.'], 403);
-        } elseif (! $user->hasRole(['super_master', 'master'])) {
+        // Escritura acotada al alcance de gestión del rol (AlcanceService, ENTIDADES).
+        if (! $this->alcance->puedeGestionar(auth()->user(), 'banca', $banca)) {
             return response()->json(['message' => 'No tienes permiso para modificar esta banca.'], 403);
         }
 
@@ -174,13 +169,8 @@ class BancaController extends Controller
      */
     public function toggle(Request $request, Banca $banca)
     {
-        $user = auth()->user();
-
-        if ($user->hasRole('super_master')) {
-            // puede alternar cualquier banca
-        } elseif ($user->hasRole('master') && ! $user->masterCanAccessBanca($banca->id)) {
-            return response()->json(['message' => 'No tienes permiso para modificar esta banca.'], 403);
-        } elseif (! $user->hasRole(['super_master', 'master'])) {
+        // Gestión acotada (fuente única: AlcanceService, ENTIDADES).
+        if (! $this->alcance->puedeGestionar(auth()->user(), 'banca', $banca)) {
             return response()->json(['message' => 'No tienes permiso para modificar esta banca.'], 403);
         }
 
@@ -191,13 +181,8 @@ class BancaController extends Controller
 
     public function destroy(Banca $banca)
     {
-        $user = auth()->user();
-
-        if ($user->hasRole('super_master')) {
-            // puede eliminar cualquier banca
-        } elseif ($user->hasRole('master') && ! $user->masterCanAccessBanca($banca->id)) {
-            return response()->json(['message' => 'No tienes permiso para eliminar esta banca.'], 403);
-        } elseif (! $user->hasRole(['super_master', 'master'])) {
+        // Gestión acotada (fuente única: AlcanceService, ENTIDADES).
+        if (! $this->alcance->puedeGestionar(auth()->user(), 'banca', $banca)) {
             return response()->json(['message' => 'No tienes permiso para eliminar esta banca.'], 403);
         }
 

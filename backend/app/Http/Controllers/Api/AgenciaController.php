@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Agencia;
 use App\Models\Grupo;
+use App\Support\Scope\AlcanceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -20,37 +21,25 @@ use Illuminate\Validation\Rule;
  */
 class AgenciaController extends Controller
 {
+    public function __construct(
+        private readonly AlcanceService $alcance,
+    ) {}
+
     /**
      * Listar agencias según el alcance del rol.
      */
     public function index(Request $request)
     {
         $user = $request->user();
-        $query = Agencia::query();
 
-        if ($user->hasRole('super_master')) {
-            // Sin filtro
-        } elseif ($user->hasRole('master')) {
-            // master ve solo los locales de sus bancas; sin bancas ve NADA
-            $user->masterBancaGroupScope()($query);
-        } elseif ($user->hasRole('banca')) {
-            if (! $user->banca_id) {
-                return response()->json(['message' => 'No tienes una banca asociada.'], 403);
-            }
-            $query->whereHas('grupo', fn ($q) => $q->where('banca_id', $user->banca_id));
-        } elseif ($user->hasRole('grupo')) {
-            if (! $user->grupo_id) {
-                return response()->json(['message' => 'No tienes un grupo asociado.'], 403);
-            }
-            $query->where('grupo_id', $user->grupo_id);
-        } elseif ($user->hasRole('agencia')) {
-            if (! $user->agencia_id) {
-                return response()->json(['message' => 'No tienes una agencia asociada.'], 403);
-            }
-            $query->whereKey($user->agencia_id);
-        } else {
-            return response()->json(['message' => 'No tienes permiso para ver agencias.'], 403);
-        }
+        // Scoping jerárquico por rol (fuente única: AlcanceService, ENTIDADES).
+        // master ve solo los locales de sus bancas; sin bancas ve NADA.
+        $query = $this->alcance->applyToEntidades(
+            Agencia::query(),
+            $user,
+            'agencia',
+            'No tienes permiso para ver agencias.'
+        );
 
         return response()->json($query->with('grupo.banca')->orderBy('name')->get());
     }
@@ -140,7 +129,7 @@ class AgenciaController extends Controller
             return response()->json($agencia->load('grupo.banca'));
         }
 
-        $this->authorizeGestion($user);
+        $this->authorizeGestion($user, $agencia);
 
         $validated = $request->validate([
             'name' => 'sometimes|string|max:255',
@@ -171,7 +160,7 @@ class AgenciaController extends Controller
     {
         $user = $request->user();
 
-        $this->authorizeGestion($user);
+        $this->authorizeGestion($user, $agencia);
         $this->authorizeAgenciaAccess($user, $agencia);
 
         $agencia->update(['active' => ! $agencia->active]);
@@ -195,7 +184,7 @@ class AgenciaController extends Controller
     {
         $user = $request->user();
 
-        $this->authorizeGestion($user);
+        $this->authorizeGestion($user, $agencia);
         $this->authorizeAgenciaAccess($user, $agencia);
 
         DB::transaction(function () use ($agencia) {
@@ -215,11 +204,16 @@ class AgenciaController extends Controller
 
     /**
      * La agencia (local) no gestiona agencias: solo lectura de su propio local.
+     * Los demás roles gestionan solo dentro de su alcance (AlcanceService).
      */
-    private function authorizeGestion($user): void
+    private function authorizeGestion($user, ?Agencia $agencia = null): void
     {
         if ($user->hasRole('agencia')) {
             abort(403, 'No tienes permisos para gestionar agencias.');
+        }
+
+        if ($agencia !== null && ! $this->alcance->puedeGestionar($user, 'agencia', $agencia)) {
+            abort(403, 'No tienes acceso a esta agencia.');
         }
     }
 
@@ -264,44 +258,9 @@ class AgenciaController extends Controller
 
     private function authorizeAgenciaAccess($user, Agencia $agencia): void
     {
-        if ($user->hasRole('super_master')) {
-            return;
+        // Lectura acotada al alcance del rol (fuente única: AlcanceService, ENTIDADES).
+        if (! $this->alcance->alcanceDeEntidad($user, 'agencia', $agencia)) {
+            abort(403, 'No tienes acceso a esta agencia.');
         }
-
-        // Master solo accede a locales de sus bancas
-        if ($user->hasRole('master')) {
-            $bancaId = $agencia->grupo?->banca_id;
-            if ($bancaId === null || ! $user->masterCanAccessBanca((int) $bancaId)) {
-                abort(403, 'No tienes acceso a esta agencia.');
-            }
-
-            return;
-        }
-
-        if ($user->hasRole('banca')) {
-            if (! $user->banca_id || $user->banca_id != $agencia->grupo?->banca_id) {
-                abort(403, 'No tienes acceso a esta agencia.');
-            }
-
-            return;
-        }
-
-        if ($user->hasRole('grupo')) {
-            if (! $user->grupo_id || $user->grupo_id != $agencia->grupo_id) {
-                abort(403, 'No tienes acceso a esta agencia.');
-            }
-
-            return;
-        }
-
-        if ($user->hasRole('agencia')) {
-            if (! $user->agencia_id || $user->agencia_id != $agencia->id) {
-                abort(403, 'No tienes acceso a esta agencia.');
-            }
-
-            return;
-        }
-
-        abort(403, 'No tienes acceso a esta agencia.');
     }
 }
