@@ -138,7 +138,7 @@ Chain strategy: stacked-to-main
 - [x] Taquilla ve reportes (`view_reports`) y descarga releases (`download_release`).
 - [x] Sin permisos directos a usuarios (solo vía roles).
 - [x] Matriz capability × rol documentada en `docs/dev/`.
-- [ ] `composer test` y `pint --test` en verde; row scoping (#85) intacto.
+- [x] `composer test` y `pint --test` en verde; row scoping (#85) intacto.
 
 ## Riesgos
 

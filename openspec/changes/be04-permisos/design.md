@@ -158,7 +158,7 @@ Asignación exacta para el seeder (además de `super_master` sin permisos):
 | `/resultados`, `/resultados/{resultado}`, `/resultados/{resultado}/apariciones` | GET | `permission:view_resultados` | master, banca, grupo, agencia, taquilla |
 | `/resultados/scrape`, `/resultados/scrape-all` | POST | `permission:manage_resultados` | master |
 | `/apuestas`, `/apuestas/historial`, `/apuestas/resumen`, `/apuestas/{apuesta}` | GET | `permission:view_apuestas` | master, banca, grupo, agencia, taquilla |
-| `/apuestas` | POST | `permission:create_apuesta` | master, banca, grupo, agencia, taquilla |
+| `/apuestas` | POST | `permission:create_apuesta` | master, banca, grupo, taquilla (agencia 403 por matriz) |
 | `/apuestas/{apuesta}` | DELETE | `permission:delete_apuesta` | master, banca, grupo, agencia, taquilla |
 | `/tickets`, `/tickets/{ticket}`, `/tickets/ganadores` | GET | `permission:create_apuesta` | master, banca, grupo, taquilla |
 | `/tickets` | POST | `permission:create_apuesta` | master, banca, grupo, taquilla |

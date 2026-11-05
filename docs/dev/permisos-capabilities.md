@@ -205,7 +205,7 @@ Ante un despliegue con caché viejo, `php artisan optimize:clear` (o
 | `/resultados*` (lectura) | GET | `permission:view_resultados` | master, banca, grupo, agencia, taquilla |
 | `/resultados/scrape*` | POST | `permission:manage_resultados` | master |
 | `/apuestas*` (lectura) | GET | `permission:view_apuestas` | master, banca, grupo, agencia, taquilla |
-| `/apuestas` | POST | `permission:create_apuesta` | master, banca, grupo, agencia, taquilla |
+| `/apuestas` | POST | `permission:create_apuesta` | master, banca, grupo, taquilla (agencia 403) |
 | `/apuestas/{apuesta}` | DELETE | `permission:delete_apuesta` | master, banca, grupo, agencia, taquilla |
 | `/tickets*` | GET, POST, DELETE | `permission:create_apuesta` | master, banca, grupo, taquilla |
 | `/pagos`, `/pagos/{apuesta}` | POST, GET | `create_pago` / `view_pagos` | master, banca, grupo, taquilla |

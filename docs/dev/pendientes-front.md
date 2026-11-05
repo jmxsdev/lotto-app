@@ -130,7 +130,7 @@
 | BE-01 | Juegos | **Costo mínimo por juego**: columna `costo_minimo` en `juegos`, validación en `ApuestaStoreRequest` y edición desde el panel | `abierto` |
 | BE-02 | Juegos | **Endpoint de auditoría** `GET /api/v1/juegos/{juego}/auditoria` (la tabla `juego_auditoria` ya se escribe; falta el endpoint de consulta) | `abierto` |
 | BE-03 | Scrapers | **Scraper por juego** para los `requires_scraper = true`: generalizar el patrón de `ScrapeExchangeRateJob` | `abierto` |
-| BE-04 | Permisos | **Permisos finos (Spatie)**: catálogo de 34 capabilities y migración de `role:` a `permission:` en las rutas (sin `manage_apuestas`; `manage_users` retirado). WU-1 (catálogo + `Gate::before` + doc) en curso; WU-2..4 migran las rutas. Ver [`permisos-capabilities.md`](permisos-capabilities.md) | `en vuelo` |
+| BE-04 | Permisos | **Permisos finos (Spatie)**: catálogo de 34 capabilities, `Gate::before` y migración total `role:` → `permission:` (sin `manage_apuestas`; `manage_users` retirado). Ver [`permisos-capabilities.md`](permisos-capabilities.md) | `cerrado` |
 | BE-05 | Tooling | **Bruno collection**: request para `PUT /api/v1/juegos/{juego}/premios` **ya existe** (`collections/Juegos/Actualizar Premios.yml`, ciclo `colecciones-api` / PRs #45–48); falta `GET /auditoria` cuando exista | `abierto` (parcial) |
 | BE-07 | Scrapers | **Formato plano sin `nombre_animal`** (issue #63, Hallazgo E): `AnimalitosScraper::mapFlatResult` guarda solo `numero` para juegos no-tripletas. Hoy solo lo usan Trío/Terminal; por decisión del 2026-10-26 **no se agrega guarda defensiva**. Si un animalito migra a ese feed, aplicarlo en su momento | `documentado` |
 
