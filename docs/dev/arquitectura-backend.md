@@ -49,7 +49,7 @@ banca/grupo/taquilla/agencia con comisiones y cierres de caja.
 | `docs/`, `rutas.md` | Documentación: catálogo de juegos y superficie de la API |
 | `Dockerfile`, `entrypoint.sh` | Empaquetado y arranque: el entrypoint decide si el contenedor corre API, Horizon o scheduler, y solo la API migra |
 | `.env*` | Configuración por entorno |
-| `bootstrap/app.php` | Forzado a JSON puro (`shouldRenderJsonWhen(fn () => true)`), registra los alias `role`, `permission`, `checkrole`, `verify.mac` y el render de errores 401/403/404 |
+| `bootstrap/app.php` | Forzado a JSON puro (`shouldRenderJsonWhen(fn () => true)`), registra los alias `permission`, `role_or_permission`, `verify.mac` y el render de errores 401/403/404 |
 | `config/iconos-animales.php` | Config de negocio (iconos de los animales) |
 | `config/permission.php` | Config de spatie usada por la jerarquía real de roles |
 
@@ -60,7 +60,7 @@ banca/grupo/taquilla/agencia con comisiones y cierres de caja.
 | `Console/Commands/` | Negocio | `resultados:reconciliar`, `resultados:metricas`, `juegos:export`, `ScrapeExchangeRate`, `AgenciasBackfill`, `TaquillasSanearActivas`, `ReleasePublishCommand` |
 | `Http/Controllers/Api/` | Negocio | ~22 controladores delgados (`ApuestaController`, `TicketController`, `ResultadoController`, `JuegoController`, `CierreController`, `ComisionController`, …): validan, autorizan y delegan en `Services` |
 | `Http/Controllers/Admin/` | Negocio | Panel admin interno (Blade mínimo + scraping manual legado) |
-| `Http/Middleware/` | Negocio | `VerifyMac` (huella MAC del dispositivo de taquilla), `CheckRole` |
+| `Http/Middleware/` | Negocio | `VerifyMac` (huella MAC del dispositivo de taquilla) |
 | `Http/Requests/` | Negocio | `ApuestaStoreRequest`: pide las reglas de validación **al plugin del juego**, así la forma de `combinacion` cambia por tipo de juego |
 | `Jobs/` | Negocio | `ScrapeSourceJob` (canónico, por fuente), `ScrapeResultsJob` (por juego, legado), `FetchResultsJob` (legado animalitos), `ScrapeExchangeRateJob`, `ExpireUnclaimedPrizesJob`, `MarcarApuestasVencidasJob` |
 | `Models/` | Negocio | Eloquent de dominio (`Apuesta`, `DetalleApuesta`, `Ticket`, `Juego`, `JuegoOpcion`, `JuegoHorario`, `JuegoLimite`, `Resultado`, `Pago`, jerarquía `Banca`/`Grupo`/`Agencia`/`Taquilla`, `ComisionDefault`, `CierreCaja`, …) |

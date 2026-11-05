@@ -26,7 +26,7 @@ lotto-app/                           # Raíz del proyecto
 │   │   │   │       ├── BancaController.php
 │   │   │   │       ├── JuegoController.php
 │   │   │   │       └── TasaController.php
-│   │   │   ├── Middleware/          # Middlewares (VerifyMac, CheckRole, etc.)
+│   │   │   ├── Middleware/          # Middlewares (VerifyMac, etc.)
 │   │   │   ├── Requests/            # Form Requests (validaciones)
 │   │   │   └── Resources/           # Transformación de datos (API Resources)
 │   │   ├── Jobs/                    # Trabajos encolados (Scrapers, Comisiones, Cierres)
