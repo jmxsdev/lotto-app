@@ -43,12 +43,12 @@ Chain strategy: stacked-to-main
 **Archivos**: `backend/database/seeders/RolesAndPermissionsSeeder.php`, `backend/app/Providers/AppServiceProvider.php`, `docs/dev/permisos-capabilities.md`, `docs/dev/pendientes-front.md`, `openspec/changes/be04-permisos/specs/catalogo-permisos/spec.md`, `backend/tests/Feature/PermissionCatalogTest.php`.
 
 **Tareas**:
-- [ ] 1.1 Test RED: `PermissionCatalogTest` (34 permisos guard `api`; `manage_users`/`manage_apuestas` ausentes; `super_master` sin permisos + bypass; matriz exacta por rol; scan prohíbe `givePermissionTo`/`syncPermissions` sobre `User`).
-- [ ] 1.2 Seeder: catálogo 34 (`24 − manage_users + 11 faltantes`), `firstOrCreate` + `syncPermissions`, `forgetCachedPermissions()` inicio/fin; quitar `manage_users`, **no** `manage_apuestas`.
-- [ ] 1.3 Seeder matriz: `view_users` a taquilla; `delete_users` a master/banca/grupo/agencia; `manage_agencias` a agencia; `manage_config` a master; exchange solo master (quitar banca/grupo/agencia/taquilla); pagos sin agencia.
-- [ ] 1.4 `Gate::before` en `AppServiceProvider::boot()`: `true` solo para `super_master` y ability ∈ catálogo (`PermissionRegistrar` guard `api`); `null` en caso contrario (nunca `false`).
-- [ ] 1.5 Enmienda spec `catalogo-permisos/spec.md` con la matriz reconciliada (exchange, pagos agencia, tickets, `delete_users`, `view_users` taquilla, `create_apuesta` agencia).
-- [ ] 1.6 Doc `docs/dev/permisos-capabilities.md` (catálogo, matriz final, mapeo rutas, regla sin permisos directos, operación del seeder); actualizar `pendientes-front.md`.
+- [x] 1.1 Test RED: `PermissionCatalogTest` (34 permisos guard `api`; `manage_users`/`manage_apuestas` ausentes; `super_master` sin permisos + bypass; matriz exacta por rol; scan prohíbe `givePermissionTo`/`syncPermissions` sobre `User`).
+- [x] 1.2 Seeder: catálogo 34 (`24 − manage_users + 11 faltantes`), `firstOrCreate` + `syncPermissions`, `forgetCachedPermissions()` inicio/fin; quitar `manage_users`, **no** `manage_apuestas`.
+- [x] 1.3 Seeder matriz: `view_users` a taquilla; `delete_users` a master/banca/grupo/agencia; `manage_agencias` a agencia; `manage_config` a master; exchange solo master (quitar banca/grupo/agencia/taquilla); pagos sin agencia.
+- [x] 1.4 `Gate::before` en `AppServiceProvider::boot()`: `true` solo para `super_master` y ability ∈ catálogo (`PermissionRegistrar` guard `api`); `null` en caso contrario (nunca `false`).
+- [x] 1.5 Enmienda spec `catalogo-permisos/spec.md` con la matriz reconciliada (exchange, pagos agencia, tickets, `delete_users`, `view_users` taquilla, `create_apuesta` agencia).
+- [x] 1.6 Doc `docs/dev/permisos-capabilities.md` (catálogo, matriz final, mapeo rutas, regla sin permisos directos, operación del seeder); actualizar `pendientes-front.md`.
 
 **Tests**: escribir/actualizar `PermissionCatalogTest`.
 

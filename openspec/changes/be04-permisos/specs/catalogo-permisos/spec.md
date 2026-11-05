@@ -51,30 +51,69 @@ La matriz capability × rol MUST documentarse en `docs/dev/` y ser la fuente ún
 
 | Dominio | master | banca | grupo | agencia | taquilla |
 |---|---|---|---|---|---|
-| Usuarios | v,c,e,d | v,c,e | v,c,e | v,c,e | — |
+| Usuarios | v,c,e,d | v,c,e,d | v,c,e,d | v,c,e,d | v |
 | Bancas | v,m | — | — | — | — |
 | Grupos | v,m | v,m | — | — | — |
-| Agencias | v,m | v,m | v,m | v | — |
+| Agencias | v,m | v,m | v,m | v,m* | — |
 | Taquillas | v,m | v,m | v,m | v,m | — |
 | Juegos | v,m | v | v | v | v |
 | Resultados | v,m | v | v | v | v |
-| Apuestas | v,c,d | v,c,d | v,c,d | v,c,d | v,c,d |
-| Pagos | v,c | v,c | v,c | v,c | v,c |
+| Apuestas | v,c,d | v,c,d | v,c,d | v,d | v,c,d |
+| Pagos | v,c | v,c | v,c | — | v,c |
 | Cierres | v,c | v,c | v,c | v,c | v,c |
 | Límites | v,m | v,m | v,m | v | — |
 | Comisiones | v | — | — | — | — |
-| Exchange rates | v,m | v | v | v | v |
+| Exchange rates | v,m | — | — | — | — |
 | Reportes | v | v | v | v | v |
 | Logs | v | — | — | — | — |
 | Releases | v | v | v | v | v |
 | Clave cierre | m | m | — | — | — |
 | Config | m | — | — | — | — |
 
+`super_master` queda fuera de la matriz (bypass). Conteos: master 33, banca 24,
+grupo 21, agencia 17, taquilla 12, super_master 0.
+
+`*` `agencia` recibe `manage_agencias` para editar su propia ficha; `store`,
+`toggle` y `destroy` siguen bloqueados por el controller para ese rol.
+
+`/tickets*` no tiene permiso propio: usa `create_apuesta`, que **no** se asigna
+a `agencia`. `AlcanceService` no filtra tickets por agencia, así que otorgarle
+`view_apuestas` abriría una fuga de tickets de todo el sistema.
+
 #### Scenario: Matriz documentada
 
 - GIVEN BE-04 cerrado
 - WHEN un desarrollador consulta `docs/dev/`
 - THEN encuentra la matriz capability × rol actualizada
+
+### Requirement: Reconciliación con el acceso efectivo
+
+La matriz MUST preservar el acceso efectivo previo a BE-04 salvo las
+concesiones explícitas. En concreto:
+
+- `view_users` MUST asignarse a `taquilla` para conservar la lectura de su
+  propia ficha.
+- `delete_users` MUST asignarse a `master`, `banca`, `grupo` y `agencia`
+  (borrado jerárquico de #84).
+- `manage_agencias` MUST asignarse a `agencia` para editar su propia ficha.
+- `agencia` MUST NOT recibir `view_pagos`, `create_pago` ni `create_apuesta`.
+- `view_exchange_rates` MUST asignarse solo a `master`.
+- `manage_config` MUST asignarse a `master`.
+
+#### Scenario: agencia edita su ficha pero no toca tickets ni pagos
+
+- GIVEN un usuario `agencia`
+- WHEN actualiza su propia agencia
+- THEN pasa por `manage_agencias`
+- AND al consultar tickets o pagos recibe 403 (no tiene `create_apuesta` ni
+  `view_pagos`/`create_pago`)
+
+#### Scenario: exchange rates y configuración solo master
+
+- GIVEN usuarios `banca`, `grupo`, `agencia` y `taquilla`
+- WHEN consultan `/exchange-rates`
+- THEN reciben 403 (solo `master` tiene `view_exchange_rates`)
+- AND solo `master` pasa `permission:manage_config`
 
 ### Requirement: Bypass total para super_master
 
