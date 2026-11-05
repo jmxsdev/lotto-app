@@ -1,0 +1,123 @@
+# catalogo-permisos Specification
+
+**Estado**: draft
+
+## Purpose
+
+Define el catálogo de permisos por capability (view/manage por dominio), la matriz capability × rol (6 roles) como fuente única de asignación, el seeder `RolesAndPermissionsSeeder` idempotente y el bypass `Gate::before` para `super_master`. Establece que los permisos se otorgan solo vía roles, nunca directamente a usuarios. No altera el scoping de filas (#85).
+
+## Requirements
+
+### Requirement: Catálogo por capability
+
+El sistema MUST mantener un catálogo de permisos organizado por dominio con granularidad view/manage (o create/edit/delete donde el CRUD lo exige). Los nombres existentes MUST preservarse; los 11 faltantes MUST agregarse: `view_juegos`, `view_resultados`, `manage_resultados`, `view_agencias`, `manage_agencias`, `view_limites`, `manage_limites`, `view_logs`, `view_comisiones`, `download_release`, `manage_clave_cierre`.
+
+| Dominio | Permisos |
+|---|---|
+| Usuarios | `view_users` `create_users` `edit_users` `delete_users` |
+| Bancas | `view_bancas` `manage_bancas` |
+| Grupos | `view_grupos` `manage_grupos` |
+| Agencias | `view_agencias` `manage_agencias` |
+| Taquillas | `view_taquillas` `manage_taquillas` |
+| Juegos | `view_juegos` `manage_juegos` |
+| Resultados | `view_resultados` `manage_resultados` |
+| Apuestas | `view_apuestas` `create_apuesta` `delete_apuesta` |
+| Pagos | `view_pagos` `create_pago` |
+| Cierres | `view_cierre` `create_cierre` |
+| Límites | `view_limites` `manage_limites` |
+| Comisiones | `view_comisiones` `manage_comisiones` |
+| Exchange rates | `view_exchange_rates` `manage_exchange_rates` |
+| Reportes | `view_reports` |
+| Logs | `view_logs` |
+| Releases | `download_release` |
+| Clave cierre | `manage_clave_cierre` |
+| Config | `manage_config` |
+
+#### Scenario: Nombres existentes preservados
+
+- GIVEN el catálogo vigente con `view_users`, `manage_bancas`, `view_exchange_rates`
+- WHEN se aplica BE-04
+- THEN esos nombres permanecen idénticos y los 11 faltantes existen con guard `api`
+
+#### Scenario: Permisos muertos ausentes
+
+- GIVEN el catálogo aplicado
+- WHEN se inspeccionan los permisos
+- THEN `manage_users` está ausente y `manage_apuestas` no existe
+
+### Requirement: Matriz capability × rol
+
+La matriz capability × rol MUST documentarse en `docs/dev/` y ser la fuente única del seeder. Define qué recibe cada rol (`super_master` queda fuera por bypass).
+
+| Dominio | master | banca | grupo | agencia | taquilla |
+|---|---|---|---|---|---|
+| Usuarios | v,c,e,d | v,c,e | v,c,e | v,c,e | — |
+| Bancas | v,m | — | — | — | — |
+| Grupos | v,m | v,m | — | — | — |
+| Agencias | v,m | v,m | v,m | v | — |
+| Taquillas | v,m | v,m | v,m | v,m | — |
+| Juegos | v,m | v | v | v | v |
+| Resultados | v,m | v | v | v | v |
+| Apuestas | v,c,d | v,c,d | v,c,d | v,c,d | v,c,d |
+| Pagos | v,c | v,c | v,c | v,c | v,c |
+| Cierres | v,c | v,c | v,c | v,c | v,c |
+| Límites | v,m | v,m | v,m | v | — |
+| Comisiones | v | — | — | — | — |
+| Exchange rates | v,m | v | v | v | v |
+| Reportes | v | v | v | v | v |
+| Logs | v | — | — | — | — |
+| Releases | v | v | v | v | v |
+| Clave cierre | m | m | — | — | — |
+| Config | m | — | — | — | — |
+
+#### Scenario: Matriz documentada
+
+- GIVEN BE-04 cerrado
+- WHEN un desarrollador consulta `docs/dev/`
+- THEN encuentra la matriz capability × rol actualizada
+
+### Requirement: Bypass total para super_master
+
+`super_master` MUST disponer de bypass total vía `Gate::before`, sin depender de permisos asignados. El bypass MUST cubrir cualquier permiso presente o futuro.
+
+#### Scenario: super_master sin permisos asignados
+
+- GIVEN un usuario con rol `super_master` sin permisos de matriz
+- WHEN accede a un recurso protegido por `permission:`
+- THEN el gate autoriza (true) sin evaluar permisos
+
+### Requirement: Asignación solo vía roles
+
+Los permisos MUST asignarse únicamente a roles. `givePermissionTo` y `syncPermissions` sobre un `User` MUST NOT usarse; todo permiso de usuario llega por su rol.
+
+#### Scenario: Scan prohíbe asignación directa
+
+- GIVEN el código aplicado
+- WHEN un test/scan busca `givePermissionTo`/`syncPermissions` sobre `User`
+- THEN no encuentra ocurrencias en `app/`
+
+### Requirement: Seeder idempotente
+
+`RolesAndPermissionsSeeder` MUST ser idempotente: `Permission::firstOrCreate` + `syncPermissions` de la matriz conocida, y MUST invocar `forgetCachedPermissions()` para invalidar el cache de Spatie.
+
+#### Scenario: Re-ejecución segura
+
+- GIVEN el seeder ya ejecutado
+- WHEN se re-ejecuta (deploy o rollback)
+- THEN no duplica permisos/roles y el cache de Spatie se refresca
+
+### Requirement: Concesiones puntuales
+
+`master` MUST recibir `manage_config` (la ruta de configuraciones hoy lo permite por rol). `taquilla` MUST recibir `view_reports` (reportes propios, alcance ya acotado por #85) y `download_release` (descarga de releases).
+
+#### Scenario: master gestiona configuración
+
+- GIVEN un usuario `master`
+- WHEN lee o edita `configuraciones/apuestas-vencimiento`
+- THEN pasa por `permission:manage_config`
+
+#### Scenario: taquilla reportes propios y releases
+
+- GIVEN un usuario `taquilla`
+- WHEN descarga un release o consulta sus reportes
+- THEN pasa por `download_release` y `view_reports`, con filas acotadas por #85
