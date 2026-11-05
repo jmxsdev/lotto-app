@@ -26,6 +26,7 @@
 | [`pendientes-front.md`](pendientes-front.md) | **Canónico · fuente única** | Pendientes de ambos fronts, decisiones de negocio (§3), backend/negocio (§7, fusión del ex `docs/PENDIENTE.md`), verificación manual y "ya resuelto" | ✅ **Sí, siempre** |
 | [`motor-premios.md`](motor-premios.md) | Canónico · técnico | Arquitectura, reglas de cálculo, endpoints y operación del motor de premios (`config.premios`) | ✅ Al cambiar el motor |
 | [`integracion-front-motor-premios.md`](integracion-front-motor-premios.md) | Canónico · contrato | Contrato backend↔fronts (payloads, estados, monedas, catálogo) + plan de implementación | ✅ Al cambiar el contrato |
+| [`permisos-capabilities.md`](permisos-capabilities.md) | Canónico · técnico | Catálogo de 34 permisos, matriz capability × rol, bypass de `super_master` y runbook del seeder (BE-04) | ✅ Al cambiar permisos o rutas |
 | [`manual-mantenimiento.md`](manual-mantenimiento.md) | Canónico · operativo | Mantenimiento: migraciones en prod, release de Taquilla, activación de dispositivos, CORS, secrets | ✅ Al cambiar el proceso |
 | [`runbook-ops.md`](runbook-ops.md) | Canónico · operativo | Runbook de VPS: deploy, rollback, scheduler, suite en paralelo, checklist PC nueva | ✅ Al cambiar la operación |
 | [`taquilla-e2e.md`](taquilla-e2e.md) | Canónico · how-to | Suite E2E de la taquilla (Playwright + Electron): requisitos, cómo correr, **límite de login (10/2 min) y cómo refrescarlo**, CI | ✅ Al cambiar el harness |
