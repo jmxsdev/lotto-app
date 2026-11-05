@@ -28,6 +28,7 @@
 | [`integracion-front-motor-premios.md`](integracion-front-motor-premios.md) | Canónico · contrato | Contrato backend↔fronts (payloads, estados, monedas, catálogo) + plan de implementación | ✅ Al cambiar el contrato |
 | [`permisos-capabilities.md`](permisos-capabilities.md) | Canónico · técnico | Catálogo de 34 permisos, matriz capability × rol, bypass de `super_master` y runbook del seeder (BE-04) | ✅ Al cambiar permisos o rutas |
 | [`manual-mantenimiento.md`](manual-mantenimiento.md) | Canónico · operativo | Mantenimiento: migraciones en prod, release de Taquilla, activación de dispositivos, CORS, secrets | ✅ Al cambiar el proceso |
+| [`auditoria-logs.md`](auditoria-logs.md) | Canónico · referencia | Estado actual del sistema de logs/auditoría: qué se registra, qué no, bugs conocidos (incluye visor `/logs` roto) y enlace a #89 | ✅ Al cambiar logs/auditoría |
 | [`runbook-ops.md`](runbook-ops.md) | Canónico · operativo | Runbook de VPS: deploy, rollback, scheduler, suite en paralelo, checklist PC nueva | ✅ Al cambiar la operación |
 | [`taquilla-e2e.md`](taquilla-e2e.md) | Canónico · how-to | Suite E2E de la taquilla (Playwright + Electron): requisitos, cómo correr, **límite de login (10/2 min) y cómo refrescarlo**, CI | ✅ Al cambiar el harness |
 | [`deploy.md`](deploy.md) | Canónico · guía | Despliegue completo en VPS desde cero (paso a paso) | ✅ Al cambiar el setup |
