@@ -29,14 +29,14 @@ Cada WU queda por debajo de 800 líneas. Los commits son locales; el merge a `ma
 
 ## Phase 2 — WU-2: retirar panel web legacy y vista raíz (#81)
 
-- [ ] 2.1 Borrar `backend/routes/web.php`.
-- [ ] 2.2 Quitar `web: __DIR__.'/../routes/web.php',` de `backend/bootstrap/app.php`.
-- [ ] 2.3 Borrar `backend/app/Http/Controllers/Admin/Auth/AuthController.php` y `backend/app/Http/Controllers/Admin/ResultadoController.php`; eliminar los directorios vacíos.
-- [ ] 2.4 Borrar `backend/resources/views/admin/` completo y `backend/resources/views/welcome.blade.php`.
-- [ ] 2.5 Extender `BackendSurfaceTest` con raíz 404 JSON (con y sin `Accept`) y ausencia de `admin.login`/`admin.resultados.index`.
-- [ ] 2.6 Actualizar `docs/dev/estructura.md` (árbol `Admin/`, `admin/`, `web.php`, filas 187/189) y `docs/dev/arquitectura-backend.md` (resources/routes, controllers Admin).
-- [ ] 2.7 Verificar: `php artisan optimize:clear`; `route:list | grep -E "admin\.|GET\|HEAD / "` vacío; `php artisan test --filter=BackendSurfaceTest`; `vendor/bin/pint --test`; `curl` a `/` con y sin `Accept`.
-- [ ] 2.8 Commit local: `chore(api): retira panel web legacy y vista raíz (#81)`.
+- [x] 2.1 Borrar `backend/routes/web.php`.
+- [x] 2.2 Quitar `web: __DIR__.'/../routes/web.php',` de `backend/bootstrap/app.php`.
+- [x] 2.3 Borrar `backend/app/Http/Controllers/Admin/Auth/AuthController.php` y `backend/app/Http/Controllers/Admin/ResultadoController.php`; eliminar los directorios vacíos.
+- [x] 2.4 Borrar `backend/resources/views/admin/` completo y `backend/resources/views/welcome.blade.php`.
+- [x] 2.5 Extender `BackendSurfaceTest` con raíz 404 JSON (con y sin `Accept`) y ausencia de `admin.login`/`admin.resultados.index`.
+- [x] 2.6 Actualizar `docs/dev/estructura.md` (árbol `Admin/`, `admin/`, `web.php`, filas 187/189) y `docs/dev/arquitectura-backend.md` (resources/routes, controllers Admin).
+- [x] 2.7 Verificar: `php artisan optimize:clear`; `route:list | grep -E "admin\.|GET\|HEAD / "` vacío; `php artisan test --filter=BackendSurfaceTest`; `vendor/bin/pint --test`; `curl` a `/` con y sin `Accept`.
+- [x] 2.8 Commit local: `chore(api): retira panel web legacy y vista raíz (#81)`.
 
 **Rollback:** revertir el commit. Si un consumidor externo usara `/admin`, restaurar la rama anterior.
 
