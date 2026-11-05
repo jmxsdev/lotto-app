@@ -133,45 +133,59 @@ Route::prefix('v1')->group(function () {
         });
 
         // ==================================================
-        // JUEGOS — lectura: cualquier autenticado; modificación: solo master
+        // JUEGOS — lectura: view_juegos (5 roles); modificación: solo
+        // manage_juegos (master vía matriz; super_master por bypass)
         // ==================================================
-        Route::get('/juegos', [JuegoController::class, 'index']);
-        Route::get('/juegos/{juego}', [JuegoController::class, 'show']);
+        Route::get('/juegos', [JuegoController::class, 'index'])
+            ->middleware('permission:view_juegos');
+        Route::get('/juegos/{juego}', [JuegoController::class, 'show'])
+            ->middleware('permission:view_juegos');
 
-        Route::middleware(['role:super_master|master'])->group(function () {
+        Route::middleware(['permission:manage_juegos'])->group(function () {
             Route::put('/juegos/{juego}', [JuegoController::class, 'update']);
             Route::patch('/juegos/{juego}/toggle', [JuegoController::class, 'toggle'])->name('juegos.toggle');
             Route::put('/juegos/{juego}/premios', [JuegoController::class, 'updatePremios'])->name('juegos.premios');
         });
 
-        Route::get('/juegos/{juego}/opciones', [JuegoController::class, 'opciones']);
-        Route::get('/juegos/{juego}/horarios', [JuegoController::class, 'horarios']);
-        Route::get('/juegos/{juego}/reglas', [JuegoController::class, 'reglas']);
+        Route::get('/juegos/{juego}/opciones', [JuegoController::class, 'opciones'])
+            ->middleware('permission:view_juegos');
+        Route::get('/juegos/{juego}/horarios', [JuegoController::class, 'horarios'])
+            ->middleware('permission:view_juegos');
+        Route::get('/juegos/{juego}/reglas', [JuegoController::class, 'reglas'])
+            ->middleware('permission:view_juegos');
 
         // ==================================================
-        // RESULTADOS (todos los roles autenticados)
+        // RESULTADOS — lectura: view_resultados (5 roles); scrapers
+        // manuales: manage_resultados (master vía matriz; bypass super_master)
         // ==================================================
-        Route::get('/resultados', [ResultadoController::class, 'index']);
-        Route::get('/resultados/{resultado}', [ResultadoController::class, 'show']);
-        Route::get('/resultados/{resultado}/apariciones', [ResultadoController::class, 'apariciones']);
+        Route::middleware(['permission:view_resultados'])->group(function () {
+            Route::get('/resultados', [ResultadoController::class, 'index']);
+            Route::get('/resultados/{resultado}', [ResultadoController::class, 'show']);
+            Route::get('/resultados/{resultado}/apariciones', [ResultadoController::class, 'apariciones']);
+        });
 
-        // Scraper manual (solo Super Master y Master)
-        Route::middleware(['role:super_master|master'])->group(function () {
+        // Scraper manual (manage_resultados)
+        Route::middleware(['permission:manage_resultados'])->group(function () {
             Route::post('/resultados/scrape', [ResultadoController::class, 'scrape']);
             Route::post('/resultados/scrape-all', [ResultadoController::class, 'scrapeAll']);
         });
         // ==================================================
         // ==================================================
-        // APUESTAS (todos los roles)
+        // APUESTAS — lectura: view_apuestas (5 roles). Alta: create_apuesta
+        // (sin agencia, matriz final). Anulación: delete_apuesta (agencia sí).
         // ==================================================
-        Route::middleware(['role:super_master|master|banca|grupo|taquilla|agencia'])->group(function () {
+        Route::middleware(['permission:view_apuestas'])->group(function () {
             Route::get('/apuestas', [ApuestaController::class, 'index']);
-            Route::post('/apuestas', [ApuestaController::class, 'store']);
             Route::get('/apuestas/historial', [ApuestaController::class, 'historial']);
             Route::get('/apuestas/resumen', [ApuestaController::class, 'resumen']);
             Route::get('/apuestas/{apuesta}', [ApuestaController::class, 'show']);
-            Route::delete('/apuestas/{apuesta}', [ApuestaController::class, 'destroy']);
         });
+
+        Route::post('/apuestas', [ApuestaController::class, 'store'])
+            ->middleware('permission:create_apuesta');
+
+        Route::delete('/apuestas/{apuesta}', [ApuestaController::class, 'destroy'])
+            ->middleware('permission:delete_apuesta');
 
         // ==================================================
         // LOGS (Super Master, Master)
@@ -183,9 +197,11 @@ Route::prefix('v1')->group(function () {
         });
 
         // ==================================================
-        // TICKETS (todos los roles que pueden crear apuestas)
+        // TICKETS — gate de capability `create_apuesta`: agencia queda fuera
+        // (sin ese permiso) para no despertar el scoping de filas, que no la
+        // filtra. master/banca/grupo/taquilla conservan el acceso previo.
         // ==================================================
-        Route::middleware(['role:super_master|master|banca|grupo|taquilla'])->group(function () {
+        Route::middleware(['permission:create_apuesta'])->group(function () {
             Route::get('/tickets', [TicketController::class, 'index']);
             Route::post('/tickets', [TicketController::class, 'store']);
             Route::get('/tickets/ganadores', [TicketController::class, 'ganadores']);
@@ -194,17 +210,20 @@ Route::prefix('v1')->group(function () {
         });
 
         // ==================================================
-        // PAGOS (todos los roles)
+        // PAGOS — alta: create_pago; consulta: view_pagos (sin agencia)
         // ==================================================
-        Route::post('/pagos', [PagoController::class, 'store'])->middleware('role:super_master|master|banca|grupo|taquilla');
-        Route::get('/pagos/{apuesta}', [PagoController::class, 'showByApuesta'])->middleware('role:super_master|master|banca|grupo|taquilla');
+        Route::post('/pagos', [PagoController::class, 'store'])->middleware('permission:create_pago');
+        Route::get('/pagos/{apuesta}', [PagoController::class, 'showByApuesta'])->middleware('permission:view_pagos');
 
         // ==================================================
         // CIERRE DE CAJA (jerárquico: la agencia cierra su propia caja;
         // los roles administrativos cierran agencias dentro de su alcance)
         // ==================================================
-        Route::middleware(['role:super_master|master|banca|grupo|taquilla|agencia'])->group(function () {
-            Route::post('/cierre', [CierreController::class, 'store']);
+        // POST: create_cierre (5 roles). GET: view_cierre (5 roles).
+        Route::post('/cierre', [CierreController::class, 'store'])
+            ->middleware('permission:create_cierre');
+
+        Route::middleware(['permission:view_cierre'])->group(function () {
             Route::get('/cierre', [CierreController::class, 'index']);
             // AD-11: actual y semanal ANTES de /cierre/{cierre} para que el
             // route-model binding no capture "actual"/"semanal" (404).
@@ -216,24 +235,24 @@ Route::prefix('v1')->group(function () {
         // ==================================================
         // LÍMITES POR JUEGO
         // ==================================================
-        // GET: super_master, master, banca, grupo, agencia
-        Route::middleware(['role:super_master|master|banca|grupo|agencia'])->group(function () {
+        // GET: view_limites (master, banca, grupo, agencia)
+        Route::middleware(['permission:view_limites'])->group(function () {
             // GET /api/v1/limites (modo entidad): matriz completa de una entidad
             // (el conteo de segmentos lo desambigua de /limites/{juego})
             Route::get('/limites', [JuegoController::class, 'listarLimites']);
             Route::get('/limites/{juego}', [JuegoController::class, 'limites']);
         });
 
-        // PUT: super_master, master, banca, grupo (upsert individual; el
+        // PUT: manage_limites (master, banca, grupo; upsert individual; el
         // grupo solo escribe dentro de su subárbol, validado en el controlador)
         // DELETE: idem (autorización jerárquica en el controlador)
-        Route::middleware(['role:super_master|master|banca|grupo'])->group(function () {
+        Route::middleware(['permission:manage_limites'])->group(function () {
             Route::put('/limites/{juego}', [JuegoController::class, 'updateLimites']);
             Route::delete('/limites/{limite}', [JuegoController::class, 'destroyLimite']);
         });
 
-        // POST batch: super_master, master, banca, grupo (el alcance se valida por jerarquía en el controlador)
-        Route::middleware(['role:super_master|master|banca|grupo'])->group(function () {
+        // POST batch: manage_limites (el alcance se valida por jerarquía en el controlador)
+        Route::middleware(['permission:manage_limites'])->group(function () {
             Route::post('/limites/batch', [JuegoController::class, 'batchLimites']);
         });
 
