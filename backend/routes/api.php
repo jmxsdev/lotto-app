@@ -57,8 +57,8 @@ Route::prefix('v1')->group(function () {
 
         // Self-service de la clave de cierre (AD-9): sirve al PANEL, sin
         // headers de dispositivo; fuera de verify.mac como /user y /logout.
-        // Roles elegibles super_master|master|banca; otros roles → 403.
-        Route::middleware(['role:super_master|master|banca'])->group(function () {
+        // Roles elegibles master/banca (manage_clave_cierre); otros → 403.
+        Route::middleware(['permission:manage_clave_cierre'])->group(function () {
             Route::get('/usuarios/clave-cierre', [ClaveCierreController::class, 'show']);
             Route::put('/usuarios/clave-cierre', [ClaveCierreController::class, 'update']);
         });
@@ -69,52 +69,65 @@ Route::prefix('v1')->group(function () {
 
         // ==================================================
         // USUARIOS (jerárquico: banca/grupo solo dentro de su alcance,
-        // taquilla solo se ve a sí misma; destroy restringido a
-        // super_master|master en el controlador)
+        // taquilla solo se ve a sí misma; delete acotado a su subárbol por
+        // UserPolicy)
         // ==================================================
-        Route::middleware(['role:super_master|master|banca|grupo|taquilla|agencia'])->group(function () {
-            Route::apiResource('users', UserController::class);
-        });
+        Route::apiResource('users', UserController::class)
+            ->only(['index', 'show'])->middleware('permission:view_users');
+        Route::apiResource('users', UserController::class)
+            ->only(['store'])->middleware('permission:create_users');
+        Route::apiResource('users', UserController::class)
+            ->only(['update'])->middleware('permission:edit_users');
+        Route::apiResource('users', UserController::class)
+            ->only(['destroy'])->middleware('permission:delete_users');
 
         // ==================================================
-        // BANCAS (solo Super Master y Master)
+        // BANCAS (view para lectura; manage para escritura)
         // ==================================================
-        Route::middleware(['role:super_master|master'])->group(function () {
-            Route::apiResource('bancas', BancaController::class);
-            Route::patch('/bancas/{banca}/toggle', [BancaController::class, 'toggle'])->name('bancas.toggle');
-        });
+        Route::apiResource('bancas', BancaController::class)
+            ->only(['index', 'show'])->middleware('permission:view_bancas');
+        Route::apiResource('bancas', BancaController::class)
+            ->only(['store', 'update', 'destroy'])->middleware('permission:manage_bancas');
+        Route::patch('/bancas/{banca}/toggle', [BancaController::class, 'toggle'])
+            ->name('bancas.toggle')->middleware('permission:manage_bancas');
 
         // ==================================================
-        // GRUPOS (Super Master, Master, Banca)
+        // GRUPOS (view para lectura; manage para escritura)
         // ==================================================
-        Route::middleware(['role:super_master|master|banca'])->group(function () {
-            Route::apiResource('grupos', GrupoController::class);
-            Route::patch('/grupos/{grupo}/toggle', [GrupoController::class, 'toggle'])->name('grupos.toggle');
-        });
+        Route::apiResource('grupos', GrupoController::class)
+            ->only(['index', 'show'])->middleware('permission:view_grupos');
+        Route::apiResource('grupos', GrupoController::class)
+            ->only(['store', 'update', 'destroy'])->middleware('permission:manage_grupos');
+        Route::patch('/grupos/{grupo}/toggle', [GrupoController::class, 'toggle'])
+            ->name('grupos.toggle')->middleware('permission:manage_grupos');
 
         // ==================================================
-        // AGENCIAS (locales físicos): Super Master, Master, Banca, Grupo,
-        // y la agencia (solo lectura de su propio local)
+        // AGENCIAS (locales físicos): la agencia recibe manage para editar
+        // su propia ficha; el controlador bloquea store/toggle/destroy.
         // ==================================================
-        Route::middleware(['role:super_master|master|banca|grupo|agencia'])->group(function () {
-            Route::apiResource('agencias', AgenciaController::class);
-            Route::patch('/agencias/{agencia}/toggle', [AgenciaController::class, 'toggle'])->name('agencias.toggle');
-        });
+        Route::apiResource('agencias', AgenciaController::class)
+            ->only(['index', 'show'])->middleware('permission:view_agencias');
+        Route::apiResource('agencias', AgenciaController::class)
+            ->only(['store', 'update', 'destroy'])->middleware('permission:manage_agencias');
+        Route::patch('/agencias/{agencia}/toggle', [AgenciaController::class, 'toggle'])
+            ->name('agencias.toggle')->middleware('permission:manage_agencias');
 
         // ==================================================
-        // TAQUILLAS (Super Master, Master, Banca, Grupo, Agencia)
+        // TAQUILLAS (view para lectura; manage para escritura)
         // ==================================================
-        Route::middleware(['role:super_master|master|banca|grupo|agencia'])->group(function () {
-            Route::apiResource('taquillas', TaquillaController::class);
-            Route::patch('/taquillas/{taquilla}/toggle', [TaquillaController::class, 'toggle'])->name('taquillas.toggle');
-        });
+        Route::apiResource('taquillas', TaquillaController::class)
+            ->only(['index', 'show'])->middleware('permission:view_taquillas');
+        Route::apiResource('taquillas', TaquillaController::class)
+            ->only(['store', 'update', 'destroy'])->middleware('permission:manage_taquillas');
+        Route::patch('/taquillas/{taquilla}/toggle', [TaquillaController::class, 'toggle'])
+            ->name('taquillas.toggle')->middleware('permission:manage_taquillas');
 
         // ==================================================
         // CONFIGURACIONES — ventana de vencimiento sin resultado
-        // (REQ13/D5): solo super_master y master leen/editan la ventana
-        // (GET/PUT); cualquier otro rol autenticado recibe 403.
+        // (REQ13/D5): solo `manage_config` (master vía matriz; super_master
+        // por bypass) lee/edita la ventana (GET/PUT).
         // ==================================================
-        Route::middleware(['role:super_master|master'])->group(function () {
+        Route::middleware(['permission:manage_config'])->group(function () {
             Route::get('/configuraciones/apuestas-vencimiento', [ConfiguracionController::class, 'ventanaVencimiento']);
             Route::put('/configuraciones/apuestas-vencimiento', [ConfiguracionController::class, 'actualizarVentanaVencimiento']);
         });

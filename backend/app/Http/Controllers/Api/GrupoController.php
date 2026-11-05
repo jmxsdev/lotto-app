@@ -19,14 +19,6 @@ class GrupoController extends Controller
         private readonly AlcanceService $alcance,
     ) {}
 
-    /* public function __construct()
-     {
-         // Aplicar middleware de autenticación y permisos
-         $this->middleware('auth:sanctum');
-         $this->middleware('permission:view_grupos|manage_grupos')->only(['index', 'show']);
-         $this->middleware('permission:manage_grupos')->only(['store', 'update', 'destroy']);
-     }*/
-
     /**
      * Listar grupos (filtrados según jerarquía)
      */

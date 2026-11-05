@@ -21,13 +21,6 @@ class TaquillaController extends Controller
         private readonly AlcanceService $alcance,
     ) {}
 
-    /* public function __construct()
-     {
-         $this->middleware('auth:sanctum');
-         $this->middleware('permission:view_taquillas|manage_taquillas')->only(['index', 'show']);
-         $this->middleware('permission:manage_taquillas')->only(['store', 'update', 'destroy']);
-     }
-     */
     /**
      * Listar taquillas (filtradas según jerarquía)
      */

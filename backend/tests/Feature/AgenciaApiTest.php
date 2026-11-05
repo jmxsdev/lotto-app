@@ -252,4 +252,27 @@ class AgenciaApiTest extends TestCase
 
         $response->assertStatus(403);
     }
+
+    public function test_agencia_edita_su_local_pero_no_gestiona()
+    {
+        // BE-04: `manage_agencias` permite a la agencia editar su propia
+        // ficha; store/toggle/destroy siguen bloqueados en el controlador.
+        $agencia = $this->agenciaUser();
+        $local = $this->localSeeded();
+
+        $this->actingAs($agencia, 'sanctum')
+            ->putJson('/api/v1/agencias/'.$local->id, ['telefono' => '0414-0000000'])
+            ->assertStatus(200)
+            ->assertJsonPath('telefono', '0414-0000000');
+
+        $this->actingAs($agencia, 'sanctum')
+            ->patchJson('/api/v1/agencias/'.$local->id.'/toggle')
+            ->assertStatus(403);
+
+        $this->actingAs($agencia, 'sanctum')
+            ->deleteJson('/api/v1/agencias/'.$local->id)
+            ->assertStatus(403);
+
+        $this->assertDatabaseHas('agencias', ['id' => $local->id, 'active' => true]);
+    }
 }

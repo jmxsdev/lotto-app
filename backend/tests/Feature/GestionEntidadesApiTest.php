@@ -354,4 +354,29 @@ class GestionEntidadesApiTest extends TestCase
         $this->assertCount(1, $usuarios);
         $this->assertEquals('demo@lotto.com', $usuarios[0]['email']);
     }
+
+    public function test_taquilla_no_puede_actualizar_ni_eliminar_usuarios()
+    {
+        // BE-04: taquilla solo recibe `view_users`; las mutaciones siguen
+        // prohibidas por `permission:edit_users`/`delete_users`.
+        $demo = User::where('email', 'demo@lotto.com')->first();
+        $demo->assignRole('taquilla');
+
+        $target = User::where('email', 'taquilla@lotto.com')->first();
+
+        $this->actingAs($demo, 'sanctum')
+            ->withHeader('X-Device-MAC', '00:1A:2B:3C:4D:5E')
+            ->withHeader('X-Device-Fingerprint', 'demo-device-001')
+            ->putJson('/api/v1/users/'.$target->id, ['name' => 'Intento'])
+            ->assertStatus(403);
+
+        $this->actingAs($demo, 'sanctum')
+            ->deleteJson('/api/v1/users/'.$target->id)
+            ->assertStatus(403);
+
+        $this->assertDatabaseHas('users', [
+            'id' => $target->id,
+            'email' => 'taquilla@lotto.com',
+        ]);
+    }
 }
