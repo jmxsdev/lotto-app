@@ -2,7 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\Apuesta;
+use App\Models\Juego;
 use App\Models\Release;
+use App\Models\Taquilla;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -112,8 +115,23 @@ class TaquillaPermisosTest extends TestCase
         $this->actingAs($agencia, 'sanctum')
             ->getJson('/api/v1/tickets')->assertStatus(403);
 
+        // Para que el route-model binding resuelva y el 403 venga del permiso,
+        // no de un 404 por apuesta inexistente.
+        $apuesta = Apuesta::create([
+            'taquilla_id' => Taquilla::where('code', 'DEMO01')->firstOrFail()->id,
+            'juego_id' => Juego::firstOrFail()->id,
+            'combinacion' => ['animal' => 'Perro', 'numero' => 5],
+            'amount_bs' => 10,
+            'amount_usd' => 0,
+            'exchange_rate_applied' => 36.50,
+            'total_bs_equivalent' => 10,
+            'estado' => 'pendiente',
+            'fecha_hora' => now(),
+            'sorteo_hora' => now()->addHour(),
+        ]);
+
         $this->actingAs($agencia, 'sanctum')
-            ->getJson('/api/v1/pagos/1')->assertStatus(403);
+            ->getJson('/api/v1/pagos/'.$apuesta->id)->assertStatus(403);
 
         $this->actingAs($agencia, 'sanctum')
             ->postJson('/api/v1/pagos', [])->assertStatus(403);
