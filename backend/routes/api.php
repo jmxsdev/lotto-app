@@ -188,9 +188,9 @@ Route::prefix('v1')->group(function () {
             ->middleware('permission:delete_apuesta');
 
         // ==================================================
-        // LOGS (Super Master, Master)
+        // LOGS — view_logs (master vía matriz; super_master por bypass)
         // ==================================================
-        Route::middleware(['role:super_master|master'])->group(function () {
+        Route::middleware(['permission:view_logs'])->group(function () {
             Route::get('/logs', function (Request $request) {
                 return Log::with('user')->latest()->paginate($request->input('per_page', 50));
             });
@@ -258,30 +258,27 @@ Route::prefix('v1')->group(function () {
 
         // ==================================================
         // COMISIONES — default global (2 filas bs/usd, D1)
-        // GET: super_master; PUT: super_master + manage_comisiones.
-        // Ruta estática ANTES de cualquier {comision} futura.
+        // GET/PUT: manage_comisiones, sin rol asignado ⇒ solo super_master
+        // por bypass. Ruta estática ANTES de cualquier {comision} futura.
         // ==================================================
-        Route::middleware(['role:super_master'])->group(function () {
+        Route::middleware(['permission:manage_comisiones'])->group(function () {
             Route::get('/comisiones/defaults', [ComisionController::class, 'defaults']);
-        });
-
-        Route::middleware(['role:super_master', 'permission:manage_comisiones'])->group(function () {
             Route::put('/comisiones/defaults', [ComisionController::class, 'updateDefaults']);
         });
 
         // ==================================================
         // COMISIONES — consulta read-only por rango (Modelo A)
-        // GET: super_master|master, SIN manage_comisiones (es lectura); el
-        // master se limita a masterBancaIds en el controlador.
+        // GET: view_comisiones (master); el master se limita a
+        // masterBancaIds en el controlador.
         // ==================================================
-        Route::middleware(['role:super_master|master'])->group(function () {
+        Route::middleware(['permission:view_comisiones'])->group(function () {
             Route::get('/comisiones/consulta', [ComisionController::class, 'consulta']);
         });
 
         // ==================================================
-        // REPORTES (todos los roles autenticados)
+        // REPORTES — view_reports (5 roles del panel)
         // ==================================================
-        Route::middleware(['role:super_master|master|banca|grupo|taquilla|agencia'])->group(function () {
+        Route::middleware(['permission:view_reports'])->group(function () {
             Route::get('/reportes/ventas-totales', [ReporteController::class, 'ventasTotales']);
             Route::get('/reportes/cuadre-caja', [ReporteController::class, 'cuadreCaja']);
             Route::get('/reportes/relacion-tickets', [ReporteController::class, 'relacionTickets']);
@@ -289,9 +286,9 @@ Route::prefix('v1')->group(function () {
         });
 
         // ==================================================
-        // ESTADÍSTICAS (todos los roles autenticados)
+        // ESTADÍSTICAS — view_reports (5 roles del panel)
         // ==================================================
-        Route::middleware(['role:super_master|master|banca|grupo|taquilla|agencia'])->group(function () {
+        Route::middleware(['permission:view_reports'])->group(function () {
             Route::get('/estadisticas/rendimiento', [EstadisticaController::class, 'rendimiento']);
         });
 
@@ -312,10 +309,10 @@ Route::prefix('v1')->group(function () {
 
         // ==================================================
         // DISTRIBUCIÓN DE TAQUILLA (releases del instalador)
-        // latest/download: roles del panel (5); taquilla → 403.
-        // serve: URL firmada, fuera de auth (arriba).
+        // latest/download: download_release (5 roles, taquilla incluida:
+        // cambio deliberado BE-04). serve: URL firmada, fuera de auth.
         // ==================================================
-        Route::middleware(['role:super_master|master|banca|grupo|agencia'])->group(function () {
+        Route::middleware(['permission:download_release'])->group(function () {
             Route::get('/releases/latest', [ReleaseController::class, 'latest']);
             Route::get('/releases/download', [ReleaseController::class, 'download'])->middleware('throttle:releases-download');
         });

@@ -99,13 +99,17 @@ class ReleaseTest extends TestCase
         }
     }
 
-    public function test_latest_denegado_para_rol_taquilla(): void
+    public function test_latest_disponible_para_rol_taquilla(): void
     {
         Release::factory()->create(['published_at' => now()->subHour()]);
 
-        $response = $this->actingAs($this->userPorEmail('taquilla@lotto.com'), 'sanctum')
+        // Taquilla DEMO pre-activada del seeder: verify.mac exige MAC válida.
+        $response = $this->withHeaders([
+            'X-Device-MAC' => '00:1A:2B:3C:4D:5E',
+            'X-Device-Fingerprint' => 'demo-device-001',
+        ])->actingAs($this->userPorEmail('demo@lotto.com'), 'sanctum')
             ->getJson('/api/v1/releases/latest');
 
-        $response->assertStatus(403);
+        $response->assertStatus(200);
     }
 }

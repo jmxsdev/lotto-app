@@ -163,8 +163,8 @@ php artisan db:seed --class=RolesAndPermissionsSeeder --force
 php artisan permission:cache-reset
 ```
 
-Ejecutar el seeder **antes** de enrutar tráfico a las rutas migradas: al ser
-aditivo, con las rutas viejas (`role:`) no cambia quién entra.
+Ejecutar el seeder **antes** de desplegar las rutas migradas: al ser aditivo,
+sembrarlo con las rutas anteriores (`role:`) no cambia quién entra.
 
 Verificación post-seed:
 
@@ -181,10 +181,12 @@ reconstruye el estado limpio.
 Ante un despliegue con caché viejo, `php artisan optimize:clear` (o
 `permission:cache-reset`) refresca el cache de Spatie (24 h por defecto).
 
-## 7. Mapeo ruta → permiso (objetivo WU-2..4)
+## 7. Mapeo ruta → permiso (final, BE-04 cerrado)
 
-> Durante WU-1 las rutas siguen en `role:` y el acceso no cambia. Esta tabla es
-> el objetivo de la migración `role:` → `permission:` (WU-2 a WU-4).
+> Estado: **BE-04 cerrado**. `routes/api.php` ya no usa `role:`; la migración
+> `role:` → `permission:` cubrió WU-1..WU-4 y el alias `role` se retiró de
+> `bootstrap/app.php`. `RoutePermissionCoverageTest` bloquea regresiones
+> (toda ruta con `auth:sanctum` exige `permission:`; 0 `role:`).
 
 | Rutas | Método | Middleware | Roles que pasan |
 |---|---|---|---|
@@ -224,4 +226,6 @@ Ante un despliegue con caché viejo, `php artisan optimize:clear` (o
 - Specs: `openspec/changes/be04-permisos/specs/catalogo-permisos/spec.md` y
   `.../autorizacion-capability/spec.md`.
 - Scoping de filas: [`alcance-jerarquico.md`](alcance-jerarquico.md).
-- Test de contrato: `backend/tests/Feature/PermissionCatalogTest.php`.
+- Test de contrato del catálogo/matriz: `backend/tests/Feature/PermissionCatalogTest.php`.
+- Test de cobertura de rutas: `backend/tests/Feature/RoutePermissionCoverageTest.php`.
+- Test de acceso de taquilla: `backend/tests/Feature/TaquillaPermisosTest.php`.
