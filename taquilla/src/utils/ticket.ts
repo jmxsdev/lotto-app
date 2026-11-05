@@ -26,6 +26,35 @@ export function labelModalidad(codigo: string | null | undefined): string | null
   return MODALIDADES_TRIPLETA[codigo] ?? null;
 }
 
+/**
+ * ¿La combinación es una tripleta de animalitos (WIP multi-sorteo, issue #63)?
+ * Contrato §2.2: `{ modalidad: 'tripleta', selecciones: [{ animal } × 3] }`.
+ */
+export function esTripletaAnimalitos(
+  combinacion: Record<string, unknown> | null | undefined
+): boolean {
+  return (
+    combinacion?.modalidad === 'tripleta' &&
+    Array.isArray(combinacion.selecciones) &&
+    combinacion.selecciones.length === 3
+  );
+}
+
+/**
+ * Texto visible de una tripleta de animalitos: "Tripleta (A, B, C)".
+ * null si la combinación no es una tripleta válida de 3 animales.
+ */
+export function textoTripletaAnimalitos(
+  combinacion: Record<string, unknown> | null | undefined
+): string | null {
+  if (!esTripletaAnimalitos(combinacion)) return null;
+  const selecciones = combinacion!.selecciones as Array<{ animal?: unknown }>;
+  const animales = selecciones
+    .map((s) => String(s?.animal ?? '').trim())
+    .filter(Boolean);
+  return animales.length === 3 ? `Tripleta (${animales.join(', ')})` : null;
+}
+
 /** Datos mínimos de una jugada para componer su texto de ticket. */
 export interface LineaJugada {
   tipo: string;
@@ -47,7 +76,9 @@ export function formatearJugada(linea: LineaJugada): string {
       ? '#' + linea.numero
       : '';
   if (linea.tipo === 'animalitos') {
-    return [linea.animal, numero].filter(Boolean).join(' ') || '-';
+    // Tripleta de animalitos (WIP multi-sorteo): la modalidad ya trae el
+    // texto "Tripleta (A, B, C)"; el animal simple sigue mostrando "Animal #N°".
+    return [linea.modalidad, linea.animal, numero].filter(Boolean).join(' ') || '-';
   }
   if (linea.tipo === 'terminales') {
     return numero || '-';

@@ -1350,7 +1350,7 @@ import Icon from '../components/ui/Icon.astro';
     import { serialCoincide, ultimoTicketPendiente } from '../utils/keyboard';
     import { modalidadesDisponibles, construirCombinacion, construirCombinacionMulti, construirTripleta, alternarSeleccionAnimal } from '../utils/modalidades';
     import { alternarHorario, marcarTodosVisibles, expandirLineas, horarioExpirado, filtrarHorariosFuturos, seleccionadosExpirados, agruparPorGroupId, indiceSeleccionTrasEliminar } from '../utils/horarios';
-    import { formatearJugada, nombresJuegos } from '../utils/ticket';
+    import { formatearJugada, nombresJuegos, textoTripletaAnimalitos } from '../utils/ticket';
     import { calcularVuelto } from '../utils/vuelto';
     import { indiceDestinoFila, indiceDestinoColumna } from '../utils/gridNav';
     import { icono } from '../utils/iconos';
@@ -2527,21 +2527,20 @@ import Icon from '../components/ui/Icon.astro';
         // selección actual del dashboard.
         const ticketLinesData = ticketLines.map(l => {
           const esTripleta = l.juegoType === 'tripletas';
-          const esTripletaAnimalitos = l.juegoType === 'animalitos' && l.modalidadLabel === 'Tripleta';
-          const seleccionesTripleta = esTripletaAnimalitos
-            ? (l.combinacion?.selecciones || []).map(s => s.animal).filter(Boolean).join(', ')
-            : '';
+          const tripletaAnimalitos = l.juegoType === 'animalitos'
+            ? textoTripletaAnimalitos(l.combinacion)
+            : null;
           return {
             game: l.juegoName,
             jugada: formatearJugada({
               tipo: l.juegoType,
-              animal: (esTripleta || esTripletaAnimalitos) ? null : l.animal,
+              animal: (esTripleta || tripletaAnimalitos) ? null : l.animal,
               // S5: el número impreso es el normalizado del payload single-draw
               // ("05" en vez del "5" tecleado); la modalidad nueva tiene label propio.
-              numero: l.combinacion?.numero ?? l.numero,
+              numero: tripletaAnimalitos ? null : (l.combinacion?.numero ?? l.numero),
               modalidad: esTripleta
                 ? (l.tripleModalidadLabel || l.modalidadLabel)
-                : (esTripletaAnimalitos ? ('Tripleta' + (seleccionesTripleta ? ' (' + seleccionesTripleta + ')' : '')) : null),
+                : tripletaAnimalitos,
               signo: esTripleta ? (l.animal || l.signoSigla) : null,
               // WU-2/D3: el ticket muestra "Triple A/B/C" en las posicionales.
               triple: esTripleta ? (l.combinacion?.triple ?? null) : null,

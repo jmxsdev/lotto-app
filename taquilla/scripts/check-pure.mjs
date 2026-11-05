@@ -50,7 +50,7 @@ import {
 } from '../src/utils/horarios.ts';
 import { calcularVuelto } from '../src/utils/vuelto.ts';
 import { indiceDestinoFila, indiceDestinoColumna } from '../src/utils/gridNav.ts';
-import { formatearJugada, nombresJuegos, labelModalidad } from '../src/utils/ticket.ts';
+import { formatearJugada, nombresJuegos, labelModalidad, textoTripletaAnimalitos } from '../src/utils/ticket.ts';
 import {
   monedaDeApuesta,
   esPagableApuesta,
@@ -913,6 +913,22 @@ ok(
 
 console.log('\n== Ticket impreso (formato multi-juego, 2026-09) ==');
 ok(formatearJugada({ tipo: 'animalitos', animal: 'Perro', numero: '14' }) === 'Perro #14', 'animalitos: «Animal #N°»');
+ok(
+  formatearJugada({ tipo: 'animalitos', modalidad: 'Tripleta (Perro, Gato, León)' }) === 'Tripleta (Perro, Gato, León)',
+  'tripleta animalitos: modalidad con animales',
+);
+ok(
+  textoTripletaAnimalitos({
+    modalidad: 'tripleta',
+    selecciones: [{ animal: 'Perro' }, { animal: 'Gato' }, { animal: 'León' }],
+  }) === 'Tripleta (Perro, Gato, León)',
+  'textoTripletaAnimalitos: 3 animales',
+);
+ok(
+  textoTripletaAnimalitos({ modalidad: 'tripleta', selecciones: [{ animal: 'Perro' }] }) === null,
+  'textoTripletaAnimalitos: exige 3 animales',
+);
+ok(textoTripletaAnimalitos({ animal: 'Perro' }) === null, 'textoTripletaAnimalitos: no aplica a animal simple');
 ok(formatearJugada({ tipo: 'terminales', numero: '05' }) === '#05', 'terminal: solo el número (sin duplicar)');
 ok(formatearJugada({ tipo: 'tripletas', numero: '157', modalidad: 'Triple C', signo: 'Sagitario' }) === 'Triple C #157 Sagitario', 'tripleta zodiacal: modalidad + número + signo');
 ok(formatearJugada({ tipo: 'tripletas', numero: '005', modalidad: 'Triple A' }) === 'Triple A #005', 'tripleta numérica: modalidad + número');
@@ -1464,6 +1480,25 @@ ok(recibo.lines[0].jugada === 'Perro #14', `jugada animalitos: «Perro #14» (${
 ok(recibo.lines[2].jugada === 'Triple C #157 SAG', `jugada tripleta zodiacal (${recibo.lines[2].jugada})`);
 ok(recibo.lines[0].game === 'Lotto Activo' && recibo.lines[2].game === 'Triple Zulia', 'game por apuesta');
 ok(recibo.lines[2].amountUsd === 2, 'amountUsd de la apuesta');
+const reciboTripletaAnimalitos = buildReciboLines(
+  {
+    apuestas: [
+      {
+        id: 9,
+        estado: 'pendiente',
+        combinacion: {
+          modalidad: 'tripleta',
+          selecciones: [{ animal: 'Perro' }, { animal: 'Gato' }, { animal: 'León' }],
+        },
+      },
+    ],
+  },
+  [],
+);
+ok(
+  reciboTripletaAnimalitos.lines[0].jugada === 'Tripleta (Perro, Gato, León)',
+  `recibo tripleta animalitos (${reciboTripletaAnimalitos.lines[0].jugada})`,
+);
 // Totales SOLO desde respuestas de pago (nunca de detalles).
 ok(recibo.premioTotalBs === 300 && recibo.premioTotalUsd === 0, `total Bs desde POST /pagos (${recibo.premioTotalBs})`);
 // Ticket ya pagado + Imprimir (sin lote): estados reales → PAGADA previa.
