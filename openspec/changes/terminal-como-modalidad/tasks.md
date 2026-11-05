@@ -30,10 +30,10 @@ Chain strategy: feature-branch-chain
 
 ## Phase 1: WU1 — fronts + release (backend sin cambios)
 
-- [ ] 1.1 `taquilla/src/pages/dashboard.astro`: `ordenTabs()` (1570) → `['animalitos','tripletas'].filter(...)`; `labels` (1589) sin `terminales`; icono tab (1611) → `activeTab === 'animalitos' ? icono('dices') : icono('target')`. No tocar `TIPOS_VALIDOS`, `derivarFamilia`, catálogo 21 ni ramas legacy de ticket (2514).
-- [ ] 1.2 `taquilla/src/pages/resultados.astro`: borrar solo el botón `data-tab="terminales"` (línea 20).
-- [ ] 1.3 `panel/src/pages/resultados-loterias.astro`: borrar solo el botón `data-tab="terminales"` (línea 19).
-- [ ] 1.4 `taquilla/package.json`: `1.1.0` → `1.2.0`; `CHANGELOG.md` (raíz) entrada `[1.2.0]`: «Retiro de la pestaña Terminales; la jugada terminal se vende como modalidad del Trío Activo».
+- [x] 1.1 `taquilla/src/pages/dashboard.astro`: `ordenTabs()` (1570) → `['animalitos','tripletas'].filter(...)`; `labels` (1589) sin `terminales`; icono tab (1611) → `activeTab === 'animalitos' ? icono('dices') : icono('target')`. No tocar `TIPOS_VALIDOS`, `derivarFamilia`, catálogo 21 ni ramas legacy de ticket (2514).
+- [x] 1.2 `taquilla/src/pages/resultados.astro`: borrar solo el botón `data-tab="terminales"` (línea 20).
+- [x] 1.3 `panel/src/pages/resultados-loterias.astro`: borrar solo el botón `data-tab="terminales"` (línea 19).
+- [x] 1.4 `taquilla/package.json`: `1.1.0` → `1.2.0`; `CHANGELOG.md` (raíz) entrada `[1.2.0]`: «Retiro de la pestaña Terminales; la jugada terminal se vende como modalidad del Trío Activo».
 
 ## Phase 2: WU2 — backend, migración, catálogo 20 y logo
 

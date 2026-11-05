@@ -5,6 +5,25 @@ Todas las versiones notables de la Taquilla se documentan en este archivo.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/) y el
 versionado es [SemVer](https://semver.org/lang/es/).
 
+## [1.2.0] — 2026-11-05
+
+Release de Taquilla que retira la sección Terminales. La jugada terminal no
+desaparece: se sigue vendiendo como modalidad del Trío Activo.
+
+### Cambiado
+
+- **Sección Terminales retirada**: la taquilla ya no ofrece la pestaña
+  Terminales en el dashboard ni en la página de resultados, y el panel deja de
+  mostrarla en Resultados Loterías. La jugada terminal se vende como modalidad
+  del Trío Activo (2 últimas cifras del triple elegido, 60×).
+
+### Técnico
+
+- El catálogo se mantiene en 21 juegos byte-idéntico a `docs/juegos.json` y el
+  backend sigue aceptando el tipo `terminales`: las taquillas sin actualizar
+  continúan vendiendo terminal sin errores. El retiro del juego
+  `terminal-activo` llega en un release posterior.
+
 ## [1.1.0] — 2026-10-30
 
 Release de Taquilla con tipo de pago, posicionales por triple y la primera

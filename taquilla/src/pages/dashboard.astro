@@ -1568,7 +1568,7 @@ import Icon from '../components/ui/Icon.astro';
     }
 
     function ordenTabs() {
-      return ['animalitos', 'tripletas', 'terminales'].filter(t => catalogo.juegos.some(j => j.tipo === t && j.active && j.vendible));
+      return ['animalitos', 'tripletas'].filter(t => catalogo.juegos.some(j => j.tipo === t && j.active && j.vendible));
     }
 
     function tabAnterior() {
@@ -1586,7 +1586,7 @@ import Icon from '../components/ui/Icon.astro';
     function renderJuegosTabs() {
       const container = document.getElementById('juegos-tabs');
       container.innerHTML = '';
-      const labels = { animalitos: 'Animalitos', tripletas: 'Tripletas', terminales: 'Terminales' };
+      const labels = { animalitos: 'Animalitos', tripletas: 'Tripletas' };
       ordenTabs().forEach(t => {
         const btn = document.createElement('button');
         btn.className = 'juego-tab' + (activeTab === t ? ' active' : '');
@@ -1608,7 +1608,7 @@ import Icon from '../components/ui/Icon.astro';
         return;
       }
       container.innerHTML = juegos.map(j => {
-        let icon = activeTab === 'animalitos' ? icono('dices') : activeTab === 'tripletas' ? icono('target') : icono('hash');
+        let icon = activeTab === 'animalitos' ? icono('dices') : icono('target');
         const selected = selectedGames.some(g => g.id === j.id) ? ' selected' : '';
         const archivo = logos[j.slug];
         // feat/taquilla-logos-juegos: el logo reemplaza al nombre como contenido
