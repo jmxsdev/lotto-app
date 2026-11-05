@@ -113,12 +113,12 @@ Chain strategy: stacked-to-main
 **Archivos**: `backend/routes/api.php`, `backend/tests/Feature/ReleaseTest.php`, `backend/tests/Feature/RoutePermissionCoverageTest.php`, `backend/tests/Feature/TaquillaPermisosTest.php`, `docs/dev/permisos-capabilities.md`.
 
 **Tareas**:
-- [ ] 4.1 Test RED: `RoutePermissionCoverageTest` (toda ruta autenticada con `permission:`; 0 `role:`; allowlist `/user`/`/logout`; scan sin permisos directos) y `TaquillaPermisosTest` (taquilla 200 reportes/releases, 403 exchange).
-- [ ] 4.2 `routes/api.php`: reportes/estadísticas → `view_reports` (5 roles).
-- [ ] 4.3 `routes/api.php`: logs → `view_logs` (master); comisiones → `view_comisiones` (consulta, master) y `manage_comisiones` (defaults, solo bypass).
-- [ ] 4.4 `routes/api.php`: exchange → `view_exchange_rates`/`manage_exchange_rates` (solo master); releases → `download_release` (5 roles).
-- [ ] 4.5 Ajustar `ReleaseTest`: `taquilla` pasa de 403 a 200 en `/releases/latest` (cambio deliberado BE-04).
-- [ ] 4.6 Cierre: actualizar `docs/dev/permisos-capabilities.md` final; `php artisan route:list` para confirmar 0 `role:`.
+- [x] 4.1 Test RED: `RoutePermissionCoverageTest` (toda ruta autenticada con `permission:`; 0 `role:`; allowlist `/user`/`/logout`; scan sin permisos directos) y `TaquillaPermisosTest` (taquilla 200 reportes/releases, 403 exchange).
+- [x] 4.2 `routes/api.php`: reportes/estadísticas → `view_reports` (5 roles).
+- [x] 4.3 `routes/api.php`: logs → `view_logs` (master); comisiones → `view_comisiones` (consulta, master) y `manage_comisiones` (defaults, solo bypass).
+- [x] 4.4 `routes/api.php`: exchange → `view_exchange_rates`/`manage_exchange_rates` (solo master); releases → `download_release` (5 roles).
+- [x] 4.5 Ajustar `ReleaseTest`: `taquilla` pasa de 403 a 200 en `/releases/latest` (cambio deliberado BE-04).
+- [x] 4.6 Cierre: actualizar `docs/dev/permisos-capabilities.md` final; `php artisan route:list` para confirmar 0 `role:`.
 
 **Tests**: `ReporteTest`, `ComisionesApiTest`, `ExchangeRateTest`, `ReleaseTest` (modificado), nuevos `RoutePermissionCoverageTest`/`TaquillaPermisosTest`.
 
@@ -132,12 +132,12 @@ Chain strategy: stacked-to-main
 
 ## Criterios de aceptación globales
 
-- [ ] 0 rutas de recurso con `role:`; todas las protegidas con `permission:`.
-- [ ] 34 permisos con guard `api`; `manage_users` y `manage_apuestas` ausentes.
-- [ ] `Gate::before` da bypass total a `super_master` (sin permisos asignados).
-- [ ] Taquilla ve reportes (`view_reports`) y descarga releases (`download_release`).
-- [ ] Sin permisos directos a usuarios (solo vía roles).
-- [ ] Matriz capability × rol documentada en `docs/dev/`.
+- [x] 0 rutas de recurso con `role:`; todas las protegidas con `permission:`.
+- [x] 34 permisos con guard `api`; `manage_users` y `manage_apuestas` ausentes.
+- [x] `Gate::before` da bypass total a `super_master` (sin permisos asignados).
+- [x] Taquilla ve reportes (`view_reports`) y descarga releases (`download_release`).
+- [x] Sin permisos directos a usuarios (solo vía roles).
+- [x] Matriz capability × rol documentada en `docs/dev/`.
 - [ ] `composer test` y `pint --test` en verde; row scoping (#85) intacto.
 
 ## Riesgos
