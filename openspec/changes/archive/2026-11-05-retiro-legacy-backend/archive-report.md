@@ -58,12 +58,12 @@ Retirada de superficie legacy del backend API-only:
 - Retirar Vite/Tailwind/`package.json`/`.npmrc`/`resources/css|js` y ajustar `composer setup`/`dev` → issue aparte.
 - Revisar `EnsureFrontendRequestsAreStateful` + excepción CSRF `api/*` + `SANCTUM_STATEFUL_DOMAINS` → decisión aparte.
 - Archivar/eliminar `openspec/changes/compatibilidad-dashboard-legacy` (obsoleto: solo `tasks.md`, todo `[x]`, sin proposal/spec) → housekeeping aparte.
-- `docs/dev/auditoria-logs.md` (untracked en el repo principal) conserva una referencia a `FetchResultsJob`; actualizarla si se versiona.
+- `docs/dev/auditoria-logs.md`: referencia a `FetchResultsJob` retirada en el commit de cierre.
 - Los 2 skips preexistentes no bloquean; el de `ScrapeResultsJobTest` se eliminaría creando un `Juego` con `requires_scraper=false` dentro del test.
 
 ## 7. Cierre
 
-- Merge local a `main`: se ejecuta a continuación.
+- Merge local a `main`: `51bf87d`.
 - Push a `origin/main`: se ejecuta a continuación.
 - Issues #81/#82: se cierran después del push.
 - CI/CD: se dispara con el push y se verifica el run.
