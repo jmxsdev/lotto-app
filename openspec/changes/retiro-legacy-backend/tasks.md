@@ -22,8 +22,8 @@ Cada WU queda por debajo de 800 líneas. Los commits son locales; el merge a `ma
 - [x] 1.2 Quitar de `backend/bootstrap/app.php` el `use App\Http\Middleware\CheckRole;` y `'checkrole' => CheckRole::class,`.
 - [x] 1.3 Actualizar `docs/dev/estructura.md` (línea de `Middleware/`) y `docs/dev/arquitectura-backend.md` (alias y fila de `Http/Middleware/`).
 - [x] 1.4 Crear `backend/tests/Feature/BackendSurfaceTest.php` con `test_checkrole_alias_is_not_registered`.
-- [ ] 1.5 Verificar: `php artisan route:list | grep -i checkrole` vacío; `php artisan test --filter=BackendSurfaceTest`; `vendor/bin/pint --test`.
-- [ ] 1.6 Commit local: `chore(api): retira middleware CheckRole sin uso (#82)`.
+- [x] 1.5 Verificar: `php artisan route:list | grep -i checkrole` vacío; `php artisan test --filter=BackendSurfaceTest`; `vendor/bin/pint --test`.
+- [x] 1.6 Commit local: `chore(api): retira middleware CheckRole sin uso (#82)`.
 
 **Rollback:** revertir el commit. No hay datos ni contrato afectado.
 
