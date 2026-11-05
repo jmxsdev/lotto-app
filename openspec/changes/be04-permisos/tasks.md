@@ -90,11 +90,11 @@ Chain strategy: stacked-to-main
 **Archivos**: `backend/routes/api.php`, `backend/tests/Feature/TicketsAuthorizationTest.php` + tests de operación existentes.
 
 **Tareas**:
-- [ ] 3.1 Test RED: `TicketsAuthorizationTest` — `agencia` 403 en `/tickets` (GET/POST/DELETE); master/banca/grupo/taquilla 200.
-- [ ] 3.2 `routes/api.php`: juegos (`view_juegos` en GET, `manage_juegos` en PUT/toggle) y resultados (`view_resultados` GET, `manage_resultados` en scrape POST).
-- [ ] 3.3 `routes/api.php`: apuestas (`view_apuestas` GET · `create_apuesta` POST · `delete_apuesta` DELETE); tickets con `create_apuesta` (sin `agencia`).
-- [ ] 3.4 `routes/api.php`: pagos (`create_pago` POST · `view_pagos` GET, sin `agencia`); cierres (`create_cierre` POST · `view_cierre` GET).
-- [ ] 3.5 `routes/api.php`: límites (`view_limites` GET master/banca/grupo/agencia · `manage_limites` PUT/DELETE/POST master/banca/grupo).
+- [x] 3.1 Test RED: `TicketsAuthorizationTest` — `agencia` 403 en `/tickets` (GET/POST/DELETE); master/banca/grupo/taquilla 200.
+- [x] 3.2 `routes/api.php`: juegos (`view_juegos` en GET, `manage_juegos` en PUT/toggle) y resultados (`view_resultados` GET, `manage_resultados` en scrape POST).
+- [x] 3.3 `routes/api.php`: apuestas (`view_apuestas` GET · `create_apuesta` POST · `delete_apuesta` DELETE); tickets con `create_apuesta` (sin `agencia`).
+- [x] 3.4 `routes/api.php`: pagos (`create_pago` POST · `view_pagos` GET, sin `agencia`); cierres (`create_cierre` POST · `view_cierre` GET).
+- [x] 3.5 `routes/api.php`: límites (`view_limites` GET master/banca/grupo/agencia · `manage_limites` PUT/DELETE/POST master/banca/grupo).
 
 **Tests**: `ApuestaTest`, `TicketMasterScopeTest`, `TicketGanadoresTest`, `CierreCajaTest`, `LimitesApiTest`, `JuegosJsonTest`, `ResultadoAparicionesTest`, nuevo `TicketsAuthorizationTest`.
 
