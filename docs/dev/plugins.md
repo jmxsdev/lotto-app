@@ -219,23 +219,12 @@ class AnimalitosScraper extends BaseScraper
 }
 ```
 
-### FetchResultsJob
-
-`app/Jobs/FetchResultsJob.php` — Job queueable con 3 reintentos y backoff de 60s:
-
-```php
-$scraper = new AnimalitosScraper();
-$resultados = $scraper->execute($fecha);
-$guardados = $scraper->saveResults($resultados, $fecha);
-```
-
 ### Scheduler
 
-`routes/console.php`:
-
-```php
-Schedule::job(new FetchResultsJob)->everyFiveMinutes();
-```
+El scraping de resultados se agenda en `app/Providers/ScheduleServiceProvider.php`:
+`ScrapeSourceJob` por fuente/hora (4 pasadas: hora, +15, +30, +45) y
+`ScrapeExchangeRateJob` cada hora de 06:00 a 21:00. Los jobs diarios
+`ExpireUnclaimedPrizesJob` y `MarcarApuestasVencidasJob` se registran en `routes/console.php`.
 
 ---
 
@@ -389,7 +378,7 @@ $this->assertEquals('Delfin', $resultados[0]['nombre_animal']);
 
 ### Tests de integración (saveResults + DB)
 
-`tests/Feature/FetchResultsJobTest.php` — usa `DatabaseTransactions`, corre seeders, llama `parse()` + `saveResults()`, verifica:
+`tests/Feature/AnimalitosScraperResultsTest.php` — usa `RefreshDatabase`, corre seeders, llama `parse()` + `saveResults()`, verifica:
 - Conteo correcto en DB
 - Upsert no duplica
 - Respuesta vacía no guarda nada
