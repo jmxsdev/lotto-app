@@ -76,14 +76,19 @@ El único skip (`ScrapeResultsJobTest::test_scrape_results_job_returns_early_for
 
 `0884a96 chore(resultados): retira FetchResultsJob y ajusta cobertura de rutas (#81)`
 
-## Verificación final pendiente (la ejecuta el usuario)
+## Verificación final
 
-```bash
-cd backend
-php artisan optimize:clear
-composer test:parallel   # suite completa (~8 min) o `composer test`
-vendor/bin/pint --test
-php artisan route:list | grep -E "admin\.|checkrole|GET\|HEAD / " || echo "OK: superficie legacy retirada"
-```
+- `composer test:parallel`: **1505 tests, 8689 assertions, 0 failures, 0 errors, 2 skipped**, 16:20.159.
+- Skips preexistentes: `PluginIntegrationTest` (requiere BD de prueba) y `ScrapeResultsJobTest::test_scrape_results_job_returns_early_for_non_scraper_game` (no hay juegos con `requires_scraper=false` en el seed).
+- `vendor/bin/pint --test`: **PASS**, 395 files.
+- `php artisan route:list`: sin `admin.*`, sin `checkrole`, sin `GET /`.
+- Greps: sin `CheckRole`/`checkrole` en `app/`, `routes/`, `bootstrap/`; sin `FetchResultsJob` en `app/`, `tests/`.
 
-Criterio: suite completa verde, Pint verde, `route:list` sin superficie legacy. Después: merge a `main` local, push a `main` de GitHub, cierre de #81/#82 y CI/CD.
+## Fix colateral
+
+- `ScheduleServiceProvider` captura `QueryException` al registrar la agenda de scrapers si la BD no está lista durante el boot. Evita el fallo de `TaquillaStoreTest` en workers paralelos antes de `RefreshDatabase`. `ScheduleTimeZoneTest` (11 tests) y `TaquillaStoreTest` (14 tests) verdes.
+- Commit: `9235eb3 fix(scheduler): no rompe el boot si la BD no está lista`.
+
+## Cierre
+
+Pendiente: archive, merge a `main` local, push a `main` de GitHub, cierre de #81/#82 y CI/CD.

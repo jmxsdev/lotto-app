@@ -54,14 +54,19 @@ Cada WU queda por debajo de 800 líneas. Los commits son locales; el merge a `ma
 
 ## Global Acceptance Criteria
 
-- [ ] `php artisan route:list` no muestra rutas `admin/*`, `GET /` de `web.php` ni alias `checkrole`.
-- [ ] `GET /` responde `404` JSON con y sin `Accept: application/json`.
-- [ ] `backend/app/Http/Middleware/CheckRole.php`, `backend/routes/web.php`, `backend/app/Http/Controllers/Admin/`, `backend/resources/views/admin/`, `backend/resources/views/welcome.blade.php` y `backend/app/Jobs/FetchResultsJob.php` ya no existen.
-- [ ] `composer test` pasa completo (suite verde).
-- [ ] `vendor/bin/pint --test` pasa.
-- [ ] `grep -rn "CheckRole\|checkrole\|FetchResultsJob" backend --include="*.php" | grep -v vendor` no devuelve nada.
+- [x] `php artisan route:list` no muestra rutas `admin/*`, `GET /` de `web.php` ni alias `checkrole`.
+- [x] `GET /` responde `404` JSON con y sin `Accept: application/json`.
+- [x] `backend/app/Http/Middleware/CheckRole.php`, `backend/routes/web.php`, `backend/app/Http/Controllers/Admin/`, `backend/resources/views/admin/`, `backend/resources/views/welcome.blade.php` y `backend/app/Jobs/FetchResultsJob.php` ya no existen.
+- [x] `composer test` pasa completo (suite verde): 1505 tests, 8689 assertions, 0 failures, 2 skipped preexistentes.
+- [x] `vendor/bin/pint --test` pasa (395 files).
+- [x] `grep -rn "CheckRole\|checkrole\|FetchResultsJob" backend --include="*.php" | grep -v vendor` no devuelve nada.
 - [ ] Issues #81 y #82 cerrados después del push a `main`.
 - [ ] CI/CD de GitHub Actions verde tras el push.
+
+## Collateral Fixes (descubiertos en verificación final)
+
+- [x] `RoutePermissionCoverageTest` ya no lee `routes/web.php` (WU-2).
+- [x] `ScheduleServiceProvider` captura `QueryException` si la BD no está lista durante el boot; evita que falle el boot de tests paralelos antes de `RefreshDatabase` (`9235eb3`).
 
 ## Out of Scope / Follow-ups
 
