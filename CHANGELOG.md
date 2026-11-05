@@ -5,6 +5,46 @@ Todas las versiones notables de la Taquilla se documentan en este archivo.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/) y el
 versionado es [SemVer](https://semver.org/lang/es/).
 
+## [1.1.0] — 2026-10-30
+
+Release de Taquilla con tipo de pago, posicionales por triple y la primera
+versión de la tripleta de animalitos multi-sorteo.
+
+### Agregado
+
+- **Tipo de pago en la venta**: selector obligatorio antes de imprimir, con
+  cuatro métodos para Bs (transferencia, efectivo, punto de venta, pago móvil)
+  y «USD efectivo» para tickets en dólares. El método viaja en el POST, se
+  guarda en el snapshot y se imprime en el ticket.
+- **Posicionales por triple**: las modalidades posicionales (`terminal`,
+  `punta`, `uña`) exigen elegir el triple vendido (A/B/C) y el ticket lo
+  muestra para auditoría.
+- **Tripleta de animalitos multi-sorteo**: Cazalotón (200×) y Loto Chaima
+  (50×) ofrecen el modo Tripleta con selección de 3 animales distintos; el
+  backend liquida contra 3 sorteos del mismo día. Primera versión del flujo
+  (issue #63).
+- **Resaltado USD**: el resumen y los juegos se resaltan en verde cuando la
+  venta es en dólares.
+
+### Cambiado
+
+- **Retiro del terminal Táchira**: el catálogo deja de ofrecer el terminal y
+  explicita sus modalidades vigentes.
+- **Reimpresión y anulación**: reimprimir con `+` y anular por serial desde el
+  historial.
+
+### Corregido
+
+- **Ticket de tripleta de animalitos**: el ticket, el historial y el
+  comprobante muestran `Tripleta (A, B, C)` en lugar de una jugada vacía.
+- **E2E**: el screenshot inicial con ancho 0 ya no hace fallar el harness.
+
+### Técnico
+
+- Harness E2E Playwright + Electron para login, venta single/multi, premio,
+  anulación, grilla, cierre, tipo de pago y smoke.
+- `check-pure` cubre el texto de la tripleta de animalitos en ticket y recibo.
+
 ## [Unreleased]
 
 Comisiones pasan a **modelo consultivo** (Modelo A): se calculan y se consultan,
