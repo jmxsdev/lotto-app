@@ -14,7 +14,7 @@
 | Presupuesto por PR | 800 líneas (additions + deletions) |
 | Riesgo sobre presupuesto de 400 líneas | **Alto** (muy por encima del umbral mínimo) |
 | Chained PRs recomendados | Sí |
-| Split sugerido | 17 WUs: 1a, 1b, 2–9, 10a, 10b, 11a, 11b, 12a, 12b, 13 |
+| Split sugerido | 19 WUs: 1a-1, 1a-2, 1a-3, 1b, 2–9, 10a, 10b, 11a, 11b, 12a, 12b, 13 |
 | Delivery strategy | `auto-chain` |
 | Chain strategy | `feature-branch-chain` |
 | Decisión necesaria antes de apply | **No** (preflight ya decidió `auto-chain` + `feature-branch-chain`) |
@@ -31,8 +31,10 @@ Chain strategy: feature-branch-chain
 
 | WU | Rama | Líneas est. | Depende de |
 |---|---|---|---|
-| 1a | `feat/89-wu-1a-esquema-auditoria` | ~450 | — (tracker) |
-| 1b | `feat/89-wu-1b-captura-auditoria` | ~650 | 1a |
+| 1a-1 | `feat/89-wu-1a-esquema-auditoria` | ~736 | — (tracker) |
+| 1a-2 | `feat/89-wu-1a2-taxonomia` | ~577 | 1a-1 |
+| 1a-3 | `feat/89-wu-1a3-dto` | ~443 | 1a-2 |
+| 1b | `feat/89-wu-1b-captura-auditoria` | ~650 | 1a-3 |
 | 2 | `feat/89-wu-2-auth` | ~500 | 1b |
 | 3 | `feat/89-wu-3-usuarios` | ~700 | 2 |
 | 4 | `feat/89-wu-4-tasas-comisiones` | ~500 | 3 |
@@ -55,23 +57,25 @@ el tracker acumula todo y solo él mergea a `main` al cierre.
 ```text
 main
 └── feature/auditoria-trazabilidad-89            (tracker, draft/no-merge)
-    └── feat/89-wu-1a-esquema-auditoria
-        └── feat/89-wu-1b-captura-auditoria
-            └── feat/89-wu-2-auth
-                └── feat/89-wu-3-usuarios
-                    └── feat/89-wu-4-tasas-comisiones
-                        └── feat/89-wu-5-cierre-pagos
-                            └── feat/89-wu-6-juegos-limites
-                                └── feat/89-wu-7-entidades
-                                    └── feat/89-wu-8-jobs-resultados
-                                        └── feat/89-wu-9-lectura-permisos
-                                            └── feat/89-wu-10a-panel-auditoria
-                                                └── feat/89-wu-10b-panel-detalle
-                                                    └── feat/89-wu-11a-motivos
-                                                        └── feat/89-wu-11b-logs-operativo
-                                                            └── feat/89-wu-12a-integridad-datos
-                                                                └── feat/89-wu-12b-retencion
-                                                                    └── feat/89-wu-13-hardening
+    └── feat/89-wu-1a-esquema-auditoria          (1a-1)
+        └── feat/89-wu-1a2-taxonomia             (1a-2)
+            └── feat/89-wu-1a3-dto               (1a-3)
+                └── feat/89-wu-1b-captura-auditoria
+                    └── feat/89-wu-2-auth
+                        └── feat/89-wu-3-usuarios
+                            └── feat/89-wu-4-tasas-comisiones
+                                └── feat/89-wu-5-cierre-pagos
+                                    └── feat/89-wu-6-juegos-limites
+                                        └── feat/89-wu-7-entidades
+                                            └── feat/89-wu-8-jobs-resultados
+                                                └── feat/89-wu-9-lectura-permisos
+                                                    └── feat/89-wu-10a-panel-auditoria
+                                                        └── feat/89-wu-10b-panel-detalle
+                                                            └── feat/89-wu-11a-motivos
+                                                                └── feat/89-wu-11b-logs-operativo
+                                                                    └── feat/89-wu-12a-integridad-datos
+                                                                        └── feat/89-wu-12b-retencion
+                                                                            └── feat/89-wu-13-hardening
 ```
 
 ### 1.2 Regla de split (gatillo duro)
@@ -149,6 +153,29 @@ Las ramas de split siguen el patrón `feat/89-wu-<n><letra>-<slug>`.
 cerrado `AuditAction` con taxonomía `domain.verb` (prioridad, política de motivo, entidad), el DTO
 inmutable, el value object de scope, el cast UTC, el modelo `AuditEvent` append-only y
 `config/audit.php`. Es puramente aditivo: sin llamadas de negocio.
+
+> **Split real aplicado (presupuesto 800)**: la implementación base dio **1.746 líneas**, así que se
+> dividió en tres slices antes del gate:
+>
+> | Slice | Contenido | Líneas | Rama |
+> |---|---|---|---|
+> | **1a-1** | Migraciones, `AuditEvent`, `UtcDateTime`, `AuditAppendOnlyException`, `config/audit.php`, `AuditPriority`, `AuditActorType`, `AuditReason`, `AuditScope` + tests de scope/cast/modelo | ~736 | `feat/89-wu-1a-esquema-auditoria` |
+> | **1a-2** | `AuditAction` (67 casos) + `ReasonPolicy` + `AuditActionTest` | ~577 | `feat/89-wu-1a2-taxonomia` |
+> | **1a-3** | `AuditEventData` + `AuditEventDataTest` | ~443 | `feat/89-wu-1a3-dto` |
+>
+> **Estado:** 1a-1 implementado; 20 tests verdes (47 assertions) el 2026-11-05.
+>
+> Gates por slice:
+> ```bash
+> # 1a-1
+> cd backend && php artisan test --filter='AuditScopeTest|UtcDateTimeTest|AuditEventTest'
+> # 1a-2
+> cd backend && php artisan test --filter='AuditActionTest'
+> # 1a-3
+> cd backend && php artisan test --filter='AuditEventDataTest'
+> # Pint en cada slice
+> cd backend && ./vendor/bin/pint --test
+> ```
 
 **Archivos** (crear):
 - `backend/database/migrations/2026_11_05_000001_create_audit_events_table.php`
