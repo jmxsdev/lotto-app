@@ -14,7 +14,7 @@
 | Presupuesto por PR | 800 líneas (additions + deletions) |
 | Riesgo sobre presupuesto de 400 líneas | **Alto** (muy por encima del umbral mínimo) |
 | Chained PRs recomendados | Sí |
-| Split sugerido | 19 WUs: 1a-1, 1a-2, 1a-3, 1b, 2–9, 10a, 10b, 11a, 11b, 12a, 12b, 13 |
+| Split sugerido | 20 WUs: 1a-1, 1a-2, 1a-3, 1b-1, 1b-2, 2–9, 10a, 10b, 11a, 11b, 12a, 12b, 13 |
 | Delivery strategy | `auto-chain` |
 | Chain strategy | `feature-branch-chain` |
 | Decisión necesaria antes de apply | **No** (preflight ya decidió `auto-chain` + `feature-branch-chain`) |
@@ -34,8 +34,9 @@ Chain strategy: feature-branch-chain
 | 1a-1 | `feat/89-wu-1a-esquema-auditoria` | ~736 | — (tracker) |
 | 1a-2 | `feat/89-wu-1a2-taxonomia` | ~577 | 1a-1 |
 | 1a-3 | `feat/89-wu-1a3-dto` | ~443 | 1a-2 |
-| 1b | `feat/89-wu-1b-captura-auditoria` | ~650 | 1a-3 |
-| 2 | `feat/89-wu-2-auth` | ~500 | 1b |
+| 1b-1 | `feat/89-wu-1b1-contexto` | ~500 | 1a-3 |
+| 1b-2 | `feat/89-wu-1b2-recorder` | ~650 | 1b-1 |
+| 2 | `feat/89-wu-2-auth` | ~500 | 1b-2 |
 | 3 | `feat/89-wu-3-usuarios` | ~700 | 2 |
 | 4 | `feat/89-wu-4-tasas-comisiones` | ~500 | 3 |
 | 5 | `feat/89-wu-5-cierre-pagos` | ~700 | 4 |
@@ -60,8 +61,9 @@ main
     └── feat/89-wu-1a-esquema-auditoria          (1a-1)
         └── feat/89-wu-1a2-taxonomia             (1a-2)
             └── feat/89-wu-1a3-dto               (1a-3)
-                └── feat/89-wu-1b-captura-auditoria
-                    └── feat/89-wu-2-auth
+                └── feat/89-wu-1b1-contexto      (1b-1)
+                    └── feat/89-wu-1b2-recorder  (1b-2)
+                        └── feat/89-wu-2-auth
                         └── feat/89-wu-3-usuarios
                             └── feat/89-wu-4-tasas-comisiones
                                 └── feat/89-wu-5-cierre-pagos
@@ -163,7 +165,7 @@ inmutable, el value object de scope, el cast UTC, el modelo `AuditEvent` append-
 > | **1a-2** | `AuditAction` (67 casos) + `ReasonPolicy` + `AuditActionTest` | ~577 | `feat/89-wu-1a2-taxonomia` |
 > | **1a-3** | `AuditEventData` + `AuditEventDataTest` | ~443 | `feat/89-wu-1a3-dto` |
 >
-> **Estado:** 1a-1 implementado (20 tests, 47 assertions); 1a-2 implementado (60 tests, 516 assertions) el 2026-11-05.
+> **Estado:** 1a-1 implementado (20 tests, 47 assertions); 1a-2 implementado (60 tests, 516 assertions); 1a-3 implementado (12 tests, 49 assertions) el 2026-11-05.
 >
 > Gates por slice:
 > ```bash
@@ -224,6 +226,23 @@ sistema), `AuditRecorder` (único punto de escritura; P0/P1; transacción; idemp
 `AuditRedactor` (PII determinista), `AuditScopeResolver`, `AuditChainHasher`, trait `Auditable`
 (opt-in), middleware `CaptureAuditContext` (registrado por clase en `routes/api.php`), excepciones y
 binding `scoped` en `AppServiceProvider`.
+
+> **Split preventivo (presupuesto 800):**
+>
+> | Slice | Contenido | Líneas | Rama |
+> |---|---|---|---|
+> | **1b-1** | `AuditContext`, `AuditScopeResolver`, `AuditRedactor`, `AuditChainHasher` + tests de contexto/redacción/hash | ~500 | `feat/89-wu-1b1-contexto` |
+> | **1b-2** | `AuditRecorder`, trait `Auditable`, `CaptureAuditContext`, excepciones, binding `AppServiceProvider`, `routes/api.php` + tests de recorder/middleware/arquitectura | ~650 | `feat/89-wu-1b2-recorder` |
+>
+> Gates:
+> ```bash
+> # 1b-1
+> cd backend && php artisan test --filter='AuditContextTest|AuditRedactorTest|AuditChainHasherTest'
+> # 1b-2
+> cd backend && php artisan test --filter='AuditRecorderTest|AuditoriaMiddlewareTest|AuditArchitectureTest'
+> # Pint en cada slice
+> cd backend && ./vendor/bin/pint --test
+> ```
 
 **Archivos**:
 - Crear: `backend/app/Audit/{AuditContext,AuditRecorder,AuditRedactor,AuditScopeResolver,AuditChainHasher,Auditable}.php`
