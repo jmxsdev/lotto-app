@@ -67,11 +67,11 @@ Chain strategy: stacked-to-main
 **Archivos**: `backend/routes/api.php`, `backend/routes/web.php`, `backend/bootstrap/app.php`, `backend/app/Http/Controllers/Api/GrupoController.php`, `backend/app/Http/Controllers/Api/TaquillaController.php`.
 
 **Tareas**:
-- [ ] 2.1 Test RED: asserts de autorización de entidades a `permission:` (taquilla GET self 200, update/delete 403; agencia PUT propia 200, store/toggle/destroy 403; banca/grupo/agencia delete users 200).
-- [ ] 2.2 `routes/api.php`: users con split por método (`view_users` index/show · `create_users` store · `edit_users` update · `delete_users` destroy).
-- [ ] 2.3 `routes/api.php`: bancas, grupos, agencias, taquillas (view en index/show, manage en store/update/destroy/toggle).
-- [ ] 2.4 `routes/api.php`: `/configuraciones/apuestas-vencimiento` → `manage_config`; `/usuarios/clave-cierre` → `manage_clave_cierre`.
-- [ ] 2.5 Limpiar: quitar grupo vacío `role:` de `web.php`, alias/import `role` de `bootstrap/app.php`, bloques `middleware('permission:...')` comentados en `GrupoController`/`TaquillaController`.
+- [x] 2.1 Test RED: asserts de autorización de entidades a `permission:` (taquilla GET self 200, update/delete 403; agencia PUT propia 200, store/toggle/destroy 403; banca/grupo/agencia delete users 200).
+- [x] 2.2 `routes/api.php`: users con split por método (`view_users` index/show · `create_users` store · `edit_users` update · `delete_users` destroy).
+- [x] 2.3 `routes/api.php`: bancas, grupos, agencias, taquillas (view en index/show, manage en store/update/destroy/toggle).
+- [x] 2.4 `routes/api.php`: `/configuraciones/apuestas-vencimiento` → `manage_config`; `/usuarios/clave-cierre` → `manage_clave_cierre`.
+- [x] 2.5 Limpiar: quitar grupo vacío `role:` de `web.php`, bloques `middleware('permission:...')` comentados en `GrupoController`/`TaquillaController`. Alias/import `role` de `bootstrap/app.php` se conserva: aún hay grupos `role:` de WU-3/4; se elimina al cerrar la migración.
 
 **Tests**: actualizar `RoleAuthorizationTest`/`DivergenciaRolTest` (semántica de scope intacta), `GestionUsuariosTest`, `GestionEntidadesApiTest`, `AgenciaApiTest`, `ClaveCierreTest`.
 
