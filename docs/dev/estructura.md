@@ -21,11 +21,6 @@ lotto-app/                           # Raíz del proyecto
 │   │   │   │   │   ├── PagoController.php
 │   │   │   │   │   ├── CierreController.php
 │   │   │   │   │   └── ActivacionController.php
-│   │   │   │   └── Admin/           # Controladores del Dashboard (Livewire o Inertia)
-│   │   │   │       ├── UserController.php
-│   │   │   │       ├── BancaController.php
-│   │   │   │       ├── JuegoController.php
-│   │   │   │       └── TasaController.php
 │   │   │   ├── Middleware/          # Middlewares (VerifyMac, etc.)
 │   │   │   ├── Requests/            # Form Requests (validaciones)
 │   │   │   └── Resources/           # Transformación de datos (API Resources)
@@ -83,20 +78,11 @@ lotto-app/                           # Raíz del proyecto
 │   ├── lang/                        # Traducciones (opcional)
 │   ├── public/                      # Punto de entrada público (index.php, assets)
 │   ├── resources/
-│   │   ├── css/                     # CSS global del dashboard
-│   │   ├── js/                      # JS del dashboard (si usas Livewire o Vue)
-│   │   └── views/                   # 🖥️ DASHBOARD ADMIN (Blade/Livewire)
-│   │       ├── admin/
-│   │       │   ├── layouts/
-│   │       │   ├── users.blade.php
-│   │       │   ├── bancas.blade.php
-│   │       │   ├── juegos.blade.php
-│   │       │   ├── tasas.blade.php
-│   │       │   └── reportes.blade.php
-│   │       └── auth/                # Login/registro (si aplica)
+│   │   ├── css/                     # CSS global (Vite; sin vistas Blade)
+│   │   ├── js/                      # JS global (Vite; sin vistas Blade)
+│   │   └── views/                   # Sin vistas Blade tras #81
 │   ├── routes/
 │   │   ├── api.php                  # 📡 RUTAS PARA LA T AQUILLA (versión /api/v1)
-│   │   ├── web.php                  # 🌐 RUTAS PARA EL DASHBOARD ADMIN
 │   │   ├── console.php              # Rutas para comandos Artisan
 │   │   └── channels.php             # Broadcasting (si aplica)
 │   ├── storage/                     # Logs, cache, archivos temporales
@@ -184,9 +170,7 @@ lotto-app/                           # Raíz del proyecto
 |------|---------------|----------------|
 | **`backend/app/Plugins/Juegos/`** | Cada nuevo juego de lotería (ej. `Animalitos.php`, `Raspaditos.php`). Debes implementar la `JuegoInterface`. **Aquí se agregan los plugins sin modificar el núcleo.** | Backend (Laravel) |
 | **`backend/app/Plugins/Scrapers/`** | La lógica específica para raspar los resultados oficiales de cada juego. | Jobs de Laravel |
-| **`backend/resources/views/admin/`** | Todas las vistas del **Dashboard Administrativo** (Super Master, Master, Banca). | Navegador web (Admin) |
 | **`backend/routes/api.php`** | Endpoints que consumirá la app de taquilla (ej. `/api/v1/apuestas`, `/api/v1/activar`). | Frontend (Electron) |
-| **`backend/routes/web.php`** | Rutas para el Dashboard Admin (ej. `/admin/usuarios`). | Navegador web (Admin) |
 | **`taquilla/src/pages/`** | Cada archivo `.astro` aquí se convierte en una pantalla (ruta) de la taquilla. | Operador de taquilla |
 | **`taquilla/electron/main/`** | Código que corre en el proceso principal de Electron. Aquí se lee la **MAC Address**, se maneja la impresión térmica y se carga la UI (que viene del build de Astro). | Sistema operativo (Windows) |
 | **`taquilla/electron/preload/`** | Puente seguro entre el proceso principal (Node) y el DOM de Astro. Expone funciones como `window.electron.getMac()` para que el frontend pueda pedir la MAC. | Frontend (Astro) |

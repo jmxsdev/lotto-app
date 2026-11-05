@@ -36,8 +36,8 @@ banca/grupo/taquilla/agencia con comisiones y cierres de caja.
 | `config/` | Configuración por archivo (`app.php`, `auth.php`, `database.php`, `queue.php`, `sanctum.php`, `cors.php`, …) |
 | `database/` | Migraciones (~50 tablas), seeders (los 21 juegos) y factories |
 | `public/` | Document root: `index.php` (front controller), `favicon.ico`, `robots.txt` |
-| `resources/` | `views/admin` (vista Blade mínima del panel de resultados), `css`/`js` para Vite |
-| `routes/` | `api.php` (negocio, `/api/v1`), `web.php` (panel admin), `console.php` (scheduler + comandos) |
+| `resources/` | `css`/`js` para Vite; sin vistas Blade (retiradas en #81) |
+| `routes/` | `api.php` (negocio, `/api/v1`), `console.php` (scheduler + comandos) |
 | `storage/` | Logs, caché, sesiones, temporales |
 | `tests/` | `Feature/` (integración por endpoint/job) y `Unit/` (scrapers, plugins, engine). `Fixtures/` con HTML/JSON reales |
 | `vendor/` | Dependencias Composer |
@@ -59,7 +59,6 @@ banca/grupo/taquilla/agencia con comisiones y cierres de caja.
 |---|---|---|
 | `Console/Commands/` | Negocio | `resultados:reconciliar`, `resultados:metricas`, `juegos:export`, `ScrapeExchangeRate`, `AgenciasBackfill`, `TaquillasSanearActivas`, `ReleasePublishCommand` |
 | `Http/Controllers/Api/` | Negocio | ~22 controladores delgados (`ApuestaController`, `TicketController`, `ResultadoController`, `JuegoController`, `CierreController`, `ComisionController`, …): validan, autorizan y delegan en `Services` |
-| `Http/Controllers/Admin/` | Negocio | Panel admin interno (Blade mínimo + scraping manual legado) |
 | `Http/Middleware/` | Negocio | `VerifyMac` (huella MAC del dispositivo de taquilla) |
 | `Http/Requests/` | Negocio | `ApuestaStoreRequest`: pide las reglas de validación **al plugin del juego**, así la forma de `combinacion` cambia por tipo de juego |
 | `Jobs/` | Negocio | `ScrapeSourceJob` (canónico, por fuente), `ScrapeResultsJob` (por juego, legado), `FetchResultsJob` (legado animalitos), `ScrapeExchangeRateJob`, `ExpireUnclaimedPrizesJob`, `MarcarApuestasVencidasJob` |
