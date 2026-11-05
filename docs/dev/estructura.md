@@ -24,10 +24,12 @@ lotto-app/                           # Raíz del proyecto
 │   │   │   ├── Middleware/          # Middlewares (VerifyMac, etc.)
 │   │   │   ├── Requests/            # Form Requests (validaciones)
 │   │   │   └── Resources/           # Transformación de datos (API Resources)
-│   │   ├── Jobs/                    # Trabajos encolados (Scrapers, Comisiones, Cierres)
-│   │   │   ├── FetchResultsJob.php
-│   │   │   ├── CalculateCommissionsJob.php
-│   │   │   └── ScrapeExchangeRateJob.php
+│   │   ├── Jobs/                    # Trabajos encolados (Scrapers, Cierres, Vencimientos)
+│   │   │   ├── ScrapeSourceJob.php
+│   │   │   ├── ScrapeResultsJob.php
+│   │   │   ├── ScrapeExchangeRateJob.php
+│   │   │   ├── ExpireUnclaimedPrizesJob.php
+│   │   │   └── MarcarApuestasVencidasJob.php
 │   │   ├── Listeners/               # Eventos y Listeners (para logs de auditoría)
 │   │   ├── Mail/                    # Mails de notificación
 │   │   ├── Models/                  # Modelos Eloquent

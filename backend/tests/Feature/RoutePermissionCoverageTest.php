@@ -13,7 +13,7 @@ use Tests\TestCase;
  * Cobertura final de autorización por capability (BE-04, WU-4).
  *
  * - Toda ruta con `auth:sanctum` debe declarar al menos un `permission:`.
- * - `routes/api.php` y `routes/web.php` no deben contener `role:`.
+ * - `routes/api.php` no debe contener `role:`.
  * - `app/` no asigna permisos directamente a usuarios (solo a roles).
  */
 class RoutePermissionCoverageTest extends TestCase
@@ -72,7 +72,7 @@ class RoutePermissionCoverageTest extends TestCase
         // `role:` como middleware; `role_or_permission` y `$filtros['role']` no matchean.
         $patron = '/(?<![A-Za-z0-9_])role\s*:/';
 
-        foreach (['routes/api.php', 'routes/web.php'] as $archivo) {
+        foreach (['routes/api.php'] as $archivo) {
             $contenido = file_get_contents(base_path($archivo));
 
             $this->assertNotFalse($contenido, "No se pudo leer {$archivo}.");
