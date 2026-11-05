@@ -42,12 +42,13 @@ Cada WU queda por debajo de 800 líneas. Los commits son locales; el merge a `ma
 
 ## Phase 3 — WU-3: retirar `FetchResultsJob` (#81)
 
-- [ ] 3.1 Crear `backend/tests/Feature/AnimalitosScraperResultsTest.php` con los 4 tests de persistencia movidos desde `FetchResultsJobTest`.
-- [ ] 3.2 Borrar `backend/tests/Feature/FetchResultsJobTest.php`.
-- [ ] 3.3 Borrar `backend/app/Jobs/FetchResultsJob.php`.
-- [ ] 3.4 Actualizar `docs/dev/estructura.md`, `docs/dev/arquitectura-backend.md` (§5.1, §8.1, §8.4, §8.5, §8.6, §8.7), `docs/dev/plugins.md` y `docs/dev/auditoria-logs.md`.
-- [ ] 3.5 Verificar: `php artisan test --filter="AnimalitosScraperResultsTest|ScrapeSourceJobTest|ScrapeResultsJobTest"`; `vendor/bin/pint --test`; `grep -rn "FetchResultsJob" backend --include="*.php" | grep -v vendor` vacío.
-- [ ] 3.6 Commit local: `chore(resultados): retira FetchResultsJob y preserva cobertura del scraper (#81)`.
+- [x] 3.1 Crear `backend/tests/Feature/AnimalitosScraperResultsTest.php` con los 4 tests de persistencia movidos desde `FetchResultsJobTest`.
+- [x] 3.2 Borrar `backend/tests/Feature/FetchResultsJobTest.php`.
+- [x] 3.3 Borrar `backend/app/Jobs/FetchResultsJob.php`.
+- [x] 3.4 Actualizar `docs/dev/estructura.md`, `docs/dev/arquitectura-backend.md` (§5.1, §8.1, §8.4, §8.5, §8.6, §8.7) y `docs/dev/plugins.md`. `docs/dev/auditoria-logs.md` no existe en el worktree (es untracked local).
+- [x] 3.5 Ajustar `backend/tests/Feature/RoutePermissionCoverageTest.php` para no leer `routes/web.php` (retirado en WU-2).
+- [x] 3.6 Verificar: `php artisan test --filter="AnimalitosScraperResultsTest|ScrapeSourceJobTest|ScrapeResultsJobTest|RoutePermissionCoverageTest"`; `vendor/bin/pint --test`; `grep -rn "FetchResultsJob" backend/app backend/tests` vacío.
+- [x] 3.7 Commit local: `chore(resultados): retira FetchResultsJob y ajusta cobertura de rutas (#81)`.
 
 **Rollback:** revertir el commit. Si hay jobs encolados con la clase, drenar/limpiar antes de desplegar.
 
