@@ -6,7 +6,7 @@ use App\Models\Juego;
 use App\Models\JuegoOpcion;
 use App\Models\PluginJuego;
 use App\Plugins\Juegos\Animalitos;
-use App\Plugins\Juegos\Terminales;
+use App\Plugins\Juegos\Tripletas;
 use App\Services\JuegoPluginManager;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -50,11 +50,11 @@ class JuegoPluginManagerTest extends TestCase
 
     public function test_get_multiplicador_devuelve_el_base_desde_config_no_el_del_plugin()
     {
-        // Terminales hardcodea 20 internamente; el reglamento paga 60 (N1/REQ3).
+        // Tripletas hardcodea 30 internamente; el reglamento paga 60.
         // El manager debe devolver el base de config.premios, nunca el del plugin.
         $juego = $this->crearJuegoConPlugin(
             ['premios' => ['base' => 60, 'modalidades' => [], 'comodines' => []]],
-            Terminales::class
+            Tripletas::class
         );
 
         $multiplicador = app(JuegoPluginManager::class)->getMultiplicador($juego);

@@ -7,7 +7,7 @@ namespace App\Plugins\Contracts;
  * (p. ej. la tripleta multi-sorteo de animalitos).
  *
  * No se agrega a `JuegoInterface` para no romper los plugins de un solo
- * resultado (`Tripletas`, `Terminales`) ni sus call sites. El manager consulta
+ * resultado (`Tripletas`) ni sus call sites. El manager consulta
  * esta interfaz solo cuando el settlement lo necesita.
  */
 interface JuegoMultiSorteoInterface

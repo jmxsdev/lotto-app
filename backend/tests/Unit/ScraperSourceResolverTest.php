@@ -59,28 +59,27 @@ class ScraperSourceResolverTest extends TestCase
         $this->assertCount(4, $fuente->juegoIds, 'La fuente debe contener los 4 juego_ids de la familia.');
     }
 
-    public function test_trio_y_terminal_son_fuentes_distintas_entre_si(): void
+    public function test_trio_activo_es_fuente_propia_distinta_de_animalitos(): void
     {
+        $this->crearJuego([
+            'slug' => 'lotto-activo',
+            'name' => 'Lotto Activo',
+            'scraper_url' => 'https://www.lottoactivo.com/resultados/animalitos/',
+        ]);
         $this->crearJuego([
             'slug' => 'trio-activo',
             'name' => 'Trío Activo',
             'type' => 'tripletas',
             'scraper_url' => 'https://www.lottoactivo.com/resultados/trio_activo/',
         ]);
-        $this->crearJuego([
-            'slug' => 'terminal-activo',
-            'name' => 'Terminal Activo',
-            'type' => 'terminales',
-            'scraper_url' => 'https://www.lottoactivo.com/resultados/terminal_activo/',
-        ]);
 
         $fuentes = app(ScraperSourceResolver::class)->sources();
 
         $this->assertCount(2, $fuentes);
         $claves = collect($fuentes)->pluck('key')->all();
+        $this->assertContains('lottoactivo-animalitos', $claves);
         $this->assertContains('lottoactivo-trio_activo', $claves);
-        $this->assertContains('lottoactivo-terminal_activo', $claves);
-        $this->assertNotSame($fuentes[0]->key, $fuentes[1]->key, 'Trio y terminal comparten host pero tienen feeds distintos.');
+        $this->assertNotSame($fuentes[0]->key, $fuentes[1]->key, 'Trío Activo y animalitos comparten host pero tienen feeds distintos.');
     }
 
     public function test_resto_un_juego_por_fuente(): void
@@ -177,7 +176,7 @@ class ScraperSourceResolverTest extends TestCase
     {
         $juego = $this->crearJuego([
             'slug' => 'tipo-sin-scraper',
-            'type' => 'terminales',
+            'type' => 'bingo',
             'scraper_url' => 'https://otrafuente.com/resultados/',
         ]);
 
@@ -247,7 +246,7 @@ class ScraperSourceResolverTest extends TestCase
     public function test_fallback_convencion_devuelve_null_si_clase_no_existe(): void
     {
         $juego = $this->crearJuego([
-            'type' => 'terminales',
+            'type' => 'bingo',
             'scraper_url' => 'https://otrafuente.com/resultados/',
         ]);
 

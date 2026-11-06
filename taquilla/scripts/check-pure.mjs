@@ -97,28 +97,25 @@ function ok(condicion, mensaje) {
   }
 }
 
-console.log('== REQ-CL-01: 21 juegos bundled ==');
+console.log('== REQ-CL-01: 20 juegos bundled ==');
 ok(catalogo.version === 1, `version === 1 (${catalogo.version})`);
-ok(catalogo.juegos.length === 21, `21 juegos (${catalogo.juegos.length})`);
+ok(catalogo.juegos.length === 20, `20 juegos (${catalogo.juegos.length})`);
 
-console.log('\n== REQ-CL-02: familias de opciones (11/9/1 por tipo + split por juego) ==');
+console.log('\n== REQ-CL-02: familias de opciones (11/9 por tipo + split por juego) ==');
 const porTipo = {};
 for (const j of catalogo.juegos) porTipo[j.tipo] = (porTipo[j.tipo] ?? 0) + 1;
 ok(porTipo.animalitos === 11, `tipo animalitos: 11 (${porTipo.animalitos})`);
 ok(porTipo.tripletas === 9, `tipo tripletas: 9 (${porTipo.tripletas})`);
-ok(porTipo.terminales === 1, `tipo terminales: 1 (${porTipo.terminales})`);
 
 const porFamilia = {};
 for (const j of catalogo.juegos) porFamilia[j.familia] = (porFamilia[j.familia] ?? 0) + 1;
 ok(porFamilia.animalitos === 11, `familia animalitos: 11 (${porFamilia.animalitos})`);
 ok(porFamilia.zodiacal === 7, `familia zodiacal: 7 (${porFamilia.zodiacal})`);
 ok(porFamilia.numerica === 2, `familia numérica: 2 (${porFamilia.numerica})`);
-ok(porFamilia.terminal === 1, `familia terminal: 1 (${porFamilia.terminal})`);
 
 const familiaEsperada = {
   'lotto-activo': 'animalitos',
   'triple-zulia': 'zodiacal',
-  'terminal-activo': 'terminal',
   'lotto-activo-rd': 'animalitos',
   'lotto-activo-rep-dom': 'animalitos',
   'monje-millonario': 'animalitos',
@@ -144,11 +141,10 @@ for (const [slug, familia] of Object.entries(familiaEsperada)) {
 }
 ok(catalogo.porSlug.get('triple-zulia').opciones.length === 12, 'triple-zulia: 12 signos (zodiacal)');
 ok(catalogo.porSlug.get('trio-activo').opciones.length === 100, 'trio-activo: 100 opciones (numérica)');
-ok(catalogo.porSlug.get('terminal-activo').opciones.length === 100, 'terminal-activo: 100 opciones (terminal)');
 
 console.log('\n== Índices por id/slug (A5) ==');
-ok(catalogo.porId.size === 21, `índice porId: 21 (${catalogo.porId.size})`);
-ok(catalogo.porSlug.size === 21, `índice porSlug: 21 (${catalogo.porSlug.size})`);
+ok(catalogo.porId.size === 20, `índice porId: 20 (${catalogo.porId.size})`);
+ok(catalogo.porSlug.size === 20, `índice porSlug: 20 (${catalogo.porSlug.size})`);
 ok(catalogo.porId.get(1)?.slug === 'lotto-activo', 'porId[1] → lotto-activo');
 ok(catalogo.porSlug.get('triple-zulia')?.id === 2, 'porSlug[triple-zulia] → id 2');
 
@@ -177,13 +173,13 @@ ok(
 ok(dup0.every((o) => o.numero === 0), 'ambas coincidencias con numero 0');
 
 console.log('\n== REQ-KB-06: búsqueda por dígito (multi-dígito y terminal "05") ==');
-const terminal = catalogo.porSlug.get('terminal-activo');
-const t05 = buscarPorDigito(terminal, '05');
+const trioOpciones = catalogo.porSlug.get('trio-activo');
+const t05 = buscarPorDigito(trioOpciones, '05');
 ok(
   t05.length === 1 && t05[0].numero === 5 && t05[0].label === '05',
-  `terminal "05" → numero 5, label "05" (${t05.map((o) => o.label).join(',')})`,
+  `trio-activo "05" → numero 5, label "05" (${t05.map((o) => o.label).join(',')})`,
 );
-ok(buscarPorDigito(terminal, '5').length === 0, 'terminal "5" sin padding → 0 coincidencias (exige "05")');
+ok(buscarPorDigito(trioOpciones, '5').length === 0, 'trio-activo "5" sin padding → 0 coincidencias (exige "05")');
 const mono = buscarPorDigito(lottoActivo, '13');
 ok(mono.length === 1 && mono[0].label === 'Mono', `animal "13" → Mono (${mono.map((o) => o.label).join(',')})`);
 ok(buscarPorDigito(lottoActivo, 'abc').length === 0, 'dígitos no numéricos → 0 coincidencias');
@@ -230,7 +226,7 @@ ok(buscarPorDigito(legacyJuego, '1').length === 1, 'búsqueda funciona tras salv
 
 console.log('\n== Buffer multi-dígito (700ms / Enter) ==');
 let resultado = null;
-const buscador = crearBuscadorDigitos(terminal, (coincidencias, buffer) => {
+const buscador = crearBuscadorDigitos(trioOpciones, (coincidencias, buffer) => {
   resultado = { coincidencias, buffer };
 });
 buscador.teclear('0');
@@ -238,7 +234,7 @@ buscador.teclear('5');
 buscador.commit();
 ok(
   resultado && resultado.buffer === '05' && resultado.coincidencias.length === 1 && resultado.coincidencias[0].numero === 5,
-  `buffer "05" + commit(Enter) → terminal 05 (${resultado?.coincidencias.map((o) => o.label).join(',') ?? 'sin resultado'})`,
+  `buffer "05" + commit(Enter) → trio-activo 05 (${resultado?.coincidencias.map((o) => o.label).join(',') ?? 'sin resultado'})`,
 );
 resultado = null;
 const buscador2 = crearBuscadorDigitos(lottoActivo, (coincidencias, buffer) => {
@@ -765,7 +761,7 @@ for (const slug of zodiacales) {
   ok(juego.opciones.every((o) => siglaDeSigno(juego, o.label) === o.value), `${slug}: siglaDeSigno(label) === value`);
 }
 // la-ricachona (motor-premios): inactiva y no vendible → el export no trae
-// opciones ni premios; el catálogo la conserva (21 juegos) pero la UI la filtra.
+// opciones ni premios; el catálogo la conserva (20 juegos) pero la UI la filtra.
 const ricachona = catalogo.porSlug.get('la-ricachona');
 ok(ricachona.familia === 'zodiacal' && ricachona.opciones.length === 0, 'la-ricachona: inactiva, sin opciones (zodiacal por tipo)');
 ok(ricachona.active === false && ricachona.vendible === false, 'la-ricachona: active=false/vendible=false (motor-premios)');
@@ -790,7 +786,7 @@ ok(
 );
 ok(premios(lottoActivo).base === 30 && premios(lottoActivo).base === lottoActivo.premio_multiplo, 'lotto-activo: premios(juego).base 30× (espejo de premio_multiplo)');
 const conBase = catalogo.juegos.filter((j) => typeof premios(j).base === 'number' && premios(j).base > 0).length;
-ok(conBase === 20, `20/21 juegos con premios.base no vacío (${conBase})`);
+ok(conBase === 19, `19/20 juegos con premios.base no vacío (${conBase})`);
 ok(premios(ricachona).base === null && Object.keys(premios(ricachona).modalidades).length === 0, 'la-ricachona: premios normalizados vacíos (base null)');
 ok(ricachona.vendible === false && ricachona.premios === null, 'la-ricachona: vendible=false y premios crudo null (D1)');
 const zuliaPremios = premios(catalogo.porSlug.get('triple-zulia'));

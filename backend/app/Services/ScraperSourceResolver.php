@@ -15,7 +15,7 @@ use Illuminate\Support\Str;
  * Reglas de consolidación:
  * - Feed `animalitos` de lottoactivo.com (Lotto Activo, RD Internacional,
  *   RD República Dominicana, Monje Millonario) → fuente `lottoactivo-animalitos`.
- * - Trio Activo / Terminal Activo → feed propio (`trio_activo`/`terminal_activo`).
+ * - Trio Activo → feed propio (`trio_activo`).
  * - Resto de juegos → 1 fuente por juego (key = slug del juego).
  *
  * La resolución de clase replica el contrato anterior de ScrapeResultsJob:
@@ -27,8 +27,6 @@ class ScraperSourceResolver
     public const KEY_ANIMALITOS = 'lottoactivo-animalitos';
 
     public const KEY_TRIO_ACTIVO = 'lottoactivo-trio_activo';
-
-    public const KEY_TERMINAL_ACTIVO = 'lottoactivo-terminal_activo';
 
     /**
      * Todas las fuentes con sus miembros, agrupadas por feed.
@@ -174,9 +172,6 @@ class ScraperSourceResolver
 
         if (str_contains($url, 'trio_activo')) {
             return 'trio_activo';
-        }
-        if (str_contains($url, 'terminal_activo')) {
-            return 'terminal_activo';
         }
 
         return 'animalitos';

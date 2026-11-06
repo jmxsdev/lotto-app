@@ -10,11 +10,11 @@ use Tests\TestCase;
 
 /**
  * F1d 1.17 — Regresión por juego (REQ16, design §8): mínimo un caso por cada
- * uno de los 21 juegos + comodines, pasando por el camino REAL de producción
+ * uno de los 20 juegos + comodines, pasando por el camino REAL de producción
  * (manager → PremiosEngine → plugin evaluarAcierto) contra la BD sembrada
  * con `config.premios` del catálogo oficial.
  *
- * Cubre: multiplicador base del reglamento, acentos (H13/N10), terminal (N1),
+ * Cubre: multiplicador base del reglamento, acentos (H13/N10),
  * signos label/sigla (N2), tipo estricto (REQ5), comodines MEGA/Selva/
  * Guacharito/Guácharo/Patronus (incluido 75 + palabra = 140×) y el juego
  * inactivo (la-ricachona → 0).
@@ -94,30 +94,6 @@ class MotorPremiosRegresionTest extends TestCase
             ['animal' => 'Gato', 'numero' => 11],
             ['numero' => 11, 'nombre_animal' => 'Gato'],
             30
-        );
-    }
-
-    // ---------------- Terminal (N1) ----------------
-
-    public function test_terminal_activo_numero_37_60x(): void
-    {
-        // REQ3/N1: paga contra la clave `numero` del resultado, 60×.
-        $this->assertPremio(
-            'terminal-activo',
-            ['numero' => 37],
-            ['numero' => 37],
-            60
-        );
-    }
-
-    public function test_terminal_activo_numero_con_padding_60x(): void
-    {
-        // N9: "7" ≡ "07" por padding a 2 cifras.
-        $this->assertPremio(
-            'terminal-activo',
-            ['numero' => 7],
-            ['numero' => '07'],
-            60
         );
     }
 

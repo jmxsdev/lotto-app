@@ -18,15 +18,6 @@
     "notas": "og:image oficial del sitio del juego. 1085x1085."
   },
   {
-    "slug": "terminal-activo",
-    "nombre": "Terminal Activo",
-    "file": "terminal-activo.webp",
-    "source_page": "https://www.lottoactivo.com/",
-    "image_url": "https://admin.lottoactivo.com/dist/files_img/Terminal_Trio.webp",
-    "fetched_at": "2026-09-25T11:54:47-04:00",
-    "notas": "Logo de producto oficial (nombre en la API: 'Terminal Trio'). 277x160. Bytes idénticos a trio-activo.webp: la fuente oficial sirve el mismo archivo para ambos productos."
-  },
-  {
     "slug": "lotto-activo-rd",
     "nombre": "Lotto Activo RD Internacional",
     "file": "lotto-activo-rd.webp",
@@ -60,7 +51,7 @@
     "source_page": "https://www.lottoactivo.com/",
     "image_url": "https://admin.lottoactivo.com/dist/files_img/Trio_Activo.webp",
     "fetched_at": "2026-09-25T11:54:45-04:00",
-    "notas": "Logo de producto oficial 'Trío Activo' (endpoint de productos de lottoactivo.com). 277x160. Bytes idénticos a terminal-activo.webp (duplicación en la fuente oficial)."
+    "notas": "Logo de producto oficial 'Trío Activo' (endpoint de productos de lottoactivo.com). 277x160."
   },
   {
     "slug": "triple-caliente",

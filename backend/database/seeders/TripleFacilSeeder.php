@@ -63,7 +63,7 @@ class TripleFacilSeeder extends Seeder
         // producto terminal aparte en lotterly: 400 "product_slug does not
         // exist"). El triple es entrada libre y queda documentado en config.
         // label con padding ("00".."99"), value sin padding ("0".."99"),
-        // numero 0..99 (mismo patrón que el plugin Terminales).
+        // numero 0..99 (mismo patrón que las opciones numéricas 00-99).
         foreach (range(0, 99) as $num) {
             JuegoOpcion::firstOrCreate(
                 ['juego_id' => $juego->id, 'value' => (string) $num],

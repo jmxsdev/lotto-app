@@ -128,20 +128,6 @@ class VerificacionOriginalesTest extends TestCase
         );
     }
 
-    public function test_terminal_activo_premio_60_del_reglamento(): void
-    {
-        // Evidencia: reglamento oficial Trio_Activo.pdf (idéntico al enlazado
-        // como Terminal_Trio.pdf en el sitio oficial — mismo md5) declara la
-        // modalidad TERMINAL en 60×. La informativa coincide (60×). El FAQ
-        // oficial declara 70× + 5× aproximación → discrepancia documentada
-        // (H12); se usa el valor del reglamento (patrón Táchira).
-        $juego = Juego::where('slug', 'terminal-activo')->firstOrFail();
-        $this->assertSame(60, $juego->config['premio_multiplo']);
-
-        // 12 horarios oficiales 08:00–19:00 (feed) y 100 opciones 00-99 (plugin).
-        $this->assertCount(12, $juego->horarios);
-    }
-
     public function test_triple_zulia_horarios_y_signos_oficiales(): void
     {
         // Evidencia: API oficial resultadostriplezulia.com (product_id 2):

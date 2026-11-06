@@ -238,7 +238,7 @@ class PremiosEngineTest extends TestCase
     public function test_calcular_redondea_premio_a_2_decimales()
     {
         // REQ8: premio calculado en 1.23456 se persiste como 1.23.
-        $juego = $this->juego('terminal-activo', ['base' => 1, 'modalidades' => [], 'comodines' => []]);
+        $juego = $this->juego('trio-activo', ['base' => 1, 'modalidades' => [], 'comodines' => []]);
         $engine = $this->motorCon($this->pluginConAcierto(['coincide' => true, 'clave' => 'base', 'meta' => []]));
 
         $premio = $engine->calcular($juego, ['amount_bs' => 1.23456, 'amount_usd' => 0], []);

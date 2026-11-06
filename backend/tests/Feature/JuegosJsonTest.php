@@ -21,15 +21,16 @@ class JuegosJsonTest extends TestCase
     private array $generado;
 
     /**
-     * Orden de siembra del DatabaseSeeder: los ids 1..15 deben coincidir
-     * con el archivo commiteado (contrato estable para el front/taquilla).
+     * Orden de siembra del DatabaseSeeder: el archivo commiteado conserva el
+     * contrato estable de ids para el front/taquilla. El id 3 queda como hueco
+     * porque `terminal-activo` (tercer juego sembrado) fue retirado del
+     * catálogo; los ids no se renumeran (D9).
      *
      * @var array<int, string>
      */
     private const SLUGS_POR_ID = [
         1 => 'lotto-activo',
         2 => 'triple-zulia',
-        3 => 'terminal-activo',
         4 => 'lotto-activo-rd',
         5 => 'lotto-activo-rep-dom',
         6 => 'monje-millonario',
@@ -112,7 +113,7 @@ class JuegosJsonTest extends TestCase
     public function test_esquema_minimo_y_conteos_de_opciones_por_tipo(): void
     {
         $this->assertSame(1, $this->generado['version']);
-        $this->assertCount(21, $this->generado['juegos']);
+        $this->assertCount(20, $this->generado['juegos']);
 
         $porSlug = collect($this->generado['juegos'])->keyBy('slug');
 
@@ -145,7 +146,6 @@ class JuegosJsonTest extends TestCase
 
         // premio_multiplo desde config del juego (espejo legacy de premios.base)
         $this->assertSame(30, $porSlug['lotto-activo']['premio_multiplo']);
-        $this->assertSame(60, $porSlug['terminal-activo']['premio_multiplo']);
         $this->assertSame(600, $porSlug['trio-activo']['premio_multiplo']);
 
         // Contrato del motor (D10): `premios` canónico exportado aditivamente.
@@ -234,7 +234,6 @@ class JuegosJsonTest extends TestCase
             'triple-zamorano modalidades'
         );
         $this->assertEqualsCanonicalizing(['terminal' => 60, 'punta' => 60], $porSlug['trio-activo']['modalidades'], 'trio-activo modalidades');
-        $this->assertEqualsCanonicalizing(['terminal' => 60], $porSlug['terminal-activo']['modalidades'], 'terminal-activo modalidades');
         $this->assertEqualsCanonicalizing(['tripleta' => 200], $porSlug['cazaloton']['modalidades'], 'cazaloton modalidades');
         $this->assertEqualsCanonicalizing(['terminal' => 60, 'aproximacion' => 10], $porSlug['triple-facil']['modalidades'], 'triple-facil modalidades');
         $this->assertSame(200000, $porSlug['triple-chance']['modalidades']['triple_a_b']);
@@ -244,11 +243,6 @@ class JuegosJsonTest extends TestCase
         // lotto-activo: 38 animales desde tabla juego_opciones
         $this->assertCount(38, $porSlug['lotto-activo']['opciones']);
         $this->assertSame('Delfín', $porSlug['lotto-activo']['opciones'][1]['label'], 'Acentos correctos desde la tabla.');
-
-        // terminal-activo: 100 números 00-99 desde el plugin Terminales
-        $this->assertCount(100, $porSlug['terminal-activo']['opciones']);
-        $this->assertSame('00', $porSlug['terminal-activo']['opciones'][0]['label']);
-        $this->assertSame('99', $porSlug['terminal-activo']['opciones'][99]['label']);
 
         // tripletas con tabla: 12 signos
         foreach (['triple-zulia', 'triple-caliente', 'triple-chance', 'el-arrejuntado', 'triple-zamorano'] as $slug) {
@@ -405,7 +399,7 @@ class JuegosJsonTest extends TestCase
 
         // triple-facil: 100 opciones de TERMINAL PROPIAS desde la tabla
         // juego_opciones (label "00".."99" con padding, value "0".."99" sin
-        // padding, numero 0..99 — patrón del plugin Terminales) y premios
+        // padding, numero 0..99 — patrón de las opciones numéricas 00-99) y premios
         // INFORMATIVOS documentados (el sitio oficial no publica cifras):
         // triple completo 700×, terminal 60×, aproximación 10×.
         $this->assertCount(100, $porSlug['triple-facil']['opciones']);
@@ -465,7 +459,7 @@ class JuegosJsonTest extends TestCase
         for ($i = 1; $i < count($idsGenerados); $i++) {
             $this->assertSame(1, $idsGenerados[$i] - $idsGenerados[$i - 1], 'Los ids generados deben ser estrictamente consecutivos.');
         }
-        $this->assertSame(21, count($idsGenerados), 'Deben ser exactamente 21 juegos.');
+        $this->assertSame(20, count($idsGenerados), 'Deben ser exactamente 20 juegos.');
     }
 
     /**

@@ -14,7 +14,7 @@ use Tests\TestCase;
  * GET /api/v1/resultados/{resultado}/apariciones — tracker de apariciones previas.
  *
  * Identidad server-side por tipo (design D1/D2):
- *  - animalitos/terminales → valor `numero` del JSON de la fila clicada (sin params);
+ *  - animalitos → valor `numero` del JSON de la fila clicada (sin params);
  *  - tripletas → ?posicion (whitelist triple_a|triple_b|triple_c) + signo de la fila
  *    cuando es no-nulo.
  * Orden fecha_sorteo DESC, luego hora_sorteo DESC; cap FIJO 5; exclusion del sorteo
@@ -96,7 +96,7 @@ class ResultadoAparicionesTest extends TestCase
     }
 
     // ==================================================
-    // C2 — Identidad por numero (animalitos/terminales)
+    // C2 — Identidad por numero (animalitos)
     // ==================================================
 
     public function test_apariciones_animalitos_identidad_numero_ordena_desc_y_excluye_clicada()
@@ -143,48 +143,6 @@ class ResultadoAparicionesTest extends TestCase
         // C4: la fila clicada jamás aparece; el ruido numero:8 tampoco
         $this->assertNotContains($clicada->id, $ids);
         $this->assertNotContains($ruido->id, $ids);
-    }
-
-    public function test_apariciones_terminales_identidad_por_numero()
-    {
-        $terminales = $this->juego('terminal-activo');
-
-        $previa1 = $this->crearResultado(
-            $terminales,
-            ['numero' => 42],
-            Carbon::yesterday()->setTime(19, 0, 0),
-            '19:00'
-        );
-        $previa2 = $this->crearResultado(
-            $terminales,
-            ['numero' => 42],
-            Carbon::today()->setTime(12, 45, 0),
-            '12:45'
-        );
-        $clicada = $this->crearResultado(
-            $terminales,
-            ['numero' => 42],
-            Carbon::today()->setTime(19, 5, 0),
-            '19:05'
-        );
-        $ruido = $this->crearResultado(
-            $terminales,
-            ['numero' => 43],
-            Carbon::today()->setTime(11, 0, 0),
-            '11:00'
-        );
-
-        $response = $this->actingAs($this->userByRole('master'), 'sanctum')
-            ->getJson('/api/v1/resultados/'.$clicada->id.'/apariciones');
-
-        $response->assertStatus(200);
-        $data = $response->json();
-
-        // Solo las filas con numero 42 (previa2 más reciente por hora desc)
-        $this->assertCount(2, $data);
-        $this->assertEquals([$previa2->id, $previa1->id], array_column($data, 'id'));
-        $this->assertNotContains($clicada->id, array_column($data, 'id'));
-        $this->assertNotContains($ruido->id, array_column($data, 'id'));
     }
 
     public function test_apariciones_tolerancia_fila_sin_numero_devuelve_vacio()
@@ -409,11 +367,11 @@ class ResultadoAparicionesTest extends TestCase
 
     public function test_apariciones_sin_historial_devuelve_array_vacio()
     {
-        $terminales = $this->juego('terminal-activo');
+        $animalitos = $this->juego('lotto-activo');
 
         // Única fila del juego: sin apariciones previas posibles
         $unica = $this->crearResultado(
-            $terminales,
+            $animalitos,
             ['numero' => 5],
             Carbon::today()->setTime(19, 0, 0),
             '19:00'
