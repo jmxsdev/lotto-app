@@ -21,7 +21,7 @@ return [
 
     'fail_closed_domains' => array_values(array_filter(array_map(
         'trim',
-        explode(',', (string) env('AUDIT_FAIL_CLOSED_DOMAINS', 'auth,users,money')),
+        explode(',', (string) env('AUDIT_FAIL_CLOSED_DOMAINS', '*')),
     ))),
 
     'hash_chain' => (bool) env('AUDIT_HASH_CHAIN', false),
