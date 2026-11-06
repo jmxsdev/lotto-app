@@ -231,7 +231,7 @@ class AlcanceJerarquicoUsuariosTest extends TestCase
         $target = User::where('email', 'grupo@lotto.com')->firstOrFail();
 
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
-            ->deleteJson('/api/v1/users/'.$target->id);
+            ->deleteJson('/api/v1/users/'.$target->id, ['reason_code' => 'employee_offboarding']);
 
         $response->assertStatus(200);
         $this->assertDatabaseMissing('users', ['id' => $target->id]);
@@ -242,7 +242,7 @@ class AlcanceJerarquicoUsuariosTest extends TestCase
         $target = User::where('email', 'taquilla@lotto.com')->firstOrFail();
 
         $response = $this->actingAs($this->grupoUser(), 'sanctum')
-            ->deleteJson('/api/v1/users/'.$target->id);
+            ->deleteJson('/api/v1/users/'.$target->id, ['reason_code' => 'employee_offboarding']);
 
         $response->assertStatus(200);
         $this->assertDatabaseMissing('users', ['id' => $target->id]);
@@ -272,7 +272,7 @@ class AlcanceJerarquicoUsuariosTest extends TestCase
         ]);
 
         $response = $this->actingAs($agencia, 'sanctum')
-            ->deleteJson('/api/v1/users/'.$target->id);
+            ->deleteJson('/api/v1/users/'.$target->id, ['reason_code' => 'employee_offboarding']);
 
         $response->assertStatus(200);
         $this->assertDatabaseMissing('users', ['id' => $target->id]);
@@ -300,7 +300,7 @@ class AlcanceJerarquicoUsuariosTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
-            ->deleteJson('/api/v1/users/'.$target->id);
+            ->deleteJson('/api/v1/users/'.$target->id, ['reason_code' => 'employee_offboarding']);
 
         $response->assertStatus(403);
         $this->assertDatabaseHas('users', ['id' => $target->id]);

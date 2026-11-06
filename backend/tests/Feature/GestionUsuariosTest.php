@@ -321,7 +321,7 @@ class GestionUsuariosTest extends TestCase
         $taquillaUser = User::where('email', 'taquilla@lotto.com')->first();
 
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
-            ->deleteJson('/api/v1/users/'.$taquillaUser->id);
+            ->deleteJson('/api/v1/users/'.$taquillaUser->id, ['reason_code' => 'employee_offboarding']);
 
         $response->assertStatus(200);
 
@@ -348,7 +348,7 @@ class GestionUsuariosTest extends TestCase
         $taquillaUser = User::where('email', 'taquilla@lotto.com')->first();
 
         $response = $this->actingAs($master, 'sanctum')
-            ->deleteJson('/api/v1/users/'.$taquillaUser->id);
+            ->deleteJson('/api/v1/users/'.$taquillaUser->id, ['reason_code' => 'employee_offboarding']);
 
         $response->assertStatus(200);
 

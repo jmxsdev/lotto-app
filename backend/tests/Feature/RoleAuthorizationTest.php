@@ -95,7 +95,7 @@ class RoleAuthorizationTest extends TestCase
         $target = User::where('email', 'taquilla@lotto.com')->firstOrFail();
 
         $this->actingAs($banca, 'sanctum')
-            ->deleteJson('/api/v1/users/'.$target->id)
+            ->deleteJson('/api/v1/users/'.$target->id, ['reason_code' => 'employee_offboarding'])
             ->assertStatus(200);
 
         $this->assertDatabaseMissing('users', ['id' => $target->id]);
@@ -107,7 +107,7 @@ class RoleAuthorizationTest extends TestCase
         $target = User::where('email', 'demo@lotto.com')->firstOrFail();
 
         $this->actingAs($grupo, 'sanctum')
-            ->deleteJson('/api/v1/users/'.$target->id)
+            ->deleteJson('/api/v1/users/'.$target->id, ['reason_code' => 'employee_offboarding'])
             ->assertStatus(200);
 
         $this->assertDatabaseMissing('users', ['id' => $target->id]);
@@ -133,7 +133,7 @@ class RoleAuthorizationTest extends TestCase
         ]);
 
         $this->actingAs($agencia, 'sanctum')
-            ->deleteJson('/api/v1/users/'.$target->id)
+            ->deleteJson('/api/v1/users/'.$target->id, ['reason_code' => 'employee_offboarding'])
             ->assertStatus(200);
 
         $this->assertDatabaseMissing('users', ['id' => $target->id]);

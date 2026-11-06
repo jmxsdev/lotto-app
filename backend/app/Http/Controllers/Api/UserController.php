@@ -2,6 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Audit\AuditAction;
+use App\Audit\AuditEventData;
+use App\Audit\AuditReason;
+use App\Audit\AuditRecorder;
+use App\Audit\AuditScopeResolver;
 use App\Http\Controllers\Controller;
 use App\Models\Agencia;
 use App\Models\Grupo;
@@ -11,6 +16,7 @@ use App\Models\User;
 use App\Policies\UserPolicy;
 use App\Support\Scope\AlcanceService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -84,7 +90,7 @@ class UserController extends Controller
      * Acepta vínculos de entidad (banca_id/grupo_id/taquilla_id) con
      * autorización jerárquica y derivación automática de la cadena.
      */
-    public function store(Request $request)
+    public function store(Request $request, AuditRecorder $recorder)
     {
         $user = $request->user();
 
@@ -117,9 +123,19 @@ class UserController extends Controller
         // Verificar que el usuario autenticado pueda asignar este rol y vínculos
         $this->authorizeEntityBinding($user, $data, $request->role);
 
-        $newUser = DB::transaction(function () use ($request, $data) {
+        $newUser = DB::transaction(function () use ($request, $data, $recorder) {
             $newUser = User::create($data);
             $newUser->syncRoles([$request->role]);
+
+            // P0 fail-closed: the audit row shares the transaction with the
+            // account, so a write failure rolls the user back.
+            $recorder->record(AuditAction::UserCreated, new AuditEventData(
+                action: AuditAction::UserCreated,
+                entityType: 'user',
+                entityId: (int) $newUser->id,
+                scope: app(AuditScopeResolver::class)->forModel($newUser),
+                after: $this->auditUserSnapshot($newUser),
+            ));
 
             return $newUser;
         });
@@ -227,11 +243,34 @@ class UserController extends Controller
      * Eliminar un usuario (super_master global; master/banca/grupo/agencia
      * solo dentro de su subárbol o sobre sus creados, siempre de rango menor).
      */
-    public function destroy(User $user)
+    public function destroy(Request $request, User $user, AuditRecorder $recorder)
     {
         $this->authorize('delete', $user);
 
-        $user->delete();
+        $reasonCode = $request->input('reason_code');
+        $reasonText = $request->input('reason_text');
+
+        // P0 fail-closed: a missing or invalid reason throws
+        // AuditValidationException (422) inside the transaction, and the delete
+        // rolls back so the user stays intact.
+        DB::transaction(function () use ($user, $recorder, $reasonCode, $reasonText): void {
+            $snapshot = $this->auditUserSnapshot($user);
+
+            $user->delete();
+
+            $event = (new AuditEventData(
+                action: AuditAction::UserDeleted,
+                entityType: 'user',
+                entityId: (int) $user->id,
+                scope: app(AuditScopeResolver::class)->forModel($user),
+                before: $snapshot,
+            ))->withReason(
+                is_string($reasonCode) ? AuditReason::tryFrom($reasonCode) : null,
+                is_string($reasonText) ? $reasonText : null,
+            );
+
+            $recorder->record(AuditAction::UserDeleted, $event);
+        });
 
         return response()->json(['message' => 'Usuario eliminado correctamente.']);
     }
@@ -256,6 +295,24 @@ class UserController extends Controller
         if (! $allowed) {
             abort(403, 'No tienes permisos para gestionar usuarios con ese rol o vínculo.');
         }
+    }
+
+    // --- Helpers de auditoría ---
+
+    /**
+     * Safe snapshot for user audit events: excludes secrets and timestamps and
+     * appends the Spatie role names. The recorder still redacts PII on write.
+     *
+     * @return array<string, mixed>
+     */
+    private function auditUserSnapshot(User $user): array
+    {
+        return Arr::except($user->getAttributes(), [
+            'password',
+            'remember_token',
+            'updated_at',
+            'created_at',
+        ]) + ['roles' => $user->getRoleNames()->all()];
     }
 
     // --- Helpers de vínculos ---
