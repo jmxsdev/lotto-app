@@ -110,7 +110,7 @@ class PagoIngresoRechazadoTest extends TestCase
         $this->assertSame('pendiente', $apuesta->fresh()->estado);
         $this->assertNull($detalle->fresh()->premio_ganado);
         $this->assertSame('pendiente', $ticket->fresh()->estado, 'Sin cascada al ticket.');
-        $this->assertDatabaseMissing('logs', ['action' => 'pago_premio']);
+        $this->assertDatabaseMissing('audit_events', ['action' => 'pago.prize_paid']);
     }
 
     public function test_ingreso_sobre_apuesta_ganadora_rechazado_preserva_premio_y_ticket(): void

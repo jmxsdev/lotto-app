@@ -3,9 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\Apuesta;
+use App\Models\AuditEvent;
 use App\Models\DetalleApuesta;
 use App\Models\Juego;
-use App\Models\Log;
 use App\Models\Pago;
 use App\Models\Taquilla;
 use App\Models\Ticket;
@@ -100,7 +100,7 @@ class PagoTipoTest extends TestCase
         $this->assertSame('pendiente', $apuesta->fresh()->estado);
         $this->assertNull($detalle->fresh()->premio_ganado);
         $this->assertSame('pendiente', $ticket->fresh()->estado);
-        $this->assertSame(0, Log::count());
+        $this->assertSame(0, AuditEvent::where('action', 'pago.prize_paid')->count());
         $this->assertNotSoftDeleted('apuestas', ['id' => $apuesta->id]);
         $this->assertNotSoftDeleted('tickets', ['id' => $ticket->id]);
     }

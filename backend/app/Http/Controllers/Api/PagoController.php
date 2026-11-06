@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Audit\AuditAction;
+use App\Audit\AuditEventData;
+use App\Audit\AuditRecorder;
+use App\Audit\AuditScopeResolver;
 use App\Http\Controllers\Controller;
 use App\Models\Apuesta;
-use App\Models\Log;
 use App\Models\Pago;
 use App\Models\Ticket;
 use App\Services\PremiosLiquidador;
@@ -16,8 +19,30 @@ use Illuminate\Validation\Rule;
 
 class PagoController extends Controller
 {
+    /**
+     * Business columns captured in the audit `after` snapshot. The surrogate
+     * id, timestamps and any secret are intentionally excluded.
+     *
+     * @var array<int, string>
+     */
+    private const AUDIT_SNAPSHOT_FIELDS = [
+        'taquilla_id',
+        'apuesta_id',
+        'amount_bs',
+        'amount_usd',
+        'exchange_rate_applied',
+        'tipo',
+        'moneda',
+        'metodo_pago',
+        'concepto',
+        'referencia',
+        'created_by',
+    ];
+
     public function __construct(
         private readonly PremiosLiquidador $premios,
+        private readonly AuditRecorder $recorder,
+        private readonly AuditScopeResolver $scopeResolver,
     ) {}
 
     /**
@@ -207,23 +232,29 @@ class PagoController extends Controller
                 }
             }
 
-            // Registrar log de auditoría (solo egreso)
-            Log::create([
-                'user_id' => $user->id,
-                'action' => 'pago_premio',
-                'details' => [
-                    'apuesta_id' => $apuesta->id,
+            // Auditoría P0 fail-closed (WU-5b-1): el pago de premio y su
+            // evidencia se confirman en la MISMA transacción. Si el INSERT de
+            // auditoría falla, la excepción revierte pago, apuesta, detalle y
+            // cascada al ticket (500). El scope sale de la apuesta (que ya
+            // trae `taquilla_id`), no del pago: el resolver presta la cadena
+            // banca/grupo de la taquilla una sola vez.
+            $evento = new AuditEventData(
+                action: AuditAction::PagoPrizePaid,
+                entityType: 'pago',
+                entityId: (int) $pago->getKey(),
+                scope: $this->scopeResolver->forModel($apuesta),
+                before: null,
+                after: $this->auditSnapshot($pago),
+                context: [
+                    'apuesta_id' => (int) $apuesta->id,
                     'ticket_code' => $apuesta->ticket_code,
-                    'animal' => $apuesta->combinacion['animal'] ?? 'N/A',
-                    'premio_bs' => $premio['premio_bs'],
-                    'premio_usd' => $premio['premio_usd'],
-                    'tipo' => 'egreso',
-                    'pago_id' => $pago->id,
+                    'premio_bs' => (float) $premio['premio_bs'],
+                    'premio_usd' => (float) $premio['premio_usd'],
                     'premio_fuente' => 'motor',
                 ],
-                'ip' => $request->ip(),
-                'user_agent' => $request->header('User-Agent'),
-            ]);
+            );
+
+            $this->recorder->critical(AuditAction::PagoPrizePaid, $evento);
 
             return ['pago' => $pago, 'premio' => $premio];
         });
@@ -242,6 +273,25 @@ class PagoController extends Controller
                 'premio_usd' => (float) $resultado['premio']['premio_usd'],
             ],
         ], 201);
+    }
+
+    /**
+     * Safe `after` snapshot of a payment row for the audit trail.
+     *
+     * Only business columns are captured; the surrogate id, timestamps and any
+     * secret are excluded.
+     *
+     * @return array<string, mixed>
+     */
+    private function auditSnapshot(Pago $pago): array
+    {
+        $snapshot = [];
+
+        foreach (self::AUDIT_SNAPSHOT_FIELDS as $field) {
+            $snapshot[$field] = $pago->getAttribute($field);
+        }
+
+        return $snapshot;
     }
 
     /**

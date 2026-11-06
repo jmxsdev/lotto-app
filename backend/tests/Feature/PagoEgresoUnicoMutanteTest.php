@@ -3,9 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\Apuesta;
+use App\Models\AuditEvent;
 use App\Models\DetalleApuesta;
 use App\Models\Juego;
-use App\Models\Log;
 use App\Models\Pago;
 use App\Models\Resultado;
 use App\Models\Taquilla;
@@ -139,7 +139,7 @@ class PagoEgresoUnicoMutanteTest extends TestCase
         $this->assertNull($detalle->fresh()->premio_ganado);
         $this->assertSame('pendiente', $ticket->fresh()->estado);
         $this->assertSame(0, Pago::where('apuesta_id', $apuesta->id)->count());
-        $this->assertSame(0, Log::where('action', 'pago_premio')->count());
+        $this->assertSame(0, AuditEvent::where('action', 'pago.prize_paid')->count());
 
         // 3) egreso -> 201 y unica mutacion.
         $response = $this->pagar($apuesta, ['amount_bs' => 300, 'amount_usd' => 0]);
@@ -157,10 +157,10 @@ class PagoEgresoUnicoMutanteTest extends TestCase
         $this->assertSame('egreso', $pagos->first()->tipo);
         $this->assertEquals(300.00, (float) $pagos->first()->amount_bs);
 
-        $log = Log::where('action', 'pago_premio')->firstOrFail();
-        $this->assertSame('egreso', $log->details['tipo']);
-        $this->assertSame($pagos->first()->id, $log->details['pago_id']);
-        $this->assertEquals(300.0, (float) $log->details['premio_bs']);
+        $event = AuditEvent::where('action', 'pago.prize_paid')->firstOrFail();
+        $this->assertSame('egreso', $event->after['tipo']);
+        $this->assertSame($pagos->first()->id, (int) $event->entity_id);
+        $this->assertEquals(300.0, (float) $event->after['amount_bs']);
     }
 
     public function test_doble_egreso_secuencial_da_un_201_un_422_y_una_sola_fila(): void
@@ -180,7 +180,7 @@ class PagoEgresoUnicoMutanteTest extends TestCase
             'Un egreso nunca se duplica.'
         );
         $this->assertSame('pagada', $apuesta->fresh()->estado);
-        $this->assertSame(1, Log::where('action', 'pago_premio')->count());
+        $this->assertSame(1, AuditEvent::where('action', 'pago.prize_paid')->count());
     }
 
     public function test_el_camino_de_egreso_bloquea_la_apuesta_con_for_update(): void
@@ -313,7 +313,7 @@ class PagoEgresoUnicoMutanteTest extends TestCase
         $this->assertSame('ganadora', $apuesta->fresh()->estado);
         $this->assertNull($apuesta->fresh()->detalles()->first()->premio_ganado);
         $this->assertSame(0, Pago::where('apuesta_id', $apuesta->id)->count());
-        $this->assertSame(0, Log::where('action', 'pago_premio')->count());
+        $this->assertSame(0, AuditEvent::where('action', 'pago.prize_paid')->count());
     }
 
     public function test_cascada_ignora_tickets_soft_deleted(): void
