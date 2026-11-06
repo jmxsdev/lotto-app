@@ -2,6 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Audit\AuditAction;
+use App\Audit\AuditEventData;
+use App\Audit\AuditReason;
+use App\Audit\AuditRecorder;
+use App\Audit\AuditScopeResolver;
 use App\Http\Controllers\Controller;
 use App\Models\Banca;
 use App\Models\Grupo;
@@ -9,14 +14,30 @@ use App\Models\User;
 use App\Services\JuegoLimiteService;
 use App\Support\Scope\AlcanceService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 
 class GrupoController extends Controller
 {
+    /**
+     * Safe grupo attributes captured in audit before/after payloads.
+     *
+     * Timestamps, the soft-delete marker and internal columns are excluded.
+     *
+     * @var array<int, string>
+     */
+    private const GRUPO_AUDIT_FIELDS = [
+        'name', 'code', 'banca_id', 'active', 'monedas_permitidas',
+        'vigencia_premios', 'tiempo_eliminacion', 'created_by', 'rif',
+        'email', 'telefono', 'direccion', 'estado', 'municipio',
+    ];
+
     public function __construct(
         private readonly AlcanceService $alcance,
+        private readonly AuditRecorder $audit,
+        private readonly AuditScopeResolver $scopeResolver,
     ) {}
 
     /**
@@ -66,6 +87,8 @@ class GrupoController extends Controller
             'municipio' => 'nullable|string|max:100',
             // Create mode: límites iniciales persistidos en la misma transacción
             'limites' => 'nullable|array',
+            'reason_code' => 'nullable|string|max:64',
+            'reason_text' => 'nullable|string|max:500',
         ]);
 
         // Verificar que el usuario tenga acceso a la banca
@@ -106,8 +129,9 @@ class GrupoController extends Controller
 
         $grupo = null;
         $userCreado = null;
+        [$reason, $reasonText] = $this->auditReason($request);
 
-        DB::transaction(function () use ($request, $user, &$grupo, &$userCreado) {
+        DB::transaction(function () use ($request, $user, &$grupo, &$userCreado, $reason, $reasonText) {
             $grupo = Grupo::create([
                 'name' => $request->name,
                 'code' => $request->code,
@@ -125,6 +149,15 @@ class GrupoController extends Controller
                 'municipio' => $request->municipio,
             ]);
 
+            // P1 best-effort: creation evidence never blocks the entity.
+            $this->audit->record(AuditAction::GrupoCreated, (new AuditEventData(
+                action: AuditAction::GrupoCreated,
+                entityType: 'grupo',
+                entityId: (int) $grupo->id,
+                scope: $this->scopeResolver->forModel($grupo),
+                after: $this->grupoSnapshot($grupo),
+            ))->withReason($reason, $reasonText));
+
             $userCreado = User::create([
                 'created_by' => $user->id,
                 'name' => $request->user_name,
@@ -136,6 +169,16 @@ class GrupoController extends Controller
             ]);
 
             $userCreado->assignRole('grupo');
+
+            // P0 fail-closed: the generated operator shares the transaction
+            // with the grupo, so a failed insert rolls everything back.
+            $this->audit->record(AuditAction::UserCreated, (new AuditEventData(
+                action: AuditAction::UserCreated,
+                entityType: 'user',
+                entityId: (int) $userCreado->id,
+                scope: $this->scopeResolver->forModel($userCreado),
+                after: $this->grupoUserSnapshot($userCreado),
+            ))->withReason($reason, $reasonText));
 
             // Límites iniciales (create mode): atómicos con la entidad.
             // Cualquier error de validación/restrictividad revierte TODO.
@@ -190,6 +233,8 @@ class GrupoController extends Controller
             'direccion' => 'nullable|string|max:255',
             'estado' => 'nullable|string|max:100',
             'municipio' => 'nullable|string|max:100',
+            'reason_code' => 'nullable|string|max:64',
+            'reason_text' => 'nullable|string|max:500',
         ]);
 
         if ($request->has('banca_id')) {
@@ -228,7 +273,46 @@ class GrupoController extends Controller
             }
         }
 
-        $grupo->update($request->only(['name', 'code', 'banca_id', 'active', 'monedas_permitidas', 'vigencia_premios', 'tiempo_eliminacion', 'rif', 'email', 'telefono', 'direccion', 'estado', 'municipio']));
+        $data = $request->only(['name', 'code', 'banca_id', 'active', 'monedas_permitidas', 'vigencia_premios', 'tiempo_eliminacion', 'rif', 'email', 'telefono', 'direccion', 'estado', 'municipio']);
+        $before = $this->grupoSnapshot($grupo);
+        $bancaIdBefore = $grupo->banca_id !== null ? (int) $grupo->banca_id : null;
+        [$reason, $reasonText] = $this->auditReason($request);
+
+        DB::transaction(function () use ($grupo, $data, $before, $bancaIdBefore, $reason, $reasonText): void {
+            $grupo->update($data);
+
+            $auditedKeys = array_values(array_intersect(
+                array_keys($grupo->getChanges()),
+                self::GRUPO_AUDIT_FIELDS,
+            ));
+
+            if ($auditedKeys !== []) {
+                $after = $this->grupoSnapshot($grupo);
+
+                // P1 best-effort: a failed audit write never blocks the update.
+                $this->audit->record(AuditAction::GrupoUpdated, (new AuditEventData(
+                    action: AuditAction::GrupoUpdated,
+                    entityType: 'grupo',
+                    entityId: (int) $grupo->id,
+                    scope: $this->scopeResolver->forModel($grupo),
+                    before: Arr::only($before, $auditedKeys),
+                    after: Arr::only($after, $auditedKeys),
+                ))->withReason($reason, $reasonText));
+            }
+
+            // P0 fail-closed: moving a grupo to another banca changes access and
+            // requires a reason; a missing reason or write failure rolls back.
+            if (array_key_exists('banca_id', $grupo->getChanges())) {
+                $this->audit->critical(AuditAction::GrupoBancaChanged, (new AuditEventData(
+                    action: AuditAction::GrupoBancaChanged,
+                    entityType: 'grupo',
+                    entityId: (int) $grupo->id,
+                    scope: $this->scopeResolver->forModel($grupo),
+                    before: ['banca_id' => $bancaIdBefore],
+                    after: ['banca_id' => $grupo->banca_id !== null ? (int) $grupo->banca_id : null],
+                ))->withReason($reason, $reasonText));
+            }
+        });
 
         return response()->json($grupo->load('banca'));
     }
@@ -245,7 +329,29 @@ class GrupoController extends Controller
         // Escritura acotada al alcance de gestión del rol (AlcanceService, ENTIDADES).
         $this->authorizeGestion($user, $grupo);
 
-        $grupo->update(['active' => ! $grupo->active]);
+        $request->validate([
+            'reason_code' => 'nullable|string|max:64',
+            'reason_text' => 'nullable|string|max:500',
+        ]);
+
+        $activeBefore = (bool) $grupo->active;
+        $activeAfter = ! $activeBefore;
+        [$reason, $reasonText] = $this->auditReason($request);
+
+        // P0 fail-closed: a missing/invalid reason or a write failure rolls the
+        // toggle back (the recorder throws AuditValidationException/AuditWriteException).
+        DB::transaction(function () use ($grupo, $activeBefore, $activeAfter, $reason, $reasonText): void {
+            $grupo->update(['active' => $activeAfter]);
+
+            $this->audit->critical(AuditAction::GrupoToggled, (new AuditEventData(
+                action: AuditAction::GrupoToggled,
+                entityType: 'grupo',
+                entityId: (int) $grupo->id,
+                scope: $this->scopeResolver->forModel($grupo),
+                before: ['active' => $activeBefore],
+                after: ['active' => $activeAfter],
+            ))->withReason($reason, $reasonText));
+        });
 
         return response()->json($grupo->load('banca'));
     }
@@ -253,21 +359,87 @@ class GrupoController extends Controller
     /**
      * Eliminar un grupo
      */
-    public function destroy(Grupo $grupo)
+    public function destroy(Request $request, Grupo $grupo)
     {
         $user = auth()->user();
 
         // Escritura acotada al alcance de gestión del rol (AlcanceService, ENTIDADES).
         $this->authorizeGestion($user, $grupo);
 
+        $request->validate([
+            'reason_code' => 'nullable|string|max:64',
+            'reason_text' => 'nullable|string|max:500',
+        ]);
+
         // Verificar que no tenga taquillas asociadas (opcional)
         if ($grupo->taquillas()->count() > 0) {
             return response()->json(['message' => 'No se puede eliminar el grupo porque tiene taquillas asociadas.'], 422);
         }
 
-        $grupo->delete();
+        $before = $this->grupoSnapshot($grupo);
+        $scope = $this->scopeResolver->forModel($grupo);
+        [$reason, $reasonText] = $this->auditReason($request);
+
+        // P0 fail-closed: a missing/invalid reason or a write failure keeps the
+        // grupo alive (the soft delete rolls back with the transaction).
+        DB::transaction(function () use ($grupo, $before, $scope, $reason, $reasonText): void {
+            $grupo->delete();
+
+            $this->audit->critical(AuditAction::GrupoDeleted, (new AuditEventData(
+                action: AuditAction::GrupoDeleted,
+                entityType: 'grupo',
+                entityId: (int) $grupo->id,
+                scope: $scope,
+                before: $before,
+            ))->withReason($reason, $reasonText));
+        });
 
         return response()->json(['message' => 'Grupo eliminado correctamente.']);
+    }
+
+    // --- Métodos de auditoría ---
+
+    /**
+     * @return array{0: AuditReason|null, 1: string|null}
+     */
+    private function auditReason(Request $request): array
+    {
+        $code = $request->input('reason_code');
+        $text = $request->input('reason_text');
+
+        return [
+            is_string($code) ? AuditReason::tryFrom($code) : null,
+            is_string($text) ? $text : null,
+        ];
+    }
+
+    /**
+     * Safe grupo snapshot: no timestamps, no soft-delete marker, no secrets.
+     *
+     * @return array<string, mixed>
+     */
+    private function grupoSnapshot(Grupo $grupo): array
+    {
+        return $grupo->only(self::GRUPO_AUDIT_FIELDS);
+    }
+
+    /**
+     * Safe snapshot of the operator generated alongside a grupo. Roles come
+     * from Spatie; the password hash is never read here.
+     *
+     * @return array<string, mixed>
+     */
+    private function grupoUserSnapshot(User $user): array
+    {
+        return [
+            'name' => $user->name,
+            'email' => $user->email,
+            'active' => (bool) $user->active,
+            'banca_id' => $user->banca_id,
+            'grupo_id' => $user->grupo_id,
+            'created_by' => $user->created_by,
+            'roles' => $user->getRoleNames()->all(),
+        ];
     }
 
     // --- Métodos de validación ---

@@ -92,7 +92,7 @@ class ActivacionEntidadesTest extends TestCase
         $grupo = Grupo::factory()->create(['banca_id' => $banca->id, 'active' => true]);
 
         $this->actingAs($this->master(), 'sanctum')
-            ->patchJson("/api/v1/grupos/{$grupo->id}/toggle")
+            ->patchJson("/api/v1/grupos/{$grupo->id}/toggle", ['reason_code' => 'business_decision'])
             ->assertStatus(200)
             ->assertJsonPath('active', false);
 
@@ -119,7 +119,7 @@ class ActivacionEntidadesTest extends TestCase
         $grupo = Grupo::factory()->create(['banca_id' => $bancaUser->banca_id, 'active' => true]);
 
         $this->actingAs($bancaUser, 'sanctum')
-            ->patchJson("/api/v1/grupos/{$grupo->id}/toggle")
+            ->patchJson("/api/v1/grupos/{$grupo->id}/toggle", ['reason_code' => 'business_decision'])
             ->assertStatus(200)
             ->assertJsonPath('active', false);
     }
@@ -136,7 +136,7 @@ class ActivacionEntidadesTest extends TestCase
         ]);
 
         $this->actingAs($this->master(), 'sanctum')
-            ->patchJson("/api/v1/grupos/{$grupo->id}/toggle")
+            ->patchJson("/api/v1/grupos/{$grupo->id}/toggle", ['reason_code' => 'business_decision'])
             ->assertStatus(200);
 
         // Sin cascada: el flag propio de la agencia sigue en true
@@ -297,14 +297,14 @@ class ActivacionEntidadesTest extends TestCase
 
         // Desactivar grupo → la agencia queda bloqueada
         $this->actingAs($this->master(), 'sanctum')
-            ->patchJson("/api/v1/grupos/{$grupo->id}/toggle")->assertStatus(200);
+            ->patchJson("/api/v1/grupos/{$grupo->id}/toggle", ['reason_code' => 'business_decision'])->assertStatus(200);
 
         $this->withHeaders($headers)->actingAs($user, 'sanctum')
             ->getJson('/api/v1/apuestas')->assertStatus(403);
 
         // Reactivar grupo → opera de inmediato sin re-activación
         $this->actingAs($this->master(), 'sanctum')
-            ->patchJson("/api/v1/grupos/{$grupo->id}/toggle")->assertStatus(200);
+            ->patchJson("/api/v1/grupos/{$grupo->id}/toggle", ['reason_code' => 'business_decision'])->assertStatus(200);
 
         $this->withHeaders($headers)->actingAs($user, 'sanctum')
             ->getJson('/api/v1/apuestas')->assertStatus(200);
