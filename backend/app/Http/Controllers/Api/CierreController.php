@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exceptions\AuditValidationException;
+use App\Exceptions\AuditWriteException;
 use App\Http\Controllers\Controller;
 use App\Models\CierreCaja;
 use App\Models\Taquilla;
@@ -44,6 +46,8 @@ class CierreController extends Controller
             'arqueo_efectivo_bs' => 'nullable|numeric|min:0',
             'arqueo_efectivo_usd' => 'nullable|numeric|min:0',
             'clave_cierre' => 'nullable|digits_between:4,8',
+            'reason_code' => 'nullable|string|max:64',
+            'reason_text' => 'nullable|string|max:500',
         ]);
 
         $taquillaId = $this->resolveTaquillaParaCierre($user, $request);
@@ -55,7 +59,13 @@ class CierreController extends Controller
                 isset($validated['arqueo_efectivo_bs']) ? (float) $validated['arqueo_efectivo_bs'] : null,
                 isset($validated['arqueo_efectivo_usd']) ? (float) $validated['arqueo_efectivo_usd'] : null,
                 $validated['clave_cierre'] ?? null,
+                $validated['reason_code'] ?? null,
+                $validated['reason_text'] ?? null,
             );
+        } catch (AuditValidationException|AuditWriteException $e) {
+            // La auditoría tiene su propio render (422 motivo inválido / 500
+            // fallo de escritura); no debe caer en el 422 genérico de negocio.
+            throw $e;
         } catch (\RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }

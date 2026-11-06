@@ -2,6 +2,11 @@
 
 namespace App\Services;
 
+use App\Audit\AuditAction;
+use App\Audit\AuditEventData;
+use App\Audit\AuditReason;
+use App\Audit\AuditRecorder;
+use App\Audit\AuditScopeResolver;
 use App\Models\Apuesta;
 use App\Models\Banca;
 use App\Models\CierreCaja;
@@ -16,7 +21,40 @@ use Illuminate\Support\Facades\Hash;
 
 class CierreService
 {
-    public function __construct(private ComisionService $comisionService) {}
+    /**
+     * Business columns captured in before/after snapshots. Surrogate id and
+     * timestamps are intentionally excluded; `clave_cierre` is not a column.
+     *
+     * @var array<int, string>
+     */
+    private const AUDIT_SNAPSHOT_FIELDS = [
+        'taquilla_id',
+        'fecha_inicio',
+        'fecha_fin',
+        'total_ventas_bs',
+        'total_ventas_usd',
+        'total_ventas_bs_equivalent',
+        'total_egresos_bs',
+        'total_egresos_usd',
+        'total_efectivo_bs',
+        'total_efectivo_usd',
+        'comision_bs_equivalent',
+        'arqueo_efectivo_bs',
+        'arqueo_efectivo_usd',
+        'faltante_sobrante_bs',
+        'faltante_sobrante_usd',
+        'desglose_metodos',
+        'exchange_rate_cierre',
+        'created_by',
+        'reclosed_by',
+        'reclosed_at',
+    ];
+
+    public function __construct(
+        private ComisionService $comisionService,
+        private AuditRecorder $recorder,
+        private AuditScopeResolver $scopeResolver,
+    ) {}
 
     /**
      * Ejecutar el cierre de caja de una taquilla (máquina).
@@ -42,17 +80,35 @@ class CierreService
      * reclosed_by/reclosed_at; fecha_inicio y created_by quedan intactos).
      * La clave nunca se persiste ni se expone.
      *
+     * Auditoría (WU-5a): la creación emite `cierre.created` P1 best-effort;
+     * el re-cierre emite `cierre.reclosed` P0 fail-closed con before/after y
+     * motivo obligatorio. En ambos casos el scope sale de la taquilla y la
+     * clave de cierre nunca entra al evento.
+     *
      * @return array{cierre: CierreCaja, reclosed: bool} la fila y si fue un
      *                                                   re-cierre (true) o la creación del día (false)
      *
      * @throws \RuntimeException si no existe tasa, falta la clave en un
      *                           re-cierre o la clave no valida la cadena
+     * @throws \App\Exceptions\AuditValidationException si el re-cierre no trae motivo válido
+     * @throws \App\Exceptions\AuditWriteException si falla la escritura P0 de auditoría
      */
-    public function crearCierre(int $taquillaId, int $userId, ?float $arqueoBs = null, ?float $arqueoUsd = null, ?string $clave = null): array
-    {
-        return DB::transaction(function () use ($taquillaId, $userId, $arqueoBs, $arqueoUsd, $clave) {
+    public function crearCierre(
+        int $taquillaId,
+        int $userId,
+        ?float $arqueoBs = null,
+        ?float $arqueoUsd = null,
+        ?string $clave = null,
+        ?string $reasonCode = null,
+        ?string $reasonText = null,
+    ): array {
+        return DB::transaction(function () use ($taquillaId, $userId, $arqueoBs, $arqueoUsd, $clave, $reasonCode, $reasonText) {
             $tasa = $this->resolverTasa();
             $fechaFin = now();
+
+            $taquilla = Taquilla::find($taquillaId);
+            $scope = $taquilla !== null ? $this->scopeResolver->forModel($taquilla) : null;
+            $reason = is_string($reasonCode) ? AuditReason::tryFrom($reasonCode) : null;
 
             $cierreHoy = $this->resolveCierreHoy($taquillaId);
 
@@ -66,6 +122,7 @@ class CierreService
                 $this->validarClaveCierre($taquillaId, $clave);
 
                 $totales = $this->calcularTotales($taquillaId, $cierreHoy->fecha_inicio, $fechaFin);
+                $before = $this->auditSnapshot($cierreHoy);
 
                 $cierreHoy->update($this->atributosTotales($totales, $tasa, $arqueoBs, $arqueoUsd) + [
                     'fecha_fin' => $fechaFin,
@@ -73,7 +130,24 @@ class CierreService
                     'reclosed_at' => $fechaFin,
                 ]);
 
-                return ['cierre' => $cierreHoy->refresh(), 'reclosed' => true];
+                $cierre = $cierreHoy->refresh();
+
+                // P0 fail-closed: el motivo se valida aquí, dentro de la misma
+                // transacción; un motivo faltante/inválido o un fallo de inserción
+                // revierte la actualización del cierre.
+                $evento = (new AuditEventData(
+                    action: AuditAction::CierreReclosed,
+                    entityType: 'cierre_caja',
+                    entityId: (int) $cierre->getKey(),
+                    scope: $scope,
+                    before: $before,
+                    after: $this->auditSnapshot($cierre),
+                    context: ['reclosed' => true, 'reclosed_by' => $userId],
+                ))->withReason($reason, $reasonText);
+
+                $this->recorder->critical(AuditAction::CierreReclosed, $evento);
+
+                return ['cierre' => $cierre, 'reclosed' => true];
             }
 
             // Primer cierre del día: crea la fila
@@ -86,6 +160,19 @@ class CierreService
                 'fecha_fin' => $fechaFin,
                 'created_by' => $userId,
             ]);
+
+            // P1 best-effort: un fallo de auditoría no bloquea el cierre.
+            $evento = (new AuditEventData(
+                action: AuditAction::CierreCreated,
+                entityType: 'cierre_caja',
+                entityId: (int) $cierre->getKey(),
+                scope: $scope,
+                before: null,
+                after: $this->auditSnapshot($cierre),
+                context: ['reclosed' => false],
+            ))->withReason($reason, $reasonText);
+
+            $this->recorder->bestEffort(AuditAction::CierreCreated, $evento);
 
             return ['cierre' => $cierre, 'reclosed' => false];
         });
@@ -119,6 +206,32 @@ class CierreService
             'desglose_metodos' => $totales['desglose_metodos'],
             'exchange_rate_cierre' => $tasa->rate,
         ];
+    }
+
+    /**
+     * Safe before/after snapshot of a closure row for the audit trail.
+     *
+     * The surrogate id and the Eloquent timestamps are excluded; the closing
+     * key is never part of the model. Dates are serialized as stable strings
+     * so both sides of the diff share the same shape.
+     *
+     * @return array<string, mixed>
+     */
+    private function auditSnapshot(CierreCaja $cierre): array
+    {
+        $snapshot = [];
+
+        foreach (self::AUDIT_SNAPSHOT_FIELDS as $field) {
+            $value = $cierre->getAttribute($field);
+
+            if ($value instanceof \DateTimeInterface) {
+                $value = $value->format('Y-m-d H:i:s');
+            }
+
+            $snapshot[$field] = $value;
+        }
+
+        return $snapshot;
     }
 
     /**

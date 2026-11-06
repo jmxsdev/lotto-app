@@ -1303,6 +1303,7 @@ class CierreCajaTest extends TestCase
                 'taquilla_id' => $taquilla->id,
                 'clave_cierre' => '123456',
                 'arqueo_efectivo_bs' => 480,
+                'reason_code' => 'data_correction',
             ]);
 
         $re->assertStatus(200)
@@ -1346,13 +1347,13 @@ class CierreCajaTest extends TestCase
         // Primer re-cierre a las 13:00
         Carbon::setTestNow(Carbon::create(2026, 8, 12, 13, 0, 0));
         $re1 = $this->actingAs($this->superUser(), 'sanctum')
-            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id, 'clave_cierre' => '123456']);
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id, 'clave_cierre' => '123456', 'reason_code' => 'data_correction']);
         $re1->assertStatus(200)->assertJsonPath('id', $id);
 
         // Segundo re-cierre a las 14:00: sigue una sola fila, fechas re-extendidas
         Carbon::setTestNow(Carbon::create(2026, 8, 12, 14, 0, 0));
         $re2 = $this->actingAs($this->superUser(), 'sanctum')
-            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id, 'clave_cierre' => '123456']);
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id, 'clave_cierre' => '123456', 'reason_code' => 'data_correction']);
         $re2->assertStatus(200)
             ->assertJsonPath('id', $id)
             ->assertJsonPath('reclosed', true);
@@ -1382,7 +1383,7 @@ class CierreCajaTest extends TestCase
         $master = $this->masterUser();
 
         $re = $this->actingAs($master, 'sanctum')
-            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id, 'clave_cierre' => '654321']);
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id, 'clave_cierre' => '654321', 'reason_code' => 'data_correction']);
 
         $re->assertStatus(200)
             ->assertJsonPath('reclosed_by', $master->id)
@@ -1516,7 +1517,7 @@ class CierreCajaTest extends TestCase
         Carbon::setTestNow(Carbon::create(2026, 8, 12, 13, 0, 0));
 
         $re = $this->actingAs($this->superUser(), 'sanctum')
-            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id, 'clave_cierre' => $clave]);
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id, 'clave_cierre' => $clave, 'reason_code' => 'data_correction']);
 
         return [$re, $id, $taquilla];
     }
@@ -1567,7 +1568,7 @@ class CierreCajaTest extends TestCase
 
         // Control: la clave de la banca propia SÍ permite el re-cierre
         $ok = $this->actingAs($this->superUser(), 'sanctum')
-            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id, 'clave_cierre' => '123456']);
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id, 'clave_cierre' => '123456', 'reason_code' => 'data_correction']);
 
         $ok->assertStatus(200)->assertJsonPath('reclosed', true);
         $this->assertEquals(1, CierreCaja::where('taquilla_id', $taquilla->id)->count());
@@ -1595,7 +1596,7 @@ class CierreCajaTest extends TestCase
         Carbon::setTestNow(Carbon::create(2026, 8, 12, 12, 0, 0));
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id, 'clave_cierre' => '123456']);
+            ->postJson('/api/v1/cierre', ['taquilla_id' => $taquilla->id, 'clave_cierre' => '123456', 'reason_code' => 'data_correction']);
 
         $response->assertStatus(200)
             ->assertJsonPath('reclosed', true)
