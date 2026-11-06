@@ -193,7 +193,6 @@ El resto del sistema de auditoría se sigue en #89.
   - `backend/app/Services/TicketAnulacionService.php:337`
   - `backend/app/Http/Controllers/Api/JuegoController.php:63,95`
   - `backend/app/Services/PremiosConfigService.php:82`
-  - `backend/app/Jobs/FetchResultsJob.php:82`
   - `backend/app/Jobs/ScrapeResultsJob.php:173`
   - `backend/app/Jobs/ScrapeSourceJob.php:155`
   - `backend/app/Console/Commands/AuditarPagosLegacy.php:463`

@@ -9,7 +9,7 @@ use Database\Seeders\JuegoAnimalitosSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-class FetchResultsJobTest extends TestCase
+class AnimalitosScraperResultsTest extends TestCase
 {
     use RefreshDatabase;
 
