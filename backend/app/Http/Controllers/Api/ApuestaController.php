@@ -240,7 +240,7 @@ class ApuestaController extends Controller
         $request->validate([
             'metodo_pago' => ['nullable', Rule::in(Pago::METODOS_PAGO)],
             'referencia' => 'nullable|string|max:255',
-            'motivo' => 'nullable|string|max:255',
+            'motivo' => 'required|string|max:255',
         ]);
 
         try {

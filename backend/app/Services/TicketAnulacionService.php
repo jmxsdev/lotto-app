@@ -2,9 +2,14 @@
 
 namespace App\Services;
 
+use App\Audit\AuditAction;
+use App\Audit\AuditEventData;
+use App\Audit\AuditReason;
+use App\Audit\AuditRecorder;
+use App\Audit\AuditScopeResolver;
+use App\Exceptions\AuditValidationException;
 use App\Exceptions\TicketAnulacionException;
 use App\Models\Apuesta;
-use App\Models\Log;
 use App\Models\Pago;
 use App\Models\Ticket;
 use App\Models\User;
@@ -29,6 +34,8 @@ final class TicketAnulacionService
     public function __construct(
         private readonly ApuestaService $apuestaService,
         private readonly ApuestaPolicy $apuestaPolicy,
+        private readonly AuditRecorder $recorder,
+        private readonly AuditScopeResolver $scopeResolver,
     ) {}
 
     /**
@@ -50,6 +57,8 @@ final class TicketAnulacionService
     public function anularTicket(Ticket $ticket, User $user, array $opciones = []): array
     {
         return DB::transaction(function () use ($ticket, $user, $opciones): array {
+            $motivo = $this->motivoRequerido($opciones);
+
             // Sin `withTrashed`: un ticket ya anulado no puede re-ejecutar la
             // transición, aunque el modelo venga de una instancia vieja.
             $bloqueado = Ticket::whereKey($ticket->id)->lockForUpdate()->first();
@@ -87,29 +96,61 @@ final class TicketAnulacionService
             $devoluciones = [];
             $totalBs = 0.0;
             $totalUsd = 0.0;
+            $ticketAntes = $this->ticketSnapshot($bloqueado);
 
             foreach ($apuestas as $apuesta) {
                 $venta = $ventas[$apuesta->id] ?? null;
+                $apuestaAntes = $this->apuestaSnapshot($apuesta);
                 $pago = $this->registrarDevolucion($apuesta, $user, $venta, $opciones);
 
-                $devoluciones[] = $this->detalleDevolucion($pago, $apuesta, $venta);
+                $devolucion = $this->detalleDevolucion($pago, $apuesta, $venta);
+                $devoluciones[] = $devolucion;
                 $totalBs += (float) $apuesta->amount_bs;
                 $totalUsd += (float) $apuesta->amount_usd;
 
                 $this->marcarAnulada($apuesta);
+
+                $this->recorder->critical(
+                    AuditAction::BetVoided,
+                    (new AuditEventData(
+                        action: AuditAction::BetVoided,
+                        entityType: 'apuesta',
+                        entityId: (int) $apuesta->getKey(),
+                        scope: $this->scopeResolver->forModel($apuesta),
+                        before: $apuestaAntes,
+                        after: $this->apuestaSnapshot($apuesta),
+                        context: [
+                            'ticket_id' => (int) $bloqueado->id,
+                            'ticket_code' => $bloqueado->ticket_code,
+                            'devolucion' => $devolucion,
+                            'total_bs' => round((float) $apuesta->amount_bs, 2),
+                            'total_usd' => round((float) $apuesta->amount_usd, 2),
+                        ],
+                    ))->withReason(AuditReason::Other, $motivo)
+                );
             }
 
             $this->marcarAnulada($bloqueado);
 
-            $this->registrarLog('ticket_anulado', $user, [
-                'ticket_id' => $bloqueado->id,
-                'ticket_code' => $bloqueado->ticket_code,
-                'motivo' => $opciones['motivo'] ?? null,
-                'apuestas' => $apuestas->pluck('id')->all(),
-                'devoluciones' => $devoluciones,
-                'total_bs' => round($totalBs, 2),
-                'total_usd' => round($totalUsd, 2),
-            ], $opciones);
+            // P0 fail-closed dentro de la MISMA transacción: si el INSERT de
+            // auditoría falla, se revierten devoluciones, estados y soft-delete.
+            $this->recorder->critical(
+                AuditAction::TicketVoided,
+                (new AuditEventData(
+                    action: AuditAction::TicketVoided,
+                    entityType: 'ticket',
+                    entityId: (int) $bloqueado->getKey(),
+                    scope: $this->scopeResolver->forModel($bloqueado),
+                    before: $ticketAntes,
+                    after: $this->ticketSnapshot($bloqueado),
+                    context: [
+                        'apuestas' => $apuestas->pluck('id')->all(),
+                        'devoluciones_count' => count($devoluciones),
+                        'total_bs' => round($totalBs, 2),
+                        'total_usd' => round($totalUsd, 2),
+                    ],
+                ))->withReason(AuditReason::Other, $motivo)
+            );
 
             return [
                 'ticket_id' => $bloqueado->id,
@@ -136,6 +177,8 @@ final class TicketAnulacionService
     public function anularApuestaSuelta(Apuesta $apuesta, User $user, array $opciones = []): Pago
     {
         return DB::transaction(function () use ($apuesta, $user, $opciones): Pago {
+            $motivo = $this->motivoRequerido($opciones);
+
             $bloqueada = Apuesta::whereKey($apuesta->id)->lockForUpdate()->first();
 
             if (! $bloqueada) {
@@ -151,32 +194,43 @@ final class TicketAnulacionService
             $minutos = $this->apuestaService
                 ->getEffectiveTiempoEliminacion($bloqueada->taquilla_id);
 
-            $motivo = $this->apuestaPolicy->motivoNoAnulable($user, $bloqueada, $minutos);
+            $motivoPolicy = $this->apuestaPolicy->motivoNoAnulable($user, $bloqueada, $minutos);
 
-            if ($motivo !== null) {
-                if ($motivo === ApuestaPolicy::MOTIVO_SIN_OWNERSHIP) {
-                    throw TicketAnulacionException::noAutorizado('No autorizado.', $motivo);
+            if ($motivoPolicy !== null) {
+                if ($motivoPolicy === ApuestaPolicy::MOTIVO_SIN_OWNERSHIP) {
+                    throw TicketAnulacionException::noAutorizado('No autorizado.', $motivoPolicy);
                 }
 
                 throw TicketAnulacionException::rechazado(
-                    $this->mensajeRechazo($motivo, $minutos),
-                    $motivo
+                    $this->mensajeRechazo($motivoPolicy, $minutos),
+                    $motivoPolicy
                 );
             }
 
             $venta = $this->metodosVenta(new Collection([$bloqueada]))[$bloqueada->id] ?? null;
+            $apuestaAntes = $this->apuestaSnapshot($bloqueada);
             $pago = $this->registrarDevolucion($bloqueada, $user, $venta, $opciones);
 
             $this->marcarAnulada($bloqueada);
 
-            $this->registrarLog('apuesta.anulada', $user, [
-                'apuesta_id' => $bloqueada->id,
-                'ticket_code' => $bloqueada->ticket_code,
-                'motivo' => $opciones['motivo'] ?? null,
-                'devolucion' => $this->detalleDevolucion($pago, $bloqueada, $venta),
-                'total_bs' => round((float) $bloqueada->amount_bs, 2),
-                'total_usd' => round((float) $bloqueada->amount_usd, 2),
-            ], $opciones);
+            // P0 fail-closed: la devolución y la evidencia se confirman juntas.
+            $this->recorder->critical(
+                AuditAction::BetVoided,
+                (new AuditEventData(
+                    action: AuditAction::BetVoided,
+                    entityType: 'apuesta',
+                    entityId: (int) $bloqueada->getKey(),
+                    scope: $this->scopeResolver->forModel($bloqueada),
+                    before: $apuestaAntes,
+                    after: $this->apuestaSnapshot($bloqueada),
+                    context: [
+                        'ticket_code' => $bloqueada->ticket_code,
+                        'devolucion' => $this->detalleDevolucion($pago, $bloqueada, $venta),
+                        'total_bs' => round((float) $bloqueada->amount_bs, 2),
+                        'total_usd' => round((float) $bloqueada->amount_usd, 2),
+                    ],
+                ))->withReason(AuditReason::Other, $motivo)
+            );
 
             return $pago;
         });
@@ -285,7 +339,7 @@ final class TicketAnulacionService
     }
 
     /**
-     * Detalle de auditoría de una devolución (mismo shape en log y response).
+     * Detalle de auditoría de una devolución (mismo shape en el evento y response).
      *
      * @param  array{pago_id: int, metodo_pago: ?string}|null  $venta
      * @return array<string, mixed>
@@ -329,17 +383,59 @@ final class TicketAnulacionService
     }
 
     /**
-     * @param  array<string, mixed>  $details
+     * La anulación es una acción destructiva: el motivo es obligatorio y nunca
+     * se rellena por defecto. Si falta o está vacío lanza 422 antes de escribir.
+     *
      * @param  array<string, mixed>  $opciones
      */
-    private function registrarLog(string $action, User $user, array $details, array $opciones): void
+    private function motivoRequerido(array $opciones): string
     {
-        Log::create([
-            'user_id' => $user->id,
-            'action' => $action,
-            'details' => $details,
-            'ip' => $opciones['ip'] ?? request()->ip(),
-            'user_agent' => $opciones['user_agent'] ?? request()->header('User-Agent'),
-        ]);
+        $motivo = trim((string) ($opciones['motivo'] ?? ''));
+
+        if ($motivo === '') {
+            throw AuditValidationException::forField('motivo', 'El motivo es requerido para anular.');
+        }
+
+        return $motivo;
+    }
+
+    /**
+     * Safe `before`/`after` snapshot for a ticket. Only business fields are
+     * captured; the surrogate id, timestamps and relations are excluded.
+     *
+     * @return array<string, mixed>
+     */
+    private function ticketSnapshot(Ticket $ticket): array
+    {
+        return [
+            'estado' => $ticket->estado,
+            'ticket_code' => $ticket->ticket_code,
+            'taquilla_id' => $ticket->taquilla_id === null ? null : (int) $ticket->taquilla_id,
+            'total_bs' => $ticket->getAttribute('total_bs'),
+            'total_usd' => $ticket->getAttribute('total_usd'),
+            'deleted_at' => $ticket->deleted_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * Safe `before`/`after` snapshot for a bet line. Same rules as the ticket
+     * snapshot: business columns only, no secrets and no Eloquent timestamps.
+     *
+     * @return array<string, mixed>
+     */
+    private function apuestaSnapshot(Apuesta $apuesta): array
+    {
+        return [
+            'estado' => $apuesta->estado,
+            'ticket_code' => $apuesta->ticket_code,
+            'ticket_id' => $apuesta->ticket_id === null ? null : (int) $apuesta->ticket_id,
+            'taquilla_id' => $apuesta->taquilla_id === null ? null : (int) $apuesta->taquilla_id,
+            'juego_id' => $apuesta->juego_id === null ? null : (int) $apuesta->juego_id,
+            'amount_bs' => $apuesta->getAttribute('amount_bs'),
+            'amount_usd' => $apuesta->getAttribute('amount_usd'),
+            'exchange_rate_applied' => $apuesta->getAttribute('exchange_rate_applied'),
+            'total_bs_equivalent' => $apuesta->getAttribute('total_bs_equivalent'),
+            'deleted_at' => $apuesta->deleted_at?->toIso8601String(),
+        ];
     }
 }
