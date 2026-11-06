@@ -21,12 +21,13 @@ use App\Http\Controllers\Api\ResultadoController;
 use App\Http\Controllers\Api\TaquillaController;
 use App\Http\Controllers\Api\TicketController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Middleware\CaptureAuditContext;
 use App\Models\Log;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 // Todas las rutas de la API quedan versionadas bajo el prefijo /api/v1
-Route::prefix('v1')->group(function () {
+Route::prefix('v1')->middleware([CaptureAuditContext::class])->group(function () {
 
     // Rutas públicas (sin autenticación)
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,2');

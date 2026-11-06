@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Audit\AuditContext;
 use App\Models\Agencia;
 use App\Models\Banca;
 use App\Models\CierreCaja;
@@ -30,7 +31,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Contexto de auditoría por request (incluido Octane). Los jobs y
+        // comandos lo reinician explícitamente en su `finally`.
+        $this->app->scoped(AuditContext::class, fn () => new AuditContext);
     }
 
     /**
