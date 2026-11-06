@@ -2,9 +2,15 @@
 
 namespace App\Services;
 
+use App\Audit\AuditAction;
+use App\Audit\AuditEventData;
+use App\Audit\AuditReason;
+use App\Audit\AuditRecorder;
+use App\Audit\AuditScope;
 use App\Models\Juego;
 use App\Models\JuegoAuditoria;
 use App\Support\PremiosOficiales;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Configuración de premios de un juego (D1/D2/D3, spec configuracion-premios).
@@ -17,7 +23,10 @@ use App\Support\PremiosOficiales;
  */
 class PremiosConfigService
 {
-    public function __construct(private JuegoPluginManager $manager) {}
+    public function __construct(
+        private JuegoPluginManager $manager,
+        private readonly AuditRecorder $audit,
+    ) {}
 
     /**
      * Claves de modalidad válidas para un juego (D3): unión de las claves que
@@ -54,10 +63,18 @@ class PremiosConfigService
      * `premios` y sus espejos), sincroniza los espejos legacy y registra la
      * auditoría `accion=premios` con before/after y `updated_by`.
      *
+     * La evidencia canónica `game.prizes_updated` es P0 fail-closed y exige
+     * motivo: si falta, la transacción revierte premios y auditoría legacy.
+     *
      * @param  array<string, mixed>  $premios  {base, modalidades, comodines}
      */
-    public function actualizar(Juego $juego, array $premios, int $updatedBy): Juego
-    {
+    public function actualizar(
+        Juego $juego,
+        array $premios,
+        int $updatedBy,
+        ?string $reasonCode = null,
+        ?string $reasonText = null,
+    ): Juego {
         $config = $juego->config ?? [];
         $before = $config['premios'] ?? [];
 
@@ -74,20 +91,43 @@ class PremiosConfigService
         // Espejos legacy sincronizados desde la fuente única (D2).
         $nuevaConfig = array_merge($nuevaConfig, PremiosOficiales::espejosLegacy($juego->slug, $premios));
 
-        $juego->update([
-            'config' => $nuevaConfig,
-            'updated_by' => $updatedBy,
-        ]);
+        $reason = $reasonCode !== null ? AuditReason::tryFrom($reasonCode) : null;
 
-        JuegoAuditoria::create([
-            'juego_id' => $juego->id,
-            'user_id' => $updatedBy,
-            'accion' => 'premios',
-            'cambios' => [
-                'before' => $before,
-                'after' => $premios,
-            ],
-        ]);
+        DB::transaction(function () use (
+            $juego,
+            $premios,
+            $updatedBy,
+            $before,
+            $nuevaConfig,
+            $reason,
+            $reasonText
+        ): void {
+            $juego->update([
+                'config' => $nuevaConfig,
+                'updated_by' => $updatedBy,
+            ]);
+
+            JuegoAuditoria::create([
+                'juego_id' => $juego->id,
+                'user_id' => $updatedBy,
+                'accion' => 'premios',
+                'cambios' => [
+                    'before' => $before,
+                    'after' => $premios,
+                ],
+            ]);
+
+            $event = (new AuditEventData(
+                action: AuditAction::GamePrizesUpdated,
+                entityType: 'juego',
+                entityId: (int) $juego->id,
+                scope: new AuditScope,
+                before: ['premios' => $before],
+                after: ['premios' => $premios],
+            ))->withReason($reason, $reasonText);
+
+            $this->audit->critical(AuditAction::GamePrizesUpdated, $event);
+        });
 
         return $juego->fresh();
     }

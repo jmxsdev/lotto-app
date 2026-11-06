@@ -614,7 +614,7 @@ class JuegosJsonTest extends TestCase
         ];
 
         $this->actingAs($user, 'sanctum')
-            ->putJson("/api/v1/juegos/{$juego->id}/premios", $payload)
+            ->putJson("/api/v1/juegos/{$juego->id}/premios", $payload + ['reason_code' => 'business_decision'])
             ->assertStatus(200);
 
         $tmp = sys_get_temp_dir().'/juegos-export-'.uniqid().'.json';

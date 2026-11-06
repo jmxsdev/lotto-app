@@ -62,7 +62,7 @@ class JuegoPremiosApiTest extends TestCase
         $response = $this->actingAs($this->superUser(), 'sanctum')
             ->putJson("/api/v1/juegos/{$juego->id}/premios", $this->payload([
                 'modalidades' => ['triple_a' => 600, 'terminal' => 60],
-            ]));
+            ]) + ['reason_code' => 'business_decision']);
 
         $response->assertStatus(200);
         // El orden de claves JSON no es contrato (MySQL reordena claves de
@@ -120,7 +120,7 @@ class JuegoPremiosApiTest extends TestCase
         ];
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->putJson("/api/v1/juegos/{$juego->id}/premios", $payload);
+            ->putJson("/api/v1/juegos/{$juego->id}/premios", $payload + ['reason_code' => 'business_decision']);
 
         $response->assertStatus(200);
 
@@ -155,7 +155,7 @@ class JuegoPremiosApiTest extends TestCase
         $this->actingAs($this->superUser(), 'sanctum')
             ->putJson("/api/v1/juegos/{$juego->id}/premios", $this->payload([
                 'modalidades' => ['terminal' => 70],
-            ]))
+            ]) + ['reason_code' => 'business_decision'])
             ->assertStatus(200);
 
         $juego->refresh();
@@ -251,7 +251,7 @@ class JuegoPremiosApiTest extends TestCase
         $response = $this->actingAs($this->superUser(), 'sanctum')
             ->putJson("/api/v1/juegos/{$juego->id}/premios", $this->payload([
                 'modalidades' => ['signo_terminal' => 600],
-            ]));
+            ]) + ['reason_code' => 'business_decision']);
 
         $response->assertStatus(200);
         $this->assertSame(['signo_terminal' => 600], $response->json('config.premios.modalidades'));
@@ -270,7 +270,7 @@ class JuegoPremiosApiTest extends TestCase
         $juego->update(['config' => $config]);
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->putJson("/api/v1/juegos/{$juego->id}/premios", $this->payload());
+            ->putJson("/api/v1/juegos/{$juego->id}/premios", $this->payload() + ['reason_code' => 'business_decision']);
 
         $response->assertStatus(200);
         $this->assertSame(['product_id' => '42'], $response->json('config.scraper'));
@@ -286,7 +286,7 @@ class JuegoPremiosApiTest extends TestCase
         $payload = $this->payload(['base' => 700, 'modalidades' => ['terminal' => 70]]);
 
         $this->actingAs($user, 'sanctum')
-            ->putJson("/api/v1/juegos/{$juego->id}/premios", $payload)
+            ->putJson("/api/v1/juegos/{$juego->id}/premios", $payload + ['reason_code' => 'business_decision'])
             ->assertStatus(200);
 
         $auditoria = JuegoAuditoria::where('juego_id', $juego->id)
@@ -325,7 +325,7 @@ class JuegoPremiosApiTest extends TestCase
         ];
 
         $this->actingAs($this->superUser(), 'sanctum')
-            ->putJson("/api/v1/juegos/{$juego->id}/premios", $payload)
+            ->putJson("/api/v1/juegos/{$juego->id}/premios", $payload + ['reason_code' => 'business_decision'])
             ->assertStatus(200);
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
@@ -354,7 +354,7 @@ class JuegoPremiosApiTest extends TestCase
         $payload = $this->payload(['base' => 700, 'modalidades' => ['terminal' => 70]]);
 
         $this->actingAs($this->superUser(), 'sanctum')
-            ->putJson("/api/v1/juegos/{$juego->id}/premios", $payload)
+            ->putJson("/api/v1/juegos/{$juego->id}/premios", $payload + ['reason_code' => 'business_decision'])
             ->assertStatus(200);
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
@@ -380,7 +380,7 @@ class JuegoPremiosApiTest extends TestCase
         $payload = $this->payload(['base' => 700, 'modalidades' => ['terminal' => 70]]);
 
         $this->actingAs($user, 'sanctum')
-            ->putJson("/api/v1/juegos/{$juego->id}/premios", $payload)
+            ->putJson("/api/v1/juegos/{$juego->id}/premios", $payload + ['reason_code' => 'business_decision'])
             ->assertStatus(200);
 
         $response = $this->actingAs($user, 'sanctum')

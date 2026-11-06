@@ -2,6 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Audit\AuditAction;
+use App\Audit\AuditEventData;
+use App\Audit\AuditReason;
+use App\Audit\AuditRecorder;
+use App\Audit\AuditScope;
 use App\Http\Controllers\Controller;
 use App\Models\Banca;
 use App\Models\Grupo;
@@ -27,6 +32,7 @@ class JuegoController extends Controller
     public function __construct(
         private JuegoLimiteService $limites,
         private readonly AlcanceService $alcance,
+        private readonly AuditRecorder $audit,
     ) {}
 
     public function index()
@@ -45,34 +51,63 @@ class JuegoController extends Controller
     {
         $request->validate([
             'active' => 'required|boolean',
+            'reason_code' => 'nullable|string|max:64',
+            'reason_text' => 'nullable|string|max:500',
         ]);
 
         $user = $request->user();
-        $oldActive = $juego->active;
-        $newActive = $request->active;
+        $oldActive = (bool) $juego->active;
+        $newActive = (bool) $request->active;
 
-        $juego->update([
-            'active' => $newActive,
-            'updated_by' => $user->id,
-        ]);
+        $reasonRaw = $request->input('reason_code');
+        $reason = is_string($reasonRaw) ? AuditReason::tryFrom($reasonRaw) : null;
+        $reasonTextRaw = $request->input('reason_text');
+        $reasonText = is_string($reasonTextRaw) ? $reasonTextRaw : null;
 
-        // Sincroniza el plugin en AMBOS sentidos: la relación `pluginJuego`
-        // filtra por active=true (devuelve null al reactivar), así que se
-        // actualiza por la relación sin filtro (pluginJuegos).
-        $juego->pluginJuegos()->update([
-            'active' => $newActive,
-            'updated_by' => $user->id,
-        ]);
+        // P0 fail-closed: el toggle y el plugin se revierten si la evidencia
+        // de auditoría no se puede persistir.
+        DB::transaction(function () use (
+            $juego,
+            $user,
+            $oldActive,
+            $newActive,
+            $reason,
+            $reasonText
+        ): void {
+            $juego->update([
+                'active' => $newActive,
+                'updated_by' => $user->id,
+            ]);
 
-        JuegoAuditoria::create([
-            'juego_id' => $juego->id,
-            'user_id' => $user->id,
-            'accion' => $newActive ? 'activar' : 'desactivar',
-            'cambios' => [
-                'before' => ['active' => $oldActive],
-                'after' => ['active' => $newActive],
-            ],
-        ]);
+            // Sincroniza el plugin en AMBOS sentidos: la relación `pluginJuego`
+            // filtra por active=true (devuelve null al reactivar), así que se
+            // actualiza por la relación sin filtro (pluginJuegos).
+            $juego->pluginJuegos()->update([
+                'active' => $newActive,
+                'updated_by' => $user->id,
+            ]);
+
+            JuegoAuditoria::create([
+                'juego_id' => $juego->id,
+                'user_id' => $user->id,
+                'accion' => $newActive ? 'activar' : 'desactivar',
+                'cambios' => [
+                    'before' => ['active' => $oldActive],
+                    'after' => ['active' => $newActive],
+                ],
+            ]);
+
+            $event = (new AuditEventData(
+                action: AuditAction::GameToggled,
+                entityType: 'juego',
+                entityId: (int) $juego->id,
+                scope: new AuditScope,
+                before: ['active' => $oldActive],
+                after: ['active' => $newActive],
+            ))->withReason($reason, $reasonText);
+
+            $this->audit->critical(AuditAction::GameToggled, $event);
+        });
 
         return response()->json($juego->load('pluginJuego', 'updatedByUser'));
     }
@@ -84,6 +119,8 @@ class JuegoController extends Controller
         $request->validate([
             'name' => 'sometimes|string|max:255',
             'config' => 'nullable|array',
+            'reason_code' => 'nullable|string|max:64',
+            'reason_text' => 'nullable|string|max:500',
         ]);
 
         $changes = $request->only(['name', 'config']);
@@ -93,18 +130,45 @@ class JuegoController extends Controller
         }
 
         $before = $juego->only(['name', 'config']);
-        $juego->update(array_merge($changes, ['updated_by' => $user->id]));
-        $after = $juego->only(['name', 'config']);
 
-        JuegoAuditoria::create([
-            'juego_id' => $juego->id,
-            'user_id' => $user->id,
-            'accion' => 'actualizar',
-            'cambios' => [
-                'before' => $before,
-                'after' => $after,
-            ],
-        ]);
+        $reasonRaw = $request->input('reason_code');
+        $reason = is_string($reasonRaw) ? AuditReason::tryFrom($reasonRaw) : null;
+        $reasonTextRaw = $request->input('reason_text');
+        $reasonText = is_string($reasonTextRaw) ? $reasonTextRaw : null;
+
+        // P1 best-effort: una caída de auditoría no bloquea la actualización.
+        DB::transaction(function () use (
+            $juego,
+            $user,
+            $changes,
+            $before,
+            $reason,
+            $reasonText
+        ): void {
+            $juego->update(array_merge($changes, ['updated_by' => $user->id]));
+            $after = $juego->only(['name', 'config']);
+
+            JuegoAuditoria::create([
+                'juego_id' => $juego->id,
+                'user_id' => $user->id,
+                'accion' => 'actualizar',
+                'cambios' => [
+                    'before' => $before,
+                    'after' => $after,
+                ],
+            ]);
+
+            $event = (new AuditEventData(
+                action: AuditAction::GameUpdated,
+                entityType: 'juego',
+                entityId: (int) $juego->id,
+                scope: new AuditScope,
+                before: $before,
+                after: $after,
+            ))->withReason($reason, $reasonText);
+
+            $this->audit->record(AuditAction::GameUpdated, $event);
+        });
 
         return response()->json($juego->load('pluginJuego'));
     }
@@ -136,6 +200,8 @@ class JuegoController extends Controller
             'comodines' => 'sometimes|array',
             'comodines.*.tipo' => 'required|in:flag,letra,numero,palabra',
             'comodines.*.premio_multiplo' => 'required|integer|min:1',
+            'reason_code' => 'nullable|string|max:64',
+            'reason_text' => 'nullable|string|max:500',
         ]);
 
         // Reemplazo atómico: omitir modalidades/comodines los deja vacíos.
@@ -160,7 +226,12 @@ class JuegoController extends Controller
             }
         }
 
-        $juego = $service->actualizar($juego, $premios, $user->id);
+        $reasonRaw = $request->input('reason_code');
+        $reasonCode = is_string($reasonRaw) ? $reasonRaw : null;
+        $reasonTextRaw = $request->input('reason_text');
+        $reasonText = is_string($reasonTextRaw) ? $reasonTextRaw : null;
+
+        $juego = $service->actualizar($juego, $premios, $user->id, $reasonCode, $reasonText);
 
         return response()->json($juego->load('pluginJuego', 'updatedByUser'));
     }

@@ -108,7 +108,7 @@ class PremioSnapshotTest extends TestCase
     private function editarPremios(Juego $juego, array $premios): TestResponse
     {
         return $this->actingAs($this->superUser(), 'sanctum')
-            ->putJson("/api/v1/juegos/{$juego->id}/premios", $premios);
+            ->putJson("/api/v1/juegos/{$juego->id}/premios", $premios + ['reason_code' => 'business_decision']);
     }
 
     /**
