@@ -183,7 +183,7 @@ class EliminacionApuestasTest extends TestCase
         $apuesta = $ticket->apuestas()->firstOrFail();
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id);
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'prueba']);
 
         $response->assertStatus(200)
             ->assertJsonPath('message', 'Ticket anulado correctamente.');
@@ -215,7 +215,7 @@ class EliminacionApuestasTest extends TestCase
         $ticket = $this->crearTicketConApuesta(null, 8);
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id);
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'prueba']);
 
         $response->assertStatus(422)
             ->assertJsonPath('message', 'El ticket excedió los 5 minutos para ser anulado.');
@@ -231,7 +231,7 @@ class EliminacionApuestasTest extends TestCase
         $apuesta = $ticket->apuestas()->firstOrFail();
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id);
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'prueba']);
 
         $response->assertStatus(200);
         $this->assertSoftDeleted('apuestas', ['ticket_id' => $ticket->id]);
@@ -251,7 +251,7 @@ class EliminacionApuestasTest extends TestCase
         $ticket = $this->crearTicketConApuesta(10, 12);
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id);
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'prueba']);
 
         $response->assertStatus(422);
         $this->assertStringContainsString('10 minutos', $response->json('message'));
@@ -266,7 +266,7 @@ class EliminacionApuestasTest extends TestCase
         $ticket->apuestas()->first()->update(['sorteo_hora' => now()->subMinute()]);
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id);
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'prueba']);
 
         $response->assertStatus(422)
             ->assertJsonPath('message', 'El sorteo de una o mas jugadas ya ocurrio, no se puede anular.');
@@ -284,7 +284,7 @@ class EliminacionApuestasTest extends TestCase
         $ticket->apuestas()->first()->update(['estado' => 'ganadora']);
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id);
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'prueba']);
 
         $response->assertStatus(422)
             ->assertJsonPath('message', 'No se puede anular el ticket.');
@@ -319,7 +319,7 @@ class EliminacionApuestasTest extends TestCase
         $user->assignRole('grupo');
 
         $response = $this->actingAs($user, 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id);
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'prueba']);
 
         $response->assertStatus(403)
             ->assertJsonPath('message', 'No autorizado.');

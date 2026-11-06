@@ -76,7 +76,7 @@ class TicketAnuladosVisiblesTest extends TestCase
 
         $this->actingAs($user, 'sanctum')
             ->withHeader('X-Device-MAC', $taquilla->mac_address)
-            ->deleteJson('/api/v1/tickets/'.$ticket->id)
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'prueba'])
             ->assertOk();
 
         $this->assertSoftDeleted('tickets', ['id' => $ticket->id]);
@@ -103,7 +103,7 @@ class TicketAnuladosVisiblesTest extends TestCase
 
         $this->actingAs($user, 'sanctum')
             ->withHeader('X-Device-MAC', $taquilla->mac_address)
-            ->deleteJson('/api/v1/tickets/'.$ticket->id)
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'prueba'])
             ->assertOk();
 
         // WU3-B: la anulación deja una devolución por línea y sigue ocultando
@@ -139,7 +139,7 @@ class TicketAnuladosVisiblesTest extends TestCase
 
         $this->actingAs($user, 'sanctum')
             ->withHeader('X-Device-MAC', $taquilla->mac_address)
-            ->deleteJson('/api/v1/tickets/'.$anulado->id)
+            ->deleteJson('/api/v1/tickets/'.$anulado->id, ['motivo' => 'prueba'])
             ->assertOk();
 
         $soloAnulados = $this->actingAs($user, 'sanctum')
@@ -168,7 +168,7 @@ class TicketAnuladosVisiblesTest extends TestCase
 
         $this->actingAs($user, 'sanctum')
             ->withHeader('X-Device-MAC', $taquilla->mac_address)
-            ->deleteJson('/api/v1/tickets/'.$ticket->id)
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'prueba'])
             ->assertOk();
 
         // La apuesta anulada quedó trashed: el egreso responde 404 (no pagable).

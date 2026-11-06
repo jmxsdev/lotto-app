@@ -312,7 +312,7 @@ class AgenciaScopeTest extends TestCase
         $apuesta = $this->crearApuesta($taquillaAjena);
 
         $response = $this->actingAs($user, 'sanctum')
-            ->deleteJson('/api/v1/apuestas/'.$apuesta->id);
+            ->deleteJson('/api/v1/apuestas/'.$apuesta->id, ['motivo' => 'prueba']);
 
         $response->assertStatus(403);
         $this->assertDatabaseHas('apuestas', ['id' => $apuesta->id]);

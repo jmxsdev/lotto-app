@@ -3,10 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\Apuesta;
+use App\Models\AuditEvent;
 use App\Models\Banca;
 use App\Models\Grupo;
 use App\Models\Juego;
-use App\Models\Log;
 use App\Models\Pago;
 use App\Models\Resultado;
 use App\Models\Taquilla;
@@ -31,7 +31,7 @@ use Tests\TestCase;
  *   resuelve 403 ANTES del redirect (política `view`).
  *
  * Todos los rechazos deben dejar cero escrituras: sin `pagos`, sin cambios de
- * estado/soft-delete y sin `logs`.
+ * estado/soft-delete y sin eventos de auditoría.
  */
 class PagoDevolucionRechazosTest extends TestCase
 {
@@ -207,7 +207,10 @@ class PagoDevolucionRechazosTest extends TestCase
     private function assertSinEscrituras(Ticket $ticket, array $apuestas): void
     {
         $this->assertSame(0, Pago::where('tipo', 'devolucion')->count());
-        $this->assertSame(0, Log::count());
+        $this->assertSame(
+            0,
+            AuditEvent::whereIn('action', ['ticket.voided', 'bet.voided'])->count()
+        );
 
         foreach ($apuestas as $apuesta) {
             $this->assertNotSoftDeleted('apuestas', ['id' => $apuesta->id]);
@@ -227,7 +230,7 @@ class PagoDevolucionRechazosTest extends TestCase
         ]);
 
         $this->actingAs($user, 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id)
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'prueba'])
             ->assertStatus(422)
             ->assertJsonPath('message', 'No se puede anular el ticket.');
 
@@ -243,7 +246,7 @@ class PagoDevolucionRechazosTest extends TestCase
         ]);
 
         $this->actingAs($user, 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id)
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'prueba'])
             ->assertStatus(422)
             ->assertJsonPath('message', 'No se puede anular el ticket.');
 
@@ -259,7 +262,7 @@ class PagoDevolucionRechazosTest extends TestCase
         ]);
 
         $this->actingAs($user, 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id)
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'prueba'])
             ->assertStatus(422)
             ->assertJsonPath('message', 'No se puede anular el ticket.');
 
@@ -275,7 +278,7 @@ class PagoDevolucionRechazosTest extends TestCase
         ]);
 
         $this->actingAs($user, 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id)
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'prueba'])
             ->assertStatus(422)
             ->assertJsonPath('message', 'No se puede anular el ticket.');
 
@@ -291,7 +294,7 @@ class PagoDevolucionRechazosTest extends TestCase
         ]);
 
         $this->actingAs($user, 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id)
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'prueba'])
             ->assertStatus(422)
             ->assertJsonPath('message', 'No se puede anular el ticket.');
 
@@ -315,7 +318,7 @@ class PagoDevolucionRechazosTest extends TestCase
         ]);
 
         $this->actingAs($user, 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id)
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'prueba'])
             ->assertStatus(422)
             ->assertJsonPath('message', 'No se puede anular el ticket.');
 
@@ -331,7 +334,7 @@ class PagoDevolucionRechazosTest extends TestCase
         ]);
 
         $this->actingAs($user, 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id)
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'prueba'])
             ->assertStatus(422)
             ->assertJsonPath('message', 'El sorteo de una o mas jugadas ya ocurrio, no se puede anular.');
 
@@ -366,7 +369,7 @@ class PagoDevolucionRechazosTest extends TestCase
         ]);
 
         $this->actingAs($user, 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$borde->id)
+            ->deleteJson('/api/v1/tickets/'.$borde->id, ['motivo' => 'prueba'])
             ->assertStatus(422)
             ->assertJsonPath('message', "El ticket excedió los {$minutos} minutos para ser anulado.");
 
@@ -378,7 +381,7 @@ class PagoDevolucionRechazosTest extends TestCase
         ]);
 
         $this->actingAs($user, 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$dentro->id)
+            ->deleteJson('/api/v1/tickets/'.$dentro->id, ['motivo' => 'prueba'])
             ->assertOk()
             ->assertJsonPath('success', true);
 
@@ -400,7 +403,7 @@ class PagoDevolucionRechazosTest extends TestCase
         $user = $this->superUser();
 
         $this->actingAs($user, 'sanctum')
-            ->deleteJson('/api/v1/tickets/999999')
+            ->deleteJson('/api/v1/tickets/999999', ['motivo' => 'prueba'])
             ->assertNotFound()
             ->assertJsonPath('message', 'Recurso no encontrado.');
     }
@@ -421,12 +424,15 @@ class PagoDevolucionRechazosTest extends TestCase
         $apuesta->delete();
 
         $this->actingAs($user, 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id)
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'prueba'])
             ->assertStatus(422)
             ->assertJsonPath('message', 'El ticket no tiene jugadas activas para anular.');
 
         $this->assertSame(0, Pago::where('tipo', 'devolucion')->count());
-        $this->assertSame(0, Log::count());
+        $this->assertSame(
+            0,
+            AuditEvent::whereIn('action', ['ticket.voided', 'bet.voided'])->count()
+        );
         $this->assertNotSoftDeleted('tickets', ['id' => $ticket->id]);
         $this->assertSame('pendiente', $ticket->fresh()->estado);
     }
@@ -442,7 +448,7 @@ class PagoDevolucionRechazosTest extends TestCase
         $ajeno = $this->usuarioGrupoAjeno();
 
         $this->actingAs($ajeno, 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id)
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'prueba'])
             ->assertForbidden()
             ->assertJsonPath('message', 'No autorizado.');
 
@@ -459,7 +465,7 @@ class PagoDevolucionRechazosTest extends TestCase
         ]);
 
         $this->actingAs($user, 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id)
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'prueba'])
             ->assertStatus(422)
             ->assertJsonPath('message', 'No se puede anular el ticket.');
 
@@ -501,11 +507,13 @@ class PagoDevolucionRechazosTest extends TestCase
             Apuesta::withTrashed()->findOrFail($apuesta->id)->estado
         );
 
-        $log = Log::where('action', 'apuesta.anulada')->firstOrFail();
-        $this->assertSame($apuesta->id, $log->details['apuesta_id']);
-        $this->assertSame('Error del operador', $log->details['motivo']);
-        $this->assertSame($devolucion->id, $log->details['devolucion']['pago_id']);
-        $this->assertSame(0, Log::where('action', 'apuesta.deleted')->count());
+        $event = AuditEvent::where('action', 'bet.voided')->firstOrFail();
+        $this->assertSame($apuesta->id, (int) $event->entity_id);
+        $this->assertSame('Error del operador', $event->reason_text);
+        $this->assertSame('other', $event->reason_code);
+        $this->assertSame($devolucion->id, $event->context['devolucion']['pago_id']);
+        $this->assertDatabaseMissing('logs', ['action' => 'apuesta.anulada']);
+        $this->assertDatabaseMissing('logs', ['action' => 'apuesta.deleted']);
     }
 
     public function test_delete_apuestas_rechaza_una_linea_de_ticket_con_redirect(): void
@@ -525,7 +533,10 @@ class PagoDevolucionRechazosTest extends TestCase
             );
 
         $this->assertSame(0, Pago::where('tipo', 'devolucion')->count());
-        $this->assertSame(0, Log::count());
+        $this->assertSame(
+            0,
+            AuditEvent::whereIn('action', ['ticket.voided', 'bet.voided'])->count()
+        );
         $this->assertNotSoftDeleted('apuestas', ['id' => $apuestas[0]->id]);
         $this->assertSame('pendiente', $apuestas[0]->fresh()->estado);
         $this->assertNotSoftDeleted('tickets', ['id' => $ticket->id]);
@@ -542,12 +553,15 @@ class PagoDevolucionRechazosTest extends TestCase
         $ajeno = $this->usuarioGrupoAjeno();
 
         $this->actingAs($ajeno, 'sanctum')
-            ->deleteJson('/api/v1/apuestas/'.$apuestas[0]->id)
+            ->deleteJson('/api/v1/apuestas/'.$apuestas[0]->id, ['motivo' => 'prueba'])
             ->assertForbidden()
             ->assertJsonPath('message', 'No autorizado.');
 
         $this->assertSame(0, Pago::where('tipo', 'devolucion')->count());
-        $this->assertSame(0, Log::count());
+        $this->assertSame(
+            0,
+            AuditEvent::whereIn('action', ['ticket.voided', 'bet.voided'])->count()
+        );
         $this->assertNotSoftDeleted('apuestas', ['id' => $apuestas[0]->id]);
         $this->assertNotSoftDeleted('tickets', ['id' => $ticket->id]);
     }
@@ -565,12 +579,15 @@ class PagoDevolucionRechazosTest extends TestCase
         ]);
 
         $this->actingAs($user, 'sanctum')
-            ->deleteJson('/api/v1/apuestas/'.$apuesta->id)
+            ->deleteJson('/api/v1/apuestas/'.$apuesta->id, ['motivo' => 'prueba'])
             ->assertStatus(422)
             ->assertJsonPath('message', 'El ticket excedió los 5 minutos para ser anulado.');
 
         $this->assertSame(0, Pago::where('tipo', 'devolucion')->count());
-        $this->assertSame(0, Log::count());
+        $this->assertSame(
+            0,
+            AuditEvent::whereIn('action', ['ticket.voided', 'bet.voided'])->count()
+        );
         $this->assertNotSoftDeleted('apuestas', ['id' => $apuesta->id]);
         $this->assertSame('pendiente', $apuesta->fresh()->estado);
     }

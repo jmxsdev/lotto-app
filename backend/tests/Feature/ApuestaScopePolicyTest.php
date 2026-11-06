@@ -113,7 +113,7 @@ class ApuestaScopePolicyTest extends TestCase
             ->assertJsonPath('message', 'No autorizado.');
 
         $this->actingAs($master, 'sanctum')
-            ->deleteJson('/api/v1/apuestas/'.$apuestaAjena->id)
+            ->deleteJson('/api/v1/apuestas/'.$apuestaAjena->id, ['motivo' => 'prueba'])
             ->assertForbidden()
             ->assertJsonPath('message', 'No autorizado.');
 

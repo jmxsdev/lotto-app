@@ -3,11 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\Apuesta;
+use App\Models\AuditEvent;
 use App\Models\Banca;
 use App\Models\DetalleApuesta;
 use App\Models\Grupo;
 use App\Models\Juego;
-use App\Models\Log;
 use App\Models\Pago;
 use App\Models\Taquilla;
 use App\Models\Ticket;
@@ -17,6 +17,7 @@ use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\JuegoAnimalitosSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use RuntimeException;
 use Tests\TestCase;
 
 /**
@@ -25,17 +26,32 @@ use Tests\TestCase;
  * `DELETE /api/v1/tickets/{id}` deja de ser un soft-delete a secas: valida la
  * policy por cada línea viva, registra un `Pago(tipo=devolucion)` por línea
  * espejando la venta, marca apuestas + ticket `anulada`, los soft-deletea y
- * escribe el log `ticket_anulado`, todo en una transacción.
+ * escribe los eventos de auditoría `ticket.voided`/`bet.voided`, todo en una
+ * transacción.
  */
 class PagoDevolucionAnulacionTest extends TestCase
 {
     use RefreshDatabase;
+
+    private static bool $failAudit = false;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->seed(DatabaseSeeder::class);
         $this->seed(JuegoAnimalitosSeeder::class);
+
+        AuditEvent::creating(static function (): void {
+            if (self::$failAudit) {
+                throw new RuntimeException('forced audit insert failure');
+            }
+        });
+    }
+
+    protected function tearDown(): void
+    {
+        self::$failAudit = false;
+        parent::tearDown();
     }
 
     private function superUser(): User
@@ -209,7 +225,7 @@ class PagoDevolucionAnulacionTest extends TestCase
         ]);
 
         $response = $this->actingAs($user, 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id);
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'Error del operador']);
 
         $response->assertOk()
             ->assertJsonPath('success', true)
@@ -245,7 +261,7 @@ class PagoDevolucionAnulacionTest extends TestCase
         ]);
 
         $response = $this->actingAs($user, 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id);
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'Error del operador']);
 
         $response->assertOk()
             ->assertJsonPath('data.apuestas', 2)
@@ -287,7 +303,7 @@ class PagoDevolucionAnulacionTest extends TestCase
         ]);
 
         $this->actingAs($user, 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id)
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'Error del operador'])
             ->assertOk();
 
         foreach ($apuestas as $apuesta) {
@@ -318,7 +334,7 @@ class PagoDevolucionAnulacionTest extends TestCase
         ]);
 
         $this->actingAs($user, 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id)
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'Error del operador'])
             ->assertOk();
 
         $detalle = DetalleApuesta::where('apuesta_id', $apuestas[0]->id)->firstOrFail();
@@ -332,7 +348,7 @@ class PagoDevolucionAnulacionTest extends TestCase
         $this->assertSame(0, Pago::where('tipo', 'egreso')->count());
     }
 
-    public function test_anulacion_registra_el_log_ticket_anulado(): void
+    public function test_anulacion_registra_eventos_de_auditoria(): void
     {
         $user = $this->superUser();
         [, , $taquilla] = $this->crearJerarquia('LOG');
@@ -341,25 +357,31 @@ class PagoDevolucionAnulacionTest extends TestCase
         ]);
 
         $this->actingAs($user, 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id)
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'Error del operador'])
             ->assertOk();
 
-        $this->assertSame(1, Log::count());
-        $log = Log::where('action', 'ticket_anulado')->firstOrFail();
-        $this->assertSame($user->id, $log->user_id);
-        $this->assertIsArray($log->details);
-        $this->assertSame($ticket->id, $log->details['ticket_id']);
-        $this->assertSame([$apuestas[0]->id], $log->details['apuestas']);
-        $this->assertCount(1, $log->details['devoluciones']);
-        $this->assertEquals(1000.0, (float) $log->details['total_bs']);
-        $this->assertEquals(0.0, (float) $log->details['total_usd']);
+        $this->assertSame(1, AuditEvent::where('action', 'ticket.voided')->count());
+        $this->assertSame(1, AuditEvent::where('action', 'bet.voided')->count());
+        $this->assertDatabaseMissing('logs', ['action' => 'ticket_anulado']);
+
+        $event = AuditEvent::where('action', 'ticket.voided')->firstOrFail();
+        $this->assertSame($user->id, (int) $event->actor_id);
+        $this->assertSame($ticket->id, (int) $event->entity_id);
+        $this->assertSame('ticket', $event->entity_type);
+        $this->assertSame('other', $event->reason_code);
+        $this->assertSame('Error del operador', $event->reason_text);
+        $this->assertSame([$apuestas[0]->id], $event->context['apuestas']);
+        $this->assertEquals(1000.0, (float) $event->context['total_bs']);
+        $this->assertEquals(0.0, (float) $event->context['total_usd']);
 
         $devolucion = Pago::where('apuesta_id', $apuestas[0]->id)
             ->where('tipo', 'devolucion')
             ->firstOrFail();
-        $this->assertSame($devolucion->id, $log->details['devoluciones'][0]['pago_id']);
-        $this->assertSame($apuestas[0]->id, $log->details['devoluciones'][0]['apuesta_id']);
-        $this->assertSame('pago_movil', $log->details['devoluciones'][0]['metodo_pago']);
+
+        $betEvent = AuditEvent::where('action', 'bet.voided')->firstOrFail();
+        $this->assertSame($devolucion->id, $betEvent->context['devolucion']['pago_id']);
+        $this->assertSame($apuestas[0]->id, $betEvent->context['devolucion']['apuesta_id']);
+        $this->assertSame('pago_movil', $betEvent->context['devolucion']['metodo_pago']);
     }
 
     public function test_reintento_tras_la_anulacion_devuelve_404(): void
@@ -371,18 +393,18 @@ class PagoDevolucionAnulacionTest extends TestCase
         ]);
 
         $this->actingAs($user, 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id)
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'Error del operador'])
             ->assertOk();
 
         $this->actingAs($user, 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id)
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'Error del operador'])
             ->assertNotFound();
 
         $this->assertSame(
             1,
             Pago::where('apuesta_id', $apuestas[0]->id)->where('tipo', 'devolucion')->count()
         );
-        $this->assertSame(1, Log::where('action', 'ticket_anulado')->count());
+        $this->assertSame(1, AuditEvent::where('action', 'ticket.voided')->count());
     }
 
     public function test_ticket_de_otro_grupo_devuelve_403(): void
@@ -401,7 +423,7 @@ class PagoDevolucionAnulacionTest extends TestCase
         $ajeno->assignRole('grupo');
 
         $response = $this->actingAs($ajeno, 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id);
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'Error del operador']);
 
         $response->assertForbidden()
             ->assertJsonPath('message', 'No autorizado.');
@@ -409,7 +431,10 @@ class PagoDevolucionAnulacionTest extends TestCase
         $this->assertSame(0, Pago::where('tipo', 'devolucion')->count());
         $this->assertNotSoftDeleted('apuestas', ['id' => $apuestas[0]->id]);
         $this->assertNotSoftDeleted('tickets', ['id' => $ticket->id]);
-        $this->assertSame(0, Log::count());
+        $this->assertSame(
+            0,
+            AuditEvent::whereIn('action', ['ticket.voided', 'bet.voided'])->count()
+        );
     }
 
     public function test_ticket_sin_jugadas_vivas_devuelve_422(): void
@@ -425,7 +450,7 @@ class PagoDevolucionAnulacionTest extends TestCase
         ]);
 
         $response = $this->actingAs($user, 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id);
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'Error del operador']);
 
         $response->assertStatus(422)
             ->assertJsonPath('message', 'El ticket no tiene jugadas activas para anular.');
@@ -433,7 +458,10 @@ class PagoDevolucionAnulacionTest extends TestCase
         $this->assertSame(0, Pago::where('tipo', 'devolucion')->count());
         $this->assertNotSoftDeleted('tickets', ['id' => $ticket->id]);
         $this->assertSame('pendiente', $ticket->fresh()->estado);
-        $this->assertSame(0, Log::count());
+        $this->assertSame(
+            0,
+            AuditEvent::whereIn('action', ['ticket.voided', 'bet.voided'])->count()
+        );
     }
 
     public function test_all_or_nothing_una_linea_mala_no_escribe_nada(): void
@@ -446,13 +474,16 @@ class PagoDevolucionAnulacionTest extends TestCase
         ]);
 
         $response = $this->actingAs($user, 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id);
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'Error del operador']);
 
         $response->assertStatus(422)
             ->assertJsonPath('message', 'El ticket excedió los 5 minutos para ser anulado.');
 
         $this->assertSame(0, Pago::where('tipo', 'devolucion')->count());
-        $this->assertSame(0, Log::count());
+        $this->assertSame(
+            0,
+            AuditEvent::whereIn('action', ['ticket.voided', 'bet.voided'])->count()
+        );
 
         foreach ($apuestas as $apuesta) {
             $this->assertNotSoftDeleted('apuestas', ['id' => $apuesta->id]);
@@ -476,7 +507,7 @@ class PagoDevolucionAnulacionTest extends TestCase
         );
 
         $response = $this->actingAs($user, 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id);
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'Error del operador']);
 
         $response->assertStatus(422)
             ->assertJsonPath('message', 'Solo se pueden anular tickets pendientes.');
@@ -486,32 +517,25 @@ class PagoDevolucionAnulacionTest extends TestCase
         $this->assertNotSoftDeleted('tickets', ['id' => $ticket->id]);
     }
 
-    public function test_rollback_si_falla_el_log_no_deja_devolucion_ni_anulacion(): void
+    public function test_rollback_si_falla_la_auditoria_no_deja_devolucion_ni_anulacion(): void
     {
         $user = $this->superUser();
-        [$banca, $grupo, $taquilla] = $this->crearJerarquia('ROLLBACK');
+        [, , $taquilla] = $this->crearJerarquia('ROLLBACK');
         $juego = $this->juego();
         [$ticket, $apuestas] = $this->crearTicket($taquilla, $juego, $user, [
             ['amount_bs' => 1000],
         ]);
 
-        // Falla inyectada en la última escritura de la transacción (el log):
-        // Pago, estado y soft-deletes ya se ejecutaron y deben revertirse.
-        Log::creating(function (): void {
-            throw new \RuntimeException('fallo inyectado en log');
-        });
+        // Falla inyectada en la escritura de auditoría: devolución, estados y
+        // soft-deletes ya se ejecutaron dentro de la transacción y deben
+        // revertirse completos (500, sin evidencia parcial).
+        self::$failAudit = true;
 
-        try {
-            $this->withoutExceptionHandling()
-                ->actingAs($user, 'sanctum')
-                ->deleteJson('/api/v1/tickets/'.$ticket->id);
+        $this->actingAs($user, 'sanctum')
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'Error del operador'])
+            ->assertStatus(500);
 
-            $this->fail('Se esperaba la excepción inyectada en el log.');
-        } catch (\RuntimeException $e) {
-            $this->assertSame('fallo inyectado en log', $e->getMessage());
-        } finally {
-            Log::flushEventListeners();
-        }
+        self::$failAudit = false;
 
         $this->assertSame(
             0,
@@ -521,7 +545,7 @@ class PagoDevolucionAnulacionTest extends TestCase
         $this->assertNotSoftDeleted('apuestas', ['id' => $apuestas[0]->id]);
         $this->assertSame('pendiente', $ticket->fresh()->estado);
         $this->assertNotSoftDeleted('tickets', ['id' => $ticket->id]);
-        $this->assertSame(0, Log::where('action', 'ticket_anulado')->count());
+        $this->assertSame(0, AuditEvent::where('action', 'ticket.voided')->count());
     }
 
     public function test_anular_apuesta_suelta_registra_devolucion_y_la_anula(): void
@@ -535,7 +559,7 @@ class PagoDevolucionAnulacionTest extends TestCase
         ]);
 
         $pago = app(TicketAnulacionService::class)
-            ->anularApuestaSuelta($apuesta, $user);
+            ->anularApuestaSuelta($apuesta, $user, ['motivo' => 'Error del operador']);
 
         $this->assertInstanceOf(Pago::class, $pago);
         $this->assertSame('devolucion', $pago->tipo);
@@ -550,8 +574,10 @@ class PagoDevolucionAnulacionTest extends TestCase
             Apuesta::withTrashed()->findOrFail($apuesta->id)->estado
         );
 
-        $log = Log::where('action', 'apuesta.anulada')->firstOrFail();
-        $this->assertSame($apuesta->id, $log->details['apuesta_id']);
-        $this->assertSame($pago->id, $log->details['devolucion']['pago_id']);
+        $event = AuditEvent::where('action', 'bet.voided')->firstOrFail();
+        $this->assertSame($apuesta->id, (int) $event->entity_id);
+        $this->assertSame('Error del operador', $event->reason_text);
+        $this->assertSame($pago->id, $event->context['devolucion']['pago_id']);
+        $this->assertDatabaseMissing('logs', ['action' => 'apuesta.anulada']);
     }
 }

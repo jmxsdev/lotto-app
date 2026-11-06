@@ -161,7 +161,7 @@ class TicketsAuthorizationTest extends TestCase
             ->assertForbidden();
 
         $this->actingAs($agencia, 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id)
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'prueba'])
             ->assertForbidden();
 
         $this->assertNotSoftDeleted('tickets', ['id' => $ticket->id]);
@@ -245,7 +245,7 @@ class TicketsAuthorizationTest extends TestCase
         }
 
         $this->actingAs($user, 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id)
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'prueba'])
             ->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.ticket_id', $ticket->id);

@@ -289,6 +289,8 @@ class MetodoPagoTest extends TestCase
 
     private function deleteTicket(User $user, int $ticketId, array $payload = []): TestResponse
     {
+        $payload['motivo'] ??= 'prueba';
+
         return $this->withHeaders(['X-Device-MAC' => 'AA:BB:CC:DD:EE:FF'])
             ->actingAs($user, 'sanctum')
             ->deleteJson('/api/v1/tickets/'.$ticketId, $payload);

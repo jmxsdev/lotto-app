@@ -3,10 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\Apuesta;
+use App\Models\AuditEvent;
 use App\Models\Banca;
 use App\Models\Grupo;
 use App\Models\Juego;
-use App\Models\Log;
 use App\Models\Pago;
 use App\Models\Taquilla;
 use App\Models\Ticket;
@@ -115,14 +115,17 @@ class TicketAnulacionRegresionTest extends TestCase
         ];
 
         $response = $this->actingAs($user, 'sanctum')
-            ->deleteJson('/api/v1/tickets/'.$ticket->id);
+            ->deleteJson('/api/v1/tickets/'.$ticket->id, ['motivo' => 'Error del operador']);
 
         $response->assertStatus(422)
             ->assertJsonPath('message', 'El ticket no tiene jugadas activas para anular.');
 
-        // Sin devolución ni log: no se escribió nada.
+        // Sin devolución ni evento de auditoría: no se escribió nada.
         $this->assertSame(0, Pago::where('tipo', 'devolucion')->count());
-        $this->assertSame(0, Log::count());
+        $this->assertSame(
+            0,
+            AuditEvent::whereIn('action', ['ticket.voided', 'bet.voided'])->count()
+        );
 
         // El ticket no se mutó: sigue vivo y pendiente, con sus totales.
         $this->assertNotSoftDeleted('tickets', ['id' => $ticket->id]);
