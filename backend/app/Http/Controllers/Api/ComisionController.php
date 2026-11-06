@@ -2,6 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Audit\AuditAction;
+use App\Audit\AuditEventData;
+use App\Audit\AuditReason;
+use App\Audit\AuditRecorder;
+use App\Audit\AuditScope;
 use App\Http\Controllers\Controller;
 use App\Models\ComisionDefault;
 use App\Models\User;
@@ -9,6 +14,7 @@ use App\Services\ComisionService;
 use App\Support\Scope\AlcanceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
@@ -37,13 +43,19 @@ class ComisionController extends Controller
      * PUT /api/v1/comisiones/defaults — super_master + manage_comisiones.
      * Recibe `defaults` como array de ítems {moneda, porcentaje_pago};
      * cada moneda se actualiza (upsert) de forma independiente.
+     *
+     * Los upserts y `commission_defaults.updated` (P0) comparten transacción:
+     * si la evidencia no se persiste, los defaults quedan intactos. El evento
+     * guarda las dos filas (bs/usd) antes y después, sin timestamps.
      */
-    public function updateDefaults(Request $request)
+    public function updateDefaults(Request $request, AuditRecorder $recorder)
     {
         $validator = Validator::make($request->all(), [
             'defaults' => ['required', 'array', 'min:1', 'max:2'],
             'defaults.*.moneda' => ['required', 'distinct', Rule::in(['bs', 'usd'])],
             'defaults.*.porcentaje_pago' => ['nullable', 'numeric', 'min:0', 'max:16'],
+            'reason_code' => ['nullable', 'string', 'max:64'],
+            'reason_text' => ['nullable', 'string', 'max:500'],
         ], [
             'defaults.*.porcentaje_pago.max' => 'El % de pago global no puede superar 16%.',
         ]);
@@ -52,12 +64,32 @@ class ComisionController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        foreach ($request->input('defaults') as $item) {
-            ComisionDefault::updateOrCreate(
-                ['moneda' => $item['moneda']],
-                ['porcentaje_pago' => $item['porcentaje_pago'] ?? null]
-            );
-        }
+        $reasonRaw = $request->input('reason_code');
+        $reason = is_string($reasonRaw) ? AuditReason::tryFrom($reasonRaw) : null;
+        $reasonTextRaw = $request->input('reason_text');
+        $reasonText = is_string($reasonTextRaw) ? $reasonTextRaw : null;
+
+        DB::transaction(function () use ($request, $recorder, $reason, $reasonText): void {
+            $before = $this->commissionDefaultsSnapshot();
+
+            foreach ($request->input('defaults') as $item) {
+                ComisionDefault::updateOrCreate(
+                    ['moneda' => $item['moneda']],
+                    ['porcentaje_pago' => $item['porcentaje_pago'] ?? null]
+                );
+            }
+
+            $event = (new AuditEventData(
+                action: AuditAction::CommissionDefaultsUpdated,
+                entityType: 'configuracion',
+                entityId: null,
+                scope: new AuditScope,
+                before: $before,
+                after: $this->commissionDefaultsSnapshot(),
+            ))->withReason($reason, $reasonText);
+
+            $recorder->record(AuditAction::CommissionDefaultsUpdated, $event);
+        });
 
         return response()->json(ComisionDefault::orderBy('moneda')->get());
     }
@@ -120,6 +152,19 @@ class ComisionController extends Controller
                 'total' => count($data),
             ],
         ]);
+    }
+
+    /** @return array<int, array{moneda: string, porcentaje_pago: string|null}> Filas bs/usd, sin timestamps. */
+    private function commissionDefaultsSnapshot(): array
+    {
+        return ComisionDefault::query()
+            ->orderBy('moneda')
+            ->get(['moneda', 'porcentaje_pago'])
+            ->map(static fn (ComisionDefault $row): array => [
+                'moneda' => (string) $row->moneda,
+                'porcentaje_pago' => $row->porcentaje_pago,
+            ])
+            ->all();
     }
 
     /**
