@@ -9,7 +9,7 @@ apunta a `composer test`, que es backend y lo ejecuta el usuario).
 | WU | Alcance | Estado |
 |----|---------|--------|
 | WU1 | Fase 1 fronts + release (backend intacto) | **Implementado y verificado** (check-pure 663/0; e2e 9/9) |
-| WU2 | Fase 2 backend, migración, catálogo 20, logo | **Implementado y commiteado** — migración aplicada en la BD local; catálogo 20 byte-idéntico; tests backend pendientes (los corre el usuario) |
+| WU2 | Fase 2 backend, migración, catálogo 20, logo | **Implementado y verificado** — migración aplicada; catálogo 20 byte-idéntico; tests backend 220/220 (2593 assertions); check-pure 658/0; reset de budget aprobado por maintainer |
 | WU3 | Fase 2 limpieza de contrato TS + specs/docs | **No iniciado** |
 
 ## Commit
@@ -131,8 +131,25 @@ php artisan juegos:export        # 20 juegos
 cp ../docs/juegos.json ../taquilla/src/data/juegos.json
 ```
 
-Pendiente: `php artisan test --filter='...'` / `composer test` y
-`cd taquilla && npm run build && node scripts/check-pure.mjs`.
+### Verificación WU2 (completada)
+
+- `php artisan test --filter='...'` → **220 passed (2593 assertions)**.
+- `node scripts/check-pure.mjs` → **658 checks, 0 fallos**.
+- Incidencia de entorno: `backend/vendor` era un symlink al repo principal y Composer cargaba
+  `PremiosOficiales`/`DatabaseSeeder` viejos (21 juegos). Se reemplazó por un `composer install`
+  real en el worktree; `PremiosOficiales::slugs()` = 20.
+- `sdd-attempt settle` WU2 → `passed`, pero `changed_lines=2651 > 800`; reset aprobado por
+  maintainer (`jmxsdev`) con `--expected-revision sha256:8ad9…`; estado posterior `next_action: begin`.
+- Commit WU2: `3a4da66`.
+
+## Notas para WU3
+
+- Limpieza de contrato TS: `TipoJuego`/`TIPOS_VALIDOS`/`derivarFamilia`, `TipoLineaTicket`,
+  ramas legacy de ticket y payload, `2.0.0` + CHANGELOG, docs/specs.
+- Tests de cierre: `cd taquilla && npm run build && node scripts/check-pure.mjs && pnpm e2e`;
+  después `cd backend && composer test` (suite completa).
+- No tocar `DEFS.terminal`, `FamiliaOpciones 'terminal'`, `claveNumerica` ni la modalidad
+  posicional: siguen siendo la modalidad vendible.
 
 ## Notas para WU2
 
