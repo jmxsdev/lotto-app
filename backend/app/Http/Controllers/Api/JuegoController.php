@@ -7,6 +7,7 @@ use App\Audit\AuditEventData;
 use App\Audit\AuditReason;
 use App\Audit\AuditRecorder;
 use App\Audit\AuditScope;
+use App\Audit\AuditScopeResolver;
 use App\Http\Controllers\Controller;
 use App\Models\Banca;
 use App\Models\Grupo;
@@ -29,10 +30,19 @@ use Illuminate\Validation\Rule;
 
 class JuegoController extends Controller
 {
+    /**
+     * Audit summary bounds for the batch endpoint: the batch can touch
+     * hundreds of rows, so the evidence stores a bounded sample.
+     */
+    private const BATCH_AUDIT_MAX_KEYS = 500;
+
+    private const BATCH_AUDIT_SAMPLE = 20;
+
     public function __construct(
         private JuegoLimiteService $limites,
         private readonly AlcanceService $alcance,
         private readonly AuditRecorder $audit,
+        private readonly AuditScopeResolver $scopeResolver,
     ) {}
 
     public function index()
@@ -485,7 +495,11 @@ class JuegoController extends Controller
      * PUT /api/limites/{juego}
      *
      * super_master/master/banca escriben según su alcance; el rol grupo
-     * solo dentro de su subárbol (su grupo y sus taquillas).
+     * solo dentro de su subárbol (su grupo y sus taquillas). Un campo de
+     * límite con `null` explícito elimina la fila (heredar del padre).
+     *
+     * La escritura y `game.limits_updated` (P0) comparten transacción: si la
+     * evidencia no se persiste, el límite no cambia.
      */
     public function updateLimites(Request $request, Juego $juego)
     {
@@ -510,6 +524,8 @@ class JuegoController extends Controller
                 }
             }],
             'participacion' => 'nullable|numeric|min:0|max:100',
+            'reason_code' => 'nullable|string|max:64',
+            'reason_text' => 'nullable|string|max:500',
         ]);
 
         // Verificar alcance de escritura ANTES de validar restrictividad:
@@ -535,20 +551,66 @@ class JuegoController extends Controller
             );
         }
 
-        $limite = JuegoLimite::updateOrCreate(
-            [
-                'juego_id' => $juego->id,
-                'banca_id' => $request->banca_id,
-                'grupo_id' => $request->grupo_id,
-                'taquilla_id' => $request->taquilla_id,
-                'moneda' => $request->moneda,
-            ],
-            $request->only([
-                'limite_minimo', 'limite_maximo', 'porcentaje_pago', 'participacion',
-            ])
-        );
+        $reasonRaw = $request->input('reason_code');
+        $reason = is_string($reasonRaw) ? AuditReason::tryFrom($reasonRaw) : null;
+        $reasonTextRaw = $request->input('reason_text');
+        $reasonText = is_string($reasonTextRaw) ? $reasonTextRaw : null;
 
-        $isNew = $limite->wasRecentlyCreated;
+        // Clave natural de la fila (juego × entidad × moneda): identifica el
+        // límite antes y después del upsert.
+        $clave = [
+            'juego_id' => $juego->id,
+            'banca_id' => (int) $request->banca_id,
+            'grupo_id' => $request->grupo_id !== null ? (int) $request->grupo_id : null,
+            'taquilla_id' => $request->taquilla_id !== null ? (int) $request->taquilla_id : null,
+            'moneda' => $request->moneda,
+        ];
+
+        $antes = JuegoLimite::where($clave)->first();
+        $before = $this->snapshotLimite($antes);
+
+        // P0 fail-closed: el upsert/borrado del límite se revierte si la
+        // evidencia de auditoría no se puede persistir.
+        [$limite, $isNew] = DB::transaction(function () use (
+            $clave,
+            $request,
+            $antes,
+            $before,
+            $reason,
+            $reasonText
+        ): array {
+            $item = array_merge($clave, $request->only([
+                'limite_minimo', 'limite_maximo', 'porcentaje_pago', 'participacion',
+            ]));
+
+            $resultados = [];
+            $this->limites->aplicarItemLimite($item, null, $resultados);
+
+            // Un null explícito elimina la fila (heredar del padre): se
+            // vuelve a leer para reflejar el estado final.
+            $despues = JuegoLimite::where($clave)->first();
+            $after = $this->snapshotLimite($despues);
+            $modelo = $despues ?? $antes;
+
+            if ($modelo !== null) {
+                $event = (new AuditEventData(
+                    action: AuditAction::GameLimitsUpdated,
+                    entityType: 'juego_limite',
+                    // Si la fila se eliminó, entity_id conserva el id de la
+                    // fila borrada (último id conocido) y `context.deleted`
+                    // marca que ya no existe.
+                    entityId: (int) $modelo->id,
+                    scope: $this->scopeResolver->forModel($modelo),
+                    before: $before,
+                    after: $after,
+                    context: $despues === null && $antes !== null ? ['deleted' => true] : [],
+                ))->withReason($reason, $reasonText);
+
+                $this->audit->critical(AuditAction::GameLimitsUpdated, $event);
+            }
+
+            return [$despues ?? $antes, $antes === null && $despues !== null];
+        });
 
         return response()->json($limite, $isNew ? 201 : 200);
     }
@@ -579,6 +641,8 @@ class JuegoController extends Controller
             'limites.*.limite_maximo' => 'nullable|numeric|min:0',
             'limites.*.porcentaje_pago' => 'nullable|numeric|min:0|max:100',
             'limites.*.participacion' => 'nullable|numeric|min:0|max:100',
+            'reason_code' => 'nullable|string|max:64',
+            'reason_text' => 'nullable|string|max:500',
         ]);
 
         $scope = $request->scope;
@@ -635,6 +699,23 @@ class JuegoController extends Controller
         // ítem antes de persistir, después de autorizar el alcance.
         $this->limites->validarItems($request->limites);
 
+        $reasonRaw = $request->input('reason_code');
+        $reason = is_string($reasonRaw) ? AuditReason::tryFrom($reasonRaw) : null;
+        $reasonTextRaw = $request->input('reason_text');
+        $reasonText = is_string($reasonTextRaw) ? $reasonTextRaw : null;
+
+        // Resumen acotado antes/después para la evidencia P1: el batch puede
+        // tocar cientos de filas, así que se guarda un conteo y una muestra,
+        // nunca el lote completo.
+        $resumen = $this->clavesAfectadasBatch($request->limites, $objetivos);
+        $claves = $resumen['claves'];
+        $totalClaves = $resumen['total'];
+        $truncado = $resumen['truncado'];
+
+        $juegoIds = collect($request->limites)->pluck('juego_id')->map(fn ($id) => (int) $id)->unique()->values()->all();
+        $bancaIds = collect($claves)->pluck('banca_id')->unique()->values()->all();
+        $antes = $this->resumenLimites($claves, $juegoIds, $bancaIds);
+
         $resultados = [];
 
         DB::transaction(function () use ($request, $objetivos, &$resultados) {
@@ -667,6 +748,30 @@ class JuegoController extends Controller
                 }
             }
         });
+
+        // P1 best-effort: una caída de auditoría no bloquea el batch ya
+        // aplicado.
+        $despues = $this->resumenLimites($claves, $juegoIds, $bancaIds);
+
+        $event = (new AuditEventData(
+            action: AuditAction::GameLimitsBatchUpdated,
+            entityType: 'juego_limite',
+            entityId: null,
+            scope: $this->scopeDeBatch($scope),
+            before: $antes,
+            after: $despues,
+            context: [
+                'count' => $totalClaves,
+                'tracked' => count($claves),
+                'truncated' => $truncado,
+                'scope' => ! empty($scope) ? [
+                    'tipo' => (string) ($scope['tipo'] ?? ''),
+                    'id' => isset($scope['id']) ? (int) $scope['id'] : null,
+                ] : null,
+            ],
+        ))->withReason($reason, $reasonText);
+
+        $this->audit->record(AuditAction::GameLimitsBatchUpdated, $event);
 
         return response()->json($resultados, 201);
     }
@@ -812,7 +917,40 @@ class JuegoController extends Controller
             return response()->json(['message' => 'No tienes acceso a los límites de esta entidad.'], 403);
         }
 
+        $request->validate([
+            'reason_code' => 'nullable|string|max:64',
+            'reason_text' => 'nullable|string|max:500',
+        ]);
+
+        // Snapshot y scope ANTES del borrado: la fila ya no existirá para
+        // reconstruir la evidencia.
+        $before = $this->snapshotLimite($limite);
+        $scope = $this->scopeResolver->forModel($limite);
+        $entityId = (int) $limite->id;
+
         $limite->delete();
+
+        // P1 best-effort: una caída de auditoría no bloquea el borrado.
+        // `game.limit_deleted` exige motivo; hasta que el panel lo capture
+        // (WU-11a), la ausencia se registra como `unspecified` para no perder
+        // la evidencia.
+        $reasonRaw = $request->input('reason_code');
+        $reason = is_string($reasonRaw)
+            ? (AuditReason::tryFrom($reasonRaw) ?? AuditReason::Unspecified)
+            : AuditReason::Unspecified;
+        $reasonTextRaw = $request->input('reason_text');
+        $reasonText = is_string($reasonTextRaw) ? $reasonTextRaw : null;
+
+        $event = (new AuditEventData(
+            action: AuditAction::GameLimitDeleted,
+            entityType: 'juego_limite',
+            entityId: $entityId,
+            scope: $scope,
+            before: $before,
+            after: null,
+        ))->withReason($reason, $reasonText);
+
+        $this->audit->record(AuditAction::GameLimitDeleted, $event);
 
         return response()->json(['message' => 'Límite eliminado correctamente.']);
     }
@@ -1176,5 +1314,215 @@ class JuegoController extends Controller
         }
 
         return $valores;
+    }
+
+    // ==================================================
+    // HELPERS DE AUDITORÍA DE LÍMITES
+    // ==================================================
+
+    /**
+     * Snapshot seguro de una fila de límite para evidencia: solo campos de
+     * negocio (sin id ni timestamps) con los decimales como float.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function snapshotLimite(?JuegoLimite $limite): ?array
+    {
+        if ($limite === null) {
+            return null;
+        }
+
+        return [
+            'juego_id' => (int) $limite->juego_id,
+            'banca_id' => $limite->banca_id !== null ? (int) $limite->banca_id : null,
+            'grupo_id' => $limite->grupo_id !== null ? (int) $limite->grupo_id : null,
+            'taquilla_id' => $limite->taquilla_id !== null ? (int) $limite->taquilla_id : null,
+            'moneda' => $limite->moneda,
+            'limite_minimo' => $limite->limite_minimo !== null ? (float) $limite->limite_minimo : null,
+            'limite_maximo' => $limite->limite_maximo !== null ? (float) $limite->limite_maximo : null,
+            'porcentaje_pago' => $limite->porcentaje_pago !== null ? (float) $limite->porcentaje_pago : null,
+            'participacion' => $limite->participacion !== null ? (float) $limite->participacion : null,
+        ];
+    }
+
+    /**
+     * Claves afectadas por un batch, derivadas de los ítems y de los
+     * objetivos expandidos. Acotada para no crecer sin control en lotes
+     * grandes (el conteo total se conserva aparte).
+     *
+     * @param  array<int, array<string, mixed>>  $items
+     * @param  array<int, array{nivel: string, id: int}>|null  $objetivos
+     * @return array{claves: array<string, array<string, mixed>>, total: int, truncado: bool}
+     */
+    private function clavesAfectadasBatch(array $items, ?array $objetivos): array
+    {
+        $cadenas = $this->cadenasDeObjetivos($objetivos);
+        $claves = [];
+        $total = 0;
+
+        foreach ($items as $item) {
+            $juegoId = (int) ($item['juego_id'] ?? 0);
+            $moneda = (string) ($item['moneda'] ?? '');
+
+            if ($objetivos === null) {
+                $cadenaItem = [
+                    'banca_id' => (int) ($item['banca_id'] ?? 0),
+                    'grupo_id' => ! empty($item['grupo_id']) ? (int) $item['grupo_id'] : null,
+                    'taquilla_id' => ! empty($item['taquilla_id']) ? (int) $item['taquilla_id'] : null,
+                ];
+                $cadenasItem = [$cadenaItem];
+            } else {
+                $cadenasItem = $cadenas;
+            }
+
+            foreach ($cadenasItem as $cadena) {
+                $clave = $juegoId.'|'.$cadena['banca_id'].'|'.($cadena['grupo_id'] ?? '').'|'.($cadena['taquilla_id'] ?? '').'|'.$moneda;
+
+                if (isset($claves[$clave])) {
+                    continue;
+                }
+
+                $total++;
+
+                if (count($claves) >= self::BATCH_AUDIT_MAX_KEYS) {
+                    continue;
+                }
+
+                $claves[$clave] = [
+                    'juego_id' => $juegoId,
+                    'banca_id' => (int) $cadena['banca_id'],
+                    'grupo_id' => $cadena['grupo_id'],
+                    'taquilla_id' => $cadena['taquilla_id'],
+                    'moneda' => $moneda,
+                ];
+            }
+        }
+
+        return [
+            'claves' => $claves,
+            'total' => $total,
+            'truncado' => $total > count($claves),
+        ];
+    }
+
+    /**
+     * Cadena banca/grupo/taquilla de cada objetivo del alcance, resuelta en
+     * bloque (dos consultas) para no hacer N+1.
+     *
+     * @param  array<int, array{nivel: string, id: int}>|null  $objetivos
+     * @return array<int, array{banca_id: int, grupo_id: int|null, taquilla_id: int|null}>
+     */
+    private function cadenasDeObjetivos(?array $objetivos): array
+    {
+        if ($objetivos === null) {
+            return [];
+        }
+
+        $objetivos = collect($objetivos);
+
+        $bancasPorGrupo = Grupo::whereIn('id', $objetivos->where('nivel', 'grupo')->pluck('id')->all())
+            ->pluck('banca_id', 'id');
+
+        $taquillas = Taquilla::with('grupo:id,banca_id')
+            ->whereIn('id', $objetivos->where('nivel', 'taquilla')->pluck('id')->all())
+            ->get(['id', 'grupo_id'])
+            ->keyBy('id');
+
+        $cadenas = [];
+
+        foreach ($objetivos as $objetivo) {
+            $id = (int) $objetivo['id'];
+
+            if ($objetivo['nivel'] === 'banca') {
+                $cadenas[] = ['banca_id' => $id, 'grupo_id' => null, 'taquilla_id' => null];
+
+                continue;
+            }
+
+            if ($objetivo['nivel'] === 'grupo') {
+                $cadenas[] = [
+                    'banca_id' => (int) $bancasPorGrupo->get($id, 0),
+                    'grupo_id' => $id,
+                    'taquilla_id' => null,
+                ];
+
+                continue;
+            }
+
+            $taquilla = $taquillas->get($id);
+            $cadenas[] = [
+                'banca_id' => (int) ($taquilla?->grupo?->banca_id ?? 0),
+                'grupo_id' => $taquilla?->grupo_id !== null ? (int) $taquilla->grupo_id : null,
+                'taquilla_id' => $id,
+            ];
+        }
+
+        return $cadenas;
+    }
+
+    /**
+     * Resumen acotado de las filas afectadas: conteo y una muestra de
+     * snapshots (nunca el lote completo).
+     *
+     * @param  array<string, array<string, mixed>>  $claves
+     * @param  array<int, int>  $juegoIds
+     * @param  array<int, int>  $bancaIds
+     * @return array{count: int, items: array<int, array<string, mixed>>}
+     */
+    private function resumenLimites(array $claves, array $juegoIds, array $bancaIds): array
+    {
+        if ($claves === [] || $juegoIds === [] || $bancaIds === []) {
+            return ['count' => 0, 'items' => []];
+        }
+
+        $filas = JuegoLimite::whereIn('juego_id', $juegoIds)
+            ->whereIn('banca_id', $bancaIds)
+            ->get();
+
+        $encontradas = [];
+
+        foreach ($filas as $fila) {
+            $grupoId = $fila->grupo_id !== null ? (int) $fila->grupo_id : '';
+            $taquillaId = $fila->taquilla_id !== null ? (int) $fila->taquilla_id : '';
+
+            $clave = (int) $fila->juego_id.'|'.(int) $fila->banca_id.'|'.$grupoId.'|'.$taquillaId.'|'.$fila->moneda;
+
+            if (isset($claves[$clave])) {
+                $encontradas[$clave] = $this->snapshotLimite($fila);
+            }
+        }
+
+        return [
+            'count' => count($encontradas),
+            'items' => array_slice(array_values($encontradas), 0, self::BATCH_AUDIT_SAMPLE),
+        ];
+    }
+
+    /**
+     * Scope de la evidencia del batch: raíz del request cuando el alcance es
+     * singular (banca/grupo/taquilla); vacío para alcances plurales.
+     */
+    private function scopeDeBatch(?array $scope): AuditScope
+    {
+        $tipo = $scope['tipo'] ?? null;
+        $id = isset($scope['id']) ? (int) $scope['id'] : null;
+
+        if (! is_string($tipo) || $id === null) {
+            return new AuditScope;
+        }
+
+        $grupo = $tipo === 'grupo' ? Grupo::find($id) : null;
+        $taquilla = $tipo === 'taquilla' ? Taquilla::with('grupo:id,banca_id')->find($id) : null;
+
+        return new AuditScope(
+            bancaId: match ($tipo) {
+                'banca' => $id,
+                'grupo' => $grupo?->banca_id,
+                'taquilla' => $taquilla?->grupo?->banca_id,
+                default => null,
+            },
+            grupoId: $tipo === 'grupo' ? $id : $taquilla?->grupo_id,
+            taquillaId: $tipo === 'taquilla' ? $id : null,
+        );
     }
 }
