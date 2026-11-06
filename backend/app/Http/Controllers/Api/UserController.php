@@ -10,7 +10,6 @@ use App\Audit\AuditScopeResolver;
 use App\Http\Controllers\Controller;
 use App\Models\Agencia;
 use App\Models\Grupo;
-use App\Models\Log;
 use App\Models\Taquilla;
 use App\Models\User;
 use App\Policies\UserPolicy;
@@ -156,7 +155,7 @@ class UserController extends Controller
     /**
      * Actualizar un usuario
      */
-    public function update(Request $request, User $user)
+    public function update(Request $request, User $user, AuditRecorder $recorder)
     {
         $currentUser = auth()->user();
 
@@ -172,6 +171,8 @@ class UserController extends Controller
             'grupo_id' => 'nullable|exists:grupos,id',
             'agencia_id' => 'nullable|exists:agencias,id',
             'taquilla_id' => 'nullable|exists:taquillas,id',
+            'reason_code' => 'nullable|string|max:64',
+            'reason_text' => 'nullable|string|max:500',
         ]);
 
         $data = $request->only(['name', 'email', 'active']);
@@ -190,7 +191,14 @@ class UserController extends Controller
             abort(403, 'El usuario no tiene un rol asignado.');
         }
 
-        $roleChanging = $request->filled('role') && ! $user->hasRole($request->role);
+        // Snapshot del set completo de roles antes de persistir: permite
+        // auditar también el colapso de un usuario multi-rol.
+        $rolesBefore = $user->getRoleNames()->sort()->values()->all();
+        $roleChanging = $request->filled('role') && $rolesBefore !== [$request->role];
+
+        // La autorización jerárquica conserva su criterio original: solo se
+        // revalida el rol si el usuario aún no lo tenía.
+        $roleNeedsAuthorization = $request->filled('role') && ! $user->hasRole($request->role);
 
         // Al cambiar rol o vínculos: validar consistencia y autorización
         // jerárquica. `canAssign` impide autopromoción, pares y mover al
@@ -199,40 +207,109 @@ class UserController extends Controller
             $this->validateRoleBindings($finalRole, $data, $user);
         }
 
-        if ($roleChanging || $bindings !== []) {
+        if ($roleNeedsAuthorization || $bindings !== []) {
             $this->authorizeEntityBinding($currentUser, $data, $finalRole, $user);
         }
 
-        if ($request->filled('password')) {
+        $passwordChanging = $request->filled('password');
+        if ($passwordChanging) {
             $data['password'] = Hash::make($request->password);
         }
 
-        // Snapshot del set completo de roles antes de persistir: permite
-        // auditar también el colapso de un usuario multi-rol.
-        $before = $user->getRoleNames()->sort()->values()->all();
-        $cambioRol = $request->filled('role') && $before !== [$request->role];
+        // Snapshot before the mutation: `getOriginal()` resyncs on save.
+        $beforeAttributes = $user->getAttributes();
+        $activeBefore = (bool) $user->active;
 
-        DB::transaction(function () use ($request, $currentUser, $user, $data, $cambioRol, $before) {
+        $reasonRaw = $request->input('reason_code');
+        $reason = is_string($reasonRaw) ? AuditReason::tryFrom($reasonRaw) : null;
+        $reasonTextRaw = $request->input('reason_text');
+        $reasonText = is_string($reasonTextRaw) ? $reasonTextRaw : null;
+
+        // P0 fail-closed: every event shares the transaction with the user
+        // update, so a write failure (or a missing required reason) rolls the
+        // whole mutation back.
+        DB::transaction(function () use (
+            $request,
+            $user,
+            $data,
+            $recorder,
+            $rolesBefore,
+            $roleChanging,
+            $passwordChanging,
+            $beforeAttributes,
+            $activeBefore,
+            $reason,
+            $reasonText
+        ): void {
             $user->update($data);
 
             if ($request->filled('role')) {
                 $user->syncRoles([$request->role]);
             }
 
-            if ($cambioRol) {
-                Log::create([
-                    'user_id' => $currentUser->id, // actor
-                    'action' => 'user.role_changed',
-                    'details' => [
-                        'actor_id' => $currentUser->id,
-                        'target_id' => $user->id,
-                        'target_email' => $user->email,
-                        'before' => $before,
-                        'after' => $user->getRoleNames()->sort()->values()->all(),
-                    ],
-                    'ip' => $request->ip(),
-                    'user_agent' => $request->header('User-Agent'),
-                ]);
+            $scope = app(AuditScopeResolver::class)->forModel($user);
+            $entityId = (int) $user->id;
+
+            // `user.updated` only covers non-semantic identity/link changes;
+            // role, active and password have their own explicit events.
+            $changes = $user->getChanges();
+            $auditedKeys = array_intersect(
+                array_keys($changes),
+                ['name', 'email', 'banca_id', 'grupo_id', 'agencia_id', 'taquilla_id'],
+            );
+
+            if ($auditedKeys !== []) {
+                $event = (new AuditEventData(
+                    action: AuditAction::UserUpdated,
+                    entityType: 'user',
+                    entityId: $entityId,
+                    scope: $scope,
+                    before: Arr::only($beforeAttributes, $auditedKeys),
+                    after: Arr::only($changes, $auditedKeys),
+                ))->withReason($reason, $reasonText);
+
+                $recorder->record(AuditAction::UserUpdated, $event);
+            }
+
+            if ($roleChanging) {
+                $event = (new AuditEventData(
+                    action: AuditAction::UserRoleChanged,
+                    entityType: 'user',
+                    entityId: $entityId,
+                    scope: $scope,
+                    before: ['roles' => $rolesBefore],
+                    after: ['roles' => $user->getRoleNames()->sort()->values()->all()],
+                ))->withReason($reason, $reasonText);
+
+                $recorder->record(AuditAction::UserRoleChanged, $event);
+            }
+
+            if ($user->wasChanged('active')) {
+                $activated = (bool) $user->active;
+                $action = $activated ? AuditAction::UserActivated : AuditAction::UserDeactivated;
+
+                $event = (new AuditEventData(
+                    action: $action,
+                    entityType: 'user',
+                    entityId: $entityId,
+                    scope: $scope,
+                    before: ['active' => $activeBefore],
+                    after: ['active' => $activated],
+                ))->withReason($reason, $reasonText);
+
+                $recorder->record($action, $event);
+            }
+
+            if ($passwordChanging) {
+                $event = (new AuditEventData(
+                    action: AuditAction::UserPasswordResetByAdmin,
+                    entityType: 'user',
+                    entityId: $entityId,
+                    scope: $scope,
+                    context: ['password_changed' => true],
+                ))->withReason($reason, $reasonText);
+
+                $recorder->record(AuditAction::UserPasswordResetByAdmin, $event);
             }
         });
 

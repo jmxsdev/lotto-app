@@ -85,7 +85,10 @@ class UsuarioRolApiTest extends TestCase
         $target = User::factory()->withRole('banca')->create(['banca_id' => $banca->id]);
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->putJson('/api/v1/users/'.$target->id, ['role' => 'master']);
+            ->putJson('/api/v1/users/'.$target->id, [
+                'role' => 'master',
+                'reason_code' => 'data_correction',
+            ]);
 
         $response->assertStatus(200)
             ->assertJsonPath('role', 'master');

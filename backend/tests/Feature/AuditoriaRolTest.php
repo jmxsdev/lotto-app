@@ -2,21 +2,19 @@
 
 namespace Tests\Feature;
 
+use App\Models\AuditEvent;
 use App\Models\Banca;
-use App\Models\Log;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
- * WU-3 — auditoría de cambios de rol (`user.role_changed`).
+ * WU-3a-2 — `user.role_changed` audit event.
  *
- * `UserController::update` registra un único log por cambio real de rol,
- * dentro de la misma transacción que persiste el usuario y `syncRoles`.
- * Sin cambio, sin `role` en el request o con un 403 previo no hay log.
- * `details` es un array (cast del modelo), nunca JSON anidado.
+ * `UserController::update` emits one P0 event per real role change inside the
+ * same transaction that persists the user and `syncRoles`. A missing reason is
+ * rejected with 422 and the role is rolled back. The legacy `logs` row is gone.
  */
 class AuditoriaRolTest extends TestCase
 {
@@ -33,9 +31,9 @@ class AuditoriaRolTest extends TestCase
         return User::factory()->withRole('super_master')->create();
     }
 
-    private function logsDeRol(): int
+    private function auditEvent(string $action): AuditEvent
     {
-        return Log::where('action', 'user.role_changed')->count();
+        return AuditEvent::query()->where('action', $action)->latest('id')->firstOrFail();
     }
 
     public function test_cambio_de_rol_registra_user_role_changed(): void
@@ -44,23 +42,32 @@ class AuditoriaRolTest extends TestCase
         $target = User::factory()->withRole('taquilla')->create();
 
         $response = $this->actingAs($actor, 'sanctum')
-            ->putJson('/api/v1/users/'.$target->id, ['role' => 'master']);
+            ->putJson('/api/v1/users/'.$target->id, [
+                'role' => 'master',
+                'reason_code' => 'data_correction',
+            ]);
 
         $response->assertStatus(200)
             ->assertJsonPath('role', 'master');
 
-        $this->assertSame(1, $this->logsDeRol());
-        $this->assertDatabaseHas('logs', [
-            'user_id' => $actor->id,
-            'action' => 'user.role_changed',
-        ]);
+        $event = $this->auditEvent('user.role_changed');
 
-        $log = Log::where('action', 'user.role_changed')->firstOrFail();
-        $this->assertSame($target->id, $log->details['target_id']);
+        $this->assertSame('user', $event->actor_type);
+        $this->assertSame($actor->id, $event->actor_id);
+        $this->assertSame(['super_master'], $event->actor_roles);
+        $this->assertSame('user', $event->entity_type);
+        $this->assertSame($target->id, $event->entity_id);
+        $this->assertSame(['taquilla'], $event->before['roles']);
+        $this->assertSame(['master'], $event->after['roles']);
+        $this->assertSame('data_correction', $event->reason_code);
+
         $this->assertSame(['master'], $target->fresh()->getRoleNames()->all());
+
+        // The audit event replaces the legacy operational log.
+        $this->assertDatabaseMissing('logs', ['action' => 'user.role_changed']);
     }
 
-    public function test_mismo_rol_no_registra_log(): void
+    public function test_mismo_rol_no_registra_role_changed(): void
     {
         $actor = $this->superUser();
         $target = User::factory()->withRole('master')->create();
@@ -70,17 +77,17 @@ class AuditoriaRolTest extends TestCase
 
         $response->assertStatus(200);
 
-        // Sin `role` en el request tampoco se audita.
+        // Un cambio que no toca el rol tampoco emite el evento de rol.
         $response = $this->actingAs($actor, 'sanctum')
             ->putJson('/api/v1/users/'.$target->id, ['name' => 'Solo Renombrado']);
 
         $response->assertStatus(200)
             ->assertJsonPath('name', 'Solo Renombrado');
 
-        $this->assertSame(0, $this->logsDeRol());
+        $this->assertDatabaseMissing('audit_events', ['action' => 'user.role_changed']);
     }
 
-    public function test_log_incluye_actor_target_before_after(): void
+    public function test_role_event_incluye_actor_target_before_after_y_scope(): void
     {
         $actor = $this->superUser();
         $banca = Banca::factory()->create();
@@ -90,45 +97,25 @@ class AuditoriaRolTest extends TestCase
         ]);
 
         $this->actingAs($actor, 'sanctum')
-            ->putJson('/api/v1/users/'.$target->id, ['role' => 'master'])
+            ->putJson('/api/v1/users/'.$target->id, [
+                'role' => 'master',
+                'reason_code' => 'business_decision',
+                'reason_text' => 'Role updated by operations',
+            ])
             ->assertStatus(200);
 
-        $log = Log::where('action', 'user.role_changed')->firstOrFail();
+        $event = $this->auditEvent('user.role_changed');
 
-        $this->assertSame($actor->id, $log->user_id);
-        $this->assertSame($actor->id, $log->details['actor_id']);
-        $this->assertSame($target->id, $log->details['target_id']);
-        $this->assertSame('target-auditado@test.com', $log->details['target_email']);
-        $this->assertSame(['banca'], $log->details['before']);
-        $this->assertSame(['master'], $log->details['after']);
+        $this->assertSame($actor->id, $event->actor_id);
+        $this->assertSame($target->id, $event->entity_id);
+        $this->assertSame($banca->id, $event->banca_id);
+        $this->assertSame(['banca'], $event->before['roles']);
+        $this->assertSame(['master'], $event->after['roles']);
+        $this->assertSame('business_decision', $event->reason_code);
+        $this->assertSame('Role updated by operations', $event->reason_text);
     }
 
-    public function test_details_es_array_sin_doble_json(): void
-    {
-        $actor = $this->superUser();
-        $target = User::factory()->withRole('taquilla')->create();
-
-        $this->actingAs($actor, 'sanctum')
-            ->putJson('/api/v1/users/'.$target->id, ['role' => 'master'])
-            ->assertStatus(200);
-
-        $log = Log::where('action', 'user.role_changed')->firstOrFail();
-
-        $this->assertIsArray($log->details);
-        $this->assertArrayHasKey('actor_id', $log->details);
-
-        // La columna guarda JSON de un array plano: decodificar una sola vez
-        // devuelve el array, no un string JSON (doble encode).
-        $raw = DB::table('logs')->where('id', $log->id)->value('details');
-        $decoded = json_decode($raw, true);
-
-        $this->assertIsArray($decoded);
-        $this->assertIsNotString($decoded);
-        $this->assertSame($actor->id, $decoded['actor_id']);
-        $this->assertSame($target->id, $decoded['target_id']);
-    }
-
-    public function test_403_no_registra_log(): void
+    public function test_403_no_registra_evento_de_rol(): void
     {
         $bancaPropia = Banca::factory()->create();
         $bancaAjena = Banca::factory()->create();
@@ -137,11 +124,14 @@ class AuditoriaRolTest extends TestCase
         $target = User::factory()->withRole('taquilla')->create(['banca_id' => $bancaAjena->id]);
 
         $response = $this->actingAs($actor, 'sanctum')
-            ->putJson('/api/v1/users/'.$target->id, ['role' => 'master']);
+            ->putJson('/api/v1/users/'.$target->id, [
+                'role' => 'master',
+                'reason_code' => 'data_correction',
+            ]);
 
         $response->assertStatus(403);
 
-        $this->assertSame(0, $this->logsDeRol());
+        $this->assertDatabaseMissing('audit_events', ['action' => 'user.role_changed']);
         $this->assertSame(['taquilla'], $target->fresh()->getRoleNames()->all());
     }
 }
