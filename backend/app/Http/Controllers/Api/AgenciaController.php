@@ -2,11 +2,17 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Audit\AuditAction;
+use App\Audit\AuditEventData;
+use App\Audit\AuditReason;
+use App\Audit\AuditRecorder;
+use App\Audit\AuditScopeResolver;
 use App\Http\Controllers\Controller;
 use App\Models\Agencia;
 use App\Models\Grupo;
 use App\Support\Scope\AlcanceService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
@@ -21,8 +27,22 @@ use Illuminate\Validation\Rule;
  */
 class AgenciaController extends Controller
 {
+    /**
+     * Safe agencia attributes captured in audit before/after payloads.
+     *
+     * Timestamps, the soft-delete marker and internal columns are excluded.
+     *
+     * @var array<int, string>
+     */
+    private const AGENCIA_AUDIT_FIELDS = [
+        'name', 'code', 'grupo_id', 'active', 'created_by',
+        'rif', 'email', 'telefono', 'direccion', 'estado', 'municipio',
+    ];
+
     public function __construct(
         private readonly AlcanceService $alcance,
+        private readonly AuditRecorder $audit,
+        private readonly AuditScopeResolver $scopeResolver,
     ) {}
 
     /**
@@ -64,23 +84,40 @@ class AgenciaController extends Controller
             'direccion' => 'nullable|string|max:255',
             'estado' => 'nullable|string|max:100',
             'municipio' => 'nullable|string|max:100',
+            'reason_code' => 'nullable|string|max:64',
+            'reason_text' => 'nullable|string|max:500',
         ]);
 
         $this->authorizeGrupoAccess($user, $validated['grupo_id']);
 
-        $agencia = Agencia::create([
-            'name' => $validated['name'],
-            'code' => $validated['code'],
-            'grupo_id' => $validated['grupo_id'],
-            'active' => $validated['active'] ?? true,
-            'created_by' => $user->id,
-            'rif' => $validated['rif'] ?? null,
-            'email' => $validated['email'] ?? null,
-            'telefono' => $validated['telefono'] ?? null,
-            'direccion' => $validated['direccion'] ?? null,
-            'estado' => $validated['estado'] ?? null,
-            'municipio' => $validated['municipio'] ?? null,
-        ]);
+        [$reason, $reasonText] = $this->auditReason($request);
+
+        $agencia = DB::transaction(function () use ($validated, $user, $reason, $reasonText): Agencia {
+            $agencia = Agencia::create([
+                'name' => $validated['name'],
+                'code' => $validated['code'],
+                'grupo_id' => $validated['grupo_id'],
+                'active' => $validated['active'] ?? true,
+                'created_by' => $user->id,
+                'rif' => $validated['rif'] ?? null,
+                'email' => $validated['email'] ?? null,
+                'telefono' => $validated['telefono'] ?? null,
+                'direccion' => $validated['direccion'] ?? null,
+                'estado' => $validated['estado'] ?? null,
+                'municipio' => $validated['municipio'] ?? null,
+            ]);
+
+            // P1 best-effort: creation evidence never blocks the entity.
+            $this->audit->record(AuditAction::AgenciaCreated, (new AuditEventData(
+                action: AuditAction::AgenciaCreated,
+                entityType: 'agencia',
+                entityId: (int) $agencia->id,
+                scope: $this->scopeResolver->forModel($agencia),
+                after: $this->agenciaSnapshot($agencia),
+            ))->withReason($reason, $reasonText));
+
+            return $agencia;
+        });
 
         return response()->json($agencia->load('grupo.banca'), 201);
     }
@@ -122,9 +159,21 @@ class AgenciaController extends Controller
                 'direccion' => 'nullable|string|max:255',
                 'estado' => 'nullable|string|max:100',
                 'municipio' => 'nullable|string|max:100',
+                'reason_code' => 'nullable|string|max:64',
+                'reason_text' => 'nullable|string|max:500',
             ]);
 
-            $agencia->update($validated);
+            $data = Arr::except($validated, ['reason_code', 'reason_text']);
+            $before = $this->agenciaSnapshot($agencia);
+            [$reason, $reasonText] = $this->auditReason($request);
+
+            // P1 best-effort: a failed audit write never blocks the self-service
+            // update, but it still shares the entity transaction.
+            DB::transaction(function () use ($agencia, $data, $before, $reason, $reasonText): void {
+                $agencia->update($data);
+
+                $this->recordAgenciaUpdated($agencia, $before, $reason, $reasonText);
+            });
 
             return response()->json($agencia->load('grupo.banca'));
         }
@@ -142,13 +191,46 @@ class AgenciaController extends Controller
             'direccion' => 'nullable|string|max:255',
             'estado' => 'nullable|string|max:100',
             'municipio' => 'nullable|string|max:100',
+            'reason_code' => 'nullable|string|max:64',
+            'reason_text' => 'nullable|string|max:500',
         ]);
 
         if (isset($validated['grupo_id'])) {
             $this->authorizeGrupoAccess($user, $validated['grupo_id']);
         }
 
-        $agencia->update($validated);
+        $data = Arr::except($validated, ['reason_code', 'reason_text']);
+        $before = $this->agenciaSnapshot($agencia);
+        $grupoIdBefore = $agencia->grupo_id !== null ? (int) $agencia->grupo_id : null;
+        $bancaIdBefore = $this->scopeResolver->forModel($agencia)->bancaId;
+        [$reason, $reasonText] = $this->auditReason($request);
+
+        DB::transaction(function () use ($agencia, $data, $before, $grupoIdBefore, $bancaIdBefore, $reason, $reasonText): void {
+            $agencia->update($data);
+
+            // P1 best-effort: a failed audit write never blocks the update.
+            $this->recordAgenciaUpdated($agencia, $before, $reason, $reasonText);
+
+            // P0 fail-closed: moving an agencia to another grupo changes its
+            // banca chain and requires a reason; a missing reason or write
+            // failure rolls the whole update back.
+            if (array_key_exists('grupo_id', $agencia->getChanges())) {
+                $agencia->unsetRelation('grupo');
+                $scopeAfter = $this->scopeResolver->forModel($agencia);
+
+                $this->audit->critical(AuditAction::AgenciaBancaChanged, (new AuditEventData(
+                    action: AuditAction::AgenciaBancaChanged,
+                    entityType: 'agencia',
+                    entityId: (int) $agencia->id,
+                    scope: $scopeAfter,
+                    before: ['grupo_id' => $grupoIdBefore, 'banca_id' => $bancaIdBefore],
+                    after: [
+                        'grupo_id' => $agencia->grupo_id !== null ? (int) $agencia->grupo_id : null,
+                        'banca_id' => $scopeAfter->bancaId,
+                    ],
+                ))->withReason($reason, $reasonText));
+            }
+        });
 
         return response()->json($agencia->load('grupo.banca'));
     }
@@ -163,7 +245,29 @@ class AgenciaController extends Controller
         $this->authorizeGestion($user, $agencia);
         $this->authorizeAgenciaAccess($user, $agencia);
 
-        $agencia->update(['active' => ! $agencia->active]);
+        $request->validate([
+            'reason_code' => 'nullable|string|max:64',
+            'reason_text' => 'nullable|string|max:500',
+        ]);
+
+        $activeBefore = (bool) $agencia->active;
+        $activeAfter = ! $activeBefore;
+        [$reason, $reasonText] = $this->auditReason($request);
+
+        // P0 fail-closed: a missing/invalid reason or a write failure rolls the
+        // toggle back (the recorder throws AuditValidationException/AuditWriteException).
+        DB::transaction(function () use ($agencia, $activeBefore, $activeAfter, $reason, $reasonText): void {
+            $agencia->update(['active' => $activeAfter]);
+
+            $this->audit->critical(AuditAction::AgenciaToggled, (new AuditEventData(
+                action: AuditAction::AgenciaToggled,
+                entityType: 'agencia',
+                entityId: (int) $agencia->id,
+                scope: $this->scopeResolver->forModel($agencia),
+                before: ['active' => $activeBefore],
+                after: ['active' => $activeAfter],
+            ))->withReason($reason, $reasonText));
+        });
 
         return response()->json($agencia->load('grupo.banca'));
     }
@@ -187,7 +291,16 @@ class AgenciaController extends Controller
         $this->authorizeGestion($user, $agencia);
         $this->authorizeAgenciaAccess($user, $agencia);
 
-        DB::transaction(function () use ($agencia) {
+        $request->validate([
+            'reason_code' => 'nullable|string|max:64',
+            'reason_text' => 'nullable|string|max:500',
+        ]);
+
+        $before = $this->agenciaSnapshot($agencia);
+        $scope = $this->scopeResolver->forModel($agencia);
+        [$reason, $reasonText] = $this->auditReason($request);
+
+        DB::transaction(function () use ($agencia, $before, $scope, $reason, $reasonText): void {
             // CASCADA: soft-delete de las taquillas del local (conservan agencia_id)
             $agencia->taquillas()->delete();
 
@@ -195,9 +308,76 @@ class AgenciaController extends Controller
             $agencia->users()->role('taquilla')->update(['active' => false]);
 
             $agencia->delete();
+
+            // P0 fail-closed: a missing/invalid reason or a write failure rolls
+            // the whole cascade back (taquillas, users and the agencia).
+            $this->audit->critical(AuditAction::AgenciaDeleted, (new AuditEventData(
+                action: AuditAction::AgenciaDeleted,
+                entityType: 'agencia',
+                entityId: (int) $agencia->id,
+                scope: $scope,
+                before: $before,
+            ))->withReason($reason, $reasonText));
         });
 
         return response()->json(['message' => 'Agencia eliminada correctamente.']);
+    }
+
+    // --- Métodos de auditoría ---
+
+    /**
+     * @return array{0: AuditReason|null, 1: string|null}
+     */
+    private function auditReason(Request $request): array
+    {
+        $code = $request->input('reason_code');
+        $text = $request->input('reason_text');
+
+        return [
+            is_string($code) ? AuditReason::tryFrom($code) : null,
+            is_string($text) ? $text : null,
+        ];
+    }
+
+    /**
+     * Record the P1 `agencia.updated` event for the fields that actually
+     * changed, when at least one auditable field changed.
+     */
+    private function recordAgenciaUpdated(
+        Agencia $agencia,
+        array $before,
+        ?AuditReason $reason,
+        ?string $reasonText,
+    ): void {
+        $auditedKeys = array_values(array_intersect(
+            array_keys($agencia->getChanges()),
+            self::AGENCIA_AUDIT_FIELDS,
+        ));
+
+        if ($auditedKeys === []) {
+            return;
+        }
+
+        $agencia->unsetRelation('grupo');
+
+        $this->audit->record(AuditAction::AgenciaUpdated, (new AuditEventData(
+            action: AuditAction::AgenciaUpdated,
+            entityType: 'agencia',
+            entityId: (int) $agencia->id,
+            scope: $this->scopeResolver->forModel($agencia),
+            before: Arr::only($before, $auditedKeys),
+            after: Arr::only($this->agenciaSnapshot($agencia), $auditedKeys),
+        ))->withReason($reason, $reasonText));
+    }
+
+    /**
+     * Safe agencia snapshot: no timestamps, no soft-delete marker, no secrets.
+     *
+     * @return array<string, mixed>
+     */
+    private function agenciaSnapshot(Agencia $agencia): array
+    {
+        return $agencia->only(self::AGENCIA_AUDIT_FIELDS);
     }
 
     // --- Autorización ---

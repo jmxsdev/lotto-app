@@ -190,7 +190,9 @@ class AgenciaApiTest extends TestCase
         $local = $this->localSeeded();
 
         $this->actingAs($this->superUser(), 'sanctum')
-            ->patchJson("/api/v1/agencias/{$local->id}/toggle")
+            ->patchJson("/api/v1/agencias/{$local->id}/toggle", [
+                'reason_code' => 'business_decision',
+            ])
             ->assertStatus(200)
             ->assertJsonPath('active', false);
 
@@ -211,7 +213,9 @@ class AgenciaApiTest extends TestCase
         $user->assignRole('taquilla');
 
         $response = $this->actingAs($super, 'sanctum')
-            ->deleteJson("/api/v1/agencias/{$local->id}");
+            ->deleteJson("/api/v1/agencias/{$local->id}", [
+                'reason_code' => 'business_decision',
+            ]);
 
         $response->assertStatus(200);
 

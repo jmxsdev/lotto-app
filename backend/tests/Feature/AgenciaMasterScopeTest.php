@@ -197,7 +197,9 @@ class AgenciaMasterScopeTest extends TestCase
 
         // Eliminar dentro de su alcance
         $response = $this->actingAs($master, 'sanctum')
-            ->deleteJson('/api/v1/agencias/'.$localId);
+            ->deleteJson('/api/v1/agencias/'.$localId, [
+                'reason_code' => 'business_decision',
+            ]);
 
         $response->assertStatus(200);
         $this->assertSoftDeleted('agencias', ['id' => $localId]);

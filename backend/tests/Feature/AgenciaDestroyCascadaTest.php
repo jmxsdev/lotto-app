@@ -129,7 +129,9 @@ class AgenciaDestroyCascadaTest extends TestCase
         $apuestaId = Apuesta::first()->id;
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->deleteJson("/api/v1/agencias/{$local->id}");
+            ->deleteJson("/api/v1/agencias/{$local->id}", [
+                'reason_code' => 'business_decision',
+            ]);
 
         $response->assertStatus(200);
 
@@ -161,7 +163,9 @@ class AgenciaDestroyCascadaTest extends TestCase
         $local = Agencia::factory()->create(['name' => 'Local Sola', 'code' => 'DCS-LOCAL', 'grupo_id' => $grupo->id, 'active' => true]);
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->deleteJson("/api/v1/agencias/{$local->id}");
+            ->deleteJson("/api/v1/agencias/{$local->id}", [
+                'reason_code' => 'business_decision',
+            ]);
 
         $response->assertStatus(200);
         $this->assertSoftDeleted('agencias', ['id' => $local->id]);
@@ -227,7 +231,9 @@ class AgenciaDestroyCascadaTest extends TestCase
 
         // Cascada: se borra el local y con él sus taquillas (soft delete)
         $this->actingAs($super, 'sanctum')
-            ->deleteJson("/api/v1/agencias/{$local->id}")
+            ->deleteJson("/api/v1/agencias/{$local->id}", [
+                'reason_code' => 'business_decision',
+            ])
             ->assertStatus(200);
 
         // 1. Ventas totales por MÁQUINA: la taquilla trashed sigue en el historial
