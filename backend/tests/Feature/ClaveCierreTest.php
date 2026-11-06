@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AuditEvent;
 use App\Models\Banca;
 use App\Models\Grupo;
 use App\Models\Taquilla;
@@ -10,6 +11,7 @@ use App\Services\CierreService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use RuntimeException;
 use Tests\TestCase;
 
 /**
@@ -26,10 +28,25 @@ class ClaveCierreTest extends TestCase
 {
     use RefreshDatabase;
 
+    private static bool $failAudit = false;
+
     protected function setUp(): void
     {
         parent::setUp();
         $this->seed(DatabaseSeeder::class);
+
+        AuditEvent::creating(static function (): void {
+            if (self::$failAudit) {
+                throw new RuntimeException('forced audit insert failure');
+            }
+        });
+    }
+
+    protected function tearDown(): void
+    {
+        self::$failAudit = false;
+
+        parent::tearDown();
     }
 
     // ==================================================
@@ -86,6 +103,11 @@ class ClaveCierreTest extends TestCase
     private function configurarClave(User $user, string $clave): void
     {
         $user->update(['clave_cierre' => Hash::make($clave)]);
+    }
+
+    private function auditEvent(string $action): AuditEvent
+    {
+        return AuditEvent::query()->where('action', $action)->latest('id')->firstOrFail();
     }
 
     // ==================================================
@@ -175,6 +197,7 @@ class ClaveCierreTest extends TestCase
         $user->refresh();
 
         $this->assertTrue(Hash::check('123456', $user->clave_cierre), 'La clave debe permanecer intacta.');
+        $this->assertDatabaseMissing('audit_events', ['action' => 'clave_cierre.updated']);
     }
 
     public function test_cambio_sin_clave_actual_responde_422()
@@ -187,6 +210,105 @@ class ClaveCierreTest extends TestCase
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors('clave_actual');
+    }
+
+    // ==================================================
+    // Auditoría — clave_cierre.updated (WU-3b)
+    // ==================================================
+
+    public function test_primera_configuracion_emite_clave_cierre_updated_sin_exponer_la_clave()
+    {
+        $actor = $this->bancaUser();
+
+        $this->actingAs($actor, 'sanctum')
+            ->putJson('/api/v1/usuarios/clave-cierre', ['clave_nueva' => '123456'])
+            ->assertStatus(200);
+
+        $actor->refresh();
+        $event = $this->auditEvent('clave_cierre.updated');
+        $attributes = (string) json_encode($event->getAttributes());
+
+        $this->assertSame('user', $event->actor_type);
+        $this->assertSame($actor->id, $event->actor_id);
+        $this->assertSame($actor->email, $event->actor_label);
+        $this->assertSame(['banca'], $event->actor_roles);
+        $this->assertSame('configuracion', $event->entity_type);
+        $this->assertSame($actor->id, $event->entity_id);
+
+        // Scope derivado de la cadena del usuario objetivo.
+        $this->assertSame($actor->banca_id, $event->banca_id);
+        $this->assertNull($event->grupo_id);
+        $this->assertNull($event->agencia_id);
+        $this->assertNull($event->taquilla_id);
+
+        // El evento solo declara que hubo cambio; sin before/after.
+        $this->assertTrue($event->context['changed']);
+        $this->assertNull($event->before);
+        $this->assertNull($event->after);
+
+        // Nunca la clave, su hash ni los campos del formulario.
+        $this->assertArrayNotHasKey('clave_cierre', $event->getAttributes());
+        $this->assertStringNotContainsString('clave_nueva', $attributes);
+        $this->assertStringNotContainsString('clave_actual', $attributes);
+        $this->assertStringNotContainsString('123456', $attributes);
+        $this->assertStringNotContainsString($actor->clave_cierre, $attributes);
+    }
+
+    public function test_cambio_emite_clave_cierre_updated_con_motivo_sin_exponer_la_clave()
+    {
+        $actor = $this->bancaUser();
+        $this->configurarClave($actor, '123456');
+
+        $this->actingAs($actor, 'sanctum')
+            ->putJson('/api/v1/usuarios/clave-cierre', [
+                'clave_actual' => '123456',
+                'clave_nueva' => '654321',
+                'reason_code' => 'security_incident',
+                'reason_text' => 'Rotación trimestral de la clave',
+            ])
+            ->assertStatus(200);
+
+        $actor->refresh();
+        $event = $this->auditEvent('clave_cierre.updated');
+        $attributes = (string) json_encode($event->getAttributes());
+
+        $this->assertSame($actor->id, $event->actor_id);
+        $this->assertSame('configuracion', $event->entity_type);
+        $this->assertSame($actor->id, $event->entity_id);
+        $this->assertTrue($event->context['changed']);
+        $this->assertSame('security_incident', $event->reason_code);
+        $this->assertSame('Rotación trimestral de la clave', $event->reason_text);
+        $this->assertNull($event->before);
+        $this->assertNull($event->after);
+
+        $this->assertStringNotContainsString('123456', $attributes);
+        $this->assertStringNotContainsString('654321', $attributes);
+        $this->assertStringNotContainsString($actor->clave_cierre, $attributes);
+    }
+
+    public function test_cambio_hace_rollback_si_falla_la_auditoria()
+    {
+        $actor = $this->bancaUser();
+        $this->configurarClave($actor, '123456');
+
+        $hashAnterior = $actor->fresh()->clave_cierre;
+
+        self::$failAudit = true;
+
+        $response = $this->actingAs($actor, 'sanctum')
+            ->putJson('/api/v1/usuarios/clave-cierre', [
+                'clave_actual' => '123456',
+                'clave_nueva' => '654321',
+            ]);
+
+        $response->assertStatus(500);
+
+        $actor->refresh();
+
+        $this->assertSame($hashAnterior, $actor->clave_cierre, 'El fallo de auditoría debe revertir la clave.');
+        $this->assertTrue(Hash::check('123456', $actor->clave_cierre));
+        $this->assertFalse(Hash::check('654321', $actor->clave_cierre));
+        $this->assertDatabaseMissing('audit_events', ['action' => 'clave_cierre.updated']);
     }
 
     // ==================================================
