@@ -71,14 +71,14 @@ class ActivacionEntidadesTest extends TestCase
         $banca = Banca::factory()->create(['active' => true, 'master_id' => $master->id]);
 
         $this->actingAs($this->master(), 'sanctum')
-            ->patchJson("/api/v1/bancas/{$banca->id}/toggle")
+            ->patchJson("/api/v1/bancas/{$banca->id}/toggle", ['reason_code' => 'business_decision'])
             ->assertStatus(200)
             ->assertJsonPath('active', false);
 
         $this->assertDatabaseHas('bancas', ['id' => $banca->id, 'active' => false]);
 
         $this->actingAs($this->master(), 'sanctum')
-            ->patchJson("/api/v1/bancas/{$banca->id}/toggle")
+            ->patchJson("/api/v1/bancas/{$banca->id}/toggle", ['reason_code' => 'business_decision'])
             ->assertStatus(200)
             ->assertJsonPath('active', true);
 
@@ -152,7 +152,7 @@ class ActivacionEntidadesTest extends TestCase
         ]);
 
         $this->actingAs($this->master(), 'sanctum')
-            ->patchJson("/api/v1/bancas/{$banca->id}/toggle")
+            ->patchJson("/api/v1/bancas/{$banca->id}/toggle", ['reason_code' => 'business_decision'])
             ->assertStatus(200);
 
         $this->assertDatabaseHas('bancas', ['id' => $banca->id, 'active' => false]);
