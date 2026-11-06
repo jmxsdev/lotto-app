@@ -14,7 +14,7 @@
 | Presupuesto por PR | 800 líneas (additions + deletions) |
 | Riesgo sobre presupuesto de 400 líneas | **Alto** (muy por encima del umbral mínimo) |
 | Chained PRs recomendados | Sí |
-| Split sugerido | 24 WUs: 1a-1, 1a-2, 1a-3, 1b-1a, 1b-1b, 1b-1c, 1b-2a, 1b-2b, 2a, 2b, 3–9, 10a, 10b, 11a, 11b, 12a, 12b, 13 |
+| Split sugerido | 26 WUs: 1a-1, 1a-2, 1a-3, 1b-1a, 1b-1b, 1b-1c, 1b-2a, 1b-2b, 2a, 2b, 3a-1, 3a-2, 3b, 4–9, 10a, 10b, 11a, 11b, 12a, 12b, 13 |
 | Delivery strategy | `auto-chain` |
 | Chain strategy | `feature-branch-chain` |
 | Decisión necesaria antes de apply | **No** (preflight ya decidió `auto-chain` + `feature-branch-chain`) |
@@ -41,8 +41,10 @@ Chain strategy: feature-branch-chain
 | 1b-2b | `feat/89-wu-1b2b-trait-middleware` | ~500 | 1b-2a |
 | 2a | `feat/89-wu-2a-auth` | ~450 | 1b-2b |
 | 2b | `feat/89-wu-2b-activacion-dispositivo` | ~550 | 2a |
-| 3 | `feat/89-wu-3-usuarios` | ~700 | 2b |
-| 4 | `feat/89-wu-4-tasas-comisiones` | ~500 | 3 |
+| 3a-1 | `feat/89-wu-3a1-usuarios-create-delete` | ~300 | 2b |
+| 3a-2 | `feat/89-wu-3a2-usuarios-update` | ~500 | 3a-1 |
+| 3b | `feat/89-wu-3b-clave-cierre` | ~250 | 3a-2 |
+| 4 | `feat/89-wu-4-tasas-comisiones` | ~500 | 3b |
 | 5 | `feat/89-wu-5-cierre-pagos` | ~700 | 4 |
 | 6 | `feat/89-wu-6-juegos-limites` | ~600 | 5 |
 | 7 | `feat/89-wu-7-entidades` | ~700 | 6 |
@@ -172,7 +174,7 @@ inmutable, el value object de scope, el cast UTC, el modelo `AuditEvent` append-
 > | **1a-2** | `AuditAction` (67 casos) + `ReasonPolicy` + `AuditActionTest` | ~577 | `feat/89-wu-1a2-taxonomia` |
 > | **1a-3** | `AuditEventData` + `AuditEventDataTest` | ~443 | `feat/89-wu-1a3-dto` |
 >
-> **Estado:** 1a-1 implementado (20 tests, 47 assertions); 1a-2 implementado (60 tests, 516 assertions); 1a-3 implementado (12 tests, 49 assertions); 1b-1a implementado (15 tests, 49 assertions); 1b-1b implementado (19 tests, 27 assertions); 1b-1c implementado (13 tests, 50 assertions); 1b-2a implementado (11 tests, 47 assertions); 1b-2b implementado (16 tests, 241 assertions); 2a implementado (10 tests, 57 assertions) el 2026-11-05.
+> **Estado:** 1a-1 implementado (20 tests, 47 assertions); 1a-2 implementado (60 tests, 516 assertions); 1a-3 implementado (12 tests, 49 assertions); 1b-1a implementado (15 tests, 49 assertions); 1b-1b implementado (19 tests, 27 assertions); 1b-1c implementado (13 tests, 50 assertions); 1b-2a implementado (11 tests, 47 assertions); 1b-2b implementado (16 tests, 241 assertions); 2a implementado (10 tests, 57 assertions); 2b implementado (9 tests, 87 assertions) el 2026-11-05.
 >
 > Gates por slice:
 > ```bash
@@ -363,6 +365,28 @@ activación auditada con MAC/código enmascarados; cero referencias al login leg
 password por admin, activate/deactivate/delete y actualización de clave de cierre. Reusar/refinar
 `user.role_changed` existente.
 
+> **Split real (presupuesto 800):**
+>
+> | Slice | Contenido | Líneas | Rama |
+> |---|---|---|---|
+> | **3a-1** | `UserController::store/destroy`: `user.created` / `user.deleted` con motivo y snapshot; tests de create/delete/reason | ~300 | `feat/89-wu-3a1-usuarios-create-delete` |
+> | **3a-2** | `UserController::update`: `user.updated`, `role_changed`, `permissions_changed`, `activated/deactivated`, `password_reset_by_admin`; motivo; `AuditoriaRolTest` | ~500 | `feat/89-wu-3a2-usuarios-update` |
+> | **3b** | `ClaveCierreController::update`: `clave_cierre.updated` sin capturar la clave + `ClaveCierreTest` | ~250 | `feat/89-wu-3b-clave-cierre` |
+>
+> No aplicar el trait `Auditable` a `User`: los eventos de usuario necesitan semántica explícita
+> (roles, permisos, password, motivo) y el trait duplicaría `user.updated`. Eventos explícitos en el controller.
+>
+> Gates:
+> ```bash
+> # 3a-1
+> cd backend && php artisan test --filter='AuditoriaUsuariosTest'
+> cd backend && ./vendor/bin/pint --test app/Http/Controllers/Api/UserController.php tests/Feature/AuditoriaUsuariosTest.php
+> # 3a-2
+> cd backend && php artisan test --filter='AuditoriaUsuariosTest|AuditoriaRolTest'
+> # 3b
+> cd backend && php artisan test --filter='ClaveCierreTest'
+> ```
+
 **Archivos**:
 - Modificar: `backend/app/Http/Controllers/Api/UserController.php`, `ClaveCierreController.php`
 - Modificar: `backend/app/Models/User.php` (trait `Auditable`)
@@ -389,10 +413,9 @@ cd backend && php artisan test --filter='AuditoriaUsuariosTest|AuditoriaRolTest|
 
 **Aceptación**: todo CRUD de usuario auditado con before/after y motivo donde aplica; hash/clave nunca en evento.
 
-**Commit local**: `feat(auditoria): auditar CRUD de usuarios, roles, permisos, password y clave de cierre`
-**Rollback**: `git revert`; el negocio de usuarios no cambia de contrato.
-**Líneas**: ~700 · **Rama**: `feat/89-wu-3-usuarios` · **Depende**: 2
-**Split**: si el diff supera 800 → 3a usuarios / 3b clave-cierre.
+**Commits locales**: `feat(auditoria): auditar alta y baja de usuarios` (3a-1), `feat(auditoria): auditar actualización de usuarios y roles` (3a-2), `feat(auditoria): auditar cambio de clave de cierre` (3b).
+**Rollback**: `git revert` por slice; el negocio de usuarios no cambia de contrato salvo el motivo requerido en acciones destructivas.
+**Líneas**: ~300 (3a-1) + ~500 (3a-2) + ~250 (3b) · **Ramas**: `feat/89-wu-3a1-usuarios-create-delete` / `feat/89-wu-3a2-usuarios-update` / `feat/89-wu-3b-clave-cierre` · **Depende**: 2b / 3a-1 / 3a-2.
 
 ---
 
