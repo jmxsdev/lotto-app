@@ -14,7 +14,7 @@
 | Presupuesto por PR | 800 líneas (additions + deletions) |
 | Riesgo sobre presupuesto de 400 líneas | **Alto** (muy por encima del umbral mínimo) |
 | Chained PRs recomendados | Sí |
-| Split sugerido | 23 WUs: 1a-1, 1a-2, 1a-3, 1b-1a, 1b-1b, 1b-1c, 1b-2a, 1b-2b, 2–9, 10a, 10b, 11a, 11b, 12a, 12b, 13 |
+| Split sugerido | 24 WUs: 1a-1, 1a-2, 1a-3, 1b-1a, 1b-1b, 1b-1c, 1b-2a, 1b-2b, 2a, 2b, 3–9, 10a, 10b, 11a, 11b, 12a, 12b, 13 |
 | Delivery strategy | `auto-chain` |
 | Chain strategy | `feature-branch-chain` |
 | Decisión necesaria antes de apply | **No** (preflight ya decidió `auto-chain` + `feature-branch-chain`) |
@@ -39,8 +39,9 @@ Chain strategy: feature-branch-chain
 | 1b-1c | `feat/89-wu-1b1c-redactor` | ~475 | 1b-1b |
 | 1b-2a | `feat/89-wu-1b2a-recorder` | ~740 | 1b-1c |
 | 1b-2b | `feat/89-wu-1b2b-trait-middleware` | ~500 | 1b-2a |
-| 2 | `feat/89-wu-2-auth` | ~500 | 1b-2b |
-| 3 | `feat/89-wu-3-usuarios` | ~700 | 2 |
+| 2a | `feat/89-wu-2a-auth` | ~450 | 1b-2b |
+| 2b | `feat/89-wu-2b-activacion-dispositivo` | ~550 | 2a |
+| 3 | `feat/89-wu-3-usuarios` | ~700 | 2b |
 | 4 | `feat/89-wu-4-tasas-comisiones` | ~500 | 3 |
 | 5 | `feat/89-wu-5-cierre-pagos` | ~700 | 4 |
 | 6 | `feat/89-wu-6-juegos-limites` | ~600 | 5 |
@@ -171,7 +172,7 @@ inmutable, el value object de scope, el cast UTC, el modelo `AuditEvent` append-
 > | **1a-2** | `AuditAction` (67 casos) + `ReasonPolicy` + `AuditActionTest` | ~577 | `feat/89-wu-1a2-taxonomia` |
 > | **1a-3** | `AuditEventData` + `AuditEventDataTest` | ~443 | `feat/89-wu-1a3-dto` |
 >
-> **Estado:** 1a-1 implementado (20 tests, 47 assertions); 1a-2 implementado (60 tests, 516 assertions); 1a-3 implementado (12 tests, 49 assertions); 1b-1a implementado (15 tests, 49 assertions); 1b-1b implementado (19 tests, 27 assertions); 1b-1c implementado (13 tests, 50 assertions); 1b-2a implementado (11 tests, 47 assertions) el 2026-11-05.
+> **Estado:** 1a-1 implementado (20 tests, 47 assertions); 1a-2 implementado (60 tests, 516 assertions); 1a-3 implementado (12 tests, 49 assertions); 1b-1a implementado (15 tests, 49 assertions); 1b-1b implementado (19 tests, 27 assertions); 1b-1c implementado (13 tests, 50 assertions); 1b-2a implementado (11 tests, 47 assertions); 1b-2b implementado (16 tests, 241 assertions); 2a implementado (10 tests, 57 assertions) el 2026-11-05.
 >
 > Gates por slice:
 > ```bash
@@ -309,6 +310,23 @@ trait opt-in, middleware por clase (sin tocar `bootstrap/app.php`), sin observer
 revocación de token; activación de taquilla (éxito/fallo/MAC reasignada) y verificación de
 dispositivo. Sin auditar el login legacy.
 
+> **Split real (presupuesto 800):**
+>
+> | Slice | Contenido | Líneas | Rama |
+> |---|---|---|---|
+> | **2a** | `AuthController` (login éxito/fallo por cada rama, logout, token) + `AuditoriaAuthTest` | ~450 | `feat/89-wu-2a-auth` |
+> | **2b** | `ActivacionController` (éxito/fallo/MAC reasignada) + `DispositivoController` + `AuditoriaActivacionTest` | ~550 | `feat/89-wu-2b-activacion-dispositivo` |
+>
+> Gates:
+> ```bash
+> # 2a
+> cd backend && php artisan test --filter='AuditoriaAuthTest'
+> cd backend && ./vendor/bin/pint --test app/Http/Controllers/Api/AuthController.php tests/Feature/AuditoriaAuthTest.php
+> # 2b
+> cd backend && php artisan test --filter='AuditoriaActivacionTest'
+> cd backend && ./vendor/bin/pint --test app/Http/Controllers/Api/ActivacionController.php app/Http/Controllers/Api/DispositivoController.php tests/Feature/AuditoriaActivacionTest.php
+> ```
+
 **Archivos**:
 - Modificar: `backend/app/Http/Controllers/Api/AuthController.php`, `ActivacionController.php`, `DispositivoController.php`
 - Crear: `backend/tests/Feature/AuditoriaAuthTest.php`, `backend/tests/Feature/AuditoriaActivacionTest.php`
@@ -333,9 +351,9 @@ cd backend && php artisan test --filter='AuditoriaAuthTest|AuditoriaActivacionTe
 **Aceptación**: eventos P0 de auth dentro de transacción; token no persiste si audit falla;
 activación auditada con MAC/código enmascarados; cero referencias al login legacy.
 
-**Commit local**: `feat(auditoria): auditar login/logout API y activación de taquilla`
-**Rollback**: `git revert`; el flujo de auth vuelve a su estado pre-auditoría.
-**Líneas**: ~500 · **Rama**: `feat/89-wu-2-auth` · **Depende**: 1b
+**Commits locales**: `feat(auditoria): auditar login/logout API` (2a) y `feat(auditoria): auditar activación y verificación de dispositivo` (2b).
+**Rollback**: `git revert` por slice; el flujo vuelve a su estado pre-auditoría.
+**Líneas**: ~450 (2a) + ~550 (2b) · **Ramas**: `feat/89-wu-2a-auth` / `feat/89-wu-2b-activacion-dispositivo` · **Depende**: 1b-2b / 2a
 
 ---
 
