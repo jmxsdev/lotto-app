@@ -1699,7 +1699,7 @@ import Icon from '../components/ui/Icon.astro';
         tripleModalidadLabel = 'Triple A';
         renderOpcionesLista(juego);
       } else {
-        renderOpcionesLista(juego); // terminal: 2 cifras
+        renderOpcionesLista(juego); // fallback: lista numérica de 2 dígitos
       }
     }
 
@@ -1899,7 +1899,7 @@ import Icon from '../components/ui/Icon.astro';
       });
     }
 
-    // Numérica (100 opciones 00-99) y terminal (00-99): lista de 2 dígitos.
+    // Numérica (100 opciones 00-99) y modalidad terminal (00-99): lista de 2 dígitos.
     // win-fixes2 FIX D: las tripletas numéricas (trio-activo, triple-facil) se
     // juegan como TRIPLE del plugin Tripletas (número de 3 cifras en el POST,
     // "05"→"005"); la UI aclara el juego y sus modalidades (punta/terminal,
@@ -2002,8 +2002,6 @@ import Icon from '../components/ui/Icon.astro';
         listo = tripleModalidad !== null && (tripleModalidad !== 'triple_c' || selectedSigno !== null);
       } else if (juego.familia === 'numerica') {
         listo = tripleModalidad === 'triple_a';
-      } else {
-        listo = true; // terminal
       }
       if (listo) {
         switchToHorarios();
@@ -2345,8 +2343,6 @@ import Icon from '../components/ui/Icon.astro';
         // cifras se normaliza a 3 ("05"→"005") al armar la línea/POST.
         if (!numero || !/^\d{1,3}$/.test(numero)) { window.showModal({ message: 'Ingrese un número de 1 a 3 cifras', type: 'error' }); return; }
         numero = normalizarNumeroTriple(numero);
-      } else if (familia === 'terminal') {
-        if (!numero || numero.length !== 2) { window.showModal({ message: 'Ingrese un número de exactamente 2 cifras', type: 'error' }); return; }
       } else {
         // S6: en modo tripleta el payload lo arma el módulo puro con los
         // animales elegidos (tope 3); en base exige el animal simple.
@@ -2504,16 +2500,14 @@ import Icon from '../components/ui/Icon.astro';
           juego_id: line.juegoId,
           // S5: si la línea lleva el payload single-draw ya armado
           // (construirCombinacion en addLine), se manda tal cual; si no, se
-          // deriva el shape legacy (triple/terminal/animal).
+          // deriva el shape legacy (triple/animal).
           combinacion: line.combinacion
             ? line.combinacion
             : (line.tripleModalidad
               // win-fixes2 FIX E: el signo viaja SIEMPRE como sigla (value),
               // nunca el label — cubre todos los zodiacales (incl. el-arrejuntado).
               ? { tipo: line.tripleModalidad, numero: line.numero, signo: line.signoSigla ?? null }
-              : (line.juegoType === 'terminales'
-                ? { numero: line.numero }
-                : { animal: line.animal || line.numero, numero: line.numero })),
+              : { animal: line.animal || line.numero, numero: line.numero }),
           amount_bs: line.moneda === 'bs' ? line.monto : 0,
           amount_usd: line.moneda === 'usd' ? line.monto : 0,
           sorteo_hora: line.horario ? formatDateWithHorario(line.horario) : new Date().toISOString(),
@@ -2522,8 +2516,8 @@ import Icon from '../components/ui/Icon.astro';
         const result = await apiFetch('/tickets', { method: 'POST', body: { lines, metodo_pago: metodoPago } });
 
         // Ticket impreso (2026-09): cada línea lleva su juego y el texto de la
-        // jugada ya compuesto (modalidad en tripletas, solo número en
-        // terminales); el encabezado lista TODOS los juegos del ticket y no la
+        // jugada ya compuesto (modalidad en tripletas, número en la modalidad
+        // terminal); el encabezado lista TODOS los juegos del ticket y no la
         // selección actual del dashboard.
         const ticketLinesData = ticketLines.map(l => {
           const esTripleta = l.juegoType === 'tripletas';

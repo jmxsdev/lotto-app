@@ -4,13 +4,15 @@ Lista maestra de juegos del backend. Es la fuente de referencia única: cada jue
 debe reflejarse aquí en el MISMO work unit en que se implementa (seeder, scraper, tests),
 y los seeders materializan los datos que esta lista documenta (slug, type, fuente).
 
-## Juegos actuales (7)
+El catálogo tiene **20 juegos** y solo dos tipos: `animalitos` y `tripletas`. La jugada
+terminal es una modalidad de `tripletas` (`trio-activo`), no un type del catálogo.
+
+## Juegos actuales
 
 | # | Nombre | slug | type | Horarios (juego_horarios) | Fuente scraper | Clase scraper | Estado |
 |---|--------|------|------|---------------------------|----------------|---------------|--------|
 | 1 | Lotto Activo | `lotto-activo` | animalitos | 08:00–19:00 (cada hora `:00`) | `https://www.lottoactivo.com/resultados/animalitos/` | `AnimalitosScraper` | ✅ Verificado con datos reales (12-sep) |
 | 2 | Triple Zulia | `triple-zulia` | tripletas | 12:45, 16:45, 19:05 | `https://resultadostriplezulia.com/` | `TripletasScraper` | ✅ Verificado con datos reales (12-sep) + reglamento oficial (WU f26: 600×/60×/6.000×/600×) |
-| 3 | Terminal Activo | `terminal-activo` | terminales | 08:00–19:00 (cada hora `:00`) | `https://www.lottoactivo.com/resultados/terminal_activo/` | `AnimalitosScraper` (vía URL, formato plano) | ✅ Verificado con datos reales (12-sep) |
 | 4 | Lotto Activo RD Internacional | `lotto-activo-rd` | animalitos | 08:30–19:30 (cada hora `:30`) | `https://www.lottoactivo.com/resultados/animalitos/` | `AnimalitosScraper` | ✅ Verificado con datos reales (12-sep) |
 | 5 | Lotto Activo República Dominicana | `lotto-activo-rep-dom` | animalitos | 08:00–21:00 (cada hora `:00`) | `https://www.lottoactivo.com/resultados/animalitos/` | `AnimalitosScraper` | ✅ Verificado con datos reales (12-sep) |
 | 6 | Monje Millonario | `monje-millonario` | animalitos | 08:05–19:05 (cada hora `:05`) | `https://www.lottoactivo.com/resultados/animalitos/` | `AnimalitosScraper` | ✅ Verificado con datos reales (12-sep) — **zoo propio COMPLETO de 77 figuras** (WU f25) |
@@ -18,8 +20,8 @@ y los seeders materializan los datos que esta lista documenta (slug, type, fuent
 
 > Nota de resolución de scraper: la clase se resuelve en orden `juegos.scraper_class` →
 > match de URL (`lottoactivo.com` / `triplezulia`) → convención `{Studly(type)}Scraper`.
-> Los juegos 3 y 7 (type `terminales`/`tripletas`) usan `AnimalitosScraper` porque su fuente
-> es lottoactivo; el match de URL prevalece sobre la convención por type.
+> El juego 7 (type `tripletas`) usa `AnimalitosScraper` porque su fuente es lottoactivo; el
+> match de URL prevalece sobre la convención por type.
 
 > Familia lottoactivo — verificación con datos reales (12-sep-2026): los 7 juegos se verificaron
 > en vivo contra `lottoactivo.com` (batch `ScrapeResultsJob` por juego, 13 juegos en total, sin
@@ -29,11 +31,11 @@ y los seeders materializan los datos que esta lista documenta (slug, type, fuent
 > de cada juego a su slug canónico (`lotto-activo-rd-internacional` → `lotto-activo-rd`,
 > `lotto-activo-republica-dominicana` → `lotto-activo-rep-dom`,
 > `lotto-activo-2-monje-millonario` → `monje-millonario`) y persiste cada uno en su fila con dedupe
-> por juego+fecha+hora. `/resultados/terminal_activo/` y `/resultados/trio_activo/` devuelven un
-> formato PLANO (`resultado1..resultado4`, `time_s`, `fecha`, `id`) que se mapea a `numero` (terminales)
-> o `triple_a` (tripletas); las etiquetas `[TerminalActivoScraper]`/`[TrioActivoScraper]` de los logs
+> por juego+fecha+hora. `/resultados/trio_activo/` devuelve un
+> formato PLANO (`resultado1..resultado4`, `time_s`, `fecha`, `id`) que se mapea a
+> `triple_a` (tripletas); las etiquetas `[TrioActivoScraper]` de los logs
 > son dinámicas del mismo `AnimalitosScraper` (nombre derivado del slug), no clases aparte. Los
-> fixtures reales `tests/Fixtures/lottoactivo_*` (capturados el 12-sep-2026) cubren ambas rutas y el
+> fixtures reales `tests/Fixtures/lottoactivo_*` (capturados el 12-sep-2026) cubren esa ruta y el
 > mapeo de slugs en `AnimalitosScraperTest`.
 
 > Zoológico de Monje Millonario (WU f22 + f25): el juego usa un zoológico PROPIO distinto al
@@ -46,32 +48,30 @@ y los seeders materializan los datos que esta lista documenta (slug, type, fuent
 > flag 1/0 variable (~9/12 por día, horas no fijas) — semántica sin documentar (H14); el premio
 > especial de El Patronus sigue pendiente (reglamento `Lotto_Activo_2.pdf` → 404).
 
-## Hueco #8
+## Hueco #3
 
-| # | Nombre | slug | type | Horarios | Fuente | Clase scraper | Estado |
-|---|--------|------|------|----------|--------|---------------|--------|
-| 8 | *(por confirmar con el cliente)* | — | — | — | — | — | — |
-
-La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (decisión del cliente).
+El id `3` pertenece al juego retirado *Terminal Activo / Terminal Trío*: el catálogo conserva los ids
+`1,2,4…21` (20 juegos) y no se renumera. La jugada terminal se vende como modalidad `terminal`
+de `trio-activo` (2 últimas cifras del triple elegido, 60×), no como tipo de juego propio.
 
 ## Juegos integrados (nuevos)
 
 | # | Nombre | slug | type | Horarios (juego_horarios) | Fuente scraper | Clase scraper | Estado |
 |---|--------|------|------|---------------------------|----------------|---------------|--------|
-| 9 | Triple Caliente | `triple-caliente` | tripletas | 13:00, 16:30, 19:10 | `https://triplecaliente.com/api/gaming/results/product` (API oficial) | `TripleCalienteOficialScraper` | ✅ Verificado con datos reales (API oficial, sin anti-bot) + reglamento oficial (WU f26: 600×/60×/6.000×/600×; reglamento declara 5 sorteos, la API opera 3 — H18) |
-| 10 | Cazaloton | `cazaloton` | animalitos | 09:00–19:00 (11 horarios `:00`) | `https://loteriadehoy.com/animalito/cazaloton/resultados/` (SE MANTIENE — el sitio oficial cazaloton.com NO publica resultados; sus enlaces apuntan a loteriadehoy) | `LoteriaDeHoyScraper` | ✅ Verificado con datos reales (12-sep) + reglamento oficial (38 figuras, 30x, dupleta 800x, tripleta 200x) |
-| 11 | Triple Chance | `triple-chance` | tripletas | 09:00–19:00 (11 horarios `:00`) | `https://api.scalalot.com/servicelotteryresults/ServicioResultados.svc/ServicioResultados/ConsultarResultadoSorteo/Q0hBTkNF/` (API oficial tuchance.com.ve "Chance en línea") | `TripleChanceOficialScraper` | ✅ Verificado con datos reales (12-sep: 11 sorteos, API oficial sin anti-bot; premios oficiales 600x) |
-| 12 | El Arrejuntado | `el-arrejuntado` | tripletas | 10:00, 13:00, 16:00, 19:00, 23:00 (5 horarios) | `https://backend.serviciosintegradostriple7.com/api/v1/products/el-arrejuntao/results/` | `ElArrejuntaoScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
-| 13 | El Guacharito Millonario | `el-guacharito` | animalitos | 08:30–19:30 (12 horarios `:30`) | `https://api.lotterly.co/v1/results/el-guacharito-millonario/` (API oficial lotterly.co) | `ElGuacharitoOficialScraper` | ✅ Verificado con datos reales (12-sep: 12 sorteos, API oficial; **101 figuras propias**, premio 70x + especial 99 150x) |
-| 14 | Guacharo Activo | `guacharo-activo` | animalitos | 08:00–19:00 (12 horarios `:00`) | `https://api.lotterly.co/v1/results/guacharo-activo/` (API oficial lotterly.co) | `GuacharoActivoOficialScraper` | ✅ Verificado con datos reales (12-sep: 12 sorteos, API oficial; **77 figuras propias**, premio 60x + comodín 75 120x) |
-| 15 | La Granjita | `la-granjita` | animalitos | 08:00–19:00 (12 horarios `:00`) | `https://www.lagranjita.com/api/results.json?productId=1` (API oficial) | `LaGranjitaScraper` | ✅ Verificado con datos reales (12-sep, API oficial sin anti-bot) |
-| 16 | La Ricachona | `la-ricachona` | tripletas | 08:05–19:05 (12 horarios `:05`) | `https://laricachona.com/` (HTML oficial por fecha) | `LaRicachonaScraper` | ✅ Verificado con datos reales (12-sep, HTML oficial) |
-| 17 | Loto Chaima | `loto-chaima` | animalitos | 08:00–19:00 (12 horarios `:00`) | `https://api.lotterly.co/v1/results/loto-chaima/` (API oficial) | `LotoChaimaScraper` | ✅ Verificado con datos reales (12-sep, API oficial sin auth) |
-| 18 | Mega Animal 40 | `mega-animal-40` | animalitos | 09:00–20:00 (12 horarios `:00`) | `https://megaanimal40.com/` (sitio OFICIAL — `POST /core/process.php` con token; WU f27) | `MegaAnimal40OficialScraper` | ✅ Verificado con datos reales (14-sep: HOY 8, dedupe; **comodín MEGA capturado** en `numeros_ganadores.comodin`; endpoint solo sirve el día actual) |
-| 19 | Selva Plus | `selva-plus` | animalitos | 08:15–20:15 (13 horarios `:15`) | `https://api.lotterly.co/v1/results/selva-plus/` (API oficial) | `SelvaPlusScraper` | ✅ Verificado con datos reales (12-sep: HOY 7 + AYER 13, dedupe) |
-| 20 | Triple Táchira | `triple-tachira` | tripletas | 13:15, 16:45, 22:10 (3 horarios) | `https://tripletachira.com/pruebah.php` (sitio oficial) | `TripleTachiraScraper` | ✅ Verificado con datos reales (12-sep: AYER 3 + HOY 1, dedupe) |
-| 21 | Triple Fácil | `triple-facil` | tripletas | 08:00–19:00 (12 horarios `:00`) | `https://api.lotterly.co/v1/results/triple-facil/` (API oficial lotterly.co) | `TripleFacilScraper` | ✅ Verificado con datos reales (12-sep: AYER 12 + HOY 10, dedupe) |
-| 22 | Triple Zamorano | `triple-zamorano` | tripletas | 10:00, 12:00, 14:00, 16:00, 19:00 (5 horarios) | `https://www.triplezamorano.com/api/gaming/results/product` (API oficial) | `TripleZamoranoScraper` | ✅ Verificado con datos reales (12-sep: AYER 5 + HOY 4, dedupe) + reglamento oficial NOV2025 (WU f26: 600×/60×/5×/6.000×/600×/60×) |
+| 8 | Triple Caliente | `triple-caliente` | tripletas | 13:00, 16:30, 19:10 | `https://triplecaliente.com/api/gaming/results/product` (API oficial) | `TripleCalienteOficialScraper` | ✅ Verificado con datos reales (API oficial, sin anti-bot) + reglamento oficial (WU f26: 600×/60×/6.000×/600×; reglamento declara 5 sorteos, la API opera 3 — H18) |
+| 9 | Cazaloton | `cazaloton` | animalitos | 09:00–19:00 (11 horarios `:00`) | `https://loteriadehoy.com/animalito/cazaloton/resultados/` (SE MANTIENE — el sitio oficial cazaloton.com NO publica resultados; sus enlaces apuntan a loteriadehoy) | `LoteriaDeHoyScraper` | ✅ Verificado con datos reales (12-sep) + reglamento oficial (38 figuras, 30x, dupleta 800x, tripleta 200x) |
+| 10 | Triple Chance | `triple-chance` | tripletas | 09:00–19:00 (11 horarios `:00`) | `https://api.scalalot.com/servicelotteryresults/ServicioResultados.svc/ServicioResultados/ConsultarResultadoSorteo/Q0hBTkNF/` (API oficial tuchance.com.ve "Chance en línea") | `TripleChanceOficialScraper` | ✅ Verificado con datos reales (12-sep: 11 sorteos, API oficial sin anti-bot; premios oficiales 600x) |
+| 11 | El Arrejuntado | `el-arrejuntado` | tripletas | 10:00, 13:00, 16:00, 19:00, 23:00 (5 horarios) | `https://backend.serviciosintegradostriple7.com/api/v1/products/el-arrejuntao/results/` | `ElArrejuntaoScraper` | Verificado con fixture (verificación con datos reales pendiente, cliente) |
+| 12 | El Guacharito Millonario | `el-guacharito` | animalitos | 08:30–19:30 (12 horarios `:30`) | `https://api.lotterly.co/v1/results/el-guacharito-millonario/` (API oficial lotterly.co) | `ElGuacharitoOficialScraper` | ✅ Verificado con datos reales (12-sep: 12 sorteos, API oficial; **101 figuras propias**, premio 70x + especial 99 150x) |
+| 13 | Guacharo Activo | `guacharo-activo` | animalitos | 08:00–19:00 (12 horarios `:00`) | `https://api.lotterly.co/v1/results/guacharo-activo/` (API oficial lotterly.co) | `GuacharoActivoOficialScraper` | ✅ Verificado con datos reales (12-sep: 12 sorteos, API oficial; **77 figuras propias**, premio 60x + comodín 75 120x) |
+| 14 | La Granjita | `la-granjita` | animalitos | 08:00–19:00 (12 horarios `:00`) | `https://www.lagranjita.com/api/results.json?productId=1` (API oficial) | `LaGranjitaScraper` | ✅ Verificado con datos reales (12-sep, API oficial sin anti-bot) |
+| 15 | La Ricachona | `la-ricachona` | tripletas | 08:05–19:05 (12 horarios `:05`) | `https://laricachona.com/` (HTML oficial por fecha) | `LaRicachonaScraper` | ✅ Verificado con datos reales (12-sep, HTML oficial) |
+| 16 | Loto Chaima | `loto-chaima` | animalitos | 08:00–19:00 (12 horarios `:00`) | `https://api.lotterly.co/v1/results/loto-chaima/` (API oficial) | `LotoChaimaScraper` | ✅ Verificado con datos reales (12-sep, API oficial sin auth) |
+| 17 | Mega Animal 40 | `mega-animal-40` | animalitos | 09:00–20:00 (12 horarios `:00`) | `https://megaanimal40.com/` (sitio OFICIAL — `POST /core/process.php` con token; WU f27) | `MegaAnimal40OficialScraper` | ✅ Verificado con datos reales (14-sep: HOY 8, dedupe; **comodín MEGA capturado** en `numeros_ganadores.comodin`; endpoint solo sirve el día actual) |
+| 18 | Selva Plus | `selva-plus` | animalitos | 08:15–20:15 (13 horarios `:15`) | `https://api.lotterly.co/v1/results/selva-plus/` (API oficial) | `SelvaPlusScraper` | ✅ Verificado con datos reales (12-sep: HOY 7 + AYER 13, dedupe) |
+| 19 | Triple Táchira | `triple-tachira` | tripletas | 13:15, 16:45, 22:10 (3 horarios) | `https://tripletachira.com/pruebah.php` (sitio oficial) | `TripleTachiraScraper` | ✅ Verificado con datos reales (12-sep: AYER 3 + HOY 1, dedupe) |
+| 20 | Triple Fácil | `triple-facil` | tripletas | 08:00–19:00 (12 horarios `:00`) | `https://api.lotterly.co/v1/results/triple-facil/` (API oficial lotterly.co) | `TripleFacilScraper` | ✅ Verificado con datos reales (12-sep: AYER 12 + HOY 10, dedupe) |
+| 21 | Triple Zamorano | `triple-zamorano` | tripletas | 10:00, 12:00, 14:00, 16:00, 19:00 (5 horarios) | `https://www.triplezamorano.com/api/gaming/results/product` (API oficial) | `TripleZamoranoScraper` | ✅ Verificado con datos reales (12-sep: AYER 5 + HOY 4, dedupe) + reglamento oficial NOV2025 (WU f26: 600×/60×/5×/6.000×/600×/60×) |
 
 > `LoteriaDeHoyScraper` es parametrizado: reutiliza el mismo `scraper_class` para los juegos de
 > loteriadehoy.com registrando la `scraper_url` de cada juego (se usa su slug/name para fail-fast
@@ -254,7 +254,7 @@ La lista salta del 7 al 9: el hueco `#8` se resuelve al integrar el juego 9 (dec
 > `triple-facil-terminal`, `terminal-facil`, etc. en lotterly → 400
 > "product_slug does not exist"). El juego se registra con las **100 opciones
 > del terminal real (00-99)**: label "00".."99", value "0".."99", numero
-> 0..99 (mismo patrón que el plugin Terminales); el triple es entrada libre
+> 0..99 (mismo patrón que la modalidad `terminal` del plugin Tripletas); el triple es entrada libre
 > (000-999) y queda documentado en `config`. **Premios INFORMATIVOS** (el sitio
 > oficial NO publica cifras ni tiene reglamento visible; fuente RV
 > `/lottery/triple-facil`): Triple completo **700×**, Terminal **60×**,
@@ -321,7 +321,7 @@ aquí en su mismo work unit:
 
 > `docs/juegos.json` (en la RAÍZ del repo, junto a `plugins.md`/`deploy.md`) es el contrato
 > para el front/taquilla: los juegos integrados + existentes con su **id real de BD**, slug,
-> nombre, tipo (animalitos/tripletas/terminales), `premio_multiplo`, horarios y las
+> nombre, tipo (`animalitos|tripletas`), `premio_multiplo`, horarios y las
 > opciones/animales que permite cada juego. **Desde el WU f27** exporta además `comodines` y
 > `modalidades` desde `config` cuando existen (campos ADITIVOS y OPCIONALES; `null` si el juego
 > no los define): p. ej. mega-animal-40 → `comodines.mega` (MEGA 40×), selva-plus → comodines
@@ -344,8 +344,8 @@ aquí en su mismo work unit:
 > propias y guacharo-activo **77 figuras** propias — zoos oficiales lotterly, WU f24;
 > monje-millonario **77 figuras** propias confirmadas con el feed oficial — WU f22+f25),
 > si no, fallback al
-> plugin vía `JuegoPluginManager` (terminal-activo 100 números 00-99 vía Terminales; trio-activo
-> 12 signos vía Tripletas; animalitos sin tabla — rd, rep-dom, cazaloton,
+> plugin vía `JuegoPluginManager` (trio-activo 12 signos vía Tripletas, que además resuelve la
+> modalidad numérica de `terminal`/`punta`/`uña`; animalitos sin tabla — rd, rep-dom, cazaloton,
 > la-granjita, mega-animal-40 — 38 animales canónicos vía Animalitos). NO editar el archivo a mano:
 > regenerarlo con el comando. La lógica vive en `App\Services\JuegoCatalogoService`
 > (compartida por el comando y el test de consistencia `JuegosJsonTest`).

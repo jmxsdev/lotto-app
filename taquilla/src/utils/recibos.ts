@@ -123,7 +123,7 @@ export function buildReciboLines(
     const c = parseCombinacion(apuesta.combinacion);
     const esTripleta = Boolean(c.tipo);
     const tripletaAnimalitos = textoTripletaAnimalitos(c);
-    const tipo = esTripleta ? 'tripletas' : (c.animal || tripletaAnimalitos) ? 'animalitos' : 'terminales';
+    const tipo = esTripleta ? 'tripletas' : (c.animal || tripletaAnimalitos) ? 'animalitos' : 'tripletas';
     const respuesta = pagos?.[i] ?? null;
     // S5: la reimpresión trae los pagos registrados por apuesta (GET
     // /pagos/{apuesta}); el lote de POST /pagos (auto-print) tiene prioridad.

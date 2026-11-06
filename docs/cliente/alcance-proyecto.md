@@ -166,7 +166,7 @@ Los siguientes aspectos **no** forman parte de este alcance:
 
 | Ref | Tema | Decisión requerida |
 |---|---|---|
-| DEC-01 | Terminal Trío | Reglamento oficial 60× vs FAQ oficial 70× (+5× de aproximación). Confirmar el valor vigente. |
+| DEC-01 | Terminal (modalidad del Trío Activo) | Reglamento oficial 60× vs FAQ oficial 70× (+5× de aproximación). Confirmar el valor vigente de la modalidad `terminal`. |
 | DEC-02 | Triple Chance | Reglamento (solo A o B 150×; C+Signo 6.000×) vs afiche oficial (100×; 5.000×). Confirmar el valor vigente. |
 | DEC-03 | Dupleta 1.000× y El Patronus | ¿Se soportan como modalidades nuevas? Requiere definir la forma de apuesta, confirmar el premio oficial y evaluar su implementación en el motor. |
 | DEC-04 | La Ricachona | Juego deshabilitado por falta de fuente oficial con valores. Confirmar la obtención de la fuente o mantener el juego deshabilitado y oculto en las interfaces. |
@@ -174,7 +174,7 @@ Los siguientes aspectos **no** forman parte de este alcance:
 | DEC-06 | Juegos y modalidades nuevos | ¿Se integran los candidatos evaluados (Granjita Plus y otros)? Las jugadas de terminal de terceros se evalúan como modalidad de un juego de `tripletas`, nunca como juego o tipo propio. Cada integración constituye trabajo adicional. |
 | DEC-07 | PIN de cierre de caja | Confirmar el formato 4–8 dígitos (predeterminado 6) en ambas interfaces. |
 | DEC-08 | Iconos de comodines | Confirmar la representación gráfica de los comodines (~8–10), aproximada en las interfaces. |
-| — | Tope de comisión de la jugada de terminal | Al modelarse como modalidad de `tripletas`, confirmar el tope de comisión de la jugada de terminal (el tope de `tripletas` es 25 %; el tipo `terminales` aplicaba el default de 100 %). |
+| DEC-09 | Tope de comisión de la jugada de terminal | ✅ **RESUELTA (2026-11-05)**: al modelarse como modalidad de `tripletas`, la jugada terminal aplica el tope de **25 %** de `tripletas` (el extinto tipo `terminales` caía en el default de 100 %). Sin cambio de código: `ComisionService::topePorTipo` resuelve por `juego.type`. |
 | — | Reglamentos no publicados | El Cliente debe aportar los reglamentos faltantes (Triple Fácil, El Arrejuntado, El Guacharito, Guácharo Activo, Loto Chaima, Selva Plus y Mega Animal 40) y versiones extraíbles de los documentos escaneados. |
 | — | Confirmación general de horarios | Validar con el operador la vigencia de los horarios publicados por cada casa y su calendario semanal. |
 
@@ -219,3 +219,4 @@ Los siguientes aspectos **no** forman parte de este alcance:
 |---|---|---|---|
 | 1.0 | 2026-10-16 | Emisión inicial del Documento de Alcance del Proyecto. | Equipo de desarrollo del software |
 | 1.1 | 2026-10-16 | Ajuste de taxonomía: terminal como modalidad de `tripletas` (no un tipo de juego); catálogo de 20 juegos; nueva decisión pendiente del cliente (tope de comisión del terminal). | Equipo de desarrollo del software |
+| 1.2 | 2026-11-05 | Cierre de la decisión del tope de comisión del terminal (DEC-09: 25 % vía `tripletas`) y del retiro del tipo `terminales`/juego *Terminal Activo*. | Equipo de desarrollo del software |

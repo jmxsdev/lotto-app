@@ -13,7 +13,6 @@ oficial y se compara contra la informativa para detectar desajustes (patrón val
 |---|---|---|---|---|---|
 | 1 | `lotto-activo` | animalitos | lottoactivo.com `/resultados/animalitos/` | RV `/lottery/lotto-activo` | ✅ verificada (WU f22): feed con **12 sorteos 08:00–19:00** y zoo 38; **23 = Cebra** corregido (feed oficial + reglamento Ruleta Royal); FAQ oficial 30×. El texto de la web dice "11 sorteos 09:00–19:00" (desactualizado, H16). **WU f26**: reglamento `Lotto_Activo.pdf` (imagen) descargado → `docs/reglamentos/reglamento-lotto-activo.pdf`; afiches oficiales descargados |
 | 2 | `triple-zulia` | tripletas | resultadostriplezulia.com (API) | RV `/lottery/triple-zulia` | ✅ verificada (WU f22): API con SOLO **3 sorteos 12:45/16:45/19:05** y A/B/C+**12 signos** (234 registros). **WU f26**: **reglamento oficial obtenido** (`REGLAMENTO TRIPLE ZULIA NOV2025`, Lotería del Zulia, PDF parseable → `docs/reglamentos/reglamento-triple-zulia.pdf`): TRIPLE A/B/C **600×**, TERMINAL **60×**, ZODIACO **6.000×**, TERMINAL ZODIACO **600×** → `premio_multiplo` 30→**600** + modalidades |
-| 3 | `terminal-activo` | terminales | lottoactivo.com `/resultados/terminal_activo/` | — (sin página) | ✅ verificada (WU f22): oficialmente "Terminal Trío"; feed 12 sorteos 08:00–19:00; el terminal son los **2 últimos dígitos del Trío Activo**; reglamento oficial (Trio_Activo.pdf, md5 idéntico al enlazado) TERMINAL **60×** → corregido 20→60; FAQ oficial dice 70×+5× aprox (H12). **WU f26**: PDF descargado → `docs/reglamentos/reglamento-terminal-activo.pdf` |
 | 4 | `lotto-activo-rd` | animalitos | lottoactivo.com `/resultados/animalitos/` | RV `/lottery/lotto-activo-rd` | ✅ verificada (WU f22): 12 sorteos cada hora **08:30–19:30**; zoo 38; FAQ 30×. El reglamento enlazado es de "Ruleta Royal" (mislink) y confirma 30× y 23=Cebra — **WU f26**: descargado → `docs/reglamentos/reglamento-lotto-activo-rd.pdf` |
 | 5 | `lotto-activo-rep-dom` | animalitos | lottoactivo.com `/resultados/animalitos/` | RV `/lottery/lotto-activo-rdominicana` | ✅ verificada (WU f22): **14 sorteos 08:00–21:00**; zoo 38; FAQ 30×. El texto oficial dice "09:00–21:00 / trece (14)" (desactualizado, H16). **WU f26**: mismo mislink Ruleta Royal descargado → `docs/reglamentos/reglamento-lotto-activo-rep-dom.pdf` |
 | 6 | `monje-millonario` | animalitos | lottoactivo.com `/resultados/animalitos/` | RV `/lottery/monje-millonario` | ✅ verificada (WU f22): **H2 CONFIRMADO** — "Lotto Activo 2"; feed 12 sorteos 08:05–19:05 y números **0–74** con zoo propio → creadas **70 figuras confirmadas**; **7 pendientes sin nombre oficial** (37/39/57/65/67/68/75, el 75 sería El Patronus). Reglamento `Lotto_Activo_2.pdf` → **404** (**WU f26**: reconfirmado 404 + 6 variantes de nombre; **no publicado**) |
@@ -35,6 +34,11 @@ oficial y se compara contra la informativa para detectar desajustes (patrón val
 
 ## Notas
 
+- El hueco `#3` corresponde al retirado *Terminal Activo / Terminal Trío*: no es un juego ni un
+  tipo, es la **modalidad `terminal` del Trío Activo** (2 últimos dígitos del triple, 60×). Su
+  verificación oficial (reglamento `Trio_Activo.pdf`, md5 idéntico a `Terminal_Trio.pdf`) quedó
+  en el registro histórico: TERMINAL **60×** (corregido 20→60; la FAQ oficial dice 70×+5×, H12);
+  PDF en `docs/reglamentos/reglamento-terminal-activo.pdf`.
 - Fuentes marcadas como **agregador** (loteriadehoy.com) deben migrarse a fuente oficial cuando el
   cliente la proporcione; mientras tanto el scraper funciona, pero la fidelidad de reglas/opciones se
   verifica contra su fuente oficial si existe.

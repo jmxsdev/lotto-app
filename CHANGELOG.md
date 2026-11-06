@@ -5,6 +5,32 @@ Todas las versiones notables de la Taquilla se documentan en este archivo.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/) y el
 versionado es [SemVer](https://semver.org/lang/es/).
 
+## [2.0.0] — 2026-11-05
+
+Release de Taquilla que cierra el retiro del juego Terminal Activo. La jugada
+terminal sigue vendible como modalidad del Trío Activo; lo que desaparece es el
+tipo de juego `terminales`.
+
+### Cambiado
+
+- **Catálogo de 20 juegos**: el catálogo bundled deja de incluir
+  `terminal-activo` y se mantiene byte-idéntico a `docs/juegos.json`.
+- **Contrato de tipo**: `TipoJuego` y `TIPOS_VALIDOS` aceptan solo
+  `animalitos|tripletas`; cargar un catálogo con `tipo: 'terminales'` falla con
+  `"tipo" inválido`. `TipoLineaTicket` también deja de declarar `terminales`.
+- **Sin secciones Terminales**: la taquilla y el panel solo ofrecen pestañas de
+  resultados Animalitos y Tripletas, y el dashboard ya no tiene ramas de venta
+  para el tipo retirado.
+
+### Técnico
+
+- Ruptura del contrato de tipo en el front: la taquilla `1.2.0` sigue operando
+  contra el backend nuevo sin cambios de ids; el número de versión sube a
+  `2.0.0` para señalar que un catálogo con `terminales` ya no carga.
+- Los tickets históricos con payload `{numero}` se siguen imprimiendo como
+  `#05` por el formateo de tripletas.
+- `check-pure` verifica el rechazo de `tipo: 'terminales'` al cargar catálogo.
+
 ## [1.2.0] — 2026-11-05
 
 Release de Taquilla que retira la sección Terminales. La jugada terminal no

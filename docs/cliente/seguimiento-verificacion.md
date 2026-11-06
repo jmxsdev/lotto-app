@@ -13,7 +13,7 @@ comodines, premiación y **reglamento oficial**. Complementa a:
 > Loto Chaima, Selva Plus y Triple Fácil (sus sitios/bundles no publican reglamento).
 >
 > Evidencia del LOTE 1 (2026-09-10..14): feed oficial `lottoactivo.com/resultados/animalitos/`
-> (4 juegos animalitos en un JSON), `/resultados/terminal_activo/`, `/resultados/trio_activo/`,
+> (4 juegos animalitos en un JSON), `/resultados/trio_activo/` (y el antiguo `/resultados/terminal_activo/`, hoy retirado),
 > API `resultadostriplezulia.com`, páginas `/informacion/<juego>/` (metadata + reglamentos PDF)
 > y `/preguntas_frecuentes/` (premios y horarios oficiales).
 
@@ -31,7 +31,6 @@ comodines, premiación y **reglamento oficial**. Complementa a:
 |---|-------|:---:|:---:|:---:|:---:|:---:|---|
 | 1 | `lotto-activo` | ✅ | ✅ | — | ✅ | ⚠️ | Feed oficial: 12 sorteos 08:00–19:00 (el texto de la web dice 11 desde 09:00 → nota). Zoo canónico 38; **corregido 23 Cobra→Cebra**. FAQ oficial: 30×. Reglamento PDF existe pero es imagen no parseable (**descargado**: `docs/reglamentos/reglamento-lotto-activo.pdf`); Dupleta sin respaldo en reglamento |
 | 2 | `triple-zulia` | ✅ | ✅ | — | ✅ | ✅ | API oficial: SOLO 3 sorteos 12:45/16:45/19:05 y A/B/C+12 signos (234 registros). **Reglamento oficial obtenido (WU f26)**: `docs/reglamentos/reglamento-triple-zulia.pdf` (Lotería del Zulia, NOV2025, parseable): TRIPLE A/B/C **600×**, TERMINAL **60×**, ZODIACO DEL ZULIA **6.000×**, TERMINAL ZODIACO **600×** → **corregido 30→600** + modalidades en config |
-| 3 | `terminal-activo` | ✅ | ✅ | — | ⚠️ | ⚠️ | Feed: 12 sorteos 08:00–19:00; terminal = **2 últimos dígitos del Trío Activo** (verificado cruzando feeds). Reglamento oficial (Trio_Activo.pdf, mismo md5 que Terminal_Trio.pdf): TERMINAL **60×** → **corregido 20→60**. **Descargado**: `docs/reglamentos/reglamento-terminal-activo.pdf`. FAQ oficial dice 70×+5× aprox → discrepancia H12 |
 | 4 | `lotto-activo-rd` | ✅ | ✅ | — | ✅ | ⚠️ | Feed + metadata + FAQ: 12 sorteos cada hora 08:30–19:30. Zoo canónico 38 (23=Cebra). FAQ 30×. Reglamento enlazado por error (es de "Ruleta Royal", confirma 30× y el zoo 23=Cebra) — **descargado**: `docs/reglamentos/reglamento-lotto-activo-rd.pdf` |
 | 5 | `lotto-activo-rep-dom` | ✅ | ✅ | — | ✅ | ⚠️ | Feed: **14 sorteos 08:00–21:00** (el texto oficial dice 09:00–21:00 y "trece (14)" → nota). Zoo canónico 38. FAQ 30×. Mismo mislink Ruleta Royal — **descargado**: `docs/reglamentos/reglamento-lotto-activo-rep-dom.pdf` |
 | 6 | `monje-millonario` | ✅ | ✅ | — | ⏳ | ❌ | **H2 CONFIRMADO + H14 RESUELTO (WU f25)**: muestreo del feed oficial de **75 días (2026-07-02..09-14, ~900 sorteos)** → rango completo **0–75** y confirmados los 7 nombres que faltaban: 37 Tortuga, 39 Lechuza, 57 Pato, 65 Araña, 67 Avestruz, 68 Jaguar y **75 Patronus**. Zoo propio **COMPLETO: 77 figuras** (76 números + 0 duplicado). `special_result` NO es siempre 1: varía 1/0 (~9/12 por día, horas no fijas) — semántica sin documentar. **Reglamento `Lotto_Activo_2.pdf` CONFIRMADO 404 (WU f26)** + 6 variantes de nombre probadas → premio de Patronus sin fuente oficial (H14) |
@@ -51,15 +50,20 @@ comodines, premiación y **reglamento oficial**. Complementa a:
 | 20 | `triple-facil` | ✅ | ✅ | — | ⚠️ | ❌ | API oficial: 12 sorteos, 100 opciones terminal; premiación INFORMATIVA (700×/60×/10×) sin reglamento publicado (H10). **WU f26**: confirmado NO publicado — el bundle de triplefacil.com (`index-CnppWFwM.js`) y la ruta `/reglamento` (SPA catch-all) no exponen reglamento; "Operado bajo licencia de la Lotería de Oriente" |
 | 21 | `triple-zamorano` | ✅ | ✅ | — | ✅ | ✅ | API oficial: 5 sorteos (domingos solo 19:00); **Reglamento oficial obtenido (WU f26)**: `docs/reglamentos/reglamento-triple-zamorano.pdf` (REGLAMENTO TP ZAMORANO NOV2025, Lotería del Zulia, parseable): TRIPLE **600×**, COLA **60×**, UÑA **5×**, ASTRO **6.000×**, COLA+SIGNO **600×**, UÑA+SIGNO **60×** → **corregido 30→600** + modalidades en config (**H11 RESUELTO**: la informativa 600/60/6.000/600 era correcta, ahora con fuente) |
 
+> El hueco `#3` es el retirado *Terminal Activo / Terminal Trío*: no es un juego ni un tipo, es la
+> **modalidad `terminal` del Trío Activo** (2 últimos dígitos del triple, 60×). Su verificación
+> oficial sigue en el histórico: reglamento `Trio_Activo.pdf` (md5 idéntico a `Terminal_Trio.pdf`)
+> declara TERMINAL **60×** (corregido 20→60); la FAQ oficial dice 70×+5× → discrepancia H12.
+
 ## Resumen
 
-- **Con reglamento oficial: 9/21** — PDF **parseables**: Triple Táchira, Trío Activo, Cazaloton,
+- **Con reglamento oficial: 9/20** — PDF **parseables**: Triple Táchira, Trío Activo, Cazaloton,
   **Triple Zulia, Triple Caliente, Triple Zamorano** (WU f26) + **mislink Ruleta Royal** (RD/Rep.Dom,
   parseable, confirma 30×). **Escaneados (descargados, pendientes de extracción por el cliente)**:
   Triple Chance (2 PDFs), La Granjita, La Ricachona. **Imagen no parseable**: Lotto Activo.
   **Referenciado sin PDF**: Mega Animal 40 (DIF-RGTO-033-00; sitio oficial confirma 30×/40×).
-- **Verificación funcional con fuente oficial (horarios/opciones): 20/21** — los 7 originales (lote 1) + Táchira, Selva, Fácil, Zamorano, Granjita, Ricachona, Chaima, Caliente, Arrejuntado + **lote 2: Cazaloton (reglamento), Triple Chance, Guacharito, Guácharo Activo (API oficial)** + **Mega Animal 40 (WU f27: sitio oficial megaanimal40.com)**. Único pendiente de fuente: nada (todos tienen fuente oficial; el único juego sin resultados publicados es Cazaloton, que mantiene loteriadehoy por decisión documentada).
-- **Premiación verificada con fuente oficial: 12/21** — Táchira (reglamento), Trío Activo (reglamento), Terminal Trío (reglamento), Lotto Activo/RD/Rep.Dom (FAQ oficial 30× + mislink Ruleta Royal), Selva (base 80×), **Cazaloton (reglamento 30×), Triple Chance (afiche oficial 600×), Guacharito (bundle 70×/150×), Guácharo Activo (bundle 60×/120×), Triple Zulia, Triple Caliente y Triple Zamorano (reglamentos, 600×)** + Mega Animal 40 (sitio oficial: 30×/40× comodín MEGA; **comodín capturado en datos desde el WU f27**).
+- **Verificación funcional con fuente oficial (horarios/opciones): 20/20** — los 7 originales (lote 1) + Táchira, Selva, Fácil, Zamorano, Granjita, Ricachona, Chaima, Caliente, Arrejuntado + **lote 2: Cazaloton (reglamento), Triple Chance, Guacharito, Guácharo Activo (API oficial)** + **Mega Animal 40 (WU f27: sitio oficial megaanimal40.com)**. Único pendiente de fuente: nada (todos tienen fuente oficial; el único juego sin resultados publicados es Cazaloton, que mantiene loteriadehoy por decisión documentada).
+- **Premiación verificada con fuente oficial: 12/20** — Táchira (reglamento), Trío Activo (reglamento), Lotto Activo/RD/Rep.Dom (FAQ oficial 30× + mislink Ruleta Royal), Selva (base 80×), **Cazaloton (reglamento 30×), Triple Chance (afiche oficial 600×), Guacharito (bundle 70×/150×), Guácharo Activo (bundle 60×/120×), Triple Zulia, Triple Caliente y Triple Zamorano (reglamentos, 600×)** + Mega Animal 40 (sitio oficial: 30×/40× comodín MEGA; **comodín capturado en datos desde el WU f27**). La modalidad `terminal` del Trío Activo se paga 60× (mismo reglamento).
 - **Pendientes mayores: reglamentos NO publicados (7 juegos) y premiaciones sin fuente oficial (4: Arrejuntado, Granjita, Ricachona, Chaima — escaneados pendientes de extracción; Fácil 700× informativo).**
 
 ## Pendientes por tipo
@@ -127,7 +131,8 @@ Fuentes muestreadas el 2026-09-10..14 (con `sleep` entre peticiones, User-Agent 
    (product_id 2): 234 registros con SOLO 3 horarios **12:45/16:45/19:05** (74/74/86) y
    A/B/C donde C = triple+signo (12 zodiacales). Coincide exactamente con nuestro seeder
    (3 horarios, 12 signos). La API no publica premios ni hay reglamento → premio 30 pendiente.
-3. **`terminal-activo` (3)** — Feed oficial `/resultados/terminal_activo/`: 12 sorteos/día
+3. **Terminal Activo (3, retirado)** — modalidad `terminal` del Trío Activo. Feed oficial
+   `/resultados/terminal_activo/`: 12 sorteos/día
    08:00–19:00 de un número de **2 cifras**. **Hallazgo**: el terminal es exactamente los
    **2 últimos dígitos del Trío Activo** (0 discrepancias en 4 días × 12 sorteos cruzando ambos
    feeds). El sitio enlaza `Terminal_Trio.pdf`, **byte-idéntico** (md5 `50148e8e…`) al reglamento

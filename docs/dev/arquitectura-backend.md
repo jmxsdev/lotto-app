@@ -34,7 +34,7 @@ banca/grupo/taquilla/agencia con comisiones y cierres de caja.
 | `app/` | Código de la aplicación (ver §3) |
 | `bootstrap/` | Arranque del framework. `app.php` configura routing, middlewares y excepciones; `providers.php` lista los service providers |
 | `config/` | Configuración por archivo (`app.php`, `auth.php`, `database.php`, `queue.php`, `sanctum.php`, `cors.php`, …) |
-| `database/` | Migraciones (~50 tablas), seeders (los 21 juegos) y factories |
+| `database/` | Migraciones (~50 tablas), seeders (los 20 juegos) y factories |
 | `public/` | Document root: `index.php` (front controller), `favicon.ico`, `robots.txt` |
 | `resources/` | `views/admin` (vista Blade mínima del panel de resultados), `css`/`js` para Vite |
 | `routes/` | `api.php` (negocio, `/api/v1`), `web.php` (panel admin), `console.php` (scheduler + comandos) |
@@ -70,7 +70,7 @@ banca/grupo/taquilla/agencia con comisiones y cierres de caja.
 | `Policies/` | Convención + negocio | `ApuestaPolicy`, `UserPolicy` y las 6 policies del alcance (`Banca`, `Grupo`, `Agencia`, `Taquilla`, `Ticket`, `Cierre`) |
 | `Providers/` | Mixto | `AppServiceProvider` (estándar); `PluginServiceProvider` y `ScheduleServiceProvider` (negocio) |
 | `Services/` | Negocio | Corazón: `PremiosEngine`, `ApuestaService`, `JuegoPluginManager`, `PremiosConfigService`, `ScraperSourceResolver`, `ScraperSource`, `DrawReconciliationService`, `CierreService`, `ComisionService`, `ConfiguracionService`, `JuegoLimiteService`, `JuegoCatalogoService`, `ActivacionEfectivaService` |
-| `Support/` | Negocio | `PremiosOficiales` (catálogo en código de los 21 juegos), `Texto` (normalización), `Scope/AlcanceService` (jerarquía de alcance, ver §3.2) |
+| `Support/` | Negocio | `PremiosOficiales` (catálogo en código de los 20 juegos), `Texto` (normalización), `Scope/AlcanceService` (jerarquía de alcance, ver §3.2) |
 
 ### 3.1 Nota clave: hay DOS sistemas de plugins
 
@@ -174,7 +174,8 @@ del día marca las pendientes como `perdida`. El detalle completo está en la se
 
 ### 4.5 `PremiosOficiales`
 
-Fuente de verdad en código de los premios de los 21 juegos. `configPara($slug)`
+Fuente de verdad en código de los premios de los 20 juegos (tipos `animalitos|tripletas`; la
+jugada terminal es modalidad de `tripletas`). `configPara($slug)`
 construye el objeto que se escribe en `juegos.config` (lo usan los seeders y la
 migración de backfill), y mantiene los espejos legacy (`premio_multiplo`,
 `modalidades`) que consume `docs/juegos.json`.

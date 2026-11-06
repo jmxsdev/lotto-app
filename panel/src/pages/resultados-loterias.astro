@@ -137,7 +137,7 @@ import Icon from '../components/Icon.astro';
     }
 
     // Botón clicable de un valor: identidad por tipo (A5).
-    // animalitos/terminales → numero; tripletas → posición (+ signo cuando la fila lo porta).
+    // animalitos → numero; tripletas → posición (+ signo cuando la fila lo porta).
     function valueBtn(o) {
       const extra = o.cls || '';
       return `<button class="value-btn ${extra}" data-resultado-id="${o.id}" data-tipo="${o.tipo}" data-posicion="${o.posicion}" data-valor="${o.valor}" data-signo="${o.signo}" data-juego="${o.juego}" title="Ver apariciones previas de ${o.label}">${o.label}</button>`;

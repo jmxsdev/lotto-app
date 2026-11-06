@@ -23,7 +23,7 @@ class JuegosJsonTest extends TestCase
     /**
      * Orden de siembra del DatabaseSeeder: el archivo commiteado conserva el
      * contrato estable de ids para el front/taquilla. El id 3 queda como hueco
-     * porque `terminal-activo` (tercer juego sembrado) fue retirado del
+     * porque el tercer juego sembrado (*Terminal Activo*) fue retirado del
      * catálogo; los ids no se renumeran (D9).
      *
      * @var array<int, string>

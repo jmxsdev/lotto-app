@@ -13,7 +13,7 @@
 
 | Front | Cambio mas urgente | Cambios de contrato | Trabajo nuevo |
 |---|---|---|---|
-| **Taquilla** | **Pago de premios roto**: hoy manda `tipo:'bs'` + sin `moneda` + monto apostado (el backend exige `egreso` + `moneda` + monto = premio). Ademas solo procesa `pendiente`, y las apuestas nuevas quedan en `ganadora` -> **nunca se pagan** | Payload de `combinacion` para modalidades single-draw; estados nuevos `ganadora`/`vencido`; render de resultados con claves nuevas | Catalogo dinamico (hoy 7 juegos hardcodeados; el catalogo tiene 21); seleccion de figuras especiales (Monje 0-75) |
+| **Taquilla** | **Pago de premios roto**: hoy manda `tipo:'bs'` + sin `moneda` + monto apostado (el backend exige `egreso` + `moneda` + monto = premio). Ademas solo procesa `pendiente`, y las apuestas nuevas quedan en `ganadora` -> **nunca se pagan** | Payload de `combinacion` para modalidades single-draw; estados nuevos `ganadora`/`vencido`; render de resultados con claves nuevas | Catalogo dinamico (hoy 7 juegos hardcodeados; el catalogo tiene 20); seleccion de figuras especiales (Monje 0-75) |
 | **Panel** | Toggle de juego con body `{active}` (hoy el PATCH va sin body -> 422 que el `catch` silencioso oculta) | Ninguno obligatorio | Editor de premios por juego (requiere endpoint backend, backlog), pagina de configuracion de vencimiento (endpoint ya existe), badges de estados |
 
 ---
@@ -72,7 +72,7 @@ Fuente: `docs/juegos.json` (exportado con `php artisan juegos:export`) y API:
 
 | Endpoint | Devuelve |
 |---|---|
-| `GET /api/v1/juegos` | Los 21 juegos (modelo con `config` completo) |
+| `GET /api/v1/juegos` | Los 20 juegos (modelo con `config` completo) |
 | `GET /api/v1/juegos/{id}/reglas` | Reglas del plugin **+ `premios` ({base, modalidades, comodines})** — aditivo |
 | `GET /api/v1/juegos/{id}/opciones` | Opciones reales del zoo del juego |
 | `GET /api/v1/juegos/{id}/horarios` | Horarios del juego |
@@ -86,8 +86,7 @@ Regla: **juego con `active=false`/`vendible=false` no se ofrece ni permite vende
 | Clave | Tipo | Uso |
 |---|---|---|
 | `nombre_animal` | string | animalito ganador (comparacion con acentos normalizados) |
-| `numero` | int | Terminal Activo / figura (99 = Guacharito, 75 = Guacharo/Patronus) |
-| `terminal` | int | fallback defensivo de terminales |
+| `numero` | int | figura (99 = Guacharito, 75 = Guacharo/Patronus) |
 | `triple_a`, `triple_b`, `triple_c` | string 3 cifras | triples (y posiciones) |
 | `signo` | string | sigla (`ESC`) o label; el front puede mostrar label |
 | `arrimao` | string 4 cifras | El Arrejuntado |
@@ -114,9 +113,8 @@ Cada linea del ticket es **un sorteo unico** (`sorteo_hora`) y **un monto propio
 | Animalito | Familia Lotto Activo, Monje, Guacharito, Guacharo, Granjita, Chaima, Mega, Selva | `{ "animal": "Delfín" }` | `base` (o comodin) |
 | Triple seco | Zulia, Caliente, Zamorano, Tachira, Facil, Arrejuntado | `{ "tipo": "triple_a", "numero": "452" }` (idem `triple_b`) | `triple_a`/`triple_b` |
 | Triple + signo | idem | `{ "tipo": "triple_c", "numero": "259", "signo": "Escorpio" }` (label o sigla `ESC`, ambas validas) | `signo_triple` |
-| Terminal Activo | `terminal-activo` (plugin Terminales) | `{ "numero": "37" }` | `terminal` |
 | Punta | Trio Activo, Chance | `{ "tipo": "punta", "numero": "45", "triple": "a" }` (2 primeras del **triple vendido**) | `punta` |
-| Terminal | Trio Activo, Zulia, Caliente, Zamorano, Chance, Facil | `{ "tipo": "terminal", "numero": "52", "triple": "a" }` (2 ultimas del **triple vendido**) | `terminal` |
+| Terminal | Trio Activo, Zulia, Caliente, Zamorano, Chance, Facil | `{ "tipo": "terminal", "numero": "52", "triple": "a" }` (2 ultimas del **triple vendido**; la jugada terminal se vende como modalidad de `tripletas`, no como juego propio) | `terminal` |
 | Una | Zamorano | `{ "tipo": "uña", "numero": "2", "triple": "a" }` (ultima cifra del **triple vendido**) | `uña` |
 | Aproximacion | Facil, Tachira | `{ "tipo": "aproximacion", "numero": "51" }` (terminal +-1, sin wrap) | `aproximacion` |
 | Signo + terminal | Zulia, Caliente, Chance, Zamorano, Tachira (`signo_terminal`/`signo_una`) | `{ "tipo": "signo_terminal", "numero": "59", "signo": "LEO" }` | `signo_terminal` |
@@ -147,7 +145,7 @@ Notas:
 
 ### 2.3 Valores por juego (para mostrar en UI)
 
-NO hardcodear multiplicadores en el front: leer `premios` de `GET /juegos/{id}/reglas` o del catalogo. Tabla oficial completa: `docs/cliente/multiplicadores-juegos.md` y spec archivada (seccion "Valores oficiales"). Ejemplos clave: Monje base 50x (+comodines 70/120/140x), Terminal Activo 60x, Trio Activo 600x, Zulia/Caliente/Zamorano 600x, Tachira 500x, Chance 600x (con 200.000x en Par A+B), Facil 700x, Arrejuntado 40x (Pegadito 60.000x), Guacharito 70x (99 -> 150x), Guacharo 60x (75 -> 120x), Mega 30x (MEGA 40x), Selva 80x (A 160x / B 200x), Cazaloton 30x (Tripleta 200x), Chaima 40x (Tripleta 50x).
+NO hardcodear multiplicadores en el front: leer `premios` de `GET /juegos/{id}/reglas` o del catalogo. Tabla oficial completa: `docs/cliente/multiplicadores-juegos.md` y spec archivada (seccion "Valores oficiales"). Ejemplos clave: Monje base 50x (+comodines 70/120/140x), Trio Activo 600x (modalidad terminal 60x), Zulia/Caliente/Zamorano 600x, Tachira 500x, Chance 600x (con 200.000x en Par A+B), Facil 700x, Arrejuntado 40x (Pegadito 60.000x), Guacharito 70x (99 -> 150x), Guacharo 60x (75 -> 120x), Mega 30x (MEGA 40x), Selva 80x (A 160x / B 200x), Cazaloton 30x (Tripleta 200x), Chaima 40x (Tripleta 50x).
 
 ---
 
@@ -211,7 +209,7 @@ NO hardcodear multiplicadores en el front: leer `premios` de `GET /juegos/{id}/r
 
 ### 3.3 Checklist de aceptacion (taquilla)
 
-- [ ] Los 21 juegos activos listados desde el catalogo; `la-ricachona` no aparece (o aparece deshabilitada).
+- [ ] Los 20 juegos activos listados desde el catalogo; `la-ricachona` no aparece (o aparece deshabilitada).
 - [ ] Monje ofrece figuras 0-75 (incluida Patronus 75); zoos sin labels erroneos.
 - [ ] Cada modalidad de la seccion 2 se puede crear y el backend la acepta (201) y persiste `combinacion`.
 - [ ] Cruzado / Par A+B / Tripleta viajan con `selecciones[]` + `modalidad`.
@@ -228,7 +226,7 @@ NO hardcodear multiplicadores en el front: leer `premios` de `GET /juegos/{id}/r
 
 | Tema | Hoy | Evidencia |
 |---|---|---|
-| Juegos | Lista 21 juegos; muestra `config.premio_multiplo` (solo lectura); unica mutacion: toggle | `panel/src/pages/juegos.astro:21-31` |
+| Juegos | Lista 20 juegos; muestra `config.premio_multiplo` (solo lectura); unica mutacion: toggle | `panel/src/pages/juegos.astro:21-31` |
 | Toggle | `PATCH /juegos/{id}/toggle` **sin body** + `catch` silencioso; el backend exige `{active: bool}` -> 422 tragado | `juegos.astro:31` vs `JuegoController.php:37-41` |
 | Premios por juego | Sin UI (ni `premios`, ni `vendible`) | — |
 | Configuraciones | No existe pagina; no consume `/configuraciones/apuestas-vencimiento` (backend implementado) | grep 0 |
@@ -325,7 +323,6 @@ POST /api/v1/tickets
 | Animalito | `{animal, numero}` | `{animal}` (numero opcional) |
 | Triple A/B | `{tipo:'triple_a', numero:'452'}` | sin cambio |
 | Triple C | `{tipo:'triple_c', numero:'259', signo:'Escorpio'}` | sin cambio (label OK) |
-| Terminal Activo | `{numero:'37'}` | sin cambio |
 | Cruzado Chance | ❌ no existe | `{modalidad:'cruzado', selecciones:[{tipo:'punta',numero},...2]}` |
 | Par A+B Chance | ❌ no existe | `{modalidad:'triple_a_b', selecciones:[{tipo:'triple_a',numero},{tipo:'triple_b',numero}]}` |
 | Tripleta (Cazaloton/Chaima) | ❌ no existe | `{modalidad:'tripleta', selecciones:[{animal},{animal},{animal}]}` |
@@ -336,7 +333,7 @@ POST /api/v1/tickets
 ### 6.4 Orden de trabajo sugerido
 
 1. **Taquilla T3** (pago) y **Panel P1** (toggle): fixes criticos de bajo costo.
-2. **Taquilla T1** (catalogo) -> habilita vender los 21 juegos.
+2. **Taquilla T1** (catalogo) -> habilita vender los 20 juegos.
 3. **Taquilla T2 + T4 + T5** (modalidades, estados, resultados).
 4. **Panel P3** (vencimiento) y **P2** (editor de premios, cuando el ciclo "configuracion de juegos" entregue el endpoint).
 5. **T6/T7** (mejoras de ticket y anulacion) segun prioridad.

@@ -7,11 +7,11 @@
  * jugada por familia para que el jugador interprete el resultado sin
  * ambigüedad:
  *   - animalitos: "Perro #14" (animal + número).
- *   - terminales: solo el número ("#05"; antes se imprimía duplicado).
- *   - tripletas: modalidad + número + signo ("Triple C #157 Sagitario").
+ *   - tripletas: modalidad + número + signo ("Triple C #157 Sagitario"). La
+ *     modalidad terminal usa el mismo formato ("#05" con `modalidad` vacía).
  */
 
-export type TipoLineaTicket = 'animalitos' | 'tripletas' | 'terminales';
+export type TipoLineaTicket = 'animalitos' | 'tripletas';
 
 /** Código de modalidad backend → texto visible en el ticket. */
 export const MODALIDADES_TRIPLETA: Readonly<Record<string, string>> = {
@@ -80,12 +80,10 @@ export function formatearJugada(linea: LineaJugada): string {
     // texto "Tripleta (A, B, C)"; el animal simple sigue mostrando "Animal #N°".
     return [linea.modalidad, linea.animal, numero].filter(Boolean).join(' ') || '-';
   }
-  if (linea.tipo === 'terminales') {
-    return numero || '-';
-  }
   // Tripletas (zodiacal y numérica): la modalidad es obligatoria para
   // interpretar el resultado; el signo solo existe en las zodiacales y el
-  // triple (A/B/C) solo en las posicionales.
+  // triple (A/B/C) solo en las posicionales. La modalidad terminal cae aquí y
+  // conserva el payload legacy `{numero}` → "#05".
   const triple = linea.triple ? 'Triple ' + String(linea.triple).toUpperCase() : '';
   return [linea.modalidad, numero, linea.signo, triple].filter(Boolean).join(' ') || '-';
 }

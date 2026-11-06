@@ -113,6 +113,35 @@ ok(porFamilia.animalitos === 11, `familia animalitos: 11 (${porFamilia.animalito
 ok(porFamilia.zodiacal === 7, `familia zodiacal: 7 (${porFamilia.zodiacal})`);
 ok(porFamilia.numerica === 2, `familia numérica: 2 (${porFamilia.numerica})`);
 
+console.log('\n== Contrato de tipo: solo animalitos|tripletas ==');
+const rechazaTerminales = (() => {
+  try {
+    cargarCatalogo({
+      version: 1,
+      juegos: [
+        {
+          id: 99,
+          slug: 'terminal-activo',
+          nombre: 'Terminal Activo',
+          tipo: 'terminales',
+          premio_multiplo: 60,
+          active: true,
+          vendible: true,
+          premios: null,
+          comodines: null,
+          modalidades: null,
+          horarios: ['08:00'],
+          opciones: [{ numero: 5, label: '05', value: '5' }],
+        },
+      ],
+    });
+    return false;
+  } catch (error) {
+    return /"tipo" inválido/.test(String(error && error.message));
+  }
+})();
+ok(rechazaTerminales, 'cargarCatalogo rechaza tipo "terminales" (contrato animalitos|tripletas)');
+
 const familiaEsperada = {
   'lotto-activo': 'animalitos',
   'triple-zulia': 'zodiacal',
@@ -925,7 +954,7 @@ ok(
   'textoTripletaAnimalitos: exige 3 animales',
 );
 ok(textoTripletaAnimalitos({ animal: 'Perro' }) === null, 'textoTripletaAnimalitos: no aplica a animal simple');
-ok(formatearJugada({ tipo: 'terminales', numero: '05' }) === '#05', 'terminal: solo el número (sin duplicar)');
+ok(formatearJugada({ tipo: 'tripletas', numero: '05' }) === '#05', 'payload legacy {numero} en tripletas: solo el número (sin duplicar)');
 ok(formatearJugada({ tipo: 'tripletas', numero: '157', modalidad: 'Triple C', signo: 'Sagitario' }) === 'Triple C #157 Sagitario', 'tripleta zodiacal: modalidad + número + signo');
 ok(formatearJugada({ tipo: 'tripletas', numero: '005', modalidad: 'Triple A' }) === 'Triple A #005', 'tripleta numérica: modalidad + número');
 ok(formatearJugada({ tipo: 'tripletas', numero: '62', modalidad: 'Terminal', triple: 'a' }) === 'Terminal #62 Triple A', 'posicional: añade «Triple A» al ticket');

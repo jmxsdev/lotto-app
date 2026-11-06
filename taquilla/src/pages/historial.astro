@@ -344,13 +344,13 @@ import MainLayout from '../layouts/MainLayout.astro';
                 };
             } else {
                 // Ticket impreso (2026-09): texto de jugada por familia (animal,
-                // solo número en terminal, modalidad + número + signo en tripletas)
-                // y encabezado con TODOS los juegos del ticket.
+                // número en la modalidad terminal, modalidad + número + signo en
+                // tripletas) y encabezado con TODOS los juegos del ticket.
                 const lines = (ticket.apuestas || []).map(a => {
                     const c = typeof a.combinacion === 'string' ? JSON.parse(a.combinacion) : (a.combinacion || {});
                     const esTripleta = !!c.tipo;
                     const tripletaAnimalitos = textoTripletaAnimalitos(c);
-                    const tipo = esTripleta ? 'tripletas' : ((c.animal || tripletaAnimalitos) ? 'animalitos' : 'terminales');
+                    const tipo = esTripleta ? 'tripletas' : ((c.animal || tripletaAnimalitos) ? 'animalitos' : 'tripletas');
                     const juego = catalogoTicket.porId.get(a.juego_id ?? a.juego?.id);
                     return {
                         game: a.juego?.name || '',

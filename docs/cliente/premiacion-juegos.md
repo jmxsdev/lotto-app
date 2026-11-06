@@ -1,7 +1,7 @@
-# Premiación de los juegos — guía didáctica (21 juegos)
+# Premiación de los juegos — guía didáctica (20 juegos)
 
 > Documento para el cliente. Explica, con ejemplos concretos, **cómo se juega, qué se apuesta,
-> cuándo se gana y cuánto se paga** en cada uno de los 21 juegos del sistema.
+> cuándo se gana y cuánto se paga** en cada uno de los 20 juegos del sistema.
 > Los valores de pago (multiplicadores) provienen de `docs/cliente/multiplicadores-juegos.md`, que consolida
 > los **reglamentos oficiales** y la operación real de cada juego. No se inventa ningún valor: si un
 > juego no tiene fuente oficial con valores, queda **deshabilitado** (ver `la-ricachona`).
@@ -24,7 +24,6 @@
 |---|-------|------|-------------|-------------------------------|
 | 1 | Lotto Activo | Animalitos | 30× | Dupleta 1.000× |
 | 2 | Triple Zulia | Triples | 600× | Zodiacal 6.000× |
-| 3 | Terminal Trío | Terminales | 60× | — |
 | 4 | Lotto Activo RD | Animalitos | 30× | — |
 | 5 | Lotto Activo Rep. Dom. | Animalitos | 30× | — |
 | 6 | Monje Millonario | Animalitos | 50× | Patronus (75) 120× |
@@ -43,6 +42,10 @@
 | 19 | Triple Táchira | Triples | 500× | Zodiacal 5.000× |
 | 20 | Triple Fácil | Triples | 700× | Terminal 60× / Aprox 10× |
 | 21 | Triple Zamorano | Triples | 600× | Astro 6.000× |
+
+> El hueco de `#3` corresponde al juego retirado *Terminal Activo / Terminal Trío*: esa jugada
+> es la **modalidad Terminal del Trío Activo (60×)** y no un juego aparte. El catálogo conserva
+> los ids `1,2,4…21`.
 
 ---
 
@@ -159,6 +162,8 @@ triple exacto, las 2 últimas cifras (terminal/cola), las 2 primeras (punta), o 
 - **Cuánto pagas**: **Triple 600×** · **Terminal** (2 últimas cifras) **60×** · **Punta** (2 primeras)
   **60×**.
 - **Ejemplo**: Bs. 10 al triple 847 → sale 847 → `10 × 600 = Bs. 6.000`.
+- **Nota**: el antiguo producto *Terminal Activo / Terminal Trío* era esta misma modalidad
+  **Terminal** del Trío Activo; hoy se vende dentro de Trío Activo, no como juego aparte.
 
 ### 14. Triple Caliente — 600×
 
@@ -240,22 +245,10 @@ triple exacto, las 2 últimas cifras (terminal/cola), las 2 primeras (punta), o 
 
 ---
 
-## Juegos de Terminales
-
-### 21. Terminal Trío (Terminal Activo) — 60×
-
-- **Cómo se juega**: eliges un terminal de 2 cifras (00–99).
-- **Qué se apuesta**: el número de 2 cifras y el monto.
-- **Cuándo ganas**: si el terminal sale en el sorteo.
-- **Cuánto pagas**: **60×** (reglamento oficial — H12 resuelto: se usa 60×).
-- **Ejemplo**: Bs. 10 al terminal 37 → sale 37 → `10 × 60 = Bs. 600`.
-
----
-
 ## Notas finales
 
 - **Todos los multiplicadores de esta guía son definitivos** y provienen de la fuente indicada en cada
-  juego: reglamento oficial (Chance, Terminal Trío, Monje, Triple Fácil, Cazalotón, Guácharo, Chaima,
+  juego: reglamento oficial (Chance, Monje, Triple Fácil, Cazalotón, Guácharo, Chaima,
   Granjita, Táchira, Zamorano, Zulia, Caliente, Trío Activo) o **web/sitio oficial** (El Arrejuntado
   incluye el Pegadito 60.000×, Selva Plus, Mega Animal 40, Guacharito).
 - Los **comodines** (MEGA 40×, Selva A/B 160×/200×, Guacharito 99→150×, Guácharo 75→120×, Patronus
