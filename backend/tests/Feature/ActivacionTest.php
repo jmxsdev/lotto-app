@@ -47,7 +47,8 @@ class ActivacionTest extends TestCase
         // Verificar que se creó log de activación
         $log = Log::where('action', 'activacion_taquilla')->latest()->first();
         $this->assertNotNull($log);
-        $this->assertEquals(true, json_decode($log->details)->exitoso);
+        $details = $log->details;
+        $this->assertEquals(true, is_array($details) ? $details['exitoso'] : json_decode($details)->exitoso);
     }
 
     public function test_rechazo_con_codigo_inexistente()
