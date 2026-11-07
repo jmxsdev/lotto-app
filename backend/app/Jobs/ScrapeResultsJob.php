@@ -2,6 +2,10 @@
 
 namespace App\Jobs;
 
+use App\Audit\AuditAction;
+use App\Audit\AuditContext;
+use App\Audit\AuditEventData;
+use App\Audit\AuditRecorder;
 use App\Models\Juego;
 use App\Models\Log;
 use App\Models\Resultado;
@@ -29,6 +33,24 @@ class ScrapeResultsJob implements ShouldQueue
     ) {}
 
     public function handle(): void
+    {
+        $context = app(AuditContext::class);
+        $context->reset();
+        $context->forSystem(
+            'job:ScrapeResultsJob',
+            $this->jobId(),
+            $this->queueName(),
+            'job',
+        );
+
+        try {
+            $this->execute();
+        } finally {
+            $context->reset();
+        }
+    }
+
+    private function execute(): void
     {
         $fecha = $this->fecha ?? now()->format('Y-m-d');
         $juego = Juego::find($this->juegoId);
@@ -89,6 +111,13 @@ class ScrapeResultsJob implements ShouldQueue
                 ->whereDate('fecha_sorteo', $fecha)
                 ->get();
 
+            $resultadoIds = $ultimosResultados
+                ->pluck('id')
+                ->map(static fn (mixed $id): int => (int) $id)
+                ->all();
+
+            $this->registrarIngesta($juego, $fecha, $guardados, $resultadoIds);
+
             // N6/D6-b: guard defensivo — un sorteo duplicado (pre-H22) no debe
             // liquidarse dos veces; se evalúa UNA sola vez por (fecha, hora).
             $aEvaluar = $this->dedupeResultadosDelDia($ultimosResultados);
@@ -98,6 +127,9 @@ class ScrapeResultsJob implements ShouldQueue
             foreach ($aEvaluar as $resultado) {
                 $totalGanadoras += $apuestaService->verificarGanadores($resultado);
             }
+
+            $this->registrarSettlement($juego, $fecha, $totalGanadoras, $aEvaluar->count());
+
             FacadeLog::info("{$juego->name}: jugadas ganadoras detectadas: {$totalGanadoras}");
             $this->logToDatabase('info', 'Scrape completado', [
                 'juego' => $juego->name,
@@ -183,6 +215,79 @@ class ScrapeResultsJob implements ShouldQueue
         } catch (\Exception $e) {
             FacadeLog::error('Error al guardar log en DB: '.$e->getMessage());
         }
+    }
+
+    /**
+     * P1 best-effort: los resultados ya están persistidos; un fallo de
+     * auditoría no revierte ni bloquea el job. `entityId` es el primer
+     * resultado del sorteo (representativo); los ids van acotados en
+     * `after.resultados`.
+     *
+     * @param  array<int, int>  $resultadoIds
+     */
+    private function registrarIngesta(Juego $juego, string $fecha, int $guardados, array $resultadoIds): void
+    {
+        app(AuditRecorder::class)->record(
+            AuditAction::DrawResultIngested,
+            new AuditEventData(
+                action: AuditAction::DrawResultIngested,
+                entityType: 'resultado',
+                entityId: $resultadoIds !== [] ? $resultadoIds[0] : null,
+                after: [
+                    'juego_id' => (int) $juego->id,
+                    'guardados' => $guardados,
+                    'resultados' => array_slice($resultadoIds, 0, 50),
+                ],
+                context: array_filter([
+                    'source' => 'job',
+                    'fecha' => $fecha,
+                    'juego' => $juego->name,
+                    'guardados' => $guardados,
+                ], static fn (mixed $value): bool => $value !== null),
+            ),
+        );
+    }
+
+    /**
+     * P1 best-effort tras la liquidación del sorteo. Sin payload por apuesta:
+     * solo el agregado evaluado.
+     */
+    private function registrarSettlement(Juego $juego, string $fecha, int $ganadoras, int $evaluados): void
+    {
+        app(AuditRecorder::class)->record(
+            AuditAction::DrawSettlementCompleted,
+            new AuditEventData(
+                action: AuditAction::DrawSettlementCompleted,
+                entityType: 'resultado',
+                after: ['ganadoras' => $ganadoras],
+                context: array_filter([
+                    'source' => 'job',
+                    'fecha' => $fecha,
+                    'juego_id' => (int) $juego->id,
+                    'resultados_evaluados' => $evaluados,
+                ], static fn (mixed $value): bool => $value !== null),
+            ),
+        );
+    }
+
+    private function jobId(): ?string
+    {
+        $id = $this->job?->getJobId();
+
+        if ($id === null) {
+            return null;
+        }
+
+        $id = (string) $id;
+
+        return $id !== '' ? $id : null;
+    }
+
+    private function queueName(): ?string
+    {
+        $queue = $this->job?->getQueue() ?? $this->queue;
+
+        return is_string($queue) && $queue !== '' ? $queue : null;
     }
 
     public function failed(\Throwable $exception): void

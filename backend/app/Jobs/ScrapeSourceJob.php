@@ -2,6 +2,10 @@
 
 namespace App\Jobs;
 
+use App\Audit\AuditAction;
+use App\Audit\AuditContext;
+use App\Audit\AuditEventData;
+use App\Audit\AuditRecorder;
 use App\Models\Juego;
 use App\Models\JuegoHorario;
 use App\Models\Log;
@@ -38,6 +42,24 @@ class ScrapeSourceJob implements ShouldQueue
     ) {}
 
     public function handle(): void
+    {
+        $context = app(AuditContext::class);
+        $context->reset();
+        $context->forSystem(
+            'job:ScrapeSourceJob',
+            $this->jobId(),
+            $this->queueName(),
+            'job',
+        );
+
+        try {
+            $this->execute();
+        } finally {
+            $context->reset();
+        }
+    }
+
+    private function execute(): void
     {
         $fecha = $this->fecha ?? now()->format('Y-m-d');
         $resolver = app(ScraperSourceResolver::class);
@@ -91,18 +113,37 @@ class ScrapeSourceJob implements ShouldQueue
 
             FacadeLog::info("ScrapeSourceJob: {$this->sourceKey} guardó {$total} filas ({$fecha})");
 
-            $totalGanadoras = 0;
-            $apuestaService = app(ApuestaService::class);
+            // Resultados del día por juego: alimentan la evidencia de ingesta y
+            // la liquidación sin consultar dos veces la base por juego.
+            $resultadosPorJuego = [];
+            $resultadoIds = [];
             foreach ($miembros as $juego) {
-                $ultimosResultados = Resultado::with('juego')
+                $delJuego = Resultado::with('juego')
                     ->where('juego_id', $juego->id)
                     ->whereDate('fecha_sorteo', $fecha)
+                    ->orderBy('id')
                     ->get();
 
-                foreach ($ultimosResultados as $resultado) {
-                    $totalGanadoras += $apuestaService->verificarGanadores($resultado);
+                $resultadosPorJuego[$juego->id] = $delJuego;
+
+                foreach ($delJuego as $resultado) {
+                    $resultadoIds[] = (int) $resultado->id;
                 }
             }
+
+            $this->registrarIngesta($fecha, $total, $porJuego, $resultadoIds);
+
+            $totalGanadoras = 0;
+            $evaluados = 0;
+            $apuestaService = app(ApuestaService::class);
+            foreach ($resultadosPorJuego as $delJuego) {
+                foreach ($delJuego as $resultado) {
+                    $totalGanadoras += $apuestaService->verificarGanadores($resultado);
+                    $evaluados++;
+                }
+            }
+
+            $this->registrarSettlement($fecha, $totalGanadoras, $evaluados);
 
             FacadeLog::info("ScrapeSourceJob: {$this->sourceKey} jugadas ganadoras detectadas: {$totalGanadoras}");
             $this->logToDatabase('info', 'Scrape por fuente completado', [
@@ -165,6 +206,82 @@ class ScrapeSourceJob implements ShouldQueue
         } catch (\Exception $e) {
             FacadeLog::error('Error al guardar log en DB: '.$e->getMessage());
         }
+    }
+
+    /**
+     * P1 best-effort: la ingesta ya está persistida; un fallo de auditoría no
+     * revierte ni bloquea el job. `entityId` es el primer resultado del lote
+     * (representativo), porque el evento agrupa varios sorteos; los ids viajan
+     * acotados en `after.resultados`.
+     *
+     * @param  array<int, int>  $porJuego
+     * @param  array<int, int>  $resultadoIds
+     */
+    private function registrarIngesta(string $fecha, int $total, array $porJuego, array $resultadoIds): void
+    {
+        app(AuditRecorder::class)->record(
+            AuditAction::DrawResultIngested,
+            new AuditEventData(
+                action: AuditAction::DrawResultIngested,
+                entityType: 'resultado',
+                entityId: $resultadoIds !== [] ? $resultadoIds[0] : null,
+                after: [
+                    'total' => $total,
+                    'por_juego' => $porJuego,
+                    'resultados' => array_slice($resultadoIds, 0, 50),
+                ],
+                context: array_filter([
+                    'source' => 'job',
+                    'source_key' => $this->sourceKey,
+                    'fecha' => $fecha,
+                    'hora_objetivo' => $this->horaObjetivo,
+                    'total' => $total,
+                    'por_juego' => $porJuego,
+                ], static fn (mixed $value): bool => $value !== null),
+            ),
+        );
+    }
+
+    /**
+     * P1 best-effort tras la detección de ganadores. Sin payload por apuesta:
+     * solo el agregado del lote.
+     */
+    private function registrarSettlement(string $fecha, int $ganadoras, int $evaluados): void
+    {
+        app(AuditRecorder::class)->record(
+            AuditAction::DrawSettlementCompleted,
+            new AuditEventData(
+                action: AuditAction::DrawSettlementCompleted,
+                entityType: 'resultado',
+                after: ['ganadoras' => $ganadoras],
+                context: array_filter([
+                    'source' => 'job',
+                    'source_key' => $this->sourceKey,
+                    'fecha' => $fecha,
+                    'resultados_evaluados' => $evaluados,
+                ], static fn (mixed $value): bool => $value !== null),
+            ),
+        );
+    }
+
+    private function jobId(): ?string
+    {
+        $id = $this->job?->getJobId();
+
+        if ($id === null) {
+            return null;
+        }
+
+        $id = (string) $id;
+
+        return $id !== '' ? $id : null;
+    }
+
+    private function queueName(): ?string
+    {
+        $queue = $this->job?->getQueue() ?? $this->queue;
+
+        return is_string($queue) && $queue !== '' ? $queue : null;
     }
 
     public function failed(\Throwable $exception): void
