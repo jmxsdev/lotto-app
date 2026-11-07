@@ -18,7 +18,7 @@ use Tests\TestCase;
 
 /**
  * Contrato del catálogo de permisos por capability (BE-04, WU-1): catálogo de
- * 34 permisos guard `api`, matriz capability × rol, bypass acotado de
+ * 36 permisos guard `api`, matriz capability × rol, bypass acotado de
  * `super_master` y prohibición de permisos directos a usuarios.
  */
 class PermissionCatalogTest extends TestCase
@@ -39,13 +39,14 @@ class PermissionCatalogTest extends TestCase
         // Límites, comisiones, exchange, reportes, logs y releases
         'view_limites', 'manage_limites', 'view_comisiones', 'manage_comisiones',
         'view_exchange_rates', 'manage_exchange_rates', 'view_reports',
-        'view_logs', 'download_release', 'manage_clave_cierre', 'manage_config',
+        'view_logs', 'view_audit', 'export_audit',
+        'download_release', 'manage_clave_cierre', 'manage_config',
     ];
 
     /** @var array<string, int> */
     private const CONTEOS = [
         'super_master' => 0,
-        'master' => 33,
+        'master' => 35,
         'banca' => 24,
         'grupo' => 21,
         'agencia' => 17,
@@ -59,16 +60,16 @@ class PermissionCatalogTest extends TestCase
         $this->seed(RolesAndPermissionsSeeder::class);
     }
 
-    public function test_catalogo_exacto_de_34_permisos_con_guard_api(): void
+    public function test_catalogo_exacto_de_36_permisos_con_guard_api(): void
     {
-        $this->assertCount(34, self::CATALOGO);
+        $this->assertCount(36, self::CATALOGO);
 
         $actuales = Permission::query()->where('guard_name', 'api')->pluck('name')->all();
         $esperados = self::CATALOGO;
         sort($actuales);
         sort($esperados);
 
-        $this->assertSame($esperados, $actuales, 'El seeder debe sembrar exactamente el catálogo de 34 permisos.');
+        $this->assertSame($esperados, $actuales, 'El seeder debe sembrar exactamente el catálogo de 36 permisos.');
 
         $this->assertSame(
             ['api'],
@@ -108,7 +109,7 @@ class PermissionCatalogTest extends TestCase
     {
         return [
             'super_master' => ['super_master', 0, []],
-            'master' => ['master', 33, [
+            'master' => ['master', 35, [
                 'view_users', 'create_users', 'edit_users', 'delete_users',
                 'view_bancas', 'manage_bancas', 'view_grupos', 'manage_grupos',
                 'view_agencias', 'manage_agencias', 'view_taquillas', 'manage_taquillas',
@@ -116,8 +117,8 @@ class PermissionCatalogTest extends TestCase
                 'view_apuestas', 'create_apuesta', 'delete_apuesta', 'view_pagos',
                 'create_pago', 'view_cierre', 'create_cierre', 'view_limites',
                 'manage_limites', 'view_comisiones', 'view_exchange_rates',
-                'manage_exchange_rates', 'view_reports', 'view_logs', 'download_release',
-                'manage_clave_cierre', 'manage_config',
+                'manage_exchange_rates', 'view_reports', 'view_logs', 'view_audit',
+                'export_audit', 'download_release', 'manage_clave_cierre', 'manage_config',
             ]],
             'banca' => ['banca', 24, [
                 'view_users', 'create_users', 'edit_users', 'delete_users',

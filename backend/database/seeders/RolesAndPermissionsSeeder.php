@@ -10,7 +10,7 @@ use Spatie\Permission\PermissionRegistrar;
 /**
  * Fuente única del catálogo de permisos por capability (BE-04).
  *
- * - 34 permisos con guard `api`, alineados con la matriz capability × rol de
+ * - 36 permisos con guard `api`, alineados con la matriz capability × rol de
  *   `docs/dev/permisos-capabilities.md`.
  * - `super_master` no recibe filas: su bypass vive en `Gate::before`.
  * - `syncPermissions` reemplaza la matriz de cada rol (contrato del seeder);
@@ -54,6 +54,8 @@ class RolesAndPermissionsSeeder extends Seeder
         // Reportes, logs, releases, clave de cierre y configuración
         'view_reports',
         'view_logs',
+        // Auditoría
+        'view_audit', 'export_audit',
         'download_release',
         'manage_clave_cierre',
         'manage_config',
@@ -83,6 +85,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'view_exchange_rates', 'manage_exchange_rates',
             'view_reports',
             'view_logs',
+            'view_audit', 'export_audit',
             'download_release',
             'manage_clave_cierre',
             'manage_config',

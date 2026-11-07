@@ -125,6 +125,19 @@ final class AlcanceService
         'super_master',
     ];
 
+    /**
+     * Lectura de auditoría (`GET /audit-events`).
+     *
+     * `super_master` ve el histórico global; `master` solo los eventos con
+     * `banca_id` dentro de sus bancas. Cualquier otro rol se deniega.
+     *
+     * @var array<int, string>
+     */
+    public const AUDITORIA = [
+        'super_master',
+        'master',
+    ];
+
     /** Falta el vínculo con la banca del actor. */
     public const MENSAJE_SIN_BANCA = 'No tienes una banca asociada.';
 
@@ -191,6 +204,33 @@ final class AlcanceService
             'master' => $this->aplicarMasterChainScope($q, $actor),
             default => $q,
         };
+    }
+
+    /**
+     * Acotar el histórico de auditoría al alcance del actor.
+     *
+     * `super_master` no lleva filtro (global). `master` solo ve eventos con
+     * `banca_id` dentro de sus bancas; los eventos globales (`banca_id=null`)
+     * quedan reservados a `super_master`. Master sin bancas ve vacío, nunca
+     * global. Cualquier otro rol recibe 403 (fail-closed).
+     */
+    public function applyToAuditoria(Builder $q, User $actor): Builder
+    {
+        $rol = $this->primerRol($actor, self::AUDITORIA);
+
+        if ($rol === null) {
+            $this->denegar('No autorizado.');
+        }
+
+        if ($rol === 'super_master') {
+            return $q;
+        }
+
+        $ids = $actor->masterBancaIds();
+
+        return $ids->isEmpty()
+            ? $q->whereRaw('1=0')
+            : $q->whereNotNull('banca_id')->whereIn('banca_id', $ids);
     }
 
     /**

@@ -128,7 +128,9 @@ class AuthController extends Controller
 
             return response()->json([
                 'token' => $newToken->plainTextToken,
-                'user' => $user,
+                'user' => array_merge($user->toArray(), [
+                    'permissions' => $this->permissionsFor($user),
+                ]),
                 'role' => $user->primaryRole(),
             ]);
         });
@@ -175,7 +177,26 @@ class AuthController extends Controller
 
     public function user(Request $request)
     {
-        return $request->user();
+        $user = $request->user();
+
+        return array_merge($user->toArray(), [
+            'permissions' => $this->permissionsFor($user),
+        ]);
+    }
+
+    /**
+     * Permisos efectivos para el panel (aditivo). `super_master` devuelve []
+     * porque su acceso se resuelve por bypass de rol, no por filas.
+     *
+     * @return array<int, string>
+     */
+    private function permissionsFor(User $user): array
+    {
+        if ($user->hasRole('super_master')) {
+            return [];
+        }
+
+        return $user->getAllPermissions()->pluck('name')->all();
     }
 
     /**

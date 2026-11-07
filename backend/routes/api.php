@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\ActivacionController;
 use App\Http\Controllers\Api\AgenciaController;
 use App\Http\Controllers\Api\ApuestaController;
+use App\Http\Controllers\Api\AuditEventController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BancaController;
 use App\Http\Controllers\Api\CierreController;
@@ -195,6 +196,15 @@ Route::prefix('v1')->middleware([CaptureAuditContext::class])->group(function ()
             Route::get('/logs', function (Request $request) {
                 return Log::with('user')->latest()->paginate($request->input('per_page', 50));
             });
+        });
+
+        // ==================================================
+        // AUDITORÍA — lectura con cursor (view_audit: master vía matriz;
+        // super_master por bypass). El scope de filas lo acota
+        // AlcanceService::applyToAuditoria; el export queda para WU-9b.
+        // ==================================================
+        Route::middleware(['permission:view_audit'])->group(function () {
+            Route::get('/audit-events', [AuditEventController::class, 'index']);
         });
 
         // ==================================================

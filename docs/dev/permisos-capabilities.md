@@ -19,7 +19,7 @@
 - El scoping de filas sigue viviendo en `App\Support\Scope\AlcanceService` y en
   las policies. La capa de permisos no lo reemplaza ni lo modifica (#85).
 
-## 2. Catálogo final (34 permisos, guard `api`)
+## 2. Catálogo final (36 permisos, guard `api`)
 
 | Dominio | Permisos |
 |---|---|
@@ -38,6 +38,7 @@
 | Exchange rates | `view_exchange_rates` `manage_exchange_rates` |
 | Reportes | `view_reports` |
 | Logs | `view_logs` |
+| Auditoría | `view_audit` `export_audit` |
 | Releases | `download_release` |
 | Clave de cierre | `manage_clave_cierre` |
 | Configuración | `manage_config` |
@@ -69,11 +70,12 @@ siempre por bypass y no aparece en la matriz.
 | Exchange rates | v,m | — | — | — | — |
 | Reportes | v | v | v | v | v |
 | Logs | v | — | — | — | — |
+| Auditoría | v,e | — | — | — | — |
 | Releases | v | v | v | v | v |
 | Clave de cierre | m | m | — | — | — |
 | Configuración | m | — | — | — | — |
 
-Conteos por rol: master **33**, banca **24**, grupo **21**, agencia **17**,
+Conteos por rol: master **35**, banca **24**, grupo **21**, agencia **17**,
 taquilla **12**, super_master **0**.
 
 `*` `agencia` recibe `manage_agencias` para editar su propia ficha; el
@@ -144,7 +146,7 @@ Reglas:
 
 ```
 forgetCachedPermissions()
-  → firstOrCreate de los 34 permisos (guard api)
+  → firstOrCreate de los 36 permisos (guard api)
   → delete de manage_users / manage_apuestas
   → syncPermissions(matriz) por rol
   → super_master.syncPermissions([])
@@ -169,12 +171,12 @@ sembrarlo con las rutas anteriores (`role:`) no cambia quién entra.
 Verificación post-seed:
 
 ```sql
-SELECT COUNT(*) FROM permissions WHERE guard_name = 'api';            -- 34
+SELECT COUNT(*) FROM permissions WHERE guard_name = 'api';            -- 36
 SELECT COUNT(*) FROM permissions
  WHERE name IN ('manage_users', 'manage_apuestas');                   -- 0
 ```
 
-Conteos esperados por rol: master 33, banca 24, grupo 21, agencia 17,
+Conteos esperados por rol: master 35, banca 24, grupo 21, agencia 17,
 taquilla 12, super_master 0. En dev, `php artisan migrate:fresh --seed`
 reconstruye el estado limpio.
 
@@ -213,6 +215,7 @@ Ante un despliegue con caché viejo, `php artisan optimize:clear` (o
 | `/limites*` (lectura) | GET | `permission:view_limites` | master, banca, grupo, agencia |
 | `/limites*` (escritura) | PUT, DELETE, POST | `permission:manage_limites` | master, banca, grupo |
 | `/logs` | GET | `permission:view_logs` | master |
+| `/audit-events` | GET | `permission:view_audit` | master (scope por banca) |
 | `/comisiones/defaults` | GET, PUT | `permission:manage_comisiones` | solo bypass (`super_master`) |
 | `/comisiones/consulta` | GET | `permission:view_comisiones` | master |
 | `/reportes/*`, `/estadisticas/rendimiento` | GET | `permission:view_reports` | master, banca, grupo, agencia, taquilla |
