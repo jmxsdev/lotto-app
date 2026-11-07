@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Audit\AuditAction;
+use App\Audit\AuditEventData;
+use App\Audit\AuditRecorder;
 use App\Http\Controllers\Controller;
 use App\Jobs\ScrapeResultsJob;
 use App\Jobs\ScrapeSourceJob;
@@ -17,8 +20,10 @@ class ResultadoController extends Controller
 {
     protected ApuestaService $apuestaService;
 
-    public function __construct(ApuestaService $apuestaService)
-    {
+    public function __construct(
+        ApuestaService $apuestaService,
+        private readonly AuditRecorder $audit,
+    ) {
         $this->apuestaService = $apuestaService;
     }
 
@@ -121,6 +126,19 @@ class ResultadoController extends Controller
                 ], 404);
             }
 
+            // P1 best-effort: la solicitud manual queda auditada antes de
+            // ejecutar el scraper; un fallo de auditoría no bloquea la respuesta.
+            $this->audit->record(AuditAction::DrawScrapeRequested, new AuditEventData(
+                action: AuditAction::DrawScrapeRequested,
+                entityType: 'resultado',
+                entityId: null,
+                context: [
+                    'source' => 'api',
+                    'fecha' => $fecha,
+                    'juego_id' => $juegoId !== null && $juegoId !== '' ? (int) $juegoId : null,
+                ],
+            ));
+
             $resultados = [];
 
             foreach ($juegos as $juego) {
@@ -142,6 +160,18 @@ class ResultadoController extends Controller
                 'message' => 'No hay juegos que requieran scraper',
             ], 404);
         }
+
+        // P1 best-effort: se audita la solicitud consolidada antes de despachar.
+        $this->audit->record(AuditAction::DrawScrapeRequested, new AuditEventData(
+            action: AuditAction::DrawScrapeRequested,
+            entityType: 'resultado',
+            entityId: null,
+            context: [
+                'source' => 'api',
+                'fecha' => $fecha,
+                'juego_id' => null,
+            ],
+        ));
 
         $resultados = $this->despacharPorFuente($juegos, $fecha);
 
@@ -165,6 +195,18 @@ class ResultadoController extends Controller
                 'message' => 'No hay juegos que requieran scraper',
             ], 404);
         }
+
+        // P1 best-effort: se audita la solicitud masiva antes de despachar.
+        $this->audit->record(AuditAction::DrawScrapeAllRequested, new AuditEventData(
+            action: AuditAction::DrawScrapeAllRequested,
+            entityType: 'resultado',
+            entityId: null,
+            context: [
+                'source' => 'api',
+                'fecha' => $fecha,
+                'juegos' => $juegos->count(),
+            ],
+        ));
 
         $resultados = $this->despacharPorFuente($juegos, $fecha);
 
