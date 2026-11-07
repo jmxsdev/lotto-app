@@ -8,6 +8,8 @@ services:
       - --max-connections=300
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
+      # Requerido para crear los triggers append-only de audit_events (evita 1419).
+      - --log-bin-trust-function-creators=1
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${DB_DATABASE}
@@ -91,6 +93,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      api:
+        condition: service_healthy
     networks: [lotto_net]
 
   horizon:
@@ -113,6 +117,8 @@ services:
       mysql:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      api:
         condition: service_healthy
     networks: [lotto_net]
 

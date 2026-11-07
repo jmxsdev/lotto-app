@@ -26,11 +26,12 @@
 | [`pendientes-front.md`](pendientes-front.md) | **Canónico · fuente única** | Pendientes de ambos fronts, decisiones de negocio (§3), backend/negocio (§7, fusión del ex `docs/PENDIENTE.md`), verificación manual y "ya resuelto" | ✅ **Sí, siempre** |
 | [`motor-premios.md`](motor-premios.md) | Canónico · técnico | Arquitectura, reglas de cálculo, endpoints y operación del motor de premios (`config.premios`) | ✅ Al cambiar el motor |
 | [`integracion-front-motor-premios.md`](integracion-front-motor-premios.md) | Canónico · contrato | Contrato backend↔fronts (payloads, estados, monedas, catálogo) + plan de implementación | ✅ Al cambiar el contrato |
-| [`permisos-capabilities.md`](permisos-capabilities.md) | Canónico · técnico | Catálogo de 34 permisos, matriz capability × rol, bypass de `super_master` y runbook del seeder (BE-04) | ✅ Al cambiar permisos o rutas |
+| [`permisos-capabilities.md`](permisos-capabilities.md) | Canónico · técnico | Catálogo de 36 permisos (master 35), matriz capability × rol, bypass de `super_master` y runbook del seeder (BE-04) | ✅ Al cambiar permisos o rutas |
 | [`manual-mantenimiento.md`](manual-mantenimiento.md) | Canónico · operativo | Mantenimiento: migraciones en prod, release de Taquilla, activación de dispositivos, CORS, secrets | ✅ Al cambiar el proceso |
 | [`runbook-ops.md`](runbook-ops.md) | Canónico · operativo | Runbook de VPS: deploy, rollback, scheduler, suite en paralelo, checklist PC nueva | ✅ Al cambiar la operación |
 | [`taquilla-e2e.md`](taquilla-e2e.md) | Canónico · how-to | Suite E2E de la taquilla (Playwright + Electron): requisitos, cómo correr, **límite de login (10/2 min) y cómo refrescarlo**, CI | ✅ Al cambiar el harness |
 | [`deploy.md`](deploy.md) | Canónico · guía | Despliegue completo en VPS desde cero (paso a paso) | ✅ Al cambiar el setup |
+| [`auditoria-sistema.md`](auditoria-sistema.md) | Canónico · técnico/operativo | Sistema de auditoría: escritura, lectura, integridad, retención, verificación y despliegue | ✅ Al tocar auditoría, retención o deploy |
 | [`estructura.md`](estructura.md) | Canónico · referencia | Mapa del monorepo y propósito de cada carpeta | ✅ Al cambiar la estructura |
 | [`plugins.md`](plugins.md) | Canónico · how-to | Cómo crear plugins de juego y scrapers (§4 Triple Zulia: ya resuelto) | ✅ Al agregar un juego/scraper |
 | [`pendientes-taquilla.md`](pendientes-taquilla.md) | Detalle | Detalle de accesibilidad/teclado de la taquilla (bajo TQ-09); el estado canónico es `pendientes-front.md` §1 | ⚠️ Solo detalle |

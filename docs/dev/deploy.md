@@ -435,6 +435,31 @@ repo (drift repo↔producción). Pasos para migrar (usuario, en el VPS):
    `docker rm -f lotto_scheduler_prod` (el `up -d` no borra huérfanos) y
    re-agregar la línea cron.
 
+### 9.3 Auditoría (#89)
+
+El sistema de auditoría crea triggers MySQL en la migración
+`2026_11_05_000005_add_audit_append_only_guards.php`. Sin el flag
+`log_bin_trust_function_creators=1`, la migración falla con error 1419.
+
+1. **Flag MySQL** (persistido en `docker-compose.prod.yml`):
+   ```bash
+   docker exec lotto_mysql_prod mysql -uroot -p"$(grep MYSQL_ROOT_PASSWORD /home/deploy/lotto-app/.env.production | cut -d= -f2-)" \
+     -e "SET GLOBAL log_bin_trust_function_creators = 1;"
+   ```
+2. **Deploy/migración**: el contenedor `api` corre `php artisan migrate --force`
+   al arrancar (Horizon y scheduler esperan a `api: service_healthy`).
+3. **Grants** (después de que exista la tabla):
+   ```bash
+   docker exec -i lotto_mysql_prod mysql -uroot -p"$(grep MYSQL_ROOT_PASSWORD /home/deploy/lotto-app/.env.production | cut -d= -f2-)" \
+     < backend/database/sql/audit_events_grants.sql
+   ```
+   Reemplaza los placeholders (`@app_user`, `@retention_user`, `@database`) antes de ejecutar.
+4. **Verificación**: ``SHOW TRIGGERS WHERE `Table` = 'audit_events';`` y
+   `SHOW GRANTS FOR 'lotto_app'@'%';`.
+
+Orden obligatorio: **flag → deploy/migración → grants → verificación**.
+Detalle completo en [`auditoria-sistema.md`](auditoria-sistema.md).
+
 ---
 
 ## Fase 10 — DNS Cloudflare y certificados TLS

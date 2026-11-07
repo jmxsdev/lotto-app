@@ -3,6 +3,8 @@ services:
     image: mysql:8.0
     container_name: lotto_mysql
     restart: unless-stopped
+    command:
+      - --log-bin-trust-function-creators=1
     environment:
       MYSQL_ROOT_PASSWORD: root_dev_ed139e2c6c5942770a48a16a
       MYSQL_DATABASE: lotto_db
