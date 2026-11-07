@@ -64,6 +64,33 @@ return [
             ]) : [],
         ],
 
+        /*
+        |----------------------------------------------------------------------
+        | Audit retention connection
+        |----------------------------------------------------------------------
+        |
+        | Dedicated credentials for `audit:archive`: it needs DELETE on
+        | `audit_events`, which the application user must never have. The
+        | driver/host/port/database default to the main connection so the
+        | archive reads and writes the same database.
+        |
+        */
+
+        'audit_retention' => [
+            'driver' => 'mysql',
+            'host' => env('DB_RETENTION_HOST', env('DB_HOST', '127.0.0.1')),
+            'port' => env('DB_RETENTION_PORT', env('DB_PORT', '3306')),
+            'database' => env('DB_RETENTION_DATABASE', env('DB_DATABASE', 'forge')),
+            'username' => env('DB_RETENTION_USERNAME', env('DB_USERNAME', 'forge')),
+            'password' => env('DB_RETENTION_PASSWORD', env('DB_PASSWORD', '')),
+            'charset' => env('DB_CHARSET', 'utf8mb4'),
+            'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+        ],
+
         'mariadb' => [
             'driver' => 'mariadb',
             'url' => env('DB_URL'),
