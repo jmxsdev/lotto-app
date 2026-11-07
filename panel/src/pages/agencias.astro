@@ -20,9 +20,29 @@ import Icon from '../components/Icon.astro';
     .actions-cell { display: flex; gap: 4px; }
   </style>
   <script>
-    import { apiFetch } from '../utils/api.ts'; import { showModal } from '../utils/modal.ts'; import { icono } from '../utils/iconos.ts';
+    import { apiFetch, mergeReason, withReasonQuery } from '../utils/api.ts'; import { showModal } from '../utils/modal.ts'; import { icono } from '../utils/iconos.ts'; import { openReasonModal } from '../utils/reason-modal.ts';
     async function load() { try { const data = await apiFetch('GET','/agencias?per_page=100'); const items = Array.isArray(data) ? data : (data?.data || []); let html = '<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Código</th><th>Grupo</th><th>Banca</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>'; items.forEach(a => { html += `<tr><td><strong>${a.name}</strong></td><td>${a.code}</td><td>${a.grupo?.name||'-'}</td><td>${a.grupo?.banca?.name||'-'}</td><td><span class="badge ${a.active?'badge-active':'badge-inactive'}">${a.active?'Activo':'Inactivo'}</span></td><td class="actions-cell"><a class="btn btn-sm btn-secondary" href="/agencias/detalle?id=${a.id}"><span aria-hidden="true">${icono('eye')}</span> Ver/Editar</a><button class="btn btn-sm ${a.active?'btn-danger':'btn-success'} toggle-btn" data-id="${a.id}" data-active="${a.active?'1':'0'}" title="${a.active?'Desactivar':'Activar'}" aria-label="${a.active?'Desactivar':'Activar'}">${icono('circle')}</button><button class="btn btn-sm btn-danger del-btn" data-id="${a.id}" aria-label="Eliminar">${icono('trash-2')}</button></td></tr>`; }); html += '</tbody></table></div>'; document.getElementById('content').innerHTML = html; } catch(e) { document.getElementById('content').innerHTML = '<div class="loading">Error: '+e.message+'</div>'; } }
-    document.getElementById('content').addEventListener('click',(e)=>{const db=e.target.closest('.del-btn');const tb=e.target.closest('.toggle-btn');if(db){const id=parseInt(db.dataset.id);showModal({message:'¿Eliminar este local? Sus taquillas y usuarios quedarán sin local asignado.',type:'confirm'}).then(ok=>{if(!ok)return;apiFetch('DELETE','/agencias/'+id).then(()=>load()).catch(e=>showModal({message:e.message,type:'error'}));});}if(tb){const id=parseInt(tb.dataset.id);const activa=tb.dataset.active==='1';showModal({message:activa?'¿Desactivar local? Sus taquillas quedarán pausadas hasta reactivarlo.':'¿Activar local?',type:'confirm'}).then(ok=>{if(!ok)return;apiFetch('PATCH','/agencias/'+id+'/toggle').then(()=>load()).catch(e=>showModal({message:e.message,type:'error'}));});}});
+    document.getElementById('content').addEventListener('click', async (e) => {
+      const db = e.target.closest('.del-btn');
+      const tb = e.target.closest('.toggle-btn');
+      if (db) {
+        const id = parseInt(db.dataset.id);
+        const ok = await showModal({ message: '¿Eliminar este local? Sus taquillas y usuarios quedarán sin local asignado.', type: 'confirm' });
+        if (!ok) return;
+        const reason = await openReasonModal({ title: 'Eliminar agencia', action: 'agencia.deleted', required: true });
+        if (!reason) return;
+        apiFetch('DELETE', withReasonQuery('/agencias/' + id, reason)).then(() => load()).catch(err => showModal({ message: err.message, type: 'error' }));
+      }
+      if (tb) {
+        const id = parseInt(tb.dataset.id);
+        const activa = tb.dataset.active === '1';
+        const ok = await showModal({ message: activa ? '¿Desactivar local? Sus taquillas quedarán pausadas hasta reactivarlo.' : '¿Activar local?', type: 'confirm' });
+        if (!ok) return;
+        const reason = await openReasonModal({ title: activa ? 'Desactivar agencia' : 'Activar agencia', action: 'agencia.toggled', required: true });
+        if (!reason) return;
+        apiFetch('PATCH', '/agencias/' + id + '/toggle', mergeReason({}, reason)).then(() => load()).catch(err => showModal({ message: err.message, type: 'error' }));
+      }
+    });
     load();
   </script>
 </AdminLayout>

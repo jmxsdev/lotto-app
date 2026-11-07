@@ -13,6 +13,7 @@
 
 import { icono } from './iconos.ts';
 import { showModal } from './modal.ts';
+import { openReasonModal, type ReasonPayload } from './reason-modal.ts';
 
 export interface DatosTablaLimites {
   juegos: { id: number; name: string; slug: string; type: string }[];
@@ -30,7 +31,7 @@ export interface OpcionesTablaLimites {
   mostrarOrigen?: boolean;
   filasPorPagina?: number;
   puedeEditar?: boolean;                    // default true; false => inputs disabled y sin columna Acciones
-  eliminar?: (id: number) => Promise<any>;  // ausente => sin botón Limpiar (create mode y modo scope)
+  eliminar?: (id: number, reason: ReasonPayload) => Promise<any>;  // ausente => sin botón Limpiar (create mode y modo scope)
   cargarDatos: () => Promise<DatosTablaLimites>;
   guardar: (payload: {
     scope?: { tipo: string; id: number } | null;
@@ -238,8 +239,14 @@ export function crearTablaLimites(opts: OpcionesTablaLimites) {
           type: 'confirm',
         });
         if (!ok) return;
+        const reason = await openReasonModal({
+          title: 'Eliminar límite',
+          action: 'game.limit_deleted',
+          required: true,
+        });
+        if (!reason) return;
         try {
-          await opts.eliminar!(id);
+          await opts.eliminar!(id, reason);
           // Fila borrada: descartar ediciones pendientes y recalcular el origen heredado
           tocadas.delete(clave);
           datos = await opts.cargarDatos();

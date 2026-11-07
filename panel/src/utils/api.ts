@@ -104,6 +104,9 @@ export const ROLES = ['super_master', 'master', 'banca', 'grupo', 'agencia'];
 
 export type QueryParams = Record<string, string | number | boolean | null | undefined>;
 
+/** Motivo capturado por el modal y enviado en acciones auditadas. */
+export type ReasonPayload = { reason_code: string; reason_text: string };
+
 /**
  * Construye un query string a partir de un objeto.
  * Omite null, undefined y strings vacíos. Devuelve `?a=b&c=d` o ''.
@@ -118,6 +121,34 @@ export function toQuery(params: QueryParams): string {
   }
   const query = search.toString();
   return query ? '?' + query : '';
+}
+
+/**
+ * Añade el motivo como query string (usado en DELETE).
+ * Omite `reason_code`/`reason_text` vacíos y respeta si la URL ya trae `?`.
+ */
+export function withReasonQuery(url: string, reason: ReasonPayload | null | undefined): string {
+  if (!reason) return url;
+  const query = toQuery({
+    reason_code: reason.reason_code,
+    reason_text: reason.reason_text,
+  });
+  if (!query) return url;
+  return url.includes('?') ? url + '&' + query.slice(1) : url + query;
+}
+
+/**
+ * Fusiona el motivo en el body de la petición (usado en PATCH/PUT/POST).
+ * Solo añade las claves no vacías del motivo.
+ */
+export function mergeReason<T extends Record<string, unknown>>(
+  body: T,
+  reason: ReasonPayload | null | undefined,
+): T & Partial<ReasonPayload> {
+  const merged = { ...body } as T & Partial<ReasonPayload>;
+  if (reason?.reason_code) merged.reason_code = reason.reason_code;
+  if (reason?.reason_text) merged.reason_text = reason.reason_text;
+  return merged;
 }
 
 /**

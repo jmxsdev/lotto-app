@@ -84,10 +84,11 @@ import Icon from '../../components/Icon.astro';
   </style>
 
   <script>
-    import { apiFetch, getStoredUser } from '../../utils/api.ts';
+    import { apiFetch, getStoredUser, mergeReason, withReasonQuery } from '../../utils/api.ts';
     import { showModal } from '../../utils/modal.ts';
     import { getParam, initTabs } from '../../utils/tabs.ts';
     import { icono } from '../../utils/iconos.ts';
+    import { openReasonModal } from '../../utils/reason-modal.ts';
 
     const TABS = ['informacion', 'taquillas'];
     const currentUser = getStoredUser() || {};
@@ -207,23 +208,25 @@ import Icon from '../../components/Icon.astro';
     });
 
     document.getElementById('btn-toggle').addEventListener('click', async () => {
-      showModal({ message: agencia?.active ? '¿Desactivar local? Sus taquillas quedarán pausadas hasta reactivarlo.' : '¿Activar local?', type: 'confirm' }).then(async ok => {
-        if (!ok) return;
-        try {
-          await apiFetch('PATCH', '/agencias/' + agenciaId + '/toggle');
-          await loadAgencia();
-        } catch (err) { await showModal({ message: err.message, type: 'error' }); }
-      });
+      const ok = await showModal({ message: agencia?.active ? '¿Desactivar local? Sus taquillas quedarán pausadas hasta reactivarlo.' : '¿Activar local?', type: 'confirm' });
+      if (!ok) return;
+      const reason = await openReasonModal({ title: agencia?.active ? 'Desactivar agencia' : 'Activar agencia', action: 'agencia.toggled', required: true });
+      if (!reason) return;
+      try {
+        await apiFetch('PATCH', '/agencias/' + agenciaId + '/toggle', mergeReason({}, reason));
+        await loadAgencia();
+      } catch (err) { await showModal({ message: err.message, type: 'error' }); }
     });
 
     document.getElementById('btn-delete').addEventListener('click', async () => {
-      showModal({ message: '¿Eliminar este local? Sus taquillas y usuarios quedarán sin local asignado.', type: 'confirm' }).then(async ok => {
-        if (!ok) return;
-        try {
-          await apiFetch('DELETE', '/agencias/' + agenciaId);
-          window.location.href = '/agencias';
-        } catch (err) { await showModal({ message: err.message, type: 'error' }); }
-      });
+      const ok = await showModal({ message: '¿Eliminar este local? Sus taquillas y usuarios quedarán sin local asignado.', type: 'confirm' });
+      if (!ok) return;
+      const reason = await openReasonModal({ title: 'Eliminar agencia', action: 'agencia.deleted', required: true });
+      if (!reason) return;
+      try {
+        await apiFetch('DELETE', withReasonQuery('/agencias/' + agenciaId, reason));
+        window.location.href = '/agencias';
+      } catch (err) { await showModal({ message: err.message, type: 'error' }); }
     });
 
     // ---------- Taquillas del local ----------

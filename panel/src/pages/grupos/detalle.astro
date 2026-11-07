@@ -187,7 +187,7 @@ import Icon from '../../components/Icon.astro';
   </style>
 
   <script>
-    import { apiFetch, getStoredUser } from '../../utils/api.ts';
+    import { apiFetch, getStoredUser, withReasonQuery } from '../../utils/api.ts';
     import { showModal } from '../../utils/modal.ts';
     import { getParam, initTabs } from '../../utils/tabs.ts';
     import { crearTablaLimites } from '../../utils/limites.ts';
@@ -435,7 +435,7 @@ import Icon from '../../components/Icon.astro';
         mostrarOrigen: true,
         filasPorPagina: 15,
         puedeEditar: canEditLimites,
-        eliminar: isCreate ? undefined : (id: number) => apiFetch('DELETE', '/limites/' + id),
+        eliminar: isCreate ? undefined : (id: number, reason) => apiFetch('DELETE', withReasonQuery('/limites/' + id, reason)),
         cargarDatos: async () => {
           if (isCreate) {
             // Create mode: base editable = límites efectivos de la banca seleccionada
