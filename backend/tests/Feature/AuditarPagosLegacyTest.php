@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Apuesta;
+use App\Models\AuditEvent;
 use App\Models\DetalleApuesta;
 use App\Models\Juego;
 use App\Models\Log;
@@ -30,7 +31,7 @@ use Tests\TestCase;
  * - `--apply --ids` recomputes the engine prize, transitions the line
  *   (`ganadora`/`perdida`, never back to `pendiente`), restores the detail
  *   evidence, recomputes the ticket state, keeps `pagos` and writes one
- *   `auditoria.pago_legacy` log with `old_values`/`new_values`;
+ *   `pago.legacy_reconciled` audit event with `old_values`/`new_values`;
  * - `--revert --ids` restores `old_values` from the latest log, no other write;
  * - a multi-line ticket that does not reconcile against
  *   `tickets.premio_total_*` goes to manual review with zero writes;
@@ -41,7 +42,7 @@ class AuditarPagosLegacyTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const ACTION = 'auditoria.pago_legacy';
+    private const ACTION = 'pago.legacy_reconciled';
 
     protected function setUp(): void
     {
@@ -227,7 +228,7 @@ class AuditarPagosLegacyTest extends TestCase
         $this->assertSame($pagosAntes, Pago::count());
         $this->assertSame($logsAntes, Log::count());
         $this->assertSame($detallesAntes, DetalleApuesta::count());
-        $this->assertSame(0, Log::where('action', self::ACTION)->count());
+        $this->assertSame(0, AuditEvent::where('action', self::ACTION)->count());
 
         $this->assertSame('pagada', $c1->fresh()->estado);
         $this->assertNull($detalle->fresh()->premio_ganado);
@@ -249,7 +250,7 @@ class AuditarPagosLegacyTest extends TestCase
             $this->assertStringContainsString('clase,taquilla_id,taquilla,apuesta_id,ticket_id,detalle', $csv);
             $this->assertStringContainsString('C1/C2', $csv);
             $this->assertStringContainsString('apuesta='.$c1->id, $csv);
-            $this->assertSame(0, Log::where('action', self::ACTION)->count());
+            $this->assertSame(0, AuditEvent::where('action', self::ACTION)->count());
             $this->assertSame('pagada', $c1->fresh()->estado);
         } finally {
             @unlink($path);
@@ -264,7 +265,7 @@ class AuditarPagosLegacyTest extends TestCase
             ->expectsOutputToContain('--ids')
             ->assertExitCode(1);
 
-        $this->assertSame(0, Log::where('action', self::ACTION)->count());
+        $this->assertSame(0, AuditEvent::where('action', self::ACTION)->count());
         $this->assertSame('pagada', $apuesta->fresh()->estado);
         $this->assertNull($detalle->fresh()->premio_ganado);
         $this->assertSame('pagada', $ticket->fresh()->estado);
@@ -313,17 +314,19 @@ class AuditarPagosLegacyTest extends TestCase
         // Cierres intactos (el ledger de comisiones fue retirado en Modelo A).
         $this->assertDatabaseHas('cierres_caja', ['id' => $cierreId, 'total_ventas_bs' => 123.45]);
 
-        // Un unico log por apuesta, con old_values/new_values.
-        $this->assertSame(1, Log::where('action', self::ACTION)->count());
-        $log = Log::where('action', self::ACTION)->firstOrFail();
-        $this->assertNull($log->user_id);
-        $this->assertSame($apuesta->id, (int) $log->details['apuesta_id']);
-        $this->assertSame('pagada', $log->details['old_values']['estado']);
-        $this->assertSame('ganadora', $log->details['new_values']['estado']);
-        $this->assertSame('pagada', $log->details['old_values']['ticket_estado']);
-        $this->assertSame('ganador', $log->details['new_values']['ticket_estado']);
-        $this->assertEquals(300.0, (float) $log->details['new_values']['premio_ganado']);
-        $this->assertEquals(0.0, (float) $log->details['new_values']['premio_ganado_usd']);
+        // Un unico evento de auditoría por apuesta, con before/after.
+        $this->assertSame(1, AuditEvent::where('action', self::ACTION)->count());
+        $event = AuditEvent::where('action', self::ACTION)->firstOrFail();
+        $this->assertSame('system', $event->actor_type);
+        $this->assertSame('command:pagos:auditar-legacy', $event->actor_label);
+        $this->assertSame('apuesta', $event->entity_type);
+        $this->assertSame($apuesta->id, $event->entity_id);
+        $this->assertSame('pagada', $event->before['estado']);
+        $this->assertSame('ganadora', $event->after['estado']);
+        $this->assertSame('pagada', $event->before['ticket_estado']);
+        $this->assertSame('ganador', $event->after['ticket_estado']);
+        $this->assertEquals(300.0, (float) $event->after['premio_ganado']);
+        $this->assertEquals(0.0, (float) $event->after['premio_ganado_usd']);
     }
 
     public function test_apply_marca_perdida_cuando_el_motor_calcula_cero(): void
@@ -348,7 +351,7 @@ class AuditarPagosLegacyTest extends TestCase
         $this->assertEquals(0.00, (float) $detalle->fresh()->premio_ganado);
         // Linea perdida + sin otras lineas -> todas resueltas -> ticket pagada.
         $this->assertSame('pagada', $ticket->fresh()->estado);
-        $this->assertSame('perdida', Log::where('action', self::ACTION)->firstOrFail()->details['new_values']['estado']);
+        $this->assertSame('perdida', AuditEvent::where('action', self::ACTION)->firstOrFail()->after['estado']);
     }
 
     public function test_revert_sin_ids_se_rechaza_y_no_escribe(): void
@@ -384,8 +387,8 @@ class AuditarPagosLegacyTest extends TestCase
         $this->assertNull($detalle->fresh()->premio_ganado_usd);
         $this->assertSame('pagada', $ticket->fresh()->estado);
 
-        // Revert no escribe logs nuevos.
-        $this->assertSame(1, Log::where('action', self::ACTION)->count());
+        // Revert no escribe eventos nuevos.
+        $this->assertSame(1, AuditEvent::where('action', self::ACTION)->count());
     }
 
     public function test_apply_y_revert_son_mutuamente_excluyentes(): void
@@ -399,7 +402,7 @@ class AuditarPagosLegacyTest extends TestCase
         ])->assertExitCode(1);
 
         $this->assertSame('pagada', $apuesta->fresh()->estado);
-        $this->assertSame(0, Log::where('action', self::ACTION)->count());
+        $this->assertSame(0, AuditEvent::where('action', self::ACTION)->count());
     }
 
     public function test_ticket_multilinea_que_no_cuadra_va_a_revision_manual_sin_escrituras(): void
@@ -425,7 +428,7 @@ class AuditarPagosLegacyTest extends TestCase
         $this->assertSame('pagada', $apuesta->fresh()->estado);
         $this->assertNull($detalle->fresh()->premio_ganado);
         $this->assertSame('pagada', $ticket->fresh()->estado);
-        $this->assertSame(0, Log::where('action', self::ACTION)->count());
+        $this->assertSame(0, AuditEvent::where('action', self::ACTION)->count());
     }
 
     public function test_apply_ignora_ids_que_no_son_c1_c2_sin_escribir(): void
@@ -442,6 +445,6 @@ class AuditarPagosLegacyTest extends TestCase
         ])->assertExitCode(1);
 
         $this->assertSame('pendiente', $apuesta->fresh()->estado);
-        $this->assertSame(0, Log::where('action', self::ACTION)->count());
+        $this->assertSame(0, AuditEvent::where('action', self::ACTION)->count());
     }
 }

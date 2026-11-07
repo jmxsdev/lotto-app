@@ -2,8 +2,13 @@
 
 namespace App\Console\Commands;
 
+use App\Audit\AuditAction;
+use App\Audit\AuditContext;
+use App\Audit\AuditEventData;
+use App\Audit\AuditRecorder;
+use App\Audit\AuditScopeResolver;
 use App\Models\Apuesta;
-use App\Models\Log;
+use App\Models\AuditEvent;
 use App\Models\Pago;
 use App\Models\Ticket;
 use App\Services\PremiosLiquidador;
@@ -26,16 +31,18 @@ use Throwable;
  * - restaura `detalle_apuestas.premio_ganado(_usd)`;
  * - recomputa el estado del ticket (`anulada`/`ganador`/`pagada`);
  * - conserva las filas de `pagos` (evidencia de caja);
- * - escribe UN log `auditoria.pago_legacy` por apuesta con old/new values;
+ * - escribe UN evento de auditoría `pago.legacy_reconciled` por apuesta con
+ *   old/new values (best-effort P1);
  * - nunca toca `pagos.amount_*`, `cierres_caja` ni `comisiones`;
  * - un ticket multilínea que no cuadra contra `tickets.premio_total_*` se
  *   deriva a revisión manual sin escribir.
  *
- * `--revert --ids` lee el último log por apuesta y restaura `old_values`.
+ * `--revert --ids` lee el último evento `pago.legacy_reconciled` por apuesta y
+ * restaura `old_values`.
  */
 final class AuditarPagosLegacy extends Command
 {
-    private const ACTION = 'auditoria.pago_legacy';
+    private const ACTION = 'pago.legacy_reconciled';
 
     protected $signature = 'pagos:auditar-legacy
         {--apply : Aplica la corrección SOLO a los ids explícitos de --ids}
@@ -53,6 +60,19 @@ final class AuditarPagosLegacy extends Command
     }
 
     public function handle(): int
+    {
+        $context = app(AuditContext::class);
+        $context->reset();
+        $context->forSystem('command:pagos:auditar-legacy', null, null, 'command');
+
+        try {
+            return $this->perform();
+        } finally {
+            $context->reset();
+        }
+    }
+
+    private function perform(): int
     {
         $apply = (bool) $this->option('apply');
         $revert = (bool) $this->option('revert');
@@ -460,20 +480,26 @@ final class AuditarPagosLegacy extends Command
             'ticket_estado' => $nuevoTicketEstado,
         ];
 
-        Log::create([
-            'user_id' => null,
-            'action' => self::ACTION,
-            'details' => [
-                'apuesta_id' => $apuesta->id,
-                'ticket_id' => $apuesta->ticket_id,
-                'premio_fuente' => 'motor',
-                'command' => 'pagos:auditar-legacy',
-                'old_values' => $oldValues,
-                'new_values' => $newValues,
-            ],
-            'ip' => null,
-            'user_agent' => null,
-        ]);
+        // P1 best-effort: si la evidencia de auditoría falla, el comando no se
+        // aborta (el fallo se registra y la corrección de negocio se conserva).
+        // La entidad reconciliada es la apuesta; las filas de `pagos` quedan
+        // intactas como evidencia de caja.
+        app(AuditRecorder::class)->record(
+            AuditAction::PagoLegacyReconciled,
+            new AuditEventData(
+                action: AuditAction::PagoLegacyReconciled,
+                entityType: 'apuesta',
+                entityId: (int) $apuesta->id,
+                scope: app(AuditScopeResolver::class)->forModel($apuesta),
+                before: $oldValues,
+                after: $newValues,
+                context: [
+                    'command' => 'pagos:auditar-legacy',
+                    'premio_fuente' => 'motor',
+                    'ticket_id' => $apuesta->ticket_id !== null ? (int) $apuesta->ticket_id : null,
+                ],
+            ),
+        );
 
         return [
             'ok' => true,
@@ -558,9 +584,9 @@ final class AuditarPagosLegacy extends Command
      */
     private function revertir(array $ids): int
     {
-        $this->info(sprintf('Revirtiendo %d id(s) desde el último log %s...', count($ids), self::ACTION));
+        $this->info(sprintf('Revirtiendo %d id(s) desde el último evento %s...', count($ids), self::ACTION));
 
-        $ultimos = $this->ultimosLogsPorApuesta();
+        $ultimos = $this->ultimosEventosPorApuesta();
 
         $revertidos = 0;
         $fallos = 0;
@@ -568,7 +594,7 @@ final class AuditarPagosLegacy extends Command
         foreach ($ids as $id) {
             if (! isset($ultimos[$id])) {
                 $fallos++;
-                $this->warn("  - apuesta={$id}: sin log ".self::ACTION.'; no se revierte');
+                $this->warn("  - apuesta={$id}: sin evento ".self::ACTION.'; no se revierte');
 
                 continue;
             }
@@ -599,28 +625,37 @@ final class AuditarPagosLegacy extends Command
             return self::FAILURE;
         }
 
-        $this->info('Reversión completada (sin logs nuevos).');
+        $this->info('Reversión completada (sin eventos nuevos).');
 
         return self::SUCCESS;
     }
 
     /**
-     * Último log `auditoria.pago_legacy` por `apuesta_id`.
+     * Último evento `pago.legacy_reconciled` por `apuesta_id`.
      *
      * @return array<int, array<string, mixed>>
      */
-    private function ultimosLogsPorApuesta(): array
+    private function ultimosEventosPorApuesta(): array
     {
         $ultimos = [];
 
-        $logs = Log::where('action', self::ACTION)->orderByDesc('id')->get();
+        $eventos = AuditEvent::query()
+            ->where('action', self::ACTION)
+            ->orderByDesc('id')
+            ->get();
 
-        foreach ($logs as $log) {
-            $details = $log->details ?? [];
-            $apuestaId = (int) ($details['apuesta_id'] ?? 0);
+        foreach ($eventos as $evento) {
+            $apuestaId = is_numeric($evento->entity_id) ? (int) $evento->entity_id : 0;
 
             if ($apuestaId > 0 && ! isset($ultimos[$apuestaId])) {
-                $ultimos[$apuestaId] = $details;
+                $context = $evento->context ?? [];
+
+                $ultimos[$apuestaId] = [
+                    'apuesta_id' => $apuestaId,
+                    'ticket_id' => $context['ticket_id'] ?? null,
+                    'old_values' => $evento->before ?? [],
+                    'new_values' => $evento->after ?? [],
+                ];
             }
         }
 
