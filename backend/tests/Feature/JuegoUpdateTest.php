@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\AuditEvent;
 use App\Models\Juego;
-use App\Models\JuegoAuditoria;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -12,8 +12,8 @@ use Tests\TestCase;
 /**
  * S3 — PUT /api/v1/juegos/{juego} (deuda docs/dev/pendientes-front.md §7).
  *
- * `update()` persiste name/config, audita `accion=actualizar` con before/after
- * y updated_by, y está limitado a super_master|master (ruta) → 403 para otros
+ * `update()` persiste name/config, emite `game.updated` con before/after y
+ * updated_by, y está limitado a super_master|master (ruta) → 403 para otros
  * roles. La `config` es reemplazo COMPLETO, no merge (docs/dev/motor-premios.md §8).
  */
 class JuegoUpdateTest extends TestCase
@@ -60,14 +60,15 @@ class JuegoUpdateTest extends TestCase
         $this->assertEqualsCanonicalizing($nuevaConfig, $juego->config);
         $this->assertSame($user->id, $juego->updated_by, 'updated_by se registra en el juego.');
 
-        $auditoria = JuegoAuditoria::where('juego_id', $juego->id)
-            ->where('accion', 'actualizar')
+        $event = AuditEvent::where('action', 'game.updated')
+            ->where('entity_id', $juego->id)
+            ->latest('id')
             ->firstOrFail();
-        $this->assertSame($user->id, $auditoria->user_id);
-        $this->assertSame($nameAntes, $auditoria->cambios['before']['name']);
-        $this->assertSame($nuevoName, $auditoria->cambios['after']['name']);
-        $this->assertEqualsCanonicalizing($configAntes, $auditoria->cambios['before']['config']);
-        $this->assertEqualsCanonicalizing($nuevaConfig, $auditoria->cambios['after']['config']);
+        $this->assertSame($user->id, $event->actor_id);
+        $this->assertSame($nameAntes, $event->before['name']);
+        $this->assertSame($nuevoName, $event->after['name']);
+        $this->assertEqualsCanonicalizing($configAntes, $event->before['config']);
+        $this->assertEqualsCanonicalizing($nuevaConfig, $event->after['config']);
     }
 
     public function test_update_config_es_reemplazo_completo_no_merge(): void

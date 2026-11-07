@@ -2,11 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Models\AuditEvent;
 use App\Models\Juego;
-use App\Models\JuegoAuditoria;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -18,7 +19,7 @@ use Tests\TestCase;
  * del payload (base int ≥ 1; claves de modalidad en plugin ∪ catálogo oficial;
  * comodines con tipo/premio_multiplo válidos y `acumulativo` solo con
  * tipo=palabra; la-ricachona sin base oficial → 422), sincronización de
- * espejos legacy y auditoría `accion=premios` con before/after.
+ * espejos legacy y evidencia `game.prizes_updated` con before/after.
  */
 class JuegoPremiosApiTest extends TestCase
 {
@@ -289,15 +290,16 @@ class JuegoPremiosApiTest extends TestCase
             ->putJson("/api/v1/juegos/{$juego->id}/premios", $payload + ['reason_code' => 'business_decision'])
             ->assertStatus(200);
 
-        $auditoria = JuegoAuditoria::where('juego_id', $juego->id)
-            ->where('accion', 'premios')
+        $event = AuditEvent::where('action', 'game.prizes_updated')
+            ->where('entity_id', $juego->id)
+            ->latest('id')
             ->firstOrFail();
 
-        $this->assertSame($user->id, $auditoria->user_id);
-        $this->assertEqualsCanonicalizing($premiosAntes, $auditoria->cambios['before']);
+        $this->assertSame($user->id, $event->actor_id);
+        $this->assertEqualsCanonicalizing($premiosAntes, $event->before['premios']);
         $this->assertEqualsCanonicalizing(
             $payload + ['posicion_triples' => ['a', 'b', 'c']],
-            $auditoria->cambios['after'],
+            $event->after['premios'],
             'El after refleja el estado resultante, con los slots conservados.'
         );
 
@@ -369,19 +371,25 @@ class JuegoPremiosApiTest extends TestCase
         $this->assertSame(700, $response->json('premios.base'));
     }
 
-    public function test_put_premios_auditoria_expuesta_en_get_juego(): void
+    public function test_get_juego_expone_auditoria_legacy_historica(): void
     {
-        // S1b: GET /juegos/{id} expone auditoria[] con la entrada `premios`
-        // (before/after) y el usuario editor (relación user cargada por show()).
+        // WU-12a: la app ya no escribe en `juego_auditoria`; show() sigue
+        // exponiendo la historia legacy con la relación user para consulta.
         $user = $this->superUser();
         $juego = $this->juego('triple-zulia');
-        $premiosAntes = $juego->config['premios'];
+        $cambios = [
+            'before' => ['base' => 500],
+            'after' => ['base' => 700],
+        ];
 
-        $payload = $this->payload(['base' => 700, 'modalidades' => ['terminal' => 70]]);
-
-        $this->actingAs($user, 'sanctum')
-            ->putJson("/api/v1/juegos/{$juego->id}/premios", $payload + ['reason_code' => 'business_decision'])
-            ->assertStatus(200);
+        DB::table('juego_auditoria')->insert([
+            'juego_id' => $juego->id,
+            'user_id' => $user->id,
+            'accion' => 'premios',
+            'cambios' => json_encode($cambios),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         $response = $this->actingAs($user, 'sanctum')
             ->getJson("/api/v1/juegos/{$juego->id}");
@@ -389,15 +397,12 @@ class JuegoPremiosApiTest extends TestCase
         $response->assertStatus(200);
 
         $entradas = collect($response->json('auditoria'))->where('accion', 'premios')->values();
-        $this->assertCount(1, $entradas, 'Debe existir exactamente una auditoría accion=premios expuesta.');
+        $this->assertCount(1, $entradas, 'La auditoría legacy histórica debe exponerse en show().');
 
         $entrada = $entradas->first();
         $this->assertSame($user->id, $entrada['user_id']);
-        $this->assertEqualsCanonicalizing($premiosAntes, $entrada['cambios']['before']);
-        $this->assertEqualsCanonicalizing(
-            $payload + ['posicion_triples' => ['a', 'b', 'c']],
-            $entrada['cambios']['after']
-        );
+        $this->assertEqualsCanonicalizing($cambios['before'], $entrada['cambios']['before']);
+        $this->assertEqualsCanonicalizing($cambios['after'], $entrada['cambios']['after']);
         $this->assertSame($user->email, $entrada['user']['email'] ?? null, 'El usuario editor viaja en la relación user.');
     }
 }

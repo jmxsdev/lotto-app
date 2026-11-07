@@ -12,7 +12,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Banca;
 use App\Models\Grupo;
 use App\Models\Juego;
-use App\Models\JuegoAuditoria;
 use App\Models\JuegoLimite;
 use App\Models\Taquilla;
 use App\Services\ComisionService;
@@ -97,16 +96,6 @@ class JuegoController extends Controller
                 'updated_by' => $user->id,
             ]);
 
-            JuegoAuditoria::create([
-                'juego_id' => $juego->id,
-                'user_id' => $user->id,
-                'accion' => $newActive ? 'activar' : 'desactivar',
-                'cambios' => [
-                    'before' => ['active' => $oldActive],
-                    'after' => ['active' => $newActive],
-                ],
-            ]);
-
             $event = (new AuditEventData(
                 action: AuditAction::GameToggled,
                 entityType: 'juego',
@@ -158,16 +147,6 @@ class JuegoController extends Controller
             $juego->update(array_merge($changes, ['updated_by' => $user->id]));
             $after = $juego->only(['name', 'config']);
 
-            JuegoAuditoria::create([
-                'juego_id' => $juego->id,
-                'user_id' => $user->id,
-                'accion' => 'actualizar',
-                'cambios' => [
-                    'before' => $before,
-                    'after' => $after,
-                ],
-            ]);
-
             $event = (new AuditEventData(
                 action: AuditAction::GameUpdated,
                 entityType: 'juego',
@@ -190,7 +169,8 @@ class JuegoController extends Controller
      * El body ES el objeto `premios` completo ({base, modalidades, comodines}).
      * Validación estricta del esquema + claves de modalidad en plugin ∪
      * catálogo oficial; el servicio hace el merge seguro, los espejos legacy
-     * y la auditoría `accion=premios`. Solo roles super_master|master (ruta).
+     * y la evidencia canónica `game.prizes_updated`. Solo roles
+     * super_master|master (ruta).
      */
     public function updatePremios(Request $request, Juego $juego)
     {

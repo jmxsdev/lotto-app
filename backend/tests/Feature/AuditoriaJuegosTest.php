@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\AuditEvent;
 use App\Models\Juego;
-use App\Models\JuegoAuditoria;
 use App\Models\PluginJuego;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
@@ -16,8 +15,8 @@ use Tests\TestCase;
  * WU-6a — game audit events: `game.updated` P1 best-effort, `game.toggled`
  * P0 fail-closed and `game.prizes_updated` P0 with a required reason.
  *
- * The legacy `juego_auditoria` dual-write is intentionally kept until WU-12a;
- * `audit_events` is the canonical evidence.
+ * WU-12a removed the legacy `juego_auditoria` dual-write; `audit_events` is
+ * the single source of evidence.
  */
 class AuditoriaJuegosTest extends TestCase
 {
@@ -100,12 +99,6 @@ class AuditoriaJuegosTest extends TestCase
         $this->assertArrayNotHasKey('created_at', $event->after);
         $this->assertArrayNotHasKey('updated_at', $event->after);
         $this->assertGlobalScope($event);
-
-        $this->assertDatabaseHas('juego_auditoria', [
-            'juego_id' => $juego->id,
-            'user_id' => $user->id,
-            'accion' => 'actualizar',
-        ]);
     }
 
     public function test_update_auditoria_p1_no_bloquea_la_actualizacion(): void
@@ -144,12 +137,6 @@ class AuditoriaJuegosTest extends TestCase
         $this->assertSame(['active' => false], $event->after);
         $this->assertNull($event->reason_code);
         $this->assertGlobalScope($event);
-
-        $this->assertDatabaseHas('juego_auditoria', [
-            'juego_id' => $juego->id,
-            'user_id' => $user->id,
-            'accion' => 'desactivar',
-        ]);
     }
 
     public function test_toggle_hace_rollback_si_falla_la_auditoria(): void
@@ -157,7 +144,6 @@ class AuditoriaJuegosTest extends TestCase
         $user = $this->superUser();
         $juego = $this->juego();
         $plugin = PluginJuego::where('juego_id', $juego->id)->firstOrFail();
-        $auditoriaAntes = JuegoAuditoria::where('juego_id', $juego->id)->count();
 
         self::$failAudit = true;
 
@@ -167,7 +153,6 @@ class AuditoriaJuegosTest extends TestCase
 
         $this->assertTrue($juego->fresh()->active, 'El toggle debe revertirse.');
         $this->assertTrue($plugin->fresh()->active, 'El plugin debe revertirse.');
-        $this->assertSame($auditoriaAntes, JuegoAuditoria::where('juego_id', $juego->id)->count());
         $this->assertDatabaseCount('audit_events', 0);
     }
 
@@ -204,13 +189,6 @@ class AuditoriaJuegosTest extends TestCase
         $this->assertSame('business_decision', $event->reason_code);
         $this->assertSame('Nuevos premios aprobados', $event->reason_text);
         $this->assertGlobalScope($event);
-
-        $auditoria = JuegoAuditoria::where('juego_id', $juego->id)
-            ->where('accion', 'premios')
-            ->firstOrFail();
-
-        $this->assertSame($user->id, $auditoria->user_id);
-        $this->assertEqualsCanonicalizing($premiosAntes, $auditoria->cambios['before']);
     }
 
     public function test_premios_sin_motivo_422_y_no_cambia_nada(): void
@@ -218,7 +196,6 @@ class AuditoriaJuegosTest extends TestCase
         $user = $this->superUser();
         $juego = $this->juego();
         $configAntes = $juego->config;
-        $auditoriaAntes = JuegoAuditoria::where('juego_id', $juego->id)->count();
         $eventosAntes = AuditEvent::count();
 
         $this->actingAs($user, 'sanctum')
@@ -230,7 +207,6 @@ class AuditoriaJuegosTest extends TestCase
             ->assertStatus(422);
 
         $this->assertEqualsCanonicalizing($configAntes, $juego->fresh()->config);
-        $this->assertSame($auditoriaAntes, JuegoAuditoria::where('juego_id', $juego->id)->count());
         $this->assertSame($eventosAntes, AuditEvent::count());
     }
 

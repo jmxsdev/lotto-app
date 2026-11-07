@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\AuditEvent;
 use App\Models\Juego;
-use App\Models\JuegoAuditoria;
 use App\Models\PluginJuego;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
@@ -15,8 +15,8 @@ use Tests\TestCase;
  * spec configuracion-premios REQ "Toggle del juego").
  *
  * El endpoint requiere body `{active: bool}` (422 si falta), persiste el
- * estado, sincroniza el plugin del juego y audita con `accion=activar` o
- * `accion=desactivar` (before/after) + updated_by.
+ * estado, sincroniza el plugin del juego y emite `game.toggled` (before/after)
+ * + updated_by.
  */
 class JuegoToggleTest extends TestCase
 {
@@ -65,12 +65,13 @@ class JuegoToggleTest extends TestCase
         $this->assertFalse($juego->fresh()->active, 'El estado debe persistir en BD.');
         $this->assertSame($user->id, $juego->fresh()->updated_by, 'updated_by se registra.');
 
-        $auditoria = JuegoAuditoria::where('juego_id', $juego->id)
-            ->where('accion', 'desactivar')
+        $event = AuditEvent::where('action', 'game.toggled')
+            ->where('entity_id', $juego->id)
+            ->latest('id')
             ->firstOrFail();
-        $this->assertSame($user->id, $auditoria->user_id);
-        $this->assertSame(['active' => true], $auditoria->cambios['before']);
-        $this->assertSame(['active' => false], $auditoria->cambios['after']);
+        $this->assertSame($user->id, $event->actor_id);
+        $this->assertSame(['active' => true], $event->before);
+        $this->assertSame(['active' => false], $event->after);
     }
 
     public function test_toggle_activa_audita_accion_activar(): void
@@ -87,12 +88,13 @@ class JuegoToggleTest extends TestCase
         $response->assertJsonPath('active', true);
         $this->assertTrue($juego->fresh()->active);
 
-        $auditoria = JuegoAuditoria::where('juego_id', $juego->id)
-            ->where('accion', 'activar')
+        $event = AuditEvent::where('action', 'game.toggled')
+            ->where('entity_id', $juego->id)
+            ->latest('id')
             ->firstOrFail();
-        $this->assertSame($user->id, $auditoria->user_id);
-        $this->assertSame(['active' => false], $auditoria->cambios['before']);
-        $this->assertSame(['active' => true], $auditoria->cambios['after']);
+        $this->assertSame($user->id, $event->actor_id);
+        $this->assertSame(['active' => false], $event->before);
+        $this->assertSame(['active' => true], $event->after);
     }
 
     public function test_toggle_plugin_sincronizado_en_ambos_sentidos(): void

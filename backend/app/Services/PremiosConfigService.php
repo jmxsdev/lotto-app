@@ -8,7 +8,6 @@ use App\Audit\AuditReason;
 use App\Audit\AuditRecorder;
 use App\Audit\AuditScope;
 use App\Models\Juego;
-use App\Models\JuegoAuditoria;
 use App\Support\PremiosOficiales;
 use Illuminate\Support\Facades\DB;
 
@@ -18,8 +17,9 @@ use Illuminate\Support\Facades\DB;
  * Concentra la validación de claves de modalidad y la edición atómica de
  * `config.premios`: merge de alto nivel sobre `config` (preserva
  * `scraper`/`modalidades_permitidas`), sincronización de espejos legacy vía
- * `PremiosOficiales::espejosLegacy()` (fuente única) y auditoría
- * `accion=premios` con before/after y `updated_by`. El endpoint queda delgado.
+ * `PremiosOficiales::espejosLegacy()` (fuente única) y evidencia canónica
+ * `game.prizes_updated` en `audit_events` con before/after y `updated_by`. El
+ * endpoint queda delgado.
  */
 class PremiosConfigService
 {
@@ -61,10 +61,10 @@ class PremiosConfigService
      * Edita los premios de un juego de forma atómica (D1): el body ES el
      * objeto `premios` completo. Merge de alto nivel sobre `config` (solo toca
      * `premios` y sus espejos), sincroniza los espejos legacy y registra la
-     * auditoría `accion=premios` con before/after y `updated_by`.
+     * evidencia `game.prizes_updated` con before/after y `updated_by`.
      *
      * La evidencia canónica `game.prizes_updated` es P0 fail-closed y exige
-     * motivo: si falta, la transacción revierte premios y auditoría legacy.
+     * motivo: si falta, la transacción revierte los premios.
      *
      * @param  array<string, mixed>  $premios  {base, modalidades, comodines}
      */
@@ -105,16 +105,6 @@ class PremiosConfigService
             $juego->update([
                 'config' => $nuevaConfig,
                 'updated_by' => $updatedBy,
-            ]);
-
-            JuegoAuditoria::create([
-                'juego_id' => $juego->id,
-                'user_id' => $updatedBy,
-                'accion' => 'premios',
-                'cambios' => [
-                    'before' => $before,
-                    'after' => $premios,
-                ],
             ]);
 
             $event = (new AuditEventData(
