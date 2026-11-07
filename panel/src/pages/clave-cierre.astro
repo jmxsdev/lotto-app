@@ -52,7 +52,8 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     .field small { display: block; font-size: 12px; color: #94a3b8; margin-top: 4px; }
   </style>
   <script>
-    import { apiFetch } from '../utils/api.ts'; import { showModal } from '../utils/modal.ts';
+    import { apiFetch, mergeReason } from '../utils/api.ts'; import { showModal } from '../utils/modal.ts';
+    import { openReasonModal } from '../utils/reason-modal.ts';
 
     const f = document.getElementById('clave-form');
     const btnSave = document.getElementById('btn-save');
@@ -110,10 +111,13 @@ import AdminLayout from '../layouts/AdminLayout.astro';
       const body = { clave_nueva: claveNueva };
       if (claveConfigurada) body.clave_actual = claveActual;
 
+      const reason = await openReasonModal({ title: 'Actualizar clave de cierre', action: 'clave_cierre.updated', required: false });
+      if (!reason) return;
+
       btnSave.disabled = true;
       btnSave.textContent = 'Guardando...';
       try {
-        await apiFetch('PUT', '/usuarios/clave-cierre', body);
+        await apiFetch('PUT', '/usuarios/clave-cierre', mergeReason(body, reason));
         await showModal({ message: 'Clave de cierre configurada correctamente.', type: 'success' });
         f.reset();
         cargarEstado();

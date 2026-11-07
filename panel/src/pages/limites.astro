@@ -92,9 +92,10 @@ import Icon from '../components/Icon.astro';
   </style>
 
   <script>
-    import { apiFetch, getStoredUser } from '../utils/api.ts';
+    import { apiFetch, getStoredUser, mergeReason } from '../utils/api.ts';
     import { crearTablaLimites } from '../utils/limites.ts';
     import { icono } from '../utils/iconos.ts';
+    import { openReasonModal } from '../utils/reason-modal.ts';
 
     const user = getStoredUser();
     const rol = user?.role;
@@ -107,6 +108,7 @@ import Icon from '../components/Icon.astro';
 
     let alcanceActual = 'bancas';
     let tabla = null;
+    let reasonPendiente = null;
 
     // Filtrado por rol: super_master/master ven las 3 opciones; banca sus grupos/taquillas; grupo solo taquillas
     if (rol === 'banca') {
@@ -175,15 +177,19 @@ import Icon from '../components/Icon.astro';
     }
 
     btnGuardarComision.addEventListener('click', async () => {
+      const body = {
+        defaults: [
+          { moneda: 'bs', porcentaje_pago: inputBs.value === '' ? null : Number(inputBs.value) },
+          { moneda: 'usd', porcentaje_pago: inputUsd.value === '' ? null : Number(inputUsd.value) },
+        ],
+      };
+      const reason = await openReasonModal({ title: 'Actualizar comisión global', action: 'commission_defaults.updated', required: false });
+      if (!reason) return;
+
       btnGuardarComision.disabled = true;
       estadoComision.textContent = 'Guardando...';
       try {
-        await apiFetch('PUT', '/comisiones/defaults', {
-          defaults: [
-            { moneda: 'bs', porcentaje_pago: inputBs.value === '' ? null : Number(inputBs.value) },
-            { moneda: 'usd', porcentaje_pago: inputUsd.value === '' ? null : Number(inputUsd.value) },
-          ],
-        });
+        await apiFetch('PUT', '/comisiones/defaults', mergeReason(body, reason));
         estadoComision.innerHTML = '<span aria-hidden="true">' + icono('circle-check') + '</span> Comisión global guardada.';
       } catch (e) {
         estadoComision.textContent = '';
@@ -218,7 +224,7 @@ import Icon from '../components/Icon.astro';
             scope: { tipo: alcanceActual },
             limites: payload.limites,
           };
-          return apiFetch('POST', '/limites/batch', body);
+          return apiFetch('POST', '/limites/batch', mergeReason(body, reasonPendiente));
         },
       });
 
@@ -243,6 +249,9 @@ import Icon from '../components/Icon.astro';
         estado.textContent = 'No hay cambios para guardar.';
         return;
       }
+      const reason = await openReasonModal({ title: 'Guardar límites', action: 'game.limits_batch_updated', required: false });
+      if (!reason) return;
+      reasonPendiente = reason;
       btnGuardar.disabled = true;
       estado.textContent = 'Guardando...';
       try {
@@ -254,6 +263,7 @@ import Icon from '../components/Icon.astro';
         alert('Error: ' + e.message);
       } finally {
         btnGuardar.disabled = false;
+        reasonPendiente = null;
       }
     });
   </script>

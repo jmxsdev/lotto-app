@@ -22,7 +22,8 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     .btn-primary { background: #3b82f6; color: #fff; } .btn-primary:hover { background: #2563eb; }
   </style>
   <script>
-    import { apiFetch } from '../utils/api.ts'; import { showModal } from '../utils/modal.ts'; import { icono } from '../utils/iconos.ts';
+    import { apiFetch, mergeReason } from '../utils/api.ts'; import { showModal } from '../utils/modal.ts'; import { icono } from '../utils/iconos.ts';
+    import { openReasonModal } from '../utils/reason-modal.ts';
     const content = document.getElementById('content');
 
     async function init() {
@@ -59,8 +60,10 @@ import AdminLayout from '../layouts/AdminLayout.astro';
         await showModal({ message: 'Las horas deben ser un número entero entre 1 y 8760.', type: 'error' });
         return;
       }
+      const reason = await openReasonModal({ title: 'Actualizar vencimiento de apuestas', action: 'config.bet_expiration_window_updated', required: false });
+      if (!reason) return;
       try {
-        await apiFetch('PUT', '/configuraciones/apuestas-vencimiento', { horas });
+        await apiFetch('PUT', '/configuraciones/apuestas-vencimiento', mergeReason({ horas }, reason));
         await showModal({ message: 'Configuración guardada correctamente.', type: 'success' });
         init();
       } catch (err) {
