@@ -4,34 +4,231 @@ import AdminLayout from '../layouts/AdminLayout.astro';
 
 <AdminLayout>
   <div class="page">
-    <div class="page-header"><h2 class="page-title">Logs de Auditoría</h2></div>
-    <div class="filters">
-      <input type="text" id="filter-action" placeholder="Filtrar por acción..." class="filter-input" />
-      <button class="btn btn-primary" id="btn-refresh">Actualizar</button>
+    <div class="page-header"><h2 class="page-title">Logs operativos</h2></div>
+
+    <div class="op-banner" role="note">
+      Registro operativo (no es auditoría). Para evidencia de cambios, use Auditoría.
     </div>
-    <div id="content"><div class="loading">Cargando...</div></div>
+
+    <form class="filters" id="filters-form">
+      <div class="field">
+        <label for="filter-action">Acción</label>
+        <input type="text" id="filter-action" placeholder="activacion_taquilla…" class="filter-input" />
+      </div>
+      <div class="field">
+        <label for="filter-from">Desde</label>
+        <input type="date" id="filter-from" class="filter-input" />
+      </div>
+      <div class="field">
+        <label for="filter-to">Hasta</label>
+        <input type="date" id="filter-to" class="filter-input" />
+      </div>
+      <div class="field">
+        <label for="filter-per-page">Por página</label>
+        <select id="filter-per-page" class="filter-input">
+          <option value="25">25</option>
+          <option value="50" selected>50</option>
+          <option value="100">100</option>
+        </select>
+      </div>
+      <div class="filter-actions">
+        <button type="submit" class="btn btn-primary" id="btn-filter">Filtrar</button>
+        <button type="button" class="btn btn-secondary" id="btn-refresh">Actualizar</button>
+      </div>
+    </form>
+
+    <div class="status" id="status" role="status" aria-live="polite"></div>
+
+    <div class="table-wrap" id="table-wrap" hidden>
+      <table>
+        <thead>
+          <tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Detalles</th><th>IP</th></tr>
+        </thead>
+        <tbody id="logs-body"></tbody>
+      </table>
+    </div>
+
+    <div class="pager" id="pager" hidden>
+      <button type="button" class="btn btn-secondary" id="btn-prev" disabled>Anterior</button>
+      <span class="pager-info" id="pager-info"></span>
+      <button type="button" class="btn btn-secondary" id="btn-next" disabled>Siguiente</button>
+    </div>
   </div>
+
   <style is:global>
-    .page { max-width: 1200px; } .page-header { margin-bottom: 16px; } .page-title { font-size: 24px; font-weight: 700; color: #1e293b; }
-    .filters { display: flex; gap: 12px; margin-bottom: 16px; } .filter-input { padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; width: 250px; } .filter-input:focus { border-color: #3b82f6; outline: none; }
-    .btn { padding: 8px 16px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; } .btn-primary { background: #3b82f6; color: #fff; }
-    .loading { text-align: center; padding: 40px; color: #666; } .table-wrap { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); } table { width: 100%; border-collapse: collapse; } th { background: #f1f5f9; padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600; color: #666; } td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; font-size: 13px; vertical-align: top; } .log-action { font-weight: 600; color: #3b82f6; } .log-details { font-size: 12px; color: #666; max-width: 300px; word-break: break-all; }
+    #table-wrap[hidden], #pager[hidden], #status[hidden] { display: none !important; }
+    .page { max-width: 1200px; }
+    .page-header { margin-bottom: 16px; }
+    .page-title { font-size: 24px; font-weight: 700; color: #1e293b; }
+    .op-banner { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; border-radius: 8px; padding: 12px 16px; font-size: 14px; margin-bottom: 16px; }
+    .filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-bottom: 16px; }
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    .field label { font-size: 12px; font-weight: 600; color: #64748b; }
+    .filter-input { padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; width: 200px; background: #fff; }
+    .filter-input:focus { border-color: #3b82f6; outline: none; }
+    .filter-actions { display: flex; gap: 12px; }
+    .btn { padding: 8px 16px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: #3b82f6; color: #fff; }
+    .btn-secondary { background: #e2e8f0; color: #334155; }
+    .status { padding: 12px 0; color: #475569; font-size: 14px; }
+    .status-error { color: #b91c1c; font-weight: 600; }
+    .table-wrap { background: #fff; border-radius: 10px; overflow-x: auto; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #f1f5f9; padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600; color: #666; }
+    td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; font-size: 13px; vertical-align: top; }
+    .log-action { font-weight: 600; color: #3b82f6; }
+    .log-details { margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: #475569; max-width: 420px; max-height: 200px; overflow: auto; white-space: pre-wrap; word-break: break-word; }
+    .pager { display: flex; align-items: center; gap: 16px; margin-top: 16px; }
+    .pager-info { font-size: 13px; color: #475569; }
   </style>
+
   <script>
-    import { apiFetch } from '../utils/api.ts';
-    let logs = [];
-    async function load() {
-      try { logs = await apiFetch('GET','/logs?per_page=50'); render(); } catch(e) { document.getElementById('content').innerHTML = '<div class="loading">Error: '+e.message+'</div>'; }
+    import { apiFetch, toQuery } from '../utils/api.ts';
+    import { setText } from '../utils/escape.ts';
+
+    const form = document.getElementById('filters-form');
+    const statusEl = document.getElementById('status');
+    const tableWrap = document.getElementById('table-wrap');
+    const tbody = document.getElementById('logs-body');
+    const pager = document.getElementById('pager');
+    const pagerInfo = document.getElementById('pager-info');
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+    const btnFilter = document.getElementById('btn-filter');
+    const btnRefresh = document.getElementById('btn-refresh');
+
+    const FORBIDDEN_MESSAGE = 'No tienes permiso para ver los logs operativos.';
+
+    let currentPage = 1;
+    let lastPage = 1;
+    let total = 0;
+    let loading = false;
+
+    function readFilters() {
+      return {
+        action: document.getElementById('filter-action').value.trim(),
+        from: document.getElementById('filter-from').value,
+        to: document.getElementById('filter-to').value,
+        per_page: document.getElementById('filter-per-page').value,
+      };
     }
-    function render() {
-      const filter = (document.getElementById('filter-action')?.value||'').toLowerCase().trim();
-      const filtered = filter ? logs.filter(l => (l.action||'').toLowerCase().includes(filter)) : logs;
-      let html = '<div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Detalles</th><th>IP</th></tr></thead><tbody>';
-      filtered.forEach(l => { html += `<tr><td>${new Date(l.created_at).toLocaleString('es-VE')}</td><td>${l.user?.name||'Sistema'}</td><td class="log-action">${l.action}</td><td class="log-details">${JSON.stringify(l.details||{}).substring(0,200)}</td><td>${l.ip||'-'}</td></tr>`; });
-      html += '</tbody></table></div>'; document.getElementById('content').innerHTML = filtered.length===0?'<div class="loading">Sin resultados</div>':html;
+
+    function setBusy(busy) {
+      loading = busy;
+      btnFilter.disabled = busy;
+      btnRefresh.disabled = busy;
+      btnPrev.disabled = busy || currentPage <= 1;
+      btnNext.disabled = busy || currentPage >= lastPage;
     }
-    document.getElementById('filter-action').addEventListener('input', () => render());
-    document.getElementById('btn-refresh').addEventListener('click', load);
-    load();
+
+    function showStatus(message, kind) {
+      setText(statusEl, message || '');
+      statusEl.className = 'status' + (kind ? ' status-' + kind : '');
+      statusEl.hidden = !message;
+    }
+
+    function td(value) {
+      const el = document.createElement('td');
+      setText(el, value === null || value === undefined ? '—' : value);
+      return el;
+    }
+
+    function formatDate(value) {
+      if (!value) return '—';
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('es-VE');
+    }
+
+    function detailsCell(details) {
+      const el = document.createElement('td');
+      const pre = document.createElement('pre');
+      pre.className = 'log-details';
+      try {
+        setText(pre, JSON.stringify(details, null, 2));
+      } catch (_) {
+        setText(pre, '—');
+      }
+      el.appendChild(pre);
+      return el;
+    }
+
+    function renderRows(items) {
+      tbody.replaceChildren();
+      for (const item of items) {
+        const tr = document.createElement('tr');
+        tr.appendChild(td(formatDate(item.created_at)));
+        tr.appendChild(td(item.user && item.user.name ? item.user.name : 'Sistema'));
+        const action = document.createElement('td');
+        action.className = 'log-action';
+        setText(action, item.action || '—');
+        tr.appendChild(action);
+        tr.appendChild(detailsCell(item.details));
+        tr.appendChild(td(item.ip));
+        tbody.appendChild(tr);
+      }
+    }
+
+    function updatePager() {
+      btnPrev.disabled = loading || currentPage <= 1;
+      btnNext.disabled = loading || currentPage >= lastPage;
+      setText(pagerInfo, 'Página ' + currentPage + ' de ' + lastPage + ' — ' + total + ' registros');
+    }
+
+    async function load(page) {
+      setBusy(true);
+      showStatus('Cargando…', '');
+      tableWrap.hidden = true;
+      pager.hidden = true;
+      try {
+        const res = await apiFetch('GET', '/logs' + toQuery({ ...readFilters(), page: page > 1 ? page : undefined }));
+        const items = res && Array.isArray(res.data) ? res.data : [];
+        currentPage = Number(res && res.current_page) || page || 1;
+        lastPage = Number(res && res.last_page) || 1;
+        total = Number(res && res.total) || 0;
+        renderRows(items);
+        updatePager();
+        if (items.length === 0) {
+          showStatus('Sin registros operativos para los filtros seleccionados.', '');
+          pager.hidden = true;
+        } else {
+          showStatus('', '');
+          tableWrap.hidden = false;
+          pager.hidden = false;
+        }
+      } catch (err) {
+        tbody.replaceChildren();
+        tableWrap.hidden = true;
+        pager.hidden = true;
+        currentPage = 1;
+        lastPage = 1;
+        total = 0;
+        if (err && err.status === 403) {
+          showStatus(FORBIDDEN_MESSAGE, 'error');
+        } else {
+          const detail = err && err.message ? err.message : 'error desconocido';
+          showStatus('Error al cargar los logs operativos: ' + detail, 'error');
+        }
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      load(1);
+    });
+
+    btnRefresh.addEventListener('click', () => load(currentPage));
+
+    btnPrev.addEventListener('click', () => {
+      if (currentPage > 1) load(currentPage - 1);
+    });
+
+    btnNext.addEventListener('click', () => {
+      if (currentPage < lastPage) load(currentPage + 1);
+    });
+
+    load(1);
   </script>
 </AdminLayout>

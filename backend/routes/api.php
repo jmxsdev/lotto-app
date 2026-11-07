@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\EstadisticaController;
 use App\Http\Controllers\Api\ExchangeRateController;
 use App\Http\Controllers\Api\GrupoController;
 use App\Http\Controllers\Api\JuegoController;
+use App\Http\Controllers\Api\LogController;
 use App\Http\Controllers\Api\PagoController;
 use App\Http\Controllers\Api\ReleaseController;
 use App\Http\Controllers\Api\ReporteController;
@@ -23,8 +24,6 @@ use App\Http\Controllers\Api\TaquillaController;
 use App\Http\Controllers\Api\TicketController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Middleware\CaptureAuditContext;
-use App\Models\Log;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 // Todas las rutas de la API quedan versionadas bajo el prefijo /api/v1
@@ -193,9 +192,7 @@ Route::prefix('v1')->middleware([CaptureAuditContext::class])->group(function ()
         // LOGS — view_logs (master vía matriz; super_master por bypass)
         // ==================================================
         Route::middleware(['permission:view_logs'])->group(function () {
-            Route::get('/logs', function (Request $request) {
-                return Log::with('user')->latest()->paginate($request->input('per_page', 50));
-            });
+            Route::get('/logs', [LogController::class, 'index']);
         });
 
         // ==================================================
