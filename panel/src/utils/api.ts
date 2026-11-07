@@ -48,3 +48,36 @@ export function getStoredUser() {
 }
 
 export const ROLES = ['super_master', 'master', 'banca', 'grupo', 'agencia'];
+
+export type QueryParams = Record<string, string | number | boolean | null | undefined>;
+
+/**
+ * Construye un query string a partir de un objeto.
+ * Omite null, undefined y strings vacíos. Devuelve `?a=b&c=d` o ''.
+ */
+export function toQuery(params: QueryParams): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value === null || value === undefined) continue;
+    const text = String(value);
+    if (text === '') continue;
+    search.append(key, text);
+  }
+  const query = search.toString();
+  return query ? '?' + query : '';
+}
+
+/**
+ * Comprueba un permiso sobre el usuario guardado en `panel_user`.
+ * super_master siempre pasa; sin `permissions` (sesión antigua) se usa el
+ * fallback por rol master/super_master.
+ */
+export function can(permission: string): boolean {
+  const user = getStoredUser();
+  if (!user) return false;
+  if (user.role === 'super_master') return true;
+  if (!Array.isArray(user.permissions)) {
+    return user.role === 'master' || user.role === 'super_master';
+  }
+  return user.permissions.includes(permission);
+}

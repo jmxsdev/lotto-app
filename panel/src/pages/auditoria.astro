@@ -1,0 +1,313 @@
+---
+import AdminLayout from '../layouts/AdminLayout.astro';
+---
+
+<AdminLayout>
+  <div class="audit-page">
+    <div class="audit-header"><h2 class="audit-title">Auditoría</h2></div>
+
+    <form class="audit-filters" id="filters-form">
+      <div class="audit-field">
+        <label for="filter-domain">Dominio</label>
+        <input id="filter-domain" name="domain" type="text" placeholder="user, ticket, exchange_rate…" />
+      </div>
+      <div class="audit-field">
+        <label for="filter-action">Acción</label>
+        <input id="filter-action" name="action" type="text" placeholder="user.deleted" />
+      </div>
+      <div class="audit-field">
+        <label for="filter-actor-id">Actor ID</label>
+        <input id="filter-actor-id" name="actor_id" type="number" min="1" inputmode="numeric" />
+      </div>
+      <div class="audit-field">
+        <label for="filter-actor-type">Tipo de actor</label>
+        <select id="filter-actor-type" name="actor_type">
+          <option value="">Todos</option>
+          <option value="user">Usuario</option>
+          <option value="system">Sistema</option>
+          <option value="device">Dispositivo</option>
+        </select>
+      </div>
+      <div class="audit-field">
+        <label for="filter-entity-type">Tipo de entidad</label>
+        <input id="filter-entity-type" name="entity_type" type="text" placeholder="ticket, banca…" />
+      </div>
+      <div class="audit-field">
+        <label for="filter-entity-id">Entidad ID</label>
+        <input id="filter-entity-id" name="entity_id" type="number" min="1" inputmode="numeric" />
+      </div>
+      <div class="audit-field">
+        <label for="filter-from">Desde</label>
+        <input id="filter-from" name="from" type="date" />
+      </div>
+      <div class="audit-field">
+        <label for="filter-to">Hasta</label>
+        <input id="filter-to" name="to" type="date" />
+      </div>
+      <div class="audit-field">
+        <label for="filter-request-id">Request ID</label>
+        <input id="filter-request-id" name="request_id" type="text" placeholder="6f1c2e8a-…" />
+      </div>
+      <div class="audit-field">
+        <label for="filter-per-page">Por página</label>
+        <select id="filter-per-page" name="per_page">
+          <option value="25" selected>25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+      </div>
+      <div class="audit-actions">
+        <button type="submit" class="audit-btn audit-btn-primary" id="btn-filter">Filtrar</button>
+        <button type="button" class="audit-btn audit-btn-secondary" id="btn-clear">Limpiar</button>
+      </div>
+    </form>
+
+    <div class="audit-status" id="status" role="status" aria-live="polite"></div>
+
+    <div class="audit-table-wrap" id="table-wrap" hidden>
+      <table class="audit-table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Acción</th>
+            <th>Actor</th>
+            <th>Entidad</th>
+            <th>Scope</th>
+            <th>Motivo</th>
+            <th>Request ID</th>
+            <th>IP</th>
+          </tr>
+        </thead>
+        <tbody id="audit-body"></tbody>
+      </table>
+    </div>
+
+    <div class="audit-pager" id="pager" hidden>
+      <button type="button" class="audit-btn audit-btn-secondary" id="btn-prev" disabled>Anterior</button>
+      <button type="button" class="audit-btn audit-btn-secondary" id="btn-next" disabled>Siguiente</button>
+    </div>
+  </div>
+  <style is:global>
+    .audit-page { max-width: 1280px; }
+    .audit-header { margin-bottom: 16px; }
+    .audit-title { font-size: 24px; font-weight: 700; color: #1e293b; }
+    .audit-filters {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px;
+      background: #fff; padding: 16px; border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin-bottom: 16px;
+    }
+    .audit-field { display: flex; flex-direction: column; gap: 4px; }
+    .audit-field label { font-size: 12px; font-weight: 600; color: #666; }
+    .audit-field input, .audit-field select {
+      padding: 8px 10px; border: 2px solid #e2e8f0; border-radius: 8px;
+      font-size: 13px; font-family: inherit; background: #fff; color: #333;
+    }
+    .audit-field input:focus, .audit-field select:focus { border-color: #3b82f6; outline: none; }
+    .audit-actions { display: flex; gap: 8px; align-items: flex-end; }
+    .audit-btn {
+      padding: 8px 16px; border: none; border-radius: 8px; font-size: 14px;
+      font-weight: 600; cursor: pointer; transition: all .15s;
+    }
+    .audit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .audit-btn-primary { background: #3b82f6; color: #fff; }
+    .audit-btn-primary:hover:not(:disabled) { background: #2563eb; }
+    .audit-btn-secondary { background: #e2e8f0; color: #333; }
+    .audit-btn-secondary:hover:not(:disabled) { background: #cbd5e1; }
+    .audit-status { font-size: 14px; color: #666; padding: 12px 4px; }
+    .audit-status-error { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; border-radius: 8px; padding: 12px 16px; }
+    .audit-table-wrap {
+      background: #fff; border-radius: 10px; overflow-x: auto;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .audit-table { width: 100%; border-collapse: collapse; }
+    .audit-table th {
+      background: #f1f5f9; padding: 12px 16px; text-align: left;
+      font-size: 12px; font-weight: 600; color: #666; text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .audit-table td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; font-size: 13px; vertical-align: top; }
+    .audit-table tbody tr:hover td { background: #f8fafc; }
+    .audit-pager { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+  </style>
+  <script>
+    import { apiFetch, toQuery, can } from '../utils/api.ts';
+    import { setText, cell } from '../utils/escape.ts';
+
+    const form = document.getElementById('filters-form');
+    const statusEl = document.getElementById('status');
+    const tableWrap = document.getElementById('table-wrap');
+    const tbody = document.getElementById('audit-body');
+    const pager = document.getElementById('pager');
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+    const btnFilter = document.getElementById('btn-filter');
+    const btnClear = document.getElementById('btn-clear');
+
+    const FORBIDDEN_MESSAGE = 'No tienes permiso para ver la auditoría.';
+
+    let cursorStack = [];
+    let currentCursor = null;
+    let nextCursor = null;
+    let loading = false;
+
+    function readFilters() {
+      return {
+        domain: document.getElementById('filter-domain').value.trim(),
+        action: document.getElementById('filter-action').value.trim(),
+        actor_id: document.getElementById('filter-actor-id').value.trim(),
+        actor_type: document.getElementById('filter-actor-type').value,
+        entity_type: document.getElementById('filter-entity-type').value.trim(),
+        entity_id: document.getElementById('filter-entity-id').value.trim(),
+        from: document.getElementById('filter-from').value,
+        to: document.getElementById('filter-to').value,
+        request_id: document.getElementById('filter-request-id').value.trim(),
+        per_page: document.getElementById('filter-per-page').value,
+      };
+    }
+
+    function resetCursor() {
+      cursorStack = [];
+      currentCursor = null;
+      nextCursor = null;
+    }
+
+    function updatePager() {
+      btnPrev.disabled = loading || cursorStack.length === 0;
+      btnNext.disabled = loading || !nextCursor;
+    }
+
+    function setBusy(busy) {
+      loading = busy;
+      btnFilter.disabled = busy;
+      btnClear.disabled = busy;
+      updatePager();
+    }
+
+    function showStatus(message, kind) {
+      setText(statusEl, message || '');
+      statusEl.className = 'audit-status' + (kind ? ' audit-status-' + kind : '');
+      statusEl.hidden = !message;
+    }
+
+    function td(value) {
+      const el = document.createElement('td');
+      setText(el, cell(value));
+      return el;
+    }
+
+    function formatDate(value) {
+      if (!value) return '';
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('es-VE');
+    }
+
+    function formatActor(actor) {
+      if (!actor) return '';
+      const label = actor.label || actor.type || '';
+      const roles = Array.isArray(actor.roles) ? actor.roles : [];
+      return roles.length ? label + ' (' + roles.join(', ') + ')' : label;
+    }
+
+    function formatEntity(entity) {
+      if (!entity) return '';
+      const type = entity.type || '';
+      const id = entity.id;
+      if (id === null || id === undefined) return type;
+      return type ? type + ':' + id : String(id);
+    }
+
+    function formatScope(scope) {
+      if (!scope) return '';
+      const parts = [];
+      if (scope.banca_id) parts.push('b:' + scope.banca_id);
+      if (scope.grupo_id) parts.push('g:' + scope.grupo_id);
+      if (scope.agencia_id) parts.push('a:' + scope.agencia_id);
+      if (scope.taquilla_id) parts.push('t:' + scope.taquilla_id);
+      return parts.join(' · ');
+    }
+
+    function renderRows(items) {
+      tbody.replaceChildren();
+      for (const item of items) {
+        const tr = document.createElement('tr');
+        tr.appendChild(td(formatDate(item.occurred_at)));
+        tr.appendChild(td(item.action));
+        tr.appendChild(td(formatActor(item.actor)));
+        tr.appendChild(td(formatEntity(item.entity)));
+        tr.appendChild(td(formatScope(item.scope)));
+        tr.appendChild(td(item.reason ? item.reason.code : null));
+        tr.appendChild(td(item.request_id));
+        tr.appendChild(td(item.ip));
+        tbody.appendChild(tr);
+      }
+    }
+
+    async function load() {
+      if (!can('view_audit')) {
+        tableWrap.hidden = true;
+        pager.hidden = true;
+        showStatus(FORBIDDEN_MESSAGE, 'error');
+        return;
+      }
+      setBusy(true);
+      showStatus('Cargando…', '');
+      tableWrap.hidden = true;
+      pager.hidden = true;
+      try {
+        const query = toQuery({ ...readFilters(), cursor: currentCursor });
+        const res = await apiFetch('GET', '/audit-events' + query);
+        const items = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
+        nextCursor = (res && res.next_cursor) || null;
+        renderRows(items);
+        if (items.length === 0) {
+          showStatus('Sin resultados', '');
+        } else {
+          showStatus('', '');
+          tableWrap.hidden = false;
+          pager.hidden = false;
+        }
+      } catch (err) {
+        tbody.replaceChildren();
+        nextCursor = null;
+        if (err && err.status === 403) {
+          showStatus(FORBIDDEN_MESSAGE, 'error');
+        } else {
+          const detail = err && err.message ? err.message : 'error desconocido';
+          showStatus('Error al cargar la auditoría: ' + detail, 'error');
+        }
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      resetCursor();
+      updatePager();
+      load();
+    });
+
+    btnClear.addEventListener('click', () => {
+      form.reset();
+      resetCursor();
+      updatePager();
+      load();
+    });
+
+    btnNext.addEventListener('click', () => {
+      if (loading || !nextCursor) return;
+      cursorStack.push(currentCursor);
+      currentCursor = nextCursor;
+      load();
+    });
+
+    btnPrev.addEventListener('click', () => {
+      if (loading || cursorStack.length === 0) return;
+      currentCursor = cursorStack.pop() ?? null;
+      load();
+    });
+
+    updatePager();
+    load();
+  </script>
+</AdminLayout>
