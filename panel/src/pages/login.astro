@@ -117,8 +117,13 @@ const apiUrl = (import.meta.env.PUBLIC_API_URL || 'http://localhost:8000') + '/a
           return;
         }
 
+        const panelUser = {
+          ...data.user,
+          role: data.role || data.user.role,
+          permissions: Array.isArray(data.user.permissions) ? data.user.permissions : [],
+        };
         localStorage.setItem('panel_token', data.token);
-        localStorage.setItem('panel_user', JSON.stringify(data.user));
+        localStorage.setItem('panel_user', JSON.stringify(panelUser));
         window.location.href = '/dashboard';
       } catch (err) {
         showAlert('Error de conexión: ' + err.message, 'error');

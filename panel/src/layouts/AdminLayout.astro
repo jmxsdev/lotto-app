@@ -129,6 +129,7 @@ const name = user?.name || '';
 
   <script>
     import { icono } from '../utils/iconos.ts';
+    import { can } from '../utils/api.ts';
 
     const currentPath = window.location.pathname;
     const user = JSON.parse(localStorage.getItem('panel_user') || '{}');
@@ -321,6 +322,9 @@ const name = user?.name || '';
 
     // Logs
     if (['super_master','master'].includes(role)) sidebarNav.appendChild(addLink('Logs', '/logs', 'clipboard-list'));
+
+    // Auditoría — visor de evidencia, solo con permiso view_audit
+    if (can('view_audit')) sidebarNav.appendChild(addLink('Auditoría', '/auditoria', 'shield-check'));
 
     // Topbar dinámico: título del link activo (data-title); si no hay link
     // activo, TITULOS por ruta exacta; último recurso 'Panel'.

@@ -1,10 +1,14 @@
 ---
 import AdminLayout from '../layouts/AdminLayout.astro';
+import Icon from '../components/Icon.astro';
 ---
 
 <AdminLayout>
   <div class="audit-page">
-    <div class="audit-header"><h2 class="audit-title">Auditoría</h2></div>
+    <div class="audit-header">
+      <h2 class="audit-title">Auditoría</h2>
+      <button type="button" class="audit-btn audit-btn-primary" id="btn-export" hidden>Exportar CSV</button>
+    </div>
 
     <form class="audit-filters" id="filters-form">
       <div class="audit-field">
@@ -86,10 +90,54 @@ import AdminLayout from '../layouts/AdminLayout.astro';
       <button type="button" class="audit-btn audit-btn-secondary" id="btn-prev" disabled>Anterior</button>
       <button type="button" class="audit-btn audit-btn-secondary" id="btn-next" disabled>Siguiente</button>
     </div>
+
+    <div class="audit-toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+    <div class="audit-drawer-overlay" id="drawer-overlay" hidden>
+      <div class="audit-drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+        <div class="audit-drawer-head">
+          <div>
+            <h3 class="audit-drawer-title" id="drawer-title"></h3>
+            <p class="audit-drawer-date" id="drawer-date"></p>
+          </div>
+          <button type="button" class="audit-drawer-close" id="drawer-close" aria-label="Cerrar detalle">
+            <Icon name="x" />
+          </button>
+        </div>
+        <div class="audit-drawer-body">
+          <dl class="audit-meta" id="drawer-meta"></dl>
+
+          <h4 class="audit-section-title">Cambios</h4>
+          <div class="audit-diff-table-wrap">
+            <table class="audit-diff-table">
+              <thead>
+                <tr><th>Campo</th><th>Antes</th><th>Después</th></tr>
+              </thead>
+              <tbody id="drawer-diff-body"></tbody>
+            </table>
+          </div>
+
+          <div class="audit-pres">
+            <div>
+              <h4 class="audit-section-title">Antes</h4>
+              <pre class="audit-pre" id="drawer-before"></pre>
+            </div>
+            <div>
+              <h4 class="audit-section-title">Después</h4>
+              <pre class="audit-pre" id="drawer-after"></pre>
+            </div>
+          </div>
+
+          <div class="audit-drawer-actions">
+            <button type="button" class="audit-btn audit-btn-secondary" id="btn-copy-json">Copiar JSON</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
   <style is:global>
     .audit-page { max-width: 1280px; }
-    .audit-header { margin-bottom: 16px; }
+    .audit-header { margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .audit-title { font-size: 24px; font-weight: 700; color: #1e293b; }
     .audit-filters {
       display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px;
@@ -128,9 +176,63 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     .audit-table td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; font-size: 13px; vertical-align: top; }
     .audit-table tbody tr:hover td { background: #f8fafc; }
     .audit-pager { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+    .audit-row { cursor: pointer; }
+    .audit-row:hover td { background: #eef2f7; }
+    .audit-row:focus-visible { outline: 2px solid #3b82f6; outline-offset: -2px; }
+    .audit-toast {
+      position: fixed; bottom: 24px; right: 24px; z-index: 10000;
+      background: #16a34a; color: #fff; padding: 12px 18px; border-radius: 8px;
+      font-size: 14px; font-weight: 600; box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    }
+    .audit-toast-error { background: #dc2626; }
+    .audit-drawer-overlay {
+      position: fixed; inset: 0; background: rgba(15,23,42,0.55);
+      display: flex; justify-content: flex-end; z-index: 9998;
+    }
+    .audit-drawer-overlay[hidden] { display: none; }
+    .audit-drawer {
+      background: #fff; width: min(720px, 100%); height: 100%; overflow-y: auto;
+      box-shadow: -8px 0 30px rgba(0,0,0,0.25);
+    }
+    .audit-drawer-head {
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+      padding: 20px 24px; border-bottom: 1px solid #e2e8f0;
+      position: sticky; top: 0; background: #fff; z-index: 1;
+    }
+    .audit-drawer-title { font-size: 18px; font-weight: 700; color: #1e293b; word-break: break-word; }
+    .audit-drawer-date { font-size: 13px; color: #64748b; margin-top: 4px; }
+    .audit-drawer-close {
+      border: none; background: #f1f5f9; border-radius: 8px; padding: 8px;
+      cursor: pointer; color: #334155; display: inline-flex; flex-shrink: 0;
+    }
+    .audit-drawer-close:hover { background: #e2e8f0; }
+    .audit-drawer-close svg { width: 16px; height: 16px; }
+    .audit-drawer-body { padding: 20px 24px 28px; }
+    .audit-meta { display: grid; grid-template-columns: 140px 1fr; gap: 6px 12px; font-size: 13px; margin-bottom: 20px; }
+    .audit-meta dt { font-weight: 600; color: #64748b; }
+    .audit-meta dd { color: #1e293b; word-break: break-word; white-space: pre-wrap; }
+    .audit-section-title { font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: .03em; margin: 16px 0 8px; }
+    .audit-diff-table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px; }
+    .audit-diff-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .audit-diff-table th, .audit-diff-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; text-align: left; vertical-align: top; }
+    .audit-diff-table thead th { background: #f8fafc; color: #64748b; font-weight: 600; }
+    .audit-diff-table tbody th { font-weight: 600; color: #334155; white-space: nowrap; }
+    .audit-diff-table td { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-word; }
+    .audit-pres { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .audit-pre {
+      background: #0f172a; color: #e2e8f0; border-radius: 8px; padding: 12px;
+      font-size: 12px; line-height: 1.5; max-height: 260px; overflow: auto;
+      white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .audit-drawer-actions { margin-top: 16px; display: flex; justify-content: flex-end; }
+    @media (max-width: 640px) {
+      .audit-pres { grid-template-columns: 1fr; }
+      .audit-meta { grid-template-columns: 1fr; gap: 2px 0; }
+      .audit-meta dd { margin-bottom: 8px; }
+    }
   </style>
   <script>
-    import { apiFetch, toQuery, can } from '../utils/api.ts';
+    import { apiFetch, apiDownload, toQuery, can } from '../utils/api.ts';
     import { setText, cell } from '../utils/escape.ts';
 
     const form = document.getElementById('filters-form');
@@ -142,6 +244,17 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     const btnNext = document.getElementById('btn-next');
     const btnFilter = document.getElementById('btn-filter');
     const btnClear = document.getElementById('btn-clear');
+    const btnExport = document.getElementById('btn-export');
+    const toastEl = document.getElementById('toast');
+    const drawerOverlay = document.getElementById('drawer-overlay');
+    const drawerTitle = document.getElementById('drawer-title');
+    const drawerDate = document.getElementById('drawer-date');
+    const drawerMeta = document.getElementById('drawer-meta');
+    const drawerDiffBody = document.getElementById('drawer-diff-body');
+    const drawerBefore = document.getElementById('drawer-before');
+    const drawerAfter = document.getElementById('drawer-after');
+    const drawerClose = document.getElementById('drawer-close');
+    const btnCopyJson = document.getElementById('btn-copy-json');
 
     const FORBIDDEN_MESSAGE = 'No tienes permiso para ver la auditoría.';
 
@@ -149,6 +262,10 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     let currentCursor = null;
     let nextCursor = null;
     let loading = false;
+    let events = [];
+    let currentEvent = null;
+    let exporting = false;
+    let toastTimer = null;
 
     function readFilters() {
       return {
@@ -189,6 +306,14 @@ import AdminLayout from '../layouts/AdminLayout.astro';
       statusEl.hidden = !message;
     }
 
+    function showToast(message, isError) {
+      setText(toastEl, message);
+      toastEl.className = 'audit-toast' + (isError ? ' audit-toast-error' : '');
+      toastEl.hidden = false;
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { toastEl.hidden = true; }, 3000);
+    }
+
     function td(value) {
       const el = document.createElement('td');
       setText(el, cell(value));
@@ -226,10 +351,116 @@ import AdminLayout from '../layouts/AdminLayout.astro';
       return parts.join(' · ');
     }
 
+    function formatActorDetail(actor) {
+      if (!actor) return '';
+      const parts = [];
+      if (actor.label) parts.push(actor.label);
+      if (actor.type) parts.push(actor.type);
+      if (Array.isArray(actor.roles) && actor.roles.length) parts.push('roles: ' + actor.roles.join(', '));
+      return parts.join(' · ');
+    }
+
+    function formatReasonDetail(reason) {
+      if (!reason) return '';
+      return [reason.code, reason.text].filter(Boolean).join(' — ');
+    }
+
+    function fmtJson(value) {
+      if (value === null || value === undefined) return '';
+      try { return JSON.stringify(value, null, 2); } catch (_) { return ''; }
+    }
+
+    function diffValue(value) {
+      if (value === null || value === undefined) return '—';
+      try {
+        return typeof value === 'object' ? JSON.stringify(value) : String(value);
+      } catch (_) { return '—'; }
+    }
+
+    function addMeta(label, value) {
+      const dt = document.createElement('dt');
+      setText(dt, label);
+      const dd = document.createElement('dd');
+      setText(dd, value === null || value === undefined || value === '' ? '—' : value);
+      drawerMeta.appendChild(dt);
+      drawerMeta.appendChild(dd);
+    }
+
+    function renderDiff(before, after) {
+      drawerDiffBody.replaceChildren();
+      const left = before && typeof before === 'object' ? before : {};
+      const right = after && typeof after === 'object' ? after : {};
+      const keys = Array.from(new Set([...Object.keys(left), ...Object.keys(right)])).sort();
+      if (keys.length === 0) {
+        const tr = document.createElement('tr');
+        const empty = document.createElement('td');
+        empty.colSpan = 3;
+        setText(empty, 'Sin cambios registrados.');
+        tr.appendChild(empty);
+        drawerDiffBody.appendChild(tr);
+        return;
+      }
+      for (const key of keys) {
+        const tr = document.createElement('tr');
+        const th = document.createElement('th');
+        setText(th, key);
+        tr.appendChild(th);
+        for (const value of [left[key], right[key]]) {
+          const el = document.createElement('td');
+          setText(el, diffValue(value));
+          tr.appendChild(el);
+        }
+        drawerDiffBody.appendChild(tr);
+      }
+    }
+
+    function openDetail(item) {
+      currentEvent = item;
+      drawerMeta.replaceChildren();
+      setText(drawerTitle, item.action || 'Evento');
+      setText(drawerDate, formatDate(item.occurred_at));
+      addMeta('Actor', formatActorDetail(item.actor));
+      addMeta('Entidad', formatEntity(item.entity));
+      addMeta('Scope', formatScope(item.scope));
+      addMeta('Motivo', formatReasonDetail(item.reason));
+      addMeta('Request ID', item.request_id);
+      addMeta('Job ID', item.job_id);
+      addMeta('IP', item.ip);
+      addMeta('User agent', item.user_agent);
+      addMeta('Hash', item.hash);
+      addMeta('Prev hash', item.prev_hash);
+      renderDiff(item.before, item.after);
+      setText(drawerBefore, fmtJson(item.before));
+      setText(drawerAfter, fmtJson(item.after));
+      drawerOverlay.hidden = false;
+      if (drawerClose && typeof drawerClose.focus === 'function') drawerClose.focus();
+    }
+
+    function closeDetail() {
+      drawerOverlay.hidden = true;
+      currentEvent = null;
+    }
+
+    async function copyCurrentJson() {
+      if (!currentEvent) return;
+      const text = JSON.stringify(currentEvent, null, 2);
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast('JSON copiado.');
+      } catch (_) {
+        showToast('No se pudo copiar el JSON.', true);
+      }
+    }
+
     function renderRows(items) {
+      events = items;
       tbody.replaceChildren();
       for (const item of items) {
         const tr = document.createElement('tr');
+        tr.className = 'audit-row';
+        tr.tabIndex = 0;
+        tr.setAttribute('role', 'button');
+        tr.setAttribute('aria-label', 'Ver detalle de ' + (item.action || 'evento'));
         tr.appendChild(td(formatDate(item.occurred_at)));
         tr.appendChild(td(item.action));
         tr.appendChild(td(formatActor(item.actor)));
@@ -238,6 +469,13 @@ import AdminLayout from '../layouts/AdminLayout.astro';
         tr.appendChild(td(item.reason ? item.reason.code : null));
         tr.appendChild(td(item.request_id));
         tr.appendChild(td(item.ip));
+        tr.addEventListener('click', () => openDetail(item));
+        tr.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter' || ev.key === ' ') {
+            ev.preventDefault();
+            openDetail(item);
+          }
+        });
         tbody.appendChild(tr);
       }
     }
@@ -260,7 +498,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
         nextCursor = (res && res.next_cursor) || null;
         renderRows(items);
         if (items.length === 0) {
-          showStatus('Sin resultados', '');
+          showStatus('Sin eventos para los filtros seleccionados.', '');
         } else {
           showStatus('', '');
           tableWrap.hidden = false;
@@ -277,6 +515,24 @@ import AdminLayout from '../layouts/AdminLayout.astro';
         }
       } finally {
         setBusy(false);
+      }
+    }
+
+    async function exportCsv() {
+      if (exporting) return;
+      exporting = true;
+      btnExport.disabled = true;
+      try {
+        await apiDownload('/audit-events/export' + toQuery(readFilters()));
+        showToast('CSV descargado.');
+      } catch (err) {
+        const message = err && err.status === 403
+          ? 'No tienes permiso para exportar.'
+          : (err && err.message ? err.message : 'Error al exportar el CSV.');
+        showToast(message, true);
+      } finally {
+        exporting = false;
+        btnExport.disabled = false;
       }
     }
 
@@ -306,6 +562,19 @@ import AdminLayout from '../layouts/AdminLayout.astro';
       currentCursor = cursorStack.pop() ?? null;
       load();
     });
+
+    btnExport.addEventListener('click', exportCsv);
+
+    drawerClose.addEventListener('click', closeDetail);
+    drawerOverlay.addEventListener('click', (ev) => {
+      if (ev.target === drawerOverlay) closeDetail();
+    });
+    btnCopyJson.addEventListener('click', copyCurrentJson);
+    document.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape' && !drawerOverlay.hidden) closeDetail();
+    });
+
+    if (can('export_audit')) btnExport.hidden = false;
 
     updatePager();
     load();
