@@ -291,7 +291,7 @@ consumidores externos.
 ### Catálogo bundled (taquilla/src/data/juegos.json)
 
 El dashboard de la taquilla carga el catálogo desde una copia local empaquetada
-(`taquilla/src/data/juegos.json`, 21 juegos) y NO desde un endpoint del backend
+(`taquilla/src/data/juegos.json`, 20 juegos) y NO desde un endpoint del backend
 (REQ-CL-01). La fuente de verdad es `docs/juegos.json` (mismo repo).
 
 Si `docs/juegos.json` cambia (nuevo juego, horarios, premios u opciones):

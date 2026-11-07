@@ -3,7 +3,7 @@
 namespace App\Support;
 
 /**
- * Catálogo único en código de los premios oficiales de los 21 juegos.
+ * Catálogo único en código de los premios oficiales de los 20 juegos.
  *
  * Fuente autoritativa: tabla de valores oficiales del spec motor-premios
  * (REQ1–REQ16), transpuesta en la sección §3.2 del design (claves canónicas
@@ -41,12 +41,6 @@ class PremiosOficiales
         ],
         'lotto-activo-rep-dom' => [
             'base' => 30,
-            'modalidades' => [],
-            'comodines' => [],
-            'active' => true,
-        ],
-        'terminal-activo' => [
-            'base' => 60,
             'modalidades' => [],
             'comodines' => [],
             'active' => true,
@@ -288,21 +282,6 @@ class PremiosOficiales
     ];
 
     /**
-     * Claves legacy SIN contraparte canónica que el contrato histórico del
-     * export conserva. El valor se deriva de `base` (fuente única): jamás se
-     * duplica a mano.
-     *
-     * - `terminal-activo`: el acierto del juego ES `terminal` (clave que
-     *   devuelve el plugin, N1); las modalidades canónicas quedan vacías y el
-     *   motor resuelve por base, pero el export legacy mostraba `{terminal: 60}`.
-     *
-     * @var array<string, array<int, string>>
-     */
-    private const ESPEJO_EXTRA = [
-        'terminal-activo' => ['terminal'],
-    ];
-
-    /**
      * Catálogo completo: slug → configuración de premios.
      *
      * @return array<string, array{base?: int, modalidades: array<string, int>, posicion_triples?: array<int, string>, comodines: array<string, array<string, mixed>>, active: bool}>
@@ -321,7 +300,7 @@ class PremiosOficiales
     }
 
     /**
-     * @return array<int, string> Slugs de los 21 juegos con catálogo
+     * @return array<int, string> Slugs de los 20 juegos con catálogo
      */
     public static function slugs(): array
     {
@@ -337,7 +316,7 @@ class PremiosOficiales
      * Configuración completa a escribir en `juegos.config` (D2/D4): la fuente
      * del motor (`premios` canónico) más los espejos legacy (`premio_multiplo`,
      * `modalidades`, `comodines`) con claves históricas y valores canónicos.
-     * Única fuente para la migración de backfill y los 21 seeders, de modo que
+     * Única fuente para la migración de backfill y los 20 seeders, de modo que
      * BD nueva y BD existente convergen al mismo contrato.
      *
      * `la-ricachona` (sin fuente oficial, REQ7) no devuelve `premios` ni
@@ -374,10 +353,10 @@ class PremiosOficiales
     /**
      * Espejo legacy de `config` a partir de un objeto `premios` (D2): la
      * fuente única de `premio_multiplo` (=base), `modalidades` (mapa
-     * `ESPEJO_MODALIDADES` + `ESPEJO_EXTRA` con valor derivado de base) y
-     * `comodines` (mismo shape canónico). `configPara()` delega aquí, y el
-     * servicio de edición (`PremiosConfigService::actualizar`) la reutiliza
-     * para sincronizar los espejos tras editar premios.
+     * `ESPEJO_MODALIDADES`) y `comodines` (mismo shape canónico).
+     * `configPara()` delega aquí, y el servicio de edición
+     * (`PremiosConfigService::actualizar`) la reutiliza para sincronizar los
+     * espejos tras editar premios.
      *
      * @param  array<string, mixed>  $premios  {base?: int, modalidades, comodines}
      * @return array<string, mixed>
@@ -394,13 +373,6 @@ class PremiosOficiales
 
         // Espejos legacy: claves históricas con valores canónicos (§3.1).
         $modalidades = self::espejoLegacyModalidades($slug, $premios['modalidades'] ?? []);
-
-        // Claves legacy sin contraparte canónica: valor derivado de base.
-        foreach (self::ESPEJO_EXTRA[$slug] ?? [] as $clave) {
-            if ($base !== null) {
-                $modalidades[$clave] = $base;
-            }
-        }
 
         $espejo['modalidades'] = $modalidades;
         $espejo['comodines'] = $premios['comodines'] ?? [];

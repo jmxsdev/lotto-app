@@ -1,4 +1,4 @@
-# Multiplicadores oficiales por juego (21 juegos)
+# Multiplicadores oficiales por juego (20 juegos)
 
 Lista consolidada de premios **oficiales** por juego, la base para el ciclo del motor de premios.
 Fuentes: reglamentos oficiales (PDF texto / escaneado), webs y bundles oficiales, y verificación
@@ -12,7 +12,6 @@ en vivo documentada en `docs/cliente/seguimiento-verificacion.md` / `docs/client
 |---|-------|------|-------------|--------------------------|--------|---------------------------|
 | 1 | `lotto-activo` | animalitos | **30×** | Dupleta 1.000× (2 animalitos, 2 sorteos) | FAQ oficial + reglamento familia | ✅ 30 base ok; Dupleta sin soporte |
 | 2 | `triple-zulia` | tripletas | **600×** | Cola 60× · Zodiacal 6.000× · Terminal+Zodiacal 600× | Reglamento oficial (Lotería del Zulia) | ✅ aplicado |
-| 3 | `terminal-activo` (Terminal Trío) | terminales | **60×** | — (FAQ oficial dice 70× + 5× aprox → H12) | Reglamento oficial | ✅ aplicado (60×) |
 | 4 | `lotto-activo-rd` | animalitos | **30×** | — | FAQ oficial | ✅ aplicado |
 | 5 | `lotto-activo-rep-dom` | animalitos | **30×** | — | FAQ oficial | ✅ aplicado |
 | 6 | `monje-millonario` | animalitos | **50×** | **Patronus (figura 75) 120×** · palabra PATRONUS +20× (acumula 70× con figura) | **Reglamento oficial "Lotto Activo 2" Art. 22** | ✅ aplicado (50× / Patronus 120× / palabra +20×) |
@@ -31,6 +30,11 @@ en vivo documentada en `docs/cliente/seguimiento-verificacion.md` / `docs/client
 | 19 | `triple-tachira` | tripletas | **500×** | Zodiacal 5.000× · Terminal+Zodiacal 500× · Aproximación 10× · Par A+B 200.000× (solo uno 0) · **sin terminal/cola** | **Reglamento oficial 2026 (G-20004065-3)** + decisiones #64 (mirror 2018 dice 600× → doc obsoleto) | ✅ aplicado |
 | 20 | `triple-facil` | tripletas | **700×** | Terminal 60× · Aproximación 10× | **Reglamento oficial (texto)** | ✅ aplicado |
 | 21 | `triple-zamorano` | tripletas | **600×** | Cola 60× · Uña 5× · Zodiacal 6.000× · Cola+Signo 600× · Uña+Signo 60× | Reglamento oficial (Lotería del Zulia) | ✅ aplicado |
+
+> La jugada de terminal no tiene fila propia: es la **modalidad** `terminal` de los juegos de
+> `tripletas` (2 últimas cifras del triple vendido). El extinto producto *Terminal Activo /
+> Terminal Trío* era esa misma jugada sobre el Trío Activo: **60×**. El hueco de `#3` en la
+> tabla corresponde al id retirado (el catálogo conserva `1,2,4…21`).
 
 ## Estado de aplicación (motor-premios) — actualizado 2026-09-30
 

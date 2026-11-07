@@ -64,10 +64,10 @@ class AnimalitosScraper extends BaseScraper
         $primerItem = $data['datos'][0] ?? null;
         $esFormatoPlano = $primerItem && ! isset($primerItem['name']) && ! isset($primerItem['resultados']);
 
-        // Formato plano: Trio Activo / Terminal Activo
+        // Formato plano: Trío Activo
         // [{"resultado1":"486","time_s":"08:00 AM","fecha":"...","id":"..."}, ...]
         if ($esFormatoPlano) {
-            $gameName = $this->slug === 'trio_activo' ? 'Trío Activo' : 'Terminal Activo';
+            $gameName = 'Trío Activo';
             $juego = $this->findJuegoOrFail(['name' => $gameName]);
 
             foreach ($data['datos'] as $item) {
@@ -98,7 +98,7 @@ class AnimalitosScraper extends BaseScraper
             return $node->text();
         });
 
-        if (in_array($this->slug, ['trio_activo', 'terminal_activo'])) {
+        if (in_array($this->slug, ['trio_activo'])) {
             // Extraer el token del data que incluye fecha (el de resultados, no el de metadata)
             foreach ($scriptContent as $script) {
                 if (preg_match("/data\s*=\s*\{[^}]*'option'\s*:\s*'([^']+)'[^}]*'fecha'/s", $script, $matches)) {
@@ -129,7 +129,6 @@ class AnimalitosScraper extends BaseScraper
 
         $canonicalSlug = match ($rawSlug) {
             'lotto-activo-2-monje-millonario', 'lottoactivo2-monjemillonario' => 'monje-millonario',
-            'terminal-trio' => 'terminal-activo',
             'lotto-activo-rd-internacional' => 'lotto-activo-rd',
             'lotto-activo-republica-dominicana' => 'lotto-activo-rep-dom',
             'lotto-activo' => 'lotto-activo',

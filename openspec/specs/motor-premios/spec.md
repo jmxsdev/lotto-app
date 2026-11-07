@@ -14,7 +14,6 @@ deduplicación pre-H22, redondeo y deshabilitación de juegos sin fuente.
 | Juego | Base | Modalidades | Comodines |
 |---|---|---|---|
 | Lotto Activo (familia) | 30× | — (Dupleta 1.000× **fuera de alcance**) | — |
-| Terminal Trío | 60× | — | — |
 | Trío Activo | 600× | Terminal 60× · Punta 60× | — |
 | Triple Zulia | 600× | Cola 60× · Zodiacal 6.000× · Terminal+Zodiacal 600× | — |
 | Triple Caliente | 600× | Terminal 60× · Signo 6.000× · Terminal+Signo 600× | — |
@@ -77,16 +76,41 @@ lados. Una apuesta con acento MUST igualar a un resultado sin acento y viceversa
 - WHEN se liquida
 - THEN la apuesta es ganadora (premio > 0)
 
-### Requirement: Liquidación de terminales
+### Requirement: Liquidación de la modalidad terminal (tripletas)
 
-El sistema SHALL liquidar `terminal-activo` comparando contra la clave `numero` que persisten los
-scrapers y pagando **60×** (reglamento).
+El sistema SHALL liquidar la jugada de `terminal` como modalidad de un juego `tripletas`, no como un
+juego independiente. El motor SHALL comparar las 2 últimas cifras del triple vendido (identificado por
+`combinacion.triple` = `a`|`b`|`c`, mapeado a `triple_a`|`triple_b`|`triple_c`) y SHALL pagar 60× o el
+multiplicador configurado en `premios.modalidades.terminal` del juego. No existe el juego
+`terminal-activo`: la variante comercial *Terminal Activo / Terminal Trío* es la modalidad `terminal`
+del Trío Activo (60×).
 
-#### Scenario: Terminal paga 60×
+(Previously: liquidaba `terminal-activo` como juego independiente, comparando contra la clave `numero`
+que persisten los scrapers y pagando 60×.)
 
-- GIVEN una apuesta terminal "37" por Bs. 10 y el resultado con `numero=37`
+#### Scenario: Terminal paga 60× sobre el triple vendido
+
+- GIVEN una apuesta `terminal` "10" por Bs. 10 sobre el triple `a` de `trio-activo` y el resultado con `triple_a=310`
 - WHEN se liquida
-- THEN el premio es `10 × 60 = Bs. 600`
+- THEN el premio es `10 × 60 = Bs. 600` (las 2 últimas cifras de 310 son 10)
+
+#### Scenario: Terminal no paga por desajuste
+
+- GIVEN una apuesta `terminal` "11" sobre el triple `a` de `trio-activo` y el resultado con `triple_a=310`
+- WHEN se liquida
+- THEN la apuesta es perdedora (el terminal de 310 es 10, no 11)
+
+#### Scenario: Terminal no paga contra otro slot
+
+- GIVEN una apuesta `terminal` "10" sobre el triple `a` y el resultado con `triple_a=310` y `triple_b=510`
+- WHEN se liquida
+- THEN la apuesta es perdedora (compara SOLO contra el triple vendido `a`; el terminal 10 de `triple_b` no paga)
+
+#### Scenario: No existe juego terminal-activo
+
+- GIVEN el catálogo de juegos
+- WHEN se busca un juego con slug `terminal-activo` o tipo `terminales`
+- THEN no existe: la jugada terminal vive como modalidad de `tripletas`
 
 ### Requirement: Signos por label o sigla
 

@@ -2,7 +2,7 @@
  * Catálogo local bundled (D4) — módulo puro, sin I/O ni DOM.
  *
  * Fuente de datos: docs/juegos.json (copia literal en src/data/juegos.json,
- * 21 juegos, version 1). Este módulo NO consume endpoints backend de catálogo
+ * 20 juegos, version 1). Este módulo NO consume endpoints backend de catálogo
  * (REQ-CL-01) y es Lin-testable vía scripts/check-pure.mjs (Node 24
  * type-stripping, solo sintaxis TS borrable: sin enums ni namespaces).
  *
@@ -11,10 +11,11 @@
  *     Ballena/Delfín en numero 0).
  *   - zodiacal: tripletas con 12 signos (numero null, value = sigla).
  *   - numerica: tripletas 00..99 (trio-activo, triple-facil).
- *   - terminal: terminales 00..99 con label de 2 dígitos ("05").
+ *   - terminal: modalidad de tripletas 00..99 con label de 2 dígitos ("05");
+ *     ya no es un tipo de juego, solo una familia de opciones vendible.
  */
 
-export type TipoJuego = 'animalitos' | 'tripletas' | 'terminales';
+export type TipoJuego = 'animalitos' | 'tripletas';
 
 export type FamiliaOpciones = 'animalitos' | 'zodiacal' | 'numerica' | 'terminal';
 
@@ -45,7 +46,7 @@ export interface JuegoCatalogo {
   /**
    * Estado del motor (motor-premios): `active=false`/`vendible=false` significa
    * que el juego no se ofrece ni permite vender (el backend lo rechaza). Se
-   * conserva en el catálogo (21 juegos) y la UI filtra por `vendible`.
+   * conserva en el catálogo (20 juegos) y la UI filtra por `vendible`.
    */
   active: boolean;
   vendible: boolean;
@@ -98,8 +99,8 @@ export interface BuscadorDigitos {
   buffer(): string;
 }
 
-const TIPOS_VALIDOS: readonly TipoJuego[] = ['animalitos', 'tripletas', 'terminales'];
-const MAX_DIGITOS = 3; // cubre animales (0..36), terminales (00..99) y tripletas (3 cifras)
+const TIPOS_VALIDOS: readonly TipoJuego[] = ['animalitos', 'tripletas'];
+const MAX_DIGITOS = 3; // cubre animales (0..36), terminal (00..99) y tripletas (3 cifras)
 
 /** NFD + sin diacríticos + minúsculas (Ciempiés→ciempies, Cáncer→cancer, Géminis→geminis). */
 export function normalizarLabel(label: string): string {
@@ -142,9 +143,9 @@ function sanitizarOpcion(raw: Record<string, unknown>, indice: number): OpcionCa
 
 function derivarFamilia(tipo: TipoJuego, opciones: OpcionCatalogo[]): FamiliaOpciones {
   if (tipo === 'animalitos') return 'animalitos';
-  if (tipo === 'terminales') return 'terminal';
   // tripletas: zodiacal si TODAS las opciones son signos (numero null);
-  // si no, numérica 00..99 (trio-activo, triple-facil).
+  // si no, numérica 00..99 (trio-activo, triple-facil). La familia
+  // `terminal` ya no se deriva: es una modalidad, no un tipo de juego.
   return opciones.every((o) => o.numero === null) ? 'zodiacal' : 'numerica';
 }
 
@@ -353,7 +354,7 @@ export function normalizarNumeroTriple(digitos: string): string | null {
 /**
  * Búsqueda por dígito (REQ-KB-06, REQ-CL-03): devuelve TODAS las coincidencias
  * exactas (Ballena/Delfín comparten numero 0) para el buffer de dígitos ya
- * confirmado. Terminal "05" matchea label y clave numérica → numero 5.
+ * confirmado. La modalidad terminal "05" matchea label y clave numérica → numero 5.
  */
 export function buscarPorDigito(juego: JuegoCatalogo, digitos: string): OpcionCatalogo[] {
   const limpiados = digitos.trim();

@@ -30,7 +30,7 @@ class ComisionServiceTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function crearCadena(string $type = 'terminales'): array
+    private function crearCadena(string $type = 'bingo'): array
     {
         $banca = Banca::create([
             'name' => 'Banca Comisiones',
@@ -476,7 +476,7 @@ class ComisionServiceTest extends TestCase
         $juego2 = Juego::create([
             'name' => 'Juego Comisiones 2',
             'slug' => 'juego-comisiones-2-'.uniqid(),
-            'type' => 'terminales',
+            'type' => 'bingo',
             'active' => true,
         ]);
 
@@ -694,7 +694,7 @@ class ComisionServiceTest extends TestCase
     {
         $this->assertSame(16, ComisionService::topePorTipo('animalitos'));
         $this->assertSame(25, ComisionService::topePorTipo('tripletas'));
-        $this->assertSame(100, ComisionService::topePorTipo('terminales'));
+        $this->assertSame(100, ComisionService::topePorTipo('bingo'));
         $this->assertSame(100, ComisionService::topePorTipo('tipo-desconocido'));
     }
 
@@ -725,7 +725,7 @@ class ComisionServiceTest extends TestCase
         $this->assertSame(25.0, $service->tasaLiquidable('banca', $banca->id, $juego->id, 'bs'));
     }
 
-    public function test_terminales_sin_tope()
+    public function test_otros_tipos_sin_tope()
     {
         [$juego, $banca] = $this->crearCadena();
         $this->limite($juego->id, $banca->id, null, null, 'bs', 100);

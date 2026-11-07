@@ -16,7 +16,6 @@
 |---|---|---|---|
 | 1 | `lotto-activo` | `/lottery/lotto-activo` | ✅ |
 | 2 | `triple-zulia` | `/lottery/triple-zulia` | ✅ |
-| 3 | `terminal-activo` | — (solo `terminal-trio`, `terminal-la-granjita`, `triple-centena-terminal`, que son OTROS juegos) | ❌ no tiene página |
 | 4 | `lotto-activo-rd` | `/lottery/lotto-activo-rd` | ✅ |
 | 5 | `lotto-activo-rep-dom` | `/lottery/lotto-activo-rdominicana` | ✅ |
 | 6 | `monje-millonario` | `/lottery/monje-millonario` | ✅ |
@@ -37,8 +36,9 @@
 | 21 | `triple-zamorano` | `/lottery/triple-zamorano` | ✅ (integrado en este WU) — ⚠️ el proveedor declara 3 sorteos y premios SIN verificar; la API oficial muestra 5 sorteos, ver hallazgo H11 |
 | — | `triple-caracas`, `triple-uneloton`, `triple-centena`, `triple-dorado`, `granjita-plus`, `granja-millonaria`, `granjazo`, `ruleta-activa`, `la-ruca`, `chance-animalitos`, `centena-*` | — | ⏳ pendientes de integración (fuera de alcance) |
 
-**Resumen**: 19 de nuestros 21 juegos tienen página en el proveedor; `terminal-activo` y
-`el-arrejuntado` NO (el proveedor tiene terminales propios, pero de otros juegos).
+**Resumen**: 19 de nuestros 20 juegos tienen página en el proveedor; `el-arrejuntado` NO. El
+antiguo *Terminal Activo* (hueco `#3`) no tiene página propia porque no es un juego: es la
+modalidad `terminal` del Trío Activo.
 
 ## Nivel 1 — Opciones disponibles (zoológicos / figuras)
 
@@ -89,8 +89,8 @@ fallback) vs el zoológico/tabla que declara el proveedor:
 
 ## Nivel 2 — Tipo de premiación
 
-**Nuestro modelo**: `premio_multiplo` estático por juego en `config` (30 en casi todos,
-20 en terminal-activo). Un solo multiplicador, aplicado por el plugin (`calcularPremio`).
+**Nuestro modelo**: `premio_multiplo` estático por juego en `config` (30 en casi todos).
+Un solo multiplicador, aplicado por el plugin (`calcularPremio`).
 
 **Modelo del proveedor** (verificado en los textos de cada página):
 

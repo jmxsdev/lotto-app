@@ -19,11 +19,11 @@ class PremiosOficialesTest extends TestCase
         'triple_a', 'triple_b',
     ];
 
-    public function test_catalogo_cubre_los_21_juegos_oficiales()
+    public function test_catalogo_cubre_los_20_juegos_oficiales()
     {
         $esperados = [
             'lotto-activo', 'lotto-activo-rd', 'lotto-activo-rep-dom',
-            'terminal-activo', 'monje-millonario', 'trio-activo', 'triple-zulia',
+            'monje-millonario', 'trio-activo', 'triple-zulia',
             'triple-caliente', 'triple-chance', 'triple-tachira', 'triple-facil',
             'triple-zamorano', 'el-arrejuntado', 'cazaloton', 'loto-chaima',
             'el-guacharito', 'guacharo-activo', 'mega-animal-40', 'selva-plus',
@@ -35,7 +35,7 @@ class PremiosOficialesTest extends TestCase
         sort($esperados);
         sort($slugs);
 
-        $this->assertCount(21, $slugs);
+        $this->assertCount(20, $slugs);
         $this->assertSame($esperados, $slugs);
     }
 
@@ -49,14 +49,6 @@ class PremiosOficialesTest extends TestCase
             $this->assertSame([], $juego['comodines']);
             $this->assertTrue($juego['active']);
         }
-    }
-
-    public function test_terminal_activo_base_60()
-    {
-        $juego = PremiosOficiales::para('terminal-activo');
-        $this->assertSame(60, $juego['base']);
-        $this->assertSame([], $juego['modalidades']);
-        $this->assertSame([], $juego['comodines']);
     }
 
     public function test_trio_activo_base_600_con_terminal_y_punta()
@@ -384,17 +376,6 @@ class PremiosOficialesTest extends TestCase
         $this->assertSame(20, $config['comodines']['patronus-palabra']['premio_multiplo']);
     }
 
-    public function test_config_para_terminal_activo_preserva_clave_legacy_con_valor_de_base()
-    {
-        $config = PremiosOficiales::configPara('terminal-activo');
-
-        // El acierto del juego es `terminal` (N1); las modalidades canónicas
-        // quedan vacías y el motor resuelve por base. El espejo legacy conserva
-        // la clave histórica del export con el valor derivado de base (60).
-        $this->assertSame(['terminal' => 60], $config['modalidades']);
-        $this->assertSame([], $config['premios']['modalidades']);
-    }
-
     public function test_config_para_la_ricachona_sin_premios_ni_multiplicador()
     {
         $config = PremiosOficiales::configPara('la-ricachona');
@@ -406,7 +387,7 @@ class PremiosOficialesTest extends TestCase
         $this->assertSame([], $config['comodines']);
     }
 
-    public function test_config_para_cubre_los_21_juegos_y_slug_desconocido_devuelve_vacio()
+    public function test_config_para_cubre_los_20_juegos_y_slug_desconocido_devuelve_vacio()
     {
         foreach (PremiosOficiales::slugs() as $slug) {
             $this->assertIsArray(PremiosOficiales::configPara($slug), "configPara({$slug}) debe ser array");
@@ -430,18 +411,6 @@ class PremiosOficialesTest extends TestCase
         $this->assertSame(600, $espejo['premio_multiplo']);
         $this->assertSame(['cola' => 60, 'zodiacal' => 6000, 'terminal_zodiacal' => 600], $espejo['modalidades']);
         $this->assertSame([], $espejo['comodines']);
-    }
-
-    public function test_espejos_legacy_terminal_activo_deriva_clave_extra_de_base()
-    {
-        $espejo = PremiosOficiales::espejosLegacy('terminal-activo', [
-            'base' => 60,
-            'modalidades' => [],
-            'comodines' => [],
-        ]);
-
-        $this->assertSame(60, $espejo['premio_multiplo']);
-        $this->assertSame(['terminal' => 60], $espejo['modalidades']);
     }
 
     public function test_espejos_legacy_sin_base_no_emite_premio_multiplo()

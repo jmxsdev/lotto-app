@@ -72,7 +72,7 @@ class DivergenciaRolTest extends TestCase
         return Juego::create([
             'name' => 'Juego Divergencia '.uniqid(),
             'slug' => 'juego-divergencia-'.uniqid(),
-            'type' => 'terminales',
+            'type' => 'bingo',
             'active' => true,
         ]);
     }

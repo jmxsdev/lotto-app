@@ -95,7 +95,7 @@ class TripleFacilResultsTest extends TestCase
         $this->assertCount(100, $opciones);
 
         // Modalidad Terminal REAL (00-99): label con padding, value sin padding,
-        // numero 0..99 (mismo patrón que el plugin Terminales).
+        // numero 0..99 (mismo patrón que las opciones numéricas 00-99).
         $this->assertEquals('00', $opciones[0]->label);
         $this->assertEquals('0', $opciones[0]->value);
         $this->assertEquals(0, (int) $opciones[0]->numero);

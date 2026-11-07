@@ -22,7 +22,7 @@
  * impresión).
  */
 
-import { formatearJugada, labelModalidad } from './ticket.ts';
+import { formatearJugada, labelModalidad, textoTripletaAnimalitos } from './ticket.ts';
 
 export type EstadoRecibo = 'GANADA' | 'PERDIDA' | 'PENDIENTE' | 'PAGADA';
 
@@ -122,7 +122,8 @@ export function buildReciboLines(
   const lines: ReciboLine[] = apuestas.map((apuesta, i) => {
     const c = parseCombinacion(apuesta.combinacion);
     const esTripleta = Boolean(c.tipo);
-    const tipo = esTripleta ? 'tripletas' : c.animal ? 'animalitos' : 'terminales';
+    const tripletaAnimalitos = textoTripletaAnimalitos(c);
+    const tipo = esTripleta ? 'tripletas' : (c.animal || tripletaAnimalitos) ? 'animalitos' : 'tripletas';
     const respuesta = pagos?.[i] ?? null;
     // S5: la reimpresión trae los pagos registrados por apuesta (GET
     // /pagos/{apuesta}); el lote de POST /pagos (auto-print) tiene prioridad.
@@ -134,9 +135,9 @@ export function buildReciboLines(
       game: apuesta.juego?.name ?? '',
       jugada: formatearJugada({
         tipo,
-        animal: (c.animal as string) || null,
-        numero: (c.numero as string | number | null) ?? null,
-        modalidad: esTripleta ? labelModalidad(c.tipo as string) : null,
+        animal: tripletaAnimalitos ? null : ((c.animal as string) || null),
+        numero: tripletaAnimalitos ? null : ((c.numero as string | number | null) ?? null),
+        modalidad: esTripleta ? labelModalidad(c.tipo as string) : tripletaAnimalitos,
         signo: esTripleta && c.signo ? String(c.signo) : null,
       }),
       // Pagada cuando el premio se pagó en este lote o está registrado en el

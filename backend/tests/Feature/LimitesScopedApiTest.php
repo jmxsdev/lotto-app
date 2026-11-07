@@ -98,6 +98,12 @@ class LimitesScopedApiTest extends TestCase
         return Juego::where('slug', 'lotto-activo')->first();
     }
 
+    /** Juegos vendibles/liquidables del catálogo (excluye la-ricachona). */
+    private function juegosActivos(): int
+    {
+        return Juego::where('active', true)->count();
+    }
+
     // ==================================================
     // MODO ENTIDAD — MATRIZ COMPLETA
     // ==================================================
@@ -115,10 +121,11 @@ class LimitesScopedApiTest extends TestCase
 
         $data = $response->json('data');
 
-        // 20 juegos activos × 2 monedas, en una sola llamada (la-ricachona inactiva)
-        $this->assertCount(20, $data['juegos']);
-        $this->assertCount(40, $data['limites']);
-        $this->assertCount(40, $data['origen']);
+        // Juegos activos × 2 monedas, en una sola llamada (la-ricachona inactiva)
+        $juegosActivos = $this->juegosActivos();
+        $this->assertCount($juegosActivos, $data['juegos']);
+        $this->assertCount($juegosActivos * 2, $data['limites']);
+        $this->assertCount($juegosActivos * 2, $data['origen']);
 
         // La fila sembrada a nivel banca (lotto-activo/bs) aparece en el mapa
         $this->assertNotNull($data['limites'][$clave]);
@@ -332,9 +339,10 @@ class LimitesScopedApiTest extends TestCase
         $data = $response->json('data');
 
         // Matriz completa de juegos activos para su taquilla
-        $this->assertCount(20, $data['juegos']);
-        $this->assertCount(40, $data['limites']);
-        $this->assertCount(40, $data['origen']);
+        $juegosActivos = $this->juegosActivos();
+        $this->assertCount($juegosActivos, $data['juegos']);
+        $this->assertCount($juegosActivos * 2, $data['limites']);
+        $this->assertCount($juegosActivos * 2, $data['origen']);
 
         // El payload scoped también expone `type` por juego
         foreach ($data['juegos'] as $juego) {
@@ -386,9 +394,10 @@ class LimitesScopedApiTest extends TestCase
 
         $data = $response->json('data');
 
-        // Solo los 19 juegos activos sembrados, sin el inactivo
-        $this->assertCount(20, $data['juegos']);
-        $this->assertCount(40, $data['limites']);
+        // Solo los juegos activos sembrados, sin el inactivo
+        $juegosActivos = $this->juegosActivos();
+        $this->assertCount($juegosActivos, $data['juegos']);
+        $this->assertCount($juegosActivos * 2, $data['limites']);
 
         $slugs = collect($data['juegos'])->pluck('slug')->all();
         $this->assertNotContains($inactivo->slug, $slugs);
@@ -436,9 +445,10 @@ class LimitesScopedApiTest extends TestCase
         $this->assertEquals('Banca Test', $data['entidades'][0]['name']);
 
         // Sin origen en modo scope; juegos completos
+        $juegosActivos = $this->juegosActivos();
         $this->assertArrayNotHasKey('origen', $data);
-        $this->assertCount(20, $data['juegos']);
-        $this->assertCount(80, $data['limites']); // 2 entidades × 20 juegos activos × 2 monedas
+        $this->assertCount($juegosActivos, $data['juegos']);
+        $this->assertCount($juegosActivos * 2 * 2, $data['limites']); // 2 entidades × juegos activos × 2 monedas
 
         // Fila sembrada a nivel banca: solo en la banca con límite
         $claveConFila = $banca->id.':'.$lotto->id.':bs';
@@ -498,7 +508,7 @@ class LimitesScopedApiTest extends TestCase
         $this->assertNull($data['limites'][$clave]);
 
         // Todas las entidades sin fila propia: mixto false
-        $this->assertCount(40, $data['mixto']);
+        $this->assertCount($this->juegosActivos() * 2, $data['mixto']);
         foreach ($data['mixto'] as $valor) {
             $this->assertFalse($valor);
         }
@@ -601,7 +611,7 @@ class LimitesScopedApiTest extends TestCase
 
         // Sin filas propias: todas coinciden → mixto false en todo
         $data = $consultar();
-        $this->assertCount(40, $data['mixto']);
+        $this->assertCount($this->juegosActivos() * 2, $data['mixto']);
         foreach ($data['mixto'] as $valor) {
             $this->assertFalse($valor);
         }

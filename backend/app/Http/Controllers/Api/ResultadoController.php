@@ -55,7 +55,7 @@ class ResultadoController extends Controller
     /**
      * Apariciones previas de un resultado: identidad server-side por tipo.
      *
-     * animalitos/terminales → valor `numero` del JSON de la fila clicada (sin params);
+     * animalitos → valor `numero` del JSON de la fila clicada (sin params);
      * tripletas → ?posicion (whitelist triple_a|triple_b|triple_c) + `signo` de la fila
      * cuando es no-nulo. Orden fecha_sorteo DESC luego hora_sorteo DESC, cap FIJO 5,
      * excluyendo el sorteo clicado. Sin identidad o sin historial → [] (200).

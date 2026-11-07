@@ -5,6 +5,91 @@ Todas las versiones notables de la Taquilla se documentan en este archivo.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/) y el
 versionado es [SemVer](https://semver.org/lang/es/).
 
+## [2.0.0] — 2026-11-05
+
+Release de Taquilla que cierra el retiro del juego Terminal Activo. La jugada
+terminal sigue vendible como modalidad del Trío Activo; lo que desaparece es el
+tipo de juego `terminales`.
+
+### Cambiado
+
+- **Catálogo de 20 juegos**: el catálogo bundled deja de incluir
+  `terminal-activo` y se mantiene byte-idéntico a `docs/juegos.json`.
+- **Contrato de tipo**: `TipoJuego` y `TIPOS_VALIDOS` aceptan solo
+  `animalitos|tripletas`; cargar un catálogo con `tipo: 'terminales'` falla con
+  `"tipo" inválido`. `TipoLineaTicket` también deja de declarar `terminales`.
+- **Sin secciones Terminales**: la taquilla y el panel solo ofrecen pestañas de
+  resultados Animalitos y Tripletas, y el dashboard ya no tiene ramas de venta
+  para el tipo retirado.
+
+### Técnico
+
+- Ruptura del contrato de tipo en el front: la taquilla `1.2.0` sigue operando
+  contra el backend nuevo sin cambios de ids; el número de versión sube a
+  `2.0.0` para señalar que un catálogo con `terminales` ya no carga.
+- Los tickets históricos con payload `{numero}` se siguen imprimiendo como
+  `#05` por el formateo de tripletas.
+- `check-pure` verifica el rechazo de `tipo: 'terminales'` al cargar catálogo.
+
+## [1.2.0] — 2026-11-05
+
+Release de Taquilla que retira la sección Terminales. La jugada terminal no
+desaparece: se sigue vendiendo como modalidad del Trío Activo.
+
+### Cambiado
+
+- **Sección Terminales retirada**: la taquilla ya no ofrece la pestaña
+  Terminales en el dashboard ni en la página de resultados, y el panel deja de
+  mostrarla en Resultados Loterías. La jugada terminal se vende como modalidad
+  del Trío Activo (2 últimas cifras del triple elegido, 60×).
+
+### Técnico
+
+- El catálogo se mantiene en 21 juegos byte-idéntico a `docs/juegos.json` y el
+  backend sigue aceptando el tipo `terminales`: las taquillas sin actualizar
+  continúan vendiendo terminal sin errores. El retiro del juego
+  `terminal-activo` llega en un release posterior.
+
+## [1.1.0] — 2026-10-30
+
+Release de Taquilla con tipo de pago, posicionales por triple y la primera
+versión de la tripleta de animalitos multi-sorteo.
+
+### Agregado
+
+- **Tipo de pago en la venta**: selector obligatorio antes de imprimir, con
+  cuatro métodos para Bs (transferencia, efectivo, punto de venta, pago móvil)
+  y «USD efectivo» para tickets en dólares. El método viaja en el POST, se
+  guarda en el snapshot y se imprime en el ticket.
+- **Posicionales por triple**: las modalidades posicionales (`terminal`,
+  `punta`, `uña`) exigen elegir el triple vendido (A/B/C) y el ticket lo
+  muestra para auditoría.
+- **Tripleta de animalitos multi-sorteo**: Cazalotón (200×) y Loto Chaima
+  (50×) ofrecen el modo Tripleta con selección de 3 animales distintos; el
+  backend liquida contra 3 sorteos del mismo día. Primera versión del flujo
+  (issue #63).
+- **Resaltado USD**: el resumen y los juegos se resaltan en verde cuando la
+  venta es en dólares.
+
+### Cambiado
+
+- **Retiro del terminal Táchira**: el catálogo deja de ofrecer el terminal y
+  explicita sus modalidades vigentes.
+- **Reimpresión y anulación**: reimprimir con `+` y anular por serial desde el
+  historial.
+
+### Corregido
+
+- **Ticket de tripleta de animalitos**: el ticket, el historial y el
+  comprobante muestran `Tripleta (A, B, C)` en lugar de una jugada vacía.
+- **E2E**: el screenshot inicial con ancho 0 ya no hace fallar el harness.
+
+### Técnico
+
+- Harness E2E Playwright + Electron para login, venta single/multi, premio,
+  anulación, grilla, cierre, tipo de pago y smoke.
+- `check-pure` cubre el texto de la tripleta de animalitos en ticket y recibo.
+
 ## [Unreleased]
 
 Comisiones pasan a **modelo consultivo** (Modelo A): se calculan y se consultan,

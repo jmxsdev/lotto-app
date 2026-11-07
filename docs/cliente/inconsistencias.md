@@ -26,7 +26,7 @@ fuente oficial, **(3)** gaps de nuestro sistema. Evidencia detallada por juego e
 
 | Ref | Juego | Inconsistencia | Decisión |
 |---|---|---|---|
-| H12 | `terminal-activo` (Terminal Trío) | Reglamento: **60×**. FAQ oficial: 70× (+5× aproximación) | **Se usa 60× (reglamento)**; pendiente confirmar con el operador |
+| H12 | *Terminal Activo / Terminal Trío* (hoy modalidad `terminal` del Trío Activo) | Reglamento: **60×**. FAQ oficial: 70× (+5× aproximación) | **Se usa 60× (reglamento)** en la modalidad `terminal`; pendiente confirmar con el operador |
 | H15 | `trio-activo` | Reglamento (2020): 3 sorteos. Operación real: **12 sorteos** | Se prioriza la operación (feed). Confirmar con el operador |
 | H16 | `lotto-activo` / familia | Copy oficial: "11 sorteos 09:00–19:00" (y "trece (14)" en RD). Operación: **12 (08:00–19:00)** / **14 (08:00–21:00)** | Se prioriza el feed operativo |
 | H18 | `triple-caliente` | Reglamento oficial (Art. 10): **5 sorteos 11:10/13:10/15:10/17:10/19:10** (domingos solo 19:10). API oficial: **3 sorteos 13:00/16:30/19:10** (234 respuestas, timestamps) | Se prioriza la **operación real** (13:00/16:30/19:10, lo que consume el scraper); desajuste documentado, confirmar con el operador (WU f26) |

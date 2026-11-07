@@ -16,7 +16,6 @@ import Icon from '../components/Icon.astro';
     <div class="resultados-tabs" id="resultados-tabs">
       <button class="result-tab active" data-tab="animalitos">🐾 Animalitos</button>
       <button class="result-tab" data-tab="tripletas"><Icon name="dices" size={14} /> Tripletas</button>
-      <button class="result-tab" data-tab="terminales"><Icon name="target" size={14} /> Terminales</button>
     </div>
     <div id="content"><div class="loading">Cargando resultados...</div></div>
   </div>
@@ -138,7 +137,7 @@ import Icon from '../components/Icon.astro';
     }
 
     // Botón clicable de un valor: identidad por tipo (A5).
-    // animalitos/terminales → numero; tripletas → posición (+ signo cuando la fila lo porta).
+    // animalitos → numero; tripletas → posición (+ signo cuando la fila lo porta).
     function valueBtn(o) {
       const extra = o.cls || '';
       return `<button class="value-btn ${extra}" data-resultado-id="${o.id}" data-tipo="${o.tipo}" data-posicion="${o.posicion}" data-valor="${o.valor}" data-signo="${o.signo}" data-juego="${o.juego}" title="Ver apariciones previas de ${o.label}">${o.label}</button>`;

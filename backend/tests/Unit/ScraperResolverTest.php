@@ -106,7 +106,7 @@ class ScraperResolverTest extends TestCase
     public function test_fallback_convencion_devuelve_null_si_clase_no_existe(): void
     {
         $clase = $this->resolverPara([
-            'type' => 'terminales',
+            'type' => 'bingo',
             'scraper_url' => 'https://otrafuente.com/resultados/',
         ]);
 

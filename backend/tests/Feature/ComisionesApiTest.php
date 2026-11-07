@@ -111,7 +111,7 @@ class ComisionesApiTest extends TestCase
         $juego = Juego::create([
             'name' => 'Juego Comisiones API',
             'slug' => 'juego-comisiones-api-'.uniqid(),
-            'type' => 'terminales',
+            'type' => 'bingo',
             'active' => true,
         ]);
 
@@ -321,7 +321,7 @@ class ComisionesApiTest extends TestCase
         $juego = Juego::create([
             'name' => 'Juego Consulta Scope',
             'slug' => 'juego-consulta-scope-'.uniqid(),
-            'type' => 'terminales',
+            'type' => 'bingo',
             'active' => true,
         ]);
         $this->limite($juego->id, $bancaMia->id, $grupoMio->id, $taquillaMia->id, 'bs', 50);
@@ -459,7 +459,7 @@ class ComisionesApiTest extends TestCase
         $juego = Juego::create([
             'name' => 'Juego Matriz Grupo',
             'slug' => 'juego-matriz-grupo-'.uniqid(),
-            'type' => 'terminales',
+            'type' => 'bingo',
             'active' => true,
         ]);
 
@@ -510,7 +510,7 @@ class ComisionesApiTest extends TestCase
         $juego = Juego::create([
             'name' => 'Juego Matriz Ajena',
             'slug' => 'juego-matriz-ajena-'.uniqid(),
-            'type' => 'terminales',
+            'type' => 'bingo',
             'active' => true,
         ]);
 
@@ -617,10 +617,10 @@ class ComisionesApiTest extends TestCase
         ])->assertStatus(201);
     }
 
-    public function test_put_limite_terminales_hasta_100_201()
+    public function test_put_limite_otros_tipos_sin_tope_hasta_100_201()
     {
         [, $banca, $grupo, $taquilla] = $this->crearJerarquia();
-        $juego = $this->juegoPorTipo('terminales');
+        $juego = $this->juegoPorTipo('bingo');
 
         $this->putLimite($this->superUser(), $juego, [
             'banca_id' => $banca->id,

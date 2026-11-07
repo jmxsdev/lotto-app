@@ -47,13 +47,6 @@ class AnimalitosScraperTest extends TestCase
             'active' => true,
         ]);
         Juego::create([
-            'name' => 'Terminal Activo',
-            'slug' => 'terminal-activo',
-            'type' => 'terminales',
-            'requires_scraper' => true,
-            'active' => true,
-        ]);
-        Juego::create([
             'name' => 'Trío Activo',
             'slug' => 'trio-activo',
             'type' => 'tripletas',
@@ -148,24 +141,6 @@ class AnimalitosScraperTest extends TestCase
         $method->invoke($this->scraper, 'invalid json');
     }
 
-    public function test_extracts_token_from_terminal_activo_page()
-    {
-        $html = file_get_contents(base_path('tests/Fixtures/lottoactivo_terminal_activo_page.html'));
-        $this->assertNotFalse($html, 'Fixture lottoactivo_terminal_activo_page.html requerido');
-
-        $scraper = new AnimalitosScraper('terminal_activo');
-
-        $reflection = new \ReflectionClass($scraper);
-        $method = $reflection->getMethod('extractToken');
-        $method->setAccessible(true);
-
-        $token = $method->invoke($scraper, $html);
-
-        $this->assertNotNull($token);
-        $this->assertIsString($token);
-        $this->assertNotEmpty($token);
-    }
-
     public function test_extracts_token_from_trio_activo_page()
     {
         $html = file_get_contents(base_path('tests/Fixtures/lottoactivo_trio_activo_page.html'));
@@ -182,36 +157,6 @@ class AnimalitosScraperTest extends TestCase
         $this->assertNotNull($token);
         $this->assertIsString($token);
         $this->assertNotEmpty($token);
-    }
-
-    public function test_parses_terminal_activo_flat_response()
-    {
-        $json = file_get_contents(base_path('tests/Fixtures/lottoactivo_terminal_activo_response.json'));
-        $this->assertNotFalse($json, 'Fixture lottoactivo_terminal_activo_response.json requerido');
-
-        $scraper = new AnimalitosScraper('terminal_activo');
-
-        $reflection = new \ReflectionClass($scraper);
-        $method = $reflection->getMethod('parse');
-        $method->setAccessible(true);
-
-        $resultados = $method->invoke($scraper, $json);
-
-        $this->assertCount(3, $resultados);
-
-        $terminal = Juego::where('slug', 'terminal-activo')->first();
-        $this->assertNotNull($terminal);
-
-        foreach ($resultados as $resultado) {
-            $this->assertEquals($terminal->id, $resultado['juego_id']);
-            $this->assertArrayHasKey('numero', $resultado['numeros_ganadores']);
-            $this->assertArrayNotHasKey('nombre_animal', $resultado['numeros_ganadores']);
-        }
-
-        // Primer sorteo real del 2026-09-12: 41 a las 08:00 AM (id 5)
-        $this->assertSame(41, $resultados[0]['numeros_ganadores']['numero']);
-        $this->assertSame('08:00', $resultados[0]['hora_sorteo']);
-        $this->assertSame('5', $resultados[0]['sorteo_id_externo']);
     }
 
     public function test_parses_trio_activo_flat_response_as_tripletas()

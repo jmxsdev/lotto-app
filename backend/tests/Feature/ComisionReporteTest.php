@@ -89,7 +89,7 @@ class ComisionReporteTest extends TestCase
         $juego = Juego::create([
             'name' => "Juego {$sufijo}",
             'slug' => 'juego-'.strtolower($sufijo).'-'.uniqid(),
-            'type' => 'terminales',
+            'type' => 'bingo',
             'active' => true,
         ]);
 
@@ -296,7 +296,7 @@ class ComisionReporteTest extends TestCase
         $juegoB = Juego::create([
             'name' => 'Juego Filtro B',
             'slug' => 'juego-filtro-b-'.uniqid(),
-            'type' => 'terminales',
+            'type' => 'bingo',
             'active' => true,
         ]);
 

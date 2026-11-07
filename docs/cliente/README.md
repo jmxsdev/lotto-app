@@ -20,7 +20,7 @@
 
 | Archivo | Propósito |
 |---|---|
-| [`premiacion-juegos.md`](premiacion-juegos.md) | Guía didáctica: **cómo se juega, qué se apuesta, cuándo se gana y cuánto se paga** en los 21 juegos, con ejemplos. **Documento para el cliente.** |
+| [`premiacion-juegos.md`](premiacion-juegos.md) | Guía didáctica: **cómo se juega, qué se apuesta, cuándo se gana y cuánto se paga** en los 20 juegos, con ejemplos. **Documento para el cliente.** |
 | [`multiplicadores-juegos.md`](multiplicadores-juegos.md) | Tabla consolidada de **multiplicadores oficiales** por juego, fuente y estado de aplicación. |
 | [`guia-editor-premios.md`](guia-editor-premios.md) | Cómo se configuran **base, modalidades y comodines** desde el editor del panel, con ejemplos concretos. |
 | [`inconsistencias.md`](inconsistencias.md) | **Registro canónico de las referencias H (H1–H24)**: informativa vs oficial, contradicciones internas y gaps. |

@@ -20,7 +20,6 @@ class DatabaseSeeder extends Seeder
             ExchangeRateSeeder::class,
             JuegoAnimalitosSeeder::class,
             TripleZuliaSeeder::class,
-            TerminalesSeeder::class,
             LottoActivoRDSeeder::class,
             LottoActivoRDSDSeeder::class,
             MonjeMillonarioSeeder::class,

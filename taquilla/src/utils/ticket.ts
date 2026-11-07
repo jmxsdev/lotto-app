@@ -7,11 +7,11 @@
  * jugada por familia para que el jugador interprete el resultado sin
  * ambigüedad:
  *   - animalitos: "Perro #14" (animal + número).
- *   - terminales: solo el número ("#05"; antes se imprimía duplicado).
- *   - tripletas: modalidad + número + signo ("Triple C #157 Sagitario").
+ *   - tripletas: modalidad + número + signo ("Triple C #157 Sagitario"). La
+ *     modalidad terminal usa el mismo formato ("#05" con `modalidad` vacía).
  */
 
-export type TipoLineaTicket = 'animalitos' | 'tripletas' | 'terminales';
+export type TipoLineaTicket = 'animalitos' | 'tripletas';
 
 /** Código de modalidad backend → texto visible en el ticket. */
 export const MODALIDADES_TRIPLETA: Readonly<Record<string, string>> = {
@@ -24,6 +24,35 @@ export const MODALIDADES_TRIPLETA: Readonly<Record<string, string>> = {
 export function labelModalidad(codigo: string | null | undefined): string | null {
   if (!codigo) return null;
   return MODALIDADES_TRIPLETA[codigo] ?? null;
+}
+
+/**
+ * ¿La combinación es una tripleta de animalitos (WIP multi-sorteo, issue #63)?
+ * Contrato §2.2: `{ modalidad: 'tripleta', selecciones: [{ animal } × 3] }`.
+ */
+export function esTripletaAnimalitos(
+  combinacion: Record<string, unknown> | null | undefined
+): boolean {
+  return (
+    combinacion?.modalidad === 'tripleta' &&
+    Array.isArray(combinacion.selecciones) &&
+    combinacion.selecciones.length === 3
+  );
+}
+
+/**
+ * Texto visible de una tripleta de animalitos: "Tripleta (A, B, C)".
+ * null si la combinación no es una tripleta válida de 3 animales.
+ */
+export function textoTripletaAnimalitos(
+  combinacion: Record<string, unknown> | null | undefined
+): string | null {
+  if (!esTripletaAnimalitos(combinacion)) return null;
+  const selecciones = combinacion!.selecciones as Array<{ animal?: unknown }>;
+  const animales = selecciones
+    .map((s) => String(s?.animal ?? '').trim())
+    .filter(Boolean);
+  return animales.length === 3 ? `Tripleta (${animales.join(', ')})` : null;
 }
 
 /** Datos mínimos de una jugada para componer su texto de ticket. */
@@ -47,14 +76,14 @@ export function formatearJugada(linea: LineaJugada): string {
       ? '#' + linea.numero
       : '';
   if (linea.tipo === 'animalitos') {
-    return [linea.animal, numero].filter(Boolean).join(' ') || '-';
-  }
-  if (linea.tipo === 'terminales') {
-    return numero || '-';
+    // Tripleta de animalitos (WIP multi-sorteo): la modalidad ya trae el
+    // texto "Tripleta (A, B, C)"; el animal simple sigue mostrando "Animal #N°".
+    return [linea.modalidad, linea.animal, numero].filter(Boolean).join(' ') || '-';
   }
   // Tripletas (zodiacal y numérica): la modalidad es obligatoria para
   // interpretar el resultado; el signo solo existe en las zodiacales y el
-  // triple (A/B/C) solo en las posicionales.
+  // triple (A/B/C) solo en las posicionales. La modalidad terminal cae aquí y
+  // conserva el payload legacy `{numero}` → "#05".
   const triple = linea.triple ? 'Triple ' + String(linea.triple).toUpperCase() : '';
   return [linea.modalidad, numero, linea.signo, triple].filter(Boolean).join(' ') || '-';
 }

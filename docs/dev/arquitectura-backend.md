@@ -34,10 +34,10 @@ banca/grupo/taquilla/agencia con comisiones y cierres de caja.
 | `app/` | Código de la aplicación (ver §3) |
 | `bootstrap/` | Arranque del framework. `app.php` configura routing, middlewares y excepciones; `providers.php` lista los service providers |
 | `config/` | Configuración por archivo (`app.php`, `auth.php`, `database.php`, `queue.php`, `sanctum.php`, `cors.php`, …) |
-| `database/` | Migraciones (~50 tablas), seeders (los 21 juegos) y factories |
+| `database/` | Migraciones (~50 tablas), seeders (los 20 juegos) y factories |
 | `public/` | Document root: `index.php` (front controller), `favicon.ico`, `robots.txt` |
-| `resources/` | `views/admin` (vista Blade mínima del panel de resultados), `css`/`js` para Vite |
-| `routes/` | `api.php` (negocio, `/api/v1`), `web.php` (panel admin), `console.php` (scheduler + comandos) |
+| `resources/` | `css`/`js` para Vite; sin vistas Blade (retiradas en #81) |
+| `routes/` | `api.php` (negocio, `/api/v1`), `console.php` (scheduler + comandos) |
 | `storage/` | Logs, caché, sesiones, temporales |
 | `tests/` | `Feature/` (integración por endpoint/job) y `Unit/` (scrapers, plugins, engine). `Fixtures/` con HTML/JSON reales |
 | `vendor/` | Dependencias Composer |
@@ -49,7 +49,7 @@ banca/grupo/taquilla/agencia con comisiones y cierres de caja.
 | `docs/`, `rutas.md` | Documentación: catálogo de juegos y superficie de la API |
 | `Dockerfile`, `entrypoint.sh` | Empaquetado y arranque: el entrypoint decide si el contenedor corre API, Horizon o scheduler, y solo la API migra |
 | `.env*` | Configuración por entorno |
-| `bootstrap/app.php` | Forzado a JSON puro (`shouldRenderJsonWhen(fn () => true)`), registra los alias `role`, `permission`, `checkrole`, `verify.mac` y el render de errores 401/403/404 |
+| `bootstrap/app.php` | Forzado a JSON puro (`shouldRenderJsonWhen(fn () => true)`), registra los alias `permission`, `role_or_permission`, `verify.mac` y el render de errores 401/403/404 |
 | `config/iconos-animales.php` | Config de negocio (iconos de los animales) |
 | `config/permission.php` | Config de spatie usada por la jerarquía real de roles |
 
@@ -59,10 +59,9 @@ banca/grupo/taquilla/agencia con comisiones y cierres de caja.
 |---|---|---|
 | `Console/Commands/` | Negocio | `resultados:reconciliar`, `resultados:metricas`, `juegos:export`, `ScrapeExchangeRate`, `AgenciasBackfill`, `TaquillasSanearActivas`, `ReleasePublishCommand` |
 | `Http/Controllers/Api/` | Negocio | ~22 controladores delgados (`ApuestaController`, `TicketController`, `ResultadoController`, `JuegoController`, `CierreController`, `ComisionController`, …): validan, autorizan y delegan en `Services` |
-| `Http/Controllers/Admin/` | Negocio | Panel admin interno (Blade mínimo + scraping manual legado) |
-| `Http/Middleware/` | Negocio | `VerifyMac` (huella MAC del dispositivo de taquilla), `CheckRole` |
+| `Http/Middleware/` | Negocio | `VerifyMac` (huella MAC del dispositivo de taquilla) |
 | `Http/Requests/` | Negocio | `ApuestaStoreRequest`: pide las reglas de validación **al plugin del juego**, así la forma de `combinacion` cambia por tipo de juego |
-| `Jobs/` | Negocio | `ScrapeSourceJob` (canónico, por fuente), `ScrapeResultsJob` (por juego, legado), `FetchResultsJob` (legado animalitos), `ScrapeExchangeRateJob`, `ExpireUnclaimedPrizesJob`, `MarcarApuestasVencidasJob` |
+| `Jobs/` | Negocio | `ScrapeSourceJob` (canónico, por fuente), `ScrapeResultsJob` (por juego, legado), `ScrapeExchangeRateJob`, `ExpireUnclaimedPrizesJob`, `MarcarApuestasVencidasJob` |
 | `Models/` | Negocio | Eloquent de dominio (`Apuesta`, `DetalleApuesta`, `Ticket`, `Juego`, `JuegoOpcion`, `JuegoHorario`, `JuegoLimite`, `Resultado`, `Pago`, jerarquía `Banca`/`Grupo`/`Agencia`/`Taquilla`, `ComisionDefault`, `CierreCaja`, …) |
 | `Plugins/Contracts/` | Negocio | `JuegoInterface` |
 | `Plugins/Juegos/` | Negocio | `Animalitos`, `Terminales`, `Tripletas` (plugins de **juego**) |
@@ -70,7 +69,7 @@ banca/grupo/taquilla/agencia con comisiones y cierres de caja.
 | `Policies/` | Convención + negocio | `ApuestaPolicy`, `UserPolicy` y las 6 policies del alcance (`Banca`, `Grupo`, `Agencia`, `Taquilla`, `Ticket`, `Cierre`) |
 | `Providers/` | Mixto | `AppServiceProvider` (estándar); `PluginServiceProvider` y `ScheduleServiceProvider` (negocio) |
 | `Services/` | Negocio | Corazón: `PremiosEngine`, `ApuestaService`, `JuegoPluginManager`, `PremiosConfigService`, `ScraperSourceResolver`, `ScraperSource`, `DrawReconciliationService`, `CierreService`, `ComisionService`, `ConfiguracionService`, `JuegoLimiteService`, `JuegoCatalogoService`, `ActivacionEfectivaService` |
-| `Support/` | Negocio | `PremiosOficiales` (catálogo en código de los 21 juegos), `Texto` (normalización), `Scope/AlcanceService` (jerarquía de alcance, ver §3.2) |
+| `Support/` | Negocio | `PremiosOficiales` (catálogo en código de los 20 juegos), `Texto` (normalización), `Scope/AlcanceService` (jerarquía de alcance, ver §3.2) |
 
 ### 3.1 Nota clave: hay DOS sistemas de plugins
 
@@ -174,7 +173,8 @@ del día marca las pendientes como `perdida`. El detalle completo está en la se
 
 ### 4.5 `PremiosOficiales`
 
-Fuente de verdad en código de los premios de los 21 juegos. `configPara($slug)`
+Fuente de verdad en código de los premios de los 20 juegos (tipos `animalitos|tripletas`; la
+jugada terminal es modalidad de `tripletas`). `configPara($slug)`
 construye el objeto que se escribe en `juegos.config` (lo usan los seeders y la
 migración de backfill), y mantiene los espejos legacy (`premio_multiplo`,
 `modalidades`) que consume `docs/juegos.json`.
@@ -187,7 +187,7 @@ migración de backfill), y mantiene los espejos legacy (`premio_multiplo`,
 app/Plugins/Scrapers/*                 ← cómo bajar/parsear
 app/Services/ScraperSourceResolver.php ← resuelve fuente y clase
 app/Services/ScraperSource.php         ← DTO de fuente
-app/Jobs/{ScrapeSourceJob,ScrapeResultsJob,FetchResultsJob}.php
+app/Jobs/{ScrapeSourceJob,ScrapeResultsJob}.php
 app/Providers/ScheduleServiceProvider.php ← el calendario
 app/Console/Commands/ReconciliarSorteos.php
 app/Services/DrawReconciliationService.php
@@ -270,7 +270,7 @@ schedule:work  → hora/+15/+30/+45 → ScrapeSourceJob ─ ¿faltan sorteos? �
 
 ```mermaid
 flowchart TD
-    A["ScrapeSourceJob / ScrapeResultsJob / FetchResultsJob<br/>o ResultadoController manual"] --> B["Scraper::execute(fecha)<br/>fetch + parse"]
+    A["ScrapeSourceJob / ScrapeResultsJob<br/>o ResultadoController manual"] --> B["Scraper::execute(fecha)<br/>fetch + parse"]
     B --> C["Scraper::saveResults()<br/>upsert en resultados"]
     C --> D[("resultados<br/>juego_id, fecha_sorteo, hora_sorteo,<br/>numeros_ganadores")]
 
@@ -347,8 +347,6 @@ flowchart TD
   varios juegos que comparten feed: Lotto Activo, RD, RD Rep. Dom., Monje. Guarda cada resultado con su
   `juego_id` y luego evalúa las apuestas de cada juego miembro.
 - `ScrapeResultsJob` trabaja **un juego** por job.
-- `FetchResultsJob` es el camino legacy: usa `AnimalitosScraper` sobre el feed completo de animalitos y
-  evalúa todos los resultados de la fecha que devolvió ese feed.
 - `verificarGanadores()` **no recorre todos los juegos**: filtra `where('juego_id', $resultado->juego_id)`.
 - Un ticket puede tener apuestas de varios juegos. Cuando llega el resultado de Lotto Activo, solo se
   actualiza la apuesta de Lotto Activo de ese ticket; la de Cazalotón sigue pendiente hasta que llegue
@@ -406,7 +404,6 @@ ejemplo `faltantes > sorteosRestantes` del día.
 | Scheduler por fuente/hora | `app/Providers/ScheduleServiceProvider.php` | `ScrapeSourceJob` por fuente, 4 pasadas por hora |
 | Reconciliación | `app/Console/Commands/ReconciliarSorteos.php` | Fuentes con sorteos esperados-faltantes; cierre 23:45 |
 | Scrape por juego | `app/Jobs/ScrapeResultsJob.php` | Un juego, fecha; dedupe por fecha/hora |
-| Scrape legacy | `app/Jobs/FetchResultsJob.php` | Feed completo de animalitos |
 | Manual API | `app/Http/Controllers/Api/ResultadoController.php` | Por fuente o por juego |
 | Catch-up de vencimiento | `app/Jobs/MarcarApuestasVencidasJob.php` | Relanza `ScrapeResultsJob` antes de vencer |
 | Pago/consulta | `PagoController`, `TicketController::ganadores` | No hacen settlement; leen o recalculan con evidencia |
@@ -417,7 +414,7 @@ No son lo mismo, aunque coloquialmente se usen como sinónimos:
 
 | Expresión | Significado preciso |
 |---|---|
-| “Llega un scraper” | El **job** del scraper corrió (`ScrapeSourceJob`, `ScrapeResultsJob` o `FetchResultsJob`) y ejecutó `Scraper::execute()` + `saveResults()`. |
+| “Llega un scraper” | El **job** del scraper corrió (`ScrapeSourceJob`, `ScrapeResultsJob`) y ejecutó `Scraper::execute()` + `saveResults()`. |
 | “Llega un resultado” | Ya existe una fila `resultados` persistida para un `juego_id`, `fecha_sorteo` y `hora_sorteo`; ese es el disparador real de `verificarGanadores()`. |
 
 Secuencia real:
@@ -446,26 +443,16 @@ Consecuencias:
 - Si el scraper no devuelve resultados, el job retorna antes de evaluar (`empty($resultados)`), así que
   “correr el scraper” sin datos no dispara evaluación.
 
-### 8.7 ¿Se puede prescindir de `FetchResultsJob`?
+### 8.7 `FetchResultsJob` (retirado en #81)
 
-**Sí, pero no en este cambio.** `FetchResultsJob` es el job legacy que usa `AnimalitosScraper` sobre el
-feed completo de lottoactivo.com y evalúa todos los resultados de la fecha.
+`FetchResultsJob` era el job legacy que usaba `AnimalitosScraper` sobre el feed completo de
+lottoactivo.com. Su único consumidor era la ruta web `POST /admin/resultados/scrape`, retirada junto
+con el panel legacy en #81.
 
-Uso actual verificado:
+Hoy el scraping manual vive solo en la API:
 
-| Uso | Archivo | ¿Producción? |
-|---|---|---|
-| Ruta web legacy `POST /admin/resultados/scrape` | `app/Http/Controllers/Admin/ResultadoController.php:40` | Solo panel admin legacy |
-| Test | `tests/Feature/FetchResultsJobTest.php` | Test |
-| Scheduler | — | **No**; el scheduler usa `ScrapeSourceJob` por fuente/hora |
-| API manual | `ResultadoController` API | **No**; usa `ScrapeSourceJob` / `ScrapeResultsJob` |
-
-Conclusión:
-
-- El camino nuevo (`ScrapeSourceJob` + `ScrapeResultsJob`) cubre el mismo feed y además otros juegos.
-- `FetchResultsJob` solo se usa desde el panel admin web legacy, que es el alcance del issue #81
-  (“eliminar el panel web legacy”).
-- Por eso conviene eliminarlo **junto con #81**: quitar la ruta `resultados.scrape`, el método
-  `Admin\ResultadoController::scrape`, el job y su test. Hacerlo en #63 mezclaría un cambio de dominio de
-  premios con la retirada del panel legacy.
-- Si el panel legacy se queda, `FetchResultsJob` debe quedarse; si se retira, el job queda huérfano.
+- `POST /api/v1/resultados/scrape` y `POST /api/v1/resultados/scrape-all`, protegidos por
+  `permission:manage_resultados`.
+- Los jobs canónicos son `ScrapeSourceJob` (por fuente/hora) y `ScrapeResultsJob` (por juego).
+- La cobertura de persistencia/dedupe de `AnimalitosScraper` se conserva en
+  `tests/Feature/AnimalitosScraperResultsTest.php`.

@@ -112,21 +112,15 @@ iteración del ciclo.
 
 ---
 
-## Backlog de catálogo — Juegos de terminales
+## Backlog de catálogo — Juegos de terminales (cerrado)
 
-- Estado: **ACLARADO** (no es un bug de la UI)
-- Consulta del usuario (test con logos): «en terminales solo tengo un solo juego, ¿debería ser así?»
-
-### Hallazgo (verificado contra el catálogo bundled `taquilla/src/data/juegos.json`)
-
-- El catálogo actual tiene **1 solo juego de tipo `terminales`**: `terminal-activo` (Terminal Activo). Los otros tipos: 11 animalitos, 9 tripletas.
-- La UI **no oculta** juegos por falta de logo: el render muestra todos los juegos del tipo activo y usa el nombre como respaldo si no hay imagen (todos tienen logo hoy).
-- Otros juegos de terminales vistos en el proveedor agregador **no están integrados** en nuestro catálogo todavía (ver `docs/cliente/comparacion-juegos.md`): `terminal-trio`, `terminal-la-granjita`, `triple-centena-terminal` (pendientes de integración).
-- Varios juegos de `tripletas` incluyen **modalidades** de terminal/punta (p. ej. trio-activo `punta`/`terminal`, triple-fácil `terminal`, la-ricachona terminal) pero pertenecen a la pestaña Tripletas según su `tipo`.
-
-### Próxima iteración (si el cliente quiere más terminales)
-
-- Integrar los juegos de terminales faltantes end-to-end: seeder/scraper backend + entrada en `docs/juegos.json` + copia bundled + logo en `public/images/juegos/` + manifest.
+- Estado: **RESUELTO (2026-11-05)**; el hallazgo histórico era correcto: no era un bug de la UI.
+- El tipo `terminales` y el juego *Terminal Activo* se retiraron del catálogo (20 juegos:
+  11 animalitos, 9 tripletas). La jugada terminal se vende como **modalidad** `terminal` de un
+  juego `tripletas` (`trio-activo`: 2 últimas cifras del triple vendido, 60×).
+- Los juegos de terminales del proveedor agregador (`terminal-trio`, `terminal-la-granjita`,
+  `triple-centena-terminal`) **no se integran como tipo propio**; si el cliente los quiere, se
+  evalúan como modalidad de un juego de `tripletas` (DEC-06 en `docs/dev/pendientes-front.md`).
 
 ---
 
@@ -136,8 +130,9 @@ iteración del ciclo.
       ventas/resultados/cuadre; la semántica de confirmación antes de
       descartar líneas sin generar queda diferida (F10 ya no aplica: es
       anular ticket).
-- [ ] **Semántica de premios punta/terminal de trio-activo**: requiere plugin
-      backend (fuera de alcance del ciclo; no tocar backend en esta iteración).
+- [x] **Semántica de premios punta/terminal de trio-activo**: resuelta por el motor
+      (`Tripletas::evaluarAcierto` liquida `terminal`/`punta`/`uña` contra el triple vendido,
+      60×); `ComisionService` aplica el tope de `tripletas` (25 %).
 - [ ] **Fingerprint localStorage por origen**: el fingerprint del dispositivo
       puede diferir entre dev y empaquetado; evaluar separación por origen.
 - [ ] **Mapa de teclas configurable (operador)**: hoy el `KEYMAP` está centralizado en `taquilla/src/utils/keyboard.ts` (tecla → acción/nombre/guarda), la leyenda y la ayuda derivan de él y los handlers despachan por NOMBRE de acción — intercambiar funciones entre dos teclas (p. ej. F1 ↔ F11) es editar el mapa en un solo lugar. Una UI de configuración para que el operador reasigne teclas queda como mejora futura.

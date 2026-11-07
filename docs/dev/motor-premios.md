@@ -29,7 +29,7 @@ Services: ApuestaService (venta/liquidacion) . JuegoPluginManager (fachada) . Co
    |        v
    |    Juego.config['premios']  .... valores oficiales (BD)
    |
-   +--> Plugins (Animalitos / Tripletas / Terminales) .... FORMA del acierto
+   +--> Plugins (Animalitos / Tripletas) .... FORMA del acierto
             evaluarAcierto()   (JuegoInterface)
 
 Catalogo de valores en codigo: App\Support\PremiosOficiales (fuente de seeders y migracion)
@@ -54,12 +54,11 @@ Ticket: `premio_total_bs/usd` se **acumula** (increment) entre sorteos; estado d
 | Archivo | Que hace |
 |---|---|
 | `backend/app/Services/PremiosEngine.php` | El dinero. `calcular()` (liquida), `calcularMultiSorteo()` (tripleta), `reglas()` (contrato para /reglas), `multiplicadorPara()`, `multiplicadorConComodines()` (privado), `evaluarAcierto()` (privado, via manager) |
-| `backend/app/Support/PremiosOficiales.php` | Catalogo unico en codigo (21 juegos): `todos()`, `para(slug)`, `slugs()`, `activo(slug)`, `configPara(slug)`; espejos legacy |
+| `backend/app/Support/PremiosOficiales.php` | Catalogo unico en codigo (20 juegos): `todos()`, `para(slug)`, `slugs()`, `activo(slug)`, `configPara(slug)`; espejos legacy |
 | `backend/app/Support/Texto.php` | `normalizar()`: sin acentos + minusculas (H13) |
 | `backend/app/Plugins/Contracts/JuegoInterface.php` | Contrato: `evaluarAcierto()`; `JuegoMultiSorteoInterface` es la capacidad opcional de tripleta; `calcularPremio()` y `obtenerMultiplicador()` quedan `@deprecated` (legacy pre-motor) |
 | `backend/app/Plugins/Juegos/Animalitos.php` | Forma animalitos: acentos, comodines (MEGA/Selva A-B/figura/palabra) y tripleta multi-sorteo. Todas las loterías de animalitos comparten este plugin; la carpeta por juego queda como refactor futuro. |
 | `backend/app/Plugins/Juegos/Tripletas.php` | Forma tripletas: tipo apostado (REQ5), signos label/sigla, posiciones (punta/terminal/una), aproximacion, arrimao/pegadito, `selecciones[]` (Cruzado / Par A+B) |
-| `backend/app/Plugins/Juegos/Terminales.php` | Forma terminales: clave `numero` del resultado con padding a 2 cifras (N1/N9) |
 | `backend/app/Services/JuegoPluginManager.php` | Fachada: `getPlugin`, `getPluginByJuegoId`, `validarApuesta` (con opciones del zoo), `calcularPremio`, `getOpciones`, `getValidationRules/Messages`, `getMultiplicador` |
 
 ### 4.2 Modelos
@@ -133,7 +132,6 @@ Ticket: `premio_total_bs/usd` se **acumula** (increment) entre sorteos; estado d
 | Acentos | `Texto::normalizar` en ambos lados ("Delfin" = "Delfin" con acento) |
 | Cifras | Padding: 3 cifras triples; 2 terminales/puntas; 4 arrimao; 5 pegadito |
 | Signos | Acepta LABEL ("Escorpio") o SIGLA ("ESC"); compara normalizado contra el resultado |
-| Terminal Activo | Liquida contra la clave `numero` del resultado (el bug historico leia `terminal` y nunca pagaba) |
 | Redondeo | `round(valor, 2, PHP_ROUND_HALF_UP)` por moneda apostada |
 | Juego inactivo | `calcular()` -> 0; `createApuesta` rechaza la venta |
 | Modalidad declarada desconocida | `createApuesta` rechaza con 422 (p. ej. `dupleta`; fuera de alcance) |
@@ -143,12 +141,13 @@ Ticket: `premio_total_bs/usd` se **acumula** (increment) entre sorteos; estado d
 ## 7. Modalidades soportadas (vista backend)
 
 Los payloads exactos de `combinacion` para el front estan en `docs/dev/integracion-front-motor-premios.md` (seccion 2).
-Resumen de claves canonicas por juego (valores en `config.premios.modalidades`):
+Resumen de claves canonicas por juego (valores en `config.premios.modalidades`).
+La jugada terminal NO es un juego ni un type propio: se apuesta como modalidad `terminal` de un
+juego `tripletas` (`trio-activo`) y liquida 60× sobre las 2 ultimas cifras del triple vendido.
 
 | Juego | Base | Claves de modalidad | Comodines |
 |---|---|---|---|
 | Lotto Activo (familia, 4 juegos) | 30 | (base) | - |
-| Terminal Activo / Terminal Trio | 60 | (base terminal) | - |
 | Trio Activo | 600 | `terminal` 60, `punta` 60 | - |
 | Triple Zulia | 600 | `terminal` 60, `signo_triple` 6000, `signo_terminal` 600 | - |
 | Triple Caliente | 600 | `terminal` 60, `signo_triple` 6000, `signo_terminal` 600 | - |
