@@ -1,0 +1,32 @@
+info:
+  name: Listar Eventos de Auditoría
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/v1/audit-events?per_page=25"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+  auth: inherit
+
+docs:
+  - |
+    # Listar eventos de auditoría
+    - Roles: SM | M (403 a otros roles)
+    - Autenticación: Sanctum + verify.mac — auth: inherit
+    - Cursor pagination: `next_cursor` / `prev_cursor`; orden `occurred_at DESC, id DESC`
+    - `per_page` default 25, máximo 100
+    - Filtros (claves desconocidas → 422): `action`, `domain`, `actor_id`, `actor_type`,
+      `entity_type`, `entity_id`, `from`, `to`, `request_id`, `reason_code`, `cursor`
+    - Ejemplos: `?action=user.deleted`, `?domain=user`, `?actor_type=system`,
+      `?from=2026-11-01&to=2026-11-07`, `?request_id=...`
+    - Respuesta: `{ data, next_cursor, prev_cursor }`; `before`/`after`/`context`
+      se re-redactan en lectura y no exponen la relación `User` completa
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

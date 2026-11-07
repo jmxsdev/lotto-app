@@ -199,9 +199,17 @@ Route::prefix('v1')->middleware([CaptureAuditContext::class])->group(function ()
         });
 
         // ==================================================
+        // AUDITORÍA — export CSV (export_audit: master vía matriz;
+        // super_master por bypass) con los mismos filtros y scope que la
+        // lectura. La ruta estática va antes del grupo de lectura.
+        // ==================================================
+        Route::get('/audit-events/export', [AuditEventController::class, 'export'])
+            ->middleware('permission:export_audit');
+
+        // ==================================================
         // AUDITORÍA — lectura con cursor (view_audit: master vía matriz;
         // super_master por bypass). El scope de filas lo acota
-        // AlcanceService::applyToAuditoria; el export queda para WU-9b.
+        // AlcanceService::applyToAuditoria.
         // ==================================================
         Route::middleware(['permission:view_audit'])->group(function () {
             Route::get('/audit-events', [AuditEventController::class, 'index']);

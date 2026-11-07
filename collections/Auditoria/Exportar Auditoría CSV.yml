@@ -1,0 +1,33 @@
+info:
+  name: Exportar Auditoría CSV
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/v1/audit-events/export?action=user.deleted&from=2026-11-01&to=2026-11-07"
+  headers:
+    - name: Authorization
+      value: Bearer {{token}}
+  auth: inherit
+
+docs:
+  - |
+    # Exportar eventos de auditoría (CSV)
+    - Roles: SM | M con `export_audit` (403 sin permiso)
+    - Autenticación: Sanctum + verify.mac — auth: inherit
+    - Mismos filtros y scope que `GET /audit-events`
+    - Respuesta: `text/csv; charset=UTF-8` con BOM UTF-8 y
+      `Content-Disposition: attachment; filename="audit-events-YYYYMMDD-HHMMSS.csv"`
+    - Tope `audit.export.max_rows` (default 50000); si se supera → 422 (acote filtros)
+    - Columnas: occurred_at, event_uuid, schema_version, action, actor_type, actor_id,
+      actor_label, actor_roles, entity_type, entity_id, banca_id, grupo_id, agencia_id,
+      taquilla_id, reason_code, reason_text, before, after, context, ip, user_agent,
+      request_id, job_id, hash, prev_hash
+    - Emite `audit.exported` (P1) con filtros, conteo, formato y estado
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -216,6 +216,7 @@ Ante un despliegue con caché viejo, `php artisan optimize:clear` (o
 | `/limites*` (escritura) | PUT, DELETE, POST | `permission:manage_limites` | master, banca, grupo |
 | `/logs` | GET | `permission:view_logs` | master |
 | `/audit-events` | GET | `permission:view_audit` | master (scope por banca) |
+| `/audit-events/export` | GET | `permission:export_audit` | master (scope por banca) |
 | `/comisiones/defaults` | GET, PUT | `permission:manage_comisiones` | solo bypass (`super_master`) |
 | `/comisiones/consulta` | GET | `permission:view_comisiones` | master |
 | `/reportes/*`, `/estadisticas/rendimiento` | GET | `permission:view_reports` | master, banca, grupo, agencia, taquilla |

@@ -3,18 +3,20 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\AuditExportService;
 use App\Services\AuditQueryService;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * Lectura paginada del histórico de auditoría.
+ * Lectura y export del histórico de auditoría.
  *
- * La autorización (`permission:view_audit`) vive en `routes/api.php`; aquí solo
- * se validan filtros, se rechazan claves desconocidas y se delega el scope en
- * `AuditQueryService`.
+ * La autorización (`permission:view_audit` / `permission:export_audit`) vive en
+ * `routes/api.php`; aquí solo se validan filtros, se rechazan claves
+ * desconocidas y se delega el scope en `AuditQueryService`.
  */
 class AuditEventController extends Controller
 {
@@ -38,6 +40,31 @@ class AuditEventController extends Controller
 
     public function index(Request $request, AuditQueryService $query): JsonResponse
     {
+        $filters = $this->validatedFilters($request);
+
+        return response()->json($query->page(
+            $request->user(),
+            $filters,
+            (int) ($filters['per_page'] ?? AuditQueryService::DEFAULT_PER_PAGE),
+            isset($filters['cursor']) ? (string) $filters['cursor'] : null,
+        ));
+    }
+
+    /**
+     * Stream a CSV export with the same filters and row scope as `index`.
+     */
+    public function export(Request $request, AuditExportService $export): StreamedResponse
+    {
+        return $export->stream($request->user(), $this->validatedFilters($request));
+    }
+
+    /**
+     * Reject unknown query keys and validate the shared read/export filters.
+     *
+     * @return array<string, mixed>
+     */
+    private function validatedFilters(Request $request): array
+    {
         $unknown = array_values(array_diff(array_keys($request->query()), self::ALLOWED_FILTERS));
 
         if ($unknown !== []) {
@@ -46,7 +73,7 @@ class AuditEventController extends Controller
             ]);
         }
 
-        $filters = $request->validate([
+        return $request->validate([
             'action' => ['nullable', 'string', 'regex:/^[a-z_]+(\.[a-z_]+)+$/'],
             'domain' => ['nullable', 'string', 'regex:/^[a-z_]+$/'],
             'actor_id' => ['nullable', 'integer'],
@@ -60,13 +87,6 @@ class AuditEventController extends Controller
             'per_page' => ['nullable', 'integer', 'min:1'],
             'cursor' => ['nullable', 'string'],
         ]);
-
-        return response()->json($query->page(
-            $request->user(),
-            $filters,
-            (int) ($filters['per_page'] ?? AuditQueryService::DEFAULT_PER_PAGE),
-            isset($filters['cursor']) ? (string) $filters['cursor'] : null,
-        ));
     }
 
     /**
