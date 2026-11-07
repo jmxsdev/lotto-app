@@ -100,7 +100,8 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     @media (max-width: 640px) { .auditoria-diff { grid-template-columns: 1fr; } }
   </style>
   <script>
-    import { apiFetch } from '../utils/api.ts'; import { icono } from '../utils/iconos.ts';
+    import { apiFetch, mergeReason } from '../utils/api.ts'; import { icono } from '../utils/iconos.ts';
+    import { openReasonModal } from '../utils/reason-modal.ts';
 
     const TIPOS_COMODIN = ['flag', 'letra', 'numero', 'palabra'];
     let games = [];
@@ -295,10 +296,12 @@ import AdminLayout from '../layouts/AdminLayout.astro';
         if (tipo === 'palabra' && r.querySelector('.kv-acumulativo').checked) comodin.acumulativo = true;
         premios.comodines[clave] = comodin;
       });
+      const reason = await openReasonModal({ title: 'Actualizar premios del juego', action: 'game.prizes_updated', required: true });
+      if (!reason) return;
       const estado = document.getElementById('save-estado');
       estado.textContent = 'Guardando...';
       try {
-        await apiFetch('PUT', '/juegos/' + editorJuego.id + '/premios', premios);
+        await apiFetch('PUT', '/juegos/' + editorJuego.id + '/premios', mergeReason(premios, reason));
         estado.textContent = 'Premios guardados.';
         load(); // refresca la tabla (premio_multiplo)
         await refreshEditor(); // auditoría nueva + form con lo persistido

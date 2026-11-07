@@ -44,7 +44,8 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     .checkbox-group { display: flex; gap: 20px; padding-top: 4px; } .checkbox-group label { display: flex; align-items: center; gap: 6px; font-weight: 400; cursor: pointer; } .checkbox-group input[type="checkbox"] { width: auto; margin: 0; }
   </style>
   <script>
-    import { apiFetch } from '../utils/api.ts'; import { showModal } from '../utils/modal.ts'; import { icono } from '../utils/iconos.ts';
+    import { apiFetch, mergeReason } from '../utils/api.ts'; import { showModal } from '../utils/modal.ts'; import { icono } from '../utils/iconos.ts';
+    import { openReasonModal } from '../utils/reason-modal.ts';
 
     async function load() {
       try {
@@ -95,9 +96,15 @@ import AdminLayout from '../layouts/AdminLayout.astro';
       if (tb) {
         const id = parseInt(tb.dataset.id);
         const activo = tb.dataset.active === '1';
-        showModal({ message: activo ? '¿Desactivar este master? Sus bancas quedarán pausadas según la cadena de activación.' : '¿Activar este master?', type: 'confirm' }).then(ok => {
+        showModal({ message: activo ? '¿Desactivar este master? Sus bancas quedarán pausadas según la cadena de activación.' : '¿Activar este master?', type: 'confirm' }).then(async ok => {
           if (!ok) return;
-          apiFetch('PUT', '/users/' + id, { active: !activo })
+          let payload = { active: !activo };
+          if (activo) {
+            const reason = await openReasonModal({ title: 'Desactivar master', action: 'user.deactivated', required: true });
+            if (!reason) return;
+            payload = mergeReason(payload, reason);
+          }
+          apiFetch('PUT', '/users/' + id, payload)
             .then(() => load())
             .catch(err => showModal({ message: err.message, type: 'error' }));
         });

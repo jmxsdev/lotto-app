@@ -198,6 +198,11 @@ import Icon from '../../components/Icon.astro';
           const created = res?.agencia || res?.data?.agencia || res;
           window.location.href = '/agencias/detalle?id=' + created.id + '&tab=informacion';
         } else {
+          if (String(agencia?.grupo_id ?? '') !== String(body.grupo_id ?? '')) {
+            const reason = await openReasonModal({ title: 'Cambiar grupo del local', action: 'agencia.banca_changed', required: true });
+            if (!reason) return;
+            Object.assign(body, mergeReason({}, reason));
+          }
           await apiFetch('PUT', '/agencias/' + agenciaId, body);
           await showModal({ message: 'Local actualizado correctamente.', type: 'success' });
           await loadAgencia();

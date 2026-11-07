@@ -178,11 +178,13 @@ import Icon from '../../components/Icon.astro';
   </style>
 
   <script>
-    import { apiFetch, getStoredUser, withReasonQuery } from '../../utils/api.ts';
+    import { apiFetch, getStoredUser, mergeReason, withReasonQuery } from '../../utils/api.ts';
     import { showModal } from '../../utils/modal.ts';
     import { getParam, initTabs } from '../../utils/tabs.ts';
     import { crearTablaLimites } from '../../utils/limites.ts';
     import { icono } from '../../utils/iconos.ts';
+    import { openReasonModal } from '../../utils/reason-modal.ts';
+    import { userUpdateReason } from '../../utils/user-reason.ts';
 
     const TABS = ['informacion', 'monedas', 'limites', 'usuarios'];
     const currentUser = getStoredUser() || {};
@@ -205,6 +207,7 @@ import Icon from '../../components/Icon.astro';
     let limitesInited = false;
     let usuariosInited = false;
     let userEditId = null;
+    let userEditOriginal = null;
 
     // ---------- Masters (super banca) ----------
 
@@ -543,6 +546,7 @@ import Icon from '../../components/Icon.astro';
 
     function openUserModal(u = null) {
       userEditId = u?.id || null;
+      userEditOriginal = u || null;
       const creating = !u;
       document.getElementById('user-modal-title').textContent = u ? 'Editar Usuario' : 'Nuevo Usuario';
       const f = document.getElementById('user-form');
@@ -584,7 +588,7 @@ import Icon from '../../components/Icon.astro';
       openUserModal();
     });
 
-    document.getElementById('btn-user-cancel').addEventListener('click', () => document.getElementById('user-modal').style.display = 'none');
+    document.getElementById('btn-user-cancel').addEventListener('click', () => { userEditOriginal = null; document.getElementById('user-modal').style.display = 'none'; });
 
     document.getElementById('user-form').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -602,6 +606,14 @@ import Icon from '../../components/Icon.astro';
       if (roleSel === 'banca') body.banca_id = bancaId;
       else if (roleSel === 'grupo') { body.banca_id = bancaId; body.grupo_id = f.grupo_id.value || null; }
       else if (roleSel === 'taquilla') { body.grupo_id = f.grupo_id.value || null; body.taquilla_id = f.taquilla_id.value || null; }
+      if (userEditId) {
+        const req = userUpdateReason(userEditOriginal, { role: body.role, active: body.active });
+        if (req) {
+          const reason = await openReasonModal({ title: req.title, action: req.action, required: true });
+          if (!reason) return;
+          Object.assign(body, mergeReason({}, reason));
+        }
+      }
       try {
         if (userEditId) await apiFetch('PUT', '/users/' + userEditId, body);
         else await apiFetch('POST', '/users', body);
@@ -622,9 +634,11 @@ import Icon from '../../components/Icon.astro';
       }
       if (db) {
         const id = parseInt(db.dataset.id);
-        showModal({ message: '¿Eliminar usuario?', type: 'confirm' }).then(ok => {
+        showModal({ message: '¿Eliminar usuario?', type: 'confirm' }).then(async ok => {
           if (!ok) return;
-          apiFetch('DELETE', '/users/' + id)
+          const reason = await openReasonModal({ title: 'Eliminar usuario', action: 'user.deleted', required: true });
+          if (!reason) return;
+          apiFetch('DELETE', withReasonQuery('/users/' + id, reason))
             .then(() => loadUsers())
             .catch(err => showModal({ message: err.message, type: 'error' }));
         });

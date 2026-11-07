@@ -36,11 +36,14 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     .checkbox-group { display: flex; gap: 20px; padding-top: 4px; } .checkbox-group label { display: flex; align-items: center; gap: 6px; font-weight: 400; cursor: pointer; } .checkbox-group input[type="checkbox"] { width: auto; margin: 0; }
   </style>
   <script>
-    import { apiFetch } from '../utils/api.ts'; import { showModal } from '../utils/modal.ts'; import { icono } from '../utils/iconos.ts';
+    import { apiFetch, mergeReason, withReasonQuery } from '../utils/api.ts'; import { showModal } from '../utils/modal.ts'; import { icono } from '../utils/iconos.ts';
+    import { openReasonModal } from '../utils/reason-modal.ts';
+    import { userUpdateReason } from '../utils/user-reason.ts';
 
     const currentUser = JSON.parse(localStorage.getItem('panel_user') || '{}');
     const currentRole = currentUser.role || '';
     let editId = null;
+    let editUserOriginal = null;
     let bancas = []; let grupos = []; let agencias = []; let taquillas = [];
 
     const ROLE_LABELS = { super_master: 'Super Master', master: 'Master', banca: 'Banca', grupo: 'Grupo', agencia: 'Agencia', taquilla: 'Taquilla' };
@@ -123,6 +126,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
 
     async function openModal(u = null) {
       editId = u?.id || null;
+      editUserOriginal = u || null;
       const creating = !u;
       document.getElementById('modal-title').textContent = u ? 'Editar Usuario' : 'Nuevo Usuario';
       f.name.value = u?.name || '';
@@ -159,7 +163,7 @@ import AdminLayout from '../layouts/AdminLayout.astro';
     f.grupo_id.addEventListener('change', () => { renderAgencias(f.grupo_id.value); renderTaquillas(f.grupo_id.value); f.agencia_id.value = ''; f.taquilla_id.value = ''; });
 
     document.getElementById('btn-create').addEventListener('click', () => openModal());
-    document.getElementById('btn-cancel').addEventListener('click', () => document.getElementById('modal').style.display = 'none');
+    document.getElementById('btn-cancel').addEventListener('click', () => { editUserOriginal = null; document.getElementById('modal').style.display = 'none'; });
 
     f.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -177,6 +181,14 @@ import AdminLayout from '../layouts/AdminLayout.astro';
       else if (role === 'grupo') { body.banca_id = f.banca_id.value || null; body.grupo_id = f.grupo_id.value || null; }
       else if (role === 'agencia') { body.agencia_id = f.agencia_id.value || null; }
       else if (role === 'taquilla') { body.grupo_id = f.grupo_id.value || null; body.taquilla_id = f.taquilla_id.value || null; }
+      if (editId) {
+        const req = userUpdateReason(editUserOriginal, { role: body.role, active: body.active });
+        if (req) {
+          const reason = await openReasonModal({ title: req.title, action: req.action, required: true });
+          if (!reason) return;
+          Object.assign(body, mergeReason({}, reason));
+        }
+      }
       try {
         if (editId) await apiFetch('PUT', '/users/' + editId, body);
         else await apiFetch('POST', '/users', body);
@@ -194,9 +206,11 @@ import AdminLayout from '../layouts/AdminLayout.astro';
       }
       if (db) {
         const id = parseInt(db.dataset.id);
-        showModal({ message: '¿Eliminar usuario?', type: 'confirm' }).then(ok => {
+        showModal({ message: '¿Eliminar usuario?', type: 'confirm' }).then(async ok => {
           if (!ok) return;
-          apiFetch('DELETE', '/users/' + id).then(() => load()).catch(err => showModal({ message: err.message, type: 'error' }));
+          const reason = await openReasonModal({ title: 'Eliminar usuario', action: 'user.deleted', required: true });
+          if (!reason) return;
+          apiFetch('DELETE', withReasonQuery('/users/' + id, reason)).then(() => load()).catch(err => showModal({ message: err.message, type: 'error' }));
         });
       }
     });
