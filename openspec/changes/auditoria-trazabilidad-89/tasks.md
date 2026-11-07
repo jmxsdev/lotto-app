@@ -94,9 +94,10 @@ Chain strategy: feature-branch-chain
 | 11a-1 | build ✓ | — | ✅ |
 | 11a-2 | build ✓ | — | ✅ |
 | 11a-3 | build ✓ | — | ✅ |
-| **Total** | **867** | **7.726** | **backend hasta 9b + 10a/10b/11a-1/11a-2/11a-3 build** |
+| 11b | 6 | 40 | ✅ |
+| **Total** | **873** | **7.766** | **backend hasta 11b + 10a/10b/11a build** |
 
-Pendientes: 11b, 12a, 12b, 13.
+Pendientes: 12a, 12b, 13.
 
 **Topología** (Feature Branch Chain): cada rama hija se basa en su padre inmediato;
 el tracker acumula todo y solo él mergea a `main` al cierre.
@@ -214,7 +215,7 @@ inmutable, el value object de scope, el cast UTC, el modelo `AuditEvent` append-
 > | **1a-2** | `AuditAction` (67 casos) + `ReasonPolicy` + `AuditActionTest` | ~577 | `feat/89-wu-1a2-taxonomia` |
 > | **1a-3** | `AuditEventData` + `AuditEventDataTest` | ~443 | `feat/89-wu-1a3-dto` |
 >
-> **Estado:** 1a-1 implementado (20 tests, 47 assertions); 1a-2 implementado (60 tests, 516 assertions); 1a-3 implementado (12 tests, 49 assertions); 1b-1a implementado (15 tests, 49 assertions); 1b-1b implementado (19 tests, 27 assertions); 1b-1c implementado (13 tests, 50 assertions); 1b-2a implementado (11 tests, 47 assertions); 1b-2b implementado (16 tests, 241 assertions); 2a implementado (10 tests, 57 assertions); 2b implementado (9 tests, 87 assertions); 3a-1 implementado (5 tests, 41 assertions); 3a-2 implementado (18 tests, 126 assertions); 3b implementado (19 tests, 104 assertions); 4 implementado (40 tests, 199 assertions); 5a implementado (58 tests, 423 assertions); 5b-1 implementado (29 tests, 216 assertions); 5b-2 implementado (40 tests, 437 assertions); 6a implementado (44 tests, 2.340 assertions); 6b implementado (76 tests, 648 assertions); 7a-1 implementado (57 tests, 279 assertions); 7a-2 implementado (59 tests, 293 assertions); 7b-1 implementado (10 tests, 108 assertions; gate completo 70 verdes); 7b-2 implementado (78 tests, 345 assertions); 8a-1/8a-2 implementado (26 tests, 242 assertions); 8b implementado (40 tests, 378 assertions, 1 skipped); 9a implementado (49 tests, 201 assertions); 9b implementado (34 tests, 176 assertions); 10a implementado (build panel verde); 10b implementado (build panel verde); 11a-1 implementado (build panel verde); 11a-2 implementado (build panel verde); 11a-3 implementado (build panel verde) el 2026-11-07.
+> **Estado:** 1a-1 implementado (20 tests, 47 assertions); 1a-2 implementado (60 tests, 516 assertions); 1a-3 implementado (12 tests, 49 assertions); 1b-1a implementado (15 tests, 49 assertions); 1b-1b implementado (19 tests, 27 assertions); 1b-1c implementado (13 tests, 50 assertions); 1b-2a implementado (11 tests, 47 assertions); 1b-2b implementado (16 tests, 241 assertions); 2a implementado (10 tests, 57 assertions); 2b implementado (9 tests, 87 assertions); 3a-1 implementado (5 tests, 41 assertions); 3a-2 implementado (18 tests, 126 assertions); 3b implementado (19 tests, 104 assertions); 4 implementado (40 tests, 199 assertions); 5a implementado (58 tests, 423 assertions); 5b-1 implementado (29 tests, 216 assertions); 5b-2 implementado (40 tests, 437 assertions); 6a implementado (44 tests, 2.340 assertions); 6b implementado (76 tests, 648 assertions); 7a-1 implementado (57 tests, 279 assertions); 7a-2 implementado (59 tests, 293 assertions); 7b-1 implementado (10 tests, 108 assertions; gate completo 70 verdes); 7b-2 implementado (78 tests, 345 assertions); 8a-1/8a-2 implementado (26 tests, 242 assertions); 8b implementado (40 tests, 378 assertions, 1 skipped); 9a implementado (49 tests, 201 assertions); 9b implementado (34 tests, 176 assertions); 10a implementado (build panel verde); 10b implementado (build panel verde); 11a-1 implementado (build panel verde); 11a-2 implementado (build panel verde); 11a-3 implementado (build panel verde); 11b implementado (6 tests, 40 assertions; build panel verde) el 2026-11-07.
 >
 > Gates por slice:
 > ```bash
@@ -805,10 +806,10 @@ escape y banner “operativo”; `LogController` con allowlist de acciones opera
 - Crear: `backend/tests/Feature/LogsOperativoTest.php`
 
 **Tareas ordenadas**:
-- [ ] `LogController::index`: paginador Laravel (`data`, `current_page`, `last_page`, `total`); `whereIn('action', config('audit.logs.operational_actions'))`; filtros `action/from/to/per_page`
-- [ ] `logs.astro`: leer `res.data` (no `logs.filter`); paginación “Anterior/Siguiente”; `textContent` en celdas; `details` como `<pre>` JSON
-- [ ] Banner “Registro operativo (no es auditoría). Para evidencia de cambios, use Auditoría.”
-- [ ] Acceso `permission:view_logs` (403 sin permiso)
+- [x] `LogController::index`: paginador Laravel (`data`, `current_page`, `last_page`, `total`); `whereIn('action', config('audit.logs.operational_actions'))`; filtros `action/from/to/per_page`
+- [x] `logs.astro`: leer `res.data` (no `logs.filter`); paginación “Anterior/Siguiente”; `textContent` en celdas; `details` como `<pre>` JSON
+- [x] Banner “Registro operativo (no es auditoría). Para evidencia de cambios, use Auditoría.”
+- [x] Acceso `permission:view_logs` (403 sin permiso)
 
 **Tests a escribir**:
 - `LogsOperativoTest` — contrato paginador, allowlist, 403 sin permiso
