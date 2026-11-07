@@ -210,6 +210,6 @@ class AuditoriaPagoLegacyTest extends TestCase
         $this->assertSame('ganadora', $apuesta->fresh()->estado);
         $this->assertEquals(300.0, (float) $detalle->fresh()->premio_ganado);
         $this->assertSame('ganador', $ticket->fresh()->estado);
-        $this->assertSame(0, AuditEvent::count());
+        $this->assertSame(0, AuditEvent::where('action', '!=', 'permission.catalog_synced')->count());
     }
 }

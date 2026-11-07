@@ -274,7 +274,7 @@ class AuditoriaJobsDineroTest extends TestCase
 
         $this->assertSame($totalAntes, ExchangeRate::count());
         $this->assertFalse(ExchangeRate::where('rate', 36.50)->exists());
-        $this->assertSame(0, AuditEvent::count());
+        $this->assertSame(0, AuditEvent::where('action', '!=', 'permission.catalog_synced')->count());
 
         $anterior->refresh();
         $this->assertTrue($anterior->is_active);
@@ -329,7 +329,7 @@ class AuditoriaJobsDineroTest extends TestCase
         foreach ($apuestas as $apuesta) {
             $this->assertSame('pendiente', $apuesta->fresh()->estado);
         }
-        $this->assertSame(0, AuditEvent::count());
+        $this->assertSame(0, AuditEvent::where('action', '!=', 'permission.catalog_synced')->count());
     }
 
     // ------------------------------------------------------------------
@@ -382,6 +382,6 @@ class AuditoriaJobsDineroTest extends TestCase
 
         $this->assertSame('pendiente', $apuestaA->fresh()->estado);
         $this->assertSame('pendiente', $apuestaB->fresh()->estado);
-        $this->assertSame(0, AuditEvent::count());
+        $this->assertSame(0, AuditEvent::where('action', '!=', 'permission.catalog_synced')->count());
     }
 }

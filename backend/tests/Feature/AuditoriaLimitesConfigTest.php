@@ -161,7 +161,7 @@ class AuditoriaLimitesConfigTest extends TestCase
         $this->assertNull($actualizado->reason_code);
         $this->assertEquals(900.0, (float) $limite->fresh()->limite_maximo);
         $this->assertSinSecretos($actualizado);
-        $this->assertSame(2, AuditEvent::count());
+        $this->assertSame(2, AuditEvent::where('action', '!=', 'permission.catalog_synced')->count());
     }
 
     public function test_update_con_null_explicito_elimina_la_fila_y_registra_after_null(): void
@@ -207,7 +207,10 @@ class AuditoriaLimitesConfigTest extends TestCase
             ->assertStatus(500);
 
         $this->assertEquals(100.0, (float) $limite->fresh()->limite_maximo, 'El límite debe revertirse.');
-        $this->assertDatabaseCount('audit_events', 0);
+        $this->assertSame(
+            0,
+            AuditEvent::where('action', '!=', 'permission.catalog_synced')->count(),
+        );
     }
 
     // --- game.limits_batch_updated (P1 best-effort) ---
@@ -255,7 +258,7 @@ class AuditoriaLimitesConfigTest extends TestCase
         $this->assertEquals(250.0, (float) JuegoLimite::where('juego_id', $juego->id)
             ->where('moneda', 'bs')
             ->value('limite_maximo'));
-        $this->assertSame(1, AuditEvent::count());
+        $this->assertSame(1, AuditEvent::where('action', '!=', 'permission.catalog_synced')->count());
     }
 
     // --- game.limit_deleted (P1 best-effort) ---
@@ -298,7 +301,7 @@ class AuditoriaLimitesConfigTest extends TestCase
             ->assertStatus(200);
 
         $this->assertDatabaseMissing('juego_limites', ['id' => $otro->id]);
-        $this->assertSame(1, AuditEvent::count());
+        $this->assertSame(1, AuditEvent::where('action', '!=', 'permission.catalog_synced')->count());
     }
 
     // --- config.bet_expiration_window_updated (P1 best-effort) ---
@@ -337,6 +340,6 @@ class AuditoriaLimitesConfigTest extends TestCase
 
         $this->assertSame(1, Configuracion::count());
         $this->assertSame(24, Configuracion::firstOrFail()->value['horas']);
-        $this->assertSame(1, AuditEvent::count());
+        $this->assertSame(1, AuditEvent::where('action', '!=', 'permission.catalog_synced')->count());
     }
 }

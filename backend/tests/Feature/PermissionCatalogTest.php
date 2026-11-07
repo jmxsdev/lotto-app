@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AuditEvent;
 use App\Models\Juego;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -82,6 +83,27 @@ class PermissionCatalogTest extends TestCase
             Permission::query()->whereIn('name', ['manage_users', 'manage_apuestas'])->count(),
             '`manage_users` y `manage_apuestas` no deben existir en el catálogo.',
         );
+    }
+
+    public function test_el_seeder_emite_permission_catalog_synced(): void
+    {
+        $event = AuditEvent::query()->where('action', 'permission.catalog_synced')->sole();
+
+        $this->assertSame('system', $event->actor_type);
+        $this->assertSame('seeder:RolesAndPermissionsSeeder', $event->actor_label);
+        $this->assertSame('permission_catalog', $event->entity_type);
+        $this->assertSame('seeder', $event->context['source']);
+        $this->assertSame('api', $event->context['guard']);
+        $this->assertSame(36, $event->context['permissions']);
+        $this->assertEquals([
+            'master' => 35,
+            'banca' => 24,
+            'grupo' => 21,
+            'agencia' => 17,
+            'taquilla' => 12,
+            'super_master' => 0,
+        ], $event->context['roles']);
+        $this->assertSame('unspecified', $event->reason_code);
     }
 
     /**

@@ -461,7 +461,7 @@ class AuditoriaTaquillaTest extends TestCase
             'authorization', 'created_at', 'updated_at', 'deleted_at',
         ];
 
-        $this->assertSame(5, AuditEvent::count());
+        $this->assertSame(5, AuditEvent::where('action', '!=', 'permission.catalog_synced')->count());
         $this->assertSame($banca->id, $this->lastEvent('taquilla.updated')->banca_id);
 
         $payload = json_encode(AuditEvent::all()->map(fn (AuditEvent $event): array => [

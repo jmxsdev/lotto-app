@@ -85,7 +85,10 @@ class AuditoriaMigracionJuegoTest extends TestCase
         $migration = require database_path('migrations/2026_11_05_000003_migrate_juego_auditoria_to_audit_events.php');
         $migration->up();
 
-        $this->assertSame(count($rows), DB::table('audit_events')->count());
+        $this->assertSame(
+            count($rows),
+            DB::table('audit_events')->where('action', '!=', 'permission.catalog_synced')->count(),
+        );
 
         $expectedOccurredAt = CarbonImmutable::parse($createdAt, config('app.timezone'))
             ->utc()
@@ -129,7 +132,10 @@ class AuditoriaMigracionJuegoTest extends TestCase
         // Re-running the migration must be a no-op (unique event_uuid).
         $migration->up();
 
-        $this->assertSame(count($rows), DB::table('audit_events')->count());
+        $this->assertSame(
+            count($rows),
+            DB::table('audit_events')->where('action', '!=', 'permission.catalog_synced')->count(),
+        );
     }
 
     public function test_juego_auditoria_no_admite_escrituras_del_modelo(): void

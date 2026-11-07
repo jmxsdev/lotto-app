@@ -395,7 +395,7 @@ class AuditoriaAgenciaTest extends TestCase
             'secret', 'api_key', 'authorization', 'created_at', 'updated_at', 'deleted_at',
         ];
 
-        $this->assertSame(4, AuditEvent::count());
+        $this->assertSame(4, AuditEvent::where('action', '!=', 'permission.catalog_synced')->count());
         $this->assertSame($banca->id, $this->lastEvent('agencia.updated')->banca_id);
 
         foreach (AuditEvent::all() as $event) {

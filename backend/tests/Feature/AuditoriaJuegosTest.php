@@ -113,7 +113,10 @@ class AuditoriaJuegosTest extends TestCase
             ->assertStatus(200);
 
         $this->assertSame('Nombre con auditoría caída', $juego->fresh()->name);
-        $this->assertDatabaseCount('audit_events', 0);
+        $this->assertSame(
+            0,
+            AuditEvent::where('action', '!=', 'permission.catalog_synced')->count(),
+        );
     }
 
     // --- game.toggled (P0 fail-closed) ---
@@ -153,7 +156,10 @@ class AuditoriaJuegosTest extends TestCase
 
         $this->assertTrue($juego->fresh()->active, 'El toggle debe revertirse.');
         $this->assertTrue($plugin->fresh()->active, 'El plugin debe revertirse.');
-        $this->assertDatabaseCount('audit_events', 0);
+        $this->assertSame(
+            0,
+            AuditEvent::where('action', '!=', 'permission.catalog_synced')->count(),
+        );
     }
 
     // --- game.prizes_updated (P0 + required reason) ---
@@ -245,7 +251,7 @@ class AuditoriaJuegosTest extends TestCase
             ])
             ->assertStatus(200);
 
-        $this->assertSame(3, AuditEvent::count());
+        $this->assertSame(3, AuditEvent::where('action', '!=', 'permission.catalog_synced')->count());
 
         foreach (AuditEvent::all() as $event) {
             foreach (['before', 'after', 'context'] as $column) {

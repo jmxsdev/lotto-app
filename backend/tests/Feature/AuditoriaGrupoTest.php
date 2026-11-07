@@ -142,7 +142,10 @@ class AuditoriaGrupoTest extends TestCase
         $this->assertDatabaseMissing('grupos', ['code' => 'GAUFAIL']);
         $this->assertDatabaseMissing('users', ['email' => 'operador-grupo@test.com']);
         $this->assertDatabaseMissing('audit_events', ['action' => 'user.created']);
-        $this->assertSame(0, AuditEvent::count());
+        $this->assertSame(
+            0,
+            AuditEvent::where('action', '!=', 'permission.catalog_synced')->count(),
+        );
     }
 
     // --- update: grupo.updated (P1) ---
@@ -376,7 +379,7 @@ class AuditoriaGrupoTest extends TestCase
             'secret', 'api_key', 'authorization', 'created_at', 'updated_at', 'deleted_at',
         ];
 
-        $this->assertSame(5, AuditEvent::count());
+        $this->assertSame(5, AuditEvent::where('action', '!=', 'permission.catalog_synced')->count());
 
         foreach (AuditEvent::all() as $event) {
             foreach (['before', 'after', 'context'] as $column) {

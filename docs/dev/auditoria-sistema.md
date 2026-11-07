@@ -30,6 +30,7 @@
 | Dinero (tasas, comisiones, cierre, pagos, anulaciones) | `ticket.created`, `bet.created`, `pago.income_created` (ya son negocio) |
 | Juegos, premios, límites y ventana de vencimiento | Fallos de cola y 403 genéricos |
 | Jobs de sistema, resultados, releases y comandos | Update-check y feed de releases |
+| Sincronización del catálogo de permisos (`permission.catalog_synced`, seeder) | — |
 
 Los eventos se nombran `domain.verb` con un enum cerrado (`App\Audit\AuditAction`):
 `auth.login_succeeded`, `user.role_changed`, `exchange_rate.scraped`,
@@ -55,6 +56,11 @@ Reglas de prioridad:
 
 `AUDIT_FAIL_CLOSED` y `AUDIT_FAIL_CLOSED_DOMAINS` controlan qué dominios P0
 abortan la operación. Con `*` (default) todos los P0 son fail-closed.
+
+El seeder `RolesAndPermissionsSeeder` emite `permission.catalog_synced` P1
+best-effort con `context.guard`, `context.permissions` y `context.roles`. Si
+`audit_events` todavía no existe, el recorder absorbe el fallo y el seeder
+continúa.
 
 Motivos: cada acción declara `required`, `optional` o `automatic` (`ReasonPolicy`).
 Un motivo requerido ausente devuelve 422 y, en P0, revierte.
@@ -314,6 +320,10 @@ docker exec lotto_scheduler_prod php artisan schedule:list
 | `AUDIT_FAIL_CLOSED` | `true` | `false` degrada P0 a best-effort (solo emergencia). |
 | `AUDIT_FAIL_CLOSED_DOMAINS` | `*` | CSV de dominios fail-closed; se amplía por fase. |
 | `AUDIT_HASH_CHAIN` | `false` | Activa la cadena criptográfica. |
+
+Estos flags (más `AUDIT_HOT_MONTHS`, `AUDIT_ARCHIVE_YEARS`, `AUDIT_ARCHIVE_PATH`,
+`AUDIT_ARCHIVE_DISK` y `AUDIT_RETENTION_CONNECTION`) están en
+`backend/.env.example` con los mismos defaults de `backend/config/audit.php`.
 
 Fases: esquema aditivo → shadow/dual-write → cutover de lectura → fail-closed por
 dominio → migración legacy → cierre. Cada WU se revierte con `git revert`.

@@ -263,6 +263,9 @@ class AuditoriaAuthTest extends TestCase
         $response->assertStatus(500);
 
         $this->assertDatabaseCount('personal_access_tokens', 0);
-        $this->assertDatabaseCount('audit_events', 0);
+        $this->assertSame(
+            0,
+            AuditEvent::where('action', '!=', 'permission.catalog_synced')->count(),
+        );
     }
 }

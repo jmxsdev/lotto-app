@@ -2,6 +2,10 @@
 
 namespace Database\Seeders;
 
+use App\Audit\AuditAction;
+use App\Audit\AuditContext;
+use App\Audit\AuditEventData;
+use App\Audit\AuditRecorder;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -176,6 +180,30 @@ class RolesAndPermissionsSeeder extends Seeder
             ->syncPermissions([]);
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $context = app(AuditContext::class);
+        $context->reset();
+        $context->forSystem('seeder:RolesAndPermissionsSeeder', null, null, 'seeder');
+
+        try {
+            app(AuditRecorder::class)->record(
+                AuditAction::PermissionCatalogSynced,
+                new AuditEventData(
+                    action: AuditAction::PermissionCatalogSynced,
+                    entityType: 'permission_catalog',
+                    context: [
+                        'guard' => 'api',
+                        'permissions' => count(self::PERMISSIONS),
+                        'roles' => array_merge(
+                            array_map('count', self::MATRIX),
+                            ['super_master' => 0],
+                        ),
+                    ],
+                ),
+            );
+        } finally {
+            $context->reset();
+        }
 
         $this->command->info('Roles y permisos creados correctamente.');
     }

@@ -190,7 +190,13 @@ class AuditoriaComandosTest extends TestCase
         $this->artisan('audit:backfill', ['--source' => 'juego_auditoria', '--apply' => true])
             ->assertExitCode(0);
 
-        $this->assertSame(4, DB::table('audit_events')->where('action', '!=', 'backfill.completed')->count());
+        $this->assertSame(
+            4,
+            DB::table('audit_events')
+                ->where('action', '!=', 'backfill.completed')
+                ->where('action', '!=', 'permission.catalog_synced')
+                ->count(),
+        );
 
         foreach ($rows as $index => $row) {
             $event = $this->eventByUuid(sha1('juego_auditoria:'.$ids[$index]));
@@ -214,7 +220,13 @@ class AuditoriaComandosTest extends TestCase
         $this->artisan('audit:backfill', ['--source' => 'juego_auditoria', '--apply' => true])
             ->assertExitCode(0);
 
-        $this->assertSame(4, DB::table('audit_events')->where('action', '!=', 'backfill.completed')->count());
+        $this->assertSame(
+            4,
+            DB::table('audit_events')
+                ->where('action', '!=', 'backfill.completed')
+                ->where('action', '!=', 'permission.catalog_synced')
+                ->count(),
+        );
 
         $completed = DB::table('audit_events')->where('action', 'backfill.completed')->orderBy('id')->get();
         $second = json_decode($completed[1]->context, true);

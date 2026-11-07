@@ -57,7 +57,11 @@ class AuditoriaExportTest extends TestCase
     {
         parent::setUp();
 
+        // The permission catalog sync event emitted by the seeder is irrelevant
+        // to the export contract; keep the fixture event list deterministic.
+        config(['audit.enabled' => false]);
         $this->seed(RolesAndPermissionsSeeder::class);
+        config(['audit.enabled' => true]);
     }
 
     private function userWithRole(string $role, array $attributes = []): User

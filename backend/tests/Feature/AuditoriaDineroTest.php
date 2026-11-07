@@ -266,7 +266,10 @@ class AuditoriaDineroTest extends TestCase
         $this->assertDatabaseCount('exchange_rates', 1);
         $this->assertFalse(ExchangeRate::query()->where('rate', 42.00)->exists());
         $this->assertSame(1, ExchangeRate::where('is_active', true)->count());
-        $this->assertDatabaseCount('audit_events', 0);
+        $this->assertSame(
+            0,
+            AuditEvent::where('action', '!=', 'permission.catalog_synced')->count(),
+        );
     }
 
     public function test_update_hace_rollback_si_falla_la_auditoria(): void
@@ -282,7 +285,10 @@ class AuditoriaDineroTest extends TestCase
             ->assertStatus(500);
 
         $this->assertSame($originalRate, $rate->refresh()->rate);
-        $this->assertDatabaseCount('audit_events', 0);
+        $this->assertSame(
+            0,
+            AuditEvent::where('action', '!=', 'permission.catalog_synced')->count(),
+        );
     }
 
     public function test_update_defaults_hace_rollback_si_falla_la_auditoria(): void
@@ -298,7 +304,10 @@ class AuditoriaDineroTest extends TestCase
         $this->assertSame(2, ComisionDefault::count());
         $this->assertNull(ComisionDefault::where('moneda', 'bs')->firstOrFail()->porcentaje_pago);
         $this->assertNull(ComisionDefault::where('moneda', 'usd')->firstOrFail()->porcentaje_pago);
-        $this->assertDatabaseCount('audit_events', 0);
+        $this->assertSame(
+            0,
+            AuditEvent::where('action', '!=', 'permission.catalog_synced')->count(),
+        );
     }
 
     // --- Sin secretos ni timestamps ---
