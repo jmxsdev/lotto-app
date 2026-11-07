@@ -2,6 +2,11 @@
 
 namespace App\Jobs;
 
+use App\Audit\AuditAction;
+use App\Audit\AuditContext;
+use App\Audit\AuditEventData;
+use App\Audit\AuditRecorder;
+use App\Audit\AuditScopeResolver;
 use App\Models\Apuesta;
 use App\Models\Ticket;
 use Carbon\Carbon;
@@ -33,6 +38,26 @@ class ExpireUnclaimedPrizesJob implements ShouldQueue
     {
         Log::info('=== INICIO ExpireUnclaimedPrizesJob ===');
 
+        $context = app(AuditContext::class);
+        $context->reset();
+        $context->forSystem(
+            'job:ExpireUnclaimedPrizesJob',
+            $this->jobId(),
+            $this->queueName(),
+            'job',
+        );
+
+        try {
+            $this->execute();
+        } finally {
+            $context->reset();
+        }
+
+        Log::info('=== FIN ExpireUnclaimedPrizesJob ===');
+    }
+
+    private function execute(): void
+    {
         // Query unificada: resuelve la vigencia efectiva con COALESCE en SQL,
         // luego compara la antigüedad del ticket en PHP para ser compatible con
         // SQLite (testing) y MySQL (producción) sin depender de INTERVAL syntax.
@@ -65,23 +90,73 @@ class ExpireUnclaimedPrizesJob implements ShouldQueue
                 continue;
             }
 
-            DB::transaction(function () use ($candidato, &$expirados) {
+            // P0 fail-closed: una transacción por ticket. Si la auditoría
+            // falla, ticket y apuestas quedan intactos para el próximo ciclo.
+            $expirados += DB::transaction(function () use ($candidato): int {
                 // Doble verificación: solo si aún está en estado 'ganador'
-                $actualizado = Ticket::where('id', $candidato->id)
+                $ticket = Ticket::where('id', $candidato->id)
                     ->where('estado', 'ganador')
+                    ->lockForUpdate()
+                    ->first();
+
+                if (! $ticket) {
+                    return 0;
+                }
+
+                $apuestaIds = Apuesta::where('ticket_id', $ticket->id)
+                    ->pluck('id')
+                    ->map(static fn (mixed $id): int => (int) $id)
+                    ->all();
+
+                $ticket->update(['estado' => 'vencido']);
+
+                // Marcar también todas las apuestas del ticket como vencidas
+                Apuesta::where('ticket_id', $ticket->id)
                     ->update(['estado' => 'vencido']);
 
-                if ($actualizado) {
-                    // Marcar también todas las apuestas del ticket como vencidas
-                    Apuesta::where('ticket_id', $candidato->id)
-                        ->update(['estado' => 'vencido']);
+                // WU-8a: el ticket es la unidad auditada aquí; `bet.expired`
+                // pertenece a MarcarApuestasVencidasJob, donde la apuesta es
+                // la unidad de transición.
+                app(AuditRecorder::class)->critical(
+                    AuditAction::TicketExpired,
+                    new AuditEventData(
+                        action: AuditAction::TicketExpired,
+                        entityType: 'ticket',
+                        entityId: (int) $ticket->id,
+                        scope: app(AuditScopeResolver::class)->forModel($ticket),
+                        before: ['estado' => 'ganador'],
+                        after: ['estado' => 'vencido'],
+                        context: [
+                            'apuestas' => $apuestaIds,
+                            'apuestas_count' => count($apuestaIds),
+                        ],
+                    ),
+                );
 
-                    $expirados++;
-                }
+                return 1;
             });
         }
 
         Log::info("ExpireUnclaimedPrizesJob: {$expirados} tickets marcados como vencido.");
-        Log::info('=== FIN ExpireUnclaimedPrizesJob ===');
+    }
+
+    private function jobId(): ?string
+    {
+        $id = $this->job?->getJobId();
+
+        if ($id === null) {
+            return null;
+        }
+
+        $id = (string) $id;
+
+        return $id !== '' ? $id : null;
+    }
+
+    private function queueName(): ?string
+    {
+        $queue = $this->job?->getQueue() ?? $this->queue;
+
+        return is_string($queue) && $queue !== '' ? $queue : null;
     }
 }

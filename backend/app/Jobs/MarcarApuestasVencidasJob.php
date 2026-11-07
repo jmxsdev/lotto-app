@@ -2,6 +2,11 @@
 
 namespace App\Jobs;
 
+use App\Audit\AuditAction;
+use App\Audit\AuditContext;
+use App\Audit\AuditEventData;
+use App\Audit\AuditRecorder;
+use App\Audit\AuditScopeResolver;
 use App\Models\Apuesta;
 use App\Services\ConfiguracionService;
 use Illuminate\Bus\Queueable;
@@ -9,6 +14,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -42,6 +48,26 @@ class MarcarApuestasVencidasJob implements ShouldQueue
 
         Log::info("=== INICIO MarcarApuestasVencidasJob (ventana: {$ventanaHoras} h) ===");
 
+        $context = app(AuditContext::class);
+        $context->reset();
+        $context->forSystem(
+            'job:MarcarApuestasVencidasJob',
+            $this->jobId(),
+            $this->queueName(),
+            'job',
+        );
+
+        try {
+            $this->execute($limite);
+        } finally {
+            $context->reset();
+        }
+
+        Log::info('=== FIN MarcarApuestasVencidasJob ===');
+    }
+
+    private function execute(\DateTimeInterface $limite): void
+    {
         $candidatas = Apuesta::query()
             ->where('estado', 'pendiente')
             ->whereNull('resultado_id')
@@ -69,6 +95,17 @@ class MarcarApuestasVencidasJob implements ShouldQueue
             }
         }
 
+        // `ScrapeResultsJob::dispatchSync` puede resetear el contexto
+        // compartido; se restaura el actor system antes de auditar.
+        $context = app(AuditContext::class);
+        $context->reset();
+        $context->forSystem(
+            'job:MarcarApuestasVencidasJob',
+            $this->jobId(),
+            $this->queueName(),
+            'job',
+        );
+
         // Tras el reintento: solo vence lo que SIGUE pendiente sin resultado.
         $aVencer = Apuesta::query()
             ->whereIn('id', $candidatas->pluck('id'))
@@ -77,11 +114,64 @@ class MarcarApuestasVencidasJob implements ShouldQueue
             ->where('sorteo_hora', '<', $limite)
             ->pluck('id');
 
-        $vencidas = $aVencer->isNotEmpty()
-            ? Apuesta::whereIn('id', $aVencer)->update(['estado' => 'vencido'])
-            : 0;
+        $vencidas = 0;
+
+        // P0 fail-closed por apuesta: si la auditoría falla, esa apuesta
+        // vuelve a `pendiente` y el job falla; las siguientes quedan para
+        // el próximo ciclo.
+        foreach ($aVencer as $apuestaId) {
+            $vencidas += DB::transaction(function () use ($apuestaId, $limite): int {
+                $apuesta = Apuesta::query()
+                    ->where('id', $apuestaId)
+                    ->where('estado', 'pendiente')
+                    ->whereNull('resultado_id')
+                    ->where('sorteo_hora', '<', $limite)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (! $apuesta) {
+                    return 0;
+                }
+
+                $apuesta->update(['estado' => 'vencido']);
+
+                app(AuditRecorder::class)->critical(
+                    AuditAction::BetExpired,
+                    new AuditEventData(
+                        action: AuditAction::BetExpired,
+                        entityType: 'apuesta',
+                        entityId: (int) $apuesta->id,
+                        scope: app(AuditScopeResolver::class)->forModel($apuesta),
+                        before: ['estado' => 'pendiente'],
+                        after: ['estado' => 'vencido'],
+                        context: ['juego_id' => (int) $apuesta->juego_id],
+                    ),
+                );
+
+                return 1;
+            });
+        }
 
         Log::info("MarcarApuestasVencidasJob: {$vencidas} apuestas marcadas como vencido tras {$pares->count()} reintentos de búsqueda.");
-        Log::info('=== FIN MarcarApuestasVencidasJob ===');
+    }
+
+    private function jobId(): ?string
+    {
+        $id = $this->job?->getJobId();
+
+        if ($id === null) {
+            return null;
+        }
+
+        $id = (string) $id;
+
+        return $id !== '' ? $id : null;
+    }
+
+    private function queueName(): ?string
+    {
+        $queue = $this->job?->getQueue() ?? $this->queue;
+
+        return is_string($queue) && $queue !== '' ? $queue : null;
     }
 }
