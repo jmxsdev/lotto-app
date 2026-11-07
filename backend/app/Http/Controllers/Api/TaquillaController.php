@@ -2,6 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Audit\AuditAction;
+use App\Audit\AuditEventData;
+use App\Audit\AuditReason;
+use App\Audit\AuditRecorder;
+use App\Audit\AuditScopeResolver;
 use App\Http\Controllers\Controller;
 use App\Models\Agencia;
 use App\Models\Grupo;
@@ -10,6 +15,7 @@ use App\Models\User;
 use App\Services\JuegoLimiteService;
 use App\Support\Scope\AlcanceService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -17,8 +23,25 @@ use Illuminate\Validation\Rule;
 
 class TaquillaController extends Controller
 {
+    /**
+     * Safe taquilla attributes captured in audit before/after payloads.
+     *
+     * Timestamps, the soft-delete marker, internal columns and the device
+     * secrets (`mac_address`, `device_fingerprint`) are excluded. The
+     * `activation_code` stays so the recorder masks it on write.
+     *
+     * @var array<int, string>
+     */
+    private const TAQUILLA_AUDIT_FIELDS = [
+        'name', 'code', 'grupo_id', 'agencia_id', 'activation_code', 'active',
+        'vigencia_premios', 'tiempo_eliminacion', 'created_by',
+        'rif', 'email', 'telefono', 'direccion', 'estado', 'municipio',
+    ];
+
     public function __construct(
         private readonly AlcanceService $alcance,
+        private readonly AuditRecorder $audit,
+        private readonly AuditScopeResolver $scopeResolver,
     ) {}
 
     /**
@@ -74,6 +97,8 @@ class TaquillaController extends Controller
             'user_password' => 'required|string|min:8',
             // Create mode: límites iniciales persistidos en la misma transacción
             'limites' => 'nullable|array',
+            'reason_code' => 'nullable|string|max:64',
+            'reason_text' => 'nullable|string|max:500',
         ];
 
         // La agencia (local) crea taquillas solo en su local: agencia_id y
@@ -133,8 +158,9 @@ class TaquillaController extends Controller
 
         $taquilla = null;
         $userCreado = null;
+        [$reason, $reasonText] = $this->auditReason($request);
 
-        DB::transaction(function () use ($request, $user, $grupo, $activationCode, &$taquilla, &$userCreado) {
+        DB::transaction(function () use ($request, $user, $grupo, $activationCode, $reason, $reasonText, &$taquilla, &$userCreado) {
             $taquilla = Taquilla::create([
                 'name' => $request->name,
                 'code' => $request->code,
@@ -169,6 +195,26 @@ class TaquillaController extends Controller
             ]);
 
             $userCreado->assignRole('taquilla');
+
+            // P0 fail-closed: the generated taquilla operator shares the
+            // transaction with the taquilla and its limits, so a failed insert
+            // rolls everything back.
+            $this->audit->record(AuditAction::UserCreated, (new AuditEventData(
+                action: AuditAction::UserCreated,
+                entityType: 'user',
+                entityId: (int) $userCreado->id,
+                scope: $this->scopeResolver->forModel($userCreado),
+                after: $this->taquillaUserSnapshot($userCreado),
+            ))->withReason($reason, $reasonText));
+
+            // P1 best-effort: creation evidence never blocks the taquilla.
+            $this->audit->record(AuditAction::TaquillaCreated, (new AuditEventData(
+                action: AuditAction::TaquillaCreated,
+                entityType: 'taquilla',
+                entityId: (int) $taquilla->id,
+                scope: $this->scopeResolver->forModel($taquilla),
+                after: $this->taquillaSnapshot($taquilla),
+            ))->withReason($reason, $reasonText));
 
             // Límites iniciales (create mode): atómicos con la entidad.
             // Cualquier error de validación/restrictividad revierte TODO.
@@ -224,6 +270,8 @@ class TaquillaController extends Controller
             'direccion' => 'nullable|string|max:255',
             'estado' => 'nullable|string|max:100',
             'municipio' => 'nullable|string|max:100',
+            'reason_code' => 'nullable|string|max:64',
+            'reason_text' => 'nullable|string|max:500',
         ]);
 
         if ($request->has('grupo_id')) {
@@ -262,7 +310,37 @@ class TaquillaController extends Controller
         }
 
         // NULL = hereda del padre (columna nullable)
-        $taquilla->update($data);
+        $before = $this->taquillaSnapshot($taquilla);
+        $grupoIdBefore = $taquilla->grupo_id !== null ? (int) $taquilla->grupo_id : null;
+        $agenciaIdBefore = $taquilla->agencia_id !== null ? (int) $taquilla->agencia_id : null;
+        [$reason, $reasonText] = $this->auditReason($request);
+
+        DB::transaction(function () use ($taquilla, $data, $before, $grupoIdBefore, $agenciaIdBefore, $reason, $reasonText): void {
+            $taquilla->update($data);
+            $taquilla->unsetRelation('grupo');
+
+            // P1 best-effort: a failed audit write never blocks the update.
+            $this->recordTaquillaUpdated($taquilla, $before, $reason, $reasonText);
+
+            // P0 fail-closed: moving the taquilla to another grupo and/or
+            // agencia changes its hierarchy/access chain and requires a reason;
+            // a missing reason or write failure rolls the whole update back.
+            $changed = $taquilla->getChanges();
+
+            if (array_key_exists('grupo_id', $changed) || array_key_exists('agencia_id', $changed)) {
+                $this->audit->critical(AuditAction::TaquillaGroupChanged, (new AuditEventData(
+                    action: AuditAction::TaquillaGroupChanged,
+                    entityType: 'taquilla',
+                    entityId: (int) $taquilla->id,
+                    scope: $this->scopeResolver->forModel($taquilla),
+                    before: ['grupo_id' => $grupoIdBefore, 'agencia_id' => $agenciaIdBefore],
+                    after: [
+                        'grupo_id' => $taquilla->grupo_id !== null ? (int) $taquilla->grupo_id : null,
+                        'agencia_id' => $taquilla->agencia_id !== null ? (int) $taquilla->agencia_id : null,
+                    ],
+                ))->withReason($reason, $reasonText));
+            }
+        });
 
         return response()->json($taquilla->load('grupo.banca'));
     }
@@ -279,7 +357,29 @@ class TaquillaController extends Controller
 
         $this->authorizeTaquillaAccess($user, $taquilla);
 
-        $taquilla->update(['active' => ! $taquilla->active]);
+        $request->validate([
+            'reason_code' => 'nullable|string|max:64',
+            'reason_text' => 'nullable|string|max:500',
+        ]);
+
+        $activeBefore = (bool) $taquilla->active;
+        $activeAfter = ! $activeBefore;
+        [$reason, $reasonText] = $this->auditReason($request);
+
+        // P0 fail-closed: a missing/invalid reason or a write failure rolls the
+        // toggle back (the recorder throws AuditValidationException/AuditWriteException).
+        DB::transaction(function () use ($taquilla, $activeBefore, $activeAfter, $reason, $reasonText): void {
+            $taquilla->update(['active' => $activeAfter]);
+
+            $this->audit->critical(AuditAction::TaquillaToggled, (new AuditEventData(
+                action: AuditAction::TaquillaToggled,
+                entityType: 'taquilla',
+                entityId: (int) $taquilla->id,
+                scope: $this->scopeResolver->forModel($taquilla),
+                before: ['active' => $activeBefore],
+                after: ['active' => $activeAfter],
+            ))->withReason($reason, $reasonText));
+        });
 
         return response()->json($taquilla->load('grupo.banca'));
     }
@@ -287,20 +387,118 @@ class TaquillaController extends Controller
     /**
      * Eliminar una taquilla
      */
-    public function destroy(Taquilla $taquilla)
+    public function destroy(Request $request, Taquilla $taquilla)
     {
         $user = auth()->user();
 
         $this->authorizeTaquillaAccess($user, $taquilla);
+
+        $request->validate([
+            'reason_code' => 'nullable|string|max:64',
+            'reason_text' => 'nullable|string|max:500',
+        ]);
 
         // Verificar que no tenga apuestas (opcional)
         if ($taquilla->apuestas()->count() > 0) {
             return response()->json(['message' => 'No se puede eliminar la taquilla porque tiene apuestas asociadas.'], 422);
         }
 
-        $taquilla->delete();
+        $before = $this->taquillaSnapshot($taquilla);
+        $scope = $this->scopeResolver->forModel($taquilla);
+        [$reason, $reasonText] = $this->auditReason($request);
+
+        // P0 fail-closed: a missing/invalid reason or a write failure keeps the
+        // taquilla alive (the soft delete rolls back with the transaction).
+        DB::transaction(function () use ($taquilla, $before, $scope, $reason, $reasonText): void {
+            $taquilla->delete();
+
+            $this->audit->critical(AuditAction::TaquillaDeleted, (new AuditEventData(
+                action: AuditAction::TaquillaDeleted,
+                entityType: 'taquilla',
+                entityId: (int) $taquilla->id,
+                scope: $scope,
+                before: $before,
+            ))->withReason($reason, $reasonText));
+        });
 
         return response()->json(['message' => 'Taquilla eliminada correctamente.']);
+    }
+
+    // --- Métodos de auditoría ---
+
+    /**
+     * @return array{0: AuditReason|null, 1: string|null}
+     */
+    private function auditReason(Request $request): array
+    {
+        $code = $request->input('reason_code');
+        $text = $request->input('reason_text');
+
+        return [
+            is_string($code) ? AuditReason::tryFrom($code) : null,
+            is_string($text) ? $text : null,
+        ];
+    }
+
+    /**
+     * Record the P1 `taquilla.updated` event for the fields that actually
+     * changed, when at least one auditable field changed.
+     */
+    private function recordTaquillaUpdated(
+        Taquilla $taquilla,
+        array $before,
+        ?AuditReason $reason,
+        ?string $reasonText,
+    ): void {
+        $auditedKeys = array_values(array_intersect(
+            array_keys($taquilla->getChanges()),
+            self::TAQUILLA_AUDIT_FIELDS,
+        ));
+
+        if ($auditedKeys === []) {
+            return;
+        }
+
+        $this->audit->record(AuditAction::TaquillaUpdated, (new AuditEventData(
+            action: AuditAction::TaquillaUpdated,
+            entityType: 'taquilla',
+            entityId: (int) $taquilla->id,
+            scope: $this->scopeResolver->forModel($taquilla),
+            before: Arr::only($before, $auditedKeys),
+            after: Arr::only($this->taquillaSnapshot($taquilla), $auditedKeys),
+        ))->withReason($reason, $reasonText));
+    }
+
+    /**
+     * Safe taquilla snapshot: no timestamps, no soft-delete marker, no device
+     * secrets. `activation_code` is included so the recorder masks it on write.
+     *
+     * @return array<string, mixed>
+     */
+    private function taquillaSnapshot(Taquilla $taquilla): array
+    {
+        return $taquilla->only(self::TAQUILLA_AUDIT_FIELDS);
+    }
+
+    /**
+     * Safe snapshot of the operator generated alongside a taquilla. Roles come
+     * from Spatie; the password hash is never read here.
+     *
+     * @return array<string, mixed>
+     */
+    private function taquillaUserSnapshot(User $user): array
+    {
+        return [
+            'name' => $user->name,
+            'email' => $user->email,
+            'active' => (bool) $user->active,
+            'banca_id' => $user->banca_id,
+            'grupo_id' => $user->grupo_id,
+            'agencia_id' => $user->agencia_id,
+            'taquilla_id' => $user->taquilla_id,
+            'created_by' => $user->created_by,
+            'roles' => $user->getRoleNames()->all(),
+        ];
     }
 
     // --- Métodos de autorización ---

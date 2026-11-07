@@ -73,7 +73,10 @@ class TaquillaAgenciaIdTest extends TestCase
         [$banca, $local, $taquilla] = $this->jerarquia();
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->putJson('/api/v1/taquillas/'.$taquilla->id, ['agencia_id' => $local->id]);
+            ->putJson('/api/v1/taquillas/'.$taquilla->id, [
+                'agencia_id' => $local->id,
+                'reason_code' => 'business_decision',
+            ]);
 
         $response->assertStatus(200)
             ->assertJsonPath('agencia_id', $local->id);
@@ -87,7 +90,10 @@ class TaquillaAgenciaIdTest extends TestCase
         $taquilla->update(['agencia_id' => $local->id]);
 
         $response = $this->actingAs($agenciaUser, 'sanctum')
-            ->putJson('/api/v1/taquillas/'.$taquilla->id, ['agencia_id' => $local->id]);
+            ->putJson('/api/v1/taquillas/'.$taquilla->id, [
+                'agencia_id' => $local->id,
+                'reason_code' => 'business_decision',
+            ]);
 
         $response->assertStatus(200)
             ->assertJsonPath('agencia_id', $local->id);

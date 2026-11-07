@@ -151,6 +151,7 @@ class TaquillaGrupoAgenciaConsistenciaTest extends TestCase
             ->putJson('/api/v1/taquillas/'.$taquilla->id, [
                 'grupo_id' => $grupoY->id,
                 'agencia_id' => $localY->id,
+                'reason_code' => 'business_decision',
             ]);
 
         $response->assertStatus(200)

@@ -104,7 +104,7 @@ class ActivacionEntidadesTest extends TestCase
         [, , $taquilla] = $this->crearJerarquiaDeMaster(['taquilla' => ['active' => true]]);
 
         $this->actingAs($this->master(), 'sanctum')
-            ->patchJson("/api/v1/taquillas/{$taquilla->id}/toggle")
+            ->patchJson("/api/v1/taquillas/{$taquilla->id}/toggle", ['reason_code' => 'business_decision'])
             ->assertStatus(200)
             ->assertJsonPath('active', false);
 
@@ -445,7 +445,7 @@ class ActivacionEntidadesTest extends TestCase
         ]);
 
         $this->actingAs($grupoUser, 'sanctum')
-            ->patchJson("/api/v1/taquillas/{$taquilla->id}/toggle")
+            ->patchJson("/api/v1/taquillas/{$taquilla->id}/toggle", ['reason_code' => 'business_decision'])
             ->assertStatus(200)
             ->assertJsonPath('active', false);
     }

@@ -170,7 +170,7 @@ class TerminologiaTest extends TestCase
         $taquilla = Taquilla::factory()->create();
 
         $response = $this->actingAs($this->superUser(), 'sanctum')
-            ->deleteJson('/api/v1/taquillas/'.$taquilla->id);
+            ->deleteJson('/api/v1/taquillas/'.$taquilla->id, ['reason_code' => 'business_decision']);
 
         $response->assertStatus(200)
             ->assertJsonPath('message', 'Taquilla eliminada correctamente.');
