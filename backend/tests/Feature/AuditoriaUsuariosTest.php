@@ -71,7 +71,9 @@ class AuditoriaUsuariosTest extends TestCase
 
         $this->assertSame('user', $event->actor_type);
         $this->assertSame($actor->id, $event->actor_id);
-        $this->assertSame($actor->email, $event->actor_label);
+        $this->assertSame('s***@test.com', $event->actor_label);
+        $this->assertNotSame($actor->email, $event->actor_label);
+        $this->assertStringNotContainsString($actor->email, $attributes);
         $this->assertSame(['super_master'], $event->actor_roles);
         $this->assertSame('user', $event->entity_type);
         $this->assertSame($created->id, $event->entity_id);
@@ -126,7 +128,9 @@ class AuditoriaUsuariosTest extends TestCase
 
         $this->assertSame('user', $event->actor_type);
         $this->assertSame($actor->id, $event->actor_id);
-        $this->assertSame($actor->email, $event->actor_label);
+        $this->assertSame('s***@test.com', $event->actor_label);
+        $this->assertNotSame($actor->email, $event->actor_label);
+        $this->assertStringNotContainsString($actor->email, $attributes);
         $this->assertSame(['super_master'], $event->actor_roles);
         $this->assertSame('user', $event->entity_type);
         $this->assertSame($target->id, $event->entity_id);

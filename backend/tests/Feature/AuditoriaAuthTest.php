@@ -98,7 +98,8 @@ class AuditoriaAuthTest extends TestCase
 
         $this->assertSame('user', $event->actor_type);
         $this->assertSame($user->id, $event->actor_id);
-        $this->assertSame($user->email, $event->actor_label);
+        $this->assertSame('m***@test.com', $event->actor_label);
+        $this->assertNotSame($user->email, $event->actor_label);
         $this->assertSame(['master'], $event->actor_roles);
         $this->assertNull($event->banca_id);
         $this->assertNull($event->entity_type);
@@ -245,7 +246,8 @@ class AuditoriaAuthTest extends TestCase
 
         foreach ([$logout, $revoked] as $event) {
             $this->assertSame($user->id, $event->actor_id);
-            $this->assertSame($user->email, $event->actor_label);
+            $this->assertSame('l***@test.com', $event->actor_label);
+            $this->assertNotSame($user->email, $event->actor_label);
             $this->assertSame(['master'], $event->actor_roles);
             $this->assertSame($tokenId, (int) $event->context['token_id']);
             $this->assertStringNotContainsString($plainTextToken, (string) json_encode($event->getAttributes()));

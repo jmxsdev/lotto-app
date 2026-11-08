@@ -2,11 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Audit\AuditAction;
+use App\Audit\AuditPriority;
 use App\Models\AuditEvent;
 use App\Models\Banca;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
@@ -63,6 +66,28 @@ class AuditoriaRolTest extends TestCase
 
         $this->assertSame(['master'], $target->fresh()->getRoleNames()->all());
 
+        // The effective permission diff is emitted as its own P0 event.
+        $permissionsEvent = $this->auditEvent('user.permissions_changed');
+
+        $this->assertSame(AuditPriority::P0, AuditAction::UserPermissionsChanged->priority());
+        $this->assertSame('user', $permissionsEvent->actor_type);
+        $this->assertSame($actor->id, $permissionsEvent->actor_id);
+        $this->assertSame('user', $permissionsEvent->entity_type);
+        $this->assertSame($target->id, $permissionsEvent->entity_id);
+        $this->assertSame('data_correction', $permissionsEvent->reason_code);
+
+        $expectedBefore = Role::findByName('taquilla', 'api')
+            ->permissions->pluck('name')->sort()->values()->all();
+        $expectedAfter = Role::findByName('master', 'api')
+            ->permissions->pluck('name')->sort()->values()->all();
+
+        $this->assertSame($expectedBefore, $permissionsEvent->before['permissions']);
+        $this->assertSame($expectedAfter, $permissionsEvent->after['permissions']);
+        $this->assertNotSame(
+            $permissionsEvent->before['permissions'],
+            $permissionsEvent->after['permissions'],
+        );
+
         // The audit event replaces the legacy operational log.
         $this->assertDatabaseMissing('logs', ['action' => 'user.role_changed']);
     }
@@ -85,6 +110,7 @@ class AuditoriaRolTest extends TestCase
             ->assertJsonPath('name', 'Solo Renombrado');
 
         $this->assertDatabaseMissing('audit_events', ['action' => 'user.role_changed']);
+        $this->assertDatabaseMissing('audit_events', ['action' => 'user.permissions_changed']);
     }
 
     public function test_role_event_incluye_actor_target_before_after_y_scope(): void
@@ -132,6 +158,7 @@ class AuditoriaRolTest extends TestCase
         $response->assertStatus(403);
 
         $this->assertDatabaseMissing('audit_events', ['action' => 'user.role_changed']);
+        $this->assertDatabaseMissing('audit_events', ['action' => 'user.permissions_changed']);
         $this->assertSame(['taquilla'], $target->fresh()->getRoleNames()->all());
     }
 }

@@ -183,7 +183,8 @@ class AuditoriaAnulacionesTest extends TestCase
 
         $this->assertSame('user', $ticketEvent->actor_type);
         $this->assertSame((int) $actor->id, (int) $ticketEvent->actor_id);
-        $this->assertSame($actor->email, $ticketEvent->actor_label);
+        $this->assertSame('s***@lotto.com', $ticketEvent->actor_label);
+        $this->assertNotSame($actor->email, $ticketEvent->actor_label);
         $this->assertSame('ticket', $ticketEvent->entity_type);
         $this->assertSame((int) $ticket->id, (int) $ticketEvent->entity_id);
 

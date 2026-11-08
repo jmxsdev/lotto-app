@@ -184,7 +184,7 @@ class AuditRecorder
             return [
                 'type' => $data->actorType->value,
                 'id' => $data->actorId,
-                'label' => $data->actorLabel,
+                'label' => $this->maskActorLabel($data->actorLabel),
                 'roles' => $data->actorRoles ?? [],
             ];
         }
@@ -209,9 +209,22 @@ class AuditRecorder
         return [
             'type' => (string) ($actor['type'] ?? AuditActorType::User->value),
             'id' => $actor['id'] ?? null,
-            'label' => $actor['label'] ?? null,
+            'label' => $this->maskActorLabel($actor['label'] ?? null),
             'roles' => $actor['roles'] ?? [],
         ];
+    }
+
+    /**
+     * Mask an actor label when it carries an email. System labels
+     * (`system:*`, `job:*`, `command:*`) never contain `@` and pass through.
+     */
+    private function maskActorLabel(?string $label): ?string
+    {
+        if ($label === null || ! str_contains($label, '@')) {
+            return $label;
+        }
+
+        return $this->redactor->maskEmail($label);
     }
 
     private function resolveReason(AuditAction $action, AuditEventData $data, array $context): array

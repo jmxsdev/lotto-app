@@ -138,7 +138,7 @@ class AuditRecorderTest extends TestCase
             'action' => 'banca.updated',
             'actor_type' => 'user',
             'actor_id' => 7,
-            'actor_label' => 'jdoe@example.com',
+            'actor_label' => 'j***@example.com',
             'entity_type' => 'banca',
             'entity_id' => 5,
             'banca_id' => 3,
@@ -163,6 +163,24 @@ class AuditRecorderTest extends TestCase
         $this->assertArrayNotHasKey('job_id', $stored->context);
         $this->assertStringNotContainsString('abc123', (string) $stored->reason_text);
         $this->assertStringContainsString(AuditRedactor::REDACTED, (string) $stored->reason_text);
+    }
+
+    public function test_actor_label_explicito_se_enmascara_cuando_es_email(): void
+    {
+        $event = $this->recorder->record(AuditAction::BancaUpdated, new AuditEventData(
+            action: AuditAction::BancaUpdated,
+            actorId: 7,
+            actorLabel: 'jdoe@example.com',
+            entityType: 'banca',
+            entityId: 5,
+        ));
+
+        $this->assertNotNull($event);
+        $this->assertSame('j***@example.com', $event->actor_label);
+        $this->assertStringNotContainsString(
+            'jdoe@example.com',
+            (string) json_encode($event->getAttributes()),
+        );
     }
 
     public function test_enabled_false_no_escribe(): void

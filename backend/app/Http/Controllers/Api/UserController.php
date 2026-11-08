@@ -243,8 +243,23 @@ class UserController extends Controller
         ): void {
             $user->update($data);
 
+            // Effective permission snapshot before the role mutation: the
+            // catalog forbids direct permission assignment, so the effective
+            // diff is derived from the role change.
+            $permissionsBefore = $roleChanging
+                ? $user->getAllPermissions()->pluck('name')->sort()->values()->all()
+                : null;
+
             if ($request->filled('role')) {
                 $user->syncRoles([$request->role]);
+            }
+
+            $permissionsAfter = null;
+            if ($roleChanging) {
+                // `syncRoles` leaves the previous relations cached; drop them
+                // so the diff reflects the new effective permissions.
+                $user->unsetRelation('roles')->unsetRelation('permissions');
+                $permissionsAfter = $user->getAllPermissions()->pluck('name')->sort()->values()->all();
             }
 
             $scope = app(AuditScopeResolver::class)->forModel($user);
@@ -282,6 +297,19 @@ class UserController extends Controller
                 ))->withReason($reason, $reasonText);
 
                 $recorder->record(AuditAction::UserRoleChanged, $event);
+
+                // The effective permission diff completes the role-change
+                // evidence. Same transaction and same required reason.
+                $permissionsEvent = (new AuditEventData(
+                    action: AuditAction::UserPermissionsChanged,
+                    entityType: 'user',
+                    entityId: $entityId,
+                    scope: $scope,
+                    before: ['permissions' => $permissionsBefore],
+                    after: ['permissions' => $permissionsAfter],
+                ))->withReason($reason, $reasonText);
+
+                $recorder->record(AuditAction::UserPermissionsChanged, $permissionsEvent);
             }
 
             if ($user->wasChanged('active')) {

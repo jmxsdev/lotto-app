@@ -110,7 +110,8 @@ class AuditoriaGrupoTest extends TestCase
 
         $this->assertSame('user', $userCreated->actor_type);
         $this->assertSame($actor->id, $userCreated->actor_id);
-        $this->assertSame($actor->email, $userCreated->actor_label);
+        $this->assertSame('s***@test.com', $userCreated->actor_label);
+        $this->assertNotSame($actor->email, $userCreated->actor_label);
         $this->assertSame(['super_master'], $userCreated->actor_roles);
         $this->assertSame('user', $userCreated->entity_type);
         $this->assertSame($user->id, $userCreated->entity_id);

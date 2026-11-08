@@ -304,6 +304,34 @@ class AuditoriaLimitesConfigTest extends TestCase
         $this->assertSame(1, AuditEvent::where('action', '!=', 'permission.catalog_synced')->count());
     }
 
+    public function test_destroy_sin_motivo_responde_422_y_conserva_el_limite(): void
+    {
+        $user = $this->superUser();
+        $limite = $this->crearLimite($this->juego(), ['limite_maximo' => 75]);
+
+        $this->actingAs($user, 'sanctum')
+            ->deleteJson("/api/v1/limites/{$limite->id}")
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('reason_code');
+
+        $this->assertDatabaseHas('juego_limites', ['id' => $limite->id]);
+        $this->assertDatabaseMissing('audit_events', ['action' => 'game.limit_deleted']);
+    }
+
+    public function test_destroy_con_motivo_invalido_responde_422_y_conserva_el_limite(): void
+    {
+        $user = $this->superUser();
+        $limite = $this->crearLimite($this->juego(), ['limite_maximo' => 80]);
+
+        $this->actingAs($user, 'sanctum')
+            ->deleteJson("/api/v1/limites/{$limite->id}", ['reason_code' => 'not_a_reason'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('reason_code');
+
+        $this->assertDatabaseHas('juego_limites', ['id' => $limite->id]);
+        $this->assertDatabaseMissing('audit_events', ['action' => 'game.limit_deleted']);
+    }
+
     // --- config.bet_expiration_window_updated (P1 best-effort) ---
 
     public function test_config_ventana_emite_before_after_y_no_bloquea_si_falla(): void

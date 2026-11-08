@@ -347,12 +347,38 @@ class LimitesApiTest extends TestCase
         $limite = $this->crearLimite($juego, ['grupo_id' => $this->grupoSeeded()->id]);
 
         $response = $this->actingAs($this->masterUser(), 'sanctum')
-            ->deleteJson('/api/v1/limites/'.$limite->id);
+            ->deleteJson('/api/v1/limites/'.$limite->id, ['reason_code' => 'business_decision']);
 
         $response->assertStatus(200)
             ->assertJson(['message' => 'Límite eliminado correctamente.']);
 
         $this->assertDatabaseMissing('juego_limites', ['id' => $limite->id]);
+    }
+
+    public function test_delete_sin_motivo_responde_422_y_conserva_el_limite()
+    {
+        $juego = $this->juegoNuevo();
+        $limite = $this->crearLimite($juego, ['grupo_id' => $this->grupoSeeded()->id]);
+
+        $this->actingAs($this->masterUser(), 'sanctum')
+            ->deleteJson('/api/v1/limites/'.$limite->id)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('reason_code');
+
+        $this->assertDatabaseHas('juego_limites', ['id' => $limite->id]);
+    }
+
+    public function test_delete_con_motivo_invalido_responde_422_y_conserva_el_limite()
+    {
+        $juego = $this->juegoNuevo();
+        $limite = $this->crearLimite($juego, ['grupo_id' => $this->grupoSeeded()->id]);
+
+        $this->actingAs($this->masterUser(), 'sanctum')
+            ->deleteJson('/api/v1/limites/'.$limite->id, ['reason_code' => 'not_a_reason'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('reason_code');
+
+        $this->assertDatabaseHas('juego_limites', ['id' => $limite->id]);
     }
 
     public function test_delete_limite_inexistente_responde_404()
@@ -369,7 +395,7 @@ class LimitesApiTest extends TestCase
         $limite = $this->crearLimite($juego);
 
         $response = $this->actingAs($this->bancaUser(), 'sanctum')
-            ->deleteJson('/api/v1/limites/'.$limite->id);
+            ->deleteJson('/api/v1/limites/'.$limite->id, ['reason_code' => 'business_decision']);
 
         $response->assertStatus(200);
 

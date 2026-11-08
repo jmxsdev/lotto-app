@@ -89,7 +89,8 @@ class AuditoriaDineroTest extends TestCase
 
         $this->assertSame('user', $event->actor_type);
         $this->assertSame($actor->id, $event->actor_id);
-        $this->assertSame($actor->email, $event->actor_label);
+        $this->assertSame('s***@lotto.com', $event->actor_label);
+        $this->assertNotSame($actor->email, $event->actor_label);
         $this->assertSame((int) $response->json('id'), $event->entity_id);
         $this->assertNull($event->before);
         $this->assertSame(40.25, $event->after['rate']);

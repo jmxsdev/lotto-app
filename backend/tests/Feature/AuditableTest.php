@@ -60,7 +60,7 @@ class AuditableTest extends TestCase
         $this->assertSame('user', $created->entity_type);
         $this->assertSame((int) $probe->getKey(), $created->entity_id);
         $this->assertSame('user', $created->actor_type);
-        $this->assertSame('admin@example.com', $created->actor_label);
+        $this->assertSame('a***@example.com', $created->actor_label);
         $this->assertSame(['super_master'], $created->actor_roles);
         $this->assertSame($bancaId, $created->banca_id);
         $this->assertNull($created->before);

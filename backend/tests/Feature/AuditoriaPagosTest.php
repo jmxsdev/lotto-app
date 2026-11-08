@@ -162,7 +162,8 @@ class AuditoriaPagosTest extends TestCase
         // Actor, entidad y acción.
         $this->assertSame('user', $event->actor_type);
         $this->assertSame((int) $actor->id, (int) $event->actor_id);
-        $this->assertSame($actor->email, $event->actor_label);
+        $this->assertSame('s***@lotto.com', $event->actor_label);
+        $this->assertNotSame($actor->email, $event->actor_label);
         $this->assertSame('pago', $event->entity_type);
         $this->assertSame((int) $pago->id, (int) $event->entity_id);
         $this->assertSame('pago.prize_paid', $event->action);

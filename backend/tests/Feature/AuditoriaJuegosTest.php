@@ -87,7 +87,8 @@ class AuditoriaJuegosTest extends TestCase
 
         $this->assertSame('user', $event->actor_type);
         $this->assertSame($user->id, $event->actor_id);
-        $this->assertSame($user->email, $event->actor_label);
+        $this->assertSame('s***@lotto.com', $event->actor_label);
+        $this->assertNotSame($user->email, $event->actor_label);
         $this->assertSame('juego', $event->entity_type);
         $this->assertSame($juego->id, $event->entity_id);
         $this->assertSame($before['name'], $event->before['name']);

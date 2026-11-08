@@ -897,10 +897,13 @@ class JuegoController extends Controller
             return response()->json(['message' => 'No tienes acceso a los límites de esta entidad.'], 403);
         }
 
-        $request->validate([
-            'reason_code' => 'nullable|string|max:64',
+        $validated = $request->validate([
+            'reason_code' => ['required', Rule::enum(AuditReason::class)],
             'reason_text' => 'nullable|string|max:500',
         ]);
+
+        $reason = AuditReason::from($validated['reason_code']);
+        $reasonText = $validated['reason_text'] ?? null;
 
         // Snapshot y scope ANTES del borrado: la fila ya no existirá para
         // reconstruir la evidencia.
@@ -910,17 +913,8 @@ class JuegoController extends Controller
 
         $limite->delete();
 
-        // P1 best-effort: una caída de auditoría no bloquea el borrado.
-        // `game.limit_deleted` exige motivo; hasta que el panel lo capture
-        // (WU-11a), la ausencia se registra como `unspecified` para no perder
-        // la evidencia.
-        $reasonRaw = $request->input('reason_code');
-        $reason = is_string($reasonRaw)
-            ? (AuditReason::tryFrom($reasonRaw) ?? AuditReason::Unspecified)
-            : AuditReason::Unspecified;
-        $reasonTextRaw = $request->input('reason_text');
-        $reasonText = is_string($reasonTextRaw) ? $reasonTextRaw : null;
-
+        // P1 best-effort: una caída de auditoría no bloquea el borrado, pero
+        // el motivo es obligatorio y ya fue validado antes de mutar la fila.
         $event = (new AuditEventData(
             action: AuditAction::GameLimitDeleted,
             entityType: 'juego_limite',
