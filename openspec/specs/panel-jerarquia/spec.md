@@ -4,7 +4,7 @@
 
 ## Purpose
 
-Navegación y labels del panel para la jerarquía de 6 niveles: renames (Agencias→Taquillas para la máquina; Agencias=local), sidebar, creación de taquillas por agencia y login/payload con `agencia_id`.
+Navegación y labels del panel para la jerarquía de 6 niveles: renames (Agencias→Taquillas para la máquina; Agencias=local), sidebar, creación de taquillas por agencia y login/payload con `agencia_id`. Este cambio (#89) añade la página `/auditoria` con link en `AdminLayout` y visibilidad por permiso, y mantiene `/logs` como operativo separado.
 
 ## Requirements
 
@@ -93,6 +93,28 @@ Los formularios de usuarios/taquillas/reportes/cuadre/límites MUST reflejar loc
 - GIVEN reportes/ventas y cuadre
 - WHEN se elige nivel
 - THEN "Agencia"=local y "Taquilla"=máquina
+
+### Requirement: Página de auditoría y logs operativo
+
+El panel MUST exponer `/auditoria` con un link en `AdminLayout` visible solo si el usuario tiene `view_audit`. `/logs` MUST quedar como página operativa separada, con banner "operativo" y acceso con `view_logs` (master y super_master).
+
+#### Scenario: Link visible por permiso
+
+- GIVEN un `master` con `view_audit`
+- WHEN ve `AdminLayout`
+- THEN ve el link a `/auditoria`
+
+#### Scenario: Link oculto sin permiso
+
+- GIVEN un `banca`/`grupo`/`agencia`/`taquilla`
+- WHEN ve `AdminLayout`
+- THEN no ve el link a `/auditoria`
+
+#### Scenario: /logs separado y operativo
+
+- GIVEN `/logs`
+- WHEN se muestra
+- THEN muestra el banner "operativo" y no se mezcla con `/auditoria`
 
 ### Requirement: Actualización de tests de terminología
 

@@ -100,8 +100,8 @@ Chain strategy: feature-branch-chain
 | 12b-2 | 13 | 123 | ✅ |
 | 12b-3 | 7 | — (verde) | ✅ |
 | 12b-4 | validación ✓ | — | ✅ |
-| 13 | suite ✓ | 1.848 / 11.702 (2 skip) | ✅ |
-| **Total (suite final, merge con `main`)** | **1.848** | **11.702** | **2 skipped · 0 fallos** |
+| 13 | suite ✓ | 1.853 / 11.748 (2 skip) | ✅ |
+| **Total (suite final, merge con `main`)** | **1.853** | **11.748** | **2 skipped · 0 fallos** |
 
 Pendientes: 13.
 
@@ -221,7 +221,7 @@ inmutable, el value object de scope, el cast UTC, el modelo `AuditEvent` append-
 > | **1a-2** | `AuditAction` (67 casos) + `ReasonPolicy` + `AuditActionTest` | ~577 | `feat/89-wu-1a2-taxonomia` |
 > | **1a-3** | `AuditEventData` + `AuditEventDataTest` | ~443 | `feat/89-wu-1a3-dto` |
 >
-> **Estado:** 1a-1 implementado (20 tests, 47 assertions); 1a-2 implementado (60 tests, 516 assertions); 1a-3 implementado (12 tests, 49 assertions); 1b-1a implementado (15 tests, 49 assertions); 1b-1b implementado (19 tests, 27 assertions); 1b-1c implementado (13 tests, 50 assertions); 1b-2a implementado (11 tests, 47 assertions); 1b-2b implementado (16 tests, 241 assertions); 2a implementado (10 tests, 57 assertions); 2b implementado (9 tests, 87 assertions); 3a-1 implementado (5 tests, 41 assertions); 3a-2 implementado (18 tests, 126 assertions); 3b implementado (19 tests, 104 assertions); 4 implementado (40 tests, 199 assertions); 5a implementado (58 tests, 423 assertions); 5b-1 implementado (29 tests, 216 assertions); 5b-2 implementado (40 tests, 437 assertions); 6a implementado (44 tests, 2.340 assertions); 6b implementado (76 tests, 648 assertions); 7a-1 implementado (57 tests, 279 assertions); 7a-2 implementado (59 tests, 293 assertions); 7b-1 implementado (10 tests, 108 assertions; gate completo 70 verdes); 7b-2 implementado (78 tests, 345 assertions); 8a-1/8a-2 implementado (26 tests, 242 assertions); 8b implementado (40 tests, 378 assertions, 1 skipped); 9a implementado (49 tests, 201 assertions); 9b implementado (34 tests, 176 assertions); 10a implementado (build panel verde); 10b implementado (build panel verde); 11a-1 implementado (build panel verde); 11a-2 implementado (build panel verde); 11a-3 implementado (build panel verde); 11b implementado (6 tests, 40 assertions; build panel verde); 12a implementado (41 tests, 261 assertions; requiere `log_bin_trust_function_creators=1` en MySQL); 12b-1 implementado (6 tests, 48 assertions); 12b-2 implementado (13 tests, 123 assertions); 12b-3 implementado (7 tests, gate verde); 12b-4 implementado (docs + compose/scheduler validados); 13 implementado (suite completa 1.848 tests, 11.702 assertions, 2 skipped; merge con `main` #80 resuelto sin conflictos) el 2026-11-07.
+> **Estado:** 1a-1 implementado (20 tests, 47 assertions); 1a-2 implementado (60 tests, 516 assertions); 1a-3 implementado (12 tests, 49 assertions); 1b-1a implementado (15 tests, 49 assertions); 1b-1b implementado (19 tests, 27 assertions); 1b-1c implementado (13 tests, 50 assertions); 1b-2a implementado (11 tests, 47 assertions); 1b-2b implementado (16 tests, 241 assertions); 2a implementado (10 tests, 57 assertions); 2b implementado (9 tests, 87 assertions); 3a-1 implementado (5 tests, 41 assertions); 3a-2 implementado (18 tests, 126 assertions); 3b implementado (19 tests, 104 assertions); 4 implementado (40 tests, 199 assertions); 5a implementado (58 tests, 423 assertions); 5b-1 implementado (29 tests, 216 assertions); 5b-2 implementado (40 tests, 437 assertions); 6a implementado (44 tests, 2.340 assertions); 6b implementado (76 tests, 648 assertions); 7a-1 implementado (57 tests, 279 assertions); 7a-2 implementado (59 tests, 293 assertions); 7b-1 implementado (10 tests, 108 assertions; gate completo 70 verdes); 7b-2 implementado (78 tests, 345 assertions); 8a-1/8a-2 implementado (26 tests, 242 assertions); 8b implementado (40 tests, 378 assertions, 1 skipped); 9a implementado (49 tests, 201 assertions); 9b implementado (34 tests, 176 assertions); 10a implementado (build panel verde); 10b implementado (build panel verde); 11a-1 implementado (build panel verde); 11a-2 implementado (build panel verde); 11a-3 implementado (build panel verde); 11b implementado (6 tests, 40 assertions; build panel verde); 12a implementado (41 tests, 261 assertions; requiere `log_bin_trust_function_creators=1` en MySQL); 12b-1 implementado (6 tests, 48 assertions); 12b-2 implementado (13 tests, 123 assertions); 12b-3 implementado (7 tests, gate verde); 12b-4 implementado (docs + compose/scheduler validados); 13 implementado (suite completa 1.853 tests, 11.748 assertions, 2 skipped; merge con `main` #80 resuelto sin conflictos; verify aprobado 45/45 requirements y 91/91 scenarios, 0 CRITICAL) el 2026-11-08.
 >
 > Gates por slice:
 > ```bash
@@ -1032,3 +1032,12 @@ cd panel && pnpm install
 | Observer global de Eloquent | Explícitamente excluido (trait opt-in + llamadas explícitas) |
 | Hash chain obligatoria | Opcional (`AUDIT_HASH_CHAIN=false`); evaluar si se exige evidencia a prueba de manipulación |
 | Confirmación legal de retención (12m/5y) | Pendiente con legal antes de producción |
+
+---
+
+## Cierre
+
+- **Fecha**: 2026-11-08
+- **Veredicto de verificación**: PASS WITH WARNINGS — 45/45 requirements, 91/91 scenarios, 0 CRITICAL, 6 WARNING, 10 SUGGESTION.
+- **Candidato**: `65ad919` · **Suite final**: 1.853 tests / 11.748 assertions / 2 skipped / 0 failures · Pint verde · build del panel verde.
+- **Estado**: listo para archivar y mergear a `main` local; push pendiente de decisión del usuario. Ver `archive-report.md`.

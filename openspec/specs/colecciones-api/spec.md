@@ -4,7 +4,7 @@
 
 ## Purpose
 
-Requisitos del artefacto `collections/` (OpenCollection 1.0.0): paridad fiel con `backend/routes/api.php` y entornos Local/Produccion ejecutables.
+Requisitos del artefacto `collections/` (OpenCollection 1.0.0): paridad fiel con `backend/routes/api.php` y entornos Local/Produccion ejecutables. Este cambio (#89) añade los requests de lectura y export de auditoría (`GET /api/v1/audit-events` y `GET /api/v1/audit-events/export`) con filtros y auth.
 
 ## Requirements
 
@@ -55,6 +55,28 @@ Todo endpoint de `api.php` MUST tener colección, incluidos los faltantes: carpe
 - GIVEN un request de colección
 - WHEN se lee `docs:`
 - THEN documenta rol(es) y estado (p. ej. Tickets/Pagos sin agencia)
+
+### Requirement: Requests de auditoría
+
+La colección MUST añadir `GET /api/v1/audit-events` y `GET /api/v1/audit-events/export` en una carpeta Auditoría. Los requests MUST documentar filtros (action/domain, actor, entity, rango de fechas, request_id), `per_page` con tope, cursor pagination (`{data, next_cursor, prev_cursor}`) y auth (`view_audit`/`export_audit`, scope super_master global / master su banca).
+
+#### Scenario: Request de lectura presente
+
+- GIVEN la carpeta Auditoría
+- WHEN se inspecciona
+- THEN contiene `GET /api/v1/audit-events` con filtros y cursor pagination documentados
+
+#### Scenario: Request de export presente
+
+- GIVEN la carpeta Auditoría
+- WHEN se inspecciona
+- THEN contiene `GET /api/v1/audit-events/export` con `export_audit` y CSV documentados
+
+#### Scenario: Paridad con routes/api.php
+
+- GIVEN los endpoints de auditoría en `routes/api.php`
+- WHEN se comparan con `collections/Auditoria`
+- THEN los requests de colección coinciden en path, query y permiso
 
 ### Requirement: Contratos de payload y respuesta
 

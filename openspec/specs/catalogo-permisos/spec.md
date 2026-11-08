@@ -4,13 +4,13 @@
 
 ## Purpose
 
-Define el catálogo de permisos por capability (view/manage por dominio), la matriz capability × rol (6 roles) como fuente única de asignación, el seeder `RolesAndPermissionsSeeder` idempotente y el bypass `Gate::before` para `super_master`. Establece que los permisos se otorgan solo vía roles, nunca directamente a usuarios. No altera el scoping de filas (#85).
+Define el catálogo de permisos por capability (view/manage por dominio), la matriz capability × rol (6 roles) como fuente única de asignación, el seeder `RolesAndPermissionsSeeder` idempotente y el bypass `Gate::before` para `super_master`. Establece que los permisos se otorgan solo vía roles, nunca directamente a usuarios. No altera el scoping de filas (#85). Este cambio (#89) añade los permisos de auditoría `view_audit` y `export_audit`.
 
 ## Requirements
 
 ### Requirement: Catálogo por capability
 
-El sistema MUST mantener un catálogo de permisos organizado por dominio con granularidad view/manage (o create/edit/delete donde el CRUD lo exige). Los nombres existentes MUST preservarse; los 11 faltantes MUST agregarse: `view_juegos`, `view_resultados`, `manage_resultados`, `view_agencias`, `manage_agencias`, `view_limites`, `manage_limites`, `view_logs`, `view_comisiones`, `download_release`, `manage_clave_cierre`.
+El sistema MUST mantener un catálogo de permisos organizado por dominio con granularidad view/manage (o create/edit/delete donde el CRUD lo exige). Los nombres existentes MUST preservarse. Además de los 11 de BE-04, este cambio MUST agregar `view_audit` y `export_audit` (dominio Auditoría).
 
 | Dominio | Permisos |
 |---|---|
@@ -29,6 +29,7 @@ El sistema MUST mantener un catálogo de permisos organizado por dominio con gra
 | Exchange rates | `view_exchange_rates` `manage_exchange_rates` |
 | Reportes | `view_reports` |
 | Logs | `view_logs` |
+| Auditoría | `view_audit` `export_audit` |
 | Releases | `download_release` |
 | Clave cierre | `manage_clave_cierre` |
 | Config | `manage_config` |
@@ -36,8 +37,8 @@ El sistema MUST mantener un catálogo de permisos organizado por dominio con gra
 #### Scenario: Nombres existentes preservados
 
 - GIVEN el catálogo vigente con `view_users`, `manage_bancas`, `view_exchange_rates`
-- WHEN se aplica BE-04
-- THEN esos nombres permanecen idénticos y los 11 faltantes existen con guard `api`
+- WHEN se aplica BE-04 y #89
+- THEN esos nombres permanecen idénticos y `view_audit`/`export_audit` existen con guard `api`
 
 #### Scenario: Permisos muertos ausentes
 
@@ -66,15 +67,20 @@ La matriz capability × rol MUST documentarse en `docs/dev/` y ser la fuente ún
 | Exchange rates | v,m | — | — | — | — |
 | Reportes | v | v | v | v | v |
 | Logs | v | — | — | — | — |
+| Auditoría | v,e | — | — | — | — |
 | Releases | v | v | v | v | v |
 | Clave cierre | m | m | — | — | — |
 | Config | m | — | — | — | — |
 
-`super_master` queda fuera de la matriz (bypass). Conteos: master 33, banca 24,
+`super_master` queda fuera de la matriz (bypass). Conteos: master 35, banca 24,
 grupo 21, agencia 17, taquilla 12, super_master 0.
 
 `*` `agencia` recibe `manage_agencias` para editar su propia ficha; `store`,
 `toggle` y `destroy` siguen bloqueados por el controller para ese rol.
+
+`view_audit` y `export_audit` se asignan solo a `master` (super_master vía
+bypass). El alcance de lectura lo acota `AlcanceService` a las bancas que el
+master administra; la capability no amplía el scope de filas (#85).
 
 `/tickets*` no tiene permiso propio: usa `create_apuesta`, que **no** se asigna
 a `agencia`. `AlcanceService` no filtra tickets por agencia, así que otorgarle
@@ -82,9 +88,15 @@ a `agencia`. `AlcanceService` no filtra tickets por agencia, así que otorgarle
 
 #### Scenario: Matriz documentada
 
-- GIVEN BE-04 cerrado
+- GIVEN #89 cerrado
 - WHEN un desarrollador consulta `docs/dev/`
-- THEN encuentra la matriz capability × rol actualizada
+- THEN encuentra la matriz capability × rol actualizada con Auditoría (v,e solo master)
+
+#### Scenario: Auditoría solo master
+
+- GIVEN usuarios `banca`, `grupo`, `agencia` y `taquilla`
+- WHEN consultan `/audit-events`
+- THEN reciben 403 (solo `master` tiene `view_audit`, y `super_master` por bypass)
 
 ### Requirement: Reconciliación con el acceso efectivo
 
@@ -99,6 +111,7 @@ concesiones explícitas. En concreto:
 - `agencia` MUST NOT recibir `view_pagos`, `create_pago` ni `create_apuesta`.
 - `view_exchange_rates` MUST asignarse solo a `master`.
 - `manage_config` MUST asignarse a `master`.
+- `view_audit` y `export_audit` MUST asignarse solo a `master`.
 
 #### Scenario: agencia edita su ficha pero no toca tickets ni pagos
 
@@ -117,7 +130,7 @@ concesiones explícitas. En concreto:
 
 ### Requirement: Bypass total para super_master
 
-`super_master` MUST disponer de bypass total vía `Gate::before`, sin depender de permisos asignados. El bypass MUST cubrir cualquier permiso presente o futuro.
+`super_master` MUST disponer de bypass total vía `Gate::before`, sin depender de permisos asignados. El bypass MUST cubrir cualquier permiso presente o futuro (incluidos `view_audit` y `export_audit`).
 
 #### Scenario: super_master sin permisos asignados
 
@@ -137,7 +150,7 @@ Los permisos MUST asignarse únicamente a roles. `givePermissionTo` y `syncPermi
 
 ### Requirement: Seeder idempotente
 
-`RolesAndPermissionsSeeder` MUST ser idempotente: `Permission::firstOrCreate` + `syncPermissions` de la matriz conocida, y MUST invocar `forgetCachedPermissions()` para invalidar el cache de Spatie.
+`RolesAndPermissionsSeeder` MUST ser idempotente: `Permission::firstOrCreate` + `syncPermissions` de la matriz conocida (incluidos `view_audit`/`export_audit`), y MUST invocar `forgetCachedPermissions()` para invalidar el cache de Spatie.
 
 #### Scenario: Re-ejecución segura
 
