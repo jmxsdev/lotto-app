@@ -35,6 +35,8 @@ test.describe('anulación', () => {
 
     // Anti-tecleo: el serial debe coincidir con el ticket_code.
     await page.fill('#anular-serial', ticketCode);
+    // La anulación exige motivo (auditoría P0).
+    await page.fill('#anular-motivo', 'Prueba E2E de anulación');
     await page.click('#anular-confirmar');
 
     // Modal de éxito del DELETE.

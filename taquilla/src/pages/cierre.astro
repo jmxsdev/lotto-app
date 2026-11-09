@@ -33,6 +33,16 @@ import Icon from '../components/ui/Icon.astro';
       </div>
       <div id="diff-bs" class="diff"></div>
       <div id="diff-usd" class="diff"></div>
+      <label class="arqueo-label" for="cierre-motivo">
+        Motivo del re-cierre
+        <select id="cierre-motivo">
+          <option value="">Seleccione un motivo…</option>
+          <option value="business_decision">Decisión de negocio</option>
+          <option value="operational_error">Error operativo</option>
+          <option value="data_correction">Corrección de datos</option>
+          <option value="other">Otro</option>
+        </select>
+      </label>
       <button id="btn-ejecutar" class="btn-primary">Ejecutar cierre</button>
     </section>
 
@@ -200,14 +210,16 @@ import Icon from '../components/ui/Icon.astro';
       font-weight: 600;
       color: #555;
     }
-    .arqueo-label input {
+    .arqueo-label input,
+    .arqueo-label select {
       padding: 10px 12px;
       border: 2px solid #ddd;
       border-radius: 8px;
       font-size: 16px;
       width: 200px;
     }
-    .arqueo-label input:focus { border-color: #667eea; outline: none; }
+    .arqueo-label input:focus,
+    .arqueo-label select:focus { border-color: #667eea; outline: none; }
 
     .diff { margin-top: 8px; font-size: 14px; font-weight: 600; min-height: 20px; }
     .diff.faltante { color: #dc3545; }
@@ -498,6 +510,16 @@ import Icon from '../components/ui/Icon.astro';
 
       const ok = await window.showModal({ message: resumen, type: 'confirm' });
       if (!ok) return;
+
+      // El re-cierre es destructivo y exige motivo (auditoría P0).
+      if (recierre) {
+        const motivo = document.getElementById('cierre-motivo').value;
+        if (!motivo) {
+          await window.showModal({ message: 'Seleccione el motivo del re-cierre.', type: 'error' });
+          return;
+        }
+        body.reason_code = motivo;
+      }
 
       // Prompt de clave SOLO en re-cierre (5.4, AD-14): null cancela el flujo completo.
       if (recierre) {

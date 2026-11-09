@@ -21,6 +21,8 @@ function parseEsVeBs(text) {
  * prompt de clave (re-cierre) la completa → modal de éxito → Aceptar.
  */
 async function ejecutarCierre(page) {
+  // El re-cierre exige motivo (auditoría P0); en el primer cierre se ignora.
+  await page.selectOption('#cierre-motivo', 'business_decision');
   await page.click('#btn-ejecutar');
   const confirm = page.locator('.modal-overlay:visible');
   await expect(confirm.locator('.ok-btn')).toBeVisible({ timeout: 10_000 });
