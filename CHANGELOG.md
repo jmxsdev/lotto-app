@@ -12,7 +12,8 @@ auditoría obligatoria de motivos (#89).
 
 ### Agregado
 
-- **Motivo en anulación de ticket**: input obligatorio bajo el serial; el
+- **Motivo en anulación de ticket**: input obligatorio bajo el serial, tanto en
+  el modal F10 del dashboard como en la acción “Anular” del historial; el
   `DELETE /tickets/{id}` envía `motivo` y el backend lo registra en auditoría.
 - **Motivo en re-cierre de caja**: select obligatorio antes de re-cerrar; se
   envía como `reason_code` y queda en `cierre.reclosed`.
