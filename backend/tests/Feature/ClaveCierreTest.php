@@ -452,7 +452,7 @@ class ClaveCierreTest extends TestCase
         $taquilla = $this->taquillaSeeded();
         $this->configurarClave($this->bancaUser(), '123456');
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Clave de cierre incorrecta.');
 
         $this->servicio()->validarClaveCierre($taquilla->id, '999999');
@@ -464,7 +464,7 @@ class ClaveCierreTest extends TestCase
         // Ningún usuario de la cadena (banca BT001, master, super_master)
         // tiene clave configurada.
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('No hay una clave de cierre configurada para esta taquilla.');
 
         $this->servicio()->validarClaveCierre($taquilla->id, '123456');
@@ -497,7 +497,7 @@ class ClaveCierreTest extends TestCase
         try {
             $this->servicio()->validarClaveCierre($taquilla->id, '555555');
             $this->fail('La clave de otra banca no debe validar para esta taquilla.');
-        } catch (\RuntimeException $e) {
+        } catch (RuntimeException $e) {
             $this->assertSame('Clave de cierre incorrecta.', $e->getMessage());
         }
 

@@ -29,7 +29,7 @@ return new class extends Migration
 
         $this->createTrigger(
             'CREATE TRIGGER audit_events_no_delete BEFORE DELETE ON audit_events '
-            ."FOR EACH ROW BEGIN IF COALESCE(@audit_retention, 0) <> 1 THEN "
+            .'FOR EACH ROW BEGIN IF COALESCE(@audit_retention, 0) <> 1 THEN '
             ."SIGNAL SQLSTATE '45000' "
             ."SET MESSAGE_TEXT = 'audit_events is append-only'; "
             .'END IF; END'

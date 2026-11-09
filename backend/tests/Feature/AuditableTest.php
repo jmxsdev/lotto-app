@@ -2,11 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Audit\Auditable;
 use App\Audit\AuditAction;
 use App\Audit\AuditContext;
 use App\Audit\AuditReason;
 use App\Audit\AuditRedactor;
-use App\Audit\Auditable;
 use App\Models\AuditEvent;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;

@@ -7,6 +7,8 @@ use App\Audit\AuditEventData;
 use App\Audit\AuditReason;
 use App\Audit\AuditRecorder;
 use App\Audit\AuditScopeResolver;
+use App\Exceptions\AuditValidationException;
+use App\Exceptions\AuditWriteException;
 use App\Models\Apuesta;
 use App\Models\Banca;
 use App\Models\CierreCaja;
@@ -90,8 +92,8 @@ class CierreService
      *
      * @throws \RuntimeException si no existe tasa, falta la clave en un
      *                           re-cierre o la clave no valida la cadena
-     * @throws \App\Exceptions\AuditValidationException si el re-cierre no trae motivo válido
-     * @throws \App\Exceptions\AuditWriteException si falla la escritura P0 de auditoría
+     * @throws AuditValidationException si el re-cierre no trae motivo válido
+     * @throws AuditWriteException si falla la escritura P0 de auditoría
      */
     public function crearCierre(
         int $taquillaId,

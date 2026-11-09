@@ -119,9 +119,6 @@ class AuditoriaLecturaTest extends TestCase
         $this->assertNull($vacio->json('next_cursor'));
     }
 
-    /**
-     * @param  string  $role
-     */
     #[DataProvider('rolesSinAcceso')]
     public function test_roles_sin_permiso_reciben_403(string $role): void
     {

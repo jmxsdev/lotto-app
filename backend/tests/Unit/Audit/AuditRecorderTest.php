@@ -30,8 +30,11 @@ class AuditRecorderTest extends TestCase
     use RefreshDatabase;
 
     private static bool $failInsert = false;
+
     private AuditContext $context;
+
     private AuditRecorder $recorder;
+
     private AuditChainHasher $hasher;
 
     protected function setUp(): void

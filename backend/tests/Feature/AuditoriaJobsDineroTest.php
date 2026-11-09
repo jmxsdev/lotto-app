@@ -16,6 +16,7 @@ use App\Models\Taquilla;
 use App\Models\Ticket;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use Tests\TestCase;
@@ -118,7 +119,7 @@ class AuditoriaJobsDineroTest extends TestCase
     }
 
     /**
-     * @return array{0: Ticket, 1: \Illuminate\Support\Collection<int, Apuesta>, 2: Banca, 3: Grupo, 4: Taquilla}
+     * @return array{0: Ticket, 1: Collection<int, Apuesta>, 2: Banca, 3: Grupo, 4: Taquilla}
      */
     private function ticketGanadorExpirado(int $dias = 35): array
     {

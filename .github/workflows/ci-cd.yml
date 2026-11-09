@@ -160,6 +160,11 @@ jobs:
 
       - name: Migrar y sembrar (canónico + E2E)
         working-directory: backend
+        env:
+          # El service container crea lotto_test sin SUPER; los triggers
+          # append-only exigen root (o log_bin_trust_function_creators=1).
+          DB_USERNAME: root
+          DB_PASSWORD: root
         run: |
           php artisan migrate:fresh --seed --force
           php artisan db:seed --class=E2eSeeder --force
