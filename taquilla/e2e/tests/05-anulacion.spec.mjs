@@ -62,7 +62,7 @@ test.describe('anulación', () => {
     // Vender otro ticket para anularlo desde el historial (no desde F10).
     // Usa otro animal/sorteo para no chocar con el límite del ticket del test
     // anterior (Caballo 08:00).
-    await sellTicketLine(page, { animal: 'Perro', monto: '3000', horario: '09:00' });
+    await sellTicketLine(page, { animal: 'Perro', monto: '5000', horario: '09:00' });
     await seleccionarTipoPago(page);
     await page.click(SELECTORS.dashboard.print);
     await page.waitForFunction(() => Boolean(localStorage.getItem('ultimoTicket')), null, {
