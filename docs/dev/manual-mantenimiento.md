@@ -238,7 +238,9 @@ A partir de **1.0.3** la taquilla empaquetada se actualiza sola:
 
 ### 4.6 Versionado
 
-- La versión vive en `taquilla/package.json` → `"version"` (actual `1.0.3`).
+- La versión vive en `taquilla/package.json` → `"version"` (actual `2.0.1`).
+- 2.0.1 exige motivo en anulación de ticket y re-cierre de caja; el backend de
+  auditoría rechaza ambos flujos si el cliente no lo envía.
 - `artifactName: "Taquilla-Setup-${version}.${ext}"` genera el nombre del instalador.
 - `releases:publish` parsea la versión de ese filename; si lo renombras, pásala con `--release-version=`. Esa versión es la que reporta `/update-check`, `/releases/latest` y el feed.
 - Bump de versión = editar `package.json` → rebuild → publish (con `--latest-yml=`); la fila única de releases garantiza que solo existe "la última".

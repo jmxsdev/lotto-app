@@ -5,6 +5,29 @@ Todas las versiones notables de la Taquilla se documentan en este archivo.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/) y el
 versionado es [SemVer](https://semver.org/lang/es/).
 
+## [2.0.1] — 2026-11-09
+
+Release de Taquilla que alinea anulación de tickets y re-cierre de caja con la
+auditoría obligatoria de motivos (#89).
+
+### Agregado
+
+- **Motivo en anulación de ticket**: input obligatorio bajo el serial; el
+  `DELETE /tickets/{id}` envía `motivo` y el backend lo registra en auditoría.
+- **Motivo en re-cierre de caja**: select obligatorio antes de re-cerrar; se
+  envía como `reason_code` y queda en `cierre.reclosed`.
+
+### Corregido
+
+- Layout del modal de anulación: label e input apilados, input a ancho completo
+  y sin desborde lateral en el modal de 440 px.
+
+### Técnico
+
+- `taquilla/package.json` sube a `2.0.1`; el backend desplegado exige
+  `motivo`/`reason_code` en esos dos flujos.
+- Los E2E de anulación y cierre cubren el motivo obligatorio.
+
 ## [2.0.0] — 2026-11-05
 
 Release de Taquilla que cierra el retiro del juego Terminal Activo. La jugada
