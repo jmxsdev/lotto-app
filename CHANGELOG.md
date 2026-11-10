@@ -5,6 +5,23 @@ Todas las versiones notables de la Taquilla se documentan en este archivo.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/) y el
 versionado es [SemVer](https://semver.org/lang/es/).
 
+## [Unreleased]
+
+### Cambiado
+
+- **Impresión térmica nativa ESC/POS**: tickets, comprobantes de pago, cierres y
+  reportes por rango se imprimen directamente en la impresora (58 mm / 32
+  columnas por defecto) sin pasar por el diálogo del sistema. Se retiró la ruta
+  HTML de respaldo y los generadores HTML.
+
+### Técnico
+
+- **Migración de impresión a TypeScript**: el módulo `taquilla/electron/main/printing/`
+  pasa de `.cjs` a fuentes `.ts` (`core/`, `infra/`, `documents/`, `types.ts`) y se
+  compila con esbuild a CommonJS en `printing/dist/` mediante `pnpm build:printing`.
+  Sin cambios de comportamiento, defaults, mensajes ni contrato IPC. `test:printing`,
+  `electron:dev`, `electron:build`, `electron:build:win` y `e2e` construyen primero.
+
 ## [2.0.0] — 2026-11-05
 
 Release de Taquilla que cierra el retiro del juego Terminal Activo. La jugada

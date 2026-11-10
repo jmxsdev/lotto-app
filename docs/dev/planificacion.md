@@ -278,7 +278,7 @@ backend/tests/Fixtures/animalitos_page.html
 | # | Tarea | Entregable |
 |---|-------|------------|
 | 9.1 | UI de "Nueva Apuesta": Selección de juego (Animalitos), selector de combinación, inputs para monto en BS y $. | Interfaz con cálculo automático cruzado. |
-| 9.2 | Integración con impresora térmica (usando `node-printer` o generando PDF). | Botón "Imprimir Ticket" funciona. |
+| 9.2 | Integración con impresora térmica ESC/POS nativa (58 mm, 32 columnas por defecto). | Botón "Imprimir Ticket" imprime el ticket nativo. |
 | 9.3 | UI de "Historial": Lista de apuestas del día, con estado (Pendiente/Pagada). | Vista con filtros. |
 | 9.4 | UI de "Pagar Premio": Seleccionar apuesta ganadora y registrar pago (con opción de moneda). | Endpoint `POST /api/pagos` consumido. |
 | 9.5 | UI de "Eliminar Ticket": Botón visible solo si cumple regla (5 min y sorteo no realizado). | Botón deshabilitado con tooltip explicativo. |

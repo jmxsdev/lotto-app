@@ -105,6 +105,10 @@ jobs:
           node taquilla/scripts/check-pure.mjs
           node taquilla/scripts/check-icons.mjs
 
+      - name: Tests puros de impresión (ESC/POS)
+        working-directory: taquilla
+        run: pnpm build:printing && cd electron/main/printing && node --test
+
       - name: Build taquilla
         working-directory: taquilla
         run: pnpm build

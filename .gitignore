@@ -26,6 +26,9 @@ build/
 *.dmg
 *.AppImage
 
+# Salida compilada de impresion nativa (scripts/build-printing.mjs)
+taquilla/electron/main/printing/dist/
+
 # Archivos de configuración de IDE
 .vscode/
 .idea/
