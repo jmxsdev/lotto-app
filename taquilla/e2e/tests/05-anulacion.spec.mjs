@@ -54,4 +54,43 @@ test.describe('anulación', () => {
 
     await closeApp(app);
   });
+
+  test('historial: anular con serial y motivo desde la lista', async () => {
+    const { app, page } = await launchApp();
+    await loginToDashboard(page);
+
+    // Vender otro ticket para anularlo desde el historial (no desde F10).
+    // Usa otro animal/sorteo para no chocar con el límite del ticket del test
+    // anterior (Caballo 08:00).
+    await sellTicketLine(page, { animal: 'Perro', monto: '5000', horario: '09:00' });
+    await seleccionarTipoPago(page);
+    await page.click(SELECTORS.dashboard.print);
+    await page.waitForFunction(() => Boolean(localStorage.getItem('ultimoTicket')), null, {
+      timeout: 15_000,
+    });
+    const ticketCode = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem('ultimoTicket') || 'null').ticketCode
+    );
+    expect(ticketCode).toMatch(/^[A-Z0-9]{8}$/);
+
+    await navigateGlobalKey(page, 'F5', /\/historial/);
+    const card = page.locator('.ticket-card', { hasText: ticketCode });
+    await expect(card).toBeVisible({ timeout: 15_000 });
+
+    await card.locator('.btn-delete').click();
+    const modal = page.locator('#hist-anular-overlay');
+    await expect(modal).toHaveClass(/abierto/, { timeout: 10_000 });
+
+    await page.fill('#hist-anular-serial', ticketCode);
+    await page.fill('#hist-anular-motivo', 'Prueba E2E historial');
+    await page.click('#hist-anular-confirmar');
+
+    const success = page.locator('.modal-overlay:visible');
+    await expect(success).toContainText('Ticket anulado', { timeout: 15_000 });
+    await success.locator('.ok-btn').click();
+
+    await expect(card.locator('.badge-anulada')).toBeVisible({ timeout: 15_000 });
+    await stepShot(page, '05-anulacion-historial');
+    await closeApp(app);
+  });
 });

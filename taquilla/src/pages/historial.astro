@@ -28,6 +28,26 @@ import MainLayout from '../layouts/MainLayout.astro';
         </div>
     </div>
 
+    <div id="hist-anular-overlay" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Anular ticket">
+        <div class="modal-dialog hist-anular-dialog">
+            <h3 class="hist-anular-title">Anular ticket</h3>
+            <p class="hist-anular-guia">Ingrese el serial y el motivo para confirmar.</p>
+            <div class="hist-anular-fila">
+                <label for="hist-anular-serial">Serial del ticket</label>
+                <input type="text" id="hist-anular-serial" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Ej: TKT-000123">
+            </div>
+            <div class="hist-anular-fila">
+                <label for="hist-anular-motivo">Motivo de la anulación</label>
+                <input type="text" id="hist-anular-motivo" maxlength="255" autocomplete="off" placeholder="Ej: solicitud del cliente">
+            </div>
+            <div class="hist-anular-error" id="hist-anular-error" role="alert"></div>
+            <div class="modal-buttons">
+                <button class="modal-btn modal-btn-secondary" id="hist-anular-cerrar">Cancelar</button>
+                <button class="modal-btn modal-btn-primary" id="hist-anular-confirmar">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
     <style is:global>
         .historial-page { max-width: 1400px; margin: 0 auto; }
         .page-title { font-size: 28px; font-weight: 700; color: #333; margin-bottom: 24px; }
@@ -84,6 +104,44 @@ import MainLayout from '../layouts/MainLayout.astro';
         .page-btn { padding: 8px 14px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-size: 14px; }
         .page-btn.active { background: #667eea; color: white; border-color: #667eea; }
         .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Modal de anulación desde el historial (serial + motivo). */
+        #hist-anular-overlay { display: none; }
+        #hist-anular-overlay.abierto { display: flex; }
+        .hist-anular-dialog {
+            max-width: 440px;
+            width: 92%;
+            max-height: 90vh;
+            overflow-y: auto;
+            text-align: left;
+        }
+        .hist-anular-title { font-size: 16px; margin-bottom: 8px; color: #333; }
+        .hist-anular-guia { font-size: 13px; color: #555; margin-bottom: 12px; line-height: 1.5; }
+        .hist-anular-fila { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+        .hist-anular-fila label { font-size: 13px; color: #555; }
+        .hist-anular-fila input {
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+            padding: 8px 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        #hist-anular-serial { text-transform: uppercase; }
+        #hist-anular-motivo { text-transform: none; }
+        .hist-anular-fila input:focus { border-color: #667eea; outline: none; }
+        .hist-anular-error {
+            display: none;
+            margin: 8px 0;
+            padding: 8px 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #dc2626;
+            background: #fef2f2;
+        }
+        .hist-anular-error.visible { display: block; }
     </style>
 
     <script>
@@ -227,34 +285,76 @@ import MainLayout from '../layouts/MainLayout.astro';
             container.innerHTML = html;
         }
 
-        // Anti-tecleo (mismo criterio que la anulación F10 del dashboard): el
-        // modal NO revela el serial. El operador teclea el ticket_code y se
-        // compara con `serialCoincide` antes de llamar al backend. Cancelar
-        // (null) aborta sin DELETE; un serial que no coincide NO anula.
-        async function anularTicketConSerial(ticket) {
-            const serial = await window.showModal({
-                message: 'Ingrese el serial del ticket para confirmar la anulación',
-                type: 'input',
-                inputType: 'text',
-                placeholder: 'Ej: TKT-000123'
-            });
-            if (serial === null) return;
-            if (!serialCoincide(serial, ticket.ticket_code)) {
-                await window.showModal({ message: 'El serial no coincide. No se anuló el ticket.', type: 'error' });
-                return;
-            }
-            deleteTicket(ticket);
+        // Anti-tecleo + motivo obligatorio (mismo criterio que la anulación
+        // F10 del dashboard): el modal NO revela el serial. El operador teclea
+        // el ticket_code, lo compara con `serialCoincide` y escribe el motivo
+        // antes de llamar al backend. Cancelar aborta sin DELETE.
+        let anularTicketHistorial = null;
+        let anularEnviandoHistorial = false;
+
+        function mostrarErrorAnularHistorial(mensaje) {
+            const el = document.getElementById('hist-anular-error');
+            if (!el) return;
+            el.textContent = mensaje || '';
+            el.classList.toggle('visible', Boolean(mensaje));
         }
 
-        async function deleteTicket(ticket) {
+        function abrirAnularHistorial(ticket) {
+            anularTicketHistorial = ticket;
+            const overlay = document.getElementById('hist-anular-overlay');
+            const serial = document.getElementById('hist-anular-serial');
+            const motivo = document.getElementById('hist-anular-motivo');
+            if (!overlay || !serial || !motivo) return;
+            serial.value = '';
+            motivo.value = '';
+            mostrarErrorAnularHistorial('');
+            overlay.classList.add('abierto');
+            serial.focus();
+        }
+
+        function cerrarAnularHistorial() {
+            document.getElementById('hist-anular-overlay')?.classList.remove('abierto');
+            anularTicketHistorial = null;
+            anularEnviandoHistorial = false;
+        }
+
+        async function confirmarAnularHistorial() {
+            if (anularEnviandoHistorial || !anularTicketHistorial) return;
+            const serial = document.getElementById('hist-anular-serial');
+            const motivoInput = document.getElementById('hist-anular-motivo');
+            if (!serial || !motivoInput) return;
+
+            if (!serialCoincide(serial.value, anularTicketHistorial.ticket_code)) {
+                mostrarErrorAnularHistorial('El serial no coincide con el ticket');
+                serial.focus();
+                return;
+            }
+
+            const motivo = motivoInput.value.trim();
+            if (motivo === '') {
+                mostrarErrorAnularHistorial('Ingrese el motivo de la anulación');
+                motivoInput.focus();
+                return;
+            }
+
+            const btn = document.getElementById('hist-anular-confirmar');
+            anularEnviandoHistorial = true;
+            if (btn) btn.disabled = true;
             try {
-                await apiFetch('/tickets/' + ticket.id, { method: 'DELETE' });
+                await apiFetch('/tickets/' + anularTicketHistorial.id, {
+                    method: 'DELETE',
+                    body: { motivo },
+                });
+                cerrarAnularHistorial();
                 loadTickets();
                 await window.showModal({ message: 'Ticket anulado', type: 'success' });
             } catch (e) {
-                // S2: el mensaje REAL del backend (422) verbatim, sin prefijos
-                // locales que lo adulteren.
-                await window.showModal({ message: e.message, type: 'error' });
+                // Mensaje REAL del backend (422) verbatim; el modal queda abierto
+                // para corregir serial/motivo y reintentar.
+                mostrarErrorAnularHistorial(e instanceof Error && e.message ? e.message : 'No se pudo anular el ticket.');
+            } finally {
+                anularEnviandoHistorial = false;
+                if (btn) btn.disabled = false;
             }
         }
 
@@ -464,7 +564,7 @@ import MainLayout from '../layouts/MainLayout.astro';
                     if (!ticket) return;
                     switch (actionBtn.dataset.action) {
                         case 'pay': pagarTicket(ticket); break;
-                        case 'delete': anularTicketConSerial(ticket); break;
+                        case 'delete': abrirAnularHistorial(ticket); break;
                         case 'print': printTicket(ticket); break;
                     }
                     return;
@@ -482,6 +582,18 @@ import MainLayout from '../layouts/MainLayout.astro';
                             expandIcon.innerHTML = jugadasDiv.classList.contains('open') ? icono('chevron-down') : icono('chevron-right');
                         }
                     }
+                }
+            });
+
+            document.getElementById('hist-anular-cerrar')?.addEventListener('click', cerrarAnularHistorial);
+            document.getElementById('hist-anular-confirmar')?.addEventListener('click', confirmarAnularHistorial);
+            document.getElementById('hist-anular-overlay')?.addEventListener('click', (e) => {
+                if (e.target.id === 'hist-anular-overlay') cerrarAnularHistorial();
+            });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && document.getElementById('hist-anular-overlay')?.classList.contains('abierto')) {
+                    e.preventDefault();
+                    cerrarAnularHistorial();
                 }
             });
         });

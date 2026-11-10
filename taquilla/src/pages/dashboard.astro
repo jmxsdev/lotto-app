@@ -1284,7 +1284,10 @@ import Icon from '../components/ui/Icon.astro';
     }
 
     .anular-dialog {
-      max-width: 400px;
+      max-width: 440px;
+      width: 92%;
+      max-height: 90vh;
+      overflow-y: auto;
       text-align: left;
     }
 
@@ -1303,26 +1306,36 @@ import Icon from '../components/ui/Icon.astro';
 
     .anular-fila {
       display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 8px;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 4px;
+      margin-bottom: 12px;
     }
 
     .anular-fila label {
-      flex: 1;
+      flex: none;
       font-size: 13px;
       color: #555;
     }
 
     .anular-fila input {
-      flex: 1.2;
+      flex: none;
+      width: 100%;
       min-width: 0;
-      padding: 6px 10px;
+      box-sizing: border-box;
+      padding: 8px 10px;
       border: 2px solid #ddd;
       border-radius: 6px;
       font-size: 14px;
       font-family: inherit;
+    }
+
+    #anular-serial {
       text-transform: uppercase;
+    }
+
+    #anular-motivo {
+      text-transform: none;
     }
 
     .anular-fila input:focus {

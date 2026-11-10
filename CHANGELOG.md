@@ -22,6 +22,30 @@ versionado es [SemVer](https://semver.org/lang/es/).
   Sin cambios de comportamiento, defaults, mensajes ni contrato IPC. `test:printing`,
   `electron:dev`, `electron:build`, `electron:build:win` y `e2e` construyen primero.
 
+## [2.0.1] — 2026-11-09
+
+Release de Taquilla que alinea anulación de tickets y re-cierre de caja con la
+auditoría obligatoria de motivos (#89).
+
+### Agregado
+
+- **Motivo en anulación de ticket**: input obligatorio bajo el serial, tanto en
+  el modal F10 del dashboard como en la acción “Anular” del historial; el
+  `DELETE /tickets/{id}` envía `motivo` y el backend lo registra en auditoría.
+- **Motivo en re-cierre de caja**: select obligatorio antes de re-cerrar; se
+  envía como `reason_code` y queda en `cierre.reclosed`.
+
+### Corregido
+
+- Layout del modal de anulación: label e input apilados, input a ancho completo
+  y sin desborde lateral en el modal de 440 px.
+
+### Técnico
+
+- `taquilla/package.json` sube a `2.0.1`; el backend desplegado exige
+  `motivo`/`reason_code` en esos dos flujos.
+- Los E2E de anulación y cierre cubren el motivo obligatorio.
+
 ## [2.0.0] — 2026-11-05
 
 Release de Taquilla que cierra el retiro del juego Terminal Activo. La jugada
