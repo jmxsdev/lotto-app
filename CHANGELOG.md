@@ -5,7 +5,7 @@ Todas las versiones notables de la Taquilla se documentan en este archivo.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/) y el
 versionado es [SemVer](https://semver.org/lang/es/).
 
-## [Unreleased]
+## [2.1.0] — 2026-11-17
 
 ### Cambiado
 
