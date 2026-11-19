@@ -568,3 +568,17 @@ git add -f openspec/changes/configuracion-impresora/tasks.md openspec/changes/co
 ## No command was executed (Phase 7)
 
 No Node, pnpm, npm, composer, test, build, install, linter, type-check, or network call was run. Only read-only inspection (`grep`, `git status`, `git diff`, `wc`) was used. No `git add`, commit, branch creation, or merge was performed. All Phase 7 changes are uncommitted.
+
+## Phase 6 — Release 2.1.1 preparation
+
+Phase 6 was executed on `feature/configuracion-impresora-p6` (base P7 `4faf818`).
+
+| File | Change |
+|---|---|
+| `taquilla/package.json` | `"version": "2.1.0"` → `"2.1.1"` |
+| `CHANGELOG.md` | `[2.1.1] — 2026-11-19` includes printer configuration and session resume; E2E count corrected to 14/14 |
+| `tasks.md` / `apply-progress.md` | Phase 6 record |
+
+Verification: `pnpm build` exit 0; `pnpm test:printing` 103/103; `node -e require('./package.json').version` → `2.1.1`.
+
+Not executed: push, chained PR creation, tracker merge to `main`, and the Windows installer build/publish. There is no CI job that builds the taquilla installer; `pnpm electron:build:win` plus uploading the artifact to the backend release storage remains the owner step.

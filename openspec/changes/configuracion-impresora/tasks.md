@@ -227,3 +227,15 @@ Phase 6 remains the 2.1.1 release. This is a separate login concern requested by
 - [x] 7.6 Release 2.1.1 incluye esta fase (no pasa a 2.1.2).
 
 Note: `auth_token` y `user_data` persisten en `localStorage`; antes de esta fase el re-login lo forzaba `index.astro` al redirigir siempre a `/login`, no un borrado de token. `index.astro` no cambió.
+
+## Apply Progress (Phase 6)
+
+Phase 6 was executed on `feature/configuracion-impresora-p6` (base P7 `4faf818`). Release preparation only.
+
+- [x] 6.1 `taquilla/package.json` version `2.1.0` → `2.1.1`
+- [x] 6.2 `CHANGELOG.md` `[2.1.1] — 2026-11-19` covers printer configuration and session resume; E2E 14/14
+- [ ] 6.3 Push the branch chain and open the chained PRs (not executed)
+- [ ] 6.4 Merge the tracker to `main` and verify CI (not executed)
+- [ ] 6.5 Build the Windows installer with `pnpm electron:build:win` and publish it to the release feed (owner step; the repo CI has no installer job)
+
+Note: no other tracked file references the app version. `pnpm-lock.yaml` matches dependency versions, not the package version.
