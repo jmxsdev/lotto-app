@@ -5,7 +5,7 @@ export type Paper = '58mm' | '80mm' | '80mm-512';
 export type CodePage = 'cp437' | 'cp850' | 'cp858' | 'cp1252' | 'ascii';
 export type Cut = 'partial' | 'full' | 'none';
 
-/** Fully resolved config: env > printer-config.json > defaults. */
+/** Fully resolved config: printer-config.json > defaults. */
 export interface EffectiveConfig {
   printerName: string | null;
   paper: Paper;
@@ -15,7 +15,6 @@ export interface EffectiveConfig {
   cut: Cut;
   feedLines: number;
   cutPerBlock: boolean;
-  printTest: boolean;
   warnings: readonly string[];
 }
 
@@ -61,7 +60,18 @@ export interface PrinterInfo {
   name: string;
   displayName?: string;
   description?: string;
+  options?: Record<string, string>;
   [key: string]: unknown;
+}
+
+export interface PrinterListResult {
+  printers: PrinterInfo[];
+  suggested: string | null;
+}
+
+export interface ListPrintersInput {
+  getPrintersAsync?: GetPrintersAsync;
+  timeoutMs?: number;
 }
 
 export type GetPrintersAsync = () => Promise<PrinterInfo[]>;
@@ -73,10 +83,29 @@ export interface PrinterRef {
 export interface PrintResult {
   success: boolean;
   message: string;
+  code?: PrintErrorCode;
+}
+
+/** IPC response for print:list-printers. */
+export interface PrinterListResponse {
+  success: boolean;
+  message: string;
+  printers: PrinterInfo[];
+  suggested: string | null;
+  code?: PrintErrorCode;
+}
+
+/** IPC response for print:get-config / print:set-config. */
+export interface PrinterConfigResponse {
+  success: boolean;
+  message: string;
+  config?: EffectiveConfig;
+  code?: PrintErrorCode;
 }
 
 export type PrintErrorCode =
   | 'E_CONFIG_INVALID'
+  | 'E_CONFIG_WRITE_FAILED'
   | 'E_PRINTER_UNCONFIGURED'
   | 'E_PRINTER_NOT_FOUND'
   | 'E_DISCOVERY_TIMEOUT'
@@ -87,6 +116,7 @@ export type PrintErrorCode =
   | 'E_PRINT_BUSY'
   | 'E_PRINT_LOCK_INVALID'
   | 'E_PAYLOAD_INVALID'
+  | 'E_PAYLOAD_TOO_LARGE'
   | 'E_NO_WEBCONTENTS';
 
 export type PrintError = Error & {
@@ -101,10 +131,6 @@ export interface WebContentsLike {
 
 export interface DocumentRenderer<T> {
   render(data: T, config: Partial<EffectiveConfig>): Buffer;
-}
-
-export interface PrinterDiscovery {
-  resolve(input: ResolvePrinterInput): Promise<PrinterRef>;
 }
 
 export interface Transport {
@@ -129,9 +155,49 @@ export interface BuildBufferInput {
 }
 
 export type ReadFile = (path: string, encoding: 'utf8') => string;
+export type WriteFile = (path: string, data: string, encoding: 'utf8') => void;
+export type RenameFile = (from: string, to: string) => void;
+
+export interface SavePrinterConfigInput {
+  printerName: string | null;
+  paper?: Paper;
+  columns?: number | null; // null removes an explicit override
+  codePage?: CodePage;
+  cut?: Cut;
+  feedLines?: number;
+  cutPerBlock?: boolean;
+}
+
+/** Optional overrides for the commissioning slip (print:test). */
+export interface TestPrintInput {
+  printerName?: string | null;
+  paper?: Paper;
+}
+
+export type PrinterConfigFile = {
+  version?: unknown;
+  printerName?: unknown;
+  paper?: unknown;
+  columns?: unknown;
+  codePage?: unknown;
+  cut?: unknown;
+  feedLines?: unknown;
+  cutPerBlock?: unknown;
+  [key: string]: unknown;
+};
+
+export interface SavedPrinterConfig {
+  version: 1;
+  printerName: string | null;
+  paper: Paper;
+  columns?: number;
+  codePage: CodePage;
+  cut: Cut;
+  feedLines: number;
+  cutPerBlock: boolean;
+}
 
 export interface ResolveConfigInput {
-  env?: Record<string, string | undefined>;
   userDataPath?: string;
   readFile?: ReadFile;
 }
@@ -153,16 +219,20 @@ export interface SendRawOptions {
 
 export interface Printing {
   printDocument(request: PrintRequest): Promise<PrintResult>;
-  maybeRunStartupTest(): Promise<PrintResult | null>;
   resolveEffectiveConfig(): EffectiveConfig;
   buildBuffer(input: BuildBufferInput): Buffer;
+  listPrinters(webContents: WebContentsLike): Promise<PrinterListResponse>;
+  getConfig(): PrinterConfigResponse;
+  /** Async because the renderer-supplied name is re-enumerated in main before persisting. */
+  saveConfig(webContents: WebContentsLike, patch: SavePrinterConfigInput): Promise<PrinterConfigResponse>;
+  testPrint(webContents: WebContentsLike, input?: TestPrintInput): Promise<PrintResult>;
 }
 
 export interface CreatePrintingOptions {
-  env?: Record<string, string | undefined>;
   userDataPath?: string;
-  getWindow?: () => { webContents?: WebContentsLike } | null;
   sendRaw?: Transport['sendRaw'];
   lock?: PrintLock;
   readFile?: ReadFile;
+  writeFile?: WriteFile;
+  renameFile?: RenameFile;
 }

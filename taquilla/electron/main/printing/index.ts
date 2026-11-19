@@ -1,6 +1,7 @@
 // Composition root for native printing. Pure builders + inert infra + single-flight lock.
-import { resolveConfig } from './infra/config';
-import { resolvePrinter } from './infra/discovery';
+import { resolveConfig, saveConfig as saveConfigImpl } from './infra/config';
+import { resolvePrinter, listPrinters as listPrintersImpl } from './infra/discovery';
+import { resolveProfile } from './core/profiles';
 import { sendRaw } from './infra/transport';
 import { createLock } from './infra/lock';
 import * as ticket from './documents/ticket';
@@ -11,14 +12,18 @@ import * as printTest from './documents/printTest';
 import type {
   BuildBufferInput,
   CreatePrintingOptions,
-  DocumentRenderer,
   PrintData,
   PrintError,
   PrintErrorCode,
   PrintKind,
   PrintRequest,
   PrintResult,
+  PrinterConfigResponse,
+  PrinterListResponse,
   Printing,
+  SavePrinterConfigInput,
+  TestPrintInput,
+  WebContentsLike,
 } from './types';
 
 const SUCCESS: Record<PrintKind, string> = {
@@ -29,7 +34,8 @@ const SUCCESS: Record<PrintKind, string> = {
 };
 
 // S3a registers the sale ticket; S3b adds the prize receipt; S4b adds close + report.
-const BUILDERS: Partial<Record<PrintKind, DocumentRenderer<any>>> = { ticket: ticket.render, recibo: recibo.render, cierre: cierre.render, reporte: reporte.render };
+type Renderer = (data: any, config: BuildBufferInput['config']) => Buffer;
+const BUILDERS: Partial<Record<PrintKind, Renderer>> = { ticket: ticket.render, recibo: recibo.render, cierre: cierre.render, reporte: reporte.render };
 
 const fail = (code: PrintErrorCode, message: string): PrintError => Object.assign(new Error(message), { code });
 
@@ -40,14 +46,25 @@ function buildBuffer({ kind, data, config }: BuildBufferInput): Buffer {
 }
 
 function createPrinting({
-  env = process.env,
   userDataPath,
-  getWindow, // used only by the S4a startup test; printDocument never needs it.
   sendRaw: sendRawImpl = sendRaw,
   lock = createLock(),
   readFile,
+  writeFile,
+  renameFile,
 }: CreatePrintingOptions = {}): Printing {
-  const resolveEffectiveConfig = () => resolveConfig({ env, userDataPath, readFile });
+  const resolveEffectiveConfig = () => resolveConfig({ userDataPath, readFile });
+  const configWriter = { userDataPath, readFile, writeFile, renameFile };
+  const printersOf = (webContents: WebContentsLike) => () => webContents.getPrintersAsync();
+  const hasDiscovery = (webContents?: WebContentsLike): boolean => Boolean(webContents)
+    && typeof webContents?.getPrintersAsync === 'function';
+  const noWebContents = () => fail('E_NO_WEBCONTENTS', 'No hay ventana activa para imprimir.');
+  const failFrom = (error: unknown, fallback: string): { success: false; message: string; code?: PrintErrorCode } => {
+    const code = (error as PrintError | null)?.code;
+    return code
+      ? { success: false, message: (error as Error)?.message || fallback, code }
+      : { success: false, message: (error as Error)?.message || fallback };
+  };
 
   async function printDocument({ kind = 'ticket', data, webContents }: Partial<PrintRequest> = {}): Promise<PrintResult> {
     try {
@@ -66,41 +83,77 @@ function createPrinting({
         return { success: true, message: SUCCESS[kind] };
       });
     } catch (error) {
-      return { success: false, message: (error && error.message) || 'No se pudo imprimir.' };
+      const code = error && (error as PrintError).code;
+      return code
+        ? { success: false, message: (error as Error).message || 'No se pudo imprimir.', code }
+        : { success: false, message: (error as Error)?.message || 'No se pudo imprimir.' };
     }
   }
 
-  /**
-   * Commissioning slip for the 58 mm unit. Runs only when LOTTO_PRINT_TEST=1.
-   * Never throws: every failure becomes a PrintResult.
-   */
-  async function maybeRunStartupTest(): Promise<PrintResult | null> {
+  async function listPrinters(webContents: WebContentsLike): Promise<PrinterListResponse> {
+    try {
+      if (!hasDiscovery(webContents)) throw noWebContents();
+      const { printers, suggested } = await listPrintersImpl({ getPrintersAsync: printersOf(webContents) });
+      return { success: true, message: 'Impresoras detectadas', printers, suggested };
+    } catch (error) {
+      return { ...failFrom(error, 'No se pudieron detectar impresoras.'), printers: [], suggested: null };
+    }
+  }
+
+  function getConfig(): PrinterConfigResponse {
+    return { success: true, message: 'Configuracion actual', config: resolveEffectiveConfig() };
+  }
+
+  async function saveConfig(webContents: WebContentsLike, patch: SavePrinterConfigInput): Promise<PrinterConfigResponse> {
+    try {
+      const current = resolveEffectiveConfig();
+      const printerName = patch?.printerName === undefined ? current.printerName : patch.printerName;
+      let resolvedName = printerName;
+      if (typeof printerName === 'string' && printerName.trim() !== '') {
+        if (!hasDiscovery(webContents)) throw noWebContents();
+        resolvedName = (await resolvePrinter({ printerName, getPrintersAsync: printersOf(webContents) })).name;
+      }
+      const saved = saveConfigImpl(configWriter, { ...patch, printerName: resolvedName });
+      return { success: true, message: 'Configuracion guardada', config: saved };
+    } catch (error) {
+      return failFrom(error, 'No se pudo guardar la configuracion.');
+    }
+  }
+
+  async function testPrint(
+    webContents: WebContentsLike,
+    { printerName, paper }: TestPrintInput = {},
+  ): Promise<PrintResult> {
     try {
       const config = resolveEffectiveConfig();
-      if (config.printTest !== true) return null;
-      const win = typeof getWindow === 'function' ? getWindow() : null;
-      const webContents = win && win.webContents;
-      if (!webContents || typeof webContents.getPrintersAsync !== 'function') {
-        return { success: false, message: 'No hay ventana activa para la prueba de impresion.' };
+      const name = printerName === undefined ? config.printerName : printerName;
+      if (!name) {
+        throw fail('E_PRINTER_UNCONFIGURED', 'Impresora no configurada. Configure una impresora antes de imprimir la prueba.');
       }
+      if (!hasDiscovery(webContents)) throw noWebContents();
+      const profile = paper ? resolveProfile({ paper }) : null;
+      const effective = profile
+        ? { ...config, paper: profile.paper, columns: profile.columns, dots: profile.dots }
+        : config;
+      const buffer = printTest.render(effective);
       return await lock.run(async () => {
-        const printer = await resolvePrinter({
-          printerName: config.printerName,
-          getPrintersAsync: () => webContents.getPrintersAsync(),
-        });
-        await sendRawImpl(printer.name, printTest.render(config));
+        const target = await resolvePrinter({ printerName: name, getPrintersAsync: printersOf(webContents) });
+        await sendRawImpl(target.name, buffer);
         return { success: true, message: 'Prueba de impresion enviada' };
       });
     } catch (error) {
-      return { success: false, message: (error && error.message) || 'No se pudo enviar la prueba de impresion.' };
+      return failFrom(error, 'No se pudo imprimir la prueba.');
     }
   }
 
   return {
     printDocument,
-    maybeRunStartupTest,
     resolveEffectiveConfig,
     buildBuffer,
+    listPrinters,
+    getConfig,
+    saveConfig,
+    testPrint,
   };
 }
 

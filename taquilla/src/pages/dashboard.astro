@@ -2577,7 +2577,18 @@ import Icon from '../components/ui/Icon.astro';
         // GET /tickets/{id}).
         localStorage.setItem('ultimoTicket', JSON.stringify(ticketData));
         if (window.electron?.printTicket) {
-          await window.electron.printTicket({ ticketData });
+          // Fase 4: un fallo de impresión NO rompe la venta. El ticket ya se
+          // creó y el snapshot de «+» debe sobrevivir, así que se reporta
+          // aparte (MainLayout ofrece configurar la impresora si aplica).
+          let printResult = null;
+          try {
+            printResult = await window.electron.printTicket({ ticketData });
+          } catch (printError) {
+            printResult = { success: false, message: printError?.message };
+          }
+          if (printResult && !printResult.success) {
+            await reportPrintFailure(printResult, { created: true });
+          }
         } else {
           await window.showModal({ message: 'Ticket ' + result.data.ticket_code + ' creado exitosamente. Impresión no disponible.', type: 'success' });
         }
@@ -2848,11 +2859,21 @@ import Icon from '../components/ui/Icon.astro';
       renderResumen();
     }
 
+    // Fase 4: ningún resultado {success:false} se ignora. MainLayout (Fase 3)
+    // decide si ofrece configurar la impresora (E_PRINTER_UNCONFIGURED /
+    // E_PRINTER_NOT_FOUND) o muestra el error; aquí solo queda el respaldo por
+    // si la página se renderizara sin ese layout.
+    async function reportPrintFailure(printResult, options) {
+      if (window.showPrintFailure) return window.showPrintFailure(printResult, options);
+      const prefix = options?.created ? 'El ticket se creo, pero no se pudo imprimir: ' : '';
+      return window.showModal({ message: prefix + (printResult?.message || 'No se pudo imprimir.'), type: 'error' });
+    }
+
     // «+» reimprime el último ticket desde el snapshot localStorage.ultimoTicket
     // (atajos-2026-09; era F9. A6, REQ-TF-03): se guarda tras un POST ok en
     // handlePrint; si falta o no es válido, aviso claro (nunca depende de red
     // justo cuando falla la impresora; rechazado GET /tickets/{id}).
-    function reimprimirUltimo() {
+    async function reimprimirUltimo() {
       const raw = localStorage.getItem('ultimoTicket');
       if (!raw) {
         window.showModal({
@@ -2867,7 +2888,17 @@ import Icon from '../components/ui/Icon.astro';
           throw new Error('snapshot inválido');
         }
         if (window.electron?.printTicket) {
-          window.electron.printTicket({ ticketData });
+          // Fase 4: se espera el envío y se reporta el fallo; un error de
+          // transporte no debe borrar el snapshot (por eso try/catch propio).
+          let printResult = null;
+          try {
+            printResult = await window.electron.printTicket({ ticketData });
+          } catch (printError) {
+            printResult = { success: false, message: printError?.message };
+          }
+          if (printResult && !printResult.success) {
+            await reportPrintFailure(printResult);
+          }
         } else {
           window.showModal({
             message: 'Reimpresión no disponible en este entorno.',

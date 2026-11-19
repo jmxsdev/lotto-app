@@ -358,6 +358,15 @@ import MainLayout from '../layouts/MainLayout.astro';
             }
         }
 
+        // Fase 4: ningún resultado {success:false} se ignora. MainLayout (Fase 3)
+        // ofrece configurar la impresora (E_PRINTER_UNCONFIGURED /
+        // E_PRINTER_NOT_FOUND) o muestra el error; esto es el respaldo por si
+        // la página se renderizara sin ese layout.
+        async function reportPrintFailure(printResult) {
+            if (window.showPrintFailure) return window.showPrintFailure(printResult);
+            return window.showModal({ message: printResult?.message || 'No se pudo imprimir.', type: 'error' });
+        }
+
         async function pagarTicket(ticket) {
             const ok = await window.showModal({
                 message: 'Registrar pago completo del ticket ' + ticket.ticket_code + ' por ' + premioTotalTexto(ticket) + '?',
@@ -392,17 +401,27 @@ import MainLayout from '../layouts/MainLayout.astro';
                 const pagosPorApuesta = (ticket.apuestas || []).map(a => respuestasPorId.get(a.id) ?? null);
                 const recibo = buildReciboLines(ticket, pagosPorApuesta);
                 if (window.electron?.printTicket) {
-                    await window.electron.printTicket({
-                        ticketData: {
-                            kind: 'recibo',
-                            ticketCode: ticket.ticket_code,
-                            date: new Date(ticket.created_at).toLocaleDateString('es-VE'),
-                            time: new Date(ticket.created_at).toLocaleTimeString('es-VE'),
-                            lines: recibo.lines,
-                            premioTotalBs: recibo.premioTotalBs,
-                            premioTotalUsd: recibo.premioTotalUsd,
-                        },
-                    });
+                    // Fase 4: el pago ya se registró; el fallo del comprobante se
+                    // reporta aparte y nunca oculta el éxito del pago.
+                    let reciboImpression = null;
+                    try {
+                        reciboImpression = await window.electron.printTicket({
+                            ticketData: {
+                                kind: 'recibo',
+                                ticketCode: ticket.ticket_code,
+                                date: new Date(ticket.created_at).toLocaleDateString('es-VE'),
+                                time: new Date(ticket.created_at).toLocaleTimeString('es-VE'),
+                                lines: recibo.lines,
+                                premioTotalBs: recibo.premioTotalBs,
+                                premioTotalUsd: recibo.premioTotalUsd,
+                            },
+                        });
+                    } catch (printError) {
+                        reciboImpression = { success: false, message: printError?.message };
+                    }
+                    if (reciboImpression && !reciboImpression.success) {
+                        await reportPrintFailure(reciboImpression);
+                    }
                 }
             }
             loadTickets();
@@ -478,7 +497,10 @@ import MainLayout from '../layouts/MainLayout.astro';
             }
             try {
                 if (window.electron?.printTicket) {
-                    await window.electron.printTicket({ ticketData });
+                    // Fase 4: el resultado se examina; un {success:false} ya no
+                    // se descarta en silencio.
+                    const res = await window.electron.printTicket({ ticketData });
+                    if (res && !res.success) await reportPrintFailure(res);
                 } else {
                     await window.showModal({ message: 'Impresion no disponible fuera de Electron', type: 'error' });
                 }

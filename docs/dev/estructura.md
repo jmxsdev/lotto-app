@@ -184,14 +184,20 @@ lotto-app/                           # Raíz del proyecto
 - **`docker-compose.yml`** (Raíz): Define los contenedores de **MySQL 8**, **Redis**, y **Nginx** (para servir Laravel). Todos los servicios se levantan con un solo comando.
 - **`backend/.env`**: Configuración de base de datos, Redis, URL del scraper, tasa de cambio por defecto, y `APP_URL` (para que la taquilla sepa dónde apuntar).
 - **`backend/config/exchange.php`**: Archivo personalizado que guardará configuraciones como `'default_currency' => 'VES'` o `'dollar_rate_update_interval' => 60` (minutos).
-- **`taquilla/.env`**: Variable `VITE_API_URL=http://backend.local/api/v1` (Astro usa `import.meta.env`). La configuración de la impresora se resuelve por variables de entorno del proceso principal; ver «Impresión nativa ESC/POS».
+- **`taquilla/.env`**: Variable `VITE_API_URL=http://backend.local/api/v1` (Astro usa `import.meta.env`). La configuración de la impresora vive en `userData/printer-config.json`; ver «Impresión nativa ESC/POS».
 - **`taquilla/electron/build/builder.json`**: Configuración de `electron-builder`; aquí defines el nombre del `.exe`, la versión, el ícono, y si quieres que sea portable o instalable.
 
 ---
 
 ### IMPRESIÓN NÁTICA ESC/POS (58 MM POR DEFECTO)
 
-- `taquilla/electron/main/printing/` es TypeScript (`core/`, `infra/`, `documents/`, `types.ts`); `pnpm build:printing` lo compila con esbuild a CommonJS en `printing/dist/`, que es lo que carga `main.cjs`. Los imports relativos van sin extensión y `dist/package.json` fija `"type":"commonjs"`. Es la vía nativa: 58 mm / 32 columnas por defecto, `LOTTO_PRINT_PAPER=80` habilita 48. Variables `LOTTO_PRINTER_NAME`, `LOTTO_PRINT_TEST=1` (slip de puesta en marcha), `LOTTO_PRINT_PAPER`, `LOTTO_PRINT_COLUMNS`, `LOTTO_PRINT_CODEPAGE`, `LOTTO_PRINT_CUT`, `LOTTO_PRINT_FEED`, `LOTTO_PRINT_CUT_PER_BLOCK`; tests con `pnpm test:printing` (build + `node --test`).
+- `taquilla/electron/main/printing/` es TypeScript (`core/`, `infra/`, `documents/`, `types.ts`); `pnpm build:printing` lo compila con esbuild a CommonJS en `printing/dist/`, que es lo que carga `main.cjs`. Los imports relativos van sin extensión y `dist/package.json` fija `"type":"commonjs"`. Es la vía nativa: 58 mm / 32 columnas por defecto. La configuración se lee de `userData/printer-config.json` (`printerName`, `paper`, `columns`, `codePage`, `cut`, `feedLines`, `cutPerBlock`); los valores ausentes o inválidos usan los predeterminados. Tests con `pnpm test:printing` (build + `node --test`).
+- **Configuración desde la app**: el encabezado (`MainLayout.astro`) tiene un botón de impresora que abre el modal de configuración. Ahí se elige impresora y papel (58/80 mm), se vuelve a detectar y se puede imprimir una prueba diagnóstica. Al entrar con la impresora sin configurar: cero o varias impresoras abren el modal; una sola térmica se autoguarda en 58 mm; una de oficina se marca como no compatible y **nunca** se guarda automáticamente.
+- **Fuente única**: `userData/printer-config.json` es la única fuente de configuración. No se leen variables de entorno de impresión. El guardado valida el nombre contra las impresoras enumeradas y escribe con `temp + rename` (atómico); los fallos devuelven `E_CONFIG_WRITE_FAILED`.
+- **IPC**: `print:list-printers`, `print:get-config`, `print:set-config` y `print:test` exponen la configuración al renderer; `print-ticket`, `print-cierre` y `print-reporte` siguen siendo los canales de impresión de documentos.
+- **Fallos visibles**: `window.showPrintFailure` (`MainLayout.astro`) centraliza el aviso. `E_PRINTER_UNCONFIGURED` y `E_PRINTER_NOT_FOUND` ofrecen «Configurar impresora»; el resto muestra el mensaje. En la venta, el ticket creado y el snapshot `ultimoTicket` se conservan aunque la impresión falle.
+- **Límite de la verificación**: el E2E stubea los canales `print-*`; valida el payload y el flujo, no los bytes ESC/POS ni el driver. La prueba física en una térmica de 58 mm sigue siendo la validación final.
+
 
 ---
 

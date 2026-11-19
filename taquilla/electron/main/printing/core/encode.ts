@@ -27,7 +27,9 @@ function tableFor(page: CodePage): Record<string, number> {
   return SHARED;
 }
 
-const has = (table: Record<string, number>, ch: string): boolean => Object.prototype.hasOwnProperty.call(table, ch);
+function has<T>(table: Record<string, T>, ch: string): boolean {
+  return Object.prototype.hasOwnProperty.call(table, ch);
+}
 
 function sanitize(value: unknown): string {
   return String(value ?? '')

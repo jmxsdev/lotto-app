@@ -71,6 +71,28 @@ function registerIpcHandlers(upstream, updater, printing) {
         });
     });
 
+    // ─── Configuracion de impresora (Fase 2): descubrimiento, lectura,
+    // escritura validada contra las colas enumeradas y prueba de comisionado.
+    ipcMain.handle('print:list-printers', async (event) => {
+        if (!printing || typeof printing.listPrinters !== 'function') return { success: false, message: 'Impresion no disponible' };
+        return printing.listPrinters(event.sender);
+    });
+
+    ipcMain.handle('print:get-config', async () => {
+        if (!printing || typeof printing.getConfig !== 'function') return { success: false, message: 'Impresion no disponible' };
+        return printing.getConfig();
+    });
+
+    ipcMain.handle('print:set-config', async (event, patch) => {
+        if (!printing || typeof printing.saveConfig !== 'function') return { success: false, message: 'Impresion no disponible' };
+        return printing.saveConfig(event.sender, patch);
+    });
+
+    ipcMain.handle('print:test', async (event, data) => {
+        if (!printing || typeof printing.testPrint !== 'function') return { success: false, message: 'Impresion no disponible' };
+        return printing.testPrint(event.sender, data);
+    });
+
     ipcMain.handle('get-version', () => {
         return app.getVersion();
     });

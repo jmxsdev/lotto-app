@@ -2,14 +2,9 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const path = require('node:path');
 const { createPrinting } = require('../dist/index.js');
-const printTest = require('../dist/documents/printTest.js');
 
-const missingFile = () => {
-  const error = new Error('missing');
-  error.code = 'ENOENT';
-  throw error;
-};
 const ticketData = {
   ticketCode: 'A1B2C3',
   date: '09/11/2026',
@@ -48,12 +43,37 @@ const reporteData = {
   desglose_metodos: { bs: {}, usd: {} },
 };
 const create = (overrides = {}) => createPrinting({
-  env: { LOTTO_PRINTER_NAME: 'POS-58' },
   userDataPath: '/tmp/lotto',
-  readFile: missingFile,
+  readFile: () => JSON.stringify({ printerName: 'POS-58' }),
   sendRaw: async () => {},
   ...overrides,
 });
+
+const configPath = path.join('/tmp/lotto', 'printer-config.json');
+const fakeFs = (initial = {}) => {
+  const files = { ...initial };
+  const writes = [];
+  const renames = [];
+  return {
+    files,
+    writes,
+    renames,
+    readFile: (file) => {
+      if (!(file in files)) throw new Error('ENOENT');
+      return files[file];
+    },
+    writeFile: (file, data) => {
+      writes.push({ path: file, data });
+      files[file] = data;
+    },
+    renameFile: (from, to) => {
+      renames.push({ from, to });
+      files[to] = files[from];
+      delete files[from];
+    },
+  };
+};
+const printers = (...names) => ({ getPrintersAsync: async () => names.map((name) => ({ name })) });
 
 test('ticket exitoso envia el buffer y devuelve el mensaje exacto', async () => {
   const sent = [];
@@ -111,7 +131,9 @@ test('un kind sin builder nativo devuelve el mensaje sin fallback HTML', async (
     data: { ...ticketData, kind: 'manifiesto' },
     webContents,
   });
-  assert.deepEqual(result, { success: false, message: 'Sin builder nativo para "manifiesto".' });
+  assert.deepEqual(result, {
+    success: false, message: 'Sin builder nativo para "manifiesto".', code: 'E_PAYLOAD_INVALID',
+  });
   assert.equal(sent.length, 0);
 });
 
@@ -123,10 +145,12 @@ test('los errores de descubrimiento y transporte se mapean a success false', asy
     webContents: { getPrintersAsync: async () => [{ name: 'Otra' }] },
   });
   assert.equal(notFound.success, false);
+  assert.equal(notFound.code, 'E_PRINTER_NOT_FOUND');
   assert.match(notFound.message, /no encontrada/);
 
   const transport = await printing.printDocument({ kind: 'ticket', data: ticketData, webContents });
   assert.deepEqual(transport, { success: false, message: 'spooler caido' });
+  assert.equal('code' in transport, false);
 });
 
 test('un lock ocupado devuelve el mensaje de E_PRINT_BUSY sin lanzar', async () => {
@@ -139,6 +163,7 @@ test('un lock ocupado devuelve el mensaje de E_PRINT_BUSY sin lanzar', async () 
   const printing = create({ lock: busyLock });
   const result = await printing.printDocument({ kind: 'ticket', data: ticketData, webContents });
   assert.equal(result.success, false);
+  assert.equal(result.code, 'E_PRINT_BUSY');
   assert.match(result.message, /impresion en curso/);
 });
 
@@ -164,6 +189,7 @@ test('un trabajo mayor a 512 KiB falla antes de enviar', async () => {
   };
   const result = await printing.printDocument({ kind: 'ticket', data: huge, webContents });
   assert.equal(result.success, false);
+  assert.equal(result.code, 'E_PAYLOAD_TOO_LARGE');
   assert.match(result.message, /exceeds/);
   assert.equal(sent.length, 0);
 });
@@ -176,45 +202,89 @@ test('buildBuffer rechaza tipos sin builder nativo', () => {
   );
 });
 
-test('sin LOTTO_PRINT_TEST el arranque no envia la prueba', async () => {
-  const sent = [];
-  const printing = create({ sendRaw: async (...args) => sent.push(args), getWindow: () => ({ webContents }) });
-  assert.equal(await printing.maybeRunStartupTest(), null);
-  assert.equal(sent.length, 0);
+test('listPrinters devuelve las impresoras y la sugerida desde webContents', async () => {
+  const printing = create();
+  const webContents = {
+    getPrintersAsync: async () => [
+      { name: 'Otra', displayName: 'Otra' },
+      { name: 'POS-58', displayName: 'POS 58', description: 'Termica' },
+    ],
+  };
+  const result = await printing.listPrinters(webContents);
+  assert.equal(result.success, true);
+  assert.equal(result.message, 'Impresoras detectadas');
+  assert.deepEqual(result.printers.map((printer) => printer.name), ['Otra', 'POS-58']);
+  assert.equal(result.printers[1].description, 'Termica');
+  assert.equal(result.suggested, 'POS-58');
 });
 
-test('con LOTTO_PRINT_TEST=1 envia una sola prueba', async () => {
+test('getConfig devuelve la configuracion del archivo', () => {
+  const printing = create({ readFile: () => JSON.stringify({ printerName: 'POS-58', paper: '80mm' }) });
+  const result = printing.getConfig();
+  assert.equal(result.success, true);
+  assert.equal(result.message, 'Configuracion actual');
+  assert.equal(result.config.printerName, 'POS-58');
+  assert.equal(result.config.paper, '80mm');
+  assert.equal(result.config.columns, 48);
+});
+
+test('saveConfig persiste una impresora existente con escritura atomica', async () => {
+  const fake = fakeFs();
+  const printing = create({ readFile: fake.readFile, writeFile: fake.writeFile, renameFile: fake.renameFile });
+  const result = await printing.saveConfig(printers('POS-58'), { printerName: 'pos-58' });
+  assert.equal(result.success, true);
+  assert.equal(result.message, 'Configuracion guardada');
+  assert.equal(result.config.printerName, 'POS-58');
+  assert.equal(fake.writes.length, 1);
+  assert.deepEqual(fake.renames, [{ from: `${configPath}.tmp`, to: configPath }]);
+  assert.match(fake.files[configPath], /"printerName": "POS-58"/);
+});
+
+test('saveConfig rechaza una impresora que no esta enumerada', async () => {
+  const fake = fakeFs();
+  const printing = create({ readFile: fake.readFile, writeFile: fake.writeFile, renameFile: fake.renameFile });
+  const result = await printing.saveConfig(printers('POS-58'), { printerName: 'Fantasma' });
+  assert.equal(result.success, false);
+  assert.equal(result.code, 'E_PRINTER_NOT_FOUND');
+  assert.match(result.message, /no encontrada/);
+  assert.equal(fake.writes.length, 0);
+});
+
+test('saveConfig con printerName null limpia la impresora configurada', async () => {
+  const fake = fakeFs({ [configPath]: JSON.stringify({ printerName: 'POS-58' }) });
+  const printing = create({ readFile: fake.readFile, writeFile: fake.writeFile, renameFile: fake.renameFile });
+  const result = await printing.saveConfig(printers('POS-58'), { printerName: null });
+  assert.equal(result.success, true);
+  assert.equal(result.config.printerName, null);
+  assert.match(fake.files[configPath], /"printerName": null/);
+});
+
+test('testPrint envia la prueba a la impresora seleccionada', async () => {
   const sent = [];
-  const printing = create({
-    env: { LOTTO_PRINTER_NAME: 'POS-58', LOTTO_PRINT_TEST: '1' },
-    sendRaw: async (name, buffer) => sent.push({ name, buffer }),
-    getWindow: () => ({ webContents }),
-  });
-  const result = await printing.maybeRunStartupTest();
+  const printing = create({ sendRaw: async (name, buffer) => sent.push({ name, buffer }) });
+  const result = await printing.testPrint(printers('POS-58'), { printerName: 'POS-58' });
   assert.deepEqual(result, { success: true, message: 'Prueba de impresion enviada' });
   assert.equal(sent.length, 1);
   assert.equal(sent[0].name, 'POS-58');
-  assert.equal(
-    sent[0].buffer.toString('hex'),
-    printTest.render(printing.resolveEffectiveConfig()).toString('hex'),
-  );
+  assert.ok(Buffer.isBuffer(sent[0].buffer));
+  assert.match(sent[0].buffer.toString('latin1'), /PRUEBA DE IMPRESION/);
 });
 
-test('sin ventana activa la prueba devuelve success false sin lanzar', async () => {
-  const printing = create({
-    env: { LOTTO_PRINTER_NAME: 'POS-58', LOTTO_PRINT_TEST: '1' },
-    getWindow: () => null,
-  });
-  const result = await printing.maybeRunStartupTest();
+test('testPrint sin impresora configurada devuelve E_PRINTER_UNCONFIGURED', async () => {
+  const printing = create({ readFile: () => JSON.stringify({}) });
+  const result = await printing.testPrint(printers('POS-58'));
   assert.equal(result.success, false);
-  assert.match(result.message, /No hay ventana activa/);
+  assert.equal(result.code, 'E_PRINTER_UNCONFIGURED');
+  assert.match(result.message, /Impresora no configurada/);
 });
 
-test('un fallo del transporte en la prueba se devuelve como success false', async () => {
-  const printing = create({
-    env: { LOTTO_PRINTER_NAME: 'POS-58', LOTTO_PRINT_TEST: '1' },
-    sendRaw: async () => { throw new Error('spooler caido'); },
-    getWindow: () => ({ webContents }),
-  });
-  assert.deepEqual(await printing.maybeRunStartupTest(), { success: false, message: 'spooler caido' });
+test('testPrint usa el perfil de papel cuando se envia un papel distinto', async () => {
+  const sent = [];
+  const printing = create({ sendRaw: async (name, buffer) => sent.push({ name, buffer }) });
+  const webContents = printers('POS-58');
+  await printing.testPrint(webContents, { printerName: 'POS-58' });
+  await printing.testPrint(webContents, { printerName: 'POS-58', paper: '80mm' });
+  assert.equal(sent.length, 2);
+  assert.notEqual(sent[0].buffer.toString('hex'), sent[1].buffer.toString('hex'));
+  assert.match(sent[1].buffer.toString('latin1'), /Papel: 80mm/);
 });

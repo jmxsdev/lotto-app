@@ -15,11 +15,17 @@ export const E2E_CIERRE_CLAVE = process.env.E2E_CIERRE_CLAVE || '123456';
 
 // Canales IPC que se re-`handle`an vía electronApp.evaluate (stub evaluate-only).
 // get-mac devuelve el MAC E2E (header X-Device-MAC); los print-* capturan payload.
+// Los print:* de configuración (Fase 3) evitan que el auto-prompt de impresora
+// abra el modal y bloquee los specs existentes.
 export const STUB_CHANNELS = [
   'get-mac',
   'print-ticket',
   'print-cierre',
   'print-reporte',
+  'print:list-printers',
+  'print:get-config',
+  'print:set-config',
+  'print:test',
 ];
 
 // Selectores estables del renderer (design §Contracts).

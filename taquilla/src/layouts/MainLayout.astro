@@ -102,6 +102,9 @@ try {
             <span class="status-dot" id="status-dot"></span>
             <span class="status-text" id="status-text">Conectado</span>
           </div>
+          <button class="printer-btn" id="printer-setup-btn" title="Configurar impresora" aria-label="Configurar impresora">
+            <Icon name="printer" size={16} />
+          </button>
           <div class="user-section">
             {userName && <span class="user-name">{userName}</span>}
             <button class="logout-btn" id="logout-btn" title="Cerrar sesión" aria-label="Cerrar sesión">
@@ -117,7 +120,30 @@ try {
         </div>
       </div>
     </div>
-    
+
+    <div class="modal-overlay" id="printer-modal" hidden>
+      <div class="modal-dialog printer-dialog" role="dialog" aria-modal="true" aria-labelledby="printer-modal-title">
+        <h2 class="printer-title" id="printer-modal-title"><Icon name="printer" size={18} /> Configurar impresora</h2>
+        <label class="printer-field">Impresora
+          <select id="printer-select"></select>
+        </label>
+        <label class="printer-field">Papel
+          <select id="printer-paper">
+            <option value="58mm">58mm (32 columnas)</option>
+            <option value="80mm">80mm (48 columnas)</option>
+          </select>
+        </label>
+        <p class="printer-status" id="printer-status" aria-live="polite"></p>
+        <p class="printer-warning" id="printer-warning" hidden></p>
+        <div class="modal-buttons printer-buttons">
+          <button class="modal-btn modal-btn-secondary" id="printer-refresh"><Icon name="refresh-cw" size={16} /> Volver a detectar</button>
+          <button class="modal-btn modal-btn-secondary" id="printer-test"><Icon name="printer" size={16} /> Imprimir prueba</button>
+          <button class="modal-btn modal-btn-primary" id="printer-save"><Icon name="check" size={16} /> Guardar</button>
+          <button class="modal-btn modal-btn-secondary" id="printer-cancel"><Icon name="x" size={16} /> Cancelar</button>
+        </div>
+      </div>
+    </div>
+
     <script>
       import { apiFetch } from '../utils/apiFetch';
       import { destinoNav } from '../utils/keyboard';
@@ -230,6 +256,291 @@ try {
         });
       }
       window.showModal = showModal;
+
+      // ─── Configuración de impresora (Fase 3) ─────────────────────────────
+      // Modal estático #printer-modal (no usa el showModal dinámico) y
+      // auto-detección al cargar una pantalla autenticada. La clasificación
+      // térmica/office evita guardar una impresora de oficina por error:
+      // ESC/POS enviado a una láser sale como basura.
+      const PRINTER_OFFICE_RE = /laser|office|deskjet|inkjet|mfc|mfp|canon|brother|lexmark|ricoh|kyocera/i;
+      const PRINTER_THERMAL_RE = /pos|thermal|receipt|ticket|58|80|xp|tm|zebra|bixolon|star/i;
+
+      let printerConfig = null;
+      let detectedPrinters = [];
+
+      function printerKind(printer) {
+        const label = `${printer?.name || ''} ${printer?.displayName || ''}`;
+        if (PRINTER_OFFICE_RE.test(label)) return 'office';
+        if (PRINTER_THERMAL_RE.test(label)) return 'thermal';
+        return 'unknown';
+      }
+
+      function printerLabel(printer) {
+        return printer?.displayName || printer?.name || '';
+      }
+
+      function currentPrinter() {
+        const name = document.getElementById('printer-select')?.value;
+        return detectedPrinters.find((printer) => printer.name === name) || null;
+      }
+
+      function selectedPaper() {
+        return document.getElementById('printer-paper')?.value === '80mm' ? '80mm' : '58mm';
+      }
+
+      function showToast(message) {
+        const toast = document.createElement('div');
+        toast.className = 'printer-toast';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3500);
+      }
+
+      function fillPrinterSelect(printers, selected) {
+        const select = document.getElementById('printer-select');
+        select.innerHTML = '';
+        if (printers.length === 0) {
+          const option = document.createElement('option');
+          option.value = '';
+          option.textContent = 'No se detectaron impresoras';
+          select.appendChild(option);
+          select.disabled = true;
+          return;
+        }
+        select.disabled = false;
+        for (const printer of printers) {
+          const option = document.createElement('option');
+          option.value = printer.name;
+          option.textContent = printerLabel(printer);
+          select.appendChild(option);
+        }
+        const exists = printers.some((printer) => printer.name === selected);
+        select.value = exists ? selected : printers[0].name;
+      }
+
+      function updatePrinterStatus() {
+        const status = document.getElementById('printer-status');
+        const warning = document.getElementById('printer-warning');
+        const saveBtn = document.getElementById('printer-save');
+        const printer = currentPrinter();
+        if (!printer) {
+          status.textContent = detectedPrinters.length === 0
+            ? 'No se detectaron impresoras.'
+            : 'Seleccioná una impresora.';
+          warning.hidden = true;
+          saveBtn.disabled = true;
+          return;
+        }
+        const kind = printerKind(printer);
+        status.textContent = `Seleccionada: ${printerLabel(printer)}`;
+        if (kind === 'office') {
+          warning.textContent = 'No compatible con impresión térmica ESC/POS; la salida puede ser basura';
+          warning.hidden = false;
+          saveBtn.disabled = true;
+        } else if (kind === 'unknown') {
+          warning.textContent = 'No se pudo determinar el tipo; probá la impresión antes de guardar.';
+          warning.hidden = false;
+          saveBtn.disabled = false;
+        } else {
+          warning.hidden = true;
+          saveBtn.disabled = false;
+        }
+      }
+
+      async function loadPrinterConfig() {
+        if (!window.electron?.getPrinterConfig) return null;
+        try {
+          const result = await window.electron.getPrinterConfig();
+          if (result?.success && result.config) {
+            printerConfig = result.config;
+            return printerConfig;
+          }
+        } catch (error) {
+          console.warn('No se pudo leer la configuración de impresora:', error);
+        }
+        return null;
+      }
+
+      async function refreshPrinters() {
+        const status = document.getElementById('printer-status');
+        const saveBtn = document.getElementById('printer-save');
+        saveBtn.disabled = true;
+        if (!window.electron?.listPrinters) {
+          detectedPrinters = [];
+          fillPrinterSelect([], '');
+          status.textContent = 'La detección de impresoras no está disponible.';
+          return;
+        }
+        status.textContent = 'Detectando impresoras...';
+        try {
+          const result = await window.electron.listPrinters();
+          if (!result?.success) {
+            detectedPrinters = [];
+            fillPrinterSelect([], '');
+            status.textContent = result?.message || 'No se pudieron detectar impresoras.';
+            return;
+          }
+          detectedPrinters = Array.isArray(result.printers) ? result.printers : [];
+          if (detectedPrinters.length === 0) {
+            fillPrinterSelect([], '');
+            status.textContent = 'No se detectaron impresoras.';
+            document.getElementById('printer-warning').hidden = true;
+            return;
+          }
+          const preferred = printerConfig?.printerName || result.suggested || '';
+          fillPrinterSelect(detectedPrinters, preferred);
+          updatePrinterStatus();
+        } catch (error) {
+          detectedPrinters = [];
+          fillPrinterSelect([], '');
+          status.textContent = 'No se pudieron detectar impresoras.';
+          console.warn('No se pudieron detectar impresoras:', error);
+        }
+      }
+
+      async function openPrinterSetup() {
+        document.getElementById('printer-modal').hidden = false;
+        if (!printerConfig) await loadPrinterConfig();
+        const paper = printerConfig?.paper;
+        document.getElementById('printer-paper').value = paper === '80mm' || paper === '80mm-512' ? '80mm' : '58mm';
+        await refreshPrinters();
+      }
+
+      function closePrinterSetup() {
+        document.getElementById('printer-modal').hidden = true;
+      }
+
+      async function savePrinter() {
+        const printer = currentPrinter();
+        if (!printer) return;
+        const kind = printerKind(printer);
+        if (kind === 'office') {
+          await showModal({
+            message: 'No compatible con impresión térmica ESC/POS; la salida puede ser basura.',
+            type: 'error',
+          });
+          return;
+        }
+        if (!window.electron?.savePrinterConfig) return;
+        try {
+          const result = await window.electron.savePrinterConfig({
+            printerName: printer.name,
+            paper: selectedPaper(),
+          });
+          if (!result?.success) {
+            await showModal({ message: result?.message || 'No se pudo guardar la configuración.', type: 'error' });
+            return;
+          }
+          printerConfig = result.config || {
+            ...(printerConfig || {}),
+            printerName: printer.name,
+            paper: selectedPaper(),
+          };
+          closePrinterSetup();
+          await showModal({ message: 'Configuración de impresora guardada.', type: 'success' });
+        } catch (error) {
+          console.error('Error al guardar la configuración de impresora:', error);
+          await showModal({ message: 'No se pudo guardar la configuración.', type: 'error' });
+        }
+      }
+
+      async function testPrinter() {
+        const printer = currentPrinter();
+        if (!printer) {
+          await showModal({ message: 'Seleccioná una impresora.', type: 'error' });
+          return;
+        }
+        if (printerKind(printer) === 'office') {
+          const proceed = await showModal({
+            message: 'La impresora seleccionada no es térmica ESC/POS. La prueba puede salir como basura. ¿Enviar de todos modos?',
+            type: 'confirm',
+          });
+          if (!proceed) return;
+        }
+        if (!window.electron?.testPrint) return;
+        try {
+          const result = await window.electron.testPrint({
+            printerName: printer.name,
+            paper: selectedPaper(),
+          });
+          if (result?.success) {
+            await showModal({ message: 'Prueba enviada a la impresora.', type: 'success' });
+            return;
+          }
+          await showModal({ message: result?.message || 'La prueba de impresión falló.', type: 'error' });
+        } catch (error) {
+          console.error('Error en la prueba de impresión:', error);
+          await showModal({ message: 'La prueba de impresión falló.', type: 'error' });
+        }
+      }
+
+      async function maybePromptPrinterSetup() {
+        if (!window.electron?.listPrinters || !window.electron?.savePrinterConfig) return;
+        const path = window.location.pathname;
+        if (path.includes('/login') || path.includes('/activacion')) return;
+        try {
+          const config = await loadPrinterConfig();
+          if (config?.printerName) return;
+          const result = await window.electron.listPrinters();
+          if (!result?.success) return;
+          const printers = Array.isArray(result.printers) ? result.printers : [];
+          if (printers.length === 0) {
+            await openPrinterSetup();
+            return;
+          }
+          if (printers.length === 1) {
+            const only = printers[0];
+            if (printerKind(only) === 'office') {
+              await openPrinterSetup();
+              return;
+            }
+            const saved = await window.electron.savePrinterConfig({
+              printerName: only.name,
+              paper: '58mm',
+            });
+            if (saved?.success) {
+              printerConfig = saved.config || {
+                ...(config || {}),
+                printerName: only.name,
+                paper: '58mm',
+              };
+              showToast(`Impresora configurada: ${printerLabel(only)}`);
+            }
+            return;
+          }
+          await openPrinterSetup();
+        } catch (error) {
+          console.warn('No se pudo verificar la impresora:', error);
+        }
+      }
+
+      // Contrato global para las páginas (Fase 4 las cablea a sus fallos de
+      // impresión). Ignora respuestas exitosas y nunca imprime por sí mismo.
+      async function showPrintFailure(result, options = {}) {
+        if (!result || result.success) return;
+        if (result.code === 'E_PRINTER_UNCONFIGURED' || result.code === 'E_PRINTER_NOT_FOUND') {
+          const configure = await showModal({ message: '¿Configurar impresora?', type: 'confirm' });
+          if (configure) await openPrinterSetup();
+          return;
+        }
+        const prefix = options?.created ? 'El ticket se creo, pero no se pudo imprimir: ' : '';
+        await showModal({ message: `${prefix}${result.message || 'No se pudo imprimir.'}`, type: 'error' });
+      }
+
+      document.getElementById('printer-setup-btn').addEventListener('click', () => { openPrinterSetup(); });
+      document.getElementById('printer-cancel').addEventListener('click', closePrinterSetup);
+      document.getElementById('printer-refresh').addEventListener('click', () => { refreshPrinters(); });
+      document.getElementById('printer-test').addEventListener('click', () => { testPrinter(); });
+      document.getElementById('printer-save').addEventListener('click', () => { savePrinter(); });
+      document.getElementById('printer-select').addEventListener('change', updatePrinterStatus);
+      document.getElementById('printer-modal').addEventListener('click', (event) => {
+        if (event.target === event.currentTarget) closePrinterSetup();
+      });
+
+      window.openPrinterSetup = openPrinterSetup;
+      window.showPrintFailure = showPrintFailure;
+
+      maybePromptPrinterSetup();
 
       document.getElementById('logout-btn').addEventListener('click', async () => {
         const ok = await showModal({ message: '¿Está seguro que desea cerrar sesión?', type: 'confirm' });
@@ -404,7 +715,8 @@ try {
     font-weight: 500;
   }
 
-  .logout-btn {
+  .logout-btn,
+  .printer-btn {
     background: rgba(255, 255, 255, 0.15);
     border: none;
     color: white;
@@ -419,12 +731,14 @@ try {
     transition: background 0.15s ease;
   }
 
-  .logout-btn svg {
+  .logout-btn svg,
+  .printer-btn svg {
     width: 16px;
     height: 16px;
   }
 
-  .logout-btn:hover {
+  .logout-btn:hover,
+  .printer-btn:hover {
     background: rgba(255, 255, 255, 0.3);
   }
 </style>
@@ -469,4 +783,31 @@ try {
   .modal-btn-secondary { background: #e9ecef; color: #333; }
   @keyframes modalFadeIn { from { opacity: 0; } to { opacity: 1; } }
   @keyframes modalSlideIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* Configuración de impresora (Fase 3): modal estático. */
+  #printer-modal[hidden] { display: none; }
+  .printer-dialog { max-width: 460px; text-align: left; }
+  .printer-title {
+    font-size: 18px; margin-bottom: 16px; text-align: center; color: #333;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .printer-title svg { width: 18px; height: 18px; }
+  .printer-field { display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 12px; }
+  .printer-field select {
+    display: block; width: 100%; margin-top: 6px; padding: 9px 10px;
+    border: 1px solid #ddd; border-radius: 8px; font-size: 14px;
+    color: #333; background: #fff; font-family: inherit;
+  }
+  .printer-field select:focus { border-color: #667eea; outline: none; }
+  .printer-status { font-size: 13px; color: #555; margin-bottom: 8px; }
+  .printer-warning {
+    font-size: 13px; color: #92400e; background: #fef3c7; border-radius: 8px;
+    padding: 8px 10px; margin-bottom: 12px; line-height: 1.4;
+  }
+  .printer-buttons { flex-wrap: wrap; margin-top: 6px; }
+  .printer-toast {
+    position: fixed; right: 20px; bottom: 20px; z-index: 10000; pointer-events: none;
+    background: #1f2937; color: #fff; padding: 10px 14px; border-radius: 8px;
+    font-size: 13px; box-shadow: 0 6px 20px rgba(0,0,0,.25);
+  }
 </style>

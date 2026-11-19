@@ -288,6 +288,15 @@ backend/tests/Fixtures/animalitos_page.html
 - Probar que el cálculo cruzado sea exacto (ej. si pongo 100$ y tasa 36, el campo BS se llena con 3600 automáticamente).
 - Probar la impresión en impresora real (o simular guardando PDF).
 
+#### 9.2 Configuración de impresora — implementado
+
+- **UI**: botón de impresora en el encabezado; modal con selección de impresora y papel (58/80 mm), nueva detección, prueba de impresión y guardado.
+- **Detección**: una sola impresora térmica se autoconfigura en 58 mm; cero o varias abren el modal; las impresoras de oficina se marcan como no compatibles y nunca se guardan solas.
+- **Persistencia**: `userData/printer-config.json` es la única fuente; se eliminaron las variables de entorno de impresión.
+- **Fallos**: venta, reimpresión, historial, ganadores, cierre y reporte muestran el error y ofrecen configurar la impresora; el ticket ya creado y el snapshot de reimpresión se conservan.
+- **Verificación**: `pnpm test:printing` (103/103) y E2E (12/12) verdes. Queda pendiente la prueba en una térmica física de 58 mm; el E2E stubea los canales de impresión.
+
+
 ---
 
 ### SPRINT 10: ELIMINACIÓN DE TICKETS (REGLA DE 5 MINUTOS)
