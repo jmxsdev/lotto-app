@@ -212,3 +212,131 @@ git add -f openspec/changes/configuracion-impresora/apply-progress.md
 ## No command was executed (Phase 2)
 
 No Node, pnpm, npm, composer, test, build, install, linter, type-check, or network call was run. No commit, branch, or merge was created. All Phase 2 changes are uncommitted.
+
+---
+
+# Phase 3 — printer setup UI (header, modal, auto-detection)
+
+**Status**: implementation written, NOT executed · **Scope**: Phase 3 only · **Next**: owner runs the commands below, then `sdd-verify`.
+**Branch**: `feature/configuracion-impresora-p3` (base P2 `3c8c76f`, Phase 2 committed).
+**Mode**: Standard (owner-run verification; this phase forbids executing commands).
+
+## Work Units (Phase 3)
+
+| WU | Title | Files | Status |
+|----|-------|-------|--------|
+| 3.1 | Header button `#printer-setup-btn` + `printer` icon | `MainLayout.astro` | Written |
+| 3.2 | Static `#printer-modal` + minimal CSS | `MainLayout.astro` | Written |
+| 3.3 | Open/close wiring (button, overlay, Cancel) | `MainLayout.astro` | Written |
+| 3.4 | `refreshPrinters` (list, labels, preselection, status) | `MainLayout.astro` | Written |
+| 3.5 | `savePrinter` + office guard | `MainLayout.astro` | Written |
+| 3.6 | `testPrinter` (office diagnostic confirmation) | `MainLayout.astro` | Written |
+| 3.7 | `maybePromptPrinterSetup` auto-detect | `MainLayout.astro` | Written |
+| 3.8 | Globals `window.openPrinterSetup`, `window.showPrintFailure` | `MainLayout.astro` | Written |
+| 3.9 | E2E stubs (`print:list-printers`, `print:get-config`, `print:set-config`, `print:test`) | `fixtures.mjs`, `app.mjs` | Written |
+
+Phase 4 (page call sites: dashboard/historial/ganadores/cierre), office mode, version bump, and release were not started. No page `.astro` outside `MainLayout` was touched.
+
+## Files Changed (Phase 3)
+
+Counts from `git diff --numstat`; net per file from the same diff.
+
+| File | Raw +/− | Net | What Was Done |
+|---|---:|---:|---|
+| `taquilla/src/layouts/MainLayout.astro` | +345 / −4 | +341 | Header printer button; static `#printer-modal` (printer/paper selects, status, warning, Volver a detectar / Imprimir prueba / Guardar / Cancelar); printer CSS + `#printer-modal[hidden]` + `.printer-toast`; JS classifier, `openPrinterSetup`/`closePrinterSetup`, `refreshPrinters`, `savePrinter`, `testPrinter`, `maybePromptPrinterSetup`, `showPrintFailure`, and the `window.openPrinterSetup`/`window.showPrintFailure` globals. Reused `.modal-overlay`/`.modal-dialog`/`.modal-btn` and extended the `.logout-btn` rules for `.printer-btn`. |
+| `taquilla/e2e/helpers/fixtures.mjs` | +6 / −0 | +6 | Added `print:list-printers`, `print:get-config`, `print:set-config`, `print:test` to `STUB_CHANNELS`. |
+| `taquilla/e2e/helpers/app.mjs` | +38 / −0 | +38 | `stubPrintIpc` special-cases the four configuration channels: always-config `POS-58` (so the auto-prompt exits immediately), a single printer with `suggested: 'POS-58'`, a payload-echoing set-config response, and a `print:test` success. `get-mac` and all existing print channels remain. |
+| **Phase 3 total** | **+389 / −4** | **+385** | Over the 300-line target; see “Line-budget note (Phase 3)”. |
+
+## Exact UX behavior (Phase 3)
+
+### Auto-detection on load
+
+Runs from `MainLayout` (authenticated pages only; `/login` and `/activacion` are skipped explicitly). It exits immediately when `window.electron` is absent, or when `getPrinterConfig()` returns a config with a non-empty `printerName`.
+
+| Detected state | Result |
+|---|---|
+| 0 printers | Opens `#printer-modal`; the status reads `No se detectaron impresoras.` and Guardar is disabled. |
+| 1 printer, thermal-like | Auto-saves `{ printerName, paper: '58mm' }` and shows a 3.5 s toast `Impresora configurada: <label>`; no modal and no later prompt because the config now has a name. |
+| 1 printer, office-like | Opens the modal with the warning; nothing is auto-saved. |
+| Several printers | Opens the modal with `suggested` preselected (config name wins, then `suggested`, then the first printer). |
+
+### Classification and office guard
+
+The classifier reads `name + displayName` and tests office first, then thermal:
+
+- office-like: `/laser|office|deskjet|inkjet|mfc|mfp|canon|brother|lexmark|ricoh|kyocera/i`
+- thermal-like: `/pos|thermal|receipt|ticket|58|80|xp|tm|zebra|bixolon|star/i`
+- otherwise unknown
+
+| Kind | Warning line | Guardar | Imprimir prueba |
+|---|---|---|---|
+| office | `No compatible con impresión térmica ESC/POS; la salida puede ser basura` | Disabled; `savePrinter` also re-checks and shows an error modal | Allowed as a diagnostic; first asks `¿Enviar de todos modos?` |
+| thermal | none | Enabled | Allowed |
+| unknown | `No se pudo determinar el tipo; probá la impresión antes de guardar.` | Enabled | Allowed |
+
+Office-like printers are never auto-saved.
+
+### Save and test
+
+- **Guardar**: reads the selected printer + paper (`58mm`/`80mm`), calls `window.electron.savePrinterConfig({ printerName, paper })`. On success it stores the returned config locally, closes the modal, and shows `Configuración de impresora guardada.` through `showModal` (success). Failure/catch shows an error modal.
+- **Imprimir prueba**: calls `window.electron.testPrint({ printerName, paper })`, then `showModal` success (`Prueba enviada a la impresora.`) or error with the backend message.
+- **Volver a detectar**: re-runs `refreshPrinters()` without closing the modal.
+- **Cancelar / overlay click**: closes the modal.
+- **`showPrintFailure(result, { created })`**: ignores `success`; for `E_PRINTER_UNCONFIGURED`/`E_PRINTER_NOT_FOUND` it asks `¿Configurar impresora?` and opens the modal on confirm; otherwise it shows an error prefixed with `El ticket se creo, pero no se pudo imprimir: ` when `created` is true.
+- No page calls these globals yet; that is Phase 4.
+
+## E2E stub contract
+
+| Channel | Stub response |
+|---|---|
+| `print:get-config` | `{ success, config: POS-58 / 58mm / 32 / 384 / cp850 / partial / 3 / true }` |
+| `print:list-printers` | one `POS-58` printer, `suggested: 'POS-58'` |
+| `print:set-config` | defaults + payload `printerName`/`paper` (fallback `POS-58`/`58mm`) |
+| `print:test` | `{ success: true, message: 'e2e-stub:print:test', e2e: true }` |
+
+Because `print:get-config` always returns a configured name, `maybePromptPrinterSetup` exits before listing and the modal never blocks the existing E2E specs. The extra IPC call is recorded in `__e2e_prints`, and existing assertions filter by channel or compare counts before/after.
+
+## Line-budget note (Phase 3)
+
+Target was ≤300 changed lines. Measured result: **393 raw** (`+389 / −4`) and **385 net**. The required acceptance surface (header button, static modal, open/close wiring, detection matrix, office guard, save/test flows, two globals, and the four E2E stubs) does not compress below the target without deleting behavior or collapsing distinct states. Nothing required was dropped; no Phase 4 work was pulled in.
+
+## Deviations from the Phase 3 brief
+
+- Auto-save success uses a small non-blocking toast (`.printer-toast`) instead of `showModal`, because a blocking success dialog on every fresh install would interrupt the first sale. User-initiated Save/Test still use `showModal` as specified.
+- `openPrinterSetup` re-reads the config when `printerConfig` is still `null` (e.g. opened from `maybePromptPrinterSetup`), which can repeat one `print:get-config` call. No behavior change.
+- Office-like “Imprimir prueba” shows a `showModal` confirm before sending; the spec asked for a warning and this makes it explicit.
+
+## Work Unit Evidence (Phase 3)
+
+| Evidence | Value |
+|---|---|
+| Focused test command | `cd taquilla && pnpm test:printing` |
+| Exact result | Not executed — owner runs. Expected 103 pass / 0 fail (Phase 3 adds no unit tests). |
+| Runtime harness | `cd taquilla && pnpm e2e` (optional; requires backend seed). The stub configuration keeps the auto-prompt inert and does not change existing print assertions. |
+| Rollback boundary | Revert `MainLayout.astro` to the Phase 2 version and remove the four `print:*` channels from `fixtures.mjs`/`app.mjs`. Phases 1–2 (printing module, IPC, preload) stay intact; no persisted-state or schema migration is involved. |
+
+## Owner Commands (documented, not run)
+
+```bash
+cd taquilla
+pnpm build                                  # Astro build validates the .astro/JS
+pnpm test:printing                          # expect 103 pass / 0 fail
+pnpm exec tsc -p tsconfig.printing.json
+```
+
+Optional E2E (requires backend seed):
+
+```bash
+cd taquilla && pnpm e2e
+```
+
+Mark the OpenSpec artifacts for git because `*.md` is ignored:
+
+```bash
+git add -f openspec/changes/configuracion-impresora/tasks.md openspec/changes/configuracion-impresora/apply-progress.md
+```
+
+## No command was executed (Phase 3)
+
+Per the owner's hard constraint, this phase did not run Node, pnpm, npm, composer, tests, builds, installs, linters, type-checking, or network calls. Only read-only inspection (`grep`, `git status`, `git diff`, `wc`) was used. No `git add`, commit, branch creation, or merge was performed. All changes are uncommitted.

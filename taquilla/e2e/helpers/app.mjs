@@ -124,6 +124,19 @@ export async function stubPrintIpc(app) {
   await app.evaluate(({ ipcMain }, channels) => {
     globalThis.__e2e_prints = globalThis.__e2e_prints || [];
     const mac = process.env.E2E_MAC || '02:E2:E0:00:00:01';
+    // Configuración de impresora E2E (Fase 3): una POS-58 siempre configurada
+    // hace que maybePromptPrinterSetup salga sin abrir el modal.
+    const defaultConfig = {
+      printerName: 'POS-58',
+      paper: '58mm',
+      columns: 32,
+      dots: 384,
+      codePage: 'cp850',
+      cut: 'partial',
+      feedLines: 3,
+      cutPerBlock: true,
+      warnings: [],
+    };
     for (const channel of channels) {
       try {
         ipcMain.removeHandler(channel);
@@ -133,6 +146,31 @@ export async function stubPrintIpc(app) {
       ipcMain.handle(channel, (event, payload) => {
         globalThis.__e2e_prints.push({ channel, payload, at: Date.now() });
         if (channel === 'get-mac') return mac;
+        if (channel === 'print:get-config') {
+          return { success: true, message: 'e2e', config: defaultConfig };
+        }
+        if (channel === 'print:list-printers') {
+          return {
+            success: true,
+            message: 'e2e',
+            printers: [{ name: 'POS-58', displayName: 'POS-58', description: '', options: {} }],
+            suggested: 'POS-58',
+          };
+        }
+        if (channel === 'print:set-config') {
+          return {
+            success: true,
+            message: 'e2e',
+            config: {
+              ...defaultConfig,
+              printerName: payload?.printerName ?? 'POS-58',
+              paper: payload?.paper ?? '58mm',
+            },
+          };
+        }
+        if (channel === 'print:test') {
+          return { success: true, message: 'e2e-stub:print:test', e2e: true };
+        }
         return { success: true, message: `e2e-stub:${channel}`, e2e: true };
       });
     }

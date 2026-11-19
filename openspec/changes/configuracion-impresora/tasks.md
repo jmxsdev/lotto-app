@@ -168,3 +168,20 @@ Phase 2 was executed on `feature/configuracion-impresora-p2` (not planned in the
 - [x] 2.5 Tests: 8 fake-based tests in `test/index.test.cjs`
 
 Static count: 103 tests. Phase 3+ not started. `saveConfig` returns a Promise (async membership check).
+
+## Apply Progress (Phase 3)
+
+Phase 3 was executed on `feature/configuracion-impresora-p3` (base P2 `3c8c76f`). In-app printer setup only; no page call sites.
+
+- [x] 3.1 Header button `#printer-setup-btn` with the `printer` icon before `.user-section`
+- [x] 3.2 Static `#printer-modal` with printer/paper selects, status, warning, and four actions
+- [x] 3.3 `openPrinterSetup` / `closePrinterSetup` + header, overlay, and Cancel wiring
+- [x] 3.4 `refreshPrinters` (list, `displayName || name`, config → suggested → first)
+- [x] 3.5 `savePrinter` (office blocked, membership-validated save, success via `showModal`)
+- [x] 3.6 `testPrinter` (office confirmation warning; success/error via `showModal`)
+- [x] 3.7 `maybePromptPrinterSetup` (0/many → modal; 1 thermal → auto-save; 1 office → modal, never saved)
+- [x] 3.8 Office/thermal/unknown classifier with Guardar disabled for office-like
+- [x] 3.9 Globals `window.openPrinterSetup` and `window.showPrintFailure(result, { created })`
+- [x] 3.10 E2E stubs for `print:list-printers`, `print:get-config`, `print:set-config`, `print:test`
+
+Phase 4 (page call sites), office mode, and release were not started.
