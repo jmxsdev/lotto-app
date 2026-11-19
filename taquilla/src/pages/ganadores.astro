@@ -147,6 +147,15 @@ import Icon from '../components/ui/Icon.astro';
             container.innerHTML = html;
         }
 
+        // Fase 4: ningún resultado {success:false} se ignora. MainLayout (Fase 3)
+        // ofrece configurar la impresora (E_PRINTER_UNCONFIGURED /
+        // E_PRINTER_NOT_FOUND) o muestra el error; esto es el respaldo por si
+        // la página se renderizara sin ese layout.
+        async function reportPrintFailure(printResult) {
+            if (window.showPrintFailure) return window.showPrintFailure(printResult);
+            return window.showModal({ message: printResult?.message || 'No se pudo imprimir.', type: 'error' });
+        }
+
         async function pagarTicket(ticketCode, totalBs) {
             const ok = await window.showModal({
                 message: 'Registrar pago de Bs. ' + Number(totalBs).toLocaleString('es-VE', {minimumFractionDigits: 2}) + ' para el ticket ' + ticketCode + '?',
@@ -186,17 +195,27 @@ import Icon from '../components/ui/Icon.astro';
                     const pagosPorApuesta = (ticket.apuestas || []).map(a => respuestasPorId.get(a.id) ?? null);
                     const recibo = buildReciboLines(ticket, pagosPorApuesta);
                     if (window.electron?.printTicket) {
-                        await window.electron.printTicket({
-                            ticketData: {
-                                kind: 'recibo',
-                                ticketCode: ticket.ticket_code,
-                                date: new Date(ticket.created_at).toLocaleDateString('es-VE'),
-                                time: new Date(ticket.created_at).toLocaleTimeString('es-VE'),
-                                lines: recibo.lines,
-                                premioTotalBs: recibo.premioTotalBs,
-                                premioTotalUsd: recibo.premioTotalUsd,
-                            },
-                        });
+                        // Fase 4: el pago ya se registró; el fallo del
+                        // comprobante se reporta aparte (nunca oculta el éxito).
+                        let reciboImpression = null;
+                        try {
+                            reciboImpression = await window.electron.printTicket({
+                                ticketData: {
+                                    kind: 'recibo',
+                                    ticketCode: ticket.ticket_code,
+                                    date: new Date(ticket.created_at).toLocaleDateString('es-VE'),
+                                    time: new Date(ticket.created_at).toLocaleTimeString('es-VE'),
+                                    lines: recibo.lines,
+                                    premioTotalBs: recibo.premioTotalBs,
+                                    premioTotalUsd: recibo.premioTotalUsd,
+                                },
+                            });
+                        } catch (printError) {
+                            reciboImpression = { success: false, message: printError?.message };
+                        }
+                        if (reciboImpression && !reciboImpression.success) {
+                            await reportPrintFailure(reciboImpression);
+                        }
                     }
                 }
                 document.getElementById('btn-buscar').click();

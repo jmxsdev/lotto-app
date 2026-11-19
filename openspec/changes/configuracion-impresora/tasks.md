@@ -185,3 +185,18 @@ Phase 3 was executed on `feature/configuracion-impresora-p3` (base P2 `3c8c76f`)
 - [x] 3.10 E2E stubs for `print:list-printers`, `print:get-config`, `print:set-config`, `print:test`
 
 Phase 4 (page call sites), office mode, and release were not started.
+
+## Apply Progress (Phase 4)
+
+Phase 4 was executed on `feature/configuracion-impresora-p4` (base P3 `b1aeec2`). Page call sites only: every print failure is visible and offers printer setup when the code is a configuration error.
+
+- [x] 4.1 `dashboard.astro` sale: captures `printTicket` result, reports failure with `{ created: true }`, never throws, keeps the `ultimoTicket` snapshot and the no-Electron fallback
+- [x] 4.2 `dashboard.astro` reprint «+»: `reimprimirUltimo` is async, awaits the print, reports failure, and no longer deletes the snapshot on a transport error
+- [x] 4.3 `historial.astro` print/reprint: captures the result of `printTicket`; transport errors keep the existing try/catch
+- [x] 4.4 `historial.astro` auto-receipt after `pagarTicket`: captures the result; the payment success modal is never hidden
+- [x] 4.5 `ganadores.astro` auto-receipt after payment: captures the result; the receipt failure is reported separately from the payment success
+- [x] 4.6 `cierre.astro` `imprimirCierre`: success modal unchanged; failure goes through `showPrintFailure` (setup offered for `E_PRINTER_UNCONFIGURED`/`E_PRINTER_NOT_FOUND`)
+- [x] 4.7 `cierre.astro` `imprimirReporte`: same failure path as `imprimirCierre`
+- [x] 4.8 `reportPrintFailure` page-local fallback: delegates to `window.showPrintFailure`; falls back to `showModal` when the global is absent
+
+No page silently ignores `{ success: false }` anymore. Phase 5 (E2E specs), office mode, and release were not started. No test count changed (103).

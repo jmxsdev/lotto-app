@@ -678,6 +678,15 @@ import Icon from '../components/ui/Icon.astro';
       if (expand) expand.innerHTML = detail.classList.contains('open') ? icono('chevron-down') : icono('chevron-right');
     }
 
+    // Fase 4: ningún resultado {success:false} se ignora. MainLayout (Fase 3)
+    // ofrece configurar la impresora (E_PRINTER_UNCONFIGURED /
+    // E_PRINTER_NOT_FOUND) o muestra el error; esto es el respaldo por si la
+    // página se renderizara sin ese layout.
+    async function reportPrintFailure(printResult) {
+      if (window.showPrintFailure) return window.showPrintFailure(printResult);
+      return window.showModal({ message: printResult?.message || 'No se pudo imprimir.', type: 'error' });
+    }
+
     // --- Impresión (IPC print-cierre; fuera de Electron → showModal) ---
     async function imprimirCierre(cierre) {
       if (!window.electron?.printCierre) {
@@ -689,7 +698,7 @@ import Icon from '../components/ui/Icon.astro';
         if (res && res.success) {
           await window.showModal({ message: res.message, type: 'success' });
         } else {
-          await window.showModal({ message: (res && res.message) || 'No se pudo imprimir.', type: 'error' });
+          await reportPrintFailure(res);
         }
       } catch (e) {
         await window.showModal({ message: 'Error al imprimir: ' + e.message, type: 'error' });
@@ -820,7 +829,7 @@ import Icon from '../components/ui/Icon.astro';
         if (res && res.success) {
           await window.showModal({ message: res.message, type: 'success' });
         } else {
-          await window.showModal({ message: (res && res.message) || 'No se pudo imprimir.', type: 'error' });
+          await reportPrintFailure(res);
         }
       } catch (e) {
         await window.showModal({ message: 'Error al imprimir: ' + e.message, type: 'error' });

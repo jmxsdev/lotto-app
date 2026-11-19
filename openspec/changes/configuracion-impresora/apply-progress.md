@@ -340,3 +340,104 @@ git add -f openspec/changes/configuracion-impresora/tasks.md openspec/changes/co
 ## No command was executed (Phase 3)
 
 Per the owner's hard constraint, this phase did not run Node, pnpm, npm, composer, tests, builds, installs, linters, type-checking, or network calls. Only read-only inspection (`grep`, `git status`, `git diff`, `wc`) was used. No `git add`, commit, branch creation, or merge was performed. All changes are uncommitted.
+
+---
+
+# Phase 4 — visible print failures + setup action (page call sites)
+
+**Status**: implementation written, NOT executed · **Scope**: Phase 4 only · **Next**: owner runs the commands below, then `sdd-verify`.
+**Branch**: `feature/configuracion-impresora-p4` (base P3 `b1aeec2`, Phase 3 committed).
+**Mode**: Standard (owner-run verification; this phase forbids executing commands).
+
+## Work Units (Phase 4)
+
+| WU | Title | Files | Status |
+|----|-------|-------|--------|
+| 4.1 | Sale failure is visible and never breaks the sale | `dashboard.astro` | Written |
+| 4.2 | Reprint «+» awaits and reports the result | `dashboard.astro` | Written |
+| 4.3 | Historial print/reprint reports the result | `historial.astro` | Written |
+| 4.4 | Historial auto-receipt reports the result | `historial.astro` | Written |
+| 4.5 | Ganadores auto-receipt reports the result | `ganadores.astro` | Written |
+| 4.6 | Cierre print reports/setup on failure | `cierre.astro` | Written |
+| 4.7 | Range report print reports/setup on failure | `cierre.astro` | Written |
+| 4.8 | Page-local `reportPrintFailure` fallback | all four pages | Written |
+
+No `printing/**`, IPC, preload, `package.json`, `tsconfig`, CI, backend, office mode, release, or e2e file was touched. The Phase 3 header/modal/auto-detection behavior is unchanged.
+
+## Files Changed (Phase 4)
+
+Counts from `git diff --numstat`; net = additions − deletions.
+
+| File | Raw +/− | Net | What Was Done |
+|---|---:|---:|---|
+| `taquilla/src/pages/dashboard.astro` | +34 / −3 | +31 | Sale: `printResult` captured in a local try/catch, failure reported with `{ created: true }`, `ultimoTicket` snapshot and no-Electron success fallback unchanged. `reimprimirUltimo` is now `async`, awaits the print, reports failure, and a transport error no longer deletes the snapshot. Added `reportPrintFailure`. |
+| `taquilla/src/pages/historial.astro` | +34 / −12 | +22 | Auto-receipt after `pagarTicket` and `printTicket` both capture the result; `{success:false}` goes to `reportPrintFailure`; the existing try/catch for thrown transport errors is kept. Added `reportPrintFailure`. |
+| `taquilla/src/pages/ganadores.astro` | +30 / −11 | +19 | Auto-receipt after payment captures the result and reports the failure separately; the payment success modal is untouched. Added `reportPrintFailure`. |
+| `taquilla/src/pages/cierre.astro` | +11 / −2 | +9 | `imprimirCierre` and `imprimirReporte` keep the success modal and send failures to `reportPrintFailure`, so `E_PRINTER_UNCONFIGURED`/`E_PRINTER_NOT_FOUND` offers setup instead of the generic error modal. Added `reportPrintFailure`. |
+| **Phase 4 total** | **+109 / −28** | **+81** | Within the 80–150 line band on net; 137 raw. |
+
+## Call sites and exact failure behavior
+
+| Page / action | Call | On `{success:false}` | On thrown transport error |
+|---|---|---|---|
+| `dashboard` sale (line ~2579) | `await window.electron.printTicket({ ticketData })` | `await reportPrintFailure(printResult, { created: true })` → setup confirm for `E_PRINTER_UNCONFIGURED`/`E_PRINTER_NOT_FOUND`, otherwise `El ticket se creo, pero no se pudo imprimir: <message>` | Same report path via a synthetic `{ success:false, message }`; the sale still resets and the snapshot stays |
+| `dashboard` reprint «+» (~2890) | `await window.electron.printTicket({ ticketData })` | `await reportPrintFailure(printResult)` | Same report path; snapshot is NOT deleted |
+| `historial` auto-receipt after payment (~401) | `await window.electron.printTicket({ ticketData: recibo })` | `await reportPrintFailure(reciboImpression)` | Same report path; `loadTickets()` still runs |
+| `historial` print/reprint (~500) | `await window.electron.printTicket({ ticketData })` | `await reportPrintFailure(res)` | Existing `Error al imprimir: <message>` modal kept |
+| `ganadores` auto-receipt after payment (~199) | `await window.electron.printTicket({ ticketData: recibo })` | `await reportPrintFailure(reciboImpression)` | Same report path; `btn-buscar` still refreshes |
+| `cierre` `imprimirCierre` (~697) | `await window.electron.printCierre({ cierreData })` | `await reportPrintFailure(res)` | Existing `Error al imprimir: <message>` modal kept |
+| `cierre` `imprimirReporte` (~828) | `await window.electron.printReporte({ reporteData })` | `await reportPrintFailure(res)` | Existing `Error al imprimir: <message>` modal kept |
+
+`reportPrintFailure` (duplicated per page because each page ships its own inline script):
+
+```js
+async function reportPrintFailure(printResult, options) {
+  if (window.showPrintFailure) return window.showPrintFailure(printResult, options);
+  const prefix = options?.created ? 'El ticket se creo, pero no se pudo imprimir: ' : '';
+  return window.showModal({ message: prefix + (printResult?.message || 'No se pudo imprimir.'), type: 'error' });
+}
+```
+
+## Phase 3 helper verified (read-only)
+
+`MainLayout.astro` `showPrintFailure(result, options)` (lines 519–528) matches the contract: it returns early for `!result || result.success`; for `E_PRINTER_UNCONFIGURED` / `E_PRINTER_NOT_FOUND` it asks `¿Configurar impresora?` and calls `openPrinterSetup()` on confirm; otherwise it shows an error modal prefixed with `El ticket se creo, pero no se pudo imprimir: ` when `options.created` is true. The printer modal itself was not modified.
+
+Backend results already carry `code`: `printDocument` maps resolution failures through `failFrom`, and `ipcHandlers.cjs` returns the result unchanged for `print-ticket`, `print-cierre`, and `print-reporte`.
+
+## Tests
+
+No test file changed. Static count stays **103** (`grep -rh "^test(" taquilla/electron/main/printing/test | wc -l`). Phase 4 is renderer wiring; the new behavior is covered by owner/manual runtime checks and Phase 5 e2e (not started).
+
+## Work Unit Evidence (Phase 4)
+
+| Evidence | Value |
+|---|---|
+| Focused test command | `cd taquilla && pnpm test:printing` |
+| Exact result | Not executed — owner runs. Expected 103 pass / 0 fail (no unit test changed). |
+| Runtime harness | `cd taquilla && pnpm build` (Astro parses the four inline scripts); manual: unconfigure `printer-config.json`, sell a ticket → setup prompt appears and the sale completes; reprint «+» → prompt/error, snapshot intact. Existing 10 e2e specs unaffected (no stub or selector changed). |
+| Rollback boundary | Revert the four page files to the P3 commit. Phases 1–3 (printing module, IPC/preload, layout modal) stay intact; no persisted-state or schema migration is involved. |
+
+## Owner Commands (documented, not run)
+
+```bash
+cd taquilla
+pnpm build
+pnpm test:printing          # expect 103 pass / 0 fail
+# optional E2E: existing 10 specs
+```
+
+Both OpenSpec artifacts are tracked in this repo; stage them normally when committing:
+
+```bash
+git add openspec/changes/configuracion-impresora/tasks.md openspec/changes/configuracion-impresora/apply-progress.md
+```
+
+## Deviations from the Phase 4 brief
+
+- The defensive fallback is a page-local `reportPrintFailure` (4 small copies) instead of an inline `if (window.showPrintFailure) … else …` at each site. Same behavior, fewer duplicated blocks at 7 call sites. `window.showPrintFailure` and `MainLayout.astro` were not modified.
+- `reimprimirUltimo` became `async`. Its only caller (`ACCIONES_FKEYS['reimprimir']`) ignores the returned promise; the function keeps its own try/catch so no rejection escapes.
+- Print calls that previously sat inside a broader `try` (sale, reprints, receipts) got their own local try/catch. Consequence: a thrown transport error now reports as a print failure instead of aborting the sale/payment/refresh flow, and the `ultimoTicket` snapshot is never deleted by a print error.
+
+## No command was executed (Phase 4)
+
+No Node, pnpm, npm, composer, test, build, install, linter, type-check, or network call was run. Only read-only inspection (`grep`, `git status`, `git diff`, `wc`) was used. No `git add`, commit, branch creation, or merge was performed. All Phase 4 changes are uncommitted.
