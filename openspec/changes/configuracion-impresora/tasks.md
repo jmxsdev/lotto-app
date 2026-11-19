@@ -200,3 +200,30 @@ Phase 4 was executed on `feature/configuracion-impresora-p4` (base P3 `b1aeec2`)
 - [x] 4.8 `reportPrintFailure` page-local fallback: delegates to `window.showPrintFailure`; falls back to `showModal` when the global is absent
 
 No page silently ignores `{ success: false }` anymore. Phase 5 (E2E specs), office mode, and release were not started. No test count changed (103).
+
+## Apply Progress (Phase 5)
+
+Phase 5 was executed on `feature/configuracion-impresora-p5` (base P4 `e9d6bac`). E2E failure coverage, docs, and CHANGELOG 2.1.1; no printing, IPC, or runtime changes.
+
+- [x] 5.1 E2E stub parametrizable: `stubPrintIpc(app, { config, printers, printResults })`; el default POS-58 no cambia para los specs 01–08
+- [x] 5.2 `e2e/tests/09-print-failure.spec.mjs`: sin impresora configurada → modal de configuración; con dos impresoras no se autoguarda
+- [x] 5.3 `e2e/tests/09-print-failure.spec.mjs`: venta con `E_PRINTER_UNCONFIGURED` → error visible, «Configurar impresora» y snapshot `ultimoTicket` conservado
+- [x] 5.4 Los specs 09 reutilizan el token de `session.json` y navegan a `app://index.html/dashboard`; el login tiene `throttle:10,2` y la suite ya consume el cupo con 9 logins UI + el login del global setup
+- [x] 5.5 `docs/dev/estructura.md`: configuración, detección, IPC, fallos visibles y límite del E2E
+- [x] 5.6 `docs/dev/planificacion.md`: estado implementado de 9.2
+- [x] 5.7 `CHANGELOG.md`: `[2.1.1] — 2026-11-19`
+
+Verification: `pnpm build` exit 0; `pnpm test:printing` 103/103; `pnpm exec tsc -p tsconfig.printing.json` clean; E2E 12/12 in ~1.2 min with `lotto_e2e` + API `:8003`.
+
+## Phase 7 — Login con sesión vigente (solicitado, fuera del spec de impresora)
+
+Phase 6 remains the 2.1.1 release. This is a separate login concern requested by the owner; it is not part of the printer spec and should get its own proposal/spec before implementation.
+
+- [ ] 7.1 En `/login`, si existe `auth_token`, validarlo contra `GET /api/v1/user` (Sanctum, `routes/api.php:56`) antes de mostrar el formulario.
+- [ ] 7.2 Token válido → actualizar `user_data` y redirigir a `/dashboard` sin pedir credenciales.
+- [ ] 7.3 401/419 → borrar `auth_token` y mostrar el formulario; error de red/timeout → mostrar el formulario (sin auto-login a ciegas).
+- [ ] 7.4 Mantener `index.astro` verificando el dispositivo antes de cualquier redirección.
+- [ ] 7.5 E2E: token vigente auto-loguea; token inválido/expirado muestra el formulario. La expiración de Sanctum es 1440 min (`config/sanctum.php:53`).
+- [ ] 7.6 Definir si la release 2.1.1 incluye esta fase o si pasa a 2.1.2.
+
+Note: `auth_token` y `user_data` ya persisten en `localStorage`; hoy el re-login lo fuerza `index.astro` al redirigir siempre a `/login`, no un borrado de token.

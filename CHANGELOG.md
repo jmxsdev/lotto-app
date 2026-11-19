@@ -5,6 +5,38 @@ Todas las versiones notables de la Taquilla se documentan en este archivo.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/) y el
 versionado es [SemVer](https://semver.org/lang/es/).
 
+## [2.1.1] — 2026-11-19
+
+Release de Taquilla que hace configurable la impresora térmica desde la app y
+elimina los fallos de impresión silenciosos.
+
+### Agregado
+
+- **Configuración de impresora en la app**: botón en el encabezado y modal con
+  selección de impresora y papel (58/80 mm), nueva detección, prueba de
+  impresión y guardado en `userData/printer-config.json`.
+- **Detección automática**: una sola impresora térmica se configura sola en
+  58 mm; con cero o varias se abre el modal; las impresoras de oficina se marcan
+  como no compatibles y no se guardan automáticamente.
+- **Errores de impresión visibles**: venta, reimpresión, historial, ganadores,
+  cierre y reporte muestran el fallo y ofrecen «Configurar impresora» cuando
+  falta configuración. El ticket creado y el snapshot de reimpresión se
+  conservan aunque la impresión falle.
+
+### Cambiado
+
+- **La configuración de impresora ya no usa variables de entorno**:
+  `printer-config.json` es la única fuente; los valores ausentes o inválidos
+  vuelven a 58 mm / 32 columnas / 384 puntos.
+
+### Técnico
+
+- Canales IPC `print:list-printers`, `print:get-config`, `print:set-config` y
+  `print:test`; guardado atómico (`temp + rename`) y validación del nombre
+  contra las impresoras enumeradas.
+- `pnpm test:printing` 103/103 y E2E 12/12; se agregan los casos de arranque sin
+  impresora y de fallo de impresión en la venta.
+
 ## [2.1.0] — 2026-11-17
 
 ### Cambiado

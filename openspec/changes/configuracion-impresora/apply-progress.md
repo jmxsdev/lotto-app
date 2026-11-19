@@ -441,3 +441,48 @@ git add openspec/changes/configuracion-impresora/tasks.md openspec/changes/confi
 ## No command was executed (Phase 4)
 
 No Node, pnpm, npm, composer, test, build, install, linter, type-check, or network call was run. Only read-only inspection (`grep`, `git status`, `git diff`, `wc`) was used. No `git add`, commit, branch creation, or merge was performed. All Phase 4 changes are uncommitted.
+
+## Phase 5 — E2E failure paths, docs, CHANGELOG
+
+Phase 5 was executed on `feature/configuracion-impresora-p5` (base P4 `e9d6bac`). Only E2E harness/specs, docs, and changelog changed; `printing/**`, IPC, preload, pages, package version, and backend were not touched.
+
+### Files changed
+
+| File | Change | Purpose |
+|---|---|---|
+| `taquilla/e2e/helpers/app.mjs` | `launchApp({ stubOptions })` + `stubPrintIpc(app, options)` | Simulate no-printer startup (`config.printerName: null`), custom printer lists, and per-channel print failures while keeping the POS-58 default for specs 01–08 |
+| `taquilla/e2e/tests/09-print-failure.spec.mjs` | New (2 tests) | (1) no configured printer → dashboard opens `#printer-modal` with 2 candidates and does not auto-save; (2) sale with `EPRINTER_UNCONFIGURED`-style result → visible confirm, setup opens, snapshot and print payload preserved |
+| `docs/dev/estructura.md` | Expanded ESC/POS section | UI configuration, single config file, IPC surface, visible failures, E2E stub boundary |
+| `docs/dev/planificacion.md` | Added 9.2 implemented note | Detection/persistence/failure behavior and verification status |
+| `CHANGELOG.md` | New `[2.1.1] — 2026-11-19` | Added/Changed/Technical summary of the printer configuration work |
+
+### E2E design notes
+
+- The login route is limited by `throttle:10,2`. The suite already spends the budget: 9 UI logins (specs 01–08) plus the API login in `global-setup`. The two new specs therefore reuse `e2e/artifacts/session.json` and navigate to `new URL('/dashboard', page.url())` (same `app://index.html` origin). Navigating to `app://dashboard/` changes the Chromium host/origin and loses `localStorage.auth_token`.
+- The new spec asserts on `__e2e_prints` (no `print:set-config` in the no-printer case) and on `localStorage.ultimoTicket`, following the existing stub contract.
+- Spec numbering is `09-print-failure` because `08-tipo-pago` already exists.
+
+### Verification (executed)
+
+| Command | Result |
+|---|---|
+| `pnpm build` | exit 0 (prerender `fetch failed` warnings remain non-fatal) |
+| `pnpm test:printing` | 103/103 pass, 0 fail |
+| `pnpm exec tsc -p tsconfig.printing.json` | no errors |
+| E2E (12 tests, `lotto_e2e`, API `:8003`) | 12/12 pass in ~1.2 min |
+
+The E2E run used the main worktree backend (`/home/gzuz/Documentos/lotto-app/backend`) because this worktree lacks `backend/vendor` and `.env`; `lotto_db` was not touched and the API was stopped after the run.
+
+Backend was reset with `migrate:fresh --seed --force` + `E2eSeeder` before the suite. `CACHE_STORE=database`, so the reset also clears the login throttle window.
+
+### Budget
+
+Phase 5 code/spec/docs: ~200 raw lines (helper + spec + docs + changelog). No requirement was trimmed.
+
+### Deviation
+
+The original Phase 5 plan mentioned `pnpm e2e`; the local command cannot start without a backend. The suite was run with `API_UPSTREAM=http://localhost:8003 E2E_SKIP_BUILD=1 pnpm exec playwright test -c e2e/playwright.config.mjs` against `lotto_e2e`, as in Phase 3/4.
+
+### Phase 7 (requested, not started)
+
+Login token auto-session was requested by the owner and is listed in `tasks.md` as a separate concern. It is not part of the printer spec; `GET /api/v1/user` (`auth:sanctum`, `routes/api.php:56`) is the natural validation endpoint and Sanctum expiry is 1440 minutes (`config/sanctum.php:53`). No implementation was started.

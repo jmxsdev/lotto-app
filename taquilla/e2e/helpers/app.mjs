@@ -47,6 +47,7 @@ export async function launchApp({
   token = null,
   fingerprint = E2E_FINGERPRINT,
   devServer = process.env.E2E_DEV_SERVER === '1',
+  stubOptions = null,
 } = {}) {
   const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'taquilla-e2e-'));
   trackTmpDir(userDataDir);
@@ -94,7 +95,7 @@ export async function launchApp({
   // Reloj congelado a hoy 06:00 America/Caracas → horarios siempre futuros.
   await page.clock.install({ time: caracasSixAmToday() });
   // Stubs IPC evaluate-only: removeHandler + re-handle, captura en el main.
-  await stubPrintIpc(app);
+  await stubPrintIpc(app, stubOptions);
   // Fingerprint (+ token opcional) ANTES del primer script del renderer.
   await page.addInitScript(
     ({ fingerprint: fp, token: tkn }) => {
@@ -119,9 +120,15 @@ export async function launchApp({
  * Stub evaluate-only de impresión (design AD #1): re-registra los handlers IPC
  * para capturar payloads en globalThis.__e2e_prints del proceso main. get-mac
  * devuelve el MAC E2E (necesario para VerifyMac). Sin cambios de runtime.
+ *
+ * `options` permite que un spec simule el arranque sin impresora
+ * (`config.printerName = null`) o un fallo de impresión
+ * (`printResults['print-ticket'] = { success: false, code, message }`).
+ * Sin opciones conserva el comportamiento histórico: POS-58 configurada.
  */
-export async function stubPrintIpc(app) {
-  await app.evaluate(({ ipcMain }, channels) => {
+export async function stubPrintIpc(app, options = null) {
+  await app.evaluate(({ ipcMain }, input) => {
+    const { channels, options: overrides } = input;
     globalThis.__e2e_prints = globalThis.__e2e_prints || [];
     const mac = process.env.E2E_MAC || '02:E2:E0:00:00:01';
     // Configuración de impresora E2E (Fase 3): una POS-58 siempre configurada
@@ -137,6 +144,11 @@ export async function stubPrintIpc(app) {
       cutPerBlock: true,
       warnings: [],
     };
+    const config = { ...defaultConfig, ...(overrides?.config || {}) };
+    const printers = Array.isArray(overrides?.printers)
+      ? overrides.printers
+      : [{ name: 'POS-58', displayName: 'POS-58', description: '', options: {} }];
+    const printResults = overrides?.printResults || {};
     for (const channel of channels) {
       try {
         ipcMain.removeHandler(channel);
@@ -146,15 +158,16 @@ export async function stubPrintIpc(app) {
       ipcMain.handle(channel, (event, payload) => {
         globalThis.__e2e_prints.push({ channel, payload, at: Date.now() });
         if (channel === 'get-mac') return mac;
+        if (printResults[channel]) return printResults[channel];
         if (channel === 'print:get-config') {
-          return { success: true, message: 'e2e', config: defaultConfig };
+          return { success: true, message: 'e2e', config };
         }
         if (channel === 'print:list-printers') {
           return {
             success: true,
             message: 'e2e',
-            printers: [{ name: 'POS-58', displayName: 'POS-58', description: '', options: {} }],
-            suggested: 'POS-58',
+            printers,
+            suggested: printers[0]?.name ?? null,
           };
         }
         if (channel === 'print:set-config') {
@@ -162,9 +175,9 @@ export async function stubPrintIpc(app) {
             success: true,
             message: 'e2e',
             config: {
-              ...defaultConfig,
-              printerName: payload?.printerName ?? 'POS-58',
-              paper: payload?.paper ?? '58mm',
+              ...config,
+              printerName: payload?.printerName ?? config.printerName,
+              paper: payload?.paper ?? config.paper,
             },
           };
         }
@@ -174,7 +187,7 @@ export async function stubPrintIpc(app) {
         return { success: true, message: `e2e-stub:${channel}`, e2e: true };
       });
     }
-  }, STUB_CHANNELS);
+  }, { channels: STUB_CHANNELS, options });
 }
 
 /** Payloads capturados por los stubs IPC en el proceso main. */

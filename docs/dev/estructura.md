@@ -192,6 +192,12 @@ lotto-app/                           # Raíz del proyecto
 ### IMPRESIÓN NÁTICA ESC/POS (58 MM POR DEFECTO)
 
 - `taquilla/electron/main/printing/` es TypeScript (`core/`, `infra/`, `documents/`, `types.ts`); `pnpm build:printing` lo compila con esbuild a CommonJS en `printing/dist/`, que es lo que carga `main.cjs`. Los imports relativos van sin extensión y `dist/package.json` fija `"type":"commonjs"`. Es la vía nativa: 58 mm / 32 columnas por defecto. La configuración se lee de `userData/printer-config.json` (`printerName`, `paper`, `columns`, `codePage`, `cut`, `feedLines`, `cutPerBlock`); los valores ausentes o inválidos usan los predeterminados. Tests con `pnpm test:printing` (build + `node --test`).
+- **Configuración desde la app**: el encabezado (`MainLayout.astro`) tiene un botón de impresora que abre el modal de configuración. Ahí se elige impresora y papel (58/80 mm), se vuelve a detectar y se puede imprimir una prueba diagnóstica. Al entrar con la impresora sin configurar: cero o varias impresoras abren el modal; una sola térmica se autoguarda en 58 mm; una de oficina se marca como no compatible y **nunca** se guarda automáticamente.
+- **Fuente única**: `userData/printer-config.json` es la única fuente de configuración. No se leen variables de entorno de impresión. El guardado valida el nombre contra las impresoras enumeradas y escribe con `temp + rename` (atómico); los fallos devuelven `E_CONFIG_WRITE_FAILED`.
+- **IPC**: `print:list-printers`, `print:get-config`, `print:set-config` y `print:test` exponen la configuración al renderer; `print-ticket`, `print-cierre` y `print-reporte` siguen siendo los canales de impresión de documentos.
+- **Fallos visibles**: `window.showPrintFailure` (`MainLayout.astro`) centraliza el aviso. `E_PRINTER_UNCONFIGURED` y `E_PRINTER_NOT_FOUND` ofrecen «Configurar impresora»; el resto muestra el mensaje. En la venta, el ticket creado y el snapshot `ultimoTicket` se conservan aunque la impresión falle.
+- **Límite de la verificación**: el E2E stubea los canales `print-*`; valida el payload y el flujo, no los bytes ESC/POS ni el driver. La prueba física en una térmica de 58 mm sigue siendo la validación final.
+
 
 ---
 
