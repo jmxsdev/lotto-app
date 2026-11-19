@@ -217,13 +217,13 @@ Verification: `pnpm build` exit 0; `pnpm test:printing` 103/103; `pnpm exec tsc 
 
 ## Phase 7 — Login con sesión vigente (solicitado, fuera del spec de impresora)
 
-Phase 6 remains the 2.1.1 release. This is a separate login concern requested by the owner; it is not part of the printer spec and should get its own proposal/spec before implementation.
+Phase 6 remains the 2.1.1 release. This is a separate login concern requested by the owner; it is not part of the printer spec. Its requirement lives in `specs/login-sesion-vigente/spec.md`. Release decision: **2.1.1 includes Phase 7**.
 
-- [ ] 7.1 En `/login`, si existe `auth_token`, validarlo contra `GET /api/v1/user` (Sanctum, `routes/api.php:56`) antes de mostrar el formulario.
-- [ ] 7.2 Token válido → actualizar `user_data` y redirigir a `/dashboard` sin pedir credenciales.
-- [ ] 7.3 401/419 → borrar `auth_token` y mostrar el formulario; error de red/timeout → mostrar el formulario (sin auto-login a ciegas).
-- [ ] 7.4 Mantener `index.astro` verificando el dispositivo antes de cualquier redirección.
-- [ ] 7.5 E2E: token vigente auto-loguea; token inválido/expirado muestra el formulario. La expiración de Sanctum es 1440 min (`config/sanctum.php:53`).
-- [ ] 7.6 Definir si la release 2.1.1 incluye esta fase o si pasa a 2.1.2.
+- [x] 7.1 En `/login`, si existe `auth_token`, validarlo contra `GET /api/v1/user` (Sanctum, `routes/api.php:56`) antes de mostrar el formulario.
+- [x] 7.2 Token válido → actualizar `user_data` y redirigir a `/dashboard` sin pedir credenciales.
+- [x] 7.3 401 → borrar `auth_token` y mostrar el formulario; error de red/timeout → mostrar el formulario con aviso y conservar el token.
+- [x] 7.4 Mantener `index.astro` verificando el dispositivo antes de cualquier redirección.
+- [x] 7.5 E2E: token vigente auto-loguea; token inválido/expirado muestra el formulario. La expiración de Sanctum es 1440 min (`config/sanctum.php:53`).
+- [x] 7.6 Release 2.1.1 incluye esta fase (no pasa a 2.1.2).
 
-Note: `auth_token` y `user_data` ya persisten en `localStorage`; hoy el re-login lo fuerza `index.astro` al redirigir siempre a `/login`, no un borrado de token.
+Note: `auth_token` y `user_data` persisten en `localStorage`; antes de esta fase el re-login lo forzaba `index.astro` al redirigir siempre a `/login`, no un borrado de token. `index.astro` no cambió.

@@ -22,6 +22,9 @@ elimina los fallos de impresión silenciosos.
   cierre y reporte muestran el fallo y ofrecen «Configurar impresora» cuando
   falta configuración. El ticket creado y el snapshot de reimpresión se
   conservan aunque la impresión falle.
+- **Reanudación de sesión**: al abrir la app con un token vigente, el login
+  valida `GET /user` y entra al dashboard sin pedir credenciales; un token
+  inválido vuelve al formulario y una caída de red no cierra la sesión.
 
 ### Cambiado
 
@@ -34,8 +37,8 @@ elimina los fallos de impresión silenciosos.
 - Canales IPC `print:list-printers`, `print:get-config`, `print:set-config` y
   `print:test`; guardado atómico (`temp + rename`) y validación del nombre
   contra las impresoras enumeradas.
-- `pnpm test:printing` 103/103 y E2E 12/12; se agregan los casos de arranque sin
-  impresora y de fallo de impresión en la venta.
+- `pnpm test:printing` 103/103 y E2E 14/14; se agregan los casos de arranque sin
+  impresora, fallo de impresión en la venta y reanudación de sesión.
 
 ## [2.1.0] — 2026-11-17
 

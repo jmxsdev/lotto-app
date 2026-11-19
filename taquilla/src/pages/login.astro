@@ -130,6 +130,27 @@ import Icon from '../components/ui/Icon.astro';
         animation: spin 0.8s linear infinite;
         margin-right: 8px;
       }
+      .session-check {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 24px 0;
+        font-size: 14px;
+        color: #555;
+      }
+      .session-check.visible {
+        display: flex;
+      }
+      .spinner-dark {
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        border: 2px solid rgba(0, 0, 0, 0.15);
+        border-top: 2px solid #333;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
       @keyframes spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
@@ -144,7 +165,12 @@ import Icon from '../components/ui/Icon.astro';
       </div>
       
       <div id="alert" class="alert"></div>
-      
+
+      <div id="session-check" class="session-check">
+        <span class="spinner-dark"></span>
+        <span>Verificando sesión...</span>
+      </div>
+
       <form id="login-form">
         <div class="form-group">
           <label for="email">Correo Electrónico</label>
@@ -217,6 +243,63 @@ import Icon from '../components/ui/Icon.astro';
         alertEl.className = `alert ${type}`;
       }
 
+      // Reanudación de sesión: si ya hay token, se valida con GET /user antes
+      // de mostrar el formulario. Un fallo de red no cierra la sesión.
+      function setChecking(on) {
+        document.getElementById('session-check').classList.toggle('visible', on);
+        document.getElementById('login-form').style.display = on ? 'none' : '';
+      }
+
+      function payloadMessage(payload) {
+        if (payload && typeof payload === 'object' && 'message' in payload) {
+          const value = payload.message;
+          if (typeof value === 'string' && value) return value;
+        }
+        return null;
+      }
+
+      function mergeUserData(data) {
+        let previous = {};
+        try {
+          const stored = JSON.parse(localStorage.getItem('user_data') || 'null');
+          if (stored && typeof stored === 'object') previous = stored;
+        } catch (_) {
+          previous = {};
+        }
+        if (data && typeof data === 'object') {
+          localStorage.setItem('user_data', JSON.stringify({ ...previous, ...data }));
+        }
+      }
+
+      async function resumeSession() {
+        if (!localStorage.getItem('auth_token')) return;
+
+        document.getElementById('alert').className = 'alert';
+        setChecking(true);
+
+        try {
+          // /user no consume el throttle de POST /login y valida Sanctum.
+          const data = await apiFetch('/user', { timeout: 5000 });
+          mergeUserData(data);
+          window.location.href = '/dashboard';
+        } catch (error) {
+          setChecking(false);
+          if (error instanceof ApiError && error.kind === 'unauthorized') {
+            // apiFetch ya eliminó el token: solo queda pedir credenciales.
+            return;
+          }
+          if (error instanceof ApiError && (error.kind === 'network' || error.kind === 'timeout')) {
+            showAlert('No se pudo verificar la sesión. Ingrese sus credenciales.', 'error');
+            return;
+          }
+          showAlert(
+            (error instanceof ApiError && payloadMessage(error.payload)) ||
+              'No se pudo verificar la sesión. Ingrese sus credenciales.',
+            'error'
+          );
+        }
+      }
+
       function resetButton(btn) {
         btn.disabled = false;
         btn.textContent = 'Iniciar Sesión';
@@ -283,6 +366,9 @@ import Icon from '../components/ui/Icon.astro';
       }
 
       document.getElementById('login-form').addEventListener('submit', handleLogin);
+
+      // Fire-and-forget: el listener ya está listo si la validación falla.
+      resumeSession();
     </script>
   </body>
 </html>

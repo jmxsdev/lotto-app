@@ -483,6 +483,88 @@ Phase 5 code/spec/docs: ~200 raw lines (helper + spec + docs + changelog). No re
 
 The original Phase 5 plan mentioned `pnpm e2e`; the local command cannot start without a backend. The suite was run with `API_UPSTREAM=http://localhost:8003 E2E_SKIP_BUILD=1 pnpm exec playwright test -c e2e/playwright.config.mjs` against `lotto_e2e`, as in Phase 3/4.
 
-### Phase 7 (requested, not started)
+---
 
-Login token auto-session was requested by the owner and is listed in `tasks.md` as a separate concern. It is not part of the printer spec; `GET /api/v1/user` (`auth:sanctum`, `routes/api.php:56`) is the natural validation endpoint and Sanctum expiry is 1440 minutes (`config/sanctum.php:53`). No implementation was started.
+# Phase 7 — login con sesión vigente
+
+**Status**: implementation written, NOT executed · **Scope**: Phase 7 only · **Next**: owner runs the commands below, then `sdd-verify`.
+**Branch**: `feature/configuracion-impresora-p7` (base P5 `382a3c8`).
+**Mode**: Standard (owner-run verification; this phase forbids executing commands).
+**Release decision**: 2.1.1 includes Phase 7.
+
+## Work Units (Phase 7)
+
+| WU | Title | Files | Status |
+|----|-------|-------|--------|
+| 7.1 | `GET /user` validation before showing the form when `auth_token` exists | `login.astro` | Written |
+| 7.2 | Valid token → merge `user_data` → `/dashboard` | `login.astro` | Written |
+| 7.3 | 401 vs network/timeout outcomes keep the form usable | `login.astro` | Written |
+| 7.4 | `index.astro` untouched (device verification still runs first) | — | Verified read-only |
+| 7.5 | E2E: valid token resumes, invalid token returns to the form | `10-login-session.spec.mjs` | Written |
+| 7.6 | Release note: 2.1.1 includes Phase 7 | `tasks.md`, `CHANGELOG.md` | Written |
+
+No printer, IPC, preload, backend, `package.json`, `index.astro`, `dashboard.astro`, or `MainLayout.astro` file was touched. `ultimoTicket` and `user_data` are not cleared on logout (the owner rejected that cleanup).
+
+## Files Changed (Phase 7)
+
+Counts from `git diff --numstat`; the new spec is untracked.
+
+| File | Lines | Raw +/− | Net | What Was Done |
+|---|---|---:|---:|---|
+| `taquilla/src/pages/login.astro` | 288 → 374 | +87 / −1 | +86 | Added the `#session-check` state (dark spinner + `Verificando sesión...`) and `.session-check`/`.spinner-dark` CSS reusing `@keyframes spin`. Script: `setChecking`, `payloadMessage`, `mergeUserData`, `resumeSession`; the submit listener stays untouched and `resumeSession()` runs once after it is wired. |
+| `taquilla/e2e/tests/10-login-session.spec.mjs` | new → 57 | +57 / −0 | +57 | Two specs: valid global-setup token resumes to the dashboard without the form; `token-invalido` returns the form and clears `auth_token`. No `POST /login`. |
+| `openspec/changes/configuracion-impresora/tasks.md` | — | — | — | 7.1–7.6 marked `[x]`; release decision recorded. |
+| `openspec/changes/configuracion-impresora/apply-progress.md` | — | — | — | This Phase 7 section. |
+| `CHANGELOG.md` | — | — | — | `Agregado` bullet “Reanudación de sesión” in `[2.1.1] — 2026-11-19`. |
+| **Phase 7 app+spec total** | | **+145 / −1** | **+144** | Within the 80–140 app-code band (86) plus ~60 spec lines (57). |
+
+## Exact behavior (Phase 7)
+
+`resumeSession()` runs once at page load, after the submit listener is registered.
+
+| State at `/login` | Behavior |
+|---|---|
+| No `auth_token` | Returns immediately. No network call, no spinner, form visible. |
+| Valid token (`200`) | Shows `#session-check` and hides `#login-form`; `GET /user` (timeout 5000 ms); merges the previous `user_data` with the response (`...previous, ...data`, so fields the endpoint omits such as `taquilla` survive); `window.location.href = '/dashboard'`. The form stays hidden during navigation. |
+| `401` | `apiFetch` already removed `auth_token` and does not redirect because the pathname is `/login`. Checking state is cleared, the form is shown, no error message is added. |
+| `network` / `timeout` | Checking state cleared, form shown, alert `No se pudo verificar la sesión. Ingrese sus credenciales.`; `auth_token` is NOT removed. |
+| Other `ApiError` (`forbidden`/`http`/`rate-limited`) | Checking state cleared, form shown; the alert uses `payload.message` when it is a non-empty string, otherwise the same safe message. The token is only removed if `apiFetch` already did it (401). |
+| Any failure | The form is left usable; the submit listener is already wired. |
+
+`index.astro`, `dashboard.astro`, `MainLayout.astro`, and `apiFetch.ts` were not modified.
+
+## Tests
+
+- No unit test changed: `pnpm test:printing` stays **103**.
+- New E2E `10-login-session.spec.mjs` (2 tests) → suite expectation **14 tests** (12 from Phase 5 + 2).
+- Both E2E tests use `loadSession()` → `launchApp({ token })`, the same origin/flow as `09-print-failure.spec.mjs`. They never call `POST /login`, so the `throttle:10,2` budget is unchanged.
+- Test A asserts `/dashboard`, visible `#qt-numero`, hidden `#login-form`, `auth_token` still present and `user_data.email === E2E_EMAIL`.
+- Test B asserts the form and `#email` are visible and `auth_token === null`; it does not submit the form.
+
+## Work Unit Evidence (Phase 7)
+
+| Evidence | Value |
+|---|---|
+| Focused test command | `cd taquilla && pnpm exec playwright test -c e2e/playwright.config.mjs 10-login-session` (requires the seeded API) |
+| Exact result | Not executed — owner runs. Expected 2 pass. |
+| Runtime harness | `cd taquilla && pnpm build`, then the E2E run with API on `:8003` and `lotto_e2e`; manually: reload the app with a valid token → dashboard, with a revoked token → form. |
+| Rollback boundary | Revert `login.astro` and delete `10-login-session.spec.mjs`. `index.astro`, `apiFetch.ts`, the printer phases, and persisted localStorage contents are unaffected. |
+
+## Owner Commands (documented, not run)
+
+```bash
+cd taquilla
+pnpm build
+pnpm test:printing          # 103
+# E2E: API on :8003 + lotto_e2e; expect 14 tests
+```
+
+Mark the OpenSpec artifacts for git because `*.md` is ignored:
+
+```bash
+git add -f openspec/changes/configuracion-impresora/tasks.md openspec/changes/configuracion-impresora/apply-progress.md
+```
+
+## No command was executed (Phase 7)
+
+No Node, pnpm, npm, composer, test, build, install, linter, type-check, or network call was run. Only read-only inspection (`grep`, `git status`, `git diff`, `wc`) was used. No `git add`, commit, branch creation, or merge was performed. All Phase 7 changes are uncommitted.
