@@ -86,6 +86,23 @@ export interface PrintResult {
   code?: PrintErrorCode;
 }
 
+/** IPC response for print:list-printers. */
+export interface PrinterListResponse {
+  success: boolean;
+  message: string;
+  printers: PrinterInfo[];
+  suggested: string | null;
+  code?: PrintErrorCode;
+}
+
+/** IPC response for print:get-config / print:set-config. */
+export interface PrinterConfigResponse {
+  success: boolean;
+  message: string;
+  config?: EffectiveConfig;
+  code?: PrintErrorCode;
+}
+
 export type PrintErrorCode =
   | 'E_CONFIG_INVALID'
   | 'E_CONFIG_WRITE_FAILED'
@@ -151,6 +168,12 @@ export interface SavePrinterConfigInput {
   cutPerBlock?: boolean;
 }
 
+/** Optional overrides for the commissioning slip (print:test). */
+export interface TestPrintInput {
+  printerName?: string | null;
+  paper?: Paper;
+}
+
 export type PrinterConfigFile = {
   version?: unknown;
   printerName?: unknown;
@@ -198,6 +221,11 @@ export interface Printing {
   printDocument(request: PrintRequest): Promise<PrintResult>;
   resolveEffectiveConfig(): EffectiveConfig;
   buildBuffer(input: BuildBufferInput): Buffer;
+  listPrinters(webContents: WebContentsLike): Promise<PrinterListResponse>;
+  getConfig(): PrinterConfigResponse;
+  /** Async because the renderer-supplied name is re-enumerated in main before persisting. */
+  saveConfig(webContents: WebContentsLike, patch: SavePrinterConfigInput): Promise<PrinterConfigResponse>;
+  testPrint(webContents: WebContentsLike, input?: TestPrintInput): Promise<PrintResult>;
 }
 
 export interface CreatePrintingOptions {
@@ -205,4 +233,6 @@ export interface CreatePrintingOptions {
   sendRaw?: Transport['sendRaw'];
   lock?: PrintLock;
   readFile?: ReadFile;
+  writeFile?: WriteFile;
+  renameFile?: RenameFile;
 }

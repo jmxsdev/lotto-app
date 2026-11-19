@@ -155,4 +155,16 @@ grep -n  "getWindow" taquilla/electron/main/main.cjs                          # 
 - [x] 2.2 Discovery surface (`listPrinters`, `suggest`, exact/case-insensitive resolution)
 - [x] 2.3 Discovery tests (13)
 
-Static count: 95 tests. Phase 2+ not started.
+Static count: 95 tests after Phase 1.
+
+## Apply Progress (Phase 2)
+
+Phase 2 was executed on `feature/configuracion-impresora-p2` (not planned in the Phase 1 tables above).
+
+- [x] 2.1 Contracts: `PrinterListResponse`, `PrinterConfigResponse`, `TestPrintInput`, facade methods, `writeFile`/`renameFile`
+- [x] 2.2 Facade: `listPrinters`, `getConfig`, `saveConfig` (membership-validated), `testPrint` (paper profile)
+- [x] 2.3 IPC handlers: `print:list-printers`, `print:get-config`, `print:set-config`, `print:test`
+- [x] 2.4 Preload bridge: `listPrinters`, `getPrinterConfig`, `savePrinterConfig`, `testPrint`
+- [x] 2.5 Tests: 8 fake-based tests in `test/index.test.cjs`
+
+Static count: 103 tests. Phase 3+ not started. `saveConfig` returns a Promise (async membership check).

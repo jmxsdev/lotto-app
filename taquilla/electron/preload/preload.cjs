@@ -5,6 +5,14 @@ contextBridge.exposeInMainWorld('electron', {
     printTicket: (data) => ipcRenderer.invoke('print-ticket', data),
     printCierre: (data) => ipcRenderer.invoke('print-cierre', data),
     printReporte: (data) => ipcRenderer.invoke('print-reporte', data),
+
+    // ─── Configuracion de impresora (Fase 2): lista, lectura/escritura del
+    // archivo y prueba de comisionado.
+    listPrinters: () => ipcRenderer.invoke('print:list-printers'),
+    getPrinterConfig: () => ipcRenderer.invoke('print:get-config'),
+    savePrinterConfig: (config) => ipcRenderer.invoke('print:set-config', config),
+    testPrint: (data) => ipcRenderer.invoke('print:test', data),
+
     getVersion: () => ipcRenderer.invoke('get-version'),
     setApiUpstream: (key) => ipcRenderer.invoke('set-api-upstream', key),
 
