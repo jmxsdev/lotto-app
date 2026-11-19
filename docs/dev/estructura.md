@@ -184,14 +184,14 @@ lotto-app/                           # Raíz del proyecto
 - **`docker-compose.yml`** (Raíz): Define los contenedores de **MySQL 8**, **Redis**, y **Nginx** (para servir Laravel). Todos los servicios se levantan con un solo comando.
 - **`backend/.env`**: Configuración de base de datos, Redis, URL del scraper, tasa de cambio por defecto, y `APP_URL` (para que la taquilla sepa dónde apuntar).
 - **`backend/config/exchange.php`**: Archivo personalizado que guardará configuraciones como `'default_currency' => 'VES'` o `'dollar_rate_update_interval' => 60` (minutos).
-- **`taquilla/.env`**: Variable `VITE_API_URL=http://backend.local/api/v1` (Astro usa `import.meta.env`). La configuración de la impresora se resuelve por variables de entorno del proceso principal; ver «Impresión nativa ESC/POS».
+- **`taquilla/.env`**: Variable `VITE_API_URL=http://backend.local/api/v1` (Astro usa `import.meta.env`). La configuración de la impresora vive en `userData/printer-config.json`; ver «Impresión nativa ESC/POS».
 - **`taquilla/electron/build/builder.json`**: Configuración de `electron-builder`; aquí defines el nombre del `.exe`, la versión, el ícono, y si quieres que sea portable o instalable.
 
 ---
 
 ### IMPRESIÓN NÁTICA ESC/POS (58 MM POR DEFECTO)
 
-- `taquilla/electron/main/printing/` es TypeScript (`core/`, `infra/`, `documents/`, `types.ts`); `pnpm build:printing` lo compila con esbuild a CommonJS en `printing/dist/`, que es lo que carga `main.cjs`. Los imports relativos van sin extensión y `dist/package.json` fija `"type":"commonjs"`. Es la vía nativa: 58 mm / 32 columnas por defecto, `LOTTO_PRINT_PAPER=80` habilita 48. Variables `LOTTO_PRINTER_NAME`, `LOTTO_PRINT_TEST=1` (slip de puesta en marcha), `LOTTO_PRINT_PAPER`, `LOTTO_PRINT_COLUMNS`, `LOTTO_PRINT_CODEPAGE`, `LOTTO_PRINT_CUT`, `LOTTO_PRINT_FEED`, `LOTTO_PRINT_CUT_PER_BLOCK`; tests con `pnpm test:printing` (build + `node --test`).
+- `taquilla/electron/main/printing/` es TypeScript (`core/`, `infra/`, `documents/`, `types.ts`); `pnpm build:printing` lo compila con esbuild a CommonJS en `printing/dist/`, que es lo que carga `main.cjs`. Los imports relativos van sin extensión y `dist/package.json` fija `"type":"commonjs"`. Es la vía nativa: 58 mm / 32 columnas por defecto. La configuración se lee de `userData/printer-config.json` (`printerName`, `paper`, `columns`, `codePage`, `cut`, `feedLines`, `cutPerBlock`); los valores ausentes o inválidos usan los predeterminados. Tests con `pnpm test:printing` (build + `node --test`).
 
 ---
 

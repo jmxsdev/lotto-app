@@ -266,9 +266,7 @@ async function createWindow() {
 
 app.whenReady().then(async () => {
     const printing = createPrinting({
-        env: process.env,
         userDataPath: app.getPath('userData'),
-        getWindow: () => mainWindow,
     });
     registerIpcHandlers(upstream, updater, printing);
     updater.start(); // chequeo al boot + cada 1 h (no-op en desarrollo)
@@ -282,10 +280,6 @@ app.whenReady().then(async () => {
     Menu.setApplicationMenu(null);
 
     await createWindow();
-
-    // Puesta en marcha (LOTTO_PRINT_TEST=1): slip de 32 columnas, fire-and-forget.
-    // maybeRunStartupTest nunca rechaza; el catch es defensa y no bloquea el arranque.
-    printing.maybeRunStartupTest().catch((error) => console.warn('print:test fallo:', error && error.message));
 });
 
 app.on('window-all-closed', () => {

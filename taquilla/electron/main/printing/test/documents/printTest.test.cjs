@@ -20,6 +20,8 @@ test('la regla de columnas mide exactamente 32 caracteres por defecto', () => {
   assert.equal(marks, '|....|....|....|....|....|....|.');
   assert.equal(marks.length, 32);
   for (let i = 0; i < 32; i += 1) assert.equal(marks[i], i % 5 === 0 ? '|' : '.');
+  assert.ok(strings(lines).includes('Prueba: Configuracion impresora'));
+  assert.equal(strings(lines).some((line) => line.includes(['LOTTO', '_'].join(''))), false);
 });
 
 test('la regla sigue el override de columnas (48 y 42)', () => {

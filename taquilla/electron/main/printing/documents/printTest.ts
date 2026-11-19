@@ -44,7 +44,7 @@ function buildLines(config: Partial<EffectiveConfig> = {}): SlipItem[] {
     'PRUEBA DE IMPRESION',
     truncate(`Papel: ${paper}  ${columns} cols  ${dots} dots`, columns),
     truncate(`Pagina: ${codePage}  Corte: ${cut}`, columns),
-    'Prueba: LOTTO_PRINT_TEST=1',
+    'Prueba: Configuracion impresora',
     rule(columns),
     rulerDigits(columns),
     rulerMarks(columns),

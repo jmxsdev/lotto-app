@@ -3,13 +3,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { createPrinting } = require('../dist/index.js');
-const printTest = require('../dist/documents/printTest.js');
 
-const missingFile = () => {
-  const error = new Error('missing');
-  error.code = 'ENOENT';
-  throw error;
-};
 const ticketData = {
   ticketCode: 'A1B2C3',
   date: '09/11/2026',
@@ -48,9 +42,8 @@ const reporteData = {
   desglose_metodos: { bs: {}, usd: {} },
 };
 const create = (overrides = {}) => createPrinting({
-  env: { LOTTO_PRINTER_NAME: 'POS-58' },
   userDataPath: '/tmp/lotto',
-  readFile: missingFile,
+  readFile: () => JSON.stringify({ printerName: 'POS-58' }),
   sendRaw: async () => {},
   ...overrides,
 });
@@ -111,7 +104,9 @@ test('un kind sin builder nativo devuelve el mensaje sin fallback HTML', async (
     data: { ...ticketData, kind: 'manifiesto' },
     webContents,
   });
-  assert.deepEqual(result, { success: false, message: 'Sin builder nativo para "manifiesto".' });
+  assert.deepEqual(result, {
+    success: false, message: 'Sin builder nativo para "manifiesto".', code: 'E_PAYLOAD_INVALID',
+  });
   assert.equal(sent.length, 0);
 });
 
@@ -123,10 +118,12 @@ test('los errores de descubrimiento y transporte se mapean a success false', asy
     webContents: { getPrintersAsync: async () => [{ name: 'Otra' }] },
   });
   assert.equal(notFound.success, false);
+  assert.equal(notFound.code, 'E_PRINTER_NOT_FOUND');
   assert.match(notFound.message, /no encontrada/);
 
   const transport = await printing.printDocument({ kind: 'ticket', data: ticketData, webContents });
   assert.deepEqual(transport, { success: false, message: 'spooler caido' });
+  assert.equal('code' in transport, false);
 });
 
 test('un lock ocupado devuelve el mensaje de E_PRINT_BUSY sin lanzar', async () => {
@@ -139,6 +136,7 @@ test('un lock ocupado devuelve el mensaje de E_PRINT_BUSY sin lanzar', async () 
   const printing = create({ lock: busyLock });
   const result = await printing.printDocument({ kind: 'ticket', data: ticketData, webContents });
   assert.equal(result.success, false);
+  assert.equal(result.code, 'E_PRINT_BUSY');
   assert.match(result.message, /impresion en curso/);
 });
 
@@ -164,6 +162,7 @@ test('un trabajo mayor a 512 KiB falla antes de enviar', async () => {
   };
   const result = await printing.printDocument({ kind: 'ticket', data: huge, webContents });
   assert.equal(result.success, false);
+  assert.equal(result.code, 'E_PAYLOAD_TOO_LARGE');
   assert.match(result.message, /exceeds/);
   assert.equal(sent.length, 0);
 });
@@ -174,47 +173,4 @@ test('buildBuffer rechaza tipos sin builder nativo', () => {
     () => printing.buildBuffer({ kind: 'manifiesto', data: {}, config: printing.resolveEffectiveConfig() }),
     (error) => error.code === 'E_PAYLOAD_INVALID',
   );
-});
-
-test('sin LOTTO_PRINT_TEST el arranque no envia la prueba', async () => {
-  const sent = [];
-  const printing = create({ sendRaw: async (...args) => sent.push(args), getWindow: () => ({ webContents }) });
-  assert.equal(await printing.maybeRunStartupTest(), null);
-  assert.equal(sent.length, 0);
-});
-
-test('con LOTTO_PRINT_TEST=1 envia una sola prueba', async () => {
-  const sent = [];
-  const printing = create({
-    env: { LOTTO_PRINTER_NAME: 'POS-58', LOTTO_PRINT_TEST: '1' },
-    sendRaw: async (name, buffer) => sent.push({ name, buffer }),
-    getWindow: () => ({ webContents }),
-  });
-  const result = await printing.maybeRunStartupTest();
-  assert.deepEqual(result, { success: true, message: 'Prueba de impresion enviada' });
-  assert.equal(sent.length, 1);
-  assert.equal(sent[0].name, 'POS-58');
-  assert.equal(
-    sent[0].buffer.toString('hex'),
-    printTest.render(printing.resolveEffectiveConfig()).toString('hex'),
-  );
-});
-
-test('sin ventana activa la prueba devuelve success false sin lanzar', async () => {
-  const printing = create({
-    env: { LOTTO_PRINTER_NAME: 'POS-58', LOTTO_PRINT_TEST: '1' },
-    getWindow: () => null,
-  });
-  const result = await printing.maybeRunStartupTest();
-  assert.equal(result.success, false);
-  assert.match(result.message, /No hay ventana activa/);
-});
-
-test('un fallo del transporte en la prueba se devuelve como success false', async () => {
-  const printing = create({
-    env: { LOTTO_PRINTER_NAME: 'POS-58', LOTTO_PRINT_TEST: '1' },
-    sendRaw: async () => { throw new Error('spooler caido'); },
-    getWindow: () => ({ webContents }),
-  });
-  assert.deepEqual(await printing.maybeRunStartupTest(), { success: false, message: 'spooler caido' });
 });
