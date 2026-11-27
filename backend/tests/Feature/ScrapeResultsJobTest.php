@@ -135,16 +135,18 @@ class ScrapeResultsJobTest extends TestCase
 
     public function test_scrape_results_job_returns_early_for_non_scraper_game()
     {
-        $juego = Juego::where('requires_scraper', false)->first();
-
-        if (! $juego) {
-            $this->markTestSkipped('No hay juegos sin scraper para probar');
-        }
+        $juego = Juego::create([
+            'name' => 'Juego Sin Scraper',
+            'slug' => 'juego-sin-scraper',
+            'type' => 'animalitos',
+            'requires_scraper' => false,
+            'active' => true,
+        ]);
 
         $job = new ScrapeResultsJob($juego->id, '2026-07-23');
         $job->handle();
 
-        $this->assertTrue(true);
+        $this->assertSame(0, Resultado::count(), 'Un juego sin scraper no debe generar resultados.');
     }
 
     // ---------------- Guard de dedupe del día (N6, D6-b) ----------------

@@ -25,7 +25,6 @@ class PluginIntegrationTest extends TestCase
 
     public function test_desactivar_juego_oculta_en_taquilla()
     {
-        $this->markTestSkipped('Requeriría configuración de base de datos de prueba.');
         // Crear un juego con plugin activo
         $juego = Juego::create([
             'name' => 'Animalitos Test',
