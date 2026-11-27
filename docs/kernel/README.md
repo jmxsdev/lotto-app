@@ -4,6 +4,11 @@ Documentación de los dos paquetes que se extraen del backend de lotería para
 reutilizarlos en otros productos Laravel (por ejemplo, apuestas deportivas) con
 la misma jerarquía de seis niveles.
 
+## Glosario
+
+Los términos canónicos, las convenciones de nombres y las reglas de integridad
+del vínculo operador están en [`glosario.md`](glosario.md).
+
 ## Paquetes
 
 | Paquete | Contenido | Dependencias |
