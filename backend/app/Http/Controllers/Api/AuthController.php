@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use Lotto\Kernel\Identidad\Domain\Rol;
 use App\Audit\AuditAction;
 use App\Audit\AuditContext;
 use App\Audit\AuditEventData;
@@ -101,7 +102,7 @@ class AuthController extends Controller
 
             // Validar rol según tipo de cliente (fuente única: Spatie)
             if ($request->header('X-Panel') === 'true') {
-                if (! $user->hasAnyRole(['super_master', 'master', 'banca', 'grupo', 'agencia'])) {
+                if (! $user->hasAnyRole([Rol::SuperMaster->value, Rol::Master->value, Rol::Banca->value, Rol::Grupo->value, Rol::Agencia->value])) {
                     $this->recordLoginFailed($recorder, $context, $redactor, $user->email, 'panel_wrong_role');
 
                     return response()->json(['message' => 'Las taquillas deben usar la app de escritorio.'], 403);

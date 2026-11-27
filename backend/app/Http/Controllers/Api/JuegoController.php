@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use Lotto\Kernel\Identidad\Domain\Rol;
 use App\Audit\AuditAction;
 use App\Audit\AuditEventData;
 use App\Audit\AuditReason;
@@ -293,7 +294,7 @@ class JuegoController extends Controller
     {
         $user = $request->user();
 
-        if (! $user->hasAnyRole(['super_master', 'master', 'banca', 'grupo', 'agencia'])) {
+        if (! $user->hasAnyRole([Rol::SuperMaster->value, Rol::Master->value, Rol::Banca->value, Rol::Grupo->value, Rol::Agencia->value])) {
             return response()->json(['message' => 'No tienes permiso para ver límites.'], 403);
         }
 
@@ -355,7 +356,7 @@ class JuegoController extends Controller
     {
         $user = $request->user();
 
-        if (! $user->hasAnyRole(['super_master', 'master', 'banca', 'grupo', 'agencia'])) {
+        if (! $user->hasAnyRole([Rol::SuperMaster->value, Rol::Master->value, Rol::Banca->value, Rol::Grupo->value, Rol::Agencia->value])) {
             return response()->json(['message' => 'No tienes permiso para ver límites.'], 403);
         }
 
@@ -485,7 +486,7 @@ class JuegoController extends Controller
     {
         $user = $request->user();
 
-        if (! $user->hasAnyRole(['super_master', 'master', 'banca', 'grupo'])) {
+        if (! $user->hasAnyRole([Rol::SuperMaster->value, Rol::Master->value, Rol::Banca->value, Rol::Grupo->value])) {
             return response()->json(['message' => 'No tienes permiso para configurar límites.'], 403);
         }
 
@@ -603,7 +604,7 @@ class JuegoController extends Controller
     {
         $user = $request->user();
 
-        if (! $user->hasAnyRole(['super_master', 'master', 'banca', 'grupo'])) {
+        if (! $user->hasAnyRole([Rol::SuperMaster->value, Rol::Master->value, Rol::Banca->value, Rol::Grupo->value])) {
             return response()->json(['message' => 'No tienes permiso para configuración masiva de límites.'], 403);
         }
 
@@ -881,7 +882,7 @@ class JuegoController extends Controller
     {
         $user = $request->user();
 
-        if (! $user->hasAnyRole(['super_master', 'master', 'banca', 'grupo'])) {
+        if (! $user->hasAnyRole([Rol::SuperMaster->value, Rol::Master->value, Rol::Banca->value, Rol::Grupo->value])) {
             return response()->json(['message' => 'No tienes permiso para eliminar límites.'], 403);
         }
 
