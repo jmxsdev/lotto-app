@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use Lotto\Kernel\Identidad\Domain\Rol;
 use App\Exceptions\TicketAnulacionException;
 use App\Http\Controllers\Controller;
 use App\Models\Apuesta;
@@ -19,6 +18,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Lotto\Kernel\Identidad\Domain\Rol;
 
 class TicketController extends Controller
 {

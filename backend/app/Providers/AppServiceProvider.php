@@ -7,6 +7,8 @@ use App\Models\Agencia;
 use App\Models\Banca;
 use App\Models\CierreCaja;
 use App\Models\Grupo;
+use App\Models\Master;
+use App\Models\SuperMaster;
 use App\Models\Taquilla;
 use App\Models\Ticket;
 use App\Models\User;
@@ -18,6 +20,7 @@ use App\Policies\TaquillaPolicy;
 use App\Policies\TicketPolicy;
 use App\Policies\UserPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
@@ -42,6 +45,15 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Schema::defaultStringLength(191);
+
+        Relation::morphMap([
+            'super_master' => SuperMaster::class,
+            'master' => Master::class,
+            'banca' => Banca::class,
+            'grupo' => Grupo::class,
+            'agencia' => Agencia::class,
+            'taquilla' => Taquilla::class,
+        ]);
 
         // Autorización jerárquica de usuarios (issue #84): registro explícito
         // de la policy, además del auto-discovery de Laravel.

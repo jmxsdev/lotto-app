@@ -2,11 +2,11 @@
 
 namespace App\Policies;
 
-use Lotto\Kernel\Identidad\Domain\Rol;
 use App\Models\Apuesta;
 use App\Models\User;
 use App\Services\ApuestaService;
 use App\Support\Scope\AlcanceService;
+use Lotto\Kernel\Identidad\Domain\Rol;
 
 class ApuestaPolicy
 {
