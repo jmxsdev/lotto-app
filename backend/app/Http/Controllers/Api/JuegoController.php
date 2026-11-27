@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use Lotto\Kernel\Identidad\Domain\Rol;
 use App\Audit\AuditAction;
 use App\Audit\AuditEventData;
 use App\Audit\AuditReason;
@@ -27,6 +26,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Lotto\Kernel\Identidad\Domain\Rol;
 
 class JuegoController extends Controller
 {

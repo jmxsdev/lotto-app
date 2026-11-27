@@ -53,5 +53,4 @@ final class NivelTest extends TestCase
 
         $this->assertSame([Nivel::SuperMaster], $raices);
     }
-
 }

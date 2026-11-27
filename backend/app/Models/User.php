@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Lotto\Kernel\Identidad\Domain\Rol;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Collection;
 use Laravel\Sanctum\HasApiTokens;
+use Lotto\Kernel\Identidad\Domain\Rol;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
@@ -107,6 +108,11 @@ class User extends Authenticatable
     public function bancas()
     {
         return $this->hasMany(Banca::class, 'master_id');
+    }
+
+    public function operador(): HasOne
+    {
+        return $this->hasOne(Operador::class);
     }
 
     /**

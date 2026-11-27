@@ -2,11 +2,11 @@
 
 namespace Database\Seeders;
 
-use App\Producto\PerfilLoteria;
 use App\Audit\AuditAction;
 use App\Audit\AuditContext;
 use App\Audit\AuditEventData;
 use App\Audit\AuditRecorder;
+use App\Producto\PerfilLoteria;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
