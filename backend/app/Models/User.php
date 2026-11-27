@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Lotto\Kernel\Identidad\Domain\Rol;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Collection;
@@ -12,20 +13,6 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, HasRoles, Notifiable;
-
-    /**
-     * Orden de prioridad del rol efectivo cuando el usuario tiene varios.
-     *
-     * @var array<int, string>
-     */
-    private const ROLE_PRIORITY = [
-        'super_master',
-        'master',
-        'banca',
-        'grupo',
-        'agencia',
-        'taquilla',
-    ];
 
     /**
      * Atributo calculado `role` (no persistido) para conservar el contrato
@@ -91,9 +78,9 @@ class User extends Authenticatable
     {
         $names = $this->getRoleNames();
 
-        foreach (self::ROLE_PRIORITY as $role) {
-            if ($names->contains($role)) {
-                return $role;
+        foreach (Rol::cases() as $rol) {
+            if ($names->contains($rol->value)) {
+                return $rol->value;
             }
         }
 

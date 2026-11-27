@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use Lotto\Kernel\Identidad\Domain\Rol;
 use App\Models\Apuesta;
 use App\Models\User;
 use App\Services\ApuestaService;
@@ -26,7 +27,7 @@ class ApuestaPolicy
 
     public function viewAny(User $user): bool
     {
-        return $user->hasAnyRole(['super_master', 'master', 'banca', 'grupo', 'agencia', 'taquilla']);
+        return $user->hasAnyRole([Rol::SuperMaster->value, Rol::Master->value, Rol::Banca->value, Rol::Grupo->value, Rol::Agencia->value, Rol::Taquilla->value]);
     }
 
     public function view(User $user, Apuesta $apuesta): bool

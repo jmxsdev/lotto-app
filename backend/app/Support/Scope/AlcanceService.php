@@ -2,6 +2,7 @@
 
 namespace App\Support\Scope;
 
+use Lotto\Kernel\Identidad\Domain\Rol;
 use App\Models\Agencia;
 use App\Models\Apuesta;
 use App\Models\Banca;
@@ -35,12 +36,12 @@ final class AlcanceService
      * @var array<int, string>
      */
     public const APUESTAS = [
-        'taquilla',
-        'agencia',
-        'grupo',
-        'banca',
-        'master',
-        'super_master',
+        Rol::Taquilla->value,
+        Rol::Agencia->value,
+        Rol::Grupo->value,
+        Rol::Banca->value,
+        Rol::Master->value,
+        Rol::SuperMaster->value,
     ];
 
     /**
@@ -51,10 +52,10 @@ final class AlcanceService
      * @var array<int, string>
      */
     public const TICKETS = [
-        'taquilla',
-        'grupo',
-        'banca',
-        'master',
+        Rol::Taquilla->value,
+        Rol::Grupo->value,
+        Rol::Banca->value,
+        Rol::Master->value,
     ];
 
     /**
@@ -63,12 +64,12 @@ final class AlcanceService
      * @var array<int, string>
      */
     public const POLICY = [
-        'super_master',
-        'taquilla',
-        'agencia',
-        'grupo',
-        'banca',
-        'master',
+        Rol::SuperMaster->value,
+        Rol::Taquilla->value,
+        Rol::Agencia->value,
+        Rol::Grupo->value,
+        Rol::Banca->value,
+        Rol::Master->value,
     ];
 
     /**
@@ -77,12 +78,12 @@ final class AlcanceService
      * @var array<int, string>
      */
     public const ENTIDADES = [
-        'super_master',
-        'master',
-        'banca',
-        'grupo',
-        'agencia',
-        'taquilla',
+        Rol::SuperMaster->value,
+        Rol::Master->value,
+        Rol::Banca->value,
+        Rol::Grupo->value,
+        Rol::Agencia->value,
+        Rol::Taquilla->value,
     ];
 
     /**
@@ -91,12 +92,12 @@ final class AlcanceService
      * @var array<int, string>
      */
     public const CIERRE_ITEM = [
-        'taquilla',
-        'super_master',
-        'master',
-        'agencia',
-        'banca',
-        'grupo',
+        Rol::Taquilla->value,
+        Rol::SuperMaster->value,
+        Rol::Master->value,
+        Rol::Agencia->value,
+        Rol::Banca->value,
+        Rol::Grupo->value,
     ];
 
     /**
@@ -105,11 +106,11 @@ final class AlcanceService
      * @var array<int, string>
      */
     public const LIMITES = [
-        'super_master',
-        'master',
-        'banca',
-        'agencia',
-        'grupo',
+        Rol::SuperMaster->value,
+        Rol::Master->value,
+        Rol::Banca->value,
+        Rol::Agencia->value,
+        Rol::Grupo->value,
     ];
 
     /**
@@ -118,11 +119,11 @@ final class AlcanceService
      * @var array<int, string>
      */
     public const JUEGO_VIS = [
-        'banca',
-        'master',
-        'grupo',
-        'agencia',
-        'super_master',
+        Rol::Banca->value,
+        Rol::Master->value,
+        Rol::Grupo->value,
+        Rol::Agencia->value,
+        Rol::SuperMaster->value,
     ];
 
     /**
@@ -134,8 +135,8 @@ final class AlcanceService
      * @var array<int, string>
      */
     public const AUDITORIA = [
-        'super_master',
-        'master',
+        Rol::SuperMaster->value,
+        Rol::Master->value,
     ];
 
     /** Falta el vínculo con la banca del actor. */

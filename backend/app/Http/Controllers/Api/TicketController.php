@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use Lotto\Kernel\Identidad\Domain\Rol;
 use App\Exceptions\TicketAnulacionException;
 use App\Http\Controllers\Controller;
 use App\Models\Apuesta;
@@ -425,7 +426,7 @@ class TicketController extends Controller
      */
     private function autorizarScope(User $user): void
     {
-        if (! $user->hasAnyRole(['super_master', 'master', 'agencia', 'grupo', 'banca', 'taquilla'])) {
+        if (! $user->hasAnyRole([Rol::SuperMaster->value, Rol::Master->value, Rol::Agencia->value, Rol::Grupo->value, Rol::Banca->value, Rol::Taquilla->value])) {
             abort(403, 'No autorizado.');
         }
     }

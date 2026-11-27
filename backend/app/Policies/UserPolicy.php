@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Models\User;
+use Lotto\Kernel\Identidad\Domain\Rol;
 
 /**
  * Autorización jerárquica única para el CRUD de usuarios.
@@ -14,20 +15,6 @@ use App\Models\User;
  */
 class UserPolicy
 {
-    /**
-     * Rango de cada rol: mayor número = mayor jerarquía.
-     *
-     * @var array<string, int>
-     */
-    private const RANKS = [
-        'super_master' => 6,
-        'master' => 5,
-        'banca' => 4,
-        'grupo' => 3,
-        'agencia' => 2,
-        'taquilla' => 1,
-    ];
-
     public function view(User $actor, User $target): bool
     {
         // La ficha propia siempre se puede leer (incluye taquilla).
@@ -301,7 +288,11 @@ class UserPolicy
             return null;
         }
 
-        return self::RANKS[$role] ?? null;
+        try {
+            return Rol::desde($role)->nivel()->jerarquia();
+        } catch (\ValueError) {
+            return null;
+        }
     }
 
     private function isSuperMaster(User $user): bool
