@@ -1,0 +1,25 @@
+{
+    "$schema": "https://getcomposer.org/schema.json",
+    "name": "lotto/kernel",
+    "description": "Framework-free domain kernel for identity, hierarchy and authorization.",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": "^8.3"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^12.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "Lotto\\Kernel\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Lotto\\Kernel\\Tests\\": "tests/"
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
