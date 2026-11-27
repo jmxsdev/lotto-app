@@ -2,7 +2,6 @@
 
 namespace App\Support\Scope;
 
-use Lotto\Kernel\Identidad\Domain\Rol;
 use App\Models\Agencia;
 use App\Models\Apuesta;
 use App\Models\Banca;
@@ -15,6 +14,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
+use Lotto\Kernel\Identidad\Domain\Rol;
 
 /**
  * Única implementación del recorrido jerárquico de alcance (issue #85).

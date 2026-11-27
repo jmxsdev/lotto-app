@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use Lotto\Kernel\Identidad\Domain\Rol;
 use App\Audit\AuditAction;
 use App\Audit\AuditContext;
 use App\Audit\AuditEventData;
@@ -15,6 +14,7 @@ use App\Services\ActivacionEfectivaService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Lotto\Kernel\Identidad\Domain\Rol;
 
 class AuthController extends Controller
 {
