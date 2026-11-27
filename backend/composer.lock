@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c84ec567d1ad40b83bdabd0b0279223d",
+    "content-hash": "a51b6e3445dfebbf181db7180e81d627",
     "packages": [
         {
             "name": "brick/math",
@@ -2238,6 +2238,84 @@
                 }
             ],
             "time": "2026-10-16T15:19:33+00:00"
+        },
+        {
+            "name": "lotto/kernel",
+            "version": "dev-refactor/kernel-identidad",
+            "dist": {
+                "type": "path",
+                "url": "packages/kernel",
+                "reference": "ea88cbcbd062bd1af52d6536349d40f0cd70e3af"
+            },
+            "require": {
+                "php": "^8.3"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^12.5"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Lotto\\Kernel\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Lotto\\Kernel\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Framework-free domain kernel for identity, hierarchy and authorization.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "lotto/kernel-laravel",
+            "version": "dev-refactor/kernel-identidad",
+            "dist": {
+                "type": "path",
+                "url": "packages/kernel-laravel",
+                "reference": "50c93b1bb460243c4bcdbf8a2d7d82a5c99634d5"
+            },
+            "require": {
+                "illuminate/console": "^13.0",
+                "illuminate/contracts": "^13.0",
+                "illuminate/database": "^13.0",
+                "illuminate/support": "^13.0",
+                "lotto/kernel": "@dev",
+                "php": "^8.3"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^12.5"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Lotto\\KernelLaravel\\Providers\\KernelLaravelServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Lotto\\KernelLaravel\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Lotto\\KernelLaravel\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Laravel adapters for lotto/kernel.",
+            "transport-options": {
+                "relative": true
+            }
         },
         {
             "name": "masterminds/html5",
@@ -9187,7 +9265,10 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": {
+        "lotto/kernel": 20,
+        "lotto/kernel-laravel": 20
+    },
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
