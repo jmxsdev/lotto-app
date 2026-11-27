@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Producto\PerfilLoteria;
 use App\Audit\AuditAction;
 use App\Audit\AuditContext;
 use App\Audit\AuditEventData;
@@ -28,42 +29,7 @@ class RolesAndPermissionsSeeder extends Seeder
      *
      * @var array<int, string>
      */
-    public const PERMISSIONS = [
-        // Usuarios
-        'view_users', 'create_users', 'edit_users', 'delete_users',
-        // Bancas
-        'view_bancas', 'manage_bancas',
-        // Grupos
-        'view_grupos', 'manage_grupos',
-        // Agencias
-        'view_agencias', 'manage_agencias',
-        // Taquillas
-        'view_taquillas', 'manage_taquillas',
-        // Juegos
-        'view_juegos', 'manage_juegos',
-        // Resultados
-        'view_resultados', 'manage_resultados',
-        // Apuestas
-        'view_apuestas', 'create_apuesta', 'delete_apuesta',
-        // Pagos
-        'view_pagos', 'create_pago',
-        // Cierres
-        'view_cierre', 'create_cierre',
-        // Límites
-        'view_limites', 'manage_limites',
-        // Comisiones
-        'view_comisiones', 'manage_comisiones',
-        // Exchange rates
-        'view_exchange_rates', 'manage_exchange_rates',
-        // Reportes, logs, releases, clave de cierre y configuración
-        'view_reports',
-        'view_logs',
-        // Auditoría
-        'view_audit', 'export_audit',
-        'download_release',
-        'manage_clave_cierre',
-        'manage_config',
-    ];
+    public const PERMISSIONS = PerfilLoteria::PERMISOS;
 
     /**
      * Matriz capability × rol (design §"Matriz final").
@@ -72,79 +38,7 @@ class RolesAndPermissionsSeeder extends Seeder
      *
      * @var array<string, array<int, string>>
      */
-    public const MATRIX = [
-        'master' => [
-            'view_users', 'create_users', 'edit_users', 'delete_users',
-            'view_bancas', 'manage_bancas',
-            'view_grupos', 'manage_grupos',
-            'view_agencias', 'manage_agencias',
-            'view_taquillas', 'manage_taquillas',
-            'view_juegos', 'manage_juegos',
-            'view_resultados', 'manage_resultados',
-            'view_apuestas', 'create_apuesta', 'delete_apuesta',
-            'view_pagos', 'create_pago',
-            'view_cierre', 'create_cierre',
-            'view_limites', 'manage_limites',
-            'view_comisiones',
-            'view_exchange_rates', 'manage_exchange_rates',
-            'view_reports',
-            'view_logs',
-            'view_audit', 'export_audit',
-            'download_release',
-            'manage_clave_cierre',
-            'manage_config',
-        ],
-        'banca' => [
-            'view_users', 'create_users', 'edit_users', 'delete_users',
-            'view_grupos', 'manage_grupos',
-            'view_agencias', 'manage_agencias',
-            'view_taquillas', 'manage_taquillas',
-            'view_juegos',
-            'view_resultados',
-            'view_apuestas', 'create_apuesta', 'delete_apuesta',
-            'view_pagos', 'create_pago',
-            'view_cierre', 'create_cierre',
-            'view_limites', 'manage_limites',
-            'view_reports',
-            'download_release',
-            'manage_clave_cierre',
-        ],
-        'grupo' => [
-            'view_users', 'create_users', 'edit_users', 'delete_users',
-            'view_agencias', 'manage_agencias',
-            'view_taquillas', 'manage_taquillas',
-            'view_juegos',
-            'view_resultados',
-            'view_apuestas', 'create_apuesta', 'delete_apuesta',
-            'view_pagos', 'create_pago',
-            'view_cierre', 'create_cierre',
-            'view_limites', 'manage_limites',
-            'view_reports',
-            'download_release',
-        ],
-        'agencia' => [
-            'view_users', 'create_users', 'edit_users', 'delete_users',
-            'view_agencias', 'manage_agencias',
-            'view_taquillas', 'manage_taquillas',
-            'view_juegos',
-            'view_resultados',
-            'view_apuestas', 'delete_apuesta',
-            'view_cierre', 'create_cierre',
-            'view_limites',
-            'view_reports',
-            'download_release',
-        ],
-        'taquilla' => [
-            'view_users',
-            'view_juegos',
-            'view_resultados',
-            'view_apuestas', 'create_apuesta', 'delete_apuesta',
-            'view_pagos', 'create_pago',
-            'view_cierre', 'create_cierre',
-            'view_reports',
-            'download_release',
-        ],
-    ];
+    public const MATRIX = PerfilLoteria::MATRIZ;
 
     /**
      * Permisos retirados por BE-04 (se eliminan si existen).
