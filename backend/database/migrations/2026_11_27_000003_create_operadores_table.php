@@ -20,10 +20,10 @@ return new class extends Migration
                 'taquilla',
             ]);
             $table->unsignedBigInteger('entidad_id');
-            $table->boolean('activo')->default(true);
+            $table->boolean('active')->default(true);
             $table->unsignedBigInteger('entidad_activa_id')
                 ->nullable()
-                ->storedAs('IF(activo, entidad_id, NULL)');
+                ->storedAs('IF(active, entidad_id, NULL)');
             $table->unique(['entidad_tipo', 'entidad_activa_id']);
         });
     }

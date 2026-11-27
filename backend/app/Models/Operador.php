@@ -16,11 +16,11 @@ class Operador extends Model
         'user_id',
         'entidad_tipo',
         'entidad_id',
-        'activo',
+        'active',
     ];
 
     protected $casts = [
-        'activo' => 'boolean',
+        'active' => 'boolean',
     ];
 
     public function user(): BelongsTo

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 
 class Master extends Model
@@ -22,12 +23,12 @@ class Master extends Model
         'active' => 'boolean',
     ];
 
-    public function superMaster()
+    public function superMaster(): BelongsTo
     {
         return $this->belongsTo(SuperMaster::class);
     }
 
-    public function creator()
+    public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
     }
